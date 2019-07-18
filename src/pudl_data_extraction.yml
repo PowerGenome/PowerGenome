@@ -1,0 +1,104 @@
+# This file controls what data is extracted from PUDL and how it is processed.
+
+# MODEL YEAR
+model_year: 2035
+
+
+# DATA YEAR
+# Pick one or more years of generator data to use when creating clusters. If
+# more than one year is used then things like heat rate will be calculated as the
+# average (weighted by generation per year).
+data_years:
+  - 2017
+
+
+# REGIONS
+# Select the regions and any regional aggregations that should be performed.
+# This currenly only works for IPM regions, either as the regions used in GenX or as
+# aggregations.
+
+model_regions:
+  - CA_N
+  - CA_S
+  # - CA_SD_IID
+  - WECC_ID_MT
+  - WECC_UT_WY
+  - WECC_CO_NM
+  - WECC_PNW
+  # - WECC_ID
+  # - WECC_MT
+  # - WECC_WY
+  - WECC_NNV
+  - WECC_SNV
+  - WECC_AZ
+  # - WECC_UT
+  - WECC_NM
+
+region_aggregations:
+  CA_N: [WEC_CALN, WEC_BANC]
+  CA_S: [WEC_SCE, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
+  # CA_SD_IID: [WEC_SDGE, WECC_IID]
+  WECC_ID_MT: [WECC_ID, WECC_MT]
+  WECC_UT_WY: [WECC_UT, WECC_WY]
+  WECC_CO_NM: [WECC_CO, WECC_NM]
+
+
+# CLUSTERING
+# Existing thermal power plants are clusted to reduce the number of distinct plants.
+# The existing method (for now) is to specify the number of clusters for each type
+# of thermal plant as a default and then specify specific values for any regions
+# that are different.
+
+num_clusters:
+  Conventional Steam Coal: 1
+  Natural Gas Fired Combined Cycle: 1
+  Natural Gas Fired Combustion Turbine: 1
+  Nuclear: 1
+  Conventional Hydroelectric: 1
+  Wood/Wood Waste Biomass: 1
+
+# Add code to ensure region names here are included above
+alt_clusters:
+  CA_N:
+    Natural Gas Fired Combined Cycle: 2
+    Natural Gas Fired Combustion Turbine: 2
+  CA_S:
+    Natural Gas Fired Combined Cycle: 2
+    Natural Gas Fired Combustion Turbine: 2
+  # CA_SD_IID:
+  #   Natural Gas Fired Combined Cycle: 2
+  #   Natural Gas Fired Combustion Turbine: 2
+
+
+# RETIREMENT AGES
+# The age at which each technolgy type is expected to retire
+
+retirement_ages:
+  Conventional Hydroelectric: 100
+  Conventional Steam Coal: 60
+  Natural Gas Fired Combined Cycle: 40
+  Natural Gas Fired Combustion Turbine: 40
+  Petroleum Liquids: 40
+  Natural Gas Internal Combustion Engine: 40
+  Nuclear: 60
+  Onshore Wind Turbine: 30
+  Hydroelectric Pumped Storage: 40
+  Natural Gas Steam Turbine: 40
+  Solar Photovoltaic: 40
+  Solar Thermal without Energy Storage: 40
+  Geothermal: 40
+  Municipal Solid Waste: 40
+  Landfill Gas: 40
+  Batteries: 40
+  Wood/Wood Waste Biomass: 40
+  Petroleum Coke: 40
+  All Other: 40
+  Natural Gas with Compressed Air Storage: 40
+  Coal Integrated Gasification Combined Cycle: 40
+  Other Waste Biomass: 40
+  Other Gases: 40
+  Other Natural Gas: 40
+  Solar Thermal with Energy Storage: 40
+  Flywheels: 40
+  Offshore Wind Turbine: 30
+  Hydrokinetic: 40

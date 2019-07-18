@@ -1,0 +1,391 @@
+import numpy as np
+import pandas as pd
+from sklearn import cluster, preprocessing
+from datetime import datetime as dt
+
+from src.util import reverse_dict_of_lists, map_agg_region_names
+
+
+def load_plant_region_map(
+    pudl_engine,
+    settings,
+    table="plant_region_map_ipm",
+    settings_agg_key="region_aggregations",
+):
+    # Load dataframe of region labels for each EIA plant id
+    region_map_df = pd.read_sql_table(table, con=pudl_engine)
+
+    # Settings has a dictionary of lists for regional aggregations. Need
+    # to reverse this to use in a map method.
+    region_agg_map = reverse_dict_of_lists(settings[settings_agg_key])
+
+    # IPM regions to keep. Regions not in this list will be dropped from the
+    # dataframe
+    keep_regions = [
+        x
+        for x in settings["model_regions"] + list(region_agg_map)
+        if x not in region_agg_map.values()
+    ]
+
+    # Create a new column "model_region" with labels that we're using for aggregated
+    # regions
+
+    model_region_map_df = region_map_df.loc[
+        region_map_df.region.isin(keep_regions), :
+    ].drop(columns="id")
+
+    model_region_map_df = map_agg_region_names(
+        df=model_region_map_df,
+        region_agg_map=region_agg_map,
+        original_col_name="region",
+        new_col_name="model_region",
+    )
+    # model_region_map_df.loc[:, "model_region"] = model_region_map_df.loc[:, "region"]
+    # model_region_map_df.loc[
+    #     model_region_map_df.region.isin(region_agg_map.keys()), "model_region"
+    # ] = model_region_map_df.loc[
+    #     model_region_map_df.region.isin(region_agg_map.keys()), "region"
+    # ].map(
+    #     region_agg_map
+    # )
+
+    return model_region_map_df
+
+
+def label_retirement_year(
+    df, settings, age_col="operating_date", settings_retirement_table="retirement_ages"
+):
+    retirement_ages = settings[settings_retirement_table]
+    for tech, life in retirement_ages.items():
+        df.loc[df.technology_description == tech, "retirement_year"] = (
+            df.loc[df.technology_description == tech, age_col].dt.year + life
+        )
+
+
+def load_generator_860_data(
+    pudl_engine, settings, pudl_out, model_region_map, data_years=[2017]
+):
+
+    # Could make this faster by using SQL and only reading the data we need
+    gens_860 = pudl_out.gens_eia860()
+    gen_entity = pd.read_sql_table("generators_entity_eia", pudl_engine)
+
+    # Add pudl unit ids, only include 2017
+    bga = pudl_out.bga()
+    bga = bga.loc[bga.report_date.dt.year.isin(data_years), :]
+
+    # Combine generator data that can change over time with static entity data
+    # and only keep generators that are in a region of interest
+
+    gen_cols = [
+        "report_date",
+        "plant_id_eia",
+        "plant_name",
+        "generator_id",
+        "balancing_authority_code",
+        "capacity_mw",
+        "energy_source_code_1",
+        "energy_source_code_2",
+        "minimum_load_mw",
+        "operational_status_code",
+        "planned_new_capacity_mw",
+        "switch_oil_gas",
+        "technology_description",
+        "time_cold_shutdown_full_load_code",
+    ]
+
+    entity_cols = ["plant_id_eia", "generator_id", "prime_mover_code", "operating_date"]
+
+    bga_cols = [
+        "plant_id_eia",
+        "generator_id",
+        "boiler_id",
+        "unit_id_eia",
+        "unit_id_pudl",
+    ]
+
+    gens_860_model = (
+        pd.merge(
+            gens_860[gen_cols],
+            model_region_map.drop(columns="region"),
+            on="plant_id_eia",
+            how="inner",
+        )
+        .merge(
+            gen_entity[entity_cols], on=["plant_id_eia", "generator_id"], how="inner"
+        )
+        .merge(bga[bga_cols], on=["plant_id_eia", "generator_id"], how="left")
+    )
+
+    # Limit to data years
+    gens_860_model = gens_860_model.loc[
+        gens_860_model.report_date.dt.year.isin(data_years)
+    ]
+
+    # Label retirement years for each generator
+    label_retirement_year(gens_860_model, settings)
+
+    return gens_860_model
+
+
+def load_generator_923_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
+
+    # Load 923 generation and fuel data for one or more years.
+    # Only load plants in the model regions.
+    sql = """
+        SELECT * FROM generation_fuel_eia923
+        WHERE DATE_PART('year', report_date) IN %(data_years)s
+        AND plant_id_eia IN %(plant_ids)s
+
+    """
+
+    gen_fuel_923 = pd.read_sql_query(
+        sql,
+        pudl_engine,
+        params={
+            "data_years": tuple(data_years),
+            "plant_ids": tuple(model_region_map.plant_id_eia),
+        },
+    )
+
+    # Group the data by plant, fuel type, and prime mover
+    by = [
+        "plant_id_eia",
+        "fuel_type",
+        "fuel_type_code_pudl",
+        "fuel_type_code_aer",
+        "prime_mover_code",
+    ]
+
+    annual_gen_fuel_923 = (
+        (
+            gen_fuel_923.drop(columns=["id", "nuclear_unit_id"])
+            .groupby(by=by, as_index=False)[
+                "fuel_consumed_units",
+                "fuel_consumed_for_electricity_units",
+                "fuel_consumed_mmbtu",
+                "fuel_consumed_for_electricity_mmbtu",
+                "net_generation_mwh",
+            ]
+            .sum()
+        )
+        .reset_index()
+        .drop(columns="index")
+        .sort_values(["plant_id_eia", "fuel_type", "prime_mover_code"])
+    )
+
+    # Calculate the heat rate for each prime mover/fuel combination
+    annual_gen_fuel_923["heat_rate_mmbtu_mwh"] = (
+        annual_gen_fuel_923["fuel_consumed_for_electricity_mmbtu"]
+        / annual_gen_fuel_923["net_generation_mwh"]
+    )
+
+    return annual_gen_fuel_923
+
+
+def calculate_weighted_heat_rate(heat_rate_df):
+    def w_hr(df):
+
+        weighted_hr = np.average(
+            df["heat_rate_mmbtu_mwh"], weights=df["net_generation_mwh"]
+        )
+        return weighted_hr
+
+    weighted_unit_hr = (
+        heat_rate_df.groupby(["plant_id_eia", "unit_id_pudl"], as_index=False)
+        .apply(w_hr)
+        .reset_index()
+    )
+
+    weighted_unit_hr = weighted_unit_hr.rename(columns={0: "heat_rate_mmbtu_mwh"})
+
+    return weighted_unit_hr
+
+
+def unit_generator_heat_rates(pudl_out, annual_gen_fuel_923, data_years):
+
+    # Create groupings of plant/prime mover/fuel type to use the calculated
+    # heat rate in cases where PUDL doesn't have a unit heat rate
+    by = ["plant_id_eia", "prime_mover_code", "fuel_type"]
+    annual_gen_fuel_923_groups = annual_gen_fuel_923.groupby(by)
+
+    prime_mover_hr_map = {
+        _: df["heat_rate_mmbtu_mwh"].values[0] for _, df in annual_gen_fuel_923_groups
+    }
+
+    # Load the pre-calculated PUDL unit heat rates for selected years.
+    # Remove rows without generation or with null values.
+    unit_hr = pudl_out.hr_by_unit()
+    unit_hr = unit_hr.loc[
+        (unit_hr.report_date.dt.year.isin([2016, 2017]))
+        & (unit_hr.net_generation_mwh > 0),
+        :,
+    ].dropna()
+
+    weighted_unit_hr = calculate_weighted_heat_rate(unit_hr)
+
+    return weighted_unit_hr, prime_mover_hr_map
+
+
+def group_units(df):
+    """
+    Group by units. Add a unique unit code (plant plus generator) for
+    any generators that aren't part of a unit.
+    """
+
+    by = ["plant_id_eia", "unit_id_pudl"]
+    # add a unit code (plant plus generator code) in cases where one doesn't exist
+    df_copy = df.reset_index()
+
+    df_copy.loc[df_copy.unit_id_pudl.isnull(), "unit_id_pudl"] = (
+        df_copy.loc[df_copy.unit_id_pudl.isnull(), "plant_id_eia"].astype(str)
+        + "_"
+        + df_copy.loc[df_copy.unit_id_pudl.isnull(), "generator_id"].astype(str)
+    ).values
+    #     print('unit_test2')
+    grouped_units = df_copy.groupby(by).agg(
+        {"capacity_mw": "sum", "minimum_load_mw": "sum", "heat_rate_mmbtu_mwh": "mean"}
+    )
+    #     print('unit_test3')
+
+    grouped_units = grouped_units.fillna(grouped_units.mean())
+    #     print('unit_test4')
+
+    return grouped_units
+
+
+def calc_unit_cluster_values(df, technology=None):
+
+    # Define a function to compute the weighted mean.
+    # The issue here is that the df name needs to be used in the function.
+    # So this will need to be within a function that takes df as an input
+    def wm(x):
+        return np.average(x, weights=df.loc[x.index, "capacity_mw"])
+
+    df_values = df.groupby("cluster").agg(
+        {"capacity_mw": "mean", "minimum_load_mw": "mean", "heat_rate_mmbtu_mwh": wm}
+    )
+
+    df_values["num_units"] = df.groupby("cluster")["cluster"].count()
+
+    if technology:
+        df_values["technology"] = technology
+
+    return df_values
+
+
+def create_region_technology_clusters(
+    pudl_engine,
+    pudl_out,
+    settings,
+    plant_region_map_table="plant_region_map_ipm",
+    settings_agg_key="region_aggregations",
+    return_retirement_capacity=False,
+):
+    start = dt.now()
+
+    data_years = settings["data_years"]
+
+    plant_region_map = load_plant_region_map(
+        pudl_engine,
+        settings,
+        table=plant_region_map_table,
+        settings_agg_key=settings_agg_key,
+    )
+    check1 = dt.now()
+    check1_diff = (check1 - start).total_seconds()
+    print(f"{check1_diff} seconds to load plant_region_map")
+
+    gens_860_model = load_generator_860_data(
+        pudl_engine, settings, pudl_out, plant_region_map, data_years=data_years
+    )
+    check2 = dt.now()
+    check2_diff = (check2 - check1).total_seconds()
+    print(f"{check2_diff} seconds to load 860 generator data")
+
+    annual_gen_923 = load_generator_923_data(
+        pudl_engine, pudl_out, model_region_map=plant_region_map, data_years=data_years
+    )
+    check3 = dt.now()
+    check3_diff = (check3 - check2).total_seconds()
+    print(f"{check3_diff} seconds to load 923 generator data")
+
+    # Add heat rates to the data we already have from 860
+    weighted_unit_hr, prime_mover_hr_map = unit_generator_heat_rates(
+        pudl_out, annual_gen_923, data_years
+    )
+    check4 = dt.now()
+    check4_diff = (check4 - check3).total_seconds()
+    print(f"{check4_diff} seconds to load heat rate data")
+
+    # Merge the PUDL calculated heat rate data and set the index for easy
+    # mapping using plant/prime mover heat rates from 923
+    hr_cols = ["plant_id_eia", "unit_id_pudl", "heat_rate_mmbtu_mwh"]
+    idx = ["plant_id_eia", "prime_mover_code", "energy_source_code_1"]
+    units_model = gens_860_model.merge(
+        weighted_unit_hr[hr_cols], on=["plant_id_eia", "unit_id_pudl"], how="left"
+    ).set_index(idx)
+
+    units_model.loc[
+        units_model.heat_rate_mmbtu_mwh.isnull(), "heat_rate_mmbtu_mwh"
+    ] = units_model.loc[units_model.heat_rate_mmbtu_mwh.isnull()].index.map(
+        prime_mover_hr_map
+    )
+
+    techs = list(settings["num_clusters"])
+
+    num_clusters = {}
+    for region in settings["model_regions"]:
+        num_clusters[region] = settings["num_clusters"].copy()
+
+    for region in settings["alt_clusters"]:
+        for tech, cluster_size in settings["alt_clusters"][region].items():
+            num_clusters[region][tech] = cluster_size
+
+    region_tech_grouped = units_model.loc[
+        (units_model.technology_description.isin(techs))
+        & (units_model.retirement_year >= settings["model_year"])
+        & (units_model.model_region.isin(settings["model_regions"]))
+        & (units_model.operational_status_code == "OP"),
+        :,
+    ].groupby(["model_region", "technology_description"])
+
+    if return_retirement_capacity:
+        retired = units_model.loc[
+            units_model.retirement_year < settings["model_year"], :
+        ]
+
+    # For each group, cluster and calculate the average size, min load, and heat rate
+    df_list = []
+    for _, df in region_tech_grouped:
+        region, tech = _
+
+        grouped = group_units(df)
+
+        clusters = cluster.KMeans(n_clusters=num_clusters[region][tech]).fit(
+            preprocessing.StandardScaler().fit_transform(grouped)
+        )
+
+        grouped["cluster"] = clusters.labels_
+
+        _df = calc_unit_cluster_values(grouped, tech)
+        _df["region"] = region
+        df_list.append(_df)
+
+    results = pd.concat(df_list)
+    results = results.reset_index().set_index(["region", "technology", "cluster"])
+    results.rename(
+        columns={
+            "capacity_mw": "avg_capacity_mw",
+            "minimum_load_mw": "avg_minimum_load_mw",
+            "heat_rate_mmbtu_mwh": "wa_heat_rate_mmbtu_mwh",
+        },
+        inplace=True,
+    )
+
+    print(f"{(dt.now() - start).total_seconds()} seconds total")
+
+    if return_retirement_capacity:
+        return results, retired
+    else:
+        return results
