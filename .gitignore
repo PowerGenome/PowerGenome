@@ -114,6 +114,7 @@ data/transformed_data/*
 
 # Ignore all vscode settings
 **/.vscode/settings.json
+*.code-workspace
 
 # Ignore figures
 *.png
