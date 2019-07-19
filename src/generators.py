@@ -12,6 +12,27 @@ def load_plant_region_map(
     table="plant_region_map_ipm",
     settings_agg_key="region_aggregations",
 ):
+    """
+    Load the region that each plant is located in.
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.Engine
+        A sqlalchemy connection for use by pandas
+    settings : dictionary
+        The dictionary of settings with a dictionary of region aggregations
+    table : str, optional
+        The SQL table to load, by default "plant_region_map_ipm"
+    settings_agg_key : str, optional
+        The name of a dictionary of lists aggregatign regions in the settings
+        object, by default "region_aggregations"
+
+    Returns
+    -------
+    dataframe
+        A dataframe where each plant has an associated "model_region" mapped
+        from the original region labels.
+    """
     # Load dataframe of region labels for each EIA plant id
     region_map_df = pd.read_sql_table(table, con=pudl_engine)
 
@@ -55,6 +76,23 @@ def load_plant_region_map(
 def label_retirement_year(
     df, settings, age_col="operating_date", settings_retirement_table="retirement_ages"
 ):
+    """
+    Add a retirement year column to the dataframe based on the year each generator
+    started operating.
+
+    Parameters
+    ----------
+    df : dataframe
+        Dataframe of generators
+    settings : dictionary
+        The dictionary of settings with a dictionary of generator lifetimes
+    age_col : str, optional
+        The dataframe column to use when calculating the retirement year, by default
+        "operating_date"
+    settings_retirement_table : str, optional
+        The settings dictionary key for another dictionary of generator retirement
+        lifetimes, by default "retirement_ages"
+    """
     retirement_ages = settings[settings_retirement_table]
     for tech, life in retirement_ages.items():
         df.loc[df.technology_description == tech, "retirement_year"] = (
@@ -65,12 +103,42 @@ def label_retirement_year(
 def load_generator_860_data(
     pudl_engine, settings, pudl_out, model_region_map, data_years=[2017]
 ):
+    """
+    Load data about each generating unit in the model area.
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.Engine
+        A sqlalchemy connection for use by pandas
+    settings : dictionary
+        The dictionary of settings with a dictionary of region aggregations
+    pudl_out : pudl.PudlTabl
+        A PudlTabl object for loading pre-calculated PUDL analysis data
+    model_region_map : dataframe
+        A dataframe with columns 'plant_id_eia' and 'model_region' (aggregated regions)
+    data_years : list, optional
+        Years of data to include, by default [2017]
+
+    Returns
+    -------
+    dataframe
+        Data about each generator and generation unit that will be included in the
+        model. Columns include:
+
+        ['report_date', 'plant_id_eia', 'plant_name', 'generator_id',
+       'balancing_authority_code', 'capacity_mw', 'energy_source_code_1',
+       'energy_source_code_2', 'minimum_load_mw', 'operational_status_code',
+       'planned_new_capacity_mw', 'switch_oil_gas', 'technology_description',
+       'time_cold_shutdown_full_load_code', 'model_region', 'prime_mover_code',
+       'operating_date', 'boiler_id', 'unit_id_eia', 'unit_id_pudl',
+       'retirement_year']
+    """
 
     # Could make this faster by using SQL and only reading the data we need
     gens_860 = pudl_out.gens_eia860()
     gen_entity = pd.read_sql_table("generators_entity_eia", pudl_engine)
 
-    # Add pudl unit ids, only include 2017
+    # Add pudl unit ids, only include specified data years
     bga = pudl_out.bga()
     bga = bga.loc[bga.report_date.dt.year.isin(data_years), :]
 
@@ -104,6 +172,9 @@ def load_generator_860_data(
         "unit_id_pudl",
     ]
 
+    # In this merge of the three dataframes we're trying to label each generator with
+    # the model region it is part of, the prime mover and operating date, and the
+    # PUDL unit codes (where they exist).
     gens_860_model = (
         pd.merge(
             gens_860[gen_cols],
@@ -129,6 +200,35 @@ def load_generator_860_data(
 
 
 def load_generator_923_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
+    """
+    Load generation and fuel data for each plant. EIA-923 provides these values for
+    each prime mover/fuel combination at every generator. This data can be used to
+    calculate the heat rate of generators at a single plant. Generators sharing a prime
+    mover (e.g. multiple combustion turbines) will end up sharing the same heat rate.
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.Engine
+        A sqlalchemy connection for use by pandas
+    pudl_out : pudl.PudlTabl
+        A PudlTabl object for loading pre-calculated PUDL analysis data
+    model_region_map : dataframe
+        A dataframe with columns 'plant_id_eia' and 'model_region' (aggregated regions)
+    data_years : list, optional
+        Years of data to include, by default [2017]
+
+    Returns
+    -------
+    dataframe
+        Generation, fuel use, and heat rates of prime mover/fuel combos over all data
+        years. Columns are:
+
+        ['plant_id_eia', 'fuel_type', 'fuel_type_code_pudl',
+       'fuel_type_code_aer', 'prime_mover_code', 'fuel_consumed_units',
+       'fuel_consumed_for_electricity_units', 'fuel_consumed_mmbtu',
+       'fuel_consumed_for_electricity_mmbtu', 'net_generation_mwh',
+       'heat_rate_mmbtu_mwh']
+    """
 
     # Load 923 generation and fuel data for one or more years.
     # Only load plants in the model regions.
@@ -184,6 +284,20 @@ def load_generator_923_data(pudl_engine, pudl_out, model_region_map, data_years=
 
 
 def calculate_weighted_heat_rate(heat_rate_df):
+    """
+    Calculate the weighed heat rate when multiple years of data are used. Net generation
+    in each year is used as the weights.
+
+    Parameters
+    ----------
+    heat_rate_df : dataframe
+        Currently the PudlTabl unit_hr method.
+
+    Returns
+    -------
+    dataframe
+        Heat rate weighted by annual generation for each plant and PUDL unit
+    """
     def w_hr(df):
 
         weighted_hr = np.average(
@@ -203,6 +317,27 @@ def calculate_weighted_heat_rate(heat_rate_df):
 
 
 def unit_generator_heat_rates(pudl_out, annual_gen_fuel_923, data_years):
+    """
+    Calculate the heat rate for each PUDL unit and generators that don't have a PUDL
+    unit id.
+
+    Parameters
+    ----------
+    pudl_out : pudl.PudlTabl
+        A PudlTabl object for loading pre-calculated PUDL analysis data
+    annual_gen_fuel_923 : dataframe
+        Data from EIA-923 with generation and fuel use for each plant/prime mover/fuel
+        combo, and the heat rate calculated using this data.
+    data_years : list
+        Years of data to use
+
+    Returns
+    -------
+    dataframe, dict
+        A dataframe of heat rates for each pudl unit (columsn are ['plant_id_eia',
+        'unit_id_pudl', 'heat_rate_mmbtu_mwh']), and a dictionary mapping keys of
+        (plant_id_eia, prime_mover_code, fuel_type) to a heat rate value.
+    """
 
     # Create groupings of plant/prime mover/fuel type to use the calculated
     # heat rate in cases where PUDL doesn't have a unit heat rate
@@ -217,7 +352,7 @@ def unit_generator_heat_rates(pudl_out, annual_gen_fuel_923, data_years):
     # Remove rows without generation or with null values.
     unit_hr = pudl_out.hr_by_unit()
     unit_hr = unit_hr.loc[
-        (unit_hr.report_date.dt.year.isin([2016, 2017]))
+        (unit_hr.report_date.dt.year.isin(data_years))
         & (unit_hr.net_generation_mwh > 0),
         :,
     ].dropna()
@@ -229,8 +364,15 @@ def unit_generator_heat_rates(pudl_out, annual_gen_fuel_923, data_years):
 
 def group_units(df):
     """
-    Group by units. Add a unique unit code (plant plus generator) for
-    any generators that aren't part of a unit.
+    Group by units within a region/technology/cluster. Add a unique unit code
+    (plant plus generator) for any generators that aren't part of a unit.
+
+
+    Returns
+    -------
+    dataframe
+        Grouped generators with the total capacity, minimum load, and average heat
+        rate for each.
     """
 
     by = ["plant_id_eia", "unit_id_pudl"]
@@ -242,19 +384,36 @@ def group_units(df):
         + "_"
         + df_copy.loc[df_copy.unit_id_pudl.isnull(), "generator_id"].astype(str)
     ).values
-    #     print('unit_test2')
+
+    # All units should have the same heat rate so taking the mean will just keep the
+    # same value.
     grouped_units = df_copy.groupby(by).agg(
         {"capacity_mw": "sum", "minimum_load_mw": "sum", "heat_rate_mmbtu_mwh": "mean"}
     )
-    #     print('unit_test3')
 
     grouped_units = grouped_units.fillna(grouped_units.mean())
-    #     print('unit_test4')
 
     return grouped_units
 
 
 def calc_unit_cluster_values(df, technology=None):
+    """
+    Calculate the total capacity, minimum load, weighted heat rate, and number of
+    units/generators in a technology cluster.
+
+    Parameters
+    ----------
+    df : dataframe
+        A dataframe with units/generators of a single technology. One column should be
+        'cluster', to label units as belonging to a specific cluster grouping.
+    technology : str, optional
+        Name of the generating technology, by default None
+
+    Returns
+    -------
+    dataframe
+        Aggragate values for generators in a technology cluster
+    """
 
     # Define a function to compute the weighted mean.
     # The issue here is that the df name needs to be used in the function.
@@ -282,6 +441,32 @@ def create_region_technology_clusters(
     settings_agg_key="region_aggregations",
     return_retirement_capacity=False,
 ):
+    """
+    Calculation of average unit characteristics within a technology cluster (capacity,
+    minimum load, heat rate) and the number of units in the cluster.
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.Engine
+        A sqlalchemy connection for use by pandas
+    pudl_out : pudl.PudlTabl
+        A PudlTabl object for loading pre-calculated PUDL analysis data
+    settings : dictionary
+        The dictionary of settings with a dictionary of region aggregations
+    plant_region_map_table : str, optional
+        Name of the table with region names for each plant, by default
+        "plant_region_map_ipm"
+    settings_agg_key : str, optional
+        Name of the settings dictionary key with regional aggregations, by default
+        "region_aggregations"
+    return_retirement_capacity : bool, optional
+        If retired generators should be retured as a second dataframe, by default False
+
+    Returns
+    -------
+    dataframe
+
+    """
     start = dt.now()
 
     data_years = settings["data_years"]
