@@ -106,6 +106,32 @@ def label_retirement_year(
         )
 
 
+def label_small_hydro(df, settings):
+
+    start_len = len(df)
+    size_cap = settings["small_hydro_mw"]
+
+    plant_capacity = (
+        df.loc[df["technology_description"] == "Conventional Hydroelectric"]
+        .groupby("plant_id_eia", as_index=False)[settings["capacity_col"]]
+        .sum()
+    )
+
+    small_hydro_plants = plant_capacity.loc[
+        plant_capacity[settings["capacity_col"]] <= size_cap, "plant_id_eia"
+    ]
+
+    df.loc[
+        (df["technology_description"] == "Conventional Hydroelectric")
+        & (df["plant_id_eia"].isin(small_hydro_plants)),
+        "technology_description",
+    ] = "Small Hydroelectric"
+
+    end_len = len(df)
+
+    assert start_len == end_len
+
+
 def load_generator_860_data(
     pudl_engine, settings, pudl_out, model_region_map, data_years=[2017]
 ):
@@ -204,6 +230,9 @@ def load_generator_860_data(
     # Label retirement years for each generator
     label_retirement_year(gens_860_model, settings)
 
+    # Label small hydro
+    if settings["small_hydro"] is True:
+        label_small_hydro(gens_860_model, settings)
     return gens_860_model
 
 

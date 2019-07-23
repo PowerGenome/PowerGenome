@@ -12,6 +12,10 @@ data_years:
   - 2017
 
 
+# LABEL SMALL HYDRO
+small_hydro: True
+small_hydro_mw: 30
+
 # REGIONS
 # Select the regions and any regional aggregations that should be performed.
 # This currenly only works for IPM regions, either as the regions used in GenX or as
