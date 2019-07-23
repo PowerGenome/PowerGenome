@@ -61,6 +61,12 @@ def load_plant_region_map(
         original_col_name="region",
         new_col_name="model_region",
     )
+
+    # There are some cases of plants with generators assigned to different IPM regions.
+    # If regions are aggregated there may be some duplicates in the results.
+    model_region_map_df = model_region_map_df.drop_duplicates(
+        subset=["plant_id_eia", "model_region"]
+    )
     # model_region_map_df.loc[:, "model_region"] = model_region_map_df.loc[:, "region"]
     # model_region_map_df.loc[
     #     model_region_map_df.region.isin(region_agg_map.keys()), "model_region"
