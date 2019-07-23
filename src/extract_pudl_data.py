@@ -76,12 +76,16 @@ def main():
         pudl_engine=pudl_engine, settings=settings
     )
 
-    gen_clusters.to_csv(out_folder / f"generator_clusters_{args.results_folder}.csv")
-    load.to_csv(out_folder / f"load_curves_{args.results_folder}.csv")
+    gen_clusters.to_csv(
+        out_folder / f"generator_clusters_{args.results_folder}.csv",
+        float_format="%.2f",
+    )
+    load.astype(int).to_csv(out_folder / f"load_curves_{args.results_folder}.csv")
     transmission.to_csv(
-        out_folder / f"transmission_constraints_{args.results_folder}.csv"
+        out_folder / f"transmission_constraints_{args.results_folder}.csv",
+        float_format="%.1f",
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
