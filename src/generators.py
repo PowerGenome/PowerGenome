@@ -146,7 +146,9 @@ def load_generator_860_data(
 
     # Add pudl unit ids, only include specified data years
     bga = pudl_out.bga()
-    bga = bga.loc[bga.report_date.dt.year.isin(data_years), :]
+    bga = bga.loc[bga.report_date.dt.year.isin(data_years), :].drop_duplicates(
+        ["plant_id_eia", "generator_id"]
+    )
 
     # Combine generator data that can change over time with static entity data
     # and only keep generators that are in a region of interest
