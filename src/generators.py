@@ -254,6 +254,24 @@ def load_generator_860_data(
     # Label small hydro
     if settings["small_hydro"] is True:
         label_small_hydro(gens_860_model, settings)
+
+    final_capacity = gens_860_model.groupby("technology_description")[
+        settings["capacity_col"]
+    ].sum()
+    assert (
+        np.allclose(initial_capacity.sum(), final_capacity.sum())
+    ), f"Capacity changed from {initial_capacity.sum()} to {final_capacity.sum()}"
+
+    print(f"Capacity of {final_capacity.sum()} MW loaded from 860")
+
+    final_not_ret_capacity = gens_860_model.loc[
+        (gens_860_model["retirement_year"] >= settings["model_year"]) &
+        (gens_860_model["technology_description"].isin(settings["num_clusters"].keys())), :
+    ].groupby('technology_description')[settings["capacity_col"]].sum()
+    # included_tech_capacity = final_capacity[settings["num_clusters"].keys()]
+    print(f"Capacity of {final_not_ret_capacity.sum()} MW should be in final clusters")
+    print(final_not_ret_capacity)
+
     return gens_860_model
 
 
@@ -356,6 +374,7 @@ def calculate_weighted_heat_rate(heat_rate_df):
     dataframe
         Heat rate weighted by annual generation for each plant and PUDL unit
     """
+
     def w_hr(df):
 
         weighted_hr = np.average(
@@ -625,6 +644,8 @@ def create_region_technology_clusters(
         },
         inplace=True,
     )
+
+    print(f"Capacity of {results['total_capacity_mw'].sum()} MW in final clusters")
 
     print(f"{(dt.now() - start).total_seconds()} seconds total")
 
