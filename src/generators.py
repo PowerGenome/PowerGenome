@@ -99,11 +99,20 @@ def label_retirement_year(
         The settings dictionary key for another dictionary of generator retirement
         lifetimes, by default "retirement_ages"
     """
+    start_len = len(df)
     retirement_ages = settings[settings_retirement_table]
     for tech, life in retirement_ages.items():
         df.loc[df.technology_description == tech, "retirement_year"] = (
             df.loc[df.technology_description == tech, age_col].dt.year + life
         )
+
+    df.loc[~df["planned_retirement_date"].isnull(), "retirement_year"] = df.loc[
+        ~df["planned_retirement_date"].isnull(), "planned_retirement_date"
+    ].dt.year
+
+    end_len = len(df)
+
+    assert start_len == end_len
 
 
 def label_small_hydro(df, settings):
@@ -157,8 +166,8 @@ def load_generator_860_data(
         Data about each generator and generation unit that will be included in the
         model. Columns include:
 
-        ['report_date', 'plant_id_eia', 'plant_name', 'generator_id',
-       'balancing_authority_code', 'capacity_mw', 'energy_source_code_1',
+        ['plant_id_eia', 'generator_id',
+       'capacity_mw', 'energy_source_code_1',
        'energy_source_code_2', 'minimum_load_mw', 'operational_status_code',
        'planned_new_capacity_mw', 'switch_oil_gas', 'technology_description',
        'time_cold_shutdown_full_load_code', 'model_region', 'prime_mover_code',
@@ -167,7 +176,23 @@ def load_generator_860_data(
     """
 
     # Could make this faster by using SQL and only reading the data we need
-    gens_860 = pudl_out.gens_eia860()
+    # gens_860 = pudl_out.gens_eia860()
+    sql = """
+        SELECT * FROM generators_eia860
+        WHERE DATE_PART('year', report_date) IN %(data_years)s
+        AND operational_status_code = 'OP'
+    """
+    gens_860 = pd.read_sql_query(
+        sql=sql,
+        con=pudl_engine,
+        params={"data_years": tuple(data_years)},
+        parse_dates=["planned_retirement_date"],
+    )
+    initial_capacity = (
+        gens_860.loc[gens_860["plant_id_eia"].isin(model_region_map["plant_id_eia"])]
+        .groupby("technology_description")[settings["capacity_col"]]
+        .sum()
+    )
     gen_entity = pd.read_sql_table("generators_entity_eia", pudl_engine)
 
     # Add pudl unit ids, only include specified data years
@@ -180,12 +205,12 @@ def load_generator_860_data(
     # and only keep generators that are in a region of interest
 
     gen_cols = [
-        "report_date",
+        # "report_date",
         "plant_id_eia",
-        "plant_name",
+        # "plant_name",
         "generator_id",
-        "balancing_authority_code",
-        "capacity_mw",
+        # "balancing_authority_code",
+        settings["capacity_col"],
         "energy_source_code_1",
         "energy_source_code_2",
         "minimum_load_mw",
@@ -194,6 +219,7 @@ def load_generator_860_data(
         "switch_oil_gas",
         "technology_description",
         "time_cold_shutdown_full_load_code",
+        "planned_retirement_date",
     ]
 
     entity_cols = ["plant_id_eia", "generator_id", "prime_mover_code", "operating_date"]
@@ -221,11 +247,6 @@ def load_generator_860_data(
         )
         .merge(bga[bga_cols], on=["plant_id_eia", "generator_id"], how="left")
     )
-
-    # Limit to data years
-    gens_860_model = gens_860_model.loc[
-        gens_860_model.report_date.dt.year.isin(data_years)
-    ]
 
     # Label retirement years for each generator
     label_retirement_year(gens_860_model, settings)
