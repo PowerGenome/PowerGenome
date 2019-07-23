@@ -44,7 +44,7 @@ def parse_command_line(argv):
         "--results_folder",
         dest="results_folder",
         type=str,
-        default=dt.now().strftime("%Y-%m-%d %H:%M:%S"),
+        default=dt.now().strftime("%Y-%m-%d %H.%M.%S"),
         help="Specify the results subfolder to write output",
     )
     arguments = parser.parse_args(argv[1:])
