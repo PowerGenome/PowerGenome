@@ -1,7 +1,9 @@
 # This file controls what data is extracted from PUDL and how it is processed.
 
 # MODEL YEAR
-model_year: 2035
+# This is used to determine which plants are retired. Can also be used for changes
+# in demand over time in the future.
+model_year: 2030
 
 
 # DATA YEAR
@@ -20,6 +22,9 @@ small_hydro_mw: 30
 # Select the regions and any regional aggregations that should be performed.
 # This currenly only works for IPM regions, either as the regions used in GenX or as
 # aggregations.
+
+# Can also use this to rename regions used in the model by only including a single
+# region in the associated aggretation list below.
 
 model_regions:
   - CA_N
@@ -53,6 +58,9 @@ region_aggregations:
 # of thermal plant as a default and then specify specific values for any regions
 # that are different.
 
+# Technologies that aren't listed here won't be included in the final cluster
+# outputs, even if they are included in alt_clusters below.
+
 num_clusters:
   Conventional Steam Coal: 1
   Natural Gas Fired Combined Cycle: 1
@@ -75,7 +83,8 @@ alt_clusters:
 
 
 # RETIREMENT AGES
-# The age at which each technolgy type is expected to retire
+# The age at which each technolgy type is expected to retire. Planned retirements
+# included in EIA860 will be used if they are before the expected end of life.
 
 retirement_ages:
   Conventional Hydroelectric: 100
