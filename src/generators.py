@@ -67,14 +67,6 @@ def load_plant_region_map(
     model_region_map_df = model_region_map_df.drop_duplicates(
         subset=["plant_id_eia", "model_region"]
     )
-    # model_region_map_df.loc[:, "model_region"] = model_region_map_df.loc[:, "region"]
-    # model_region_map_df.loc[
-    #     model_region_map_df.region.isin(region_agg_map.keys()), "model_region"
-    # ] = model_region_map_df.loc[
-    #     model_region_map_df.region.isin(region_agg_map.keys()), "region"
-    # ].map(
-    #     region_agg_map
-    # )
 
     return model_region_map_df
 
@@ -439,7 +431,7 @@ def unit_generator_heat_rates(pudl_out, annual_gen_fuel_923, data_years):
     return weighted_unit_hr, prime_mover_hr_map
 
 
-def group_units(df):
+def group_units(df, settings):
     """
     Group by units within a region/technology/cluster. Add a unique unit code
     (plant plus generator) for any generators that aren't part of a unit.
@@ -465,15 +457,19 @@ def group_units(df):
     # All units should have the same heat rate so taking the mean will just keep the
     # same value.
     grouped_units = df_copy.groupby(by).agg(
-        {"capacity_mw": "sum", "minimum_load_mw": "sum", "heat_rate_mmbtu_mwh": "mean"}
+        {
+            settings["capacity_col"]: "sum",
+            "minimum_load_mw": "sum",
+            "heat_rate_mmbtu_mwh": "mean",
+        }
     )
-
+    grouped_units = grouped_units.replace([np.inf, -np.inf], np.nan)
     grouped_units = grouped_units.fillna(grouped_units.mean())
 
     return grouped_units
 
 
-def calc_unit_cluster_values(df, technology=None):
+def calc_unit_cluster_values(df, settings, technology=None):
     """
     Calculate the total capacity, minimum load, weighted heat rate, and number of
     units/generators in a technology cluster.
@@ -496,9 +492,15 @@ def calc_unit_cluster_values(df, technology=None):
     # The issue here is that the df name needs to be used in the function.
     # So this will need to be within a function that takes df as an input
     def wm(x):
-        return np.average(x, weights=df.loc[x.index, "capacity_mw"])
+        return np.average(x, weights=df.loc[x.index, settings["capacity_col"]])
 
     df_values = df.groupby("cluster").agg(
+        {
+            settings["capacity_col"]: "mean",
+            "minimum_load_mw": "mean",
+            "heat_rate_mmbtu_mwh": wm,
+        }
+    )
 
     df_values["min_load_fraction"] = (
         df_values["minimum_load_mw"] / df_values[settings["capacity_col"]]
@@ -624,15 +626,18 @@ def create_region_technology_clusters(
     for _, df in region_tech_grouped:
         region, tech = _
 
-        grouped = group_units(df)
+        grouped = group_units(df, settings)
 
-        clusters = cluster.KMeans(n_clusters=num_clusters[region][tech]).fit(
-            preprocessing.StandardScaler().fit_transform(grouped)
-        )
+        try:
+            clusters = cluster.KMeans(n_clusters=num_clusters[region][tech]).fit(
+                preprocessing.StandardScaler().fit_transform(grouped)
+            )
+        except:
+            print(grouped)
 
         grouped["cluster"] = clusters.labels_
 
-        _df = calc_unit_cluster_values(grouped, tech)
+        _df = calc_unit_cluster_values(grouped, settings, tech)
         _df["region"] = region
         df_list.append(_df)
 
@@ -640,7 +645,7 @@ def create_region_technology_clusters(
     results = results.reset_index().set_index(["region", "technology", "cluster"])
     results.rename(
         columns={
-            "capacity_mw": "avg_capacity_mw",
+            settings["capacity_col"]: "avg_capacity_mw",
             "minimum_load_mw": "avg_minimum_load_mw",
             "heat_rate_mmbtu_mwh": "wa_heat_rate_mmbtu_mwh",
         },
