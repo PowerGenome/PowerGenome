@@ -60,9 +60,15 @@ def main():
 
     pudl_engine, pudl_out = init_pudl_connection(freq="YS")
 
+    zones = settings["model_regions"]
+    zone_num_map = {
+        zone: f"{number}" for zone, number in zip(zones, range(len(zones)))
+    }
+
     gen_clusters = create_region_technology_clusters(
         pudl_engine=pudl_engine, pudl_out=pudl_out, settings=settings
     )
+    gen_clusters['zone'] = gen_clusters.index.get_level_values('region').map(zone_num_map)
 
     load = load_curves(pudl_engine=pudl_engine, settings=settings)
 
