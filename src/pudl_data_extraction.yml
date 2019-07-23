@@ -14,6 +14,9 @@ data_years:
   - 2017
 
 
+# CAPACITY TYPE
+capacity_col: summer_capacity_mw
+
 # LABEL SMALL HYDRO
 small_hydro: True
 small_hydro_mw: 30
@@ -29,27 +32,23 @@ small_hydro_mw: 30
 model_regions:
   - CA_N
   - CA_S
-  # - CA_SD_IID
   - WECC_ID_MT
   - WECC_UT_WY
-  - WECC_CO_NM
+  # - WECC_CO_NM
+  - WECC_CO
+  - WECC_NM
   - WECC_PNW
-  # - WECC_ID
-  # - WECC_MT
-  # - WECC_WY
   - WECC_NNV
   - WECC_SNV
   - WECC_AZ
-  # - WECC_UT
-  - WECC_NM
+
 
 region_aggregations:
   CA_N: [WEC_CALN, WEC_BANC]
   CA_S: [WEC_SCE, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
-  # CA_SD_IID: [WEC_SDGE, WECC_IID]
   WECC_ID_MT: [WECC_ID, WECC_MT]
   WECC_UT_WY: [WECC_UT, WECC_WY]
-  WECC_CO_NM: [WECC_CO, WECC_NM]
+  # WECC_CO_NM: [WECC_CO, WECC_NM]
 
 
 # CLUSTERING
@@ -68,6 +67,18 @@ num_clusters:
   Nuclear: 1
   Conventional Hydroelectric: 1
   Wood/Wood Waste Biomass: 1
+  Natural Gas Internal Combustion Engine: 1
+  Natural Gas Steam Turbine: 1
+  Geothermal: 1
+  Solar Photovoltaic: 1
+  Onshore Wind Turbine: 1
+  Offshore Wind Turbine: 1
+  Solar Thermal with Energy Storage: 1
+  Solar Thermal without Energy Storage: 1
+  Small Hydroelectric: 1
+
+
+
 
 # Add code to ensure region names here are included above
 alt_clusters:
@@ -77,9 +88,6 @@ alt_clusters:
   CA_S:
     Natural Gas Fired Combined Cycle: 2
     Natural Gas Fired Combustion Turbine: 2
-  # CA_SD_IID:
-  #   Natural Gas Fired Combined Cycle: 2
-  #   Natural Gas Fired Combustion Turbine: 2
 
 
 # RETIREMENT AGES
@@ -88,6 +96,7 @@ alt_clusters:
 
 retirement_ages:
   Conventional Hydroelectric: 100
+  Small Hydroelectric: 100
   Conventional Steam Coal: 60
   Natural Gas Fired Combined Cycle: 40
   Natural Gas Fired Combustion Turbine: 40
