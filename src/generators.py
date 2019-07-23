@@ -499,7 +499,9 @@ def calc_unit_cluster_values(df, technology=None):
         return np.average(x, weights=df.loc[x.index, "capacity_mw"])
 
     df_values = df.groupby("cluster").agg(
-        {"capacity_mw": "mean", "minimum_load_mw": "mean", "heat_rate_mmbtu_mwh": wm}
+
+    df_values["min_load_fraction"] = (
+        df_values["minimum_load_mw"] / df_values[settings["capacity_col"]]
     )
 
     df_values["num_units"] = df.groupby("cluster")["cluster"].count()
@@ -644,6 +646,8 @@ def create_region_technology_clusters(
         },
         inplace=True,
     )
+
+    results["total_capacity_mw"] = results.avg_capacity_mw * results.num_units
 
     print(f"Capacity of {results['total_capacity_mw'].sum()} MW in final clusters")
 
