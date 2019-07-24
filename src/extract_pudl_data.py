@@ -3,6 +3,7 @@ import logging
 import sys
 from datetime import datetime as dt
 
+import pandas as pd
 import pudl
 from src.util import load_settings, init_pudl_connection
 from src.params import DATA_PATHS
@@ -59,6 +60,18 @@ def main():
     out_folder.mkdir(exist_ok=True)
 
     pudl_engine, pudl_out = init_pudl_connection(freq="YS")
+
+    # Make sure everything in model_regions is either an aggregate region
+    # or an IPM region. Will need to change this once we start using non-IPM
+    # regions.
+    ipm_regions = pd.read_sql_table("regions_entity_ipm", pudl_engine)["region_id_ipm"]
+    all_valid_regions = ipm_regions.tolist() + list(settings["region_aggregations"])
+    good_regions = [region in all_valid_regions for region in settings["model_regions"]]
+
+    assert all(good_regions), (
+        "One or more model regions is not valid. Check to make sure all"
+        "regions are either in IPM or region_aggregations in the settings YAML file."
+    )
 
     zones = settings["model_regions"]
     zone_num_map = {
