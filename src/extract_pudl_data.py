@@ -72,7 +72,7 @@ def main():
     )
 
     zones = settings["model_regions"]
-    zone_num_map = {zone: f"{number}" for zone, number in zip(zones, range(len(zones)))}
+    zone_num_map = {zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))}
 
     gen_clusters = create_region_technology_clusters(
         pudl_engine=pudl_engine, pudl_out=pudl_out, settings=settings
@@ -82,6 +82,7 @@ def main():
     )
 
     load = load_curves(pudl_engine=pudl_engine, settings=settings)
+    load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
 
     transmission = agg_transmission_constraints(
         pudl_engine=pudl_engine, settings=settings
