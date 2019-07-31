@@ -253,16 +253,25 @@ def load_generator_860_data(
     final_capacity = gens_860_model.groupby("technology_description")[
         settings["capacity_col"]
     ].sum()
-    assert (
-        np.allclose(initial_capacity.sum(), final_capacity.sum())
+    assert np.allclose(
+        initial_capacity.sum(), final_capacity.sum()
     ), f"Capacity changed from {initial_capacity.sum()} to {final_capacity.sum()}"
 
     logger.info(f"Capacity of {final_capacity.sum()} MW loaded from 860")
 
-    final_not_ret_capacity = gens_860_model.loc[
-        (gens_860_model["retirement_year"] >= settings["model_year"]) &
-        (gens_860_model["technology_description"].isin(settings["num_clusters"].keys())), :
-    ].groupby('technology_description')[settings["capacity_col"]].sum()
+    final_not_ret_capacity = (
+        gens_860_model.loc[
+            (gens_860_model["retirement_year"] >= settings["model_year"])
+            & (
+                gens_860_model["technology_description"].isin(
+                    settings["num_clusters"].keys()
+                )
+            ),
+            :,
+        ]
+        .groupby("technology_description")[settings["capacity_col"]]
+        .sum()
+    )
     # included_tech_capacity = final_capacity[settings["num_clusters"].keys()]
     logger.info(
         f"Capacity of {final_not_ret_capacity.sum()} MW is not retired and should be in final clusters"
