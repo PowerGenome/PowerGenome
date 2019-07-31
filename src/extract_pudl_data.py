@@ -71,8 +71,7 @@ def main():
         "regions are either in IPM or region_aggregations in the settings YAML file."
     )
 
-    zones = settings["model_regions"]
-    zone_num_map = {zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))}
+    zones = sorted(settings["model_regions"])
 
     gen_clusters = create_region_technology_clusters(
         pudl_engine=pudl_engine, pudl_out=pudl_out, settings=settings
