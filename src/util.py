@@ -37,3 +37,27 @@ def map_agg_region_names(df, region_agg_map, original_col_name, new_col_name):
         ].map(region_agg_map)
 
     return df
+
+
+def snake_case_col(col):
+    "Remove special characters and convert to snake case"
+    clean = (
+        col.str.lower()
+        .str.replace('[^0-9a-zA-Z\-]+', ' ')
+        .str.replace('-', '')
+        .str.strip()
+        .str.replace(' ', '_')
+    )
+    return clean
+
+
+def snake_case_str(s):
+    "Remove special characters and convert to snake case"
+    clean = (
+        s.lower()
+        .replace('[^0-9a-zA-Z\-]+', ' ')
+        .replace('-', '')
+        .strip()
+        .replace(' ', '_')
+    )
+    return clean
