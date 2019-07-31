@@ -507,7 +507,7 @@ def calc_unit_cluster_values(df, settings, technology=None):
         }
     )
 
-    df_values["min_load_fraction"] = (
+    df_values["Min_power"] = (
         df_values["minimum_load_mw"] / df_values[settings["capacity_col"]]
     )
 
@@ -517,6 +517,25 @@ def calc_unit_cluster_values(df, settings, technology=None):
         df_values["technology"] = technology
 
     return df_values
+
+
+def add_model_tags(df, settings):
+
+    model_tag_cols = settings["model_tag_names"]
+
+    # Create a new dataframe with the same index
+    tag_df = pd.DataFrame(
+        index=df.index, columns=model_tag_cols, data=settings["default_model_tag"]
+    )
+    model_tag_dict = settings["model_tag_values"]
+    for col, value_map in model_tag_dict.items():
+        tag_df[col] = tag_df.index.get_level_values("technology").map(value_map)
+
+    tag_df.fillna(settings["default_model_tag"], inplace=True)
+
+    combined_df = pd.concat([df, tag_df], axis=1)
+
+    return combined_df
 
 
 def create_region_technology_clusters(
@@ -663,14 +682,26 @@ def create_region_technology_clusters(
     results = results.reset_index().set_index(["region", "technology", "cluster"])
     results.rename(
         columns={
-            settings["capacity_col"]: "avg_capacity_mw",
-            "minimum_load_mw": "avg_minimum_load_mw",
-            "heat_rate_mmbtu_mwh": "wa_heat_rate_mmbtu_mwh",
+            settings["capacity_col"]: "Cap_size",
+            # "minimum_load_mw": "Min_power",
+            "heat_rate_mmbtu_mwh": "Heat_rate_MMBTU_per_MWh",
         },
         inplace=True,
     )
 
-    results["total_capacity_mw"] = results.avg_capacity_mw * results.num_units
+    results["Existing_Cap_MW"] = results.Cap_size * results.num_units
+
+    results = add_model_tags(results, settings)
+
+    # Convert technology names to snake_case and add a 1-indexed column R_ID
+    results = results.reset_index()
+    results["technology"] = snake_case_col(results["technology"])
+
+    # Set Min_power of wind/solar to 0
+    results.loc[results["DISP"] == 1, "Min_power"] = 0
+
+    results.set_index(["region", "technology"], inplace=True)
+    results["R_ID"] = np.array(range(len(results))) + 1
 
     logger.info(
         f"Capacity of {results['Existing_Cap_MW'].sum()} MW in final clusters"
