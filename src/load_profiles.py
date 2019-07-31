@@ -1,5 +1,8 @@
 import pandas as pd
+import logging
 from src.util import reverse_dict_of_lists
+
+logger = logging.getLogger(__name__)
 
 
 def load_curves(
@@ -23,6 +26,7 @@ def load_curves(
 
     # I'd rather use a sql query and only pull the regions of interest but
     # sqlalchemy doesn't allow table names to be parameterized.
+    logger.info("Loading load curves from PUDL")
     load_curves = pd.read_sql_table(
         pudl_table, pudl_engine, columns=["region_id_ipm", "time_index", "load_mw"]
     )
@@ -41,6 +45,7 @@ def load_curves(
         region_agg_map
     )
 
+    logger.info("Aggregating load curves in grouped regions")
     load_curves_agg = load_curves.groupby(["region", "time_index"]).sum()
 
     lc_wide = load_curves_agg.unstack(level=0)

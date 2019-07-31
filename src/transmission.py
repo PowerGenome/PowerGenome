@@ -1,7 +1,10 @@
 import itertools
+import logging
 import numpy as np
 import pandas as pd
 from src.util import reverse_dict_of_lists, map_agg_region_names
+
+logger = logging.getLogger(__name__)
 
 
 def agg_transmission_constraints(
@@ -19,6 +22,7 @@ def agg_transmission_constraints(
     combos = list(itertools.combinations(zones, 2))
     reverse_combos = [(combo[-1], combo[0]) for combo in combos]
 
+    logger.info("Loading transmission constraints from PUDL")
     transmission_constraints_table = pd.read_sql_table(pudl_table, con=pudl_engine)
     # Settings has a dictionary of lists for regional aggregations. Need
     # to reverse this to use in a map method.
@@ -32,14 +36,15 @@ def agg_transmission_constraints(
         if x not in region_agg_map.values()
     ]
 
-    # Create a new column "model_region" with labels that we're using for aggregated
-    # regions
+    # Create new column "model_region_from"  and "model_region_to" with labels that
+    # we're using for aggregated regions
     transmission_constraints_table = transmission_constraints_table.loc[
         (transmission_constraints_table.region_from.isin(keep_regions))
         & (transmission_constraints_table.region_to.isin(keep_regions)),
         :,
     ].drop(columns="id")
 
+    logger.info("Map and aggregate region names for transmission constraints")
     for col in ["region_from", "region_to"]:
         model_col = "model_" + col
 
@@ -58,6 +63,10 @@ def agg_transmission_constraints(
     ).sum()
 
     # Build the final output dataframe
+    logger.info(
+        "Build a new transmission constraints dataframe with a single line between"
+        "regions"
+    )
     tc_joined = pd.DataFrame(
         columns=["Network_lines"] + zones + ["Line_Max_Flow_MW", "Line_Min_Flow_MW"],
         index=transmission_constraints_table.reindex(combos).dropna().index,

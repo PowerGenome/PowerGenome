@@ -2,8 +2,11 @@ import numpy as np
 import pandas as pd
 from sklearn import cluster, preprocessing
 from datetime import datetime as dt
+import logging
 
-from src.util import reverse_dict_of_lists, map_agg_region_names
+from src.util import reverse_dict_of_lists, map_agg_region_names, snake_case_col
+
+logger = logging.getLogger(__name__)
 
 
 def load_plant_region_map(
@@ -254,15 +257,17 @@ def load_generator_860_data(
         np.allclose(initial_capacity.sum(), final_capacity.sum())
     ), f"Capacity changed from {initial_capacity.sum()} to {final_capacity.sum()}"
 
-    print(f"Capacity of {final_capacity.sum()} MW loaded from 860")
+    logger.info(f"Capacity of {final_capacity.sum()} MW loaded from 860")
 
     final_not_ret_capacity = gens_860_model.loc[
         (gens_860_model["retirement_year"] >= settings["model_year"]) &
         (gens_860_model["technology_description"].isin(settings["num_clusters"].keys())), :
     ].groupby('technology_description')[settings["capacity_col"]].sum()
     # included_tech_capacity = final_capacity[settings["num_clusters"].keys()]
-    print(f"Capacity of {final_not_ret_capacity.sum()} MW should be in final clusters")
-    print(final_not_ret_capacity)
+    logger.info(
+        f"Capacity of {final_not_ret_capacity.sum()} MW is not retired and should be in final clusters"
+    )
+    # print(final_not_ret_capacity)
 
     return gens_860_model
 
@@ -552,6 +557,7 @@ def create_region_technology_clusters(
 
     data_years = settings["data_years"]
 
+    logger.info("Loading map of plants to IPM regions")
     plant_region_map = load_plant_region_map(
         pudl_engine,
         settings,
@@ -562,6 +568,7 @@ def create_region_technology_clusters(
     check1_diff = (check1 - start).total_seconds()
     print(f"{check1_diff} seconds to load plant_region_map")
 
+    # logger.info("Loading EIA860 generator data")
     gens_860_model = load_generator_860_data(
         pudl_engine, settings, pudl_out, plant_region_map, data_years=data_years
     )
@@ -569,6 +576,7 @@ def create_region_technology_clusters(
     check2_diff = (check2 - check1).total_seconds()
     print(f"{check2_diff} seconds to load 860 generator data")
 
+    # logger.info(f"Loading EIA923 fuel and generation data for {settings['data_years']}")
     annual_gen_923 = load_generator_923_data(
         pudl_engine, pudl_out, model_region_map=plant_region_map, data_years=data_years
     )
@@ -577,12 +585,13 @@ def create_region_technology_clusters(
     print(f"{check3_diff} seconds to load 923 generator data")
 
     # Add heat rates to the data we already have from 860
+    logger.info("Loading heat rate data for units and generator/fuel combinations")
     weighted_unit_hr, prime_mover_hr_map = unit_generator_heat_rates(
         pudl_out, annual_gen_923, data_years
     )
     check4 = dt.now()
     check4_diff = (check4 - check3).total_seconds()
-    print(f"{check4_diff} seconds to load heat rate data")
+    # print(f"{check4_diff} seconds to load heat rate data")
 
     # Merge the PUDL calculated heat rate data and set the index for easy
     # mapping using plant/prime mover heat rates from 923
@@ -591,7 +600,11 @@ def create_region_technology_clusters(
     units_model = gens_860_model.merge(
         weighted_unit_hr[hr_cols], on=["plant_id_eia", "unit_id_pudl"], how="left"
     ).set_index(idx)
+    # print(units_model.head())
 
+    logger.info(
+        "Assigning technology/fuel heat rates where unit heat rates are not available"
+    )
     units_model.loc[
         units_model.heat_rate_mmbtu_mwh.isnull(), "heat_rate_mmbtu_mwh"
     ] = units_model.loc[units_model.heat_rate_mmbtu_mwh.isnull()].index.map(
@@ -599,6 +612,7 @@ def create_region_technology_clusters(
     )
 
     techs = list(settings["num_clusters"])
+    # logger.info(f"Technology clusters include {', '.join(techs)}")
 
     num_clusters = {}
     for region in settings["model_regions"]:
@@ -610,9 +624,9 @@ def create_region_technology_clusters(
 
     region_tech_grouped = units_model.loc[
         (units_model.technology_description.isin(techs))
-        & (units_model.retirement_year >= settings["model_year"])
-        & (units_model.model_region.isin(settings["model_regions"]))
-        & (units_model.operational_status_code == "OP"),
+        & (units_model.retirement_year >= settings["model_year"]),
+        # & (units_model.model_region.isin(settings["model_regions"])),
+        # & (units_model.operational_status_code == "OP"),
         :,
     ].groupby(["model_region", "technology_description"])
 
@@ -622,18 +636,20 @@ def create_region_technology_clusters(
         ]
 
     # For each group, cluster and calculate the average size, min load, and heat rate
+    # logger.info("Creating technology clusters by region")
+    print("Creating technology clusters by region")
     df_list = []
     for _, df in region_tech_grouped:
         region, tech = _
 
         grouped = group_units(df, settings)
 
-        try:
-            clusters = cluster.KMeans(n_clusters=num_clusters[region][tech]).fit(
-                preprocessing.StandardScaler().fit_transform(grouped)
-            )
-        except:
-            print(grouped)
+        # try:
+        clusters = cluster.KMeans(n_clusters=num_clusters[region][tech]).fit(
+            preprocessing.StandardScaler().fit_transform(grouped)
+        )
+        # except:
+        #     print(grouped)
 
         grouped["cluster"] = clusters.labels_
 
@@ -641,6 +657,8 @@ def create_region_technology_clusters(
         _df["region"] = region
         df_list.append(_df)
 
+    # logger.info("Finalizing generation clusters")
+    print("Finalizing generation clusters")
     results = pd.concat(df_list)
     results = results.reset_index().set_index(["region", "technology", "cluster"])
     results.rename(
@@ -654,9 +672,11 @@ def create_region_technology_clusters(
 
     results["total_capacity_mw"] = results.avg_capacity_mw * results.num_units
 
-    print(f"Capacity of {results['total_capacity_mw'].sum()} MW in final clusters")
+    logger.info(
+        f"Capacity of {results['Existing_Cap_MW'].sum()} MW in final clusters"
+    )
 
-    print(f"{(dt.now() - start).total_seconds()} seconds total")
+    # logger.info(f"{(dt.now() - start).total_seconds()} seconds total")
 
     if return_retirement_capacity:
         return results, retired
