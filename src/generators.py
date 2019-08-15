@@ -1,12 +1,104 @@
+import logging
+
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 from sklearn import cluster, preprocessing
-from datetime import datetime as dt
-import logging
+from xlrd import XLRDError
+import pudl
 
-from src.util import reverse_dict_of_lists, map_agg_region_names, snake_case_col
+from src.params import IPM_SHAPEFILE_PATH
+from src.util import (
+    map_agg_region_names,
+    reverse_dict_of_lists,
+    snake_case_col,
+)
 
 logger = logging.getLogger(__name__)
+
+
+planned_col_map = {
+    "Entity ID": "utility_id_eia",
+    "Entity Name": "utility_name",
+    "Plant ID": "plant_id_eia",
+    "Plant Name": "plant_name",
+    "Sector": "sector_name",
+    "Plant State": "state",
+    "Generator ID": "generator_id",
+    "Unit Code": "unit_code",
+    "Nameplate Capacity (MW)": "capacity_mw",
+    "Net Summer Capacity (MW)": "summer_capacity_mw",
+    "Net Winter Capacity (MW)": "winter_capacity_mw",
+    "Technology": "technology_description",
+    "Energy Source Code": "energy_source_code_1",
+    "Prime Mover Code": "prime_mover_code",
+    "Planned Operation Month": "planned_operating_month",
+    "Planned Operation Year": "planned_operating_year",
+    "Status": "operational_status",
+    "County": "county",
+    "Latitude": "latitude",
+    "Longitude": "longitude",
+    "Google Map": "google_map",
+    "Bing Map": "bing_map",
+    "Balancing Authority Code": "balancing_authority_code",
+}
+
+op_status_map = {
+    "(V) Under construction, more than 50 percent complete": "V",
+    "(TS) Construction complete, but not yet in commercial operation": "TS",
+    "(U) Under construction, less than or equal to 50 percent complete": "U",
+    "(T) Regulatory approvals received. Not under construction": "T",
+    "(P) Planned for installation, but regulatory approvals not initiated": "P",
+    "(L) Regulatory approvals pending. Not under construction": "L",
+    "(OT) Other": "OT",
+}
+
+
+def label_hydro_region(pudl_engine, settings):
+
+    model_regions_gdf = load_ipm_shapefile(settings)
+    data_years = settings["data_years"]
+
+    sql = """
+        SELECT * FROM generators_eia860
+        WHERE DATE_PART('year', report_date) IN %(data_years)s
+        AND operational_status_code NOT IN ('RE', 'OS')
+    """
+    gens_860 = pd.read_sql_query(
+        sql=sql,
+        con=pudl_engine,
+        params={"data_years": tuple(data_years)},
+        parse_dates=["planned_retirement_date"],
+    )
+
+    plant_entity = pd.read_sql_table("plants_entity_eia", pudl_engine)
+
+    model_hydro = gens_860.loc[
+        gens_860["technology_description"] == "Conventional Hydroelectric"
+    ].merge(plant_entity[["plant_id_eia", "latitude", "longitude"]], on="plant_id_eia")
+
+    no_lat_lon = model_hydro.loc[
+        (model_hydro["latitude"].isnull()) | (model_hydro["longitude"].isnull()), :
+    ]
+    if not no_lat_lon.empty:
+        print(no_lat_lon["summer_capacity_mw"].sum(), " MW without lat/lon")
+    model_hydro = model_hydro.dropna(subset=["latitude", "longitude"])
+
+    # Convert the lon/lat values to geo points. Need to add an initial CRS and then
+    # change it to align with the IPM regions
+    model_hydro_gdf = gpd.GeoDataFrame(
+        model_hydro,
+        geometry=gpd.points_from_xy(model_hydro.longitude, model_hydro.latitude),
+        crs={"init": "epsg:4326"},
+    )
+
+    model_hydro_gdf = model_hydro_gdf.to_crs(model_regions_gdf.crs)
+
+    model_hydro_gdf = gpd.sjoin(model_regions_gdf, model_hydro_gdf)
+    model_hydro_gdf = model_hydro_gdf.rename(columns={"IPM_Region": "region"})
+
+    keep_cols = ["plant_id_eia", "region"]
+    return model_hydro_gdf.loc[:, keep_cols]
 
 
 def load_plant_region_map(
@@ -75,7 +167,11 @@ def load_plant_region_map(
 
 
 def label_retirement_year(
-    df, settings, age_col="operating_date", settings_retirement_table="retirement_ages"
+    df,
+    settings,
+    age_col="operating_date",
+    settings_retirement_table="retirement_ages",
+    add_additional_retirements=True,
 ):
     """
     Add a retirement year column to the dataframe based on the year each generator
@@ -93,17 +189,80 @@ def label_retirement_year(
     settings_retirement_table : str, optional
         The settings dictionary key for another dictionary of generator retirement
         lifetimes, by default "retirement_ages"
+    add_additional_retirements : bool, optional
+        Logic to determine if additional retirements from the settings file should
+        be checked. For example, this isn't necessary when adding proposed generators
+        because we probably won't be setting an artifically early retirement year.
     """
+
     start_len = len(df)
     retirement_ages = settings[settings_retirement_table]
     for tech, life in retirement_ages.items():
-        df.loc[df.technology_description == tech, "retirement_year"] = (
-            df.loc[df.technology_description == tech, age_col].dt.year + life
-        )
+        try:
+            df.loc[df.technology_description == tech, "retirement_year"] = (
+                df.loc[df.technology_description == tech, age_col].dt.year + life
+            )
+        except AttributeError:
+            # This is a bit hacky but for the proposed plants I have an int column
+            df.loc[df.technology_description == tech, "retirement_year"] = (
+                df.loc[df.technology_description == tech, age_col] + life
+            )
 
-    df.loc[~df["planned_retirement_date"].isnull(), "retirement_year"] = df.loc[
-        ~df["planned_retirement_date"].isnull(), "planned_retirement_date"
-    ].dt.year
+    try:
+        df.loc[~df["planned_retirement_date"].isnull(), "retirement_year"] = df.loc[
+            ~df["planned_retirement_date"].isnull(), "planned_retirement_date"
+        ].dt.year
+    except KeyError:
+        pass
+
+    # Add additonal retirements from settings file
+    if settings["additional_retirements"] and add_additional_retirements:
+        logger.info("Changing retirement dates based on settings file")
+        model_year = settings["model_year"]
+        start_ret_cap = df.loc[
+            df["retirement_year"] < model_year, settings["capacity_col"]
+        ].sum()
+        logger.info(f"Starting retirement capacity is {start_ret_cap} MW")
+        i = 0
+        ret_cap = 0
+        for record in settings["additional_retirements"]:
+            plant_id, gen_id, ret_year = record
+            # gen ids are strings, not integers
+            gen_id = str(gen_id)
+            # print(plant_id, gen_id, ret_year)
+            df.loc[
+                (df["plant_id_eia"] == plant_id) & (df["generator_id"] == gen_id),
+                "retirement_year",
+            ] = ret_year
+            # print(df.loc[
+            #     (df["plant_id_eia"] == plant_id) & (df["generator_id"] == gen_id),
+            #     ['plant_id_eia', 'generator_id', 'summer_capacity_mw', "retirement_year"]
+            # ])
+            i += 1
+            ret_cap += df.loc[
+                (df["plant_id_eia"] == plant_id) & (df["generator_id"] == gen_id),
+                settings["capacity_col"],
+            ].sum()
+
+        end_ret_cap = df.loc[
+            df["retirement_year"] < model_year, settings["capacity_col"]
+        ].sum()
+        logger.info(f"Ending retirement capacity is {end_ret_cap} MW")
+        if not end_ret_cap > start_ret_cap:
+            logger.debug(
+                "Adding retirements from settings didn't change the retiring capacity."
+            )
+        if end_ret_cap - start_ret_cap != ret_cap:
+            logger.debug(
+                f"Retirement diff is {end_ret_cap - start_ret_cap}, adding retirements "
+                f"yields {ret_cap} MW"
+            )
+        logger.info(
+            f"The retirement year for {i} plants, totaling {ret_cap} MW, was changed "
+            "based on settings file parameters"
+        )
+    else:
+        logger.info("No retirement dates changed based on the settings file")
 
     end_len = len(df)
 
@@ -545,6 +704,148 @@ def add_model_tags(df, settings):
     combined_df = pd.concat([df, tag_df], axis=1)
 
     return combined_df
+
+
+def load_ipm_shapefile(settings):
+
+    region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
+
+    # IPM regions to keep. Regions not in this list will be dropped
+    keep_regions = [
+        x
+        for x in settings["model_regions"] + list(region_agg_map)
+        if x not in region_agg_map.values()
+    ]
+
+    ipm_regions = gpd.read_file(IPM_SHAPEFILE_PATH)
+
+    model_regions_gdf = ipm_regions.loc[ipm_regions["IPM_Region"].isin(keep_regions)]
+    model_regions_gdf = map_agg_region_names(
+        model_regions_gdf, region_agg_map, "IPM_Region", "model_region"
+    )
+
+    return model_regions_gdf
+
+
+def import_proposed_generators(settings):
+
+    model_regions_gdf = load_ipm_shapefile(settings)
+
+    fn = settings["proposed_gen_860_fn"]
+    # Only the most recent file will not have archive in the url
+    url = f"https://www.eia.gov/electricity/data/eia860m/xls/{fn}"
+    archive_url = f"https://www.eia.gov/electricity/data/eia860m/archive/xls/{fn}"
+
+    try:
+        planned = pd.read_excel(
+            url, sheet_name="Planned", skiprows=1, skipfooter=1, na_values=[" "]
+        )
+    except XLRDError:
+        logger.warning("A more recent version of EIA-860m is available")
+        planned = pd.read_excel(
+            archive_url, sheet_name="Planned", skiprows=1, skipfooter=1, na_values=[" "]
+        )
+
+    planned = planned.rename(columns=planned_col_map)
+    planned.loc[:, "operational_status_code"] = planned.loc[
+        :, "operational_status"
+    ].map(op_status_map)
+    planned = planned.loc[
+        planned["operational_status_code"].isin(settings["proposed_status_included"]), :
+    ]
+
+    # Some plants don't have lat/lon data. Log this now to determine if any action is
+    # needed, then drop them from the dataframe.
+    no_lat_lon = planned.loc[
+        (planned["latitude"].isnull()) | (planned["longitude"].isnull()), :
+    ].copy()
+    if not no_lat_lon.empty:
+        no_lat_lon_cap = no_lat_lon[settings["capacity_col"]].sum()
+        logger.warning(
+            "Some generators do not have lon/lat data. Check the source "
+            "file to determine if they should be included in results. "
+            f"\nThe affected generators account for {no_lat_lon_cap} in balancing "
+            "authorities: "
+            f"\n{no_lat_lon['balancing_authority_code'].tolist()}"
+        )
+
+    planned = planned.dropna(subset=["latitude", "longitude"])
+    #     print(planned.columns)
+
+    # Convert the lon/lat values to geo points. Need to add an initial CRS and then
+    # change it to align with the IPM regions
+    print("Creating gdf")
+    planned_gdf = gpd.GeoDataFrame(
+        planned.copy(),
+        geometry=gpd.points_from_xy(planned.longitude.copy(), planned.latitude.copy()),
+        crs={"init": "epsg:4326"},
+    )
+    planned_gdf.crs = {"init": "epsg:4326"}
+    planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
+
+    planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
+
+    # Add planned additions from the settings file
+    if settings["additional_planned"]:
+        i = 0
+        for record in settings["additional_planned"]:
+            plant_id, gen_id, model_region = record
+            plant_record = planned.loc[
+                (planned["plant_id_eia"] == plant_id)
+                & (planned["generator_id"] == gen_id),
+                :,
+            ]
+            plant_record["model_region"] = model_region
+
+            planned_gdf = planned_gdf.append(plant_record, sort=False)
+            i += 1
+        logger.info(f"{i} generators were added to the planned list based on settings")
+
+    planned_gdf.loc[:, "heat_rate_mmbtu_mwh"] = planned_gdf.loc[
+        :, "technology_description"
+    ].map(settings["proposed_gen_heat_rates"])
+
+    # The default EIA heat rate for non-thermal technologies is 9.21
+    planned_gdf.loc[
+        planned_gdf["heat_rate_mmbtu_mwh"].isnull(), "heat_rate_mmbtu_mwh"
+    ] = 9.21
+
+    planned_gdf.loc[:, "minimum_load_mw"] = (
+        planned_gdf["technology_description"].map(settings["proposed_min_load"])
+        * planned_gdf[settings["capacity_col"]]
+    )
+
+    # Assume anything else being built at scale is wind/solar and will have a Min_power
+    # of 0
+    planned_gdf.loc[planned_gdf["minimum_load_mw"].isnull(), "minimum_load_mw"] = 0
+
+    planned_gdf = planned_gdf.set_index(
+        ["plant_id_eia", "prime_mover_code", "energy_source_code_1"]
+    )
+
+    # Add a retirement year based on the planned start year
+    label_retirement_year(
+        df=planned_gdf,
+        settings=settings,
+        age_col="planned_operating_year",
+        add_additional_retirements=False,
+    )
+
+    planned_gdf = group_technologies(planned_gdf, settings)
+    print(planned_gdf['technology_description'].unique().tolist())
+
+    keep_cols = [
+        "model_region",
+        "technology_description",
+        "generator_id",
+        settings["capacity_col"],
+        "minimum_load_mw",
+        "operational_status_code",
+        "heat_rate_mmbtu_mwh",
+        "retirement_year",
+    ]
+
+    return planned_gdf.loc[:, keep_cols]
 
 
 def create_region_technology_clusters(
