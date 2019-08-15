@@ -1,18 +1,21 @@
 import argparse
 import logging
-import sys
 import shutil
+import sys
 from datetime import datetime as dt
 
 import pandas as pd
-import pudl
+
 import src
-from src.util import load_settings, init_pudl_connection
-from src.params import DATA_PATHS
 from src.generators import create_region_technology_clusters
 from src.load_profiles import load_curves
+from src.params import DATA_PATHS
 from src.transmission import agg_transmission_constraints
+from src.util import init_pudl_connection, load_settings
 
+if not sys.warnoptions:
+    import warnings
+    warnings.simplefilter("ignore")
 
 def parse_command_line(argv):
     """
@@ -87,7 +90,7 @@ def main():
     # )
     if not all(good_regions):
         logger.warning(
-            "One or more model regions is not valid. Check to make sure all regions"
+            "One or more model regions is not valid. Check to make sure all regions "
             "are either in IPM or region_aggregations in the settings YAML file."
         )
 
@@ -121,8 +124,6 @@ def main():
         out_folder / f"transmission_constraints_{args.results_folder}.csv",
         float_format="%.1f",
     )
-
-
 
 
 if __name__ == "__main__":
