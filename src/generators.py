@@ -848,6 +848,129 @@ def import_proposed_generators(settings):
     return planned_gdf.loc[:, keep_cols]
 
 
+def gentype_region_capacity_factor(pudl_engine, plant_region_map, settings):
+
+    cap_col = settings["capacity_col"]
+
+    cf_techs = []
+    for tech in settings["capacity_factor_techs"]:
+        if tech in settings["tech_groups"]:
+            cf_techs += settings["tech_groups"][tech]
+        else:
+            cf_techs.append(tech)
+
+    # Include standby (SB) generators since they are in our capacity totals
+    sql = """
+        SELECT
+            G.report_date,
+            G.plant_id_eia,
+            G.generator_id,
+            SUM(G.capacity_mw) AS capacity_mw,
+            SUM(G.summer_capacity_mw) as summer_capacity_mw,
+            SUM(G.winter_capacity_mw) as winter_capacity_mw,
+            G.technology_description,
+            G.fuel_type_code_pudl
+        FROM
+            generators_eia860 G
+        WHERE operational_status_code NOT IN ('RE', 'OS')
+            AND G.plant_id_eia IN %(plant_ids)s
+        GROUP BY
+            G.report_date,
+            G.plant_id_eia,
+            G.technology_description,
+            G.fuel_type_code_pudl,
+            G.generator_id
+        ORDER by G.plant_id_eia, G.report_date
+    """
+
+    plant_gen_tech_cap = pd.read_sql_query(
+        sql,
+        pudl_engine,
+        parse_dates=["report_date"],
+        params={"plant_ids": tuple(plant_region_map["plant_id_eia"].tolist())},
+    )
+
+    plant_gen_tech_cap = fill_missing_tech_descriptions(plant_gen_tech_cap)
+    plant_tech_cap = group_generators_at_plant(
+        df=plant_gen_tech_cap,
+        by=["plant_id_eia", "report_date", "technology_description"],
+        agg_fn={cap_col: "sum"},
+    )
+
+    plant_tech_cap = plant_tech_cap.merge(
+        plant_region_map, on="plant_id_eia", how="left"
+    )
+
+    label_small_hydro(plant_tech_cap, settings, by=["plant_id_eia", "report_date"])
+    plant_tech_cap = plant_tech_cap.loc[
+        plant_tech_cap["technology_description"].isin(cf_techs), :
+    ]
+
+    sql = """
+        SELECT
+            DATE_PART('year', GF.report_date) AS report_date,
+            GF.plant_id_eia,
+            SUM(GF.net_generation_mwh) AS net_generation_mwh,
+            GF.fuel_type_code_pudl
+        FROM
+            generation_fuel_eia923 GF
+        GROUP BY DATE_PART('year', GF.report_date), GF.plant_id_eia, GF.fuel_type_code_pudl
+        ORDER by GF.plant_id_eia, DATE_PART('year', GF.report_date)
+    """
+    generation = pd.read_sql_query(sql, pudl_engine, parse_dates={"report_date": "%Y"})
+
+    capacity_factor = pudl.helpers.merge_on_date_year(
+        plant_tech_cap, generation, on=["plant_id_eia"], how="left"
+    )
+
+    capacity_factor = group_technologies(capacity_factor, settings)
+
+    # get a unique set of dates to generate the number of hours
+    dates = capacity_factor["report_date"].drop_duplicates()
+    dates_to_hours = pd.DataFrame(
+        data={
+            "report_date": dates,
+            "hours": dates.apply(
+                lambda d: (
+                    pd.date_range(d, periods=2, freq="YS")[1]
+                    - pd.date_range(d, periods=2, freq="YS")[0]
+                )
+                / pd.Timedelta(hours=1)
+            ),
+        }
+    )
+
+    # merge in the hours for the calculation
+    capacity_factor = capacity_factor.merge(dates_to_hours, on=["report_date"])
+    capacity_factor["potential_generation_mwh"] = (
+        capacity_factor[cap_col] * capacity_factor["hours"]
+    )
+
+    capacity_factor_tech_region = capacity_factor.groupby(
+        ["model_region", "technology_description"], as_index=False
+    )[["potential_generation_mwh", "net_generation_mwh"]].sum()
+
+    # actually calculate capacity factor wooo!
+    capacity_factor_tech_region["capacity_factor"] = (
+        capacity_factor_tech_region["net_generation_mwh"]
+        / capacity_factor_tech_region["potential_generation_mwh"]
+    )
+
+    capacity_factor_tech_region.rename(
+        columns={"model_region": "region", "technology_description": "technology"},
+        inplace=True,
+    )
+    # capacity_factor_tech_region["technology"] = snake_case_col(
+    #     capacity_factor_tech_region["technology"]
+    # )
+    # capacity_factor_tech_region.set_index(
+    #     ["model_region", "technology_description"], inplace=True
+    # )
+    logger.debug(capacity_factor_tech_region)
+
+    return capacity_factor_tech_region
+
+
 def create_region_technology_clusters(
     pudl_engine,
     pudl_out,
