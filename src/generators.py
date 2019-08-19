@@ -381,7 +381,7 @@ def load_generator_860_data(
     sql = """
         SELECT * FROM generators_eia860
         WHERE DATE_PART('year', report_date) IN %(data_years)s
-        AND operational_status_code NOT IN ('RE', 'OS')
+        AND operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
     """
     gens_860 = pd.read_sql_query(
         sql=sql,
