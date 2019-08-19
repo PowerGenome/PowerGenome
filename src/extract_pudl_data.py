@@ -7,7 +7,7 @@ from datetime import datetime as dt
 import pandas as pd
 
 import src
-from src.generators import create_region_technology_clusters
+from src.generators import GeneratorClusters
 from src.load_profiles import load_curves
 from src.params import DATA_PATHS
 from src.transmission import agg_transmission_constraints
@@ -16,6 +16,7 @@ from src.util import init_pudl_connection, load_settings
 if not sys.warnoptions:
     import warnings
     warnings.simplefilter("ignore")
+
 
 def parse_command_line(argv):
     """
@@ -94,15 +95,17 @@ def main():
             "are either in IPM or region_aggregations in the settings YAML file."
         )
 
-    zones = sorted(settings["model_regions"])
+    # Sort zones in the settings to make sure they are correctly sorted everywhere.
+    settings["model_regions"] = sorted(settings["model_regions"])
+    zones = settings["model_regions"]
     logger.info(f"Sorted zones are {', '.join(zones)}")
     zone_num_map = {
         zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
 
-    gen_clusters = create_region_technology_clusters(
+    gen_clusters = GeneratorClusters(
         pudl_engine=pudl_engine, pudl_out=pudl_out, settings=settings
-    )
+    ).create_region_technology_clusters()
     gen_clusters["zone"] = gen_clusters.index.get_level_values("region").map(
         zone_num_map
     )
