@@ -8,11 +8,7 @@ from xlrd import XLRDError
 import pudl
 
 from src.params import IPM_SHAPEFILE_PATH
-from src.util import (
-    map_agg_region_names,
-    reverse_dict_of_lists,
-    snake_case_col,
-)
+from src.util import map_agg_region_names, reverse_dict_of_lists, snake_case_col
 
 logger = logging.getLogger(__name__)
 
@@ -83,9 +79,9 @@ def group_technologies(df, settings):
     return df
 
 
-def label_hydro_region(pudl_engine, settings):
+def label_hydro_region(pudl_engine, settings, model_regions_gdf):
 
-    model_regions_gdf = load_ipm_shapefile(settings)
+    # model_regions_gdf = load_ipm_shapefile(settings)
     data_years = settings["data_years"]
 
     sql = """
@@ -133,6 +129,7 @@ def label_hydro_region(pudl_engine, settings):
 def load_plant_region_map(
     pudl_engine,
     settings,
+    model_regions_gdf,
     table="plant_region_map_ipm",
     settings_agg_key="region_aggregations",
 ):
@@ -161,7 +158,7 @@ def load_plant_region_map(
     region_map_df = pd.read_sql_table(table, con=pudl_engine)
 
     # Label hydro using the IPM shapefile because NEEDS seems to drop some hydro
-    all_hydro_regions = label_hydro_region(pudl_engine, settings)
+    all_hydro_regions = label_hydro_region(pudl_engine, settings, model_regions_gdf)
     region_map_df = pd.concat(
         [region_map_df, all_hydro_regions], ignore_index=True, sort=False
     ).drop_duplicates(subset=["plant_id_eia"], keep="first")
@@ -694,11 +691,11 @@ def group_units(df, settings):
     # add a unit code (plant plus generator code) in cases where one doesn't exist
     df_copy = df.reset_index()
 
-    df_copy.loc[df_copy.unit_id_pudl.isnull(), "unit_id_pudl"] = (
-        df_copy.loc[df_copy.unit_id_pudl.isnull(), "plant_id_eia"].astype(str)
-        + "_"
-        + df_copy.loc[df_copy.unit_id_pudl.isnull(), "generator_id"].astype(str)
-    ).values
+    # df_copy.loc[df_copy.unit_id_pudl.isnull(), "unit_id_pudl"] = (
+    #     df_copy.loc[df_copy.unit_id_pudl.isnull(), "plant_id_eia"].astype(str)
+    #     + "_"
+    #     + df_copy.loc[df_copy.unit_id_pudl.isnull(), "generator_id"].astype(str)
+    # ).values
 
     # All units should have the same heat rate so taking the mean will just keep the
     # same value.
@@ -800,9 +797,9 @@ def load_ipm_shapefile(settings):
     return model_regions_gdf
 
 
-def import_proposed_generators(settings):
+def import_proposed_generators(settings, model_regions_gdf):
 
-    model_regions_gdf = load_ipm_shapefile(settings)
+    # model_regions_gdf = load_ipm_shapefile(settings)
 
     fn = settings["proposed_gen_860_fn"]
     # Only the most recent file will not have archive in the url
@@ -905,7 +902,7 @@ def import_proposed_generators(settings):
     )
 
     planned_gdf = group_technologies(planned_gdf, settings)
-    print(planned_gdf['technology_description'].unique().tolist())
+    print(planned_gdf["technology_description"].unique().tolist())
 
     keep_cols = [
         "model_region",
@@ -921,16 +918,41 @@ def import_proposed_generators(settings):
     return planned_gdf.loc[:, keep_cols]
 
 
-def gentype_region_capacity_factor(pudl_engine, plant_region_map, settings):
+def gentype_region_capacity_factor(
+    pudl_engine, plant_region_map, settings, years_filter=None
+):
+    """
+    Calculate the average capacity factor for all generators of a type/region. This
+    uses all years of available data unless otherwise specified. The potential
+    generation is calculated for every year a plant is in operation using the capacity
+    type specified in settings (nameplate, summer, or winter) and the number of hours
+    in each year.
+
+    As of this time PUDL only has generation data back to 2011.
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.Engine
+        A sqlalchemy connection for use by pandas
+    plant_region_map : dataframe
+        A dataframe with the region for every plant
+    settings : dictionary
+        The dictionary of settings with a dictionary of region aggregations
+
+    Returns
+    -------
+    DataFrame
+        A dataframe with the capacity factor of every selected technology
+    """
 
     cap_col = settings["capacity_col"]
 
-    cf_techs = []
-    for tech in settings["capacity_factor_techs"]:
-        if tech in settings["tech_groups"]:
-            cf_techs += settings["tech_groups"][tech]
-        else:
-            cf_techs.append(tech)
+    # cf_techs = []
+    # for tech in settings["capacity_factor_techs"]:
+    #     if tech in settings["tech_groups"]:
+    #         cf_techs += settings["tech_groups"][tech]
+    #     else:
+    #         cf_techs.append(tech)
 
     # Include standby (SB) generators since they are in our capacity totals
     sql = """
@@ -975,9 +997,9 @@ def gentype_region_capacity_factor(pudl_engine, plant_region_map, settings):
     )
 
     label_small_hydro(plant_tech_cap, settings, by=["plant_id_eia", "report_date"])
-    plant_tech_cap = plant_tech_cap.loc[
-        plant_tech_cap["technology_description"].isin(cf_techs), :
-    ]
+    # plant_tech_cap = plant_tech_cap.loc[
+    #     plant_tech_cap["technology_description"].isin(cf_techs), :
+    # ]
 
     sql = """
         SELECT
@@ -997,6 +1019,32 @@ def gentype_region_capacity_factor(pudl_engine, plant_region_map, settings):
     )
 
     capacity_factor = group_technologies(capacity_factor, settings)
+
+    if years_filter is None:
+        years_filter = {
+            tech: settings["capacity_factor_default_year_filter"]
+            for tech in plant_gen_tech_cap["technology_description"].unique()
+        }
+        if type(settings["alt_year_filters"]) is dict:
+            for tech, value in settings["alt_year_filters"].items():
+                years_filter[tech] = value
+
+        data_years = plant_gen_tech_cap["report_date"].dt.year.unique()
+
+        # Use all years where the value is None
+
+        for tech, value in years_filter.items():
+            if value is None:
+                years_filter[tech] = data_years
+
+    df_list = []
+    for tech, years in years_filter.items():
+        _df = capacity_factor.loc[
+            (capacity_factor["technology_description"] == tech)
+            & (capacity_factor["report_date"].dt.year.isin(years)), :
+        ]
+        df_list.append(_df)
+    capacity_factor = pd.concat(df_list, sort=False)
 
     # get a unique set of dates to generate the number of hours
     dates = capacity_factor["report_date"].drop_duplicates()
@@ -1044,233 +1092,306 @@ def gentype_region_capacity_factor(pudl_engine, plant_region_map, settings):
     return capacity_factor_tech_region
 
 
-def create_region_technology_clusters(
-    pudl_engine,
-    pudl_out,
-    settings,
-    plant_region_map_table="plant_region_map_ipm",
-    settings_agg_key="region_aggregations",
-    return_retirement_capacity=False,
-    save_individual_units=False
-):
+class GeneratorClusters:
     """
-    Calculation of average unit characteristics within a technology cluster (capacity,
-    minimum load, heat rate) and the number of units in the cluster.
-
-    Parameters
-    ----------
-    pudl_engine : sqlalchemy.Engine
-        A sqlalchemy connection for use by pandas
-    pudl_out : pudl.PudlTabl
-        A PudlTabl object for loading pre-calculated PUDL analysis data
-    settings : dictionary
-        The dictionary of settings with a dictionary of region aggregations
-    plant_region_map_table : str, optional
-        Name of the table with region names for each plant, by default
-        "plant_region_map_ipm"
-    settings_agg_key : str, optional
-        Name of the settings dictionary key with regional aggregations, by default
-        "region_aggregations"
-    return_retirement_capacity : bool, optional
-        If retired generators should be retured as a second dataframe, by default False
-
-    Returns
-    -------
-    dataframe
-
+    This class is used to determine genererating units that will likely be operating
+    in a given year, clusters them according to parameters for the settings file,
+    and determines the average operating characteristics of each cluster. Structuring
+    this as a class isn't strictly necessary but makes it easier to access generator
+    data part-way through the process.
     """
-    # start = dt.now()
 
-    data_years = settings["data_years"]
+    def __init__(self, pudl_engine, pudl_out, settings):
+        """
 
-    logger.info("Loading map of plants to IPM regions")
-    plant_region_map = load_plant_region_map(
-        pudl_engine,
-        settings,
-        table=plant_region_map_table,
-        settings_agg_key=settings_agg_key,
-    )
-    # check1 = dt.now()
-    # check1_diff = (check1 - start).total_seconds()
-    # print(f"{check1_diff} seconds to load plant_region_map")
+        Parameters
+        ----------
+        pudl_engine : sqlalchemy.Engine
+            A sqlalchemy connection for use by pandas
+        pudl_out : pudl.PudlTabl
+            A PudlTabl object for loading pre-calculated PUDL analysis data
+        settings : dictionary
+            The dictionary of settings with a dictionary of region aggregations
+        """
+        self.pudl_engine = pudl_engine
+        self.pudl_out = pudl_out
+        self.settings = settings
+        self.model_regions_gdf = load_ipm_shapefile(self.settings)
 
-    # logger.info("Loading EIA860 generator data")
-    gens_860_model = load_generator_860_data(
-        pudl_engine, settings, pudl_out, plant_region_map, data_years=data_years
-    )
-    # check2 = dt.now()
-    # check2_diff = (check2 - check1).total_seconds()
-    # print(f"{check2_diff} seconds to load 860 generator data")
+    def create_region_technology_clusters(
+        self,
+        plant_region_map_table="plant_region_map_ipm",
+        settings_agg_key="region_aggregations",
+        return_retirement_capacity=False,
+    ):
+        """
+        Calculation of average unit characteristics within a technology cluster (capacity,
+        minimum load, heat rate) and the number of units in the cluster.
 
-    # logger.info(f"Loading EIA923 fuel and generation data for {settings['data_years']}")
-    annual_gen_923 = load_generator_923_data(
-        pudl_engine, pudl_out, model_region_map=plant_region_map, data_years=data_years
-    )
-    # check3 = dt.now()
-    # check3_diff = (check3 - check2).total_seconds()
-    # print(f"{check3_diff} seconds to load 923 generator data")
+        Parameters
+        ----------
+        plant_region_map_table : str, optional
+            Name of the table with region names for each plant, by default
+            "plant_region_map_ipm"
+        settings_agg_key : str, optional
+            Name of the settings dictionary key with regional aggregations, by default
+            "region_aggregations"
+        return_retirement_capacity : bool, optional
+            If retired generators should be retured as a second dataframe, by default
+            False
 
-    # Add heat rates to the data we already have from 860
-    logger.info("Loading heat rate data for units and generator/fuel combinations")
-    weighted_unit_hr, prime_mover_hr_map = unit_generator_heat_rates(
-        pudl_out, annual_gen_923, data_years
-    )
-    # check4 = dt.now()
-    # check4_diff = (check4 - check3).total_seconds()
-    # print(f"{check4_diff} seconds to load heat rate data")
+        Returns
+        -------
+        dataframe
 
-    # Merge the PUDL calculated heat rate data and set the index for easy
-    # mapping using plant/prime mover heat rates from 923
-    hr_cols = ["plant_id_eia", "unit_id_pudl", "heat_rate_mmbtu_mwh"]
-    idx = ["plant_id_eia", "prime_mover_code", "energy_source_code_1"]
-    units_model = gens_860_model.merge(
-        weighted_unit_hr[hr_cols], on=["plant_id_eia", "unit_id_pudl"], how="left"
-    ).set_index(idx)
-    logger.info(f'Units model technologies are {units_model.technology_description.unique().tolist()}')
-    # print(units_model.head())
+        """
+        # start = dt.now()
 
-    logger.info(
-        "Assigning technology/fuel heat rates where unit heat rates are not available"
-    )
-    units_model.loc[
-        units_model.heat_rate_mmbtu_mwh.isnull(), "heat_rate_mmbtu_mwh"
-    ] = units_model.loc[units_model.heat_rate_mmbtu_mwh.isnull()].index.map(
-        prime_mover_hr_map
-    )
-    logger.info(f'Units model technologies are {units_model.technology_description.unique().tolist()}')
-    logger.info(
-        f"Before adding proposed generators, {len(units_model)} units with "
-        f"{units_model[settings['capacity_col']].sum()} MW capacity"
-    )
-    proposed_gens = import_proposed_generators(settings=settings)
-    logger.info(f'Proposed gen technologies are {proposed_gens.technology_description.unique().tolist()}')
-    logger.info(f"{proposed_gens[settings['capacity_col']].sum()} MW proposed")
-    units_model = pd.concat([proposed_gens, units_model], sort=False)
-    logger.info(f'After adding proposed, units model technologies are {units_model.technology_description.unique().tolist()}')
-    # logger.info(units_model['technology_description'].unique().tolist())
-    logger.info(
-        f"After adding proposed generators, {len(units_model)} units with "
-        f"{units_model[settings['capacity_col']].sum()} MW capacity"
-    )
-    # return units_model
+        data_years = self.settings["data_years"]
 
-    techs = list(settings["num_clusters"])
-    # logger.info(f"Technology clusters include {', '.join(techs)}")
+        logger.info("Loading map of plants to IPM regions")
+        self.plant_region_map = load_plant_region_map(
+            self.pudl_engine,
+            self.settings,
+            self.model_regions_gdf,
+            table=plant_region_map_table,
+            settings_agg_key=settings_agg_key,
+        )
+        # check1 = dt.now()
+        # check1_diff = (check1 - start).total_seconds()
+        # print(f"{check1_diff} seconds to load plant_region_map")
 
-    num_clusters = {}
-    for region in settings["model_regions"]:
-        num_clusters[region] = settings["num_clusters"].copy()
+        # logger.info("Loading EIA860 generator data")
+        self.gens_860_model = load_generator_860_data(
+            self.pudl_engine,
+            self.settings,
+            self.pudl_out,
+            self.plant_region_map,
+            data_years=data_years,
+        )
+        # check2 = dt.now()
+        # check2_diff = (check2 - check1).total_seconds()
+        # print(f"{check2_diff} seconds to load 860 generator data")
 
-    for region in settings["alt_clusters"]:
-        for tech, cluster_size in settings["alt_clusters"][region].items():
-            num_clusters[region][tech] = cluster_size
+        # logger.info(f"Loading EIA923 fuel and generation data for {settings['data_years']}")
+        self.annual_gen_923 = load_generator_923_data(
+            self.pudl_engine,
+            self.pudl_out,
+            model_region_map=self.plant_region_map,
+            data_years=data_years,
+        )
+        # check3 = dt.now()
+        # check3_diff = (check3 - check2).total_seconds()
+        # print(f"{check3_diff} seconds to load 923 generator data")
 
-    region_tech_grouped = units_model.loc[
-        (units_model.technology_description.isin(techs))
-        & (units_model.retirement_year >= settings["model_year"]),
-        :,
-    ].groupby(["model_region", "technology_description"])
+        # Add heat rates to the data we already have from 860
+        logger.info("Loading heat rate data for units and generator/fuel combinations")
+        weighted_unit_hr, prime_mover_hr_map = unit_generator_heat_rates(
+            self.pudl_out, self.annual_gen_923, data_years
+        )
+        # check4 = dt.now()
+        # check4_diff = (check4 - check3).total_seconds()
+        # print(f"{check4_diff} seconds to load heat rate data")
 
-    if return_retirement_capacity:
-        retired = units_model.loc[
-            units_model.retirement_year < settings["model_year"], :
+        # Merge the PUDL calculated heat rate data and set the index for easy
+        # mapping using plant/prime mover heat rates from 923
+        hr_cols = ["plant_id_eia", "unit_id_pudl", "heat_rate_mmbtu_mwh"]
+        idx = ["plant_id_eia", "prime_mover_code", "energy_source_code_1"]
+        units_model = self.gens_860_model.merge(
+            weighted_unit_hr[hr_cols], on=["plant_id_eia", "unit_id_pudl"], how="left"
+        ).set_index(idx)
+
+        logger.info(
+            f"Units model technologies are "
+            f"{units_model.technology_description.unique().tolist()}"
+        )
+        # print(units_model.head())
+
+        logger.info(
+            "Assigning technology/fuel heat rates where unit heat rates are not "
+            "available"
+        )
+        units_model.loc[
+            units_model.heat_rate_mmbtu_mwh.isnull(), "heat_rate_mmbtu_mwh"
+        ] = units_model.loc[units_model.heat_rate_mmbtu_mwh.isnull()].index.map(
+            prime_mover_hr_map
+        )
+
+        logger.info(
+            f"Units model technologies are "
+            f"{units_model.technology_description.unique().tolist()}"
+        )
+        logger.info(
+            f"Before adding proposed generators, {len(units_model)} units with "
+            f"{units_model[self.settings['capacity_col']].sum()} MW capacity"
+        )
+        proposed_gens = import_proposed_generators(
+            settings=self.settings, model_regions_gdf=self.model_regions_gdf
+        )
+        logger.info(
+            f"Proposed gen technologies are "
+            f"{proposed_gens.technology_description.unique().tolist()}"
+        )
+        logger.info(f"{proposed_gens[self.settings['capacity_col']].sum()} MW proposed")
+        units_model = pd.concat([proposed_gens, units_model], sort=False)
+
+        # Create a pudl unit id based on plant and generator id where one doesn't exist.
+        # This is used later to match the cluster numbers to plants
+        units_model.reset_index(inplace=True)
+        units_model.loc[units_model.unit_id_pudl.isnull(), "unit_id_pudl"] = (
+            units_model.loc[units_model.unit_id_pudl.isnull(), "plant_id_eia"].astype(
+                str
+            )
+            + "_"
+            + units_model.loc[units_model.unit_id_pudl.isnull(), "generator_id"].astype(
+                str
+            )
+        ).values
+        units_model.set_index(idx, inplace=True)
+
+        logger.info(
+            f"After adding proposed, units model technologies are "
+            f"{units_model.technology_description.unique().tolist()}"
+        )
+        # logger.info(units_model['technology_description'].unique().tolist())
+        logger.info(
+            f"After adding proposed generators, {len(units_model)} units with "
+            f"{units_model[self.settings['capacity_col']].sum()} MW capacity"
+        )
+        # return units_model
+
+        techs = list(self.settings["num_clusters"])
+        # logger.info(f"Technology clusters include {', '.join(techs)}")
+
+        num_clusters = {}
+        for region in self.settings["model_regions"]:
+            num_clusters[region] = self.settings["num_clusters"].copy()
+
+        for region in self.settings["alt_clusters"]:
+            for tech, cluster_size in self.settings["alt_clusters"][region].items():
+                num_clusters[region][tech] = cluster_size
+
+        region_tech_grouped = units_model.loc[
+            (units_model.technology_description.isin(techs))
+            & (units_model.retirement_year >= self.settings["model_year"]),
+            :,
+        ].groupby(["model_region", "technology_description"])
+
+        # if return_retirement_capacity:
+        self.retired = units_model.loc[
+            units_model.retirement_year < self.settings["model_year"], :
         ]
 
-    # For each group, cluster and calculate the average size, min load, and heat rate
-    # logger.info("Creating technology clusters by region")
-    print("Creating technology clusters by region")
-    unit_list = []
-    cluster_list = []
-    for _, df in region_tech_grouped:
-        region, tech = _
-        # logger.info(f"{region}, {tech}")
+        # For each group, cluster and calculate the average size, min load, and heat rate
+        # logger.info("Creating technology clusters by region")
+        print("Creating technology clusters by region")
+        unit_list = []
+        cluster_list = []
+        for _, df in region_tech_grouped:
+            region, tech = _
+            # logger.info(f"{region}, {tech}")
 
-        grouped = group_units(df, settings)
+            grouped = group_units(df, self.settings)
 
-        # try:
-        clusters = cluster.KMeans(
-            n_clusters=num_clusters[region][tech], random_state=6
-        ).fit(preprocessing.StandardScaler().fit_transform(grouped))
-        # except:
-        #     print(grouped)
+            # try:
+            clusters = cluster.KMeans(
+                n_clusters=num_clusters[region][tech], random_state=6
+            ).fit(preprocessing.StandardScaler().fit_transform(grouped))
+            # except:
+            #     print(grouped)
 
-        grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
-        if save_individual_units:
-            grouped['technology'] = tech
-            grouped['region'] = region
+            grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
+
+            # Saving individual unit data for later analysis (if needed)
             unit_list.append(grouped)
 
-        _df = calc_unit_cluster_values(grouped, settings, tech)
-        _df["region"] = region
-        cluster_list.append(_df)
+            _df = calc_unit_cluster_values(grouped, self.settings, tech)
+            _df["region"] = region
+            cluster_list.append(_df)
 
-    # logger.info("Finalizing generation clusters")
-    logger.info("Finalizing generation clusters")
-    results = pd.concat(cluster_list)
-    logger.info(f'Results technologies are {results.technology.unique().tolist()}')
-
-    if save_individual_units:
-        all_units = pd.concat(unit_list, sort=False)
-        all_units.to_csv('all_units.csv')
-
-    results = results.reset_index().set_index(["region", "technology", "cluster"])
-    results.rename(
-        columns={
-            settings["capacity_col"]: "Cap_size",
-            # "minimum_load_mw": "Min_power",
-            "heat_rate_mmbtu_mwh": "Heat_rate_MMBTU_per_MWh",
-        },
-        inplace=True,
-    )
-
-    if type(settings["capacity_factor_techs"]) is list:
-        capacity_factors = gentype_region_capacity_factor(
-            pudl_engine, plant_region_map, settings
+        # Save some data about individual units for easy access
+        self.units_model = units_model
+        self.all_units = pd.concat(unit_list, sort=False)
+        self.all_units = pd.merge(
+            self.units_model,
+            self.all_units['cluster'],
+            on=["plant_id_eia", "unit_id_pudl"],
+            how='left'
         )
 
-        results = pd.merge(
-            results.reset_index(),
-            capacity_factors[["region", "technology", "capacity_factor"]],
-            on=["region", "technology"],
-            how="left",
+        logger.info("Finalizing generation clusters")
+        self.results = pd.concat(cluster_list)
+        logger.info(
+            f"Results technologies are {self.results.technology.unique().tolist()}"
         )
 
-        if settings["derate_capacity"] is True:
-            derate_techs = settings["derate_techs"]
-            results.loc[:, "unmodified_cap_size"] = results.loc[:, "Cap_size"].copy()
-            results.loc[results["technology"].isin(derate_techs), "Cap_size"] = (
-                results.loc[
-                    results["technology"].isin(derate_techs), "unmodified_cap_size"
-                ]
-                * results.loc[
-                    results["technology"].isin(derate_techs), "capacity_factor"
-                ]
+        self.results = self.results.reset_index().set_index(
+            ["region", "technology", "cluster"]
+        )
+        self.results.rename(
+            columns={
+                self.settings["capacity_col"]: "Cap_size",
+                "heat_rate_mmbtu_mwh": "Heat_rate_MMBTU_per_MWh",
+            },
+            inplace=True,
+        )
+
+        # Calculate average capacity factors
+        if type(self.settings["capacity_factor_techs"]) is list:
+            capacity_factors = gentype_region_capacity_factor(
+                self.pudl_engine, self.plant_region_map, self.settings
             )
 
-    # Set the index to region, tech, cluster again
-    results.set_index(["region", "technology", "cluster"], inplace=True)
-    results["Existing_Cap_MW"] = results.Cap_size * results.num_units
-    results["unmodified_existing_cap_mw"] = (
-        results["unmodified_cap_size"] * results["num_units"]
-    )
+            self.results = pd.merge(
+                self.results.reset_index(),
+                capacity_factors[["region", "technology", "capacity_factor"]],
+                on=["region", "technology"],
+                how="left",
+            )
 
-    results = add_model_tags(results, settings)
+            if self.settings["derate_capacity"] is True:
+                derate_techs = self.settings["derate_techs"]
+                self.results.loc[:, "unmodified_cap_size"] = self.results.loc[
+                    :, "Cap_size"
+                ].copy()
+                self.results.loc[
+                    self.results["technology"].isin(derate_techs), "Cap_size"
+                ] = (
+                    self.results.loc[
+                        self.results["technology"].isin(derate_techs),
+                        "unmodified_cap_size",
+                    ]
+                    * self.results.loc[
+                        self.results["technology"].isin(derate_techs), "capacity_factor"
+                    ]
+                )
 
-    # Convert technology names to snake_case and add a 1-indexed column R_ID
-    results = results.reset_index()
-    results["technology"] = snake_case_col(results["technology"])
+        # Set the index to region, tech, cluster again
+        self.results.set_index(["region", "technology", "cluster"], inplace=True)
+        self.results["Existing_Cap_MW"] = self.results.Cap_size * self.results.num_units
+        self.results["unmodified_existing_cap_mw"] = (
+            self.results["unmodified_cap_size"] * self.results["num_units"]
+        )
 
-    # Set Min_power of wind/solar to 0
-    results.loc[results["DISP"] == 1, "Min_power"] = 0
+        self.results = add_model_tags(self.results, self.settings)
 
-    results.set_index(["region", "technology"], inplace=True)
-    results["R_ID"] = np.array(range(len(results))) + 1
+        # Convert technology names to snake_case and add a 1-indexed column R_ID
+        self.results = self.results.reset_index()
+        self.results["technology"] = snake_case_col(self.results["technology"])
 
-    logger.info(f"Capacity of {results['Existing_Cap_MW'].sum()} MW in final clusters")
+        # Set Min_power of wind/solar to 0
+        self.results.loc[self.results["DISP"] == 1, "Min_power"] = 0
 
-    # logger.info(f"{(dt.now() - start).total_seconds()} seconds total")
+        self.results.set_index(["region", "technology"], inplace=True)
+        self.results["R_ID"] = np.array(range(len(self.results))) + 1
 
-    if return_retirement_capacity:
-        return results, retired
-    else:
-        return results
+        logger.info(
+            f"Capacity of {self.results['Existing_Cap_MW'].sum()} MW in final clusters"
+        )
+
+        # logger.info(f"{(dt.now() - start).total_seconds()} seconds total")
+
+        if return_retirement_capacity:
+            return self.results, retired
+        else:
+            return self.results
