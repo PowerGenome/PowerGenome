@@ -993,8 +993,9 @@ def import_proposed_generators(settings, model_regions_gdf):
         add_additional_retirements=False,
     )
 
-    planned_gdf = group_technologies(planned_gdf, settings)
-    print(planned_gdf["technology_description"].unique().tolist())
+    if settings["group_technologies"] is True:
+        planned_gdf = group_technologies(planned_gdf, settings)
+        print(planned_gdf["technology_description"].unique().tolist())
 
     keep_cols = [
         "model_region",
@@ -1059,7 +1060,7 @@ def gentype_region_capacity_factor(
             G.fuel_type_code_pudl
         FROM
             generators_eia860 G
-        WHERE operational_status_code NOT IN ('RE', 'OS')
+        WHERE operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
             AND G.plant_id_eia IN %(plant_ids)s
         GROUP BY
             G.report_date,
@@ -1110,7 +1111,8 @@ def gentype_region_capacity_factor(
         plant_tech_cap, generation, on=["plant_id_eia"], how="left"
     )
 
-    capacity_factor = group_technologies(capacity_factor, settings)
+    if settings["group_technologies"] is True:
+        capacity_factor = group_technologies(capacity_factor, settings)
 
     if years_filter is None:
         years_filter = {
@@ -1133,7 +1135,8 @@ def gentype_region_capacity_factor(
     for tech, years in years_filter.items():
         _df = capacity_factor.loc[
             (capacity_factor["technology_description"] == tech)
-            & (capacity_factor["report_date"].dt.year.isin(years)), :
+            & (capacity_factor["report_date"].dt.year.isin(years)),
+            :,
         ]
         df_list.append(_df)
     capacity_factor = pd.concat(df_list, sort=False)
@@ -1409,9 +1412,9 @@ class GeneratorClusters:
         self.all_units = pd.concat(unit_list, sort=False)
         self.all_units = pd.merge(
             self.units_model,
-            self.all_units['cluster'],
+            self.all_units["cluster"],
             on=["plant_id_eia", "unit_id_pudl"],
-            how='left'
+            how="left",
         )
 
         logger.info("Finalizing generation clusters")
