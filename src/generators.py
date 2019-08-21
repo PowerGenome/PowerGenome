@@ -51,17 +51,59 @@ op_status_map = {
 
 
 def fill_missing_tech_descriptions(df):
+    """
+    EIA 860 records before 2014 don't have a technology description. If we want to
+    include any of this data in the historical record (e.g. heat rates or capacity
+    factors) then they need to be filled in.
 
+    Parameters
+    ----------
+    df : dataframe
+        A pandas dataframe with columns plant_id_eia, generator_id, and
+        technology_description.
+
+    Returns
+    -------
+    dataframe
+        Same data that came in, but with missing technology_description values filled
+        in.
+    """
+    start_len = len(df)
     df_list = []
     for _, _df in df.groupby(["plant_id_eia", "generator_id"], as_index=False):
         _df["technology_description"].fillna(method="bfill", inplace=True)
         df_list.append(_df)
     results = pd.concat(df_list, ignore_index=True, sort=False)
 
+    end_len = len(results)
+    assert (
+        start_len == end_len
+    ), "Somehow records were dropped when filling tech_descriptions"
     return results
 
 
 def group_generators_at_plant(df, by=["plant_id_eia"], agg_fn={"capacity_mw": "sum"}):
+    """
+    Group generators at a plant. This is a flexible function that lets a user group
+    by the desired attributes (e.g. plant id) and perform aggregated operations on each
+    group.
+
+    This function also might be a bit unnecessary given how simple it is.
+
+    Parameters
+    ----------
+    df : dataframe
+        Pandas dataframe with information on power plants.
+    by : list, optional
+        Columns to use for the groupby, by default ["plant_id_eia"]
+    agg_fn : dict, optional
+        Aggregation function to pass to groupby, by default {"capacity_mw": "sum"}
+
+    Returns
+    -------
+    dataframe
+        The grouped dataframe with aggregation functions applied.
+    """
 
     df_grouped = df.groupby(by, as_index=False).agg(agg_fn)
 
@@ -69,6 +111,25 @@ def group_generators_at_plant(df, by=["plant_id_eia"], agg_fn={"capacity_mw": "s
 
 
 def group_technologies(df, settings):
+    """
+    Group different technologies together based on parameters in the settings file.
+    An example would be to put a bunch of different technologies under the umbrella
+    category of "biomass" or "peaker".
+
+    Parameters
+    ----------
+    df : dataframe
+        Pandas dataframe with
+    settings : dictionary
+        User-defined settings loaded from a YAML file. Must have key tech_groups.
+
+    Returns
+    -------
+    dataframe
+        Same as incoming dataframe but with grouped technology types
+    """
+    start_len = len(df)
+
     df["_technology"] = df["technology_description"]
     for tech, group in settings["tech_groups"].items():
         df.loc[df["technology_description"].isin(group), "_technology"] = tech
@@ -76,18 +137,32 @@ def group_technologies(df, settings):
     df.loc[:, "technology_description"] = df.loc[:, "_technology"]
     df = df.drop(columns=["_technology"])
 
+    end_len = len(df)
+    assert (
+        start_len == end_len,
+        "One or more records was dropped when grouping technology descriptions",
+    )
+
     return df
 
 
-def label_hydro_region(pudl_engine, settings, model_regions_gdf):
+def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
+    """
+    Label hydro facilities that don't have a region by default.
 
-    # model_regions_gdf = load_ipm_shapefile(settings)
-    data_years = settings["data_years"]
+    Parameters
+    ----------
+    gens_860 : dataframe
+        Infomation on all generators from PUDL
+    pudl_engine : sqlalchemy.Engine
+        A sqlalchemy connection for use by pandas
+    model_regions_gdf : dataframe
+        Geodataframe of the model regions
 
-    sql = """
-        SELECT * FROM generators_eia860
-        WHERE DATE_PART('year', report_date) IN %(data_years)s
-        AND operational_status_code NOT IN ('RE', 'OS')
+    Returns
+    -------
+    dataframe
+        Plant id and region for any hydro that didn't originally have a region label.
     """
     gens_860 = pd.read_sql_query(
         sql=sql,
