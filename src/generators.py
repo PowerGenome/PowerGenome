@@ -164,12 +164,6 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
     dataframe
         Plant id and region for any hydro that didn't originally have a region label.
     """
-    gens_860 = pd.read_sql_query(
-        sql=sql,
-        con=pudl_engine,
-        params={"data_years": tuple(data_years)},
-        parse_dates=["planned_retirement_date"],
-    )
 
     plant_entity = pd.read_sql_table("plants_entity_eia", pudl_engine)
 
@@ -202,6 +196,7 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
 
 
 def load_plant_region_map(
+    gens_860,
     pudl_engine,
     settings,
     model_regions_gdf,
@@ -233,7 +228,9 @@ def load_plant_region_map(
     region_map_df = pd.read_sql_table(table, con=pudl_engine)
 
     # Label hydro using the IPM shapefile because NEEDS seems to drop some hydro
-    all_hydro_regions = label_hydro_region(pudl_engine, settings, model_regions_gdf)
+    all_hydro_regions = label_hydro_region(
+        gens_860, pudl_engine, settings, model_regions_gdf
+    )
     region_map_df = pd.concat(
         [region_map_df, all_hydro_regions], ignore_index=True, sort=False
     ).drop_duplicates(subset=["plant_id_eia"], keep="first")
@@ -414,14 +411,48 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
     assert start_len == end_len
 
 
-def load_generator_860_data(
-    pudl_engine, settings, pudl_out, model_region_map, data_years=[2017]
+def load_generator_860_data(pudl_engine, data_years=[2017]):
+    """
+    Load EIA 860 generator data from the PUDL database
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.Engine
+        A sqlalchemy connection for use by pandas
+    data_years : list, optional
+        Years of data to load, by default [2017]
+
+    Returns
+    -------
+    dataframe
+        All of the generating units from PUDL
+    """
+
+    sql = """
+        SELECT * FROM generators_eia860
+        WHERE DATE_PART('year', report_date) IN %(data_years)s
+        AND operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
+    """
+    gens_860 = pd.read_sql_query(
+        sql=sql,
+        con=pudl_engine,
+        params={"data_years": tuple(data_years)},
+        parse_dates=["planned_retirement_date"],
+    )
+
+    return gens_860
+
+
+def supplement_generator_860_data(
+    gens_860, pudl_engine, settings, pudl_out, model_region_map, data_years=[2017]
 ):
     """
     Load data about each generating unit in the model area.
 
     Parameters
     ----------
+    gens_860 : dataframe
+        Information on all generating units for the given data years.
     pudl_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas
     settings : dictionary
@@ -448,20 +479,6 @@ def load_generator_860_data(
        'retirement_year']
     """
 
-    # Could make this faster by using SQL and only reading the data we need
-    # gens_860 = pudl_out.gens_eia860()
-    sql = """
-        SELECT * FROM generators_eia860
-        WHERE DATE_PART('year', report_date) IN %(data_years)s
-        AND operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
-    """
-    gens_860 = pd.read_sql_query(
-        sql=sql,
-        con=pudl_engine,
-        params={"data_years": tuple(data_years)},
-        parse_dates=["planned_retirement_date"],
-    )
-    _gens_860 = gens_860.copy()
     initial_capacity = (
         gens_860.loc[gens_860["plant_id_eia"].isin(model_region_map["plant_id_eia"])]
         .groupby("technology_description")[settings["capacity_col"]]
@@ -1192,6 +1209,8 @@ class GeneratorClusters:
         self.pudl_out = pudl_out
         self.settings = settings
         self.model_regions_gdf = load_ipm_shapefile(self.settings)
+        self.data_years = self.settings["data_years"]
+        self.gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
 
     def create_region_technology_clusters(
         self,
@@ -1222,10 +1241,9 @@ class GeneratorClusters:
         """
         # start = dt.now()
 
-        data_years = self.settings["data_years"]
-
         logger.info("Loading map of plants to IPM regions")
         self.plant_region_map = load_plant_region_map(
+            self.gens_860,
             self.pudl_engine,
             self.settings,
             self.model_regions_gdf,
@@ -1237,12 +1255,14 @@ class GeneratorClusters:
         # print(f"{check1_diff} seconds to load plant_region_map")
 
         # logger.info("Loading EIA860 generator data")
-        self.gens_860_model = load_generator_860_data(
+
+        self.gens_860_model = supplement_generator_860_data(
+            self.gens_860,
             self.pudl_engine,
             self.settings,
             self.pudl_out,
             self.plant_region_map,
-            data_years=data_years,
+            data_years=self.data_years,
         )
         # check2 = dt.now()
         # check2_diff = (check2 - check1).total_seconds()
@@ -1253,7 +1273,7 @@ class GeneratorClusters:
             self.pudl_engine,
             self.pudl_out,
             model_region_map=self.plant_region_map,
-            data_years=data_years,
+            data_years=self.data_years,
         )
         # check3 = dt.now()
         # check3_diff = (check3 - check2).total_seconds()
@@ -1262,7 +1282,7 @@ class GeneratorClusters:
         # Add heat rates to the data we already have from 860
         logger.info("Loading heat rate data for units and generator/fuel combinations")
         weighted_unit_hr, prime_mover_hr_map = unit_generator_heat_rates(
-            self.pudl_out, self.annual_gen_923, data_years
+            self.pudl_out, self.annual_gen_923, self.data_years
         )
         # check4 = dt.now()
         # check4_diff = (check4 - check3).total_seconds()
