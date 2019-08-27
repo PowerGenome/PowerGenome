@@ -229,7 +229,7 @@ def load_plant_region_map(
 
     # Label hydro using the IPM shapefile because NEEDS seems to drop some hydro
     all_hydro_regions = label_hydro_region(
-        gens_860, pudl_engine, settings, model_regions_gdf
+        gens_860, pudl_engine, model_regions_gdf
     )
     region_map_df = pd.concat(
         [region_map_df, all_hydro_regions], ignore_index=True, sort=False
