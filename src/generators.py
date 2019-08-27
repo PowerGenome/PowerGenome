@@ -374,6 +374,26 @@ def label_retirement_year(
 
 
 def label_small_hydro(df, settings, by=["plant_id_eia"]):
+    """
+    Use rules from the settings file to label plants below a certain size as small
+    hydroelectric rather than conventional hydroelectric.
+
+    Parameters
+    ----------
+    df : dataframe
+        EIA 860 data on generators
+    settings : dict
+        User-defined parameters from a settings file
+    by : list, optional
+        What columns to use in the groupby function when summing capacity, by default
+        ["plant_id_eia"]
+
+    Returns
+    -------
+    dataframe
+        If the user wants to label small hydro plants, some of the conventional
+        hydro facilities will have their technology type changed to small hydro.
+    """
     region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
     keep_regions = [
         x
@@ -849,8 +869,28 @@ def calc_unit_cluster_values(df, settings, technology=None):
     return df_values
 
 
-def add_model_tags(df, settings):
+def add_genx_model_tags(df, settings):
+    """
+    Each generator type needs to have certain tags for use by the GenX model. Each tag
+    is a column, e.g. THERM for thermal generators. These columns and tag values are
+    defined in the settings file and applied here. Tags are (usually?) boolean 0/1
+    values.
 
+    Parameters
+    ----------
+    df : dataframe
+        Clusters of generators. The index should have a column 'technology', which
+        is used to map tag values.
+    settings : dict
+        User-defined settings loaded from a YAML file.
+
+    Returns
+    -------
+    dataframe
+        The original generator cluster results with new columns for each model tag.
+    """
+    check_cols = ["Heat_rate_MMBTU_per_MWh", "Existing_Cap_MW"]
+    start_totals = df[check_cols].sum()
     model_tag_cols = settings["model_tag_names"]
 
     # Create a new dataframe with the same index
@@ -864,11 +904,30 @@ def add_model_tags(df, settings):
     tag_df.fillna(settings["default_model_tag"], inplace=True)
 
     combined_df = pd.concat([df, tag_df], axis=1)
+    end_totals = combined_df[check_cols].sum()
+
+    assert np.allclose(
+        start_totals, end_totals
+    ), "Something was messed up when adding model tags"
 
     return combined_df
 
 
 def load_ipm_shapefile(settings):
+    """
+    Load the shapefile of IPM regions
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined parameters from a settings YAML file. This is where any region
+        aggregations would be defined.
+
+    Returns
+    -------
+    geodataframe
+        Regions to use in the study with the matching geometry for each.
+    """
 
     region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
 
@@ -890,8 +949,22 @@ def load_ipm_shapefile(settings):
 
 
 def import_proposed_generators(settings, model_regions_gdf):
+    """
+    Load the most recent proposed generating units from EIA860m. Will also add
+    any planned generators that are included in the settings file.
 
-    # model_regions_gdf = load_ipm_shapefile(settings)
+    Parameters
+    ----------
+    settings : dict
+        User defined parameters from a settings YAML file
+    model_regions_gdf : geodataframe
+        Contains the name and geometry of each region being used in the study
+
+    Returns
+    -------
+    dataframe
+        All proposed generators.
+    """
 
     fn = settings["proposed_gen_860_fn"]
     # Only the most recent file will not have archive in the url
