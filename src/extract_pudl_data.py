@@ -41,6 +41,14 @@ def parse_command_line(argv):
         default=dt.now().strftime("%Y-%m-%d %H.%M.%S"),
         help="Specify the results subfolder to write output",
     )
+    parser.add_argument(
+        "-a",
+        "--all_units",
+        dest="all_units",
+        type=bool,
+        default=True,
+        help="Save information on all individual units (boolean)",
+    )
     arguments = parser.parse_args(argv[1:])
     return arguments
 
@@ -103,9 +111,10 @@ def main():
         zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
 
-    gen_clusters = GeneratorClusters(
+    gc = GeneratorClusters(
         pudl_engine=pudl_engine, pudl_out=pudl_out, settings=settings
-    ).create_region_technology_clusters()
+    )
+    gen_clusters = gc.create_region_technology_clusters()
     gen_clusters["zone"] = gen_clusters.index.get_level_values("region").map(
         zone_num_map
     )
@@ -120,8 +129,13 @@ def main():
     logger.info("Write GenX input files")
     gen_clusters.to_csv(
         out_folder / f"generator_clusters_{args.results_folder}.csv",
-        float_format="%.2f",
+        float_format="%.3f",
     )
+    if args.all_units is True:
+        gc.all_units.to_csv(
+            out_folder / f"all_units_{args.results_folder}.csv"
+        )
+
     load.astype(int).to_csv(out_folder / f"load_curves_{args.results_folder}.csv")
     transmission.to_csv(
         out_folder / f"transmission_constraints_{args.results_folder}.csv",
