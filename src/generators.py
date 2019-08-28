@@ -131,7 +131,6 @@ def group_technologies(df, settings):
         Same as incoming dataframe but with grouped technology types
     """
     if settings["group_technologies"] is True:
-        # start_len = len(df)
 
         df["_technology"] = df["technology_description"]
         for tech, group in settings["tech_groups"].items():
@@ -139,12 +138,6 @@ def group_technologies(df, settings):
 
         df.loc[:, "technology_description"] = df.loc[:, "_technology"]
         df = df.drop(columns=["_technology"])
-
-        # end_len = len(df)
-        # assert (
-        #     start_len == end_len,
-        #     "One or more records was dropped when grouping technology descriptions",
-        # )
 
         return df
 
@@ -335,15 +328,12 @@ def label_retirement_year(
             plant_id, gen_id, ret_year = record
             # gen ids are strings, not integers
             gen_id = str(gen_id)
-            # print(plant_id, gen_id, ret_year)
+
             df.loc[
                 (df["plant_id_eia"] == plant_id) & (df["generator_id"] == gen_id),
                 "retirement_year",
             ] = ret_year
-            # print(df.loc[
-            #     (df["plant_id_eia"] == plant_id) & (df["generator_id"] == gen_id),
-            #     ['plant_id_eia', 'generator_id', 'summer_capacity_mw', "retirement_year"]
-            # ])
+
             i += 1
             ret_cap += df.loc[
                 (df["plant_id_eia"] == plant_id) & (df["generator_id"] == gen_id),
@@ -444,7 +434,9 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
         )[cap_col].sum()
 
         assert start_len == end_len
-        assert start_hydro_capacity == small_hydro_capacity + end_conv_hydro_capacity
+        assert np.allclose(
+            start_hydro_capacity, small_hydro_capacity + end_conv_hydro_capacity
+        )
 
         return df
 
@@ -482,7 +474,7 @@ def load_generator_860_data(pudl_engine, data_years=[2017]):
 
 
 def supplement_generator_860_data(
-    gens_860, gens_entity, bga, model_region_map, settings  # , data_years=[2017]
+    gens_860, gens_entity, bga, model_region_map, settings
 ):
     """
     Load data about each generating unit in the model area.
@@ -1196,7 +1188,6 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
         )
 
     planned = planned.dropna(subset=["latitude", "longitude"])
-    #     print(planned.columns)
 
     # Convert the lon/lat values to geo points. Need to add an initial CRS and then
     # change it to align with the IPM regions
@@ -1304,13 +1295,6 @@ def gentype_region_capacity_factor(
 
     cap_col = settings["capacity_col"]
 
-    # cf_techs = []
-    # for tech in settings["capacity_factor_techs"]:
-    #     if tech in settings["tech_groups"]:
-    #         cf_techs += settings["tech_groups"][tech]
-    #     else:
-    #         cf_techs.append(tech)
-
     # Include standby (SB) generators since they are in our capacity totals
     sql = """
         SELECT
@@ -1354,9 +1338,6 @@ def gentype_region_capacity_factor(
     )
 
     label_small_hydro(plant_tech_cap, settings, by=["plant_id_eia", "report_date"])
-    # plant_tech_cap = plant_tech_cap.loc[
-    #     plant_tech_cap["technology_description"].isin(cf_techs), :
-    # ]
 
     sql = """
         SELECT
@@ -1440,12 +1421,7 @@ def gentype_region_capacity_factor(
         columns={"model_region": "region", "technology_description": "technology"},
         inplace=True,
     )
-    # capacity_factor_tech_region["technology"] = snake_case_col(
-    #     capacity_factor_tech_region["technology"]
-    # )
-    # capacity_factor_tech_region.set_index(
-    #     ["model_region", "technology_description"], inplace=True
-    # )
+
     logger.debug(capacity_factor_tech_region)
 
     return capacity_factor_tech_region
@@ -1523,8 +1499,8 @@ class GeneratorClusters:
 
     def create_region_technology_clusters(self, return_retirement_capacity=False):
         """
-        Calculation of average unit characteristics within a technology cluster (capacity,
-        minimum load, heat rate) and the number of units in the cluster.
+        Calculation of average unit characteristics within a technology cluster
+        (capacity, minimum load, heat rate) and the number of units in the cluster.
 
         Parameters
         ----------
@@ -1543,14 +1519,6 @@ class GeneratorClusters:
         dataframe
 
         """
-        # start = dt.now()
-
-        # check1 = dt.now()
-        # check1_diff = (check1 - start).total_seconds()
-        # print(f"{check1_diff} seconds to load plant_region_map")
-
-        # logger.info("Loading EIA860 generator data")
-
         self.gens_860_model = (
             self.gens_860.pipe(
                 supplement_generator_860_data,
@@ -1569,15 +1537,6 @@ class GeneratorClusters:
         self.annual_gen_hr_923 = self.gen_923.pipe(
             group_gen_by_year_fuel_primemover
         ).pipe(add_923_heat_rate)
-        # check2 = dt.now()
-        # check2_diff = (check2 - check1).total_seconds()
-        # print(f"{check2_diff} seconds to load 860 generator data")
-
-        # logger.info(f"Loading EIA923 fuel and generation data for {settings['data_years']}")
-
-        # check3 = dt.now()
-        # check3_diff = (check3 - check2).total_seconds()
-        # print(f"{check3_diff} seconds to load 923 generator data")
 
         # Add heat rates to the data we already have from 860
         logger.info("Loading heat rate data for units and generator/fuel combinations")
@@ -1585,9 +1544,6 @@ class GeneratorClusters:
         self.weighted_unit_hr = unit_generator_heat_rates(
             self.pudl_out, self.bga, self.data_years
         )
-        # check4 = dt.now()
-        # check4_diff = (check4 - check3).total_seconds()
-        # print(f"{check4_diff} seconds to load heat rate data")
 
         # Merge the PUDL calculated heat rate data and set the index for easy
         # mapping using plant/prime mover heat rates from 923
@@ -1655,15 +1611,12 @@ class GeneratorClusters:
             f"After adding proposed, units model technologies are "
             f"{self.units_model.technology_description.unique().tolist()}"
         )
-        # logger.info(units_model['technology_description'].unique().tolist())
         logger.info(
             f"After adding proposed generators, {len(self.units_model)} units with "
             f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
         )
-        # return units_model
 
         techs = list(self.settings["num_clusters"])
-        # logger.info(f"Technology clusters include {', '.join(techs)}")
 
         num_clusters = {}
         for region in self.settings["model_regions"]:
@@ -1679,28 +1632,22 @@ class GeneratorClusters:
             :,
         ].groupby(["model_region", "technology_description"])
 
-        # if return_retirement_capacity:
         self.retired = self.units_model.loc[
             self.units_model.retirement_year < self.settings["model_year"], :
         ]
 
         # For each group, cluster and calculate the average size, min load, and heat rate
         # logger.info("Creating technology clusters by region")
-        print("Creating technology clusters by region")
+        logger.info("Creating technology clusters by region")
         unit_list = []
         cluster_list = []
         for _, df in region_tech_grouped:
             region, tech = _
-            # logger.info(f"{region}, {tech}")
-
             grouped = group_units(df, self.settings)
 
-            # try:
             clusters = cluster.KMeans(
                 n_clusters=num_clusters[region][tech], random_state=6
             ).fit(preprocessing.StandardScaler().fit_transform(grouped))
-            # except:
-            #     print(grouped)
 
             grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
 
@@ -1790,9 +1737,7 @@ class GeneratorClusters:
             f"Capacity of {self.results['Existing_Cap_MW'].sum()} MW in final clusters"
         )
 
-        # logger.info(f"{(dt.now() - start).total_seconds()} seconds total")
-
         if return_retirement_capacity:
-            return self.results, retired
+            return self.results, self.retired
         else:
             return self.results
