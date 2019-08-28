@@ -3,10 +3,12 @@ import logging
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 from sklearn import cluster, preprocessing
 from xlrd import XLRDError
-import pudl
 
+import pudl
 from src.params import IPM_SHAPEFILE_PATH
 from src.util import map_agg_region_names, reverse_dict_of_lists, snake_case_col
 
@@ -581,6 +583,94 @@ def supplement_generator_860_data(
     return gens_860_model
 
 
+def create_plant_gen_id(df):
+    """Combine the plant id and generator id to form a unique combination
+
+    Parameters
+    ----------
+    df : dataframe
+        Must contain columns plant_id_eia and generator_id
+
+    Returns
+    -------
+    dataframe
+        Same as input but with the additional column plant_gen_id
+    """
+
+    df["plant_gen_id"] = df["plant_id_eia"].astype(str) + "_" + df["generator_id"].astype(str)
+
+    return df
+
+
+def remove_canceled_860m(df, canceled_860m):
+    """Remove generators that 860m shows as having been canceled
+
+    Parameters
+    ----------
+    df : dataframe
+        All of the EIA 860 generators
+    canceled_860m : dataframe
+        From the 860m Canceled or Postponed sheet
+
+    Returns
+    -------
+    dataframe
+        Same as input, but possibly without generators that were proposed
+    """
+    df = create_plant_gen_id(df)
+    canceled_860m = create_plant_gen_id(canceled_860m)
+
+    canceled = df.loc[df["plant_gen_id"].isin(canceled_860m["plant_gen_id"]), :]
+    if "OP" in canceled["operational_status_code"].unique():
+        raise ValueError("At least one of the canceled plants is actually operating")
+    not_canceled_df = df.loc[~df["plant_gen_id"].isin(canceled_860m["plant_gen_id"]), :]
+
+    not_canceled_df = not_canceled_df.drop(columns="plant_gen_id")
+
+    if not canceled.empty:
+        assert len(df) == len(canceled) + len(not_canceled_df)
+
+    return not_canceled_df
+
+
+def remove_retired_860m(df, retired_860m):
+    """Remove generators that 860m shows as having been retired
+
+    Parameters
+    ----------
+    df : dataframe
+        All of the EIA 860 generators
+    retired_860m : dataframe
+        From the 860m Retired sheet
+
+    Returns
+    -------
+    dataframe
+        Same as input, but possibly without generators that have retired
+    """
+
+    df = create_plant_gen_id(df)
+    retired_860m = create_plant_gen_id(retired_860m)
+
+    retired = df.loc[df["plant_gen_id"].isin(retired_860m["plant_gen_id"]), :]
+    if "OP" in retired["operational_status_code"].unique():
+        ret_but_op = retired.loc[
+            retired["operational_status_code"] == "OP", "plant_gen_id"
+        ].tolist()
+        logger.warning(
+            "At least one of the canceled plants is actually operating\n"
+            f"check out {ret_but_op}"
+        )
+    not_retired_df = df.loc[~df["plant_gen_id"].isin(retired_860m["plant_gen_id"]), :]
+
+    not_retired_df = not_retired_df.drop(columns="plant_gen_id")
+
+    if not retired.empty:
+        assert len(df) == len(retired) + len(not_retired_df)
+
+    return not_retired_df
+
+
 def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
     """
     Load generation and fuel data for each plant. EIA-923 provides these values for
@@ -960,7 +1050,96 @@ def load_ipm_shapefile(settings):
     return model_regions_gdf
 
 
-def import_proposed_generators(settings, model_regions_gdf):
+def download_860m(settings):
+    """Load the entire 860m file into memory as an ExcelFile object.
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined settings loaded from a YAML file. This is where the EIA860m
+        filename is defined.
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+    try:
+        fn = settings["eia_860m_fn"]
+    except KeyError:
+        # No key in the settings file
+        logger.info("Trying to determine the most recent EIA860m file...")
+        fn = find_newest_860m()
+
+    logger.info(f"Downloading the EIA860m file {fn}")
+    # Only the most recent file will not have archive in the url
+    url = f"https://www.eia.gov/electricity/data/eia860m/xls/{fn}"
+    archive_url = f"https://www.eia.gov/electricity/data/eia860m/archive/xls/{fn}"
+
+    try:
+        eia_860m = pd.ExcelFile(url)
+    except XLRDError:
+        logger.warning("A more recent version of EIA-860m is available")
+        eia_860m = pd.ExcelFile(archive_url)
+
+    return eia_860m
+
+
+def find_newest_860m():
+    """Scrape the EIA 860m page to find the most recently posted file.
+
+    Returns
+    -------
+    str
+        Name of most recently posted file
+    """
+    site_url = "https://www.eia.gov/electricity/data/eia860m/"
+    r = requests.get(site_url)
+    soup = BeautifulSoup(r.content, "lxml")
+    table = soup.find("table", attrs={"class": "simpletable"})
+    href = table.find("a")["href"]
+    fn = href.split("/")[-1]
+
+    return fn
+
+
+def clean_860m_sheet(eia_860m, sheet_name, settings):
+    """Load a sheet from the 860m ExcelFile object and clean it.
+
+    Parameters
+    ----------
+    eia_860m : ExcelFile
+        Entire 860m file loaded into memory
+    sheet_name : str
+        Name of the sheet to load as a dataframe
+    settings : dict
+        User-defined settings loaded from a YAML file.
+
+    Returns
+    -------
+    dataframe
+        One of the sheets from 860m
+    """
+
+    df = eia_860m.parse(
+        sheet_name=sheet_name, skiprows=1, skipfooter=1, na_values=[" "]
+    )
+    df = df.rename(columns=planned_col_map)
+
+    if sheet_name in ["Operating", "Planned"]:
+        df.loc[:, "operational_status_code"] = df.loc[:, "operational_status"].map(
+            op_status_map
+        )
+
+    if sheet_name == "Planned":
+        df = df.loc[
+            df["operational_status_code"].isin(settings["proposed_status_included"]), :
+        ]
+
+    return df
+
+
+def import_proposed_generators(planned, settings, model_regions_gdf):
     """
     Load the most recent proposed generating units from EIA860m. Will also add
     any planned generators that are included in the settings file.
@@ -978,28 +1157,28 @@ def import_proposed_generators(settings, model_regions_gdf):
         All proposed generators.
     """
 
-    fn = settings["proposed_gen_860_fn"]
-    # Only the most recent file will not have archive in the url
-    url = f"https://www.eia.gov/electricity/data/eia860m/xls/{fn}"
-    archive_url = f"https://www.eia.gov/electricity/data/eia860m/archive/xls/{fn}"
+    # fn = settings["eia_860m_fn"]
+    # # Only the most recent file will not have archive in the url
+    # url = f"https://www.eia.gov/electricity/data/eia860m/xls/{fn}"
+    # archive_url = f"https://www.eia.gov/electricity/data/eia860m/archive/xls/{fn}"
 
-    try:
-        planned = pd.read_excel(
-            url, sheet_name="Planned", skiprows=1, skipfooter=1, na_values=[" "]
-        )
-    except XLRDError:
-        logger.warning("A more recent version of EIA-860m is available")
-        planned = pd.read_excel(
-            archive_url, sheet_name="Planned", skiprows=1, skipfooter=1, na_values=[" "]
-        )
+    # try:
+    #     planned = pd.read_excel(
+    #         url, sheet_name="Planned", skiprows=1, skipfooter=1, na_values=[" "]
+    #     )
+    # except XLRDError:
+    #     logger.warning("A more recent version of EIA-860m is available")
+    #     planned = pd.read_excel(
+    #         archive_url, sheet_name="Planned", skiprows=1, skipfooter=1, na_values=[" "]
+    #     )
 
-    planned = planned.rename(columns=planned_col_map)
-    planned.loc[:, "operational_status_code"] = planned.loc[
-        :, "operational_status"
-    ].map(op_status_map)
-    planned = planned.loc[
-        planned["operational_status_code"].isin(settings["proposed_status_included"]), :
-    ]
+    # planned = planned.rename(columns=planned_col_map)
+    # planned.loc[:, "operational_status_code"] = planned.loc[
+    #     :, "operational_status"
+    # ].map(op_status_map)
+    # planned = planned.loc[
+    #     planned["operational_status_code"].isin(settings["proposed_status_included"]), :
+    # ]
 
     # Some plants don't have lat/lon data. Log this now to determine if any action is
     # needed, then drop them from the dataframe.
@@ -1331,6 +1510,17 @@ class GeneratorClusters:
             data_years=self.data_years,
         )
 
+        self.eia_860m = download_860m(self.settings)
+        self.planned_860m = clean_860m_sheet(
+            self.eia_860m, sheet_name="Planned", settings=self.settings
+        )
+        self.canceled_860m = clean_860m_sheet(
+            self.eia_860m, sheet_name="Canceled or Postponed", settings=self.settings
+        )
+        self.retired_860m = clean_860m_sheet(
+            self.eia_860m, sheet_name="Retired", settings=self.settings
+        )
+
     def create_region_technology_clusters(self, return_retirement_capacity=False):
         """
         Calculation of average unit characteristics within a technology cluster (capacity,
@@ -1369,6 +1559,8 @@ class GeneratorClusters:
                 self.plant_region_map,
                 self.settings,
             )
+            .pipe(remove_canceled_860m, self.canceled_860m)
+            .pipe(remove_retired_860m, self.retired_860m)
             .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
             .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
             .pipe(group_technologies, self.settings)
@@ -1434,7 +1626,9 @@ class GeneratorClusters:
             f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
         )
         proposed_gens = import_proposed_generators(
-            settings=self.settings, model_regions_gdf=self.model_regions_gdf
+            planned=self.planned_860m,
+            settings=self.settings,
+            model_regions_gdf=self.model_regions_gdf,
         )
         logger.info(
             f"Proposed gen technologies are "
