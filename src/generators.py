@@ -717,6 +717,42 @@ def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[
     return gen_fuel_923
 
 
+def modify_cc_prime_mover_code(df, gens_860):
+    """Change combined cycle prime movers from CA and CT to CC.
+
+    The heat rate of combined cycle plants that aren't included in PULD heat rate by
+    unit should probably be done with the combustion and steam turbines combined. This
+    modifies the prime mover code of those two generator types so that they match. It
+    doesn't touch the CS code, which is for single shaft combined units.
+
+    Parameters
+    ----------
+    df : dataframe
+        A dataframe with columns prime_mover_code, and plant_id_eia.
+    gens_860 : dataframe
+        EIA860 dataframe with technology_description, unit_id_pudl, plant_id_eia
+        columns.
+
+    Returns
+    -------
+    dataframe
+        Modified 923 dataframe where prime mover codes at CC generators that don't have
+        a PUDL unit id are modified from CA and CT to CC.
+    """
+    cc_without_pudl_id = gens_860.loc[
+        (gens_860["unit_id_pudl"].isnull())
+        & (gens_860["technology_description"] == "Natural Gas Fired Combined Cycle"),
+        "plant_id_eia",
+    ]
+    df.loc[
+        (df["plant_id_eia"].isin(cc_without_pudl_id))
+        & (df["prime_mover_code"].isin(["CA", "CT"])),
+        "prime_mover_code",
+    ] = "CC"
+
+    return df
+
+
 def group_gen_by_year_fuel_primemover(df):
     """
     Group generation and fuel consumption by plant, prime mover, and fuel type. Only
@@ -1512,10 +1548,16 @@ class GeneratorClusters:
             .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
             .pipe(group_technologies, self.settings)
         )
+        self.gens_860_model = self.gens_860_model.pipe(
+            modify_cc_prime_mover_code, self.gens_860_model
+        )
+        self.gens_860_model.drop_duplicates(inplace=True)
 
-        self.annual_gen_hr_923 = self.gen_923.pipe(
-            group_gen_by_year_fuel_primemover
-        ).pipe(add_923_heat_rate)
+        self.annual_gen_hr_923 = (
+            self.gen_923.pipe(modify_cc_prime_mover_code, self.gens_860_model)
+            .pipe(group_gen_by_year_fuel_primemover)
+            .pipe(add_923_heat_rate)
+        )
 
         # Add heat rates to the data we already have from 860
         logger.info("Loading heat rate data for units and generator/fuel combinations")
