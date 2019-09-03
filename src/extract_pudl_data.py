@@ -10,7 +10,7 @@ import src
 from src.generators import GeneratorClusters
 from src.load_profiles import load_curves
 from src.params import DATA_PATHS
-from src.transmission import agg_transmission_constraints
+from src.transmission import agg_transmission_constraints, transmission_line_distance
 from src.util import init_pudl_connection, load_settings
 
 if not sys.warnoptions:
@@ -124,6 +124,12 @@ def main():
 
     transmission = agg_transmission_constraints(
         pudl_engine=pudl_engine, settings=settings
+    )
+    transmission = transmission.pipe(
+        transmission_line_distance,
+        ipm_shapefile=gc.model_regions_gdf,
+        settings=settings,
+        units='mile'
     )
 
     logger.info("Write GenX input files")
