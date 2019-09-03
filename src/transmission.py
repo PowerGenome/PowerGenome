@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from src.util import reverse_dict_of_lists, map_agg_region_names
 
+from math import radians, cos, sin, asin, sqrt
+
 logger = logging.getLogger(__name__)
 
 
@@ -64,7 +66,7 @@ def agg_transmission_constraints(
 
     # Build the final output dataframe
     logger.info(
-        "Build a new transmission constraints dataframe with a single line between"
+        "Build a new transmission constraints dataframe with a single line between "
         "regions"
     )
     tc_joined = pd.DataFrame(
@@ -94,3 +96,77 @@ def agg_transmission_constraints(
     tc_joined.drop(columns=["model_region_from", "model_region_to"], inplace=True)
 
     return tc_joined
+
+
+def haversine(lon1, lat1, lon2, lat2, units="mile"):
+    """
+    Calculate the great circle distance between two points
+    on the earth (specified in decimal degrees)
+
+    https://gis.stackexchange.com/questions/166820/geopandas-return-lat-and-long-of-a-centroid-point
+    """
+    # convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    c = 2 * asin(sqrt(a))
+
+    if units == "mile":
+        r = 3956  # Radius of earth in miles. Use 6371 for kilometers, 3956 for miles
+    elif units == "km":
+        r = 6371
+    else:
+        raise ValueError(f"Units are {units}, but should be 'mile' or 'km'")
+
+    return c * r
+
+
+def getXY(pt):
+    "Return the X and Y parts of a coordinate point"
+    return (pt.x, pt.y)
+
+
+def single_line_distance(line_name, region_centroids, units):
+    """Calculate the transmission line distance between centroids of two regions.
+
+    Parameters
+    ----------
+    line_name : str
+        Two region names in the format <start>_to_<end>
+    region_centroids : geoseries
+        Centroid points of each region with region names as the index
+    units : str
+        Name of the distance units to use. Options are 'mile' or 'km'.
+
+    Returns
+    -------
+    float
+        The distance
+    """
+
+    start, end = line_name.split("_to_")
+    start_lat, start_lon = getXY(region_centroids[start])
+    end_lat, end_lon = getXY(region_centroids[end])
+    distance = haversine(start_lon, start_lat, end_lon, end_lat, units=units)
+
+    return distance
+
+
+def transmission_line_distance(
+    trans_constraints_df, ipm_shapefile, settings, units="mile"
+):
+    logger.info("Calculating transmission line distance")
+    model_polygons = ipm_shapefile.dissolve(by="model_region")
+    model_polygons = model_polygons.to_crs({"init": "epsg:4326"})
+    region_centroids = model_polygons.centroid
+
+    distances = [
+        single_line_distance(line_name, region_centroids, units=units)
+        for line_name in trans_constraints_df.index
+    ]
+    trans_constraints_df[f"distance_{units}"] = distances
+
+    return trans_constraints_df
