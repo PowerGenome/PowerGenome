@@ -589,7 +589,9 @@ def create_plant_gen_id(df):
         Same as input but with the additional column plant_gen_id
     """
 
-    df["plant_gen_id"] = df["plant_id_eia"].astype(str) + "_" + df["generator_id"].astype(str)
+    df["plant_gen_id"] = (
+        df["plant_id_eia"].astype(str) + "_" + df["generator_id"].astype(str)
+    )
 
     return df
 
@@ -1148,29 +1150,6 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
     dataframe
         All proposed generators.
     """
-
-    # fn = settings["eia_860m_fn"]
-    # # Only the most recent file will not have archive in the url
-    # url = f"https://www.eia.gov/electricity/data/eia860m/xls/{fn}"
-    # archive_url = f"https://www.eia.gov/electricity/data/eia860m/archive/xls/{fn}"
-
-    # try:
-    #     planned = pd.read_excel(
-    #         url, sheet_name="Planned", skiprows=1, skipfooter=1, na_values=[" "]
-    #     )
-    # except XLRDError:
-    #     logger.warning("A more recent version of EIA-860m is available")
-    #     planned = pd.read_excel(
-    #         archive_url, sheet_name="Planned", skiprows=1, skipfooter=1, na_values=[" "]
-    #     )
-
-    # planned = planned.rename(columns=planned_col_map)
-    # planned.loc[:, "operational_status_code"] = planned.loc[
-    #     :, "operational_status"
-    # ].map(op_status_map)
-    # planned = planned.loc[
-    #     planned["operational_status_code"].isin(settings["proposed_status_included"]), :
-    # ]
 
     # Some plants don't have lat/lon data. Log this now to determine if any action is
     # needed, then drop them from the dataframe.
