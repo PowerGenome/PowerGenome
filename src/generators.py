@@ -6,6 +6,8 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 from sklearn import cluster, preprocessing
+import sqlalchemy as sa
+import sqlite3
 from xlrd import XLRDError
 
 import pudl
@@ -467,15 +469,15 @@ def load_generator_860_data(pudl_engine, data_years=[2017]):
 
     sql = """
         SELECT * FROM generators_eia860
-        WHERE DATE_PART('year', report_date) IN %(data_years)s
-        AND operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
+        WHERE operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
     """
     gens_860 = pd.read_sql_query(
         sql=sql,
         con=pudl_engine,
-        params={"data_years": tuple(data_years)},
-        parse_dates=["planned_retirement_date"],
+        # params={"data_years": tuple(data_years)},
+        parse_dates=["planned_retirement_date", "report_date"],
     )
+    gens_860 = gens_860.loc[gens_860["report_date"].dt.year.isin(data_years), :]
 
     return gens_860
 
@@ -707,8 +709,7 @@ def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[
     # Only load plants in the model regions.
     sql = """
         SELECT * FROM generation_fuel_eia923
-        WHERE DATE_PART('year', report_date) IN %(data_years)s
-        AND plant_id_eia IN %(plant_ids)s
+        WHERE plant_id_eia IN %(plant_ids)s
 
     """
 
@@ -716,10 +717,14 @@ def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[
         sql,
         pudl_engine,
         params={
-            "data_years": tuple(data_years),
-            "plant_ids": tuple(model_region_map.plant_id_eia),
+            # "data_years": tuple(data_years),
+            "plant_ids": tuple(model_region_map.plant_id_eia)
         },
+        parse_dates=["report_date"],
     )
+    gen_fuel_923 = gen_fuel_923.loc[
+        gen_fuel_923["report_date"].dt.year.isin(data_years), :
+    ]
 
     return gen_fuel_923
 
@@ -1361,18 +1366,47 @@ def gentype_region_capacity_factor(
 
     label_small_hydro(plant_tech_cap, settings, by=["plant_id_eia", "report_date"])
 
-    sql = """
-        SELECT
-            DATE_PART('year', GF.report_date) AS report_date,
-            GF.plant_id_eia,
-            SUM(GF.net_generation_mwh) AS net_generation_mwh,
-            GF.fuel_type_code_pudl
-        FROM
-            generation_fuel_eia923 GF
-        GROUP BY DATE_PART('year', GF.report_date), GF.plant_id_eia, GF.fuel_type_code_pudl
-        ORDER by GF.plant_id_eia, DATE_PART('year', GF.report_date)
-    """
-    generation = pd.read_sql_query(sql, pudl_engine, parse_dates={"report_date": "%Y"})
+    if type(pudl_engine) == sa.engine.base.Engine:
+        sql = """
+            SELECT
+                DATE_PART('year', GF.report_date) AS report_date,
+                GF.plant_id_eia,
+                SUM(GF.net_generation_mwh) AS net_generation_mwh,
+                GF.fuel_type_code_pudl
+            FROM
+                generation_fuel_eia923 GF
+            GROUP BY
+                DATE_PART('year', GF.report_date),
+                GF.plant_id_eia,
+                GF.fuel_type_code_pudl
+            ORDER by GF.plant_id_eia, DATE_PART('year', GF.report_date)
+        """
+        generation = pd.read_sql_query(
+            sql, pudl_engine, parse_dates={"report_date": "%Y"}
+        )
+    elif type(pudl_engine) == sqlite3.Connection:
+        sql = """
+            SELECT
+                strftime('%Y', GF.report_date) AS report_date,
+                GF.plant_id_eia,
+                SUM(GF.net_generation_mwh) AS net_generation_mwh,
+                GF.fuel_type_code_pudl
+            FROM
+                generation_fuel_eia923 GF
+            GROUP BY
+                strftime('%Y', GF.report_date),
+                GF.plant_id_eia,
+                GF.fuel_type_code_pudl
+            ORDER by GF.plant_id_eia, strftime('%Y', GF.report_date)
+        """
+        generation = pd.read_sql_query(
+            sql, pudl_engine, parse_dates={"report_date": "%Y"}
+        )
+    else:
+        raise TypeError(
+            f"pudl_engine should be a sqlalchemy Engine or sqlite3 Connection./n"
+            f"It is actually a {type(pudl_engine)}"
+        )
 
     capacity_factor = pudl.helpers.merge_on_date_year(
         plant_tech_cap, generation, on=["plant_id_eia"], how="left"
@@ -1664,7 +1698,7 @@ class GeneratorClusters:
             self.units_model.retirement_year < self.settings["model_year"], :
         ]
 
-        # For each group, cluster and calculate the average size, min load, and heat rate
+        # For each group, cluster and calculate the average size/min load/heat rate
         # logger.info("Creating technology clusters by region")
         logger.info("Creating technology clusters by region")
         unit_list = []
