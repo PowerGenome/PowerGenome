@@ -1,12 +1,13 @@
 # PowerGenome
+[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 [![Build Status](https://travis-ci.com/gschivley/PowerGenome.svg?token=yTGQ4JcCGLW2GZpmvXHw&branch=master)](https://travis-ci.com/gschivley/PowerGenome)
 
 This project pulls data from PUDL. As such, it requires prior installation of PUDL to access some of the convienience functions and the current SQL database. As PUDL transitions away from SQL and becomes pip-installable I will put together an environment.yml file for this project.
 
 ## Running code
-Settings are controlled in a YAML file. The default is `pudl_data_extraction.yml`. 
+Settings are controlled in a YAML file. The default is `pudl_data_extraction.yml`.
 
-The code is currently structured in three main modules - `generators.py`, `transmission.py`, and `load_profiles.py`. Functions from each can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, activate the  `pudl` conda environment, navigate to `src`, and run 
+The code is currently structured in three main modules - `generators.py`, `transmission.py`, and `load_profiles.py`. Functions from each can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, activate the  `pudl` conda environment, navigate to `src`, and run
 
 ```sh
 python extract_pudl_data.py
