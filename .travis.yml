@@ -14,4 +14,4 @@ install:
 script:
   - pytest
 after_success:
-- codecov
+- codecov --token=23fb74a3-a3dc-44c5-be81-6958c4ca6a21
