@@ -7,4 +7,3 @@ xlrd
 requests
 pyyaml
 pyarrow
-codecov
