@@ -1,7 +1,5 @@
 import yaml
 
-import pudl
-
 
 def load_settings(path):
 
@@ -12,6 +10,7 @@ def load_settings(path):
 
 
 def init_pudl_connection(freq='YS'):
+    import pudl
 
     pudl_engine = pudl.init.connect_db()
     pudl_out = pudl.output.pudltabl.PudlTabl(freq=freq)
