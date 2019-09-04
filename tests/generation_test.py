@@ -3,19 +3,19 @@ import logging
 import pytest
 import pandas as pd
 import numpy as np
-import src
-from src.generators import (
+import powergenome
+from powergenome.generators import (
     group_technologies,
     fill_missing_tech_descriptions,
     label_small_hydro,
     label_retirement_year,
     unit_generator_heat_rates,
 )
-from src.params import DATA_PATHS
-from src.util import load_settings, reverse_dict_of_lists, map_agg_region_names
+from powergenome.params import DATA_PATHS
+from powergenome.util import load_settings, reverse_dict_of_lists, map_agg_region_names
 import sqlite3
 
-logger = logging.getLogger(src.__name__)
+logger = logging.getLogger(powergenome.__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 formatter = logging.Formatter(

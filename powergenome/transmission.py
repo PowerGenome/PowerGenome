@@ -2,7 +2,7 @@ import itertools
 import logging
 import numpy as np
 import pandas as pd
-from src.util import reverse_dict_of_lists, map_agg_region_names
+from powergenome.util import reverse_dict_of_lists, map_agg_region_names
 
 from math import radians, cos, sin, asin, sqrt
 

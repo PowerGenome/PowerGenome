@@ -1,6 +1,6 @@
 import pandas as pd
-from src.util import init_pudl_connection
-from src.params import DATA_PATHS
+from powergenome.util import init_pudl_connection
+from powergenome.params import DATA_PATHS
 import sqlite3
 
 

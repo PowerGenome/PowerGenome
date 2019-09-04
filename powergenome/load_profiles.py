@@ -1,6 +1,6 @@
 import pandas as pd
 import logging
-from src.util import reverse_dict_of_lists
+from powergenome.util import reverse_dict_of_lists
 
 logger = logging.getLogger(__name__)
 

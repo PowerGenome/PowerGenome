@@ -11,8 +11,8 @@ import sqlite3
 from xlrd import XLRDError
 
 import pudl
-from src.params import IPM_SHAPEFILE_PATH
-from src.util import map_agg_region_names, reverse_dict_of_lists, snake_case_col
+from powergenome.params import IPM_SHAPEFILE_PATH
+from powergenome.util import map_agg_region_names, reverse_dict_of_lists, snake_case_col
 
 logger = logging.getLogger(__name__)
 

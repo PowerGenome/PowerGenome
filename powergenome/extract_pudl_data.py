@@ -6,12 +6,12 @@ from datetime import datetime as dt
 
 import pandas as pd
 
-import src
-from src.generators import GeneratorClusters
-from src.load_profiles import load_curves
-from src.params import DATA_PATHS
-from src.transmission import agg_transmission_constraints, transmission_line_distance
-from src.util import init_pudl_connection, load_settings
+import powergenome
+from powergenome.generators import GeneratorClusters
+from powergenome.load_profiles import load_curves
+from powergenome.params import DATA_PATHS
+from powergenome.transmission import agg_transmission_constraints, transmission_line_distance
+from powergenome.util import init_pudl_connection, load_settings
 
 if not sys.warnoptions:
     import warnings
@@ -61,7 +61,7 @@ def main():
     out_folder.mkdir(exist_ok=True)
 
     # Create a logger to output any messages we might have...
-    logger = logging.getLogger(src.__name__)
+    logger = logging.getLogger(powergenome.__name__)
     logger.setLevel(logging.INFO)
     handler = logging.StreamHandler()
     formatter = logging.Formatter(
