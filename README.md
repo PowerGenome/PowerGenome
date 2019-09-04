@@ -1,4 +1,5 @@
 # PowerGenome
+[![Build Status](https://travis-ci.com/gschivley/PowerGenome.svg?token=yTGQ4JcCGLW2GZpmvXHw&branch=master)](https://travis-ci.com/gschivley/PowerGenome)
 
 This project pulls data from PUDL. As such, it requires prior installation of PUDL to access some of the convienience functions and the current SQL database. As PUDL transitions away from SQL and becomes pip-installable I will put together an environment.yml file for this project.
 
