@@ -1,0 +1,2 @@
+pytest
+pandas>=0.24
