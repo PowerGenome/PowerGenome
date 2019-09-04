@@ -60,20 +60,6 @@ def generators_entity_eia_data():
 
 
 @pytest.fixture(scope="module")
-def boiler_generator_assn_eia_860_data():
-    bga = pd.read_sql_query("SELECT * FROM boiler_generator_assn_eia_860", DB_CONN)
-    return bga
-
-
-@pytest.fixture(scope="module")
-def hr_by_unit_data():
-    hr_by_unit = pd.read_sql_query(
-        "SELECT * FROM hr_by_unit", DB_CONN, parse_dates=["report_date"]
-    )
-    return hr_by_unit
-
-
-@pytest.fixture(scope="module")
 def plant_region_map_ipm_data():
     plant_region_map = pd.read_sql_query("SELECT * FROM plant_region_map_ipm", DB_CONN)
     return plant_region_map
@@ -86,13 +72,19 @@ def test_settings():
 
 
 class MockPudlOut:
+    """
+    The methods in this class read pre-calculated tables from a sqlite db and return
+    the expected values from pudl_out methods.
+    """
     def hr_by_unit():
+        "Heat rate by unit over multiple years"
         hr_by_unit = pd.read_sql_query(
             "SELECT * FROM hr_by_unit", DB_CONN, parse_dates=["report_date"]
         )
         return hr_by_unit
 
     def bga():
+        "Boiler generator associations with unit_id_pudl values"
         bga = pd.read_sql_query("SELECT * FROM boiler_generator_assn_eia860", DB_CONN)
         return bga
 
