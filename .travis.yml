@@ -5,10 +5,11 @@ python:
 install:
   - pip install -r requirements.txt
   - pip install -e .
+  - cd ..
   - git clone https://github.com/catalyst-cooperative/pudl.git
   - cd pudl
   - pip install -e .
-  - cd ..
+  - cd ../PowerGenome
 # command to run tests
 script:
   - pytest
