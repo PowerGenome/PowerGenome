@@ -8,6 +8,7 @@ install:
   - git clone https://github.com/catalyst-cooperative/pudl.git
   - cd pudl
   - pip install -e .
+  - cd ..
 # command to run tests
 script:
   - pytest
