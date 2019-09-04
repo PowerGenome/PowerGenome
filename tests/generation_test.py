@@ -9,9 +9,11 @@ from src.generators import (
     fill_missing_tech_descriptions,
     label_small_hydro,
     label_retirement_year,
+    unit_generator_heat_rates,
 )
 from src.params import DATA_PATHS
 from src.util import load_settings, reverse_dict_of_lists, map_agg_region_names
+import sqlite3
 
 logger = logging.getLogger(src.__name__)
 logger.setLevel(logging.INFO)
@@ -25,51 +27,55 @@ formatter = logging.Formatter(
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+DB_CONN = sqlite3.connect(DATA_PATHS["test_data"] / "test_data.db")
+
 
 @pytest.fixture(scope="module")
 def generation_fuel_eia923_data():
-    gen_fuel = pd.read_csv(
-        DATA_PATHS["test_data"] / "generation_fuel_eia923.csv",
-        parse_dates=["report_date"],
+    gen_fuel = pd.read_sql_query(
+        "SELECT * FROM generation_fuel_eia923", DB_CONN, parse_dates=["report_date"]
     )
     return gen_fuel
 
 
 @pytest.fixture(scope="module")
 def generators_eia860_data():
-    gens_860 = pd.read_csv(
-        DATA_PATHS["test_data"] / "generators_eia860.csv",
-        parse_dates=["report_date", "planned_retirement_date"],
+    sql = """
+        SELECT *
+        FROM generators_eia860
+        WHERE operational_status_code = 'OP'
+    """
+    gens_860 = pd.read_sql_query(
+        sql, DB_CONN, parse_dates=["report_date", "planned_retirement_date"]
     )
     return gens_860
 
 
 @pytest.fixture(scope="module")
 def generators_entity_eia_data():
-    gen_entity = pd.read_csv(
-        DATA_PATHS["test_data"] / "generators_entity_eia.csv",
-        parse_dates=["operating_date"],
+    gen_entity = pd.read_sql_query(
+        "SELECT * FROM generators_entity_eia", DB_CONN, parse_dates=["operating_date"]
     )
     return gen_entity
 
 
 @pytest.fixture(scope="module")
 def boiler_generator_assn_eia_860_data():
-    bga = pd.read_csv(DATA_PATHS["test_data"] / "boiler_generator_assn_eia_860.csv")
+    bga = pd.read_sql_query("SELECT * FROM boiler_generator_assn_eia_860", DB_CONN)
     return bga
 
 
 @pytest.fixture(scope="module")
 def hr_by_unit_data():
-    hr_by_unit = pd.read_csv(
-        DATA_PATHS["test_data"] / "hr_by_unit.csv", parse_dates=["report_date"]
+    hr_by_unit = pd.read_sql_query(
+        "SELECT * FROM hr_by_unit", DB_CONN, parse_dates=["report_date"]
     )
     return hr_by_unit
 
 
 @pytest.fixture(scope="module")
 def plant_region_map_ipm_data():
-    plant_region_map = pd.read_csv(DATA_PATHS["test_data"] / "plant_region_map_ipm.csv")
+    plant_region_map = pd.read_sql_query("SELECT * FROM plant_region_map_ipm", DB_CONN)
     return plant_region_map
 
 
@@ -77,6 +83,18 @@ def plant_region_map_ipm_data():
 def test_settings():
     settings = load_settings(DATA_PATHS["test_data"] / "pudl_data_extraction.yml")
     return settings
+
+
+class MockPudlOut:
+    def hr_by_unit():
+        hr_by_unit = pd.read_sql_query(
+            "SELECT * FROM hr_by_unit", DB_CONN, parse_dates=["report_date"]
+        )
+        return hr_by_unit
+
+    def bga():
+        bga = pd.read_sql_query("SELECT * FROM boiler_generator_assn_eia860", DB_CONN)
+        return bga
 
 
 def test_group_technologies(generators_eia860_data, test_settings):
@@ -148,3 +166,16 @@ def test_label_retirement_year(
     df = label_retirement_year(gens, test_settings)
 
     assert df.loc[df["retirement_year"].isnull(), :].empty is True
+
+
+def test_unit_generator_heat_rates(data_years=[2016, 2017]):
+    hr_df = unit_generator_heat_rates(MockPudlOut, data_years)
+
+    assert hr_df.empty is False
+    assert "heat_rate_mmbtu_mwh" in hr_df.columns
+    assert np.allclose(
+        hr_df.query("plant_id_eia==117 & unit_id_pudl == 2")[
+            "heat_rate_mmbtu_mwh"
+        ].values,
+        [8.274763485],
+    )

@@ -899,7 +899,7 @@ def plant_pm_heat_rates(annual_gen_fuel_923):
     return prime_mover_hr_map
 
 
-def unit_generator_heat_rates(pudl_out, bga, data_years):
+def unit_generator_heat_rates(pudl_out, data_years):
     """
     Calculate the heat rate for each PUDL unit and generators that don't have a PUDL
     unit id.
@@ -908,9 +908,6 @@ def unit_generator_heat_rates(pudl_out, bga, data_years):
     ----------
     pudl_out : pudl.PudlTabl
         A PudlTabl object for loading pre-calculated PUDL analysis data
-    annual_gen_fuel_923 : dataframe
-        Data from EIA-923 with generation and fuel use for each plant/prime mover/fuel
-        combo, and the heat rate calculated using this data.
     data_years : list
         Years of data to use
 
@@ -918,8 +915,7 @@ def unit_generator_heat_rates(pudl_out, bga, data_years):
     -------
     dataframe, dict
         A dataframe of heat rates for each pudl unit (columsn are ['plant_id_eia',
-        'unit_id_pudl', 'heat_rate_mmbtu_mwh']), and a dictionary mapping keys of
-        (plant_id_eia, prime_mover_code, fuel_type) to a heat rate value.
+        'unit_id_pudl', 'heat_rate_mmbtu_mwh']).
     """
 
     # Load the pre-calculated PUDL unit heat rates for selected years.
