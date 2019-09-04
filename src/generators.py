@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from sklearn import cluster, preprocessing
 from xlrd import XLRDError
 
-# import pudl
+import pudl
 from src.params import IPM_SHAPEFILE_PATH
 from src.util import map_agg_region_names, reverse_dict_of_lists, snake_case_col
 
