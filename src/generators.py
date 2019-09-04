@@ -71,6 +71,7 @@ def fill_missing_tech_descriptions(df):
         in.
     """
     start_len = len(df)
+    df = df.sort_values(by="report_date")
     df_list = []
     for _, _df in df.groupby(["plant_id_eia", "generator_id"], as_index=False):
         _df["technology_description"].fillna(method="bfill", inplace=True)
@@ -296,6 +297,10 @@ def label_retirement_year(
 
     start_len = len(df)
     retirement_ages = settings[settings_retirement_table]
+
+    if df.loc[df["technology_description"].isnull(), :].empty is False:
+        df = fill_missing_tech_descriptions(df)
+
     for tech, life in retirement_ages.items():
         try:
             df.loc[df.technology_description == tech, "retirement_year"] = (
@@ -389,6 +394,8 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
         hydro facilities will have their technology type changed to small hydro.
     """
     if settings["small_hydro"] is True:
+        if "report_date" in df.columns:
+            by.append("report_date")
         region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
         keep_regions = [
             x
