@@ -10,11 +10,11 @@ install:
   - cd pudl
   - pip install -e .
   - cd ../PowerGenome
+  - pip install codecov pytest-cov
 # command to run tests
 script:
-  - pytest
-env:
-    - CODECOV_TOKEN=23fb74a3-a3dc-44c5-be81-6958c4ca6a21
+  - pytest --cov=powergenome tests/
+# env:
+#     - CODECOV_TOKEN=23fb74a3-a3dc-44c5-be81-6958c4ca6a21
 after_success:
-- pip install codecov pytest-cov
-- codecov
+- codecov --token=23fb74a3-a3dc-44c5-be81-6958c4ca6a21
