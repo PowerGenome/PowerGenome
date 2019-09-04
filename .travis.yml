@@ -6,6 +6,9 @@ python:
 install:
   - pip install -r requirements.txt
   - pip install -e .
+  - git clone https://github.com/catalyst-cooperative/pudl.git
+  - cd pudl
+  - pip install -e .
 # command to run tests
 script:
   - pytest
