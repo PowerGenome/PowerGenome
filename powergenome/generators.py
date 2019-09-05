@@ -396,8 +396,9 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
         hydro facilities will have their technology type changed to small hydro.
     """
     if settings["small_hydro"] is True:
-        if "report_date" in df.columns:
-            by.append("report_date")
+        if "report_date" not in by and "report_date" in df.columns:
+            # by.append("report_date")
+            logger.warning("'report_date' is in the df but not used in the groupby")
         region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
         keep_regions = [
             x
@@ -1601,7 +1602,7 @@ class GeneratorClusters:
         logger.info("Loading heat rate data for units and generator/fuel combinations")
         self.prime_mover_hr_map = plant_pm_heat_rates(self.annual_gen_hr_923)
         self.weighted_unit_hr = unit_generator_heat_rates(
-            self.pudl_out, self.bga, self.data_years
+            self.pudl_out, self.data_years
         )
 
         # Merge the PUDL calculated heat rate data and set the index for easy
