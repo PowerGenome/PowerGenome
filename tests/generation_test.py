@@ -136,7 +136,7 @@ def test_label_small_hyro(
 
     # df["model_region"] = df["region"].map(reverse_dict_of_lists)
 
-    df = label_small_hydro(df, test_settings)
+    df = label_small_hydro(df, test_settings, by=["plant_id_eia", "report_date"])
     print(df.query("plant_id_eia==34"))
     logger.info(df["technology_description"].unique())
 

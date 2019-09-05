@@ -11,7 +11,7 @@ import sqlite3
 from xlrd import XLRDError
 
 import pudl
-from powergenome.params import IPM_SHAPEFILE_PATH
+from powergenome.params import IPM_GEOJSON_PATH
 from powergenome.util import map_agg_region_names, reverse_dict_of_lists, snake_case_col
 
 logger = logging.getLogger(__name__)
@@ -396,8 +396,9 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
         hydro facilities will have their technology type changed to small hydro.
     """
     if settings["small_hydro"] is True:
-        if "report_date" in df.columns:
-            by.append("report_date")
+        if "report_date" not in by and "report_date" in df.columns:
+            # by.append("report_date")
+            logger.warning("'report_date' is in the df but not used in the groupby")
         region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
         keep_regions = [
             x
@@ -1078,7 +1079,8 @@ def load_ipm_shapefile(settings):
         if x not in region_agg_map.values()
     ]
 
-    ipm_regions = gpd.read_file(IPM_SHAPEFILE_PATH)
+    ipm_regions = gpd.read_file(IPM_GEOJSON_PATH)
+    # ipm_regions = gpd.read_file(IPM_SHAPEFILE_PATH)
 
     model_regions_gdf = ipm_regions.loc[ipm_regions["IPM_Region"].isin(keep_regions)]
     model_regions_gdf = map_agg_region_names(
@@ -1600,7 +1602,7 @@ class GeneratorClusters:
         logger.info("Loading heat rate data for units and generator/fuel combinations")
         self.prime_mover_hr_map = plant_pm_heat_rates(self.annual_gen_hr_923)
         self.weighted_unit_hr = unit_generator_heat_rates(
-            self.pudl_out, self.bga, self.data_years
+            self.pudl_out, self.data_years
         )
 
         # Merge the PUDL calculated heat rate data and set the index for easy
