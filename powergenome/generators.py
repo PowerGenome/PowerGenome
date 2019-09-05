@@ -1078,7 +1078,8 @@ def load_ipm_shapefile(settings):
         if x not in region_agg_map.values()
     ]
 
-    ipm_regions = gpd.read_file(IPM_SHAPEFILE_PATH)
+    ipm_regions = gpd.read_file(IPM_GEOJSON_PATH)
+    # ipm_regions = gpd.read_file(IPM_SHAPEFILE_PATH)
 
     model_regions_gdf = ipm_regions.loc[ipm_regions["IPM_Region"].isin(keep_regions)]
     model_regions_gdf = map_agg_region_names(
