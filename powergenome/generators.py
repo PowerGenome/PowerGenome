@@ -1702,15 +1702,23 @@ class GeneratorClusters:
         logger.info("Creating technology clusters by region")
         unit_list = []
         cluster_list = []
+        alt_cluster_method = settings["alt_cluster_method"]
+        if alt_cluster_method is None:
+            alt_cluster_method = {}
         for _, df in region_tech_grouped:
             region, tech = _
             grouped = group_units(df, self.settings)
 
-            clusters = cluster.KMeans(
-                n_clusters=num_clusters[region][tech], random_state=6
-            ).fit(preprocessing.StandardScaler().fit_transform(grouped))
+            if region in settings[alt_cluster_method].keys():
+                if tech in settings[alt_cluster_method][region]["technology_description"].values():
+                    raise ValueError("NEED TO DO SOMETHING HERE")
+                    # Do something here to cluster by owner
+            else:
+                clusters = cluster.KMeans(
+                    n_clusters=num_clusters[region][tech], random_state=6
+                ).fit(preprocessing.StandardScaler().fit_transform(grouped))
 
-            grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
+                grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
 
             # Saving individual unit data for later analysis (if needed)
             unit_list.append(grouped)
