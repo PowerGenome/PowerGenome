@@ -14,6 +14,7 @@ import pudl
 from powergenome.params import IPM_GEOJSON_PATH
 from powergenome.util import map_agg_region_names, reverse_dict_of_lists, snake_case_col
 from powergenome.load_data import load_ipm_plant_region_map, load_ownership_eia860
+from powergenome.cluster_method import cluster_by_owner
 
 logger = logging.getLogger(__name__)
 
@@ -1552,6 +1553,8 @@ class GeneratorClusters:
             self.eia_860m, sheet_name="Retired", settings=self.settings
         )
 
+        self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
+
     def create_region_technology_clusters(self, return_retirement_capacity=False):
         """
         Calculation of average unit characteristics within a technology cluster
@@ -1702,17 +1705,32 @@ class GeneratorClusters:
         logger.info("Creating technology clusters by region")
         unit_list = []
         cluster_list = []
-        alt_cluster_method = settings["alt_cluster_method"]
+        alt_cluster_method = self.settings["alt_cluster_method"]
         if alt_cluster_method is None:
             alt_cluster_method = {}
         for _, df in region_tech_grouped:
             region, tech = _
             grouped = group_units(df, self.settings)
 
-            if region in settings[alt_cluster_method].keys():
-                if tech in settings[alt_cluster_method][region]["technology_description"].values():
-                    raise ValueError("NEED TO DO SOMETHING HERE")
-                    # Do something here to cluster by owner
+            # This is bad. Should be setting up a dictionary of objects that picks the
+            # correct clustering method. Can't keep doing if statements as the number of
+            # methods grows. CHANGE LATER.
+            if region in self.settings[alt_cluster_method].keys():
+                if (
+                    tech
+                    in self.settings[alt_cluster_method][region][
+                        "technology_description"
+                    ]
+                ):
+
+                    df = cluster_by_owner(
+                        df,
+                        self.ownership,
+                        region,
+                        tech,
+                        self.settings
+                    )
+
             else:
                 clusters = cluster.KMeans(
                     n_clusters=num_clusters[region][tech], random_state=6
