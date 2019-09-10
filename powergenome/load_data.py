@@ -52,3 +52,12 @@ def load_ownership_eia860(pudl_engine, data_years=[2017]):
     ownership = ownership.loc[ownership["report_date"].dt.year.isin(data_years)]
 
     return ownership
+
+
+def load_plants_860(pudl_engine, data_years=[2017]):
+
+    plants = pd.read_sql_table("plants_eia860", pudl_engine, parse_dates=["report_date"])
+
+    plants = plants.loc[plants["report_date"].dt.year.isin(data_years)]
+
+    return plants

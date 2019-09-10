@@ -3,7 +3,7 @@
 import numpy as np
 
 
-def cluster_by_owner(grouped_units, ownership, region, tech, settings):
+def cluster_by_owner(grouped_units, weighted_ownership, plants, region, tech, settings):
 
     # I'm doing this by generator right now, but don't have generator info in the inputs.
     # Can calculate weighted percent ownership by pudl unit and use that in here.
@@ -12,17 +12,32 @@ def cluster_by_owner(grouped_units, ownership, region, tech, settings):
     start_capacity = grouped_units[capacity_col].sum()
 
     owner_cols = [
-        "utility_id_eia",
+        # "utility_id_eia",
         "plant_id_eia",
-        "generator_id",
         "owner_utility_id_eia",
-        "owner_name",
-        "owner_state",
+        "unit_id_pudl",
+        # "owner_name",
+        # "owner_state",
         "fraction_owned",
+        "ownership_code",
     ]
+
+    plants_cols = [
+        "plant_id_eia",
+        "utility_id_eia",
+    ]
+
     gens_ownership = grouped_units.merge(
-        ownership[owner_cols], on=["plant_id_eia", "generator_id"], how="left"
+        weighted_ownership[owner_cols], on=["plant_id_eia", "unit_id_pudl"], how="left"
+    ).merge(
+        plants[plants_cols], on=["plant_id_eia"], how="left"
     )
+
+    gens_ownership.loc[
+        gens_ownership["owner_utility_id_eia"].isnull(), "owner_utility_id_eia"
+    ] = gens_ownership.loc[
+        gens_ownership["owner_utility_id_eia"].isnull(), "utility_id_eia"
+    ]
 
     # First take care of plants where we have a utility_id to cluster by
 
@@ -38,7 +53,7 @@ def cluster_by_owner(grouped_units, ownership, region, tech, settings):
     )
 
     gens_ownership.loc[mask, "plant_id_eia"] = (
-        gens_ownership.loc[mask, "plant_id_eia"]
+        gens_ownership.loc[mask, "plant_id_eia"].astype(str)
         + "_"
         + gens_ownership.loc[mask, "owner_utility_id_eia"].astype(int).astype(str)
     )
@@ -49,7 +64,7 @@ def cluster_by_owner(grouped_units, ownership, region, tech, settings):
 
     # Single owner - respondent or someone else (S or W)
     mask = (
-        (gens_ownership.ownership_code.isin(["W", "S"]))
+        (gens_ownership.ownership_code!="J")
         & (
             gens_ownership.owner_utility_id_eia.isin(
                 settings["cluster_by_owner_regions"][region]["utility_ids_to_cluster"]
@@ -72,7 +87,7 @@ def cluster_by_owner(grouped_units, ownership, region, tech, settings):
         & (gens_ownership.technology_description == tech)
     )
     gens_ownership.loc[other_mask, "plant_id_eia"] = (
-        gens_ownership.loc[other_mask, "plant_id_eia"] + "_" + "other"
+        gens_ownership.loc[other_mask, "plant_id_eia"].astype(str) + "_" + "other"
     )
     gens_ownership.loc[other_mask, capacity_col] *= gens_ownership.loc[
         other_mask, "fraction_owned"
@@ -81,7 +96,7 @@ def cluster_by_owner(grouped_units, ownership, region, tech, settings):
 
     # Single owner - respondent or someone else (S or W)
     other_mask = (
-        (gens_ownership.ownership_code.isin(["S", "W"]))
+        (gens_ownership.ownership_code!="J")
         & (
             ~gens_ownership.owner_utility_id_eia.isin(
                 settings["cluster_by_owner_regions"][region]["utility_ids_to_cluster"]
@@ -89,11 +104,70 @@ def cluster_by_owner(grouped_units, ownership, region, tech, settings):
         )
         & (gens_ownership.technology_description == tech)
     )
-    gens_ownership.loc[other_mask, "cluster"] = "Other"
+    gens_ownership.loc[other_mask, "cluster"] = "other"
+
+    gens_ownership = gens_ownership.drop_duplicates()
 
     end_capacity = gens_ownership[capacity_col].sum()
 
     assert np.allclose(start_capacity, end_capacity)
-    assert gens_ownership.loc[gens_ownership.cluster.isna(), :].empty is True
+    # assert gens_ownership.loc[gens_ownership.cluster.isna(), :].empty is True
 
     return gens_ownership
+
+
+def weighted_ownership_by_unit(units_model, gens_860, ownership, settings):
+
+    owner_cols = [
+        "utility_id_eia",
+        "plant_id_eia",
+        "generator_id",
+        "owner_utility_id_eia",
+        "owner_name",
+        "owner_state",
+        "fraction_owned",
+    ]
+
+    units_model_cols = [
+        "plant_id_eia",
+        "generator_id",
+        "unit_id_pudl",
+        settings["capacity_col"],
+    ]
+
+    gens_cols = ["plant_id_eia", "generator_id", "ownership_code"]
+
+    owner_unit = (
+        ownership[owner_cols]
+        .merge(
+            units_model.reset_index()[units_model_cols],
+            on=["plant_id_eia", "generator_id"],
+            how="right",
+        )
+        .merge(gens_860[gens_cols], on=["plant_id_eia", "generator_id"], how="left")
+    )
+
+    def w_ownership(df, capacity_col):
+
+        weighted_ownership = np.average(df["fraction_owned"], weights=df[capacity_col])
+        return weighted_ownership
+
+    owner_unit.loc[:, "fraction_owned"] = owner_unit.loc[:, "fraction_owned"].fillna(1)
+    weighted_ownership = (
+        owner_unit.groupby(
+            ["plant_id_eia", "unit_id_pudl", "owner_utility_id_eia", "ownership_code"],
+            as_index=False,
+        )
+        .apply(w_ownership, settings["capacity_col"])
+        .reset_index()
+        .rename(columns={0: "fraction_owned"})
+        .fillna(0.5)
+    )
+
+    weighted_ownership = weighted_ownership.merge(
+        ownership[["plant_id_eia", "utility_id_eia"]],
+        on=["plant_id_eia"],
+        how="left",
+    )
+
+    return weighted_ownership
