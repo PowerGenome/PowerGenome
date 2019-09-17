@@ -6,7 +6,7 @@ install:
   - pip install -r requirements.txt
   - pip install -e .
   - cd ..
-  - git clone https://github.com/catalyst-cooperative/pudl.git
+  - git clone https://github.com/gschivley/pudl.git
   - cd pudl
   - pip install -e .
   - cd ../PowerGenome
