@@ -13,6 +13,12 @@ from xlrd import XLRDError
 import pudl
 from powergenome.params import IPM_GEOJSON_PATH
 from powergenome.util import map_agg_region_names, reverse_dict_of_lists, snake_case_col
+from powergenome.load_data import (
+    load_ipm_plant_region_map,
+    load_ownership_eia860,
+    load_plants_860,
+)
+from powergenome.cluster_method import cluster_by_owner, weighted_ownership_by_unit
 
 logger = logging.getLogger(__name__)
 
@@ -1551,6 +1557,9 @@ class GeneratorClusters:
             self.eia_860m, sheet_name="Retired", settings=self.settings
         )
 
+        self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
+        self.plants_860 = load_plants_860(self.pudl_engine, self.data_years)
+
     def create_region_technology_clusters(self, return_retirement_capacity=False):
         """
         Calculation of average unit characteristics within a technology cluster
@@ -1696,20 +1705,49 @@ class GeneratorClusters:
             self.units_model.retirement_year < self.settings["model_year"], :
         ]
 
+        # gens_860 lost the ownership code... refactor this!
+        self.all_gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
+        # Getting weighted ownership for each unit, which will be used below.
+        self.weighted_ownership = weighted_ownership_by_unit(
+            self.units_model, self.all_gens_860, self.ownership, self.settings
+        )
+
         # For each group, cluster and calculate the average size/min load/heat rate
         # logger.info("Creating technology clusters by region")
         logger.info("Creating technology clusters by region")
         unit_list = []
         cluster_list = []
+        alt_cluster_method = self.settings["alt_cluster_method"]
+        if alt_cluster_method is None:
+            alt_cluster_method = {}
         for _, df in region_tech_grouped:
             region, tech = _
             grouped = group_units(df, self.settings)
 
-            clusters = cluster.KMeans(
-                n_clusters=num_clusters[region][tech], random_state=6
-            ).fit(preprocessing.StandardScaler().fit_transform(grouped))
+            # This is bad. Should be setting up a dictionary of objects that picks the
+            # correct clustering method. Can't keep doing if statements as the number of
+            # methods grows. CHANGE LATER.
+            if (region in self.settings[alt_cluster_method].keys()) and (
+                tech
+                in self.settings[alt_cluster_method][region]["technology_description"]
+            ):
 
-            grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
+                grouped = cluster_by_owner(
+                    df,
+                    self.weighted_ownership,
+                    # self.ownership,
+                    self.plants_860,
+                    region,
+                    tech,
+                    self.settings,
+                )
+
+            else:
+                clusters = cluster.KMeans(
+                    n_clusters=num_clusters[region][tech], random_state=6
+                ).fit(preprocessing.StandardScaler().fit_transform(grouped))
+
+                grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
 
             # Saving individual unit data for later analysis (if needed)
             unit_list.append(grouped)
@@ -1721,8 +1759,8 @@ class GeneratorClusters:
         # Save some data about individual units for easy access
         self.all_units = pd.concat(unit_list, sort=False)
         self.all_units = pd.merge(
-            self.units_model,
-            self.all_units["cluster"],
+            self.units_model.reset_index(),
+            self.all_units,
             on=["plant_id_eia", "unit_id_pudl"],
             how="left",
         )
