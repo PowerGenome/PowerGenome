@@ -11,7 +11,7 @@ import sqlite3
 from xlrd import XLRDError
 
 import pudl
-from powergenome.params import IPM_GEOJSON_PATH
+from powergenome.params import IPM_GEOJSON_PATH, DATA_PATHS
 from powergenome.util import map_agg_region_names, reverse_dict_of_lists, snake_case_col
 from powergenome.load_data import (
     load_ipm_plant_region_map,
@@ -1122,11 +1122,15 @@ def download_860m(settings):
     url = f"https://www.eia.gov/electricity/data/eia860m/xls/{fn}"
     archive_url = f"https://www.eia.gov/electricity/data/eia860m/archive/xls/{fn}"
 
-    try:
-        eia_860m = pd.ExcelFile(url)
-    except XLRDError:
-        logger.warning("A more recent version of EIA-860m is available")
-        eia_860m = pd.ExcelFile(archive_url)
+    local_file = DATA_PATHS['eia_860m'] / fn
+    if local_file.exists():
+        eia_860m = pd.ExcelFile(local_file)
+    else:
+        try:
+            eia_860m = pd.ExcelFile(url)
+        except XLRDError:
+            logger.warning("A more recent version of EIA-860m is available")
+            eia_860m = pd.ExcelFile(archive_url)
 
     return eia_860m
 
@@ -1340,7 +1344,6 @@ def gentype_region_capacity_factor(
         FROM
             generators_eia860 G
         WHERE operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
-            AND G.plant_id_eia IN %(plant_ids)s
         GROUP BY
             G.report_date,
             G.plant_id_eia,
