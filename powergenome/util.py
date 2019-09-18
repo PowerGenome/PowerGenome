@@ -1,3 +1,4 @@
+import subprocess
 import yaml
 
 import pudl
@@ -63,3 +64,11 @@ def snake_case_str(s):
         .replace(' ', '_')
     )
     return clean
+
+
+def get_git_hash():
+
+    process = subprocess.Popen(['git', 'rev-parse', 'HEAD'], shell=False, stdout=subprocess.PIPE)
+    git_head_hash = process.communicate()[0].strip()
+
+    return git_head_hash
