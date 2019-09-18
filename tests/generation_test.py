@@ -61,7 +61,7 @@ def generators_entity_eia_data():
 
 @pytest.fixture(scope="module")
 def plant_region_map_ipm_data():
-    plant_region_map = pd.read_sql_query("SELECT * FROM plant_region_map_ipm", DB_CONN)
+    plant_region_map = pd.read_sql_query("SELECT * FROM plant_region_map_epaipm", DB_CONN)
     return plant_region_map
 
 

@@ -205,7 +205,7 @@ def load_plant_region_map(
     pudl_engine,
     settings,
     model_regions_gdf,
-    table="plant_region_map_ipm",
+    table="plant_region_map_epaipm",
     settings_agg_key="region_aggregations",
 ):
     """
@@ -218,7 +218,7 @@ def load_plant_region_map(
     settings : dictionary
         The dictionary of settings with a dictionary of region aggregations
     table : str, optional
-        The SQL table to load, by default "plant_region_map_ipm"
+        The SQL table to load, by default "plant_region_map_epaipm"
     settings_agg_key : str, optional
         The name of a dictionary of lists aggregatign regions in the settings
         object, by default "region_aggregations"
@@ -1501,7 +1501,7 @@ class GeneratorClusters:
         pudl_engine,
         pudl_out,
         settings,
-        plant_region_map_table="plant_region_map_ipm",
+        plant_region_map_table="plant_region_map_epaipm",
         settings_agg_key="region_aggregations",
     ):
         """
@@ -1569,7 +1569,7 @@ class GeneratorClusters:
         ----------
         plant_region_map_table : str, optional
             Name of the table with region names for each plant, by default
-            "plant_region_map_ipm"
+            "plant_region_map_epaipm"
         settings_agg_key : str, optional
             Name of the settings dictionary key with regional aggregations, by default
             "region_aggregations"

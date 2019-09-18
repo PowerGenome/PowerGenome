@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def agg_transmission_constraints(
     pudl_engine,
     settings,
-    pudl_table="transmission_single_ipm",
+    pudl_table="transmission_single_epaipm",
     settings_agg_key="region_aggregations",
 ):
 

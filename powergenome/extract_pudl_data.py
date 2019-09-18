@@ -89,7 +89,7 @@ def main():
     # Make sure everything in model_regions is either an aggregate region
     # or an IPM region. Will need to change this once we start using non-IPM
     # regions.
-    ipm_regions = pd.read_sql_table("regions_entity_ipm", pudl_engine)["region_id_ipm"]
+    ipm_regions = pd.read_sql_table("regions_entity_epaipm", pudl_engine)["region_id_epaipm"]
     all_valid_regions = ipm_regions.tolist() + list(settings["region_aggregations"])
     good_regions = [region in all_valid_regions for region in settings["model_regions"]]
 
