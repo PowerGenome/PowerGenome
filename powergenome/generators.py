@@ -716,21 +716,21 @@ def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[
     # Only load plants in the model regions.
     sql = """
         SELECT * FROM generation_fuel_eia923
-        WHERE plant_id_eia IN %(plant_ids)s
 
     """
-
+        # WHERE plant_id_eia IN ?
     gen_fuel_923 = pd.read_sql_query(
         sql,
         pudl_engine,
-        params={
-            # "data_years": tuple(data_years),
-            "plant_ids": tuple(model_region_map.plant_id_eia)
-        },
+        # params=(
+        #     # "data_years": tuple(data_years),
+        #     tuple(model_region_map.plant_id_eia.tolist()),
+        # ),
         parse_dates=["report_date"],
     )
     gen_fuel_923 = gen_fuel_923.loc[
-        gen_fuel_923["report_date"].dt.year.isin(data_years), :
+        (gen_fuel_923["report_date"].dt.year.isin(data_years))
+        & (gen_fuel_923["plant_id_eia"].isin(model_region_map.plant_id_eia)), :
     ]
 
     return gen_fuel_923
@@ -1354,8 +1354,11 @@ def gentype_region_capacity_factor(
         sql,
         pudl_engine,
         parse_dates=["report_date"],
-        params={"plant_ids": tuple(plant_region_map["plant_id_eia"].tolist())},
+        # params={"plant_ids": tuple(plant_region_map["plant_id_eia"].tolist())},
     )
+    plant_gen_tech_cap = plant_gen_tech_cap.loc[
+        plant_gen_tech_cap["plant_id_eia"].isin(plant_region_map["plant_id_eia"]), :
+    ]
 
     plant_gen_tech_cap = fill_missing_tech_descriptions(plant_gen_tech_cap)
     plant_tech_cap = group_generators_at_plant(
@@ -1370,47 +1373,47 @@ def gentype_region_capacity_factor(
 
     label_small_hydro(plant_tech_cap, settings, by=["plant_id_eia", "report_date"])
 
-    if type(pudl_engine) == sa.engine.base.Engine:
-        sql = """
-            SELECT
-                DATE_PART('year', GF.report_date) AS report_date,
-                GF.plant_id_eia,
-                SUM(GF.net_generation_mwh) AS net_generation_mwh,
-                GF.fuel_type_code_pudl
-            FROM
-                generation_fuel_eia923 GF
-            GROUP BY
-                DATE_PART('year', GF.report_date),
-                GF.plant_id_eia,
-                GF.fuel_type_code_pudl
-            ORDER by GF.plant_id_eia, DATE_PART('year', GF.report_date)
-        """
-        generation = pd.read_sql_query(
-            sql, pudl_engine, parse_dates={"report_date": "%Y"}
-        )
-    elif type(pudl_engine) == sqlite3.Connection:
-        sql = """
-            SELECT
-                strftime('%Y', GF.report_date) AS report_date,
-                GF.plant_id_eia,
-                SUM(GF.net_generation_mwh) AS net_generation_mwh,
-                GF.fuel_type_code_pudl
-            FROM
-                generation_fuel_eia923 GF
-            GROUP BY
-                strftime('%Y', GF.report_date),
-                GF.plant_id_eia,
-                GF.fuel_type_code_pudl
-            ORDER by GF.plant_id_eia, strftime('%Y', GF.report_date)
-        """
-        generation = pd.read_sql_query(
-            sql, pudl_engine, parse_dates={"report_date": "%Y"}
-        )
-    else:
-        raise TypeError(
-            f"pudl_engine should be a sqlalchemy Engine or sqlite3 Connection./n"
-            f"It is actually a {type(pudl_engine)}"
-        )
+    # if type(pudl_engine) == sa.engine.base.Engine:
+    #     sql = """
+    #         SELECT
+    #             DATE_PART('year', GF.report_date) AS report_date,
+    #             GF.plant_id_eia,
+    #             SUM(GF.net_generation_mwh) AS net_generation_mwh,
+    #             GF.fuel_type_code_pudl
+    #         FROM
+    #             generation_fuel_eia923 GF
+    #         GROUP BY
+    #             DATE_PART('year', GF.report_date),
+    #             GF.plant_id_eia,
+    #             GF.fuel_type_code_pudl
+    #         ORDER by GF.plant_id_eia, DATE_PART('year', GF.report_date)
+    #     """
+    #     generation = pd.read_sql_query(
+    #         sql, pudl_engine, parse_dates={"report_date": "%Y"}
+    #     )
+    # elif type(pudl_engine) == sqlite3.Connection:
+    sql = """
+        SELECT
+            strftime('%Y', GF.report_date) AS report_date,
+            GF.plant_id_eia,
+            SUM(GF.net_generation_mwh) AS net_generation_mwh,
+            GF.fuel_type_code_pudl
+        FROM
+            generation_fuel_eia923 GF
+        GROUP BY
+            strftime('%Y', GF.report_date),
+            GF.plant_id_eia,
+            GF.fuel_type_code_pudl
+        ORDER by GF.plant_id_eia, strftime('%Y', GF.report_date)
+    """
+    generation = pd.read_sql_query(
+        sql, pudl_engine, parse_dates={"report_date": "%Y"}
+    )
+    # else:
+    #     raise TypeError(
+    #         f"pudl_engine should be a sqlalchemy Engine or sqlite3 Connection./n"
+    #         f"It is actually a {type(pudl_engine)}"
+    #     )
 
     capacity_factor = pudl.helpers.merge_on_date_year(
         plant_tech_cap, generation, on=["plant_id_eia"], how="left"

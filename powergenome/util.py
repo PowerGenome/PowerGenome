@@ -1,6 +1,8 @@
 import yaml
 
 import pudl
+from powergenome.params import SETTINGS
+import sqlalchemy as sa
 
 
 def load_settings(path):
@@ -13,8 +15,8 @@ def load_settings(path):
 
 def init_pudl_connection(freq='YS'):
 
-    pudl_engine = pudl.init.connect_db()
-    pudl_out = pudl.output.pudltabl.PudlTabl(freq=freq)
+    pudl_engine = sa.create_engine(SETTINGS['pudl_db']) # pudl.init.connect_db(SETTINGS)
+    pudl_out = pudl.output.pudltabl.PudlTabl(freq=freq, pudl_engine=pudl_engine)
 
     return pudl_engine, pudl_out
 
