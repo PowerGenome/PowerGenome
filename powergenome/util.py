@@ -1,6 +1,9 @@
+import subprocess
 import yaml
 
 import pudl
+from powergenome.params import SETTINGS
+import sqlalchemy as sa
 
 
 def load_settings(path):
@@ -13,8 +16,8 @@ def load_settings(path):
 
 def init_pudl_connection(freq='YS'):
 
-    pudl_engine = pudl.init.connect_db()
-    pudl_out = pudl.output.pudltabl.PudlTabl(freq=freq)
+    pudl_engine = sa.create_engine(SETTINGS['pudl_db']) # pudl.init.connect_db(SETTINGS)
+    pudl_out = pudl.output.pudltabl.PudlTabl(freq=freq, pudl_engine=pudl_engine)
 
     return pudl_engine, pudl_out
 
@@ -61,3 +64,11 @@ def snake_case_str(s):
         .replace(' ', '_')
     )
     return clean
+
+
+def get_git_hash():
+
+    process = subprocess.Popen(['git', 'rev-parse', 'HEAD'], shell=False, stdout=subprocess.PIPE)
+    git_head_hash = process.communicate()[0].strip()
+
+    return git_head_hash

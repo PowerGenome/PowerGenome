@@ -27,7 +27,7 @@ def load_ipm_plant_region_map(pudl_engine):
         plant_id_eia and region.
     """
     region_map_df = pd.read_sql_table(
-        "plant_region_map_ipm", con=pudl_engine, columns=["plant_id_eia", "region"]
+        "plant_region_map_epaipm", con=pudl_engine, columns=["plant_id_eia", "region"]
     )
 
     return region_map_df

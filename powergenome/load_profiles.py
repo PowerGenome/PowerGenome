@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 def load_curves(
     pudl_engine,
     settings,
-    pudl_table="load_curves_ipm",
+    pudl_table="load_curves_epaipm",
     settings_agg_key="region_aggregations",
 ):
 
@@ -28,19 +28,19 @@ def load_curves(
     # sqlalchemy doesn't allow table names to be parameterized.
     logger.info("Loading load curves from PUDL")
     load_curves = pd.read_sql_table(
-        pudl_table, pudl_engine, columns=["region_id_ipm", "time_index", "load_mw"]
+        pudl_table, pudl_engine, columns=["region_id_epaipm", "time_index", "load_mw"]
     )
 
-    load_curves = load_curves.loc[load_curves.region_id_ipm.isin(keep_regions)]
+    load_curves = load_curves.loc[load_curves.region_id_epaipm.isin(keep_regions)]
 
     # Set a new column "region" to the old column values. Then replace values for any
     # regions that are being aggregated
-    load_curves.loc[:, "region"] = load_curves.loc[:, "region_id_ipm"]
+    load_curves.loc[:, "region"] = load_curves.loc[:, "region_id_epaipm"]
 
     load_curves.loc[
-        load_curves.region_id_ipm.isin(region_agg_map.keys()), "region"
+        load_curves.region_id_epaipm.isin(region_agg_map.keys()), "region"
     ] = load_curves.loc[
-        load_curves.region_id_ipm.isin(region_agg_map.keys()), "region_id_ipm"
+        load_curves.region_id_epaipm.isin(region_agg_map.keys()), "region_id_epaipm"
     ].map(
         region_agg_map
     )

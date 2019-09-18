@@ -11,7 +11,7 @@ from powergenome.generators import GeneratorClusters
 from powergenome.load_profiles import load_curves
 from powergenome.params import DATA_PATHS
 from powergenome.transmission import agg_transmission_constraints, transmission_line_distance
-from powergenome.util import init_pudl_connection, load_settings
+from powergenome.util import init_pudl_connection, load_settings, get_git_hash
 
 if not sys.warnoptions:
     import warnings
@@ -77,6 +77,9 @@ def main():
     filehandler.setFormatter(formatter)
     logger.addHandler(filehandler)
 
+    git_hash = get_git_hash()
+    logger.info(f'Current git hash is {git_hash}')
+
     logger.info("Reading settings file")
     settings = load_settings(path=args.settings_file)
 
@@ -89,7 +92,7 @@ def main():
     # Make sure everything in model_regions is either an aggregate region
     # or an IPM region. Will need to change this once we start using non-IPM
     # regions.
-    ipm_regions = pd.read_sql_table("regions_entity_ipm", pudl_engine)["region_id_ipm"]
+    ipm_regions = pd.read_sql_table("regions_entity_epaipm", pudl_engine)["region_id_epaipm"]
     all_valid_regions = ipm_regions.tolist() + list(settings["region_aggregations"])
     good_regions = [region in all_valid_regions for region in settings["model_regions"]]
 

@@ -45,11 +45,11 @@ def create_testing_db():
 
     sql = """
         SELECT *
-        FROM plant_region_map_ipm
+        FROM plant_region_map_epaipm
         WHERE plant_id_eia IN (116, 151, 149, 34, 113, 117)
     """
     plant_region = pd.read_sql_query(sql, pudl_engine)
-    plant_region.to_sql("plant_region_map_ipm", test_conn, index=False)
+    plant_region.to_sql("plant_region_map_epaipm", test_conn, index=False)
 
 
 if __name__ == "__main__":
