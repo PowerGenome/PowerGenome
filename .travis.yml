@@ -5,11 +5,6 @@ python:
 install:
   - pip install -r requirements.txt
   - pip install -e .
-  - cd ..
-  - git clone https://github.com/gschivley/pudl.git
-  - cd pudl
-  - pip install -e .
-  - cd ../PowerGenome
   - pip install codecov pytest-cov
 # command to run tests
 script:
