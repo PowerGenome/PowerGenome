@@ -1,0 +1,19 @@
+name: powergenome
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.7 # Remove for tox.ini & setup.py
+  - conda-forge::catalystcoop.pudl
+  - jupyterlab
+  - black
+  - pytest
+  - requests
+  - beautifulsoup4
+  - pyyaml
+
+  # GIS dependencies from conda-forge
+  - conda-forge::fiona
+  - conda-forge::geopandas
+  - conda-forge::shapely
+  - conda-forge::descartes
