@@ -18,12 +18,30 @@ The goal of PowerGenome is to let a user make all of these choices in a settings
 
 ## PUDL Dependency
 
-This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl). As such, it requires prior installation of PUDL to access some of the convienience functions and the current SQL database. As PUDL transitions away from SQL and becomes pip-installable I will put together an environment.yml file for this project.
+This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl). As such, it requires installation of PUDL to access a normalized sqlite database and some of the convienience PUDL functions.
 
 ## Installation
 
 **Installation instructions are limited at the moment, and will be expanded on in the near future**
-Once you have set up a PUDL database, fork and/or clone this repository and pip install an editable version.
+1. Clone this repository to your local machine and navigate to the top level (PowerGenome) folder.
+2. Create a conda environment named `powergenome` using the provided `environment.yml` file.
+```sh
+conda env create -f environment.yml
+```
+3. Activate the `powergenome` environment.
+```sh
+conda activate powergenome
+```
+4. pip-install an editable version of this project
+```sh
+pip install -e .
+```
+5. Build the local database following [PUDL instructions](https://catalystcoop-pudl.readthedocs.io/en/latest/index.html#getting-started). Skip the first step of creating the pudl conda environment since you have already installed pudl in the powergenome environment. I recommend modifying the example `pudl_data` line as follows:
+```sh
+pudl_data --sources eia923 eia860 ferc1 epaipm --years 2011 2012 2013 2014 2015 2016 2017
+```
+6. Be sure to edit the `etl_example.yml` file to include all years of 860/923 data. Remove all years from `epacems`.
+7. Once you have created the sqlite database, change the `SETTINGS["pudl_db"]` parameter in `powergenome/params.py` to match the path on your computer.
 
 ## Running code
 
