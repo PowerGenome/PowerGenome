@@ -1,7 +1,10 @@
 language: python
 python:
   - "3.7"
-# command to install dependencies
+addons:
+  apt:
+    packages:
+    - libsnappy-dev
 install:
   - pip install -r requirements.txt
   - pip install -e .
