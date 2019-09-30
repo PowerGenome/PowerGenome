@@ -480,9 +480,7 @@ def load_generator_860_data(pudl_engine, data_years=[2017]):
         WHERE operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
     """
     gens_860 = pd.read_sql_query(
-        sql=sql,
-        con=pudl_engine,
-        parse_dates=["planned_retirement_date", "report_date"],
+        sql=sql, con=pudl_engine, parse_dates=["planned_retirement_date", "report_date"]
     )
     gens_860 = gens_860.loc[gens_860["report_date"].dt.year.isin(data_years), :]
 
@@ -717,14 +715,11 @@ def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[
     sql = """
         SELECT * FROM generation_fuel_eia923
     """
-    gen_fuel_923 = pd.read_sql_query(
-        sql,
-        pudl_engine,
-        parse_dates=["report_date"],
-    )
+    gen_fuel_923 = pd.read_sql_query(sql, pudl_engine, parse_dates=["report_date"])
     gen_fuel_923 = gen_fuel_923.loc[
         (gen_fuel_923["report_date"].dt.year.isin(data_years))
-        & (gen_fuel_923["plant_id_eia"].isin(model_region_map.plant_id_eia)), :
+        & (gen_fuel_923["plant_id_eia"].isin(model_region_map.plant_id_eia)),
+        :,
     ]
 
     return gen_fuel_923
@@ -1121,7 +1116,7 @@ def download_860m(settings):
     url = f"https://www.eia.gov/electricity/data/eia860m/xls/{fn}"
     archive_url = f"https://www.eia.gov/electricity/data/eia860m/archive/xls/{fn}"
 
-    local_file = DATA_PATHS['eia_860m'] / fn
+    local_file = DATA_PATHS["eia_860m"] / fn
     if local_file.exists():
         eia_860m = pd.ExcelFile(local_file)
     else:
@@ -1353,9 +1348,7 @@ def gentype_region_capacity_factor(
     """
 
     plant_gen_tech_cap = pd.read_sql_query(
-        sql,
-        pudl_engine,
-        parse_dates=["report_date"],
+        sql, pudl_engine, parse_dates=["report_date"]
     )
     plant_gen_tech_cap = plant_gen_tech_cap.loc[
         plant_gen_tech_cap["plant_id_eia"].isin(plant_region_map["plant_id_eia"]), :
@@ -1388,9 +1381,7 @@ def gentype_region_capacity_factor(
             GF.fuel_type_code_pudl
         ORDER by GF.plant_id_eia, strftime('%Y', GF.report_date)
     """
-    generation = pd.read_sql_query(
-        sql, pudl_engine, parse_dates={"report_date": "%Y"}
-    )
+    generation = pd.read_sql_query(sql, pudl_engine, parse_dates={"report_date": "%Y"})
 
     capacity_factor = pudl.helpers.merge_on_date_year(
         plant_tech_cap, generation, on=["plant_id_eia"], how="left"
