@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+from scipy.stats import iqr
 from sklearn import cluster, preprocessing
 import sqlalchemy as sa
 import sqlite3
@@ -994,6 +995,11 @@ def calc_unit_cluster_values(df, settings, technology=None):
             settings["capacity_col"]: "mean",
             "minimum_load_mw": "mean",
             "heat_rate_mmbtu_mwh": wm,
+        }
+    )
+    df_values["heat_rate_mmbtu_mwh_iqr"] = df.groupby("cluster").agg(
+        {
+            "heat_rate_mmbtu_mwh": iqr,
         }
     )
 
