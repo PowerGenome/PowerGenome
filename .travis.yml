@@ -1,18 +1,18 @@
 language: python
 python:
-  - "3.7"
+- '3.7'
 addons:
   apt:
     packages:
     - libsnappy-dev
 install:
-  - pip install -r requirements.txt
-  - pip install -e .
-  - pip install codecov pytest-cov
-# command to run tests
+- pip install -r requirements.txt
+- pip install -e .
+- pip install codecov pytest-cov
 script:
-  - pytest --cov=powergenome tests/
-# env:
-#     - CODECOV_TOKEN=23fb74a3-a3dc-44c5-be81-6958c4ca6a21
+- pytest --cov=powergenome tests/
 after_success:
 - codecov --token=23fb74a3-a3dc-44c5-be81-6958c4ca6a21
+notifications:
+  slack:
+    secure: IHa6NGeOlGzCJtIqvuL6WVTFbEmSb9ICzzDTNBEy07M0N+rJPA4kJ5HcI1ucMIKGQrAuawr8WZSD9jzjHdMZTeINqr8qLuwLi2ZsF1ECmwXr78tBOnvJyzi3HOIkdNUEy5LoKvA+ta59fjPc+f1P4TOzyVU0st0zyXb175UO7IjJ22tynSEFU393ciac9VO4wFA7RWe+Y4Ft3yHdE8kh7iw3tpJzHX/XLC6W/EB8CKvz4rnR8uSLUkmjsNGDMhjKexGl8WjfPuatVu27csdcP1qbHsFR5rL2AKcRo714R2RG/r0RieJOPzYgz0nEgly9HS9m90Wh7Q4sl9Oitqf2GiSOh5Nk9RMHQ2MwSQYhNnhMJZX5L7UXnyF/uV9C7vYYzHJMEw68IVT91t4+vI0VgSBXarBV1Z9L4/VPInvBTGHzidBRya1Gd+ue0K2dhQkM9E0anhcUfCVVocNuBJBNXVJ3PJXymABnRFN8zAlGHwaP/Ndnf2rhBmbvekU90a1EaDFa2SHFPI4ZP5oD9Za4S8rQpbPhHId8aEvXIpxDIN7038QuzKL40KNn+AjAS5nEqWY9i/4EUv9/WzmZmVyFnO4PRgA1VHt9qGK9L0/7leZqRedeSNt1I35aMObSYbL4u5Lqy5FIX/CUXEpEKr7qUPoFkef5Sp8jNv9MTc2U2lg=
