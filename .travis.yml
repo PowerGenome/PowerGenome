@@ -1,16 +1,19 @@
 language: python
 python:
-- '3.7'
+  - "3.7"
 addons:
   apt:
     packages:
     - libsnappy-dev
 install:
-- pip install -r requirements.txt
-- pip install -e .
-- pip install codecov pytest-cov
+  - pip install -r requirements.txt
+  - pip install -e .
+  - pip install codecov pytest-cov
+# command to run tests
 script:
-- pytest --cov=powergenome tests/
+  - pytest --cov=powergenome tests/
+# env:
+#     - CODECOV_TOKEN=23fb74a3-a3dc-44c5-be81-6958c4ca6a21
 after_success:
 - codecov --token=23fb74a3-a3dc-44c5-be81-6958c4ca6a21
 notifications:
