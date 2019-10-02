@@ -1,6 +1,41 @@
 "Different ways to cluster plants"
 
 import numpy as np
+from sklearn import cluster, preprocessing
+
+
+def build_cluster_method_dict(settings):
+
+    cluster_method_dict = {}
+
+    for region in settings["model_regions"]:
+        cluster_method_dict[region] = {}
+        if region not in settings["cluster_by_owner_regions"]:
+
+            for tech in settings["num_clusters"]:
+                cluster_method_dict[region][tech] = cluster_kmeans
+        else:
+            if tech in settings["cluster_by_owner_regions"][region]:
+                cluster_method_dict[region][tech] = cluster_by_owner
+            else:
+                cluster_method_dict[region][tech] = cluster_kmeans
+
+    return cluster_method_dict
+
+def cluster_kmeans(grouped, region, tech, settings):
+
+    if region in settings["alt_num_clusters"]:
+        if tech in settings["alt_num_clusters"][region]:
+            n_clusters = settings["alt_num_clusters"][region][tech]
+    else:
+        n_clusters = settings["num_clusters"][tech]
+
+    clusters = cluster.KMeans(
+                    n_clusters=n_clusters, random_state=6
+                ).fit(preprocessing.StandardScaler().fit_transform(grouped))
+    grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
+
+    return grouped
 
 
 def cluster_by_owner(grouped_units, weighted_ownership, plants, region, tech, settings):
