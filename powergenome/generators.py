@@ -1691,6 +1691,7 @@ class GeneratorClusters:
         alt_cluster_method = self.settings["alt_cluster_method"]
         if alt_cluster_method is None:
             alt_cluster_method = {}
+
         for _, df in region_tech_grouped:
             region, tech = _
             grouped = group_units(df, self.settings)
@@ -1698,27 +1699,34 @@ class GeneratorClusters:
             # This is bad. Should be setting up a dictionary of objects that picks the
             # correct clustering method. Can't keep doing if statements as the number of
             # methods grows. CHANGE LATER.
-            if (region in self.settings[alt_cluster_method].keys()) and (
-                tech
-                in self.settings[alt_cluster_method][region]["technology_description"]
-            ):
-
-                grouped = cluster_by_owner(
-                    df,
-                    self.weighted_ownership,
-                    # self.ownership,
-                    self.plants_860,
-                    region,
-                    tech,
-                    self.settings,
-                )
-
-            else:
+            if self.settings["alt_cluster_method"] is None:
                 clusters = cluster.KMeans(
                     n_clusters=num_clusters[region][tech], random_state=6
                 ).fit(preprocessing.StandardScaler().fit_transform(grouped))
 
                 grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
+            else:
+                if (region in self.settings[alt_cluster_method].keys()) and (
+                    tech
+                    in self.settings[alt_cluster_method][region]["technology_description"]
+                ):
+
+                    grouped = cluster_by_owner(
+                        df,
+                        self.weighted_ownership,
+                        # self.ownership,
+                        self.plants_860,
+                        region,
+                        tech,
+                        self.settings,
+                    )
+
+                else:
+                    clusters = cluster.KMeans(
+                        n_clusters=num_clusters[region][tech], random_state=6
+                    ).fit(preprocessing.StandardScaler().fit_transform(grouped))
+
+                    grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
 
             # Saving individual unit data for later analysis (if needed)
             unit_list.append(grouped)
