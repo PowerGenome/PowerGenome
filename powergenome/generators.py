@@ -1662,8 +1662,8 @@ class GeneratorClusters:
         for region in self.settings["model_regions"]:
             num_clusters[region] = self.settings["num_clusters"].copy()
 
-        for region in self.settings["alt_clusters"]:
-            for tech, cluster_size in self.settings["alt_clusters"][region].items():
+        for region in self.settings["alt_num_clusters"]:
+            for tech, cluster_size in self.settings["alt_num_clusters"][region].items():
                 num_clusters[region][tech] = cluster_size
 
         region_tech_grouped = self.units_model.loc[
