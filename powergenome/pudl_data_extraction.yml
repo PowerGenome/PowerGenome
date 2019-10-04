@@ -37,7 +37,6 @@ model_regions:
   - CA_S
   - WECC_ID_MT
   - WECC_UT_WY
-  # - WECC_CO_NM
   - WECC_CO
   - WECC_NM
   - WECC_PNW
@@ -45,13 +44,11 @@ model_regions:
   - WECC_SNV
   - WECC_AZ
 
-
 region_aggregations:
   CA_N: [WEC_CALN, WEC_BANC]
   CA_S: [WEC_SCE, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
   WECC_ID_MT: [WECC_ID, WECC_MT]
   WECC_UT_WY: [WECC_UT, WECC_WY]
-  # WECC_CO_NM: [WECC_CO, WECC_NM]
 
 
 # CLUSTERING
@@ -89,7 +86,7 @@ num_clusters:
 
 
 # Add code to ensure region names here are included above
-alt_clusters:
+alt_num_clusters:
   CA_N:
     Natural Gas Fired Combined Cycle: 2
     Natural Gas Fired Combustion Turbine: 2
@@ -230,3 +227,25 @@ additional_planned:
 # Use this when assigning part of a single plant's capacity to it's own cluster for
 # use by another region
 split_plant_capacity:
+
+
+  ######################################################################################
+# LOAD GROWTH ASSUMPTIONS
+# Include any load growth assumptions here
+
+default_load_year: 2011
+
+default_growth_rates:
+  WECC_Northwest: 0.007
+  WECC_Rockies: 0.011
+  WECC_Southwest: 0.011
+  WECC_California: 0.003
+
+load_region_map:
+  WECC_Northwest: [WECC_PNW, WECC_ID, WECC_MT, WECC_WY, WECC_UT, WECC_NNV, WECC_SNV]
+  WECC_Rockies: [WECC_CO]
+  WECC_Southwest: [WECC_AZ, WECC_NM]
+  WECC_California: [WEC_CALN, WEC_BANC, WEC_SCE, WECC_SCE, WEC_LADW, WEC_SDGE, WECC_IID]
+
+alt_growth_rate:
+  WECC_AZ: 0.02
