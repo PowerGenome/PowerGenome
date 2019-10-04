@@ -1,0 +1,314 @@
+# This file controls what data is extracted from PUDL and how it is processed.
+
+# MODEL YEAR
+model_year: 2030
+
+
+# DATA YEAR
+# Pick one or more years of generator data to use when creating clusters. If
+# more than one year is used then things like heat rate will be calculated as the
+# average (weighted by generation per year).
+data_years:
+  - 2017
+
+
+# CAPACITY TYPE
+capacity_col: winter_capacity_mw
+
+# LABEL SMALL HYDRO
+small_hydro: True
+small_hydro_mw: 30
+small_hydro_regions:
+  - CA_N
+  - CA_S
+
+# REGIONS
+# Select the regions and any regional aggregations that should be performed.
+# This currenly only works for IPM regions, either as the regions used in GenX or as
+# aggregations.
+
+# Can use this to rename (expand)
+
+model_regions:
+  - CA_N
+  - CA_S
+  - WECC_CO
+  - WECC_NM
+  - WECC_NW
+  - WECC_NNV
+  - WECC_SNV
+  - WECC_AZ
+
+region_aggregations:
+  CA_N: [WEC_CALN, WEC_BANC]
+  CA_S: [WEC_SCE, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
+  WECC_NW: [WECC_UT, WECC_WY, WECC_PNW, WECC_ID, WECC_MT]
+
+
+# CLUSTERING
+# Existing thermal power plants are clusted to reduce the number of distinct plants.
+# The existing method (for now) is to specify the number of clusters for each type
+# of thermal plant as a default and then specify specific values for any regions
+# that are different.
+
+# Won't show up if not listed here (expand)
+cluster_method: kmeans
+
+
+num_clusters:
+  Conventional Steam Coal: 1
+  Natural Gas Fired Combined Cycle: 1
+  Natural Gas Fired Combustion Turbine: 1
+  Nuclear: 1
+  Conventional Hydroelectric: 1
+  Wood/Wood Waste Biomass: 1
+  Natural Gas Internal Combustion Engine: 1
+  Natural Gas Steam Turbine: 1
+  Geothermal: 1
+  Solar Photovoltaic: 1
+  Onshore Wind Turbine: 1
+  Offshore Wind Turbine: 1
+  Solar Thermal with Energy Storage: 1
+  Solar Thermal without Energy Storage: 1
+  Small Hydroelectric: 1
+  Petroleum Liquids: 1
+  Landfill Gas: 1
+  Municipal Solid Waste: 1
+  Other Waste Biomass: 1
+  Hydroelectric Pumped Storage: 1
+  Biomass: 1
+  Peaker: 1
+
+alt_cluster_method: cluster_by_owner_regions
+
+cluster_by_owner_regions:
+  WECC_AZ:
+    technology_description: [
+      Conventional Steam Coal,
+      Natural Gas Fired Combined Cycle,
+      Peaker
+      ]
+    utility_ids_to_cluster: [803, 16572, 24211]
+  WECC_NM:
+    technology_description: [
+      Conventional Steam Coal
+    ]
+    utility_ids_to_cluster: [803]
+
+# Group these technologies
+group_technologies: True
+tech_groups:
+  Biomass:
+    - Wood/Wood Waste Biomass
+    - Landfill Gas
+    - Municipal Solid Waste
+    - Other Waste Biomass
+  Peaker:
+    - Natural Gas Fired Combustion Turbine
+    - Natural Gas Internal Combustion Engine
+    - Petroleum Liquids
+
+# Add code to ensure region names here are included above
+alt_num_clusters: []
+  # WECC_AZ:
+  #   Natural Gas Fired Combined Cycle: 2
+  #   Peaker: 2
+  #   Conventional Steam Coal: 2
+
+# CAPACITY FACTOR
+# Calculate the capacity factor of technology types listed here. If derate_capacity is
+# True, multiply the calculated capacity of each cluster by the CF
+capacity_factor_techs:
+  - Small Hydroelectric
+  - Biomass
+  - Geothermal
+
+# Default value to limit the years used to calculate capacity factors.
+# Use "~" (null, converted to None in Python) to use all data years. PUDL currently has
+# generation data from 2011 through the most recent final release of 923/860.
+capacity_factor_default_year_filter: [2016, 2017]
+
+# Select the year filters for specific technologies. Grouped technologies should be
+# used rather than in individual categories (e.g. Peaker rather than Combustion Turbine).
+# Again, use "~" to use all years.
+alt_year_filters:
+  Small Hydroelectric: ~
+  Conventional Hydroelectric: ~
+  Biomass: ~
+  Geothermal: ~
+
+derate_capacity: True
+derate_techs:
+  - Small Hydroelectric
+  - Biomass
+  - Geothermal
+
+
+# RETIREMENT AGES
+# The age at which each technolgy type is expected to retire
+
+retirement_ages:
+  Conventional Hydroelectric: 500
+  Small Hydroelectric: 500
+  Conventional Steam Coal: 60
+  Natural Gas Fired Combined Cycle: 40
+  Natural Gas Fired Combustion Turbine: 40
+  Petroleum Liquids: 40
+  Natural Gas Internal Combustion Engine: 40
+  Nuclear: 60
+  Onshore Wind Turbine: 30
+  Hydroelectric Pumped Storage: 500
+  Natural Gas Steam Turbine: 40
+  Solar Photovoltaic: 40
+  Solar Thermal without Energy Storage: 40
+  Geothermal: 100
+  Municipal Solid Waste: 40
+  Landfill Gas: 40
+  Batteries: 40
+  Wood/Wood Waste Biomass: 40
+  Petroleum Coke: 40
+  All Other: 40
+  Natural Gas with Compressed Air Storage: 40
+  Coal Integrated Gasification Combined Cycle: 40
+  Other Waste Biomass: 40
+  Other Gases: 40
+  Other Natural Gas: 40
+  Solar Thermal with Energy Storage: 40
+  Flywheels: 40
+  Offshore Wind Turbine: 30
+  Hydrokinetic: 40
+
+
+# CLUSTER TAGS
+# All of the values will be 0 by default. If non-zero, add here.
+
+model_tag_names:
+  - THERM
+  - DISP
+  - NDISP
+  - STOR
+  - DR
+  - HYDRO
+  - Commit
+
+default_model_tag: 0
+
+model_tag_values:
+  THERM:
+    Conventional Steam Coal: 1
+    Natural Gas Fired Combined Cycle: 1
+    Natural Gas Fired Combustion Turbine: 1
+    Petroleum Liquids: 1
+    Natural Gas Internal Combustion Engine: 1
+    Nuclear: 1
+    Natural Gas Steam Turbine: 1
+    Wood/Wood Waste Biomass: 1
+    Petroleum Coke: 1
+    Geothermal: 1
+    Municipal Solid Waste: 1
+    Landfill Gas: 1
+    Coal Integrated Gasification Combined Cycle: 1
+    Other Waste Biomass: 1
+    Other Gases: 1
+    Other Natural Gas: 1
+  DISP:
+    Onshore Wind Turbine: 1
+    Offshore Wind Turbine: 1
+    Solar Photovoltaic: 1
+    Solar Thermal without Energy Storage: 1
+  NDISP:
+    Geothermal: 1
+    Wood/Wood Waste Biomass: 1
+    Small Hydroelectric: 1
+  STOR:
+    Hydroelectric Pumped Storage: 1
+  HYDRO:
+    Conventional Hydroelectric: 1
+  Commit:
+    Conventional Steam Coal: 1
+    Natural Gas Fired Combined Cycle: 1
+    Natural Gas Fired Combustion Turbine: 1
+    Petroleum Liquids: 1
+    Natural Gas Internal Combustion Engine: 1
+    Nuclear: 1
+    Natural Gas Steam Turbine: 1
+    Petroleum Coke: 1
+    Coal Integrated Gasification Combined Cycle: 1
+
+
+# PROPOSED GENERATOR VARIABLES
+
+eia_860m_fn: june_generator2019.xlsx
+
+# The status codes below exclude plants where regulatory approvals have not been
+# initiated or received. "Other" is also excluded.
+proposed_status_included:
+  - V # Under construction, more than 50 percent complete
+  - TS # Construction complete, but not yet in commercial operation
+  - U # Under construction, less than or equal to 50 percent complete
+  - T # Regulatory approvals received. Not under construction
+
+# Heat rates are from EIA's AEO 2019 Cost and Performace report (Table 8.2)
+# or NREL's 2018 ATB. ATB technologies use 2020 heat rate values.
+# All AEO heat rates are for advanced technologies and use values from the final
+# heat rate column
+proposed_gen_heat_rates:
+  Natural Gas Fired Combined Cycle: 6.41 # ATB
+  Natural Gas Fired Combustion Turbine: 9.66 # ATB
+  Natural Gas Internal Combustion Engine: 8.160 # AEO
+
+
+proposed_min_load:
+  Natural Gas Fired Combined Cycle: 0.3 # From GE
+  Natural Gas Fired Combustion Turbine: 0.3 # GE aero range is .15-.5, E3 has 0.3
+  Natural Gas Internal Combustion Engine: 0.18 # From E3 assumptions
+
+
+# EXTRA ADDITIONS AND RETIREMENTS
+
+# Use this section to hard-code retirements that are not included in the most recent
+# annual verion of EIA 860. The format is
+# [plant_id_eia, generator_id, planned_retirement_date]
+additional_retirements:
+  - [55853, 1, 2020]
+  - [55853, 2, 2020]
+  # - [2442, 1, 2029] # Retire Four Corners before 2030
+  # - [2442, 2, 2029]
+  # - [2442, 3, 2029]
+  # - [2442, 4, 2029]
+  # - [2442, 5, 2029]
+  - [55177, A, 2031]
+  - [55177, B, 2031]
+  - [55177, ST1, 2031]
+
+# Additions that are included in 860m but don't get caught with a spatial join.
+additional_planned:
+  - [56545, 1, WECC_CO_NM]
+
+
+# SPLIT PLANT CAPACITY
+# Use this when assigning part of a single plant's capacity to it's own cluster for
+# use by another region
+split_plant_capacity:
+
+
+######################################################################################
+# LOAD GROWTH ASSUMPTIONS
+# Include any load growth assumptions here
+
+default_load_year: 2011
+
+default_growth_rates:
+  WECC_Northwest: 0.007
+  WECC_Rockies: 0.011
+  WECC_Southwest: 0.011
+  WECC_California: 0.003
+
+load_region_map:
+  WECC_Northwest: [WECC_PNW, WECC_ID, WECC_MT, WECC_WY, WECC_UT, WECC_NNV, WECC_SNV]
+  WECC_Rockies: [WECC_CO]
+  WECC_Southwest: [WECC_AZ, WECC_NM]
+  WECC_California: [WEC_CALN, WEC_BANC, WEC_SCE, WECC_SCE, WEC_LADW, WEC_SDGE, WECC_IID]
+
+alt_growth_rate:
+  WECC_AZ: 0.02

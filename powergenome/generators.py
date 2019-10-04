@@ -18,6 +18,7 @@ from powergenome.load_data import (
     load_ipm_plant_region_map,
     load_ownership_eia860,
     load_plants_860,
+    load_utilities_eia,
 )
 from powergenome.cluster_method import cluster_by_owner, weighted_ownership_by_unit
 
@@ -997,6 +998,11 @@ def calc_unit_cluster_values(df, settings, technology=None):
             "heat_rate_mmbtu_mwh": iqr,
         }
     )
+    df_values["heat_rate_mmbtu_mwh_std"] = df.groupby("cluster").agg(
+        {
+            "heat_rate_mmbtu_mwh": "std",
+        }
+    )
 
     df_values["Min_power"] = (
         df_values["minimum_load_mw"] / df_values[settings["capacity_col"]]
@@ -1054,7 +1060,7 @@ def add_genx_model_tags(df, settings):
     return combined_df
 
 
-def load_ipm_shapefile(settings):
+def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
     """
     Load the shapefile of IPM regions
 
@@ -1530,6 +1536,7 @@ class GeneratorClusters:
 
         self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
         self.plants_860 = load_plants_860(self.pudl_engine, self.data_years)
+        self.utilities_eia = load_utilities_eia(self.pudl_engine)
 
     def create_region_technology_clusters(self, return_retirement_capacity=False):
         """
@@ -1737,11 +1744,23 @@ class GeneratorClusters:
 
         # Save some data about individual units for easy access
         self.all_units = pd.concat(unit_list, sort=False)
-        self.all_units = pd.merge(
-            self.units_model.reset_index(),
-            self.all_units,
-            on=["plant_id_eia", "unit_id_pudl"],
-            how="left",
+        self.all_units = (
+            pd.merge(
+                self.units_model.reset_index(),
+                self.all_units,
+                on=["plant_id_eia", "unit_id_pudl"],
+                how="left",
+            )
+            .merge(
+                self.plants_860[["plant_id_eia", "utility_id_eia"]],
+                on=["plant_id_eia"],
+                how="left",
+            )
+            # .merge(
+            #     self.utilities_eia[["utility_id_eia", "utility_name"]],
+            #     on=["utility_id_eia"],
+            #     how="left",
+            # )
         )
 
         logger.info("Finalizing generation clusters")

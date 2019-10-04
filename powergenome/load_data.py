@@ -61,3 +61,10 @@ def load_plants_860(pudl_engine, data_years=[2017]):
     plants = plants.loc[plants["report_date"].dt.year.isin(data_years)]
 
     return plants
+
+
+def load_utilities_eia(pudl_engine):
+
+    utilities = pd.read_sql_table("utilities_eia", pudl_engine)
+
+    return utilities
