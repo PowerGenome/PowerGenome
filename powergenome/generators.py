@@ -18,6 +18,7 @@ from powergenome.load_data import (
     load_ipm_plant_region_map,
     load_ownership_eia860,
     load_plants_860,
+    load_utilities_eia,
 )
 from powergenome.cluster_method import cluster_by_owner, weighted_ownership_by_unit
 
@@ -997,6 +998,11 @@ def calc_unit_cluster_values(df, settings, technology=None):
             "heat_rate_mmbtu_mwh": iqr,
         }
     )
+    df_values["heat_rate_mmbtu_mwh_std"] = df.groupby("cluster").agg(
+        {
+            "heat_rate_mmbtu_mwh": "std",
+        }
+    )
 
     df_values["Min_power"] = (
         df_values["minimum_load_mw"] / df_values[settings["capacity_col"]]
@@ -1054,7 +1060,7 @@ def add_genx_model_tags(df, settings):
     return combined_df
 
 
-def load_ipm_shapefile(settings):
+def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
     """
     Load the shapefile of IPM regions
 
@@ -1530,6 +1536,7 @@ class GeneratorClusters:
 
         self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
         self.plants_860 = load_plants_860(self.pudl_engine, self.data_years)
+        self.utilities_eia = load_utilities_eia(self.pudl_engine)
 
     def create_region_technology_clusters(self, return_retirement_capacity=False):
         """
@@ -1662,8 +1669,8 @@ class GeneratorClusters:
         for region in self.settings["model_regions"]:
             num_clusters[region] = self.settings["num_clusters"].copy()
 
-        for region in self.settings["alt_clusters"]:
-            for tech, cluster_size in self.settings["alt_clusters"][region].items():
+        for region in self.settings["alt_num_clusters"]:
+            for tech, cluster_size in self.settings["alt_num_clusters"][region].items():
                 num_clusters[region][tech] = cluster_size
 
         region_tech_grouped = self.units_model.loc[
@@ -1691,6 +1698,7 @@ class GeneratorClusters:
         alt_cluster_method = self.settings["alt_cluster_method"]
         if alt_cluster_method is None:
             alt_cluster_method = {}
+
         for _, df in region_tech_grouped:
             region, tech = _
             grouped = group_units(df, self.settings)
@@ -1698,27 +1706,34 @@ class GeneratorClusters:
             # This is bad. Should be setting up a dictionary of objects that picks the
             # correct clustering method. Can't keep doing if statements as the number of
             # methods grows. CHANGE LATER.
-            if (region in self.settings[alt_cluster_method].keys()) and (
-                tech
-                in self.settings[alt_cluster_method][region]["technology_description"]
-            ):
-
-                grouped = cluster_by_owner(
-                    df,
-                    self.weighted_ownership,
-                    # self.ownership,
-                    self.plants_860,
-                    region,
-                    tech,
-                    self.settings,
-                )
-
-            else:
+            if self.settings["alt_cluster_method"] is None:
                 clusters = cluster.KMeans(
                     n_clusters=num_clusters[region][tech], random_state=6
                 ).fit(preprocessing.StandardScaler().fit_transform(grouped))
 
                 grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
+            else:
+                if (region in self.settings[alt_cluster_method].keys()) and (
+                    tech
+                    in self.settings[alt_cluster_method][region]["technology_description"]
+                ):
+
+                    grouped = cluster_by_owner(
+                        df,
+                        self.weighted_ownership,
+                        # self.ownership,
+                        self.plants_860,
+                        region,
+                        tech,
+                        self.settings,
+                    )
+
+                else:
+                    clusters = cluster.KMeans(
+                        n_clusters=num_clusters[region][tech], random_state=6
+                    ).fit(preprocessing.StandardScaler().fit_transform(grouped))
+
+                    grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
 
             # Saving individual unit data for later analysis (if needed)
             unit_list.append(grouped)
@@ -1729,11 +1744,23 @@ class GeneratorClusters:
 
         # Save some data about individual units for easy access
         self.all_units = pd.concat(unit_list, sort=False)
-        self.all_units = pd.merge(
-            self.units_model.reset_index(),
-            self.all_units,
-            on=["plant_id_eia", "unit_id_pudl"],
-            how="left",
+        self.all_units = (
+            pd.merge(
+                self.units_model.reset_index(),
+                self.all_units,
+                on=["plant_id_eia", "unit_id_pudl"],
+                how="left",
+            )
+            .merge(
+                self.plants_860[["plant_id_eia", "utility_id_eia"]],
+                on=["plant_id_eia"],
+                how="left",
+            )
+            # .merge(
+            #     self.utilities_eia[["utility_id_eia", "utility_name"]],
+            #     on=["utility_id_eia"],
+            #     how="left",
+            # )
         )
 
         logger.info("Finalizing generation clusters")
