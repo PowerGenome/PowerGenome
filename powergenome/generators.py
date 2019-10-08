@@ -1819,12 +1819,19 @@ class GeneratorClusters:
 
         # Set the index to region, tech, cluster again
         self.results.set_index(["region", "technology", "cluster"], inplace=True)
+
+        # Round Cap_size to prevent GenX error.
+        self.results = self.results.round(3)
+        self.results["Cap_size"] = self.results["Cap_size"].round(2)
         self.results["Existing_Cap_MW"] = self.results.Cap_size * self.results.num_units
         self.results["unmodified_existing_cap_mw"] = (
             self.results["unmodified_cap_size"] * self.results["num_units"]
         )
 
         self.results = add_genx_model_tags(self.results, self.settings)
+
+        # Make unit size = 1 where Commit = 0 to avoid GenX bug
+        self.results.loc[self.results["Commit"] == 0, "Cap_size"] = 1
 
         # Add fixed/variable O&M based on NREL atb
         self.results = atb_fixed_var_om_existing(

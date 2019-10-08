@@ -138,7 +138,7 @@ def main():
     logger.info("Write GenX input files")
     gen_clusters.to_csv(
         out_folder / f"generator_clusters_{args.results_folder}.csv",
-        float_format="%.3f",
+        # float_format="%.3f",
     )
     if args.all_units is True:
         gc.all_units.to_csv(
