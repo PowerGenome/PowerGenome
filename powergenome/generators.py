@@ -13,6 +13,11 @@ from xlrd import XLRDError
 
 import pudl
 from powergenome.params import IPM_GEOJSON_PATH, DATA_PATHS
+from powergenome.nrelatb import (
+    fetch_atb_costs,
+    fetch_atb_heat_rates,
+    atb_fixed_var_om_existing,
+)
 from powergenome.util import map_agg_region_names, reverse_dict_of_lists, snake_case_col
 from powergenome.load_data import (
     load_ipm_plant_region_map,
@@ -1538,6 +1543,9 @@ class GeneratorClusters:
         self.plants_860 = load_plants_860(self.pudl_engine, self.data_years)
         self.utilities_eia = load_utilities_eia(self.pudl_engine)
 
+        self.atb_costs = fetch_atb_costs(self.pudl_engine, self.settings)
+        self.atb_hr = fetch_atb_heat_rates(self.pudl_engine)
+
     def create_region_technology_clusters(self, return_retirement_capacity=False):
         """
         Calculation of average unit characteristics within a technology cluster
@@ -1818,6 +1826,11 @@ class GeneratorClusters:
         )
 
         self.results = add_genx_model_tags(self.results, self.settings)
+
+        # Add fixed/variable O&M based on NREL atb
+        self.results = atb_fixed_var_om_existing(
+            self.atb_costs, self.atb_hr, self.results, self.settings
+        )
 
         # Convert technology names to snake_case and add a 1-indexed column R_ID
         self.results = self.results.reset_index()
