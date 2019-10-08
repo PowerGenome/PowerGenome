@@ -67,7 +67,6 @@ def add_load_growth(load_curves, settings):
 
     if settings["alt_growth_rate"] is not None:
         for region, rate in settings["alt_growth_rate"].items():
-            print(region, rate)
             load_growth_map[region] = rate
 
     years_growth = settings["model_year"] - settings["default_load_year"]
@@ -77,7 +76,6 @@ def add_load_growth(load_curves, settings):
 
     for region in load_curves["region_id_epaipm"].unique():
         growth_factor = load_growth_factor[region]
-        print(region, growth_factor)
         load_curves.loc[
             load_curves["region_id_epaipm"] == region, "load_mw"
         ] *= growth_factor

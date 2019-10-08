@@ -999,14 +999,10 @@ def calc_unit_cluster_values(df, settings, technology=None):
         }
     )
     df_values["heat_rate_mmbtu_mwh_iqr"] = df.groupby("cluster").agg(
-        {
-            "heat_rate_mmbtu_mwh": iqr,
-        }
+        {"heat_rate_mmbtu_mwh": iqr}
     )
     df_values["heat_rate_mmbtu_mwh_std"] = df.groupby("cluster").agg(
-        {
-            "heat_rate_mmbtu_mwh": "std",
-        }
+        {"heat_rate_mmbtu_mwh": "std"}
     )
 
     df_values["Min_power"] = (
@@ -1723,7 +1719,9 @@ class GeneratorClusters:
             else:
                 if (region in self.settings[alt_cluster_method].keys()) and (
                     tech
-                    in self.settings[alt_cluster_method][region]["technology_description"]
+                    in self.settings[alt_cluster_method][region][
+                        "technology_description"
+                    ]
                 ):
 
                     grouped = cluster_by_owner(
@@ -1741,7 +1739,9 @@ class GeneratorClusters:
                         n_clusters=num_clusters[region][tech], random_state=6
                     ).fit(preprocessing.StandardScaler().fit_transform(grouped))
 
-                    grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
+                    grouped["cluster"] = (
+                        clusters.labels_ + 1
+                    )  # Change to 1-index for julia
 
             # Saving individual unit data for later analysis (if needed)
             unit_list.append(grouped)
@@ -1758,8 +1758,7 @@ class GeneratorClusters:
                 self.all_units,
                 on=["plant_id_eia", "unit_id_pudl"],
                 how="left",
-            )
-            .merge(
+            ).merge(
                 self.plants_860[["plant_id_eia", "utility_id_eia"]],
                 on=["plant_id_eia"],
                 how="left",
