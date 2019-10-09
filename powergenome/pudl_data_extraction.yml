@@ -60,6 +60,9 @@ region_aggregations:
 # Technologies that aren't listed here won't be included in the final cluster
 # outputs, even if they are included in alt_clusters below.
 
+# Won't show up if not listed here (expand)
+cluster_method: kmeans
+
 num_clusters:
   Conventional Steam Coal: 1
   Natural Gas Fired Combined Cycle: 1
@@ -116,6 +119,12 @@ tech_groups:
     - Natural Gas Internal Combustion Engine
     - Petroleum Liquids
 
+
+# Use this to avoid grouping technologies in some regions
+regional_no_grouping: ~
+  # CA:
+  #   - Natural Gas Fired Combustion Turbine
+  #   - Natural Gas Internal Combustion Engine
 
 # CAPACITY FACTOR
 # Calculate the capacity factor of technology types listed here. If derate_capacity is
@@ -180,6 +189,124 @@ retirement_ages:
   Flywheels: 40
   Offshore Wind Turbine: 30
   Hydrokinetic: 40
+
+
+# CLUSTER TAGS
+# All of the values will be 0 by default. If non-zero, add here.
+
+model_tag_names:
+  - THERM
+  - DISP
+  - NDISP
+  - STOR
+  - DR
+  - HYDRO
+  - Commit
+
+default_model_tag: 0
+
+model_tag_values:
+  THERM:
+    Conventional Steam Coal: 1
+    Natural Gas Fired Combined Cycle: 1
+    Natural Gas Fired Combustion Turbine: 1
+    Petroleum Liquids: 1
+    Natural Gas Internal Combustion Engine: 1
+    Nuclear: 1
+    Natural Gas Steam Turbine: 1
+    Wood/Wood Waste Biomass: 1
+    Petroleum Coke: 1
+    Geothermal: 1
+    Municipal Solid Waste: 1
+    Landfill Gas: 1
+    Coal Integrated Gasification Combined Cycle: 1
+    Other Waste Biomass: 1
+    Other Gases: 1
+    Other Natural Gas: 1
+  DISP:
+    Onshore Wind Turbine: 1
+    Offshore Wind Turbine: 1
+    Solar Photovoltaic: 1
+    Solar Thermal without Energy Storage: 1
+  NDISP:
+    Geothermal: 1
+    Wood/Wood Waste Biomass: 1
+    Small Hydroelectric: 1
+  STOR:
+    Hydroelectric Pumped Storage: 1
+  HYDRO:
+    Conventional Hydroelectric: 1
+  Commit:
+    Conventional Steam Coal: 1
+    Natural Gas Fired Combined Cycle: 1
+    Natural Gas Fired Combustion Turbine: 1
+    Petroleum Liquids: 1
+    Natural Gas Internal Combustion Engine: 1
+    Nuclear: 1
+    Natural Gas Steam Turbine: 1
+    Petroleum Coke: 1
+    Coal Integrated Gasification Combined Cycle: 1
+
+
+# Generator cost data from NREL ATB
+
+atb_cost_case: Mid
+atb_financial_case: Market
+atb_cap_recovery_years: 20
+atb_existing_year: 2018
+
+# Assume that O&M for existing plants is higher than for new builds by both the ratio
+# of heat rates and a multiplier
+existing_om_multiplier: 1.5
+
+
+
+# Format for ATB is <technology>_<tech_detail>, all are Mid cost case
+# Might want to change this to list format like the new generators below
+eia_atb_tech_map:
+  Battery: Battery_*
+  Biomass: Biopower_Dedicated
+  Solar Thermal without Energy Storage: CSP_Class1
+  Conventional Steam Coal: Coal_newAvgCF
+  Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF
+  Natural Gas Fired Combustion Turbine: NaturalGas_CTAvgCF
+  Peaker: NaturalGas_CTAvgCF
+  Solar Photovoltaic: UtilityPV_LosAngeles
+  Geothermal: Geothermal_HydroFlash # assume installed capacity is dominated by flash
+
+  # Check head-height, which is difference between NSD2 and 4
+  Conventional Hydroelectric: Hydropower_NSD2 # Large variability based on choice
+  Hydroelectric Pumped Storage: Hydropower_NSD2 # Large variability based on choice
+  Small Hydroelectric: Hydropower_NSD1 # Large variability based on choice
+  Onshore Wind Turbine: LandbasedWind_LTRG1 # All onshore wind is the same
+  Offshore Wind Turbine: OffShoreWind_OTRG3 # Mid-range of fixed offshore wind
+  Nuclear: Nuclear_*
+  Natural Gas Steam Turbine: Coal_NewAvgCF # No gas steam turbines in ATB, using coal instead
+  Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
+
+
+# Offshore wind in the west will be floating - OTRG10 maybe.
+# Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
+atb_new_gen:
+  - [NaturalGas, CCCCSAvgCF, Mid, 500]
+  - [NaturalGas, CCAvgCF, Mid, 500]
+  - [NaturalGas, CTAvgCF, Mid, 100]
+  - [LandbasedWind, LTRG1, Mid, 1]
+  - [OffShoreWind, OTRG3, Mid, 1]
+  - [UtilityPV, Los Angeles, Mid, 1]
+  - [Battery, "*", Mid, 1]
+  - [Biopower, Dedicated, Mid, 50]
+
+
+# Fuel consumption for start-up events (mmbtu/MW) from Lew et al 2013,
+# Finding Flexibility: Cycling the Conventional Fleet
+startup_fuel_use:
+  Conventional Steam Coal: 16.5
+  Natural Gas Fired Combined Cycle: 2.0
+  Natural Gas Fired Combustion Turbine: 3.5
+  Natural Gas Steam Turbine: 13.7
+
+
 
 # PROPOSED GENERATOR VARIABLES
 
