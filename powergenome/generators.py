@@ -18,7 +18,12 @@ from powergenome.nrelatb import (
     fetch_atb_heat_rates,
     atb_fixed_var_om_existing,
 )
-from powergenome.util import map_agg_region_names, reverse_dict_of_lists, snake_case_col
+from powergenome.util import (
+    map_agg_region_names,
+    reverse_dict_of_lists,
+    snake_case_col,
+    download_save,
+)
 from powergenome.load_data import (
     load_ipm_plant_region_map,
     load_ownership_eia860,
@@ -1118,20 +1123,24 @@ def download_860m(settings):
         logger.info("Trying to determine the most recent EIA860m file...")
         fn = find_newest_860m()
 
-    logger.info(f"Downloading the EIA860m file {fn}")
     # Only the most recent file will not have archive in the url
     url = f"https://www.eia.gov/electricity/data/eia860m/xls/{fn}"
     archive_url = f"https://www.eia.gov/electricity/data/eia860m/archive/xls/{fn}"
 
     local_file = DATA_PATHS["eia_860m"] / fn
     if local_file.exists():
+        logger.info(f"Reading a local copy of the EIA860m file {fn}")
         eia_860m = pd.ExcelFile(local_file)
     else:
+        logger.info(f"Downloading the EIA860m file {fn}")
         try:
-            eia_860m = pd.ExcelFile(url)
+            download_save(url, local_file)
+            eia_860m = pd.ExcelFile(local_file)
         except XLRDError:
             logger.warning("A more recent version of EIA-860m is available")
-            eia_860m = pd.ExcelFile(archive_url)
+            download_save(archive_url, local_file)
+            eia_860m = pd.ExcelFile(local_file)
+        # write the file to disk
 
     return eia_860m
 
@@ -1839,7 +1848,6 @@ class GeneratorClusters:
         )
 
         # Convert technology names to snake_case and add a 1-indexed column R_ID
-        self.results = self.results.reset_index()
         self.results["technology"] = snake_case_col(self.results["technology"])
 
         # Set Min_power of wind/solar to 0

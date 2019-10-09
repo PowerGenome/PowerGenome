@@ -4,6 +4,7 @@ import yaml
 import pudl
 from powergenome.params import SETTINGS
 import sqlalchemy as sa
+import requests
 
 
 def load_settings(path):
@@ -72,3 +73,21 @@ def get_git_hash():
     git_head_hash = process.communicate()[0].strip()
 
     return git_head_hash
+
+
+def download_save(url, save_path):
+    """
+    Download a file that isn't zipped and save it to a given path
+
+    Parameters
+    ----------
+    url : str
+        Valid url to download the zip file
+    save_path : str or path object
+        Destination to save the file
+
+    """
+
+    r = requests.get(url)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    save_path.write_bytes(r.content)
