@@ -163,6 +163,6 @@ def atb_fixed_var_om_existing(atb_costs_df, atb_hr_df, results, settings):
 
     # logger.info(_df)
     mod_results = pd.concat(df_list, ignore_index=True)
-    mod_results = mod_results.sort_values("region")
+    mod_results = mod_results.sort_values(["region", "technology", "cluster"])
 
     return mod_results
