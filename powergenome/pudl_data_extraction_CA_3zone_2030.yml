@@ -20,6 +20,8 @@ small_hydro: True
 small_hydro_mw: 30
 small_hydro_regions:
   - CA
+  - WECC_NW
+  - WECC_SW
 
 # REGIONS
 # Select the regions and any regional aggregations that should be performed.
@@ -34,7 +36,7 @@ model_regions:
   - WECC_SW
 
 region_aggregations:
-  CA_N: [WEC_CALN, WEC_BANC, WEC_SCE, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
+  CA: [WEC_CALN, WEC_BANC, WEC_SCE, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
   WECC_NW: [WECC_UT, WECC_WY, WECC_PNW, WECC_ID, WECC_MT]
   WECC_SW: [WECC_AZ, WECC_NNV, WECC_SNV, WECC_NM, WECC_CO]
 
@@ -75,7 +77,7 @@ num_clusters:
 
 alt_cluster_method: ~
 
-cluster_by_owner_regions:
+cluster_by_owner_regions: ~
   # WECC_AZ:
   #   technology_description: [
   #     Conventional Steam Coal,
@@ -100,20 +102,18 @@ tech_groups:
   Peaker:
     - Natural Gas Fired Combustion Turbine
     - Natural Gas Internal Combustion Engine
-    - Petroleum Liquids
 
+# Use this to avoid grouping technologies in some regions
 regional_no_grouping:
   CA:
     - Natural Gas Fired Combustion Turbine
     - Natural Gas Internal Combustion Engine
-    - Petroleum Liquids
 
 # Add code to ensure region names here are included above
-alt_num_clusters: []
-  # WECC_AZ:
-  #   Natural Gas Fired Combined Cycle: 2
-  #   Peaker: 2
-  #   Conventional Steam Coal: 2
+alt_num_clusters:
+  CA:
+    Natural Gas Fired Combined Cycle: 2
+    Natural Gas Fired Combustion Turbine: 3
 
 # CAPACITY FACTOR
 # Calculate the capacity factor of technology types listed here. If derate_capacity is
@@ -258,6 +258,8 @@ eia_atb_tech_map:
   Conventional Steam Coal: Coal_newAvgCF
   Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF
   Natural Gas Fired Combustion Turbine: NaturalGas_CTAvgCF
+  Natural Gas Internal Combustion Engine: NaturalGas_CTAvgCF
+  Petroleum Liquids: NaturalGas_CTAvgCF
   Peaker: NaturalGas_CTAvgCF
   Solar Photovoltaic: UtilityPV_LosAngeles
   Geothermal: Geothermal_HydroFlash # assume installed capacity is dominated by flash
@@ -282,7 +284,7 @@ eia_atb_new_gen:
   - [LandbasedWind, LTRG1, Mid]
   - [OffShoreWind, OTRG3, Mid]
   - [UtilityPV, Los Angeles, Mid]
-  - [Battery, *, Mid]
+  - [Battery, "*", Mid]
   - [Biopower, Dedicated, Mid]
 
 
@@ -373,10 +375,14 @@ split_plant_capacity:
 default_load_year: 2011
 
 default_growth_rates:
-  WECC_Northwest: 0.007
-  WECC_Rockies: 0.011
-  WECC_Southwest: 0.011
-  WECC_California: 0.003
+  # WECC_Northwest: 0.007
+  # WECC_Rockies: 0.011
+  # WECC_Southwest: 0.011
+  # WECC_California: 0.003
+  WECC_Northwest: 0
+  WECC_Rockies: 0
+  WECC_Southwest: 0
+  WECC_California: 0
 
 load_region_map:
   WECC_Northwest: [WECC_PNW, WECC_ID, WECC_MT, WECC_WY, WECC_UT, WECC_NNV, WECC_SNV]
@@ -384,5 +390,4 @@ load_region_map:
   WECC_Southwest: [WECC_AZ, WECC_NM]
   WECC_California: [WEC_CALN, WEC_BANC, WEC_SCE, WECC_SCE, WEC_LADW, WEC_SDGE, WECC_IID]
 
-alt_growth_rate:
-  WECC_AZ: 0.02
+alt_growth_rate: ~
