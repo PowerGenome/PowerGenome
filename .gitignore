@@ -126,3 +126,8 @@ data/transformed_data/*
 
 # Results files
 /results
+
+# Data files
+/data/eia/*
+/data/IPM Regions v617 04-05-17/*
+/data/random/*
