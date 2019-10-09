@@ -17,6 +17,7 @@ from powergenome.nrelatb import (
     fetch_atb_costs,
     fetch_atb_heat_rates,
     atb_fixed_var_om_existing,
+    atb_new_generators,
 )
 from powergenome.util import (
     map_agg_region_names,
@@ -131,6 +132,35 @@ def group_generators_at_plant(df, by=["plant_id_eia"], agg_fn={"capacity_mw": "s
     df_grouped = df.groupby(by, as_index=False).agg(agg_fn)
 
     return df_grouped
+
+
+def startup_fuel(df, settings):
+    """Add startup fuel consumption for generators
+
+    Parameters
+    ----------
+    df : DataFrame
+        All generator clusters. Must have a column "technology". Can include both EIA
+        and NRELATB technology names.
+    settings : dictionary
+        User-defined settings loaded from a YAML file. Must have keys "startup_fuel_use"
+        and "eia_atb_tech_map".
+
+    Returns
+    -------
+    DataFrame
+        Modified dataframe with the new column "Start_fuel_MMBTU_per_MW".
+    """
+    df["Start_fuel_MMBTU_per_MW"] = 0
+    for eia_tech, fuel_use in settings["startup_fuel_use"].items():
+        atb_tech = settings["eia_atb_tech_map"][eia_tech].split("_")[0]
+
+        df.loc[df["technology"] == eia_tech, "Start_fuel_MMBTU_per_MW"] = fuel_use
+        df.loc[
+            df["technology"].str.contains(atb_tech), "Start_fuel_MMBTU_per_MW"
+        ] = fuel_use
+
+    return df
 
 
 def group_technologies(df, settings):
@@ -1855,8 +1885,12 @@ class GeneratorClusters:
         self.results.loc[self.results["Commit"] == 0, "Cap_size"] = 1
 
         # Add fixed/variable O&M based on NREL atb
-        self.results = atb_fixed_var_om_existing(
-            self.atb_costs, self.atb_hr, self.results, self.settings
+        self.results = (
+            self.results.pipe(
+                atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings
+            )
+            .pipe(atb_new_generators, self.atb_costs, self.atb_hr, self.settings)
+            .pipe(startup_fuel, self.settings)
         )
 
         # Convert technology names to snake_case and add a 1-indexed column R_ID
