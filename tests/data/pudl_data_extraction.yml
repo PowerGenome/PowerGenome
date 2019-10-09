@@ -101,6 +101,8 @@ tech_groups:
     - Natural Gas Internal Combustion Engine
     - Petroleum Liquids
 
+regional_no_grouping: ~
+
 # Add code to ensure region names here are included above
 alt_clusters:
   CA_N:
