@@ -75,7 +75,7 @@ def fetch_atb_heat_rates(pudl_engine):
     return heat_rates
 
 
-def atb_fixed_var_om_existing(atb_costs_df, atb_hr_df, results, settings):
+def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
     """Add fixed and variable O&M for existing power plants
 
     ATB O&M data for new power plants are used as reference values. Fixed and variable
@@ -85,14 +85,14 @@ def atb_fixed_var_om_existing(atb_costs_df, atb_hr_df, results, settings):
 
     Parameters
     ----------
+    results : DataFrame
+        Compiled results of clustered power plants with weighted average heat rates.
+        Note that column names should include "technology", "Heat_rate_MMBTU_per_MWh",
+        and "region". Technology names should not yet be converted to snake case.
     atb_costs_df : DataFrame
         Cost data from NREL ATB
     atb_hr_df : DataFrame
         Heat rate data from NREL ATB
-    results : DataFrame
-        Compiled results of clustered power plants with weighted average heat
-    rates. Note that column names should include "technology", "Heat_rate_MMBTU_per_MWh",
-    and "region". Technology names should not yet be converted to snake case.
     settings : dict
         User-defined parameters from a settings file
 
@@ -100,7 +100,7 @@ def atb_fixed_var_om_existing(atb_costs_df, atb_hr_df, results, settings):
     -------
     DataFrame
         Same as incoming "results" dataframe but with new columns
-        "Fixed_OM_cost_per_MWyr" and "Var_OM_cost_per_MWyr"
+        "Fixed_OM_cost_per_MWyr" and "Var_OM_cost_per_MWh"
     """
 
     techs = settings["eia_atb_tech_map"]
@@ -139,8 +139,7 @@ def atb_fixed_var_om_existing(atb_costs_df, atb_hr_df, results, settings):
                 "& basis_year==@existing_year"
             )
             .squeeze()
-            .at["o_m_fixed"]
-            * 1000
+            .at["o_m_fixed_mw"]
         )
         # print(atb_fixed_om_mw_yr)
         atb_var_om_mwh = (
@@ -149,7 +148,7 @@ def atb_fixed_var_om_existing(atb_costs_df, atb_hr_df, results, settings):
                 "& basis_year==@existing_year"
             )
             .squeeze()
-            .at["o_m_variable"]
+            .at["o_m_variable_mwh"]
         )
         # print(atb_var_om_mwh)
         _df["Fixed_OM_cost_per_MWyr"] = (
@@ -157,7 +156,7 @@ def atb_fixed_var_om_existing(atb_costs_df, atb_hr_df, results, settings):
             * settings["existing_om_multiplier"]
             * (existing_hr / new_build_hr)
         )
-        _df["Var_OM_cost_per_MWyr"] = atb_var_om_mwh * (existing_hr / new_build_hr)
+        _df["Var_OM_cost_per_MWh"] = atb_var_om_mwh * (existing_hr / new_build_hr)
 
         df_list.append(_df)
 
