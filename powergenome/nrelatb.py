@@ -118,7 +118,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
 
         eia_tech, existing_hr = group
         atb_tech, tech_detail = techs[eia_tech]
-        print(group, techs[eia_tech])
         try:
             new_build_hr = (
                 atb_hr_df.query(
