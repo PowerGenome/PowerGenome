@@ -156,6 +156,16 @@ def group_technologies(df, settings):
         df["_technology"] = df["technology_description"]
         for tech, group in settings["tech_groups"].items():
             df.loc[df["technology_description"].isin(group), "_technology"] = tech
+        for region, tech_list in settings["regional_no_grouping"].items():
+            df.loc[
+                (df["model_region"] == region)
+                & (df["technology_description"].isin(tech_list)),
+                "_technology",
+            ] = df.loc[
+                (df["model_region"] == region)
+                & (df["technology_description"].isin(tech_list)),
+                "technology_description",
+            ]
 
         df.loc[:, "technology_description"] = df.loc[:, "_technology"]
         df = df.drop(columns=["_technology"])
