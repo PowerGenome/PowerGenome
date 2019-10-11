@@ -32,6 +32,7 @@ from powergenome.load_data import (
     load_utilities_eia,
 )
 from powergenome.cluster_method import cluster_by_owner, weighted_ownership_by_unit
+from powergenome.eia_opendata import fetch_fuel_prices
 
 logger = logging.getLogger(__name__)
 
@@ -1516,6 +1517,77 @@ def gentype_region_capacity_factor(
     return capacity_factor_tech_region
 
 
+def add_fuel_labels(df, fuel_prices, settings):
+    """Add a Fuel column with the approproriate regional fuel for each generator type
+
+    Parameters
+    ----------
+    df : DataFrame
+        Generator clusters dataframe with all existing and proposed technologies
+    fuel_prices : DataFrame
+        Prices of fuels from EIA AEO scenarios in each census region. Columns include
+        ['year', 'price', 'fuel', 'region', 'scenario', 'full_fuel_name']
+    settings : dictionary
+        The dictionary of settings with fuel price variables
+
+    Returns
+    -------
+    DataFrame
+        Same as input, but with a new column "Fuel" that is either the name of the
+        corresponding fuel (coal, natural_gas, uranium, or distillate) or "None".
+    """
+
+    df["Fuel"] = "None"
+    for eia_tech, fuel in settings["tech_fuel_map"].items():
+        try:
+            if eia_tech == "Natural Gas Steam Turbine":
+                # No ATB natural gas steam turbine and I match it with coal for O&M
+                # which would screw this up and list natural gas as a fuel for ATB
+                # coal plants
+                atb_tech = None
+            else:
+                atb_tech = settings["eia_atb_tech_map"][eia_tech].split("_")[0]
+        except KeyError:
+            # No corresponding ATB technology
+            atb_tech = None
+        scenario = settings["aeo_fuel_scenarios"][fuel]
+        model_year = settings["model_year"]
+
+        for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
+            fuel_name = ("_").join([aeo_region, scenario, fuel])
+            assert (
+                fuel_prices.query(
+                    "year==@model_year & full_fuel_name==@fuel_name"
+                ).empty
+                is False
+            )
+
+            df.loc[
+                (df["technology"] == eia_tech) & df["region"].isin(model_regions),
+                "Fuel",
+            ] = fuel_name
+
+            if atb_tech is not None:
+                df.loc[
+                    (df["technology"].str.contains(atb_tech))
+                    & df["region"].isin(model_regions),
+                    "Fuel",
+                ] = fuel_name
+
+    for ccs_tech, ccs_fuel in settings["ccs_fuel_map"].items():
+        scenario = settings["aeo_fuel_scenarios"][ccs_fuel.split("_")[0]]
+        for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
+            ccs_fuel_name = ("_").join([aeo_region, scenario, ccs_fuel])
+
+            df.loc[
+                    (df["technology"].str.contains(ccs_tech))
+                    & df["region"].isin(model_regions),
+                    "Fuel",
+                ] = ccs_fuel_name
+
+    return df
+
+
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -1592,6 +1664,8 @@ class GeneratorClusters:
 
         self.atb_costs = fetch_atb_costs(self.pudl_engine, self.settings)
         self.atb_hr = fetch_atb_heat_rates(self.pudl_engine)
+
+        self.fuel_prices = fetch_fuel_prices(self.settings)
 
     def create_region_technology_clusters(self, return_retirement_capacity=False):
         """
@@ -1891,7 +1965,12 @@ class GeneratorClusters:
             )
             .pipe(atb_new_generators, self.atb_costs, self.atb_hr, self.settings)
             .pipe(startup_fuel, self.settings)
+            .pipe(add_fuel_labels, self.fuel_prices, self.settings)
         )
+
+        # Crazy to be rounding results again. Need to fix the order of stuff here
+        self.results = self.results.round(3)
+        self.results["Cap_size"] = self.results["Cap_size"].round(2)
 
         # Convert technology names to snake_case and add a 1-indexed column R_ID
         self.results["technology"] = snake_case_col(self.results["technology"])

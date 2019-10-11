@@ -10,11 +10,16 @@ import powergenome
 from powergenome.generators import GeneratorClusters
 from powergenome.load_profiles import load_curves
 from powergenome.params import DATA_PATHS
-from powergenome.transmission import agg_transmission_constraints, transmission_line_distance
+from powergenome.transmission import (
+    agg_transmission_constraints,
+    transmission_line_distance,
+)
+from powergenome.fuels import fuel_cost_table
 from powergenome.util import init_pudl_connection, load_settings, get_git_hash
 
 if not sys.warnoptions:
     import warnings
+
     warnings.simplefilter("ignore")
 
 
@@ -78,7 +83,7 @@ def main():
     logger.addHandler(filehandler)
 
     git_hash = get_git_hash()
-    logger.info(f'Current git hash is {git_hash}')
+    logger.info(f"Current git hash is {git_hash}")
 
     logger.info("Reading settings file")
     settings = load_settings(path=args.settings_file)
@@ -92,7 +97,9 @@ def main():
     # Make sure everything in model_regions is either an aggregate region
     # or an IPM region. Will need to change this once we start using non-IPM
     # regions.
-    ipm_regions = pd.read_sql_table("regions_entity_epaipm", pudl_engine)["region_id_epaipm"]
+    ipm_regions = pd.read_sql_table("regions_entity_epaipm", pudl_engine)[
+        "region_id_epaipm"
+    ]
     all_valid_regions = ipm_regions.tolist() + list(settings["region_aggregations"])
     good_regions = [region in all_valid_regions for region in settings["model_regions"]]
 
@@ -132,8 +139,13 @@ def main():
         transmission_line_distance,
         ipm_shapefile=gc.model_regions_gdf,
         settings=settings,
-        units='mile'
+        units="mile",
     )
+
+    fuels = fuel_cost_table(
+        fuel_costs=gc.fuel_prices, generators=gc.results, settings=settings
+    )
+    fuels["fuel_indices"] = range(1, len(fuels) + 1)
 
     logger.info("Write GenX input files")
     gen_clusters.to_csv(
@@ -141,15 +153,17 @@ def main():
         # float_format="%.3f",
     )
     if args.all_units is True:
-        gc.all_units.to_csv(
-            out_folder / f"all_units_{args.results_folder}.csv"
-        )
+        gc.all_units.to_csv(out_folder / f"all_units_{args.results_folder}.csv")
 
     load.astype(int).to_csv(out_folder / f"load_curves_{args.results_folder}.csv")
     transmission.to_csv(
         out_folder / f"transmission_constraints_{args.results_folder}.csv",
         float_format="%.1f",
     )
+    fuels.to_csv(
+        out_folder / f"Fuels_data_{args.results_folder}.csv", index=False
+    )
+
 
 
 if __name__ == "__main__":
