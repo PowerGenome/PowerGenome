@@ -1,9 +1,13 @@
 """
 Parameters and settings
 """
-
+import os
 from pathlib import Path
 from powergenome import __file__
+
+from dotenv import find_dotenv, load_dotenv
+
+load_dotenv(find_dotenv(usecwd=True))
 
 # Not convinced this is the best way to set folder paths but it works!
 powergenome_path = Path(__file__).parent
@@ -24,6 +28,8 @@ IPM_GEOJSON_PATH = DATA_PATHS['data'] / "ipm_regions_simple.geojson"
 
 SETTINGS = {}
 SETTINGS['pudl_db'] = "sqlite:////Users/greg/Documents/CATF/pudl-work/sqlite/pudl.sqlite"
+SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
+
 # "postgresql://catalyst@127.0.0.1/pudl"
 
 # {
