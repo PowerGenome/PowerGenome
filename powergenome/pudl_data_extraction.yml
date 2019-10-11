@@ -35,20 +35,14 @@ small_hydro_regions:
 model_regions:
   - CA_N
   - CA_S
-  - WECC_ID_MT
-  - WECC_UT_WY
-  - WECC_CO
-  - WECC_NM
-  - WECC_PNW
-  - WECC_NNV
-  - WECC_SNV
-  - WECC_AZ
+  - WECC_NW
+  - WECC_SW
 
 region_aggregations:
   CA_N: [WEC_CALN, WEC_BANC]
   CA_S: [WEC_SCE, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
-  WECC_ID_MT: [WECC_ID, WECC_MT]
-  WECC_UT_WY: [WECC_UT, WECC_WY]
+  WECC_NW: [WECC_UT, WECC_WY, WECC_PNW, WECC_ID, WECC_MT]
+  WECC_SW: [WECC_AZ, WECC_NNV, WECC_SNV, WECC_NM, WECC_CO]
 
 
 # CLUSTERING
@@ -114,8 +108,7 @@ tech_groups:
     - Landfill Gas
     - Municipal Solid Waste
     - Other Waste Biomass
-  Peaker:
-    - Natural Gas Fired Combustion Turbine
+  Other_peaker:
     - Natural Gas Internal Combustion Engine
     - Petroleum Liquids
 
@@ -356,7 +349,7 @@ additional_planned:
 split_plant_capacity:
 
 
-  ######################################################################################
+######################################################################################
 # LOAD GROWTH ASSUMPTIONS
 # Include any load growth assumptions here
 
@@ -376,3 +369,64 @@ load_region_map:
 
 alt_growth_rate:
   WECC_AZ: 0.02
+
+
+######################################################################################
+# EIA AEO FUEL PRICE VARIABLES
+
+# Need to make choices about fuel regions when user-defined regions cross AEO fuel regions
+# I'm putting WECC_NW in the rockies because the PNW doesn't use as much coal/gas
+aeo_fuel_region_map:
+  # rockies: [WECC_CO, WECC_ID, WECC_MT, WECC_WY, WECC_UT, WECC_NNV, WECC_SNV, WECC_AZ, WECC_NM]
+  # pacific: [WECC_PNW, WEC_CALN, WEC_BANC, WEC_SCE, WECC_SCE, WEC_LADW, WEC_SDGE, WECC_IID]
+  rockies: [WECC_SW, WECC_NW]
+  pacific: [CA_N, CA_S]
+
+eia_series_region_names:
+  rockies: MTN
+  pacific: PCF
+
+eia_series_fuel_names:
+  coal: STC
+  naturalgas: NG
+  distillate: DFO
+  uranium: U
+
+eia_series_scenario_names:
+  reference: REF2019
+  low_price: LOWPRICE
+  high_price: HIGHPRICE
+
+aeo_fuel_scenarios:
+  coal: reference
+  naturalgas: low_price
+  distillate: reference
+  uranium: reference
+
+tech_fuel_map:
+  Conventional Steam Coal: coal
+  Natural Gas Fired Combined Cycle: naturalgas
+  Natural Gas Fired Combustion Turbine: naturalgas
+  Natural Gas Steam Turbine: naturalgas
+  Nuclear: uranium
+  Petroleum Liquids: distillate
+
+# The CCS fuel names (key values on right) have to be in the format <fuel>_<ccslevel>,
+# where the fuel matches something from "aeo_fuel_scenarios" (above)
+ccs_fuel_map:
+  NaturalGas_CCCCS: naturalgas_ccs90
+  Coal_CCS30: coal_ccs30
+  Coal_CCS90: coal_ccs90
+
+ccs_capture_rate:
+  naturalgas_ccs90: 0.9
+  coal_ccs30: 0.3
+  coal_ccs30: 0.9
+
+# Pipeline and other costs, $/tonne
+ccs_disposal_cost: 10
+
+fuel_emission_factors:
+  naturalgas: 0.05306
+  coal: 0.9552 # EIA value for electric power sector
+  distillate: 0.7315
