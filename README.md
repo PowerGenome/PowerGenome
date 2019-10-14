@@ -20,28 +20,42 @@ The goal of PowerGenome is to let a user make all of these choices in a settings
 
 This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl). As such, it requires installation of PUDL to access a normalized sqlite database and some of the convienience PUDL functions.
 
+`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). The data used by PowerGenome have outstripped what is available in the public version of PULD, so download a modifed version of the [PUDL sqlite database here](https://drive.google.com/open?id=18tLKbok1-me81SkfWAhSLXmy5HW6RdvI).
+
 ## Installation
 
-**Installation instructions are limited at the moment, and will be expanded on in the near future**
 1. Clone this repository to your local machine and navigate to the top level (PowerGenome) folder.
+
 2. Create a conda environment named `powergenome` using the provided `environment.yml` file.
+
 ```sh
 conda env create -f environment.yml
 ```
+
 3. Activate the `powergenome` environment.
+
 ```sh
 conda activate powergenome
 ```
+
 4. pip-install an editable version of this project
+
 ```sh
 pip install -e .
 ```
-5. Build the local database following [PUDL instructions](https://catalystcoop-pudl.readthedocs.io/en/latest/index.html#getting-started). Skip the first step of creating the pudl conda environment since you have already installed pudl in the powergenome environment. I recommend modifying the example `pudl_data` line as follows:
+
+5. Download a [modifed version of the PULD database](https://drive.google.com/open?id=18tLKbok1-me81SkfWAhSLXmy5HW6RdvI) that includes NREL ATB cost data and is not yet included in PUDL. ~~Build the local database following [PUDL instructions](https://catalystcoop-pudl.readthedocs.io/en/latest/index.html#getting-started). Skip the first step of creating the pudl conda environment since you have already installed pudl in the powergenome environment. I recommend modifying the example `pudl_data` line as follows:~~
+
 ```sh
 pudl_data --sources eia923 eia860 ferc1 epaipm --years 2011 2012 2013 2014 2015 2016 2017
 ```
-6. Be sure to edit the `etl_example.yml` file to include all years of 860/923 data. Remove all years from `epacems`.
-7. Once you have created the sqlite database, change the `SETTINGS["pudl_db"]` parameter in `powergenome/params.py` to match the path on your computer.
+
+6. ~~Be sure to edit the `etl_example.yml` file to include all years of 860/923 data. Remove all years from `epacems`.~~
+
+7. Once you have downloaded ~~created~~ the sqlite database, change the `SETTINGS["pudl_db"]` parameter in `powergenome/params.py` to match the path on your computer.
+
+8. Get an [API key for EIA's OpenData portal](https://www.eia.gov/opendata/register.php). This key is needed to download projected fuel prices from the 2019 Annual Energy Outlook. Create the file `PowerGenome/powergenome/.env` and save the key in this file using the format `EIA_API_KEY=YOUR_KEY_HERE`. No quotation marks are needed around the API string. The `.env` file is included in `.gitignore` and will not be synced with the repository.
+
 
 ## Running code
 
