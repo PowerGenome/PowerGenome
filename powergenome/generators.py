@@ -7,8 +7,6 @@ import requests
 from bs4 import BeautifulSoup
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
-import sqlalchemy as sa
-import sqlite3
 from xlrd import XLRDError
 
 import pudl
