@@ -63,6 +63,7 @@ def main():
     args = parse_command_line(sys.argv)
 
     out_folder = DATA_PATHS["results"] / args.results_folder
+    DATA_PATHS["results"].mkdir(exist_ok=True)
     out_folder.mkdir(exist_ok=True)
 
     # Create a logger to output any messages we might have...
