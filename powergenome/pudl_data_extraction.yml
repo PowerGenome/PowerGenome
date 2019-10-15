@@ -296,8 +296,8 @@ atb_new_gen:
   - [Biopower, Dedicated, Mid, 50]
 
 
-# Fuel consumption for start-up events (mmbtu/MW) from Lew et al 2013,
-# Finding Flexibility: Cycling the Conventional Fleet
+# Fuel consumption for start-up events (mmbtu/MW) from NREL's Western Wind and Solar
+# Integration Study Phase 2 (2013)
 startup_fuel_use:
   Conventional Steam Coal: 16.5
   Natural Gas Fired Combined Cycle: 2.0
