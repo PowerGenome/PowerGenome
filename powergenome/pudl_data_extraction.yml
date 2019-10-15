@@ -185,6 +185,9 @@ retirement_ages:
 
 
 # CLUSTER TAGS
+# For now, all technologies must be added by hand here.
+# TODO: automate so that grouped EIA technologies get the correct tags. Include ATB
+# technologies.
 # All of the values will be 0 by default. If non-zero, add here.
 
 model_tag_names:
@@ -216,6 +219,7 @@ model_tag_values:
     Other Waste Biomass: 1
     Other Gases: 1
     Other Natural Gas: 1
+    Peaker: 1 # Is there any way to do this based on the underlying categories?
   DISP:
     Onshore Wind Turbine: 1
     Offshore Wind Turbine: 1
@@ -239,6 +243,7 @@ model_tag_values:
     Natural Gas Steam Turbine: 1
     Petroleum Coke: 1
     Coal Integrated Gasification Combined Cycle: 1
+    Peaker: 1 # Is there any way to do this based on the underlying categories?
 
 
 # Generator cost data from NREL ATB
@@ -430,3 +435,10 @@ fuel_emission_factors:
   naturalgas: 0.05306
   coal: 0.9552 # EIA value for electric power sector
   distillate: 0.7315
+
+
+# Wind/solar capacity density in MW/km^2
+# Consistent numbers are difficult to come by. Check to make sure that you are ok with
+# these values.
+onshore_wind_power_density: 5
+pv_power_density: 30
