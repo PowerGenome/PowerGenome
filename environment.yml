@@ -19,5 +19,5 @@ dependencies:
   - conda-forge::shapely
   - conda-forge::descartes
 
-  pip:
+  - pip:
     - python-dotenv
