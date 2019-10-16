@@ -9,15 +9,17 @@ import requests
 
 def load_settings(path):
 
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         settings = yaml.safe_load(f)
 
     return settings
 
 
-def init_pudl_connection(freq='YS'):
+def init_pudl_connection(freq="YS"):
 
-    pudl_engine = sa.create_engine(SETTINGS['pudl_db']) # pudl.init.connect_db(SETTINGS)
+    pudl_engine = sa.create_engine(
+        SETTINGS["pudl_db"]
+    )  # pudl.init.connect_db(SETTINGS)
     pudl_out = pudl.output.pudltabl.PudlTabl(freq=freq, pudl_engine=pudl_engine)
 
     return pudl_engine, pudl_out
@@ -32,13 +34,9 @@ def map_agg_region_names(df, region_agg_map, original_col_name, new_col_name):
 
     df[new_col_name] = df.loc[:, original_col_name]
 
-    df.loc[
-        df[original_col_name].isin(region_agg_map.keys()),
-        new_col_name
-    ] = df.loc[
-            df[original_col_name].isin(region_agg_map.keys()),
-            original_col_name
-        ].map(region_agg_map)
+    df.loc[df[original_col_name].isin(region_agg_map.keys()), new_col_name] = df.loc[
+        df[original_col_name].isin(region_agg_map.keys()), original_col_name
+    ].map(region_agg_map)
 
     return df
 
@@ -47,10 +45,10 @@ def snake_case_col(col):
     "Remove special characters and convert to snake case"
     clean = (
         col.str.lower()
-        .str.replace('[^0-9a-zA-Z\-]+', ' ')
-        .str.replace('-', '')
+        .str.replace("[^0-9a-zA-Z\-]+", " ")
+        .str.replace("-", "")
         .str.strip()
-        .str.replace(' ', '_')
+        .str.replace(" ", "_")
     )
     return clean
 
@@ -59,10 +57,10 @@ def snake_case_str(s):
     "Remove special characters and convert to snake case"
     clean = (
         s.lower()
-        .replace('[^0-9a-zA-Z\-]+', ' ')
-        .replace('-', '')
+        .replace("[^0-9a-zA-Z\-]+", " ")
+        .replace("-", "")
         .strip()
-        .replace(' ', '_')
+        .replace(" ", "_")
     )
     return clean
 
