@@ -69,8 +69,14 @@ def snake_case_str(s):
 
 def get_git_hash():
 
-    process = subprocess.Popen(['git', 'rev-parse', 'HEAD'], shell=False, stdout=subprocess.PIPE)
-    git_head_hash = process.communicate()[0].strip()
+    try:
+        git_head_hash = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"])
+            .strip()
+            .decode("ascii")
+        )
+    except FileNotFoundError:
+        git_head_hash = "Git hash unknown"
 
     return git_head_hash
 
