@@ -9,12 +9,12 @@ model_year: 2030
 # DATA YEAR
 # Pick one or more years of generator data to use when creating clusters. If
 # more than one year is used then things like heat rate will be calculated as the
-# average (weighted by generation per year).
+# average (weighted by generation per year.
 data_years:
   - 2017
 
 
-# CAPACITY TYPE
+# CAPACITY TYPE (ADD OTHER OPTIONS
 capacity_col: winter_capacity_mw
 
 # LABEL SMALL HYDRO
@@ -41,20 +41,27 @@ model_regions:
 region_aggregations:
   CA_N: [WEC_CALN, WEC_BANC]
   CA_S: [WEC_SCE, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
-  WECC_NW: [WECC_UT, WECC_WY, WECC_PNW, WECC_ID, WECC_MT]
-  WECC_SW: [WECC_AZ, WECC_NNV, WECC_SNV, WECC_NM, WECC_CO]
+  WECC_NW: [WECC_UT, WECC_WY, WECC_PNW, WECC_ID, WECC_MT, WECC_NNV]
+  WECC_SW: [WECC_AZ, WECC_SNV, WECC_NM, WECC_CO]
+
+
+###########################################################
+# EXISTING GENERATORS
 
 
 # CLUSTERING
 # Existing thermal power plants are clusted to reduce the number of distinct plants.
-# The existing method (for now) is to specify the number of clusters for each type
+# The existing method (for now is to specify the number of clusters for each type
 # of thermal plant as a default and then specify specific values for any regions
 # that are different.
 
 # Technologies that aren't listed here won't be included in the final cluster
 # outputs, even if they are included in alt_clusters below.
 
-# Won't show up if not listed here (expand)
+# Won't show up if not listed here (expand
+
+# Add info on how kmeans clusters (features
+# Maybe add k-median?
 cluster_method: kmeans
 
 num_clusters:
@@ -108,33 +115,37 @@ tech_groups:
     - Landfill Gas
     - Municipal Solid Waste
     - Other Waste Biomass
-  Other_peaker:
+  Peaker:
+    - Natural Gas Fired Combustion Turbine
     - Natural Gas Internal Combustion Engine
     - Petroleum Liquids
 
 
 # Use this to avoid grouping technologies in some regions
-regional_no_grouping: ~
-  # CA:
-  #   - Natural Gas Fired Combustion Turbine
-  #   - Natural Gas Internal Combustion Engine
+regional_no_grouping:
+  CA:
+    - Natural Gas Fired Combustion Turbine
+    - Natural Gas Internal Combustion Engine
 
 # CAPACITY FACTOR
 # Calculate the capacity factor of technology types listed here. If derate_capacity is
 # True, multiply the calculated capacity of each cluster by the CF
+# IS THIS CALCULATED EVERYWHERE NOW?
 capacity_factor_techs:
   - Small Hydroelectric
   - Biomass
   - Geothermal
 
 # Default value to limit the years used to calculate capacity factors.
-# Use "~" (null, converted to None in Python) to use all data years. PUDL currently has
+# Use "~" (null, converted to None in Python to use all data years. PUDL currently has
 # generation data from 2011 through the most recent final release of 923/860.
+# IS THIS CURRENTLY USED?
 capacity_factor_default_year_filter: [2016, 2017]
 
 # Select the year filters for specific technologies. Grouped technologies should be
-# used rather than in individual categories (e.g. Peaker rather than Combustion Turbine).
+# used rather than in individual categories (e.g. Peaker rather than Combustion Turbine.
 # Again, use "~" to use all years.
+# STILL USED?
 alt_year_filters:
   Small Hydroelectric: ~
   Conventional Hydroelectric: ~
@@ -151,6 +162,8 @@ derate_techs:
 # RETIREMENT AGES
 # The age at which each technolgy type is expected to retire. Planned retirements
 # included in EIA860 will be used if they are before the expected end of life.
+# Retirements are decided before plants are grouped into higher-level technologies,
+# so need to include groups like "Peaker" or "Biomass"
 
 retirement_ages:
   Conventional Hydroelectric: 500
@@ -220,6 +233,7 @@ model_tag_values:
     Other Gases: 1
     Other Natural Gas: 1
     Peaker: 1 # Is there any way to do this based on the underlying categories?
+    Biomass: 1
   DISP:
     Onshore Wind Turbine: 1
     Offshore Wind Turbine: 1
@@ -244,18 +258,19 @@ model_tag_values:
     Petroleum Coke: 1
     Coal Integrated Gasification Combined Cycle: 1
     Peaker: 1 # Is there any way to do this based on the underlying categories?
+    Biomass: 1
 
 
 # Generator cost data from NREL ATB
-
+# ADD WHAT THE OPTIONS ARE
 atb_cost_case: Mid
 atb_financial_case: Market
-atb_cap_recovery_years: 20
+atb_cap_recovery_years: 20 # SHOULD BE FLEXIBLE FOR DIFFERENT TECHNOLOGIES
 atb_existing_year: 2018
 
 # Assume that O&M for existing plants is higher than for new builds by both the ratio
 # of heat rates and a multiplier
-existing_om_multiplier: 1.5
+existing_om_multiplier: 1.0
 
 
 
@@ -292,18 +307,19 @@ atb_new_gen:
   - [LandbasedWind, LTRG1, Mid, 1]
   - [OffShoreWind, OTRG3, Mid, 1]
   - [UtilityPV, Los Angeles, Mid, 1]
-  - [Battery, "*", Mid, 1]
+  - [Battery, "*", Mid, 1] # SOMETHING GOING WRONG HERE
   - [Biopower, Dedicated, Mid, 50]
 
 
-# Fuel consumption for start-up events (mmbtu/MW) from NREL's Western Wind and Solar
-# Integration Study Phase 2 (2013)
+# Fuel consumption for start-up events (mmbtu/MW from NREL's Western Wind and Solar
+# Integration Study Phase 2 (2013
 startup_fuel_use:
   Conventional Steam Coal: 16.5
   Natural Gas Fired Combined Cycle: 2.0
-  Natural Gas Fired Combustion Turbine: 3.5
+  Natural Gas Fired Combustion Turbine: 3.5 # FOLLOW UP WITH JESSE ON THIS
   Natural Gas Steam Turbine: 13.7
 
+# ADD A BLS INFLATION SCRIPT AND ABILITY TO SCALE DOLLAR TO ANY YEAR
 
 
 # Map user-regions to NERC subregions for cost multipliers
@@ -365,7 +381,7 @@ proposed_status_included:
   - U # Under construction, less than or equal to 50 percent complete
   - T # Regulatory approvals received. Not under construction
 
-# Heat rates are from EIA's AEO 2019 Cost and Performace report (Table 8.2)
+# Heat rates are from EIA's AEO 2019 Cost and Performace report (Table 8.2
 # or NREL's 2018 ATB. ATB technologies use 2020 heat rate values.
 # All AEO heat rates are for advanced technologies and use values from the final
 # heat rate column
@@ -455,6 +471,8 @@ aeo_fuel_scenarios:
   distillate: reference
   uranium: reference
 
+
+# NEED TO ADD BIOMASS AND GET FUEL COSTS - CHECK TEMOA (BILLION TON STUDY REFERENCE
 tech_fuel_map:
   Conventional Steam Coal: coal
   Natural Gas Fired Combined Cycle: naturalgas
@@ -463,8 +481,9 @@ tech_fuel_map:
   Nuclear: uranium
   Petroleum Liquids: distillate
 
-# The CCS fuel names (key values on right) have to be in the format <fuel>_<ccslevel>,
-# where the fuel matches something from "aeo_fuel_scenarios" (above)
+# The CCS fuel names (key values on right have to be in the format <fuel>_<ccslevel>,
+# where the fuel matches something from "aeo_fuel_scenarios" (above
+# ATB: technology_tech_detail.
 ccs_fuel_map:
   NaturalGas_CCCCS: naturalgas_ccs90
   Coal_CCS30: coal_ccs30
@@ -478,6 +497,9 @@ ccs_capture_rate:
 # Pipeline and other costs, $/tonne
 ccs_disposal_cost: 10
 
+# add carbon price parameter to Var_OM_cost_per_MWh
+
+# kg/MMBtu
 fuel_emission_factors:
   naturalgas: 0.05306
   coal: 0.9552 # EIA value for electric power sector
@@ -489,3 +511,25 @@ fuel_emission_factors:
 # these values.
 onshore_wind_power_density: 5
 pv_power_density: 30
+
+
+# Digitally extracted VOM startup costs for each generator type from the NREL Western
+# wind/solar integration study
+startup_vom_costs:
+  coal_small_sub: 2.811083123425693
+  coal_large_sub: 2.6901763224181363
+  coal_supercritical: 2.9773299748110835
+  gas_cc: 1.027707808564232
+  gas_large_ct: 0.7707808564231743
+  gas_aero_ct: 0.6952141057934508
+  gas_steam: 1.027707808564232
+
+# Median cold start costs from NREL 2012 (matches digitized plot from western integration
+startup_costs_per_cold_start:
+  coal_small_sub: 147
+  coal_large_sub: 105
+  coal_supercritical: 104
+  gas_cc: 79
+  gas_large_ct: 103
+  gas_aero_ct: 32
+  gas_steam: 75
