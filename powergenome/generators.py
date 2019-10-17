@@ -2001,6 +2001,7 @@ class GeneratorClusters:
             "Min_Share",
             "Max_Share",
             "Existing_Cap_MW",
+            "unmodified_existing_cap_mw",
             "New_Build",
             "Cap_size",
             "Min_Cap_MW",
