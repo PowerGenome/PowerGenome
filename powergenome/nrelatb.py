@@ -6,6 +6,9 @@ import logging
 import numpy as np
 import pandas as pd
 
+from powergenome.params import DATA_PATHS
+from powergenome.util import reverse_dict_of_lists
+
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
@@ -190,6 +193,22 @@ def investment_cost_calculator(capex, wacc, cap_rec_years):
     return inv_cost
 
 
+def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipliers):
+
+    cost_region = region_map[region]
+    tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
+
+    tech_multiplier_map = {}
+    for atb_tech, eia_tech in tech_map.items():
+        if df["technology"].str.contains(atb_tech).sum() > 0:
+            full_atb_tech = df.loc[df["technology"].str.contains(atb_tech).idxmax(), "technology"]
+            tech_multiplier_map[full_atb_tech] = tech_multiplier.at[eia_tech]
+
+    df["Inv_cost_per_MWyr"] *= df["technology"].map(tech_multiplier_map)
+
+    return df#, tech_multiplier_map
+
+
 def atb_new_generators(results, atb_costs, atb_hr, settings):
     """Add rows for new generators in each region
 
@@ -257,15 +276,32 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
         # "fuel",
         "Inv_cost_per_MWyr",
         "Heat_rate_MMBTU_per_MWh",
-        "Cap_size"
+        "Cap_size",
     ]
 
+    regional_cost_multipliers = pd.read_csv(
+        DATA_PATHS["cost_multipliers"] / "EIA regional cost multipliers.csv",
+        index_col=0,
+    )
+    rev_mult_region_map = reverse_dict_of_lists(settings["cost_multiplier_region_map"])
+    rev_mult_tech_map = reverse_dict_of_lists(
+        settings["cost_multiplier_technology_map"]
+    )
     df_list = []
     for region in regions:
         _df = new_gen_df.loc[:, keep_cols].copy()
         _df["region"] = region
+        _df = regional_capex_multiplier(
+            _df,
+            region,
+            rev_mult_region_map,
+            rev_mult_tech_map,
+            regional_cost_multipliers,
+        )
         df_list.append(_df)
 
-    results = pd.concat([results, pd.concat(df_list, ignore_index=True)], ignore_index=True)
+    results = pd.concat(
+        [results, pd.concat(df_list, ignore_index=True)], ignore_index=True
+    )
 
     return results

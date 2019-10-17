@@ -306,6 +306,53 @@ startup_fuel_use:
 
 
 
+# Map user-regions to NERC subregions for cost multipliers
+cost_multiplier_region_map:
+  ERCT: []
+  FRCC: []
+  MROE: []
+  MROW: []
+  NEWE: []
+  NYCW: []
+  NYLI: []
+  NYUP: []
+  RFCE: []
+  RFCM: []
+  RFCW: []
+  SRDA: []
+  SRGW: []
+  SRSE: []
+  SRCE: []
+  SRVC: []
+  SPNO: []
+  SPSO: []
+  AZNM: [WECC_SW] # Note that WECC_CO is included in here, but we need to pick a single reigon
+  CAMX: [CA_N, CA_S]
+  NWPP: [WECC_NW]
+  RMPA: []
+
+# The keys are technologies listed in EIA's 2016 capital cost assumptions document
+# (https://www.eia.gov/analysis/studies/powerplants/capitalcost/pdf/capcost_assumption.pdf)
+# Values are lists of ATB technologies that map to the EIA keys.
+cost_multiplier_technology_map:
+  PC: [Coal_newAvgCF, Coal_newHighCF]
+  IGCC: [Coal_IGCCAvgCF, Coal_IGCCAvgCF]
+  PC w/CCS: [Coal_CCS30AvgCF, Coal_CCS30HighCF, Coal_CCS90AvgCF, Coal_CCS90HighCF]
+  Conv. CT: []
+  Adv. CT: [NaturalGas_CTAvgCF, NaturalGas_CTHighCF]
+  Conv CC: []
+  Adv CC: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF]
+  Adv CC w/CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF]
+  Fuel Cell: []
+  Nuclear: [Nuclear_*]
+  Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
+  MSW: []
+  Onshore Wind: [LandbasedWind]
+  Offshore Wind: [OffShoreWind]
+  Solar Thermal: [CSP]
+  Solar PV: [UtilityPV, CommPV, ResPV]
+
+
 # PROPOSED GENERATOR VARIABLES
 
 eia_860m_fn: may_generator2019.xlsx
