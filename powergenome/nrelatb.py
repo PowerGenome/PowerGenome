@@ -29,7 +29,7 @@ def fetch_atb_costs(pudl_engine, settings):
     DataFrame
         Power plant cost data with columns:
         ['technology', 'cap_recovery_years', 'cost_case', 'financial_case',
-       'basis_year', 'tech_detail', 'o_m_fixed', 'o_m_variable', 'capex', 'cf',
+       'basis_year', 'tech_detail', 'o_m_fixed_mw', 'o_m_variable_mwh', 'capex', 'cf',
        'fuel', 'lcoe', 'o_m', 'waccnomtech']
     """
     logger.info("Loading NREL ATB data")
@@ -146,7 +146,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             # to 1
             existing_hr = 1
             new_build_hr = 1
-        # print(new_build_hr)
+
         atb_fixed_om_mw_yr = (
             atb_costs_df.query(
                 "technology==@atb_tech & cost_case=='Mid' & tech_detail==@tech_detail"
@@ -155,7 +155,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             .squeeze()
             .at["o_m_fixed_mw"]
         )
-        # print(atb_fixed_om_mw_yr)
         atb_var_om_mwh = (
             atb_costs_df.query(
                 "technology==@atb_tech & cost_case=='Mid' & tech_detail==@tech_detail"
@@ -164,7 +163,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             .squeeze()
             .at["o_m_variable_mwh"]
         )
-        # print(atb_var_om_mwh)
         _df["Fixed_OM_cost_per_MWyr"] = (
             atb_fixed_om_mw_yr
             * settings["existing_om_multiplier"]
@@ -174,7 +172,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
 
         df_list.append(_df)
 
-    # logger.info(_df)
     mod_results = pd.concat(df_list, ignore_index=True)
     mod_results = mod_results.sort_values(["region", "technology", "cluster"])
 
@@ -212,12 +209,14 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
     tech_multiplier_map = {}
     for atb_tech, eia_tech in tech_map.items():
         if df["technology"].str.contains(atb_tech).sum() > 0:
-            full_atb_tech = df.loc[df["technology"].str.contains(atb_tech).idxmax(), "technology"]
+            full_atb_tech = df.loc[
+                df["technology"].str.contains(atb_tech).idxmax(), "technology"
+            ]
             tech_multiplier_map[full_atb_tech] = tech_multiplier.at[eia_tech]
 
     df["Inv_cost_per_MWyr"] *= df["technology"].map(tech_multiplier_map)
 
-    return df#, tech_multiplier_map
+    return df
 
 
 def atb_new_generators(results, atb_costs, atb_hr, settings):
@@ -281,10 +280,8 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
     keep_cols = [
         "technology",
         "basis_year",
-        # "tech_detail",
         "Fixed_OM_cost_per_MWyr",
         "Var_OM_cost_per_MWh",
-        # "fuel",
         "Inv_cost_per_MWyr",
         "Heat_rate_MMBTU_per_MWh",
         "Cap_size",
