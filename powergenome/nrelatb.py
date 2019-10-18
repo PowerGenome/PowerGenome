@@ -32,7 +32,7 @@ def fetch_atb_costs(pudl_engine, settings):
        'basis_year', 'tech_detail', 'o_m_fixed', 'o_m_variable', 'capex', 'cf',
        'fuel', 'lcoe', 'o_m', 'waccnomtech']
     """
-
+    logger.info("Loading NREL ATB data")
     atb_costs = pd.read_sql_table("technology_costs_nrelatb", pudl_engine)
 
     index_cols = [
@@ -52,12 +52,16 @@ def fetch_atb_costs(pudl_engine, settings):
     atb_costs = atb_costs.loc[idx[:, cap_recovery, :, financial, :, :], :]
     atb_costs = atb_costs.reset_index()
 
-    capex_base_year = settings["atb_usd_year"]
-    capex_target_year = settings["target_usd_year"]
-    atb_costs.loc[:, "capex"] = inflation_price_adjustment(
-        price=atb_costs.loc[:, "capex"],
-        base_year=capex_base_year,
-        target_year=capex_target_year
+    atb_base_year = settings["atb_usd_year"]
+    atb_target_year = settings["target_usd_year"]
+    usd_columns = ["o_m_fixed_mw", "o_m_variable_mwh", "capex"]
+    logger.info(
+        f"Changing NREL ATB costs from {atb_base_year} to {atb_target_year} USD"
+    )
+    atb_costs.loc[:, usd_columns] = inflation_price_adjustment(
+        price=atb_costs.loc[:, usd_columns],
+        base_year=atb_base_year,
+        target_year=atb_target_year,
     )
 
     return atb_costs
