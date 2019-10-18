@@ -10,3 +10,4 @@ pyarrow
 python-dotenv
 sqlalchemy
 catalystcoop.pudl
+cpi
