@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from powergenome.params import DATA_PATHS
+from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.util import reverse_dict_of_lists
 
 idx = pd.IndexSlice
@@ -47,11 +48,17 @@ def fetch_atb_costs(pudl_engine, settings):
 
     cap_recovery = str(settings["atb_cap_recovery_years"])
     financial = settings["atb_financial_case"]
-    # basis_year = settings["model_year"]
 
-    # logger.warning("The model year is being used as the cost basis year in all cases")
     atb_costs = atb_costs.loc[idx[:, cap_recovery, :, financial, :, :], :]
     atb_costs = atb_costs.reset_index()
+
+    capex_base_year = settings["atb_usd_year"]
+    capex_target_year = settings["target_usd_year"]
+    atb_costs.loc[:, "capex"] = inflation_price_adjustment(
+        price=atb_costs.loc[:, "capex"],
+        base_year=capex_base_year,
+        target_year=capex_target_year
+    )
 
     return atb_costs
 

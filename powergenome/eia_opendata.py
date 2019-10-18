@@ -9,6 +9,7 @@ import pandas as pd
 import requests
 
 from powergenome.params import SETTINGS
+from powergenome.price_adjustment import inflation_price_adjustment
 
 
 def fetch_fuel_prices(settings):
@@ -40,5 +41,13 @@ def fetch_fuel_prices(settings):
         df_list.append(df)
 
     final = pd.concat(df_list, ignore_index=True)
+
+    fuel_price_base_year = settings["aeo_fuel_usd_year"]
+    fuel_price_target_year = settings["target_usd_year"]
+    final.loc[:, "price"] = inflation_price_adjustment(
+        price=final.loc[:, "price"],
+        base_year=fuel_price_base_year,
+        target_year=fuel_price_target_year
+    )
 
     return final
