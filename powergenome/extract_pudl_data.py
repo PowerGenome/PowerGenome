@@ -161,10 +161,7 @@ def main():
         out_folder / f"transmission_constraints_{args.results_folder}.csv",
         float_format="%.1f",
     )
-    fuels.to_csv(
-        out_folder / f"Fuels_data_{args.results_folder}.csv", index=False
-    )
-
+    fuels.to_csv(out_folder / f"Fuels_data_{args.results_folder}.csv", index=False)
 
 
 if __name__ == "__main__":

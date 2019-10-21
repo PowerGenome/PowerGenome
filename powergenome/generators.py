@@ -3,34 +3,35 @@ import logging
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pudl
 import requests
 from bs4 import BeautifulSoup
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
 from xlrd import XLRDError
 
-import pudl
-from powergenome.params import IPM_GEOJSON_PATH, DATA_PATHS
-from powergenome.nrelatb import (
-    fetch_atb_costs,
-    fetch_atb_heat_rates,
-    atb_fixed_var_om_existing,
-    atb_new_generators,
-)
-from powergenome.util import (
-    map_agg_region_names,
-    reverse_dict_of_lists,
-    snake_case_col,
-    download_save,
-)
+from powergenome.cluster_method import cluster_by_owner, weighted_ownership_by_unit
+from powergenome.eia_opendata import fetch_fuel_prices
 from powergenome.load_data import (
     load_ipm_plant_region_map,
     load_ownership_eia860,
     load_plants_860,
     load_utilities_eia,
 )
-from powergenome.cluster_method import cluster_by_owner, weighted_ownership_by_unit
-from powergenome.eia_opendata import fetch_fuel_prices
+from powergenome.nrelatb import (
+    atb_fixed_var_om_existing,
+    atb_new_generators,
+    fetch_atb_costs,
+    fetch_atb_heat_rates,
+)
+from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH
+from powergenome.price_adjustment import inflation_price_adjustment
+from powergenome.util import (
+    download_save,
+    map_agg_region_names,
+    reverse_dict_of_lists,
+    snake_case_col,
+)
 
 logger = logging.getLogger(__name__)
 

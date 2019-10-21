@@ -1,10 +1,11 @@
 import subprocess
-import yaml
 
 import pudl
-from powergenome.params import SETTINGS
-import sqlalchemy as sa
 import requests
+import sqlalchemy as sa
+import yaml
+
+from powergenome.params import SETTINGS
 
 
 def load_settings(path):

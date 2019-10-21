@@ -1,15 +1,6 @@
 "Load and download data for use in other modules"
 
-import sqlite3
-
-import geopandas as gpd
 import pandas as pd
-import requests
-import sqlalchemy as sa
-from bs4 import BeautifulSoup
-from xlrd import XLRDError
-
-from powergenome.params import IPM_GEOJSON_PATH
 
 
 def load_ipm_plant_region_map(pudl_engine):
@@ -56,7 +47,9 @@ def load_ownership_eia860(pudl_engine, data_years=[2017]):
 
 def load_plants_860(pudl_engine, data_years=[2017]):
 
-    plants = pd.read_sql_table("plants_eia860", pudl_engine, parse_dates=["report_date"])
+    plants = pd.read_sql_table(
+        "plants_eia860", pudl_engine, parse_dates=["report_date"]
+    )
 
     plants = plants.loc[plants["report_date"].dt.year.isin(data_years)]
 

@@ -1,10 +1,14 @@
+"""
+Transmission constraints between regions and line distance
+"""
+
 import itertools
 import logging
-import numpy as np
-import pandas as pd
-from powergenome.util import reverse_dict_of_lists, map_agg_region_names
+from math import asin, cos, radians, sin, sqrt
 
-from math import radians, cos, sin, asin, sqrt
+import pandas as pd
+
+from powergenome.util import map_agg_region_names, reverse_dict_of_lists
 
 logger = logging.getLogger(__name__)
 

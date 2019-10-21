@@ -1,5 +1,11 @@
-import pandas as pd
+"""
+Hourly demand profiles
+"""
+
 import logging
+
+import pandas as pd
+
 from powergenome.util import reverse_dict_of_lists
 
 logger = logging.getLogger(__name__)
