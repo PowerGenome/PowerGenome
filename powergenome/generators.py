@@ -163,6 +163,63 @@ def startup_fuel(df, settings):
     return df
 
 
+def startup_nonfuel_costs(df, settings):
+    """Add inflation adjusted startup nonfuel costs per MW for generators
+
+    Parameters
+    ----------
+    df : DataFrame
+        Must contain a column "technology" with the names of each technology type.
+    settings : dict
+        Dictionary based on YAML settings file. Must contain the keys
+        "startup_costs_type", "startup_vom_costs_mw", "existing_startup_costs_tech_map",
+        etc.
+
+    Returns
+    -------
+    DataFrame
+        Modified df with new column "Start_cost_per_MW"
+    """
+    logger.info("Adding non-fuel startup costs")
+    target_usd_year = settings["target_usd_year"]
+
+    vom_costs = settings["startup_vom_costs_mw"]
+    vom_usd_year = settings["startup_vom_costs_usd_year"]
+
+    for key, cost in vom_costs.items():
+        vom_costs[key] = inflation_price_adjustment(
+            price=cost, base_year=vom_usd_year, target_year=target_usd_year
+        )
+
+    startup_type = settings["startup_costs_type"]
+    startup_costs = settings[startup_type]
+    startup_costs_usd_year = settings["startup_costs_per_cold_start_usd_year"]
+
+    for key, cost in startup_costs.items():
+        startup_costs[key] = inflation_price_adjustment(
+            price=cost, base_year=startup_costs_usd_year, target_year=target_usd_year
+        )
+
+    df["Start_cost_per_MW"] = 0
+
+    for existing_tech, cost_tech in settings["existing_startup_costs_tech_map"].items():
+        total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
+        df.loc[
+            df["technology"].str.contains(existing_tech), "Start_cost_per_MW"
+        ] = total_startup_costs
+
+    for existing_tech, cost_tech in settings["new_build_startup_costs"].items():
+        total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
+        df.loc[
+            df["technology"].str.contains(existing_tech), "Start_cost_per_MW"
+        ] = total_startup_costs
+    df.loc[:, "Start_cost_per_MW"] = df.loc[:, "Start_cost_per_MW"].round(3)
+
+    df.loc[df["technology"].str.contains("Nuclear"), "Start_cost_per_MW"] = "FILL VALUE"
+
+    return df
+
+
 def group_technologies(df, settings):
     """
     Group different technologies together based on parameters in the settings file.
@@ -1579,10 +1636,10 @@ def add_fuel_labels(df, fuel_prices, settings):
             ccs_fuel_name = ("_").join([aeo_region, scenario, ccs_fuel])
 
             df.loc[
-                    (df["technology"].str.contains(ccs_tech))
-                    & df["region"].isin(model_regions),
-                    "Fuel",
-                ] = ccs_fuel_name
+                (df["technology"].str.contains(ccs_tech))
+                & df["region"].isin(model_regions),
+                "Fuel",
+            ] = ccs_fuel_name
 
     return df
 
@@ -1965,6 +2022,7 @@ class GeneratorClusters:
             .pipe(atb_new_generators, self.atb_costs, self.atb_hr, self.settings)
             .pipe(startup_fuel, self.settings)
             .pipe(add_fuel_labels, self.fuel_prices, self.settings)
+            .pipe(startup_nonfuel_costs, self.settings)
         )
 
         # Crazy to be rounding results again. Need to fix the order of stuff here
@@ -2017,6 +2075,7 @@ class GeneratorClusters:
             "Var_OM_cost_per_MWh_in",
             "Externality_cost_MWh",
             "Start_cost",
+            "Start_cost_per_MW",
             "Start_fuel_MMBTU_per_MW",
             "Start_fuel_MMBTU_per_start",
             "Heat_rate_MMBTU_per_MWh",
