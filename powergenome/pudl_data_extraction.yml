@@ -531,6 +531,7 @@ startup_vom_costs_mw:
 startup_vom_costs_usd_year: 2011
 
 # Median cold start costs from NREL 2012 (matches digitized plot from western integration
+startup_costs_type: startup_costs_per_cold_start_mw
 startup_costs_per_cold_start_mw:
   coal_small_sub: 147
   coal_large_sub: 105
@@ -541,3 +542,17 @@ startup_costs_per_cold_start_mw:
   gas_steam: 75
 
 startup_costs_per_cold_start_usd_year: 2011
+
+existing_startup_costs_tech_map:
+  Conventional Steam Coal: coal_large_sub
+  Natural Gas Fired Combined Cycle: gas_cc
+  Natural Gas Fired Combustion Turbine: gas_large_ct
+  Natural Gas Steam Turbine: gas_steam
+
+new_build_startup_costs:
+  Coal_CCS30: coal_supercritical
+  Coal_CCS90: coal_supercritical
+  Coal_IGCC: coal_supercritical
+  Coal_new: coal_supercritical
+  NaturalGas_CT: gas_aero_ct
+  NaturalGas_CC: gas_cc
