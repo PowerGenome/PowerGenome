@@ -187,6 +187,11 @@ def startup_nonfuel_costs(df, settings):
     vom_costs = settings["startup_vom_costs_mw"]
     vom_usd_year = settings["startup_vom_costs_usd_year"]
 
+
+    logger.info(
+        f"Changing non-fuel VOM costs from {vom_usd_year} to "
+        f"{target_usd_year}"
+    )
     for key, cost in vom_costs.items():
         vom_costs[key] = inflation_price_adjustment(
             price=cost, base_year=vom_usd_year, target_year=target_usd_year
@@ -196,6 +201,10 @@ def startup_nonfuel_costs(df, settings):
     startup_costs = settings[startup_type]
     startup_costs_usd_year = settings["startup_costs_per_cold_start_usd_year"]
 
+    logger.info(
+        f"Changing non-fuel startup costs from {vom_usd_year} to "
+        f"{target_usd_year}"
+    )
     for key, cost in startup_costs.items():
         startup_costs[key] = inflation_price_adjustment(
             price=cost, base_year=startup_costs_usd_year, target_year=target_usd_year
