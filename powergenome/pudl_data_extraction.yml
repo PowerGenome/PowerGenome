@@ -212,6 +212,9 @@ model_tag_names:
   - DR
   - HYDRO
   - Commit
+  - RPS
+  - CES
+  - New_Build
 
 default_model_tag: 0
 
@@ -246,6 +249,7 @@ model_tag_values:
     Small Hydroelectric: 1
   STOR:
     Hydroelectric Pumped Storage: 1
+  DR: ~
   HYDRO:
     Conventional Hydroelectric: 1
   Commit:
@@ -260,6 +264,107 @@ model_tag_values:
     Coal Integrated Gasification Combined Cycle: 1
     Peaker: 1 # Is there any way to do this based on the underlying categories?
     Biomass: 1
+    model_tag_values:
+  THERM:
+    Conventional Steam Coal: 1
+    Natural Gas Fired Combined Cycle: 1
+    Natural Gas Fired Combustion Turbine: 1
+    Petroleum Liquids: 1
+    Natural Gas Internal Combustion Engine: 1
+    Nuclear: 1
+    Natural Gas Steam Turbine: 1
+    Wood/Wood Waste Biomass: 1
+    Petroleum Coke: 1
+    Geothermal: 1
+    Municipal Solid Waste: 1
+    Landfill Gas: 1
+    Coal Integrated Gasification Combined Cycle: 1
+    Other Waste Biomass: 1
+    Other Gases: 1
+    Other Natural Gas: 1
+    Other_peaker: 1 # Is there any way to do this based on the underlying categories?
+    Biomass: 1
+    NaturalGas_: 1
+    Biopower_: 1
+    Nuclear_: 1
+    CSP_: 1
+  DISP:
+    Onshore Wind Turbine: 1
+    Offshore Wind Turbine: 1
+    Solar Photovoltaic: 1
+    Solar Thermal without Energy Storage: 1
+    LandbasedWind_: 1
+    OffShoreWind_: 1
+    UtilityPV_: 1
+    CSP_: 1
+  NDISP:
+    Geothermal: 1
+    Wood/Wood Waste Biomass: 1
+    Biomass: 1
+    Small Hydroelectric: 1
+  STOR:
+    Hydroelectric Pumped Storage: 1
+    Battery: 2
+  HYDRO:
+    Conventional Hydroelectric: 1
+  Commit:
+    Conventional Steam Coal: 1
+    Natural Gas Fired Combined Cycle: 1
+    Natural Gas Fired Combustion Turbine: 1
+    Petroleum Liquids: 1
+    Natural Gas Internal Combustion Engine: 1
+    Nuclear: 1
+    Natural Gas Steam Turbine: 1
+    Petroleum Coke: 1
+    Coal Integrated Gasification Combined Cycle: 1
+    Other_peaker: 1 # Is there any way to do this based on the underlying categories?
+    Biomass: 1
+    NaturalGas_: 1
+    Biopower_: 1
+    Nuclear_: 1
+  RPS:
+    Biomass: 1
+    Geothermal: 1
+    Small Hydroelectric: 1
+    Onshore Wind Turbine: 1
+    Offshore Wind Turbine: 1
+    Solar Photovoltaic: 1
+    Biopower_: 1
+    CSP_: 1
+    UtilityPV_: 1
+    LandbasedWind_: 1
+    OffShoreWind_: 1
+  CES:
+    Biomass: 1
+    Geothermal: 1
+    Small Hydroelectric: 1
+    Onshore Wind Turbine: 1
+    Offshore Wind Turbine: 1
+    Solar Photovoltaic: 1
+    Biopower_: 1
+    CSP_: 1
+    UtilityPV_: 1
+    LandbasedWind_: 1
+    OffShoreWind_: 1
+    Nuclear: 1
+    NaturalGas_CCCCS: 1
+  New_Build:
+    Conventional Hydroelectric: -1
+    NaturalGas_: 1
+    LandbasedWind_: 1
+    OffShoreWind_: 1
+    UtilityPV_: 1
+    Battery_: 1
+    Biopower_: 1
+
+# Tags for a technology in a specific region
+# Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>
+# Technologies will be matched using str.contains(), so partial names can be included
+# but they might unintentially map to other techs
+regional_tag_values:
+  CA_S:
+    New_Build:
+      Nuclear: 0
 
 
 # Generator cost data from NREL ATB
@@ -325,6 +430,7 @@ startup_fuel_use:
 
 
 # Map user-regions to NERC subregions for cost multipliers
+# See a map at https://www.eia.gov/outlooks/aeo/pdf/nerc_map.pdf
 cost_multiplier_region_map:
   ERCT: []
   FRCC: []

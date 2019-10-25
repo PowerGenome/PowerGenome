@@ -1,5 +1,6 @@
 import logging
 
+from flatten_dict import flatten
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -1146,23 +1147,36 @@ def add_genx_model_tags(df, settings):
     model_tag_cols = settings["model_tag_names"]
 
     # Create a new dataframe with the same index
-    tag_df = pd.DataFrame(
-        index=df.index, columns=model_tag_cols, data=settings["default_model_tag"]
-    )
-    model_tag_dict = settings["model_tag_values"]
-    for col, value_map in model_tag_dict.items():
-        tag_df[col] = tag_df.index.get_level_values("technology").map(value_map)
+    for tag_col in model_tag_cols:
+        df[tag_col] = settings["default_model_tag"]
 
-    tag_df.fillna(settings["default_model_tag"], inplace=True)
+        try:
+            for tech, tag_value in settings["model_tag_values"][tag_col].items():
+                df.loc[df["technology"].str.contains(tech), tag_col] = tag_value
+        except (KeyError, AttributeError) as e:
+            logger.warning(f"No model tag values found for {tag_col} ({e})")
 
-    combined_df = pd.concat([df, tag_df], axis=1)
-    end_totals = combined_df[check_cols].sum()
+    # Change tags with specific regional values for a technology
+    if isinstance(settings["regional_tag_values"], dict):
+        flat_regional_tags = flatten(settings["regional_tag_values"])
+
+        for tag_tuple, tag_value in flat_regional_tags.items():
+            region, tag_col, tech = tag_tuple
+            df.loc[
+                (df["region"] == region) & (df["technology"].str.contains(tech)),
+                tag_col
+            ] = tag_value
+
+    # Make unit size = 1 where Commit = 0 to avoid GenX bug
+    df.loc[df["Commit"] == 0, "Cap_size"] = 1
+
+    end_totals = df[check_cols].sum()
 
     assert np.allclose(
         start_totals, end_totals
     ), "Something was messed up when adding model tags"
 
-    return combined_df
+    return df
 
 
 def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
@@ -1998,9 +2012,6 @@ class GeneratorClusters:
                     ]
                 )
 
-        # Set the index to region, tech, cluster again
-        self.results.set_index(["region", "technology", "cluster"], inplace=True)
-
         # Round Cap_size to prevent GenX error.
         self.results = self.results.round(3)
         self.results["Cap_size"] = self.results["Cap_size"].round(2)
@@ -2009,10 +2020,7 @@ class GeneratorClusters:
             self.results["unmodified_cap_size"] * self.results["num_units"]
         )
 
-        self.results = add_genx_model_tags(self.results, self.settings)
 
-        # Make unit size = 1 where Commit = 0 to avoid GenX bug
-        self.results.loc[self.results["Commit"] == 0, "Cap_size"] = 1
 
         # Add fixed/variable O&M based on NREL atb
         self.results = (
@@ -2023,7 +2031,12 @@ class GeneratorClusters:
             .pipe(startup_fuel, self.settings)
             .pipe(add_fuel_labels, self.fuel_prices, self.settings)
             .pipe(startup_nonfuel_costs, self.settings)
+            .pipe(add_genx_model_tags, self.settings)
         )
+        # # Make unit size = 1 where Commit = 0 to avoid GenX bug
+        # self.results.loc[self.results["Commit"] == 0, "Cap_size"] = 1
+
+        # self.results = add_genx_model_tags(self.results, self.settings)
 
         # Crazy to be rounding results again. Need to fix the order of stuff here
         self.results = self.results.round(3)
@@ -2056,6 +2069,8 @@ class GeneratorClusters:
             "NACC",
             "HYDRO",
             "VRE",
+            "RPS",
+            "CES",
             "Commit",
             "Min_Share",
             "Max_Share",

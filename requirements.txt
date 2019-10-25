@@ -11,3 +11,4 @@ python-dotenv
 sqlalchemy
 catalystcoop.pudl
 cpi
+flatten
