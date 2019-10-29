@@ -22,6 +22,7 @@ def build_cluster_method_dict(settings):
 
     return cluster_method_dict
 
+
 def cluster_kmeans(grouped, region, tech, settings):
 
     if region in settings["alt_num_clusters"]:
@@ -30,9 +31,9 @@ def cluster_kmeans(grouped, region, tech, settings):
     else:
         n_clusters = settings["num_clusters"][tech]
 
-    clusters = cluster.KMeans(
-                    n_clusters=n_clusters, random_state=6
-                ).fit(preprocessing.StandardScaler().fit_transform(grouped))
+    clusters = cluster.KMeans(n_clusters=n_clusters, random_state=6).fit(
+        preprocessing.StandardScaler().fit_transform(grouped)
+    )
     grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
 
     return grouped
@@ -57,16 +58,11 @@ def cluster_by_owner(grouped_units, weighted_ownership, plants, region, tech, se
         "ownership_code",
     ]
 
-    plants_cols = [
-        "plant_id_eia",
-        "utility_id_eia",
-    ]
+    plants_cols = ["plant_id_eia", "utility_id_eia"]
 
     gens_ownership = grouped_units.merge(
         weighted_ownership[owner_cols], on=["plant_id_eia", "unit_id_pudl"], how="left"
-    ).merge(
-        plants[plants_cols], on=["plant_id_eia"], how="left"
-    )
+    ).merge(plants[plants_cols], on=["plant_id_eia"], how="left")
 
     gens_ownership.loc[
         gens_ownership["owner_utility_id_eia"].isnull(), "owner_utility_id_eia"
@@ -99,7 +95,7 @@ def cluster_by_owner(grouped_units, weighted_ownership, plants, region, tech, se
 
     # Single owner - respondent or someone else (S or W)
     mask = (
-        (gens_ownership.ownership_code!="J")
+        (gens_ownership.ownership_code != "J")
         & (
             gens_ownership.owner_utility_id_eia.isin(
                 settings["cluster_by_owner_regions"][region]["utility_ids_to_cluster"]
@@ -131,7 +127,7 @@ def cluster_by_owner(grouped_units, weighted_ownership, plants, region, tech, se
 
     # Single owner - respondent or someone else (S or W)
     other_mask = (
-        (gens_ownership.ownership_code!="J")
+        (gens_ownership.ownership_code != "J")
         & (
             ~gens_ownership.owner_utility_id_eia.isin(
                 settings["cluster_by_owner_regions"][region]["utility_ids_to_cluster"]
@@ -200,9 +196,7 @@ def weighted_ownership_by_unit(units_model, gens_860, ownership, settings):
     )
 
     weighted_ownership = weighted_ownership.merge(
-        ownership[["plant_id_eia", "utility_id_eia"]],
-        on=["plant_id_eia"],
-        how="left",
+        ownership[["plant_id_eia", "utility_id_eia"]], on=["plant_id_eia"], how="left"
     )
 
     return weighted_ownership

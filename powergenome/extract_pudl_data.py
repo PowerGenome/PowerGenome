@@ -5,8 +5,8 @@ import sys
 from datetime import datetime as dt
 
 import pandas as pd
-
 import powergenome
+from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters
 from powergenome.load_profiles import load_curves
 from powergenome.params import DATA_PATHS
@@ -14,8 +14,7 @@ from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
 )
-from powergenome.fuels import fuel_cost_table
-from powergenome.util import init_pudl_connection, load_settings, get_git_hash
+from powergenome.util import get_git_hash, init_pudl_connection, load_settings
 
 if not sys.warnoptions:
     import warnings

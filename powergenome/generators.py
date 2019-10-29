@@ -1,16 +1,13 @@
 import logging
 
-from flatten_dict import flatten
+import requests
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pudl
-import requests
 from bs4 import BeautifulSoup
-from scipy.stats import iqr
-from sklearn import cluster, preprocessing
-from xlrd import XLRDError
-
+from flatten_dict import flatten
 from powergenome.cluster_method import cluster_by_owner, weighted_ownership_by_unit
 from powergenome.eia_opendata import fetch_fuel_prices
 from powergenome.load_data import (
@@ -33,6 +30,9 @@ from powergenome.util import (
     reverse_dict_of_lists,
     snake_case_col,
 )
+from scipy.stats import iqr
+from sklearn import cluster, preprocessing
+from xlrd import XLRDError
 
 logger = logging.getLogger(__name__)
 
@@ -187,10 +187,8 @@ def startup_nonfuel_costs(df, settings):
     vom_costs = settings["startup_vom_costs_mw"]
     vom_usd_year = settings["startup_vom_costs_usd_year"]
 
-
     logger.info(
-        f"Changing non-fuel VOM costs from {vom_usd_year} to "
-        f"{target_usd_year}"
+        f"Changing non-fuel VOM costs from {vom_usd_year} to " f"{target_usd_year}"
     )
     for key, cost in vom_costs.items():
         vom_costs[key] = inflation_price_adjustment(
@@ -202,8 +200,7 @@ def startup_nonfuel_costs(df, settings):
     startup_costs_usd_year = settings["startup_costs_per_cold_start_usd_year"]
 
     logger.info(
-        f"Changing non-fuel startup costs from {vom_usd_year} to "
-        f"{target_usd_year}"
+        f"Changing non-fuel startup costs from {vom_usd_year} to {target_usd_year}"
     )
     for key, cost in startup_costs.items():
         startup_costs[key] = inflation_price_adjustment(
@@ -1173,7 +1170,7 @@ def add_genx_model_tags(df, settings):
             region, tag_col, tech = tag_tuple
             df.loc[
                 (df["region"] == region) & (df["technology"].str.contains(tech)),
-                tag_col
+                tag_col,
             ] = tag_value
 
     # Make unit size = 1 where Commit = 0 to avoid GenX bug
@@ -2029,8 +2026,6 @@ class GeneratorClusters:
             self.results["unmodified_cap_size"] * self.results["num_units"]
         )
 
-
-
         # Add fixed/variable O&M based on NREL atb
         self.results = (
             self.results.pipe(
@@ -2084,6 +2079,7 @@ class GeneratorClusters:
             "Min_Share",
             "Max_Share",
             "Existing_Cap_MW",
+            "num_units",
             "unmodified_existing_cap_mw",
             "New_Build",
             "Cap_size",

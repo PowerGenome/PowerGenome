@@ -1,12 +1,13 @@
-import pandas as pd
-from powergenome.util import init_pudl_connection
-from powergenome.params import DATA_PATHS
 import sqlite3
+
+import pandas as pd
+from powergenome.params import DATA_PATHS
+from powergenome.util import init_pudl_connection
 
 
 def create_testing_db():
     pudl_engine, pudl_out = init_pudl_connection()
-    test_conn = sqlite3.connect(DATA_PATHS["test_data"] / 'test_data.db')
+    test_conn = sqlite3.connect(DATA_PATHS["test_data"] / "test_data.db")
 
     sql = """
         SELECT *
@@ -40,7 +41,9 @@ def create_testing_db():
     gen_entity = pd.read_sql_query(sql, pudl_engine)
     gen_entity.to_sql("generators_entity_eia", test_conn, index=False)
 
-    hr_by_unit = pudl_out.hr_by_unit().query("plant_id_eia.isin([116, 151, 149, 34, 113, 117])")
+    hr_by_unit = pudl_out.hr_by_unit().query(
+        "plant_id_eia.isin([116, 151, 149, 34, 113, 117])"
+    )
     hr_by_unit.to_sql("hr_by_unit", test_conn, index=False)
 
     sql = """

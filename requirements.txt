@@ -12,3 +12,5 @@ sqlalchemy
 catalystcoop.pudl
 cpi
 flatten
+pre-commit
+isort

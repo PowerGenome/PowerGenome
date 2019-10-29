@@ -12,6 +12,8 @@ dependencies:
   - requests
   - beautifulsoup4
   - pyyaml
+  - conda-forge::pre-commit
+  - isort
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona

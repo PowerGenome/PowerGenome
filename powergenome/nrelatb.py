@@ -3,9 +3,9 @@ Functions to fetch and modify NREL ATB data from PUDL
 """
 
 import logging
+
 import numpy as np
 import pandas as pd
-
 from powergenome.params import DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.util import reverse_dict_of_lists
@@ -250,6 +250,18 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
         ],
         ignore_index=True,
     )
+    if isinstance(settings["atb_battery_wacc"], float):
+        new_gen_df.loc[new_gen_df["technology"] == "Battery", "waccnomtech"] = settings[
+            "atb_battery_wacc"
+        ]
+    elif isinstance(settings["atb_battery_wacc"], str):
+        solar_wacc = new_gen_df.loc[
+            new_gen_df["technology"].str.contains("UtilityPV"), "waccnomtech"
+        ].values[0]
+
+        new_gen_df.loc[
+            new_gen_df["technology"] == "Battery", "waccnomtech"
+        ] = solar_wacc
 
     new_gen_df["Inv_cost_per_MWyr"] = investment_cost_calculator(
         capex=new_gen_df["capex"],
@@ -260,6 +272,7 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
     new_gen_df = new_gen_df.merge(
         atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
     )
+    print(new_gen_df)
 
     new_gen_df = new_gen_df.rename(
         columns={
@@ -272,7 +285,7 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
     new_gen_df["technology"] = (
         new_gen_df["technology"]
         + "_"
-        + new_gen_df["tech_detail"]
+        + new_gen_df["tech_detail"].astype(str)
         + "_"
         + new_gen_df["cost_case"]
     )

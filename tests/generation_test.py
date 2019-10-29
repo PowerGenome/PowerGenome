@@ -1,19 +1,20 @@
 """Test functions in generation.py"""
 import logging
-import pytest
-import pandas as pd
+import sqlite3
+
 import numpy as np
+import pandas as pd
 import powergenome
+import pytest
 from powergenome.generators import (
-    group_technologies,
     fill_missing_tech_descriptions,
-    label_small_hydro,
+    group_technologies,
     label_retirement_year,
+    label_small_hydro,
     unit_generator_heat_rates,
 )
 from powergenome.params import DATA_PATHS
-from powergenome.util import load_settings, reverse_dict_of_lists, map_agg_region_names
-import sqlite3
+from powergenome.util import load_settings, map_agg_region_names, reverse_dict_of_lists
 
 logger = logging.getLogger(powergenome.__name__)
 logger.setLevel(logging.INFO)
@@ -61,7 +62,9 @@ def generators_entity_eia_data():
 
 @pytest.fixture(scope="module")
 def plant_region_map_ipm_data():
-    plant_region_map = pd.read_sql_query("SELECT * FROM plant_region_map_epaipm", DB_CONN)
+    plant_region_map = pd.read_sql_query(
+        "SELECT * FROM plant_region_map_epaipm", DB_CONN
+    )
     return plant_region_map
 
 
@@ -76,6 +79,7 @@ class MockPudlOut:
     The methods in this class read pre-calculated tables from a sqlite db and return
     the expected values from pudl_out methods.
     """
+
     def hr_by_unit():
         "Heat rate by unit over multiple years"
         hr_by_unit = pd.read_sql_query(
