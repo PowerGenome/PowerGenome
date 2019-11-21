@@ -1,5 +1,6 @@
 import subprocess
 
+import pandas as pd
 import pudl
 import requests
 import sqlalchemy as sa
@@ -96,3 +97,12 @@ def download_save(url, save_path):
     r = requests.get(url)
     save_path.parent.mkdir(parents=True, exist_ok=True)
     save_path.write_bytes(r.content)
+
+
+def shift_wrap_profiles(df, offset):
+    "Shift hours to a local offset and append first rows to end"
+
+    wrap_rows = df.iloc[:offset, :]
+
+    shifted_wrapped_df = pd.concat([df.iloc[offset:, :], wrap_rows], ignore_index=True)
+    return shifted_wrapped_df

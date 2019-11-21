@@ -6,7 +6,7 @@ import logging
 
 import pandas as pd
 
-from powergenome.util import reverse_dict_of_lists
+from powergenome.util import reverse_dict_of_lists, shift_wrap_profiles
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +59,11 @@ def load_curves(
 
     lc_wide = load_curves_agg.unstack(level=0)
     lc_wide.columns = lc_wide.columns.droplevel()
+
+    pst_offset = settings["target_region_pst_offset"]
+
+    lc_wide = shift_wrap_profiles(lc_wide, pst_offset)
+    lc_wide.index.name = "time_index"
 
     return lc_wide
 
