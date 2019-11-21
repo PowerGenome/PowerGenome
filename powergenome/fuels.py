@@ -37,6 +37,9 @@ def fuel_cost_table(fuel_costs, generators, settings):
 
     # Slow to loop through all of the rows this way but the df shouldn't be too long
     fuel_df = fuel_df.apply(adjust_ccs_fuels, axis=1, settings=settings)
+    fuel_df = add_carbon_tax(fuel_df, settings)
+    fuel_df["Cost_per_MMBtu"] = fuel_df["Cost_per_MMBtu"].round(2)
+    fuel_df["CO2_content_tons_perMMBtu"] = fuel_df["CO2_content_tons_perMMBtu"].round(5)
 
     return fuel_df
 
@@ -60,3 +63,17 @@ def adjust_ccs_fuels(ccs_fuel_row, settings):
         pass
 
     return ccs_fuel_row
+
+
+def add_carbon_tax(fuel_df, settings):
+
+    if "carbon_tax" not in settings.keys():
+        ctax = 0
+    else:
+        ctax = settings["carbon_tax"]
+
+    fuel_df.loc[:, "Cost_per_MMBtu"] = fuel_df.loc[:, "Cost_per_MMBtu"] + (
+        fuel_df.loc[:, "CO2_content_tons_perMMBtu"] * ctax
+    )
+
+    return fuel_df
