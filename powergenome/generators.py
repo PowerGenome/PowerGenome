@@ -2051,8 +2051,9 @@ class GeneratorClusters:
 
         # Set Min_power of wind/solar to 0
         self.results.loc[self.results["DISP"] == 1, "Min_power"] = 0
+        self.results = self.results.rename(columns={"technology": "Resource"})
 
-        self.results.set_index(["region", "technology"], inplace=True)
+        self.results.set_index(["region", "Resource"], inplace=True)
         self.results["R_ID"] = np.array(range(len(self.results))) + 1
 
         logger.info(
