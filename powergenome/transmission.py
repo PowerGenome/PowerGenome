@@ -163,6 +163,7 @@ def transmission_line_distance(
     trans_constraints_df, ipm_shapefile, settings, units="mile"
 ):
     logger.info("Calculating transmission line distance")
+    ipm_shapefile["geometry"] = ipm_shapefile.buffer(0.01)
     model_polygons = ipm_shapefile.dissolve(by="model_region")
     model_polygons = model_polygons.to_crs({"init": "epsg:4326"})
     region_centroids = model_polygons.centroid
