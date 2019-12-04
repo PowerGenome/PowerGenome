@@ -40,6 +40,7 @@ def fuel_cost_table(fuel_costs, generators, settings):
     fuel_df = add_carbon_tax(fuel_df, settings)
     fuel_df["Cost_per_MMBtu"] = fuel_df["Cost_per_MMBtu"].round(2)
     fuel_df["CO2_content_tons_perMMBtu"] = fuel_df["CO2_content_tons_perMMBtu"].round(5)
+    fuel_df.fillna(0, inplace=True)
 
     return fuel_df
 
