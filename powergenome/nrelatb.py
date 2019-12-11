@@ -185,13 +185,46 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
     return mod_results
 
 
-def single_generator_row(atb_costs, new_gen_type, model_year):
+def single_generator_row(atb_costs, new_gen_type, model_year_range):
+    """Create a data row with NREL ATB costs and performace for a single technology
+
+    Parameters
+    ----------
+    atb_costs : dataframe
+        Data from the sqlite table
+    new_gen_type : str
+        type of generating resource
+    model_year_range : list
+        All of the years that should be averaged over
+
+    Returns
+    -------
+    dataframe
+        A single row dataframe with average cost and performence values over the study
+        period.
+    """
 
     technology, tech_detail, cost_case, size_mw = new_gen_type
-    row = atb_costs.query(
+    s = atb_costs.query(
         "technology==@technology & tech_detail==@tech_detail "
-        "& cost_case==@cost_case & basis_year==@model_year"
-    ).copy()
+        "& cost_case==@cost_case & basis_year.isin(@model_year_range)"
+    ).mean()
+    cols = [
+        "technology",
+        "cost_case",
+        "tech_detail",
+        "basis_year",
+        "o_m_fixed_mw",
+        "o_m_variable_mwh",
+        "capex",
+        "cf",
+        "fuel",
+        "lcoe",
+        "o_m",
+        "waccnomtech",
+    ]
+    row = pd.DataFrame([technology, cost_case, tech_detail] + s.to_list(), index=cols).T
+
     row["Cap_size"] = size_mw
 
     return row
@@ -199,6 +232,8 @@ def single_generator_row(atb_costs, new_gen_type, model_year):
 
 def investment_cost_calculator(capex, wacc, cap_rec_years):
 
+    # wacc comes through as an object type series now that we're averaging across years
+    wacc = wacc.astype(float)
     inv_cost = capex * (
         np.exp(wacc * cap_rec_years)
         * (np.exp(wacc) - 1)
@@ -248,11 +283,17 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
 
     new_gen_types = settings["atb_new_gen"]
     model_year = settings["model_year"]
+    try:
+        first_planning_year = settings["model_first_planning_year"]
+        model_year_range = range(first_planning_year, model_year + 1)
+    except KeyError:
+        model_year_range = list(range(model_year + 1))
+
     regions = settings["model_regions"]
 
     new_gen_df = pd.concat(
         [
-            single_generator_row(atb_costs, new_gen, model_year)
+            single_generator_row(atb_costs, new_gen, model_year_range)
             for new_gen in new_gen_types
         ],
         ignore_index=True,
