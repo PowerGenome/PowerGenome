@@ -64,6 +64,13 @@ def fetch_atb_costs(pudl_engine, settings):
         target_year=atb_target_year,
     )
 
+    logger.info("Inflating PV costs for DC to AC")
+
+    atb_costs.loc[
+        atb_costs["technology"].str.contains("PV"),
+        [["o_m_fixed_mw", "o_m_variable_mwh"]],
+    ] *= settings["pv_ac_dc_ratio"]
+
     return atb_costs
 
 
