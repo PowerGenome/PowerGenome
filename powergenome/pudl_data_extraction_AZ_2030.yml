@@ -12,6 +12,10 @@ model_first_planning_year: 2020
 data_years:
   - 2017
 
+target_usd_year: 2015
+
+# used for shifting IPM demand profiles, which are in PST
+target_region_pst_offset: -1
 
 # CAPACITY TYPE
 capacity_col: winter_capacity_mw
@@ -36,14 +40,13 @@ model_regions:
   - WECC_CO
   - WECC_NM
   - WECC_NW
-  - WECC_NNV
   - WECC_SNV
   - WECC_AZ
 
 region_aggregations:
   CA_N: [WEC_CALN, WEC_BANC]
   CA_S: [WEC_SCE, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
-  WECC_NW: [WECC_UT, WECC_WY, WECC_PNW, WECC_ID, WECC_MT]
+  WECC_NW: [WECC_UT, WECC_WY, WECC_PNW, WECC_ID, WECC_MT, WECC_NNV]
 
 
 # CLUSTERING
@@ -104,10 +107,15 @@ tech_groups:
     - Landfill Gas
     - Municipal Solid Waste
     - Other Waste Biomass
-  Peaker:
-    - Natural Gas Fired Combustion Turbine
+  Other_peaker:
     - Natural Gas Internal Combustion Engine
     - Petroleum Liquids
+
+# Use this to avoid grouping technologies in some regions
+regional_no_grouping: ~
+  # CA:
+  #   - Natural Gas Fired Combustion Turbine
+  #   - Natural Gas Internal Combustion Engine
 
 # Add code to ensure region names here are included above
 alt_num_clusters: []
@@ -191,6 +199,13 @@ model_tag_names:
   - DR
   - HYDRO
   - Commit
+  - RPS
+  - CES
+  - New_Build
+  - Hydro_level
+  - HEAT
+  - NACC
+  - TRADER
 
 default_model_tag: 0
 
@@ -212,17 +227,30 @@ model_tag_values:
     Other Waste Biomass: 1
     Other Gases: 1
     Other Natural Gas: 1
+    Other_peaker: 1 # Is there any way to do this based on the underlying categories?
+    Biomass: 1
+    NaturalGas_: 1
+    Biopower_: 1
+    Nuclear_: 1
+    CSP_: 1
   DISP:
     Onshore Wind Turbine: 1
     Offshore Wind Turbine: 1
     Solar Photovoltaic: 1
     Solar Thermal without Energy Storage: 1
+    LandbasedWind_: 1
+    OffShoreWind_: 1
+    UtilityPV_: 1
+    CSP_: 1
   NDISP:
     Geothermal: 1
     Wood/Wood Waste Biomass: 1
+    Biomass: 1
     Small Hydroelectric: 1
   STOR:
     Hydroelectric Pumped Storage: 1
+    Battery: 2
+  DR: ~
   HYDRO:
     Conventional Hydroelectric: 1
   Commit:
@@ -235,12 +263,211 @@ model_tag_values:
     Natural Gas Steam Turbine: 1
     Petroleum Coke: 1
     Coal Integrated Gasification Combined Cycle: 1
+    Other_peaker: 1 # Is there any way to do this based on the underlying categories?
+    Biomass: 1
+    NaturalGas_: 1
+    Biopower_: 1
+    Nuclear_: 1
+  RPS:
+    Biomass: 1
+    Geothermal: 1
+    Small Hydroelectric: 1
+    Onshore Wind Turbine: 1
+    Offshore Wind Turbine: 1
+    Solar Photovoltaic: 1
+    Biopower_: 1
+    CSP_: 1
+    UtilityPV_: 1
+    LandbasedWind_: 1
+    OffShoreWind_: 1
+  CES:
+    Biomass: 1
+    Geothermal: 1
+    Small Hydroelectric: 1
+    Onshore Wind Turbine: 1
+    Offshore Wind Turbine: 1
+    Solar Photovoltaic: 1
+    Biopower_: 1
+    CSP_: 1
+    UtilityPV_: 1
+    LandbasedWind_: 1
+    OffShoreWind_: 1
+    Nuclear: 1
+    NaturalGas_CCCCS: 1
+  New_Build:
+    Conventional Hydroelectric: -1
+    Geothermal: -1
+    Biomass: -1
+    Small Hydroelectric: -1
+    NaturalGas_: 1
+    LandbasedWind_: 1
+    OffShoreWind_: 1
+    UtilityPV_: 1
+    Battery_: 1
+    Biopower_: 1
+  Hydro_level:
+    Conventional Hydroelectric: 0.5
+
+# Tags for a technology in a specific region
+# Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>
+# Technologies will be matched using str.contains(), so partial names can be included
+# but they might unintentially map to other techs
+regional_tag_values:
+  WECC_AZ:
+    New_Build:
+      NaturalGas_CCCCS: 0
+  CA_S:
+    New_Build:
+      Hydroelectric Pumped Storage: 1
+
+# Generator cost data from NREL ATB
+
+atb_cost_case: Mid
+atb_financial_case: Market
+atb_cap_recovery_years: 20
+atb_existing_year: 2018
+atb_usd_year: 2017 # From Capex figure in atb documentation https://atb.nrel.gov/electricity/2019/summary.html
+
+# Assume that O&M for existing plants is higher than for new builds by both the ratio
+# of heat rates and a multiplier
+existing_om_multiplier: 1.0
+
+# ATB doesn't have a WACC for battery tech. Need to provide a value here.
+atb_battery_wacc: UtilityPV
+
+# Format for ATB is <technology>_<tech_detail>, all are Mid cost case
+# Might want to change this to list format like the new generators below
+eia_atb_tech_map:
+  Battery: Battery_*
+  Biomass: Biopower_Dedicated
+  Solar Thermal without Energy Storage: CSP_Class1
+  Conventional Steam Coal: Coal_newAvgCF
+  Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF
+  Natural Gas Fired Combustion Turbine: NaturalGas_CTAvgCF
+  Peaker: NaturalGas_CTAvgCF
+  Solar Photovoltaic: UtilityPV_LosAngeles
+  Geothermal: Geothermal_HydroFlash # assume installed capacity is dominated by flash
+
+  # Check head-height, which is difference between NSD2 and 4
+  Conventional Hydroelectric: Hydropower_NSD4 # Large variability based on choice
+  Hydroelectric Pumped Storage: Hydropower_NSD4 # Large variability based on choice
+  Small Hydroelectric: Hydropower_NSD3 # Large variability based on choice
+  Onshore Wind Turbine: LandbasedWind_LTRG1 # All onshore wind is the same
+  Offshore Wind Turbine: OffShoreWind_OTRG3 # Mid-range of fixed offshore wind
+  Nuclear: Nuclear_*
+  Natural Gas Steam Turbine: Coal_NewAvgCF # No gas steam turbines in ATB, using coal instead
+  Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
+
+
+# Offshore wind in the west will be floating - OTRG10 maybe.
+# Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
+atb_new_gen:
+  - [NaturalGas, CCCCSAvgCF, Mid, 500]
+  - [NaturalGas, CCAvgCF, Mid, 500]
+  - [NaturalGas, CTAvgCF, Mid, 100]
+  - [LandbasedWind, LTRG1, Mid, 1]
+  - [OffShoreWind, OTRG3, Mid, 1]
+  - [UtilityPV, LosAngeles, Mid, 1]
+  - [Battery, "*", Mid, 1]
+  - [Nuclear, "*", Mid, 500]
+
 pv_ac_dc_ratio: 1.3
+
+new_wind_solar_regional_bins:
+  pv:
+    state_AZ: 3
+    state_NM: 2
+    state_CO: 2
+    state_OR: 1
+    state_WA: 1
+    state_ID: 1
+    state_MT: 1
+    state_WY: 1
+    state_UT: 1
+    SoCA: 1
+    NoCA: 1
+    NoNV: 1
+    SoNV: 1
+wind:
+    state_AZ: 3
+    state_NM: 3
+    state_CO: 3
+    state_OR: 1
+    state_WA: 1
+    state_ID: 1
+    state_MT: 1
+    state_WY: 1
+    state_UT: 1
+    SoCA: 2
+    NoCA: 2
+    NoNV: 1
+    SoNV: 1
+
+# How much of the theoretical
+wind_pv_fraction_developable: 0.5
+
+
+# Fuel consumption for start-up events (mmbtu/MW) from Lew et al 2013,
+# Finding Flexibility: Cycling the Conventional Fleet
+startup_fuel_use:
+  Conventional Steam Coal: 16.5
+  Natural Gas Fired Combined Cycle: 2.0
+  Natural Gas Fired Combustion Turbine: 3.5
+  Natural Gas Steam Turbine: 13.7
+
+# Map user-regions to NERC subregions for cost multipliers
+# See a map at https://www.eia.gov/outlooks/aeo/pdf/nerc_map.pdf
+cost_multiplier_region_map:
+  ERCT: []
+  FRCC: []
+  MROE: []
+  MROW: []
+  NEWE: []
+  NYCW: []
+  NYLI: []
+  NYUP: []
+  RFCE: []
+  RFCM: []
+  RFCW: []
+  SRDA: []
+  SRGW: []
+  SRSE: []
+  SRCE: []
+  SRVC: []
+  SPNO: []
+  SPSO: []
+  AZNM: [WECC_AZ, WECC_NM, WECC_SNV] # Note that WECC_CO is included in here, but we need to pick a single reigon
+  CAMX: [CA_N, CA_S]
+  NWPP: [WECC_NW]
+  RMPA: [WECC_CO]
+
+# The keys are technologies listed in EIA's 2016 capital cost assumptions document
+# (https://www.eia.gov/analysis/studies/powerplants/capitalcost/pdf/capcost_assumption.pdf)
+# Values are lists of ATB technologies that map to the EIA keys.
+cost_multiplier_technology_map:
+  PC: [Coal_newAvgCF, Coal_newHighCF]
+  IGCC: [Coal_IGCCAvgCF, Coal_IGCCAvgCF]
+  PC w/CCS: [Coal_CCS30AvgCF, Coal_CCS30HighCF, Coal_CCS90AvgCF, Coal_CCS90HighCF]
+  Conv. CT: []
+  Adv. CT: [NaturalGas_CTAvgCF, NaturalGas_CTHighCF]
+  Conv CC: []
+  Adv CC: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF]
+  Adv CC w/CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF]
+  Fuel Cell: []
+  Nuclear: [Nuclear_*]
+  Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
+  MSW: []
+  Onshore Wind: [LandbasedWind]
+  Offshore Wind: [OffShoreWind]
+  Solar Thermal: [CSP]
+  Solar PV: [UtilityPV, CommPV, ResPV, Battery_*] # Sticking batteries here for now
+
+
 
 
 # PROPOSED GENERATOR VARIABLES
 
-eia_860m_fn: june_generator2019.xlsx
+eia_860m_fn: july_generator2019.xlsx
 
 # The status codes below exclude plants where regulatory approvals have not been
 # initiated or received. "Other" is also excluded.
@@ -274,11 +501,11 @@ proposed_min_load:
 additional_retirements:
   - [55853, 1, 2020]
   - [55853, 2, 2020]
-  # - [2442, 1, 2029] # Retire Four Corners before 2030
-  # - [2442, 2, 2029]
-  # - [2442, 3, 2029]
-  # - [2442, 4, 2029]
-  # - [2442, 5, 2029]
+  - [2442, 1, 2029] # Retire Four Corners before 2030
+  - [2442, 2, 2029]
+  - [2442, 3, 2029]
+  - [2442, 4, 2029]
+  - [2442, 5, 2029]
   - [55177, A, 2031]
   - [55177, B, 2031]
   - [55177, ST1, 2031]
@@ -314,3 +541,120 @@ load_region_map:
 
 alt_growth_rate:
   WECC_AZ: 0.02
+
+######################################################################################
+# EIA AEO FUEL PRICE VARIABLES
+
+# Need to make choices about fuel regions when user-defined regions cross AEO fuel regions
+# I'm putting WECC_NW in the rockies because the PNW doesn't use as much coal/gas
+aeo_fuel_region_map:
+  # rockies: [WECC_CO, WECC_ID, WECC_MT, WECC_WY, WECC_UT, WECC_NNV, WECC_SNV, WECC_AZ, WECC_NM]
+  # pacific: [WECC_PNW, WEC_CALN, WEC_BANC, WEC_SCE, WECC_SCE, WEC_LADW, WEC_SDGE, WECC_IID]
+  rockies: [WECC_AZ, WECC_NM, WECC_CO, WECC_SNV, WECC_NW]
+  pacific: [CA_N, CA_S]
+
+eia_series_region_names:
+  rockies: MTN
+  pacific: PCF
+
+eia_series_fuel_names:
+  coal: STC
+  naturalgas: NG
+  distillate: DFO
+  uranium: U
+
+eia_series_scenario_names:
+  reference: REF2019
+  low_price: LOWPRICE
+  high_price: HIGHPRICE
+
+aeo_fuel_scenarios:
+  coal: reference
+  naturalgas: reference
+  distillate: reference
+  uranium: reference
+
+aeo_fuel_usd_year: 2018
+
+
+# NEED TO ADD BIOMASS AND GET FUEL COSTS - CHECK TEMOA (BILLION TON STUDY REFERENCE
+tech_fuel_map:
+  Conventional Steam Coal: coal
+  Natural Gas Fired Combined Cycle: naturalgas
+  Natural Gas Fired Combustion Turbine: naturalgas
+  Natural Gas Steam Turbine: naturalgas
+  Nuclear: uranium
+  Petroleum Liquids: distillate
+
+# The CCS fuel names (key values on right have to be in the format <fuel>_<ccslevel>,
+# where the fuel matches something from "aeo_fuel_scenarios" (above
+# ATB: technology_tech_detail.
+ccs_fuel_map:
+  NaturalGas_CCCCS: naturalgas_ccs90
+  Coal_CCS30: coal_ccs30
+  Coal_CCS90: coal_ccs90
+
+ccs_capture_rate:
+  naturalgas_ccs90: 0.9
+  coal_ccs30: 0.3
+  coal_ccs90: 0.9
+
+# Pipeline and other costs, $/tonne
+ccs_disposal_cost: 10
+
+# Carbon tax, USD/tonne
+carbon_tax: 0
+
+# tonne/MMBtu
+fuel_emission_factors:
+  naturalgas: 0.05306
+  coal: 0.09552 # EIA value for electric power sector
+  distillate: 0.07315
+
+
+# Wind/solar capacity density in MW/km^2
+# Consistent numbers are difficult to come by. Check to make sure that you are ok with
+# these values.
+onshore_wind_power_density: 1.6
+pv_power_density: 3
+
+
+# Digitally extracted VOM startup costs for each generator type from the NREL Western
+# wind/solar integration study
+startup_vom_costs_mw:
+  coal_small_sub: 2.81
+  coal_large_sub: 2.69
+  coal_supercritical: 2.98
+  gas_cc: 1.03
+  gas_large_ct: 0.77
+  gas_aero_ct: 0.70
+  gas_steam: 1.03
+
+startup_vom_costs_usd_year: 2011
+
+# Median cold start costs from NREL 2012 (matches digitized plot from western integration
+startup_costs_type: startup_costs_per_cold_start_mw
+startup_costs_per_cold_start_mw:
+  coal_small_sub: 147
+  coal_large_sub: 105
+  coal_supercritical: 104
+  gas_cc: 79
+  gas_large_ct: 103
+  gas_aero_ct: 32
+  gas_steam: 75
+
+startup_costs_per_cold_start_usd_year: 2011
+
+existing_startup_costs_tech_map:
+  Conventional Steam Coal: coal_large_sub
+  Natural Gas Fired Combined Cycle: gas_cc
+  Natural Gas Fired Combustion Turbine: gas_large_ct
+  Natural Gas Steam Turbine: gas_steam
+
+new_build_startup_costs:
+  Coal_CCS30: coal_supercritical
+  Coal_CCS90: coal_supercritical
+  Coal_IGCC: coal_supercritical
+  Coal_new: coal_supercritical
+  NaturalGas_CT: gas_aero_ct
+  NaturalGas_CC: gas_cc
