@@ -54,7 +54,13 @@ def fetch_atb_costs(pudl_engine, settings):
 
     atb_base_year = settings["atb_usd_year"]
     atb_target_year = settings["target_usd_year"]
-    usd_columns = ["o_m_fixed_mw", "o_m_variable_mwh", "capex"]
+    usd_columns = [
+        "o_m_fixed_mw",
+        "o_m_fixed_mwh",
+        "o_m_variable_mwh",
+        "capex",
+        "capex_mwh",
+    ]
     logger.info(
         f"Changing NREL ATB costs from {atb_base_year} to {atb_target_year} USD"
     )
@@ -67,8 +73,7 @@ def fetch_atb_costs(pudl_engine, settings):
     logger.info("Inflating PV costs for DC to AC")
 
     atb_costs.loc[
-        atb_costs["technology"].str.contains("PV"),
-        [["o_m_fixed_mw", "o_m_variable_mwh"]],
+        atb_costs["technology"].str.contains("PV"), ["o_m_fixed_mw", "o_m_variable_mwh"]
     ] *= settings["pv_ac_dc_ratio"]
 
     return atb_costs
@@ -205,18 +210,33 @@ def single_generator_row(atb_costs, new_gen_type, model_year_range):
     """
 
     technology, tech_detail, cost_case, size_mw = new_gen_type
+    numeric_cols = [
+        "basis_year",
+        "o_m_fixed_mw",
+        "o_m_fixed_mwh",
+        "o_m_variable_mwh",
+        "capex",
+        "capex_mwh",
+        "cf",
+        "fuel",
+        "lcoe",
+        "o_m",
+        "waccnomtech",
+    ]
     s = atb_costs.query(
         "technology==@technology & tech_detail==@tech_detail "
         "& cost_case==@cost_case & basis_year.isin(@model_year_range)"
-    ).mean()
+    )[numeric_cols].mean()
     cols = [
         "technology",
         "cost_case",
         "tech_detail",
         "basis_year",
         "o_m_fixed_mw",
+        "o_m_fixed_mwh",
         "o_m_variable_mwh",
         "capex",
+        "capex_mwh",
         "cf",
         "fuel",
         "lcoe",
@@ -257,6 +277,7 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
             tech_multiplier_map[full_atb_tech] = tech_multiplier.at[eia_tech]
 
     df["Inv_cost_per_MWyr"] *= df["technology"].map(tech_multiplier_map)
+    df["Inv_cost_per_MWhyr"] *= df["technology"].map(tech_multiplier_map)
 
     return df
 
@@ -317,6 +338,12 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
         cap_rec_years=settings["atb_cap_recovery_years"],
     )
 
+    new_gen_df["Inv_cost_per_MWhyr"] = investment_cost_calculator(
+        capex=new_gen_df["capex_mwh"],
+        wacc=new_gen_df["waccnomtech"],
+        cap_rec_years=settings["atb_cap_recovery_years"],
+    )
+
     new_gen_df = new_gen_df.merge(
         atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
     )
@@ -326,6 +353,7 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
         columns={
             "heat_rate": "Heat_rate_MMBTU_per_MWh",
             "o_m_fixed_mw": "Fixed_OM_cost_per_MWyr",
+            "o_m_fixed_mwh": "Fixed_OM_cost_per_MWhyr",
             "o_m_variable_mwh": "Var_OM_cost_per_MWh",
         }
     )
@@ -342,8 +370,10 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
         "technology",
         "basis_year",
         "Fixed_OM_cost_per_MWyr",
+        "Fixed_OM_cost_per_MWhyr",
         "Var_OM_cost_per_MWh",
         "Inv_cost_per_MWyr",
+        "Inv_cost_per_MWhyr",
         "Heat_rate_MMBTU_per_MWh",
         "Cap_size",
     ]
