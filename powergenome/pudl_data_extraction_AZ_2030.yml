@@ -528,7 +528,7 @@ split_plant_capacity:
 # Load from IPM is for 2011. The growth rates from 2011-2018 can be calculated using
 # historical data
 default_load_year: 2011
-regular_load_growth_start_year: 2019
+regular_load_growth_start_year: 2018
 
 default_growth_rates:
   WECC_Northwest: 0.007
