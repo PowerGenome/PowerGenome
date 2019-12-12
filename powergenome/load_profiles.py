@@ -71,6 +71,7 @@ def load_curves(
 def add_load_growth(load_curves, settings):
 
     load_map = reverse_dict_of_lists(settings["load_region_map"])
+
     load_growth_map = {
         ipm_region: settings["default_growth_rates"][load_region]
         for ipm_region, load_region in load_map.items()
@@ -80,7 +81,41 @@ def add_load_growth(load_curves, settings):
         for region, rate in settings["alt_growth_rate"].items():
             load_growth_map[region] = rate
 
-    years_growth = settings["model_year"] - settings["default_load_year"]
+    if "regular_load_growth_start_year" in settings.keys():
+        # historical load growth
+
+        demand_start = settings["aeo_hist_start_elec_demand"]
+        demand_end = settings["aeo_hist_end_elec_demand"]
+
+        if not all([key in demand_end.keys() for key in demand_start.keys()]):
+            raise KeyError(
+                "Error in keys for historical electricity demand. /n"
+                "Not all keys in 'aeo_hist_start_elec_demand' are also in "
+                "'aeo_hist_end_elec_demand'"
+            )
+
+        historic_growth_ratio = {
+            region: demand_end[region] / demand_start[region] for region in demand_start
+        }
+        historic_growth_map = {
+            ipm_region: historic_growth_ratio[load_region]
+            for ipm_region, load_region in load_map.items()
+        }
+
+        for region in load_curves["region_id_epaipm"].unique():
+            hist_growth_factor = historic_growth_map[region]
+            load_curves.loc[
+                load_curves["region_id_epaipm"] == region, "load_mw"
+            ] *= hist_growth_factor
+
+        # Don't grow load over years where we already have historical data
+        years_growth = (
+            settings["model_year"] - settings["regular_load_growth_start_year"]
+        )
+
+    else:
+        years_growth = settings["model_year"] - settings["default_load_year"]
+
     load_growth_factor = {
         region: (1 + rate) ** years_growth for region, rate in load_growth_map.items()
     }

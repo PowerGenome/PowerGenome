@@ -525,13 +525,48 @@ split_plant_capacity:
 # LOAD GROWTH ASSUMPTIONS
 # Include any load growth assumptions here
 
+# Load from IPM is for 2011. The growth rates from 2011-2018 can be calculated using
+# historical data
 default_load_year: 2011
+regular_load_growth_start_year: 2019
 
 default_growth_rates:
   WECC_Northwest: 0.007
   WECC_Rockies: 0.011
   WECC_Southwest: 0.011
   WECC_California: 0.003
+  RFC_East: 0.004
+  RFC_West: 0.005
+  SERC_VC: 0.008
+  SERC_Southeast: 0.008
+  SERC_Gateway: 0.005
+  NEPP_UpstateNY: 0.001
+
+# 2011 load, from the 2012 AEO
+aeo_hist_start_elec_demand:
+  WECC_Southwest: 131.191
+  WECC_California: 270.271
+  WECC_Rockies: 64.484
+  WECC_Northwest: 245.317
+  RFC_East: 289.175
+  RFC_West: 551.497
+  SERC_VC: 329.273
+  SERC_Southeast: 253.703
+  SERC_Gateway: 106.478
+  NEPP_UpstateNY: 75.032
+
+# 2018 load, from the 2018 AEO
+aeo_hist_end_elec_demand:
+  WECC_Southwest: 132.281
+  WECC_California: 272.511
+  WECC_Rockies: 69.391
+  WECC_Northwest: 249.880
+  RFC_East: 277.543
+  RFC_West: 519.775
+  SERC_VC: 317.693
+  SERC_Southeast: 235.89
+  SERC_Gateway: 107.353
+  NEPP_UpstateNY: 82.008
 
 load_region_map:
   WECC_Northwest: [WECC_PNW, WECC_ID, WECC_MT, WECC_WY, WECC_UT, WECC_NNV, WECC_SNV]
@@ -539,6 +574,7 @@ load_region_map:
   WECC_Southwest: [WECC_AZ, WECC_NM]
   WECC_California: [WEC_CALN, WEC_BANC, WEC_SCE, WECC_SCE, WEC_LADW, WEC_SDGE, WECC_IID]
 
+# Make none (~) if no regions are included here
 alt_growth_rate:
   WECC_AZ: 0.02
 
