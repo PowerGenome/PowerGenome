@@ -129,7 +129,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
         Same as incoming "results" dataframe but with new columns
         "Fixed_OM_cost_per_MWyr" and "Var_OM_cost_per_MWh"
     """
-
+    logger.info("Adding fixed and variable O&M for existing plants")
     techs = settings["eia_atb_tech_map"]
     existing_year = settings["atb_existing_year"]
 
@@ -239,6 +239,12 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
 
     mod_results = pd.concat(df_list, ignore_index=True)
     mod_results = mod_results.sort_values(["region", "technology", "cluster"])
+    mod_results.loc[:, "Fixed_OM_cost_per_MWyr"] = mod_results.loc[
+        :, "Fixed_OM_cost_per_MWyr"
+    ].astype(int)
+    mod_results.loc[:, "Var_OM_cost_per_MWh"] = mod_results.loc[
+        :, "Var_OM_cost_per_MWh"
+    ].round(2)
 
     return mod_results
 
@@ -455,5 +461,19 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
     results = pd.concat(
         [results, pd.concat(df_list, ignore_index=True)], ignore_index=True
     )
+
+    int_cols = [
+        "Fixed_OM_cost_per_MWyr",
+        "Fixed_OM_cost_per_MWhyr",
+        "Inv_cost_per_MWyr",
+        "Inv_cost_per_MWhyr",
+    ]
+    results = results.fillna(0)
+    results.loc[:, int_cols] = results.loc[:, int_cols].astype(int)
+    results.loc[:, "Var_OM_cost_per_MWh"] = (
+        results.loc[:, "Var_OM_cost_per_MWh"].astype(float).round(2)
+    )
+
+    return results
 
     return results
