@@ -72,8 +72,8 @@ num_clusters:
   Solar Photovoltaic: 1
   Onshore Wind Turbine: 1
   Offshore Wind Turbine: 1
-  Solar Thermal with Energy Storage: 1
-  Solar Thermal without Energy Storage: 1
+  # Solar Thermal with Energy Storage: 1
+  # Solar Thermal without Energy Storage: 1
   Small Hydroelectric: 1
   Petroleum Liquids: 1
   Landfill Gas: 1
@@ -118,7 +118,9 @@ regional_no_grouping: ~
   #   - Natural Gas Internal Combustion Engine
 
 # Add code to ensure region names here are included above
-alt_num_clusters: []
+alt_num_clusters:
+  CA_S:
+    Conventional Steam Coal: 0
   # WECC_AZ:
   #   Natural Gas Fired Combined Cycle: 2
   #   Peaker: 2
@@ -389,6 +391,17 @@ atb_new_gen:
   - [UtilityPV, LosAngeles, Mid, 1]
   - [Battery, "*", Mid, 1]
   - [Nuclear, "*", Mid, 500]
+
+# Dictionary of lists with ATB tech (string matching) as key and model regions in list
+new_gen_not_available:
+  WECC_CO:
+    - OffShoreWind
+  WECC_AZ:
+    - OffShoreWind
+  WECC_NM:
+    - OffShoreWind
+  WECC_SNV:
+    - OffShoreWind
 
 pv_ac_dc_ratio: 1.3
 

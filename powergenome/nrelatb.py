@@ -497,6 +497,12 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
             regional_cost_multipliers,
         )
         _df = add_extra_wind_solar_rows(_df, region, settings)
+
+        if region in settings["new_gen_not_available"].keys():
+            techs = settings["new_gen_not_available"][region]
+            for tech in techs:
+                _df = _df.loc[~_df["technology"].str.contains(tech), :]
+
         df_list.append(_df)
 
     results = pd.concat(

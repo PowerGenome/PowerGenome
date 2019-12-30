@@ -1911,7 +1911,10 @@ class GeneratorClusters:
             # This is bad. Should be setting up a dictionary of objects that picks the
             # correct clustering method. Can't keep doing if statements as the number of
             # methods grows. CHANGE LATER.
-            if self.settings["alt_cluster_method"] is None:
+            if (
+                self.settings["alt_cluster_method"] is None
+                and num_clusters[region][tech] > 0
+            ):
                 clusters = cluster.KMeans(
                     n_clusters=num_clusters[region][tech], random_state=6
                 ).fit(preprocessing.StandardScaler().fit_transform(grouped))
@@ -1935,7 +1938,7 @@ class GeneratorClusters:
                         self.settings,
                     )
 
-                else:
+                elif num_clusters[region][tech] > 0:
                     clusters = cluster.KMeans(
                         n_clusters=num_clusters[region][tech], random_state=6
                     ).fit(preprocessing.StandardScaler().fit_transform(grouped))
@@ -1947,9 +1950,11 @@ class GeneratorClusters:
             # Saving individual unit data for later analysis (if needed)
             unit_list.append(grouped)
 
-            _df = calc_unit_cluster_values(grouped, self.settings, tech)
-            _df["region"] = region
-            cluster_list.append(_df)
+            # Don't add technologies with specified 0 clusters
+            if num_clusters[region][tech] != 0:
+                _df = calc_unit_cluster_values(grouped, self.settings, tech)
+                _df["region"] = region
+                cluster_list.append(_df)
 
         # Save some data about individual units for easy access
         self.all_units = pd.concat(unit_list, sort=False)
