@@ -12,7 +12,7 @@ model_first_planning_year: 2020
 data_years:
   - 2017
 
-target_usd_year: 2015
+target_usd_year: 2017
 
 # used for shifting IPM demand profiles, which are in PST
 target_region_pst_offset: -1
@@ -330,7 +330,7 @@ atb_usd_year: 2017 # From Capex figure in atb documentation https://atb.nrel.gov
 
 # Assume that O&M for existing plants is higher than for new builds by both the ratio
 # of heat rates and a multiplier
-existing_om_multiplier: 1.0
+existing_om_multiplier: 1.5
 
 # ATB uses an average of conventional and advanced techs. We only want advanced. To use
 # standard ATB values set multipliers to 1.
@@ -727,5 +727,5 @@ new_build_startup_costs:
   Coal_CCS90: coal_supercritical
   Coal_IGCC: coal_supercritical
   Coal_new: coal_supercritical
-  NaturalGas_CT: gas_aero_ct
+  NaturalGas_CT: gas_large_ct
   NaturalGas_CC: gas_cc
