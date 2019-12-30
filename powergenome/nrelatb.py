@@ -439,6 +439,24 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
         }
     )
 
+    # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
+    # ATB average of advanced and conventional.
+    ct_multipliers = settings["atb_ct_multiplier"]
+    cc_multipliers = settings["atb_cc_multiplier"]
+
+    for key in ct_multipliers.keys():
+        new_gen_df.loc[
+            (new_gen_df.technology == "NaturalGas")
+            & (new_gen_df.tech_detail.str.contains("CT")),
+            key,
+        ] *= ct_multipliers[key]
+
+        new_gen_df.loc[
+            (new_gen_df.technology == "NaturalGas")
+            & (new_gen_df.tech_detail.str.contains("CC")),
+            key,
+        ] *= cc_multipliers[key]
+
     new_gen_df["technology"] = (
         new_gen_df["technology"]
         + "_"
