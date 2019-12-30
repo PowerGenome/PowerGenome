@@ -171,7 +171,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             ng_o_m = {
                 "Combined Cycle": {
                     "o_m_fixed_mw": inflation_price_adjustment(
-                        28.84, 2017, target_usd_year
+                        28.84 * 1000, 2017, target_usd_year
                     ),
                     "o_m_variable_mwh": inflation_price_adjustment(
                         3.91, 2017, target_usd_year
@@ -179,13 +179,13 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 },
                 "Combustion Turbine": {
                     "o_m_fixed_mw": inflation_price_adjustment(
-                        12.23, 2017, target_usd_year
+                        12.23 * 1000, 2017, target_usd_year
                     ),
                     "o_m_variable_mwh": 0,
                 },
                 "Coal": {
                     "o_m_fixed_mw": inflation_price_adjustment(
-                        (22.2 + 27.88) / 2 + 46.01, 2017, target_usd_year
+                        ((22.2 + 27.88) / 2 + 46.01) * 1000, 2017, target_usd_year
                     ),
                     "o_m_variable_mwh": inflation_price_adjustment(
                         1.78, 2017, target_usd_year
@@ -194,7 +194,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             }
 
             if "Combined Cycle" in eia_tech:
-                fixed = ng_o_m["Combined Cycle"]["o_m_fixed_mw"] * 1000
+                fixed = ng_o_m["Combined Cycle"]["o_m_fixed_mw"]
                 variable = ng_o_m["Combined Cycle"]["o_m_variable_mwh"]
                 _df["Fixed_OM_cost_per_MWyr"] = fixed
                 _df["Var_OM_cost_per_MWh"] = variable
@@ -206,7 +206,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 _df["Var_OM_cost_per_MWh"] = variable
 
             if "Coal" in eia_tech:
-                fixed = ng_o_m["Coal"]["o_m_fixed_mw"] * 1000
+                fixed = ng_o_m["Coal"]["o_m_fixed_mw"]
                 variable = ng_o_m["Coal"]["o_m_variable_mwh"]
                 _df["Fixed_OM_cost_per_MWyr"] = fixed
                 _df["Var_OM_cost_per_MWh"] = variable
