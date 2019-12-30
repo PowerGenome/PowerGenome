@@ -215,12 +215,12 @@ def startup_nonfuel_costs(df, settings):
             df["technology"].str.contains(existing_tech), "Start_cost_per_MW"
         ] = total_startup_costs
 
-    for existing_tech, cost_tech in settings["new_build_startup_costs"].items():
+    for new_tech, cost_tech in settings["new_build_startup_costs"].items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[
-            df["technology"].str.contains(existing_tech), "Start_cost_per_MW"
+            df["technology"].str.contains(new_tech), "Start_cost_per_MW"
         ] = total_startup_costs
-    df.loc[:, "Start_cost_per_MW"] = df.loc[:, "Start_cost_per_MW"].round(3)
+    df.loc[:, "Start_cost_per_MW"] = df.loc[:, "Start_cost_per_MW"].round(0)
 
     df.loc[df["technology"].str.contains("Nuclear"), "Start_cost_per_MW"] = "FILL VALUE"
 
@@ -2045,6 +2045,9 @@ class GeneratorClusters:
         # Crazy to be rounding results again. Need to fix the order of stuff here
         self.results = self.results.round(3)
         self.results["Cap_size"] = self.results["Cap_size"].round(2)
+        self.results["Heat_rate_MMBTU_per_MWh"] = self.results[
+            "Heat_rate_MMBTU_per_MWh"
+        ].round(2)
 
         # Convert technology names to snake_case and add a 1-indexed column R_ID
         self.results["technology"] = snake_case_col(self.results["technology"])

@@ -266,7 +266,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
     ].astype(int)
     mod_results.loc[:, "Var_OM_cost_per_MWh"] = mod_results.loc[
         :, "Var_OM_cost_per_MWh"
-    ].round(2)
+    ].round(1)
 
     return mod_results
 
@@ -324,6 +324,7 @@ def single_generator_row(atb_costs, new_gen_type, model_year_range):
         "o_m",
         "waccnomtech",
     ]
+
     row = pd.DataFrame([technology, cost_case, tech_detail] + s.to_list(), index=cols).T
 
     row["Cap_size"] = size_mw
@@ -428,7 +429,6 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
     new_gen_df = new_gen_df.merge(
         atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
     )
-    print(new_gen_df)
 
     new_gen_df = new_gen_df.rename(
         columns={
@@ -512,7 +512,7 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
     results = results.fillna(0)
     results.loc[:, int_cols] = results.loc[:, int_cols].astype(int)
     results.loc[:, "Var_OM_cost_per_MWh"] = (
-        results.loc[:, "Var_OM_cost_per_MWh"].astype(float).round(2)
+        results.loc[:, "Var_OM_cost_per_MWh"].astype(float).round(1)
     )
 
     return results
