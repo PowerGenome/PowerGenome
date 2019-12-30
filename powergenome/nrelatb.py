@@ -159,7 +159,9 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             existing_hr = 1
             new_build_hr = 1
 
-        if "Natural Gas Fired" in eia_tech or "Coal" in eia_tech:
+        if ("Natural Gas Fired" in eia_tech or "Coal" in eia_tech) and settings[
+            "use_nems_coal_ng_om"
+        ]:
             # Change CC and CT O&M to EIA NEMS values, which are much higher for CCs and
             # lower for CTs than a heat rate & linear mulitpler correction to the ATB
             # values.
@@ -200,8 +202,28 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 _df["Var_OM_cost_per_MWh"] = variable
 
             if "Combustion Turbine" in eia_tech:
-                fixed = ng_o_m["Combustion Turbine"]["o_m_fixed_mw"] * 1000
-                variable = ng_o_m["Combustion Turbine"]["o_m_variable_mwh"]
+                # need to adjust the EIA fixed/variable costs because they have no
+                # variable cost per MWh for existing CTs but they do have per MWh for
+                # new build. Assume $11/MWh from new-build and 4% CF:
+                # (11*8760*0.04/1000)=$3.85/kW-yr. Scale the new-build variable
+                # (~$11/MWh) by relative heat rate and subtract a /kW-yr value as
+                # calculated above from the FOM.
+                # Based on conversation with Jesse J. on Dec 20, 2019.
+
+                atb_var_om_mwh = (
+                    atb_costs_df.query(
+                        "technology==@atb_tech & cost_case=='Mid' "
+                        "& tech_detail==@tech_detail & basis_year==@existing_year"
+                    )
+                    .squeeze()
+                    .at["o_m_variable_mwh"]
+                    * settings["atb_ct_multiplier"]["Var_OM_cost_per_MWh"]
+                )
+                variable = atb_var_om_mwh * (existing_hr / new_build_hr)
+
+                fixed = ng_o_m["Combustion Turbine"]["o_m_fixed_mw"]
+                fixed = fixed - (variable * 8760 * 0.04)
+
                 _df["Fixed_OM_cost_per_MWyr"] = fixed
                 _df["Var_OM_cost_per_MWh"] = variable
 
