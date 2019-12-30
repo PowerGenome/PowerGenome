@@ -393,34 +393,50 @@ atb_new_gen:
 pv_ac_dc_ratio: 1.3
 
 new_wind_solar_regional_bins:
-  pv:
-    state_AZ: 3
-    state_NM: 2
-    state_CO: 2
-    state_OR: 1
-    state_WA: 1
-    state_ID: 1
-    state_MT: 1
-    state_WY: 1
-    state_UT: 1
-    SoCA: 1
-    NoCA: 1
-    NoNV: 1
-    SoNV: 1
-wind:
-    state_AZ: 3
-    state_NM: 3
-    state_CO: 3
-    state_OR: 1
-    state_WA: 1
-    state_ID: 1
-    state_MT: 1
-    state_WY: 1
-    state_UT: 1
-    SoCA: 2
-    NoCA: 2
-    NoNV: 1
-    SoNV: 1
+#   pv:
+#     state_AZ: 3
+#     state_NM: 2
+#     state_CO: 2
+#     state_OR: 1
+#     state_WA: 1
+#     state_ID: 1
+#     state_MT: 1
+#     state_WY: 1
+#     state_UT: 1
+#     SoCA: 1
+#     NoCA: 1
+#     NoNV: 1
+#     SoNV: 1
+# wind:
+#     state_AZ: 3
+#     state_NM: 3
+#     state_CO: 3
+#     state_OR: 1
+#     state_WA: 1
+#     state_ID: 1
+#     state_MT: 1
+#     state_WY: 1
+#     state_UT: 1
+#     SoCA: 2
+#     NoCA: 2
+#     NoNV: 1
+#     SoNV: 1
+  UtilityPV:
+    CA_N: 3
+    CA_S: 3
+    WECC_AZ: 3
+    WECC_CO: 2
+    WECC_NM: 2
+    WECC_NW: 7
+    WECC_SNV: 6
+  LandbasedWind:
+    CA_N: 2
+    CA_S: 3
+    WECC_AZ: 3
+    WECC_CO: 3
+    WECC_NM: 3
+    WECC_NW: 10
+    WECC_SNV: 4
 
 # How much of the theoretical
 wind_pv_fraction_developable: 0.5

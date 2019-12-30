@@ -496,6 +496,7 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
             rev_mult_tech_map,
             regional_cost_multipliers,
         )
+        _df = add_extra_wind_solar_rows(_df, region, settings)
         df_list.append(_df)
 
     results = pd.concat(
@@ -516,4 +517,28 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
 
     return results
 
-    return results
+
+def add_extra_wind_solar_rows(df, region, settings):
+    wind_bins = settings["new_wind_solar_regional_bins"]["LandbasedWind"][region]
+    extra_wind_bins = wind_bins - 1
+    solar_bins = settings["new_wind_solar_regional_bins"]["UtilityPV"][region]
+    extra_solar_bins = solar_bins - 1
+
+    for i in range(extra_wind_bins):
+        row_iloc = np.argwhere(df.technology.str.contains("LandbasedWind")).flatten()[
+            -1
+        ]
+        df = pd.concat([df.iloc[:row_iloc], df.iloc[[row_iloc]], df.iloc[row_iloc:]])
+
+    # if len(df.query("technology.str.contains('Wind')")) != wind_bins:
+    #     wind_rows = len(df.query("technology.str.contains('LandbasedWind')"))
+    #     print(df)
+    #     raise ValueError(f"Number of wind rows in {region} is {wind_rows}, need {wind_bins}")
+
+    for i in range(extra_solar_bins):
+        row_iloc = np.argwhere(df.technology.str.contains("UtilityPV")).flatten()[-1]
+        df = pd.concat([df.iloc[:row_iloc], df.iloc[[row_iloc]], df.iloc[row_iloc:]])
+
+    df = df.reset_index(drop=True)
+
+    return df
