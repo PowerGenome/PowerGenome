@@ -414,11 +414,13 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
             new_gen_df["technology"] == "Battery", "waccnomtech"
         ] = solar_wacc
 
-    new_gen_df["Inv_cost_per_MWyr"] = investment_cost_calculator(
-        capex=new_gen_df["capex"],
-        wacc=new_gen_df["waccnomtech"],
-        cap_rec_years=settings["atb_cap_recovery_years"],
-    )
+    # Add user-defined technologies
+    # This should probably be separate from ATB techs, and the regional cost multipliers
+    # should be its own function.
+    if settings["additional_technologies_fn"] is not None:
+        user_costs, user_hr = load_user_defined_techs(settings)
+        new_gen_df = pd.concat([new_gen_df, user_costs], ignore_index=True, sort=False)
+        atb_hr = pd.concat([atb_hr, user_hr], ignore_index=True, sort=False)
 
     new_gen_df["Inv_cost_per_MWhyr"] = investment_cost_calculator(
         capex=new_gen_df["capex_mwh"],
@@ -548,3 +550,52 @@ def add_extra_wind_solar_rows(df, region, settings):
     df = df.reset_index(drop=True)
 
     return df
+
+
+def load_user_defined_techs(settings):
+    """Load user-defined technologies from a CSV file. Returns cost columns and heat
+    rate as separate dataframes.
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined parameters from a settings file
+
+    Returns
+    -------
+    DataFrames
+        A tuple of 2 dataframes. The first contains cost columns, the second contains
+        heat rate. Both have technology, tech_detail, and cost_case.
+    """
+
+    fn = settings["additional_technologies_fn"]
+    user_techs = pd.read_csv(DATA_PATHS["additional_techs"] / fn)
+
+    user_techs = user_techs.loc[
+        user_techs["technology"].isin(settings["additional_new_gen"]), :
+    ]
+
+    if "tech_detail" not in user_techs.columns:
+        user_techs["tech_detail"] = ""
+    if "cost_case" not in user_techs.columns:
+        user_techs["cost_case"] = ""
+
+    cost_cols = [
+        "technology",
+        "tech_detail",
+        "cost_case",
+        "basis_year",
+        "capex",
+        "capex_mwh",
+        "o_m_fixed_mw",
+        "o_m_fixed_mwh",
+        "o_m_variable_mwh",
+        "waccnomtech",
+        "dollar_year",
+    ]
+
+    hr_cols = ["technology", "tech_detail", "heat_rate"]
+    user_costs = user_techs.loc[:, cost_cols]
+    user_hr = user_techs.loc[:, hr_cols]
+
+    return user_costs, user_hr

@@ -390,7 +390,18 @@ atb_new_gen:
   - [OffShoreWind, OTRG3, Mid, 1]
   - [UtilityPV, LosAngeles, Mid, 1]
   - [Battery, "*", Mid, 1]
-  - [Nuclear, "*", Mid, 500]
+
+
+# Additional technologies can be specified in a csv file under data/additional_technologies
+# Provide the filename (no path needed) in the parameter below or "~" for none.
+# All technologies listed in the file will be included in the outputs unless they are
+# also included in "new_gen_not_available".
+additional_technologies_fn: AZ_additional_tech.csv
+
+additional_new_gen:
+  - Nuclear_mid
+  - NGCCS100_mid
+
 
 # Dictionary of lists with model region as key and ATB tech (string matching) in list
 new_gen_not_available:
@@ -500,9 +511,9 @@ cost_multiplier_technology_map:
   Adv. CT: [NaturalGas_CTAvgCF, NaturalGas_CTHighCF]
   Conv CC: []
   Adv CC: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF]
-  Adv CC w/CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF]
+  Adv CC w/CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100]
   Fuel Cell: []
-  Nuclear: [Nuclear_*]
+  Nuclear: [Nuclear_*, Nuclear_mid, Nuclear_low, Nuclear_high]
   Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
   MSW: []
   Onshore Wind: [LandbasedWind]
