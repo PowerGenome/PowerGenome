@@ -22,6 +22,7 @@ DATA_PATHS["atb_storage_costs"] = DATA_PATHS["data"] / "NREL_ATB_battery_costs.c
 DATA_PATHS["ipm_shapefiles"] = DATA_PATHS["data"] / "IPM Regions v617 04-05-17"
 DATA_PATHS["tests"] = project_path / "tests"
 DATA_PATHS["test_data"] = DATA_PATHS["tests"] / "data"
+DATA_PATHS["settings"] = project_path / "settings"
 DATA_PATHS["eia"] = DATA_PATHS["data"] / "eia"
 DATA_PATHS["eia_860m"] = DATA_PATHS["eia"] / "860m"
 DATA_PATHS["cost_multipliers"] = DATA_PATHS["data"] / "cost_multipliers"
