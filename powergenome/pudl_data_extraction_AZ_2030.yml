@@ -235,6 +235,7 @@ model_tag_values:
     Biopower_: 1
     Nuclear_: 1
     CSP_: 1
+    NGCCS100: 1
   DISP:
     Onshore Wind Turbine: 1
     Offshore Wind Turbine: 1
@@ -270,6 +271,7 @@ model_tag_values:
     NaturalGas_: 1
     Biopower_: 1
     Nuclear_: 1
+    NGCCS100: 1
   RPS:
     Biomass: 1
     Geothermal: 1
@@ -296,6 +298,7 @@ model_tag_values:
     OffShoreWind_: 1
     Nuclear: 1
     NaturalGas_CCCCS: 1
+    NGCCS100: 1
   New_Build:
     Conventional Hydroelectric: -1
     Geothermal: -1
@@ -307,6 +310,7 @@ model_tag_values:
     UtilityPV_: 1
     Battery_: 1
     Biopower_: 1
+    NGCCS100: 1
   Hydro_level:
     Conventional Hydroelectric: 0.5
 
@@ -401,13 +405,14 @@ atb_new_gen:
   - [OffShoreWind, OTRG3, Mid, 1]
   - [UtilityPV, LosAngeles, Mid, 1]
   - [Battery, "*", Mid, 1]
+  # - [Nuclear, "*", Mid, 500]
 
 
 # Additional technologies can be specified in a csv file under data/additional_technologies
 # Provide the filename (no path needed) in the parameter below or "~" for none.
 # All technologies listed in the file will be included in the outputs unless they are
 # also included in "new_gen_not_available".
-additional_technologies_fn: AZ_additional_tech.csv
+additional_technologies_fn: AZ_additional_tech_2030.csv
 
 additional_new_gen:
   - Nuclear_mid
@@ -673,6 +678,7 @@ eia_series_scenario_names:
   reference: REF2019
   low_price: LOWPRICE
   high_price: HIGHPRICE
+  high_resource: HIGHRT
 
 aeo_fuel_scenarios:
   coal: reference
@@ -696,11 +702,13 @@ tech_fuel_map:
 # where the fuel matches something from "aeo_fuel_scenarios" (above
 # ATB: technology_tech_detail.
 ccs_fuel_map:
+  NGCCS100_mid: naturalgas_ccs100
   NaturalGas_CCCCS: naturalgas_ccs90
   Coal_CCS30: coal_ccs30
   Coal_CCS90: coal_ccs90
 
 ccs_capture_rate:
+  naturalgas_ccs100: 1.0
   naturalgas_ccs90: 0.9
   coal_ccs30: 0.3
   coal_ccs90: 0.9
@@ -764,3 +772,4 @@ new_build_startup_costs:
   Coal_new: coal_supercritical
   NaturalGas_CT: gas_large_ct
   NaturalGas_CC: gas_cc
+  NGCCS100: gas_cc
