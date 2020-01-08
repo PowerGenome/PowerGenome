@@ -18,6 +18,7 @@ DATA_PATHS = {}
 DATA_PATHS["results"] = project_path / "results"
 DATA_PATHS["powergenome"] = project_path / "powergenome"
 DATA_PATHS["data"] = project_path / "data"
+DATA_PATHS["atb_storage_costs"] = DATA_PATHS["data"] / "NREL_ATB_battery_costs.csv"
 DATA_PATHS["ipm_shapefiles"] = DATA_PATHS["data"] / "IPM Regions v617 04-05-17"
 DATA_PATHS["tests"] = project_path / "tests"
 DATA_PATHS["test_data"] = DATA_PATHS["tests"] / "data"
