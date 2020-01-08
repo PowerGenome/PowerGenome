@@ -1102,6 +1102,17 @@ def calc_unit_cluster_values(df, settings, technology=None):
     def wm(x):
         return np.average(x, weights=df.loc[x.index, settings["capacity_col"]])
 
+    if df["heat_rate_mmbtu_mwh"].isnull().values.any():
+        # mean =
+        # df["heat_rate_mmbtu_mwh"] = df["heat_rate_mmbtu_mwh"].fillna(
+        #     df["heat_rate_mmbtu_mwh"].median()
+        # )
+        start_cap = df[settings["capacity_col"]].sum()
+        df = df.loc[~df["heat_rate_mmbtu_mwh"].isnull(), :]
+        end_cap = df[settings["capacity_col"]].sum()
+        cap_diff = start_cap - end_cap
+        logger.warning(f"dropped {cap_diff}MW because of null heat rate values")
+
     df_values = df.groupby("cluster").agg(
         {
             settings["capacity_col"]: "mean",
@@ -1109,6 +1120,9 @@ def calc_unit_cluster_values(df, settings, technology=None):
             "heat_rate_mmbtu_mwh": wm,
         }
     )
+    if df_values["heat_rate_mmbtu_mwh"].isnull().values.any():
+        print(df)
+        print(df_values)
     df_values["heat_rate_mmbtu_mwh_iqr"] = df.groupby("cluster").agg(
         {"heat_rate_mmbtu_mwh": iqr}
     )
@@ -1743,6 +1757,26 @@ class GeneratorClusters:
 
         self.fuel_prices = fetch_fuel_prices(self.settings)
 
+    def fill_na_heat_rates(self, df):
+        """Fill null heat rate values with the median of the series. Not many null
+        values are expected.
+
+        Parameters
+        ----------
+        df : DataFrame
+            Must contain the column 'heat_rate_mmbtu_mwh'
+
+        Returns
+        -------
+        Dataframe
+            Same as input but with any null values replaced by the median.
+        """
+
+        median_hr = df["heat_rate_mmbtu_mwh"].median()
+        df["heat_rate_mmbtu_mwh"].fillna(median_hr, inplace=True)
+
+        return df
+
     def create_region_technology_clusters(self, return_retirement_capacity=False):
         """
         Calculation of average unit characteristics within a technology cluster
@@ -1824,6 +1858,17 @@ class GeneratorClusters:
         ].index.map(
             self.prime_mover_hr_map
         )
+
+        # Fill any null heat rate values for each tech
+        for tech in self.units_model["technology_description"]:
+            self.units_model.loc[
+                self.units_model.technology_description == tech, :
+            ] = self.fill_na_heat_rates(
+                self.units_model.loc[self.units_model.technology_description == tech, :]
+            )
+        # assert (
+        #     self.units_model["heat_rate_mmbtu_mwh"].isnull().any() is False
+        # ), "There are still some null heat rate values"
 
         logger.info(
             f"Units model technologies are "
