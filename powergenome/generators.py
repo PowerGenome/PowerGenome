@@ -1944,7 +1944,7 @@ class GeneratorClusters:
         # logger.info("Creating technology clusters by region")
         logger.info("Creating technology clusters by region")
         unit_list = []
-        cluster_list = []
+        self.cluster_list = []
         alt_cluster_method = self.settings["alt_cluster_method"]
         if alt_cluster_method is None:
             alt_cluster_method = {}
@@ -1999,7 +1999,7 @@ class GeneratorClusters:
             if num_clusters[region][tech] != 0:
                 _df = calc_unit_cluster_values(grouped, self.settings, tech)
                 _df["region"] = region
-                cluster_list.append(_df)
+                self.cluster_list.append(_df)
 
         # Save some data about individual units for easy access
         self.all_units = pd.concat(unit_list, sort=False)
@@ -2022,7 +2022,7 @@ class GeneratorClusters:
         )
 
         logger.info("Finalizing generation clusters")
-        self.results = pd.concat(cluster_list)
+        self.results = pd.concat(self.cluster_list)
         logger.info(
             f"Results technologies are {self.results.technology.unique().tolist()}"
         )
@@ -2142,8 +2142,10 @@ class GeneratorClusters:
             "Max_Cap_MW",
             "Min_Share_percent",
             "Max_Share_percent",
+            "capex",
             "Inv_cost_per_MWyr",
             "Fixed_OM_cost_per_MWyr",
+            "capex_mwh",
             "Inv_cost_per_MWhyr",
             "Fixed_OM_cost_per_MWhyr",
             "Var_OM_cost_per_MWh",
