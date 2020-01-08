@@ -50,7 +50,7 @@ def fetch_atb_costs(pudl_engine, settings):
     financial = settings["atb_financial_case"]
 
     atb_costs = atb_costs.loc[idx[:, cap_recovery, :, financial, :, :], :]
-    atb_costs = atb_costs.reset_index()
+    atb_costs = atb_costs.reset_index().fillna(0)
 
     atb_base_year = settings["atb_usd_year"]
     atb_target_year = settings["target_usd_year"]
@@ -335,7 +335,8 @@ def single_generator_row(atb_costs, new_gen_type, model_year_range):
 def investment_cost_calculator(capex, wacc, cap_rec_years):
 
     # wacc comes through as an object type series now that we're averaging across years
-    wacc = wacc.astype(float)
+    if not isinstance(wacc, float):
+        wacc = wacc.astype(float)
     inv_cost = capex * (
         np.exp(wacc * cap_rec_years)
         * (np.exp(wacc) - 1)
@@ -422,11 +423,52 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
         new_gen_df = pd.concat([new_gen_df, user_costs], ignore_index=True, sort=False)
         atb_hr = pd.concat([atb_hr, user_hr], ignore_index=True, sort=False)
 
-    new_gen_df["Inv_cost_per_MWhyr"] = investment_cost_calculator(
-        capex=new_gen_df["capex_mwh"],
-        wacc=new_gen_df["waccnomtech"],
-        cap_rec_years=settings["atb_cap_recovery_years"],
+    new_gen_df = new_gen_df.rename(
+        columns={
+            "o_m_fixed_mw": "Fixed_OM_cost_per_MWyr",
+            "o_m_fixed_mwh": "Fixed_OM_cost_per_MWhyr",
+            "o_m_variable_mwh": "Var_OM_cost_per_MWh",
+        }
     )
+    atb_hr = atb_hr.rename(columns={"heat_rate": "Heat_rate_MMBTU_per_MWh"})
+
+    # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
+    # ATB average of advanced and conventional.
+    ct_multipliers = settings["atb_ct_multiplier"]
+    cc_multipliers = settings["atb_cc_multiplier"]
+
+    for key in ct_multipliers.keys():
+        if "heat_rate" in key.lower():
+            atb_hr.loc[
+                (atb_hr.technology == "NaturalGas")
+                & (atb_hr.tech_detail.str.contains("CT")),
+                key,
+            ] *= ct_multipliers[key]
+
+            atb_hr.loc[
+                (atb_hr.technology == "NaturalGas")
+                & (
+                    (atb_hr.tech_detail.str.contains("CCAvg"))
+                    | (atb_hr.tech_detail.str.contains("CCHigh"))
+                ),
+                key,
+            ] *= cc_multipliers[key]
+
+        else:
+            new_gen_df.loc[
+                (new_gen_df.technology == "NaturalGas")
+                & (new_gen_df.tech_detail.str.contains("CT")),
+                key,
+            ] *= ct_multipliers[key]
+
+            new_gen_df.loc[
+                (new_gen_df.technology == "NaturalGas")
+                & (
+                    (new_gen_df.tech_detail.str.contains("CCAvg"))
+                    | (new_gen_df.tech_detail.str.contains("CCHigh"))
+                ),
+                key,
+            ] *= cc_multipliers[key]
 
     new_gen_df = new_gen_df.merge(
         atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
@@ -441,24 +483,6 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
         }
     )
 
-    # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
-    # ATB average of advanced and conventional.
-    ct_multipliers = settings["atb_ct_multiplier"]
-    cc_multipliers = settings["atb_cc_multiplier"]
-
-    for key in ct_multipliers.keys():
-        new_gen_df.loc[
-            (new_gen_df.technology == "NaturalGas")
-            & (new_gen_df.tech_detail.str.contains("CT")),
-            key,
-        ] *= ct_multipliers[key]
-
-        new_gen_df.loc[
-            (new_gen_df.technology == "NaturalGas")
-            & (new_gen_df.tech_detail.str.contains("CC")),
-            key,
-        ] *= cc_multipliers[key]
-
     new_gen_df["technology"] = (
         new_gen_df["technology"]
         + "_"
@@ -467,12 +491,45 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
         + new_gen_df["cost_case"]
     )
 
+    new_gen_df["Inv_cost_per_MWyr"] = investment_cost_calculator(
+        capex=new_gen_df["capex"],
+        wacc=new_gen_df["waccnomtech"],
+        cap_rec_years=settings["atb_cap_recovery_years"],
+    )
+
+    new_gen_df["Inv_cost_per_MWhyr"] = investment_cost_calculator(
+        capex=new_gen_df["capex_mwh"],
+        wacc=new_gen_df["waccnomtech"],
+        cap_rec_years=settings["atb_cap_recovery_years"],
+    )
+
+    # Some technologies might have a different capital recovery period
+    if settings["alt_atb_cap_recovery_years"] is not None:
+        for tech, years in settings["alt_atb_cap_recovery_years"].items():
+            tech_mask = new_gen_df["technology"].str.contains(tech)
+
+            new_gen_df.loc[tech_mask, "Inv_cost_per_MWyr"] = investment_cost_calculator(
+                capex=new_gen_df.loc[tech_mask, "capex"],
+                wacc=new_gen_df.loc[tech_mask, "waccnomtech"],
+                cap_rec_years=years,
+            )
+
+            new_gen_df.loc[
+                tech_mask, "Inv_cost_per_MWhyr"
+            ] = investment_cost_calculator(
+                capex=new_gen_df.loc[tech_mask, "capex_mwh"],
+                wacc=new_gen_df.loc[tech_mask, "waccnomtech"],
+                cap_rec_years=years,
+            )
+
     keep_cols = [
         "technology",
         "basis_year",
         "Fixed_OM_cost_per_MWyr",
         "Fixed_OM_cost_per_MWhyr",
         "Var_OM_cost_per_MWh",
+        "capex",
+        "capex_mwh",
         "Inv_cost_per_MWyr",
         "Inv_cost_per_MWhyr",
         "Heat_rate_MMBTU_per_MWh",
@@ -594,7 +651,7 @@ def load_user_defined_techs(settings):
         "dollar_year",
     ]
 
-    hr_cols = ["technology", "tech_detail", "heat_rate"]
+    hr_cols = ["technology", "tech_detail", "basis_year", "heat_rate"]
     user_costs = user_techs.loc[:, cost_cols]
     user_hr = user_techs.loc[:, hr_cols]
 

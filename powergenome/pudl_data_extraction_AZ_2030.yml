@@ -327,6 +327,15 @@ regional_tag_values:
 atb_cost_case: Mid
 atb_financial_case: Market
 atb_cap_recovery_years: 20
+
+# Alternate capital recovery periods for specific technologies, which are used to calculate
+# the annual investment costs. The names are matched using str.contains rather than
+# exact matches. Set parameter value to none (~) if not used.
+alt_atb_cap_recovery_years:
+  NaturalGas_CCAvg: 15
+  NaturalGas_CTAvg: 15
+
+# The year of NREL ATB data to use for matching existing generators (O&M costs)
 atb_existing_year: 2018
 atb_usd_year: 2017 # From Capex figure in atb documentation https://atb.nrel.gov/electricity/2019/summary.html
 
@@ -338,13 +347,15 @@ existing_om_multiplier: 1.5
 # standard ATB values set multipliers to 1.
 # Heat rate multipliers are an average of "heat rate" and "final heat rate" multipliers.
 atb_ct_multiplier:
-  Inv_cost_per_MWyr: 0.76
+  capex: 0.76
+  # Inv_cost_per_MWyr: 0.76
   Var_OM_cost_per_MWh: 1.51
   Fixed_OM_cost_per_MWyr: 0.56
   Heat_rate_MMBTU_per_MWh: 0.97
 
 atb_cc_multiplier:
-  Inv_cost_per_MWyr: 0.89
+  capex: 0.89
+  # Inv_cost_per_MWyr: 0.89
   Var_OM_cost_per_MWh: 0.73
   Fixed_OM_cost_per_MWyr: 0.95
   Heat_rate_MMBTU_per_MWh: 0.98
