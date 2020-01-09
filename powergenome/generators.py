@@ -746,8 +746,7 @@ def remove_canceled_860m(df, canceled_860m):
     canceled_860m = create_plant_gen_id(canceled_860m)
 
     canceled = df.loc[df["plant_gen_id"].isin(canceled_860m["plant_gen_id"]), :]
-    if "OP" in canceled["operational_status_code"].unique():
-        raise ValueError("At least one of the canceled plants is actually operating")
+
     not_canceled_df = df.loc[~df["plant_gen_id"].isin(canceled_860m["plant_gen_id"]), :]
 
     not_canceled_df = not_canceled_df.drop(columns="plant_gen_id")
@@ -778,14 +777,7 @@ def remove_retired_860m(df, retired_860m):
     retired_860m = create_plant_gen_id(retired_860m)
 
     retired = df.loc[df["plant_gen_id"].isin(retired_860m["plant_gen_id"]), :]
-    if "OP" in retired["operational_status_code"].unique():
-        ret_but_op = retired.loc[
-            retired["operational_status_code"] == "OP", "plant_gen_id"
-        ].tolist()
-        logger.warning(
-            "At least one of the canceled plants is actually operating\n"
-            f"check out {ret_but_op}"
-        )
+
     not_retired_df = df.loc[~df["plant_gen_id"].isin(retired_860m["plant_gen_id"]), :]
 
     not_retired_df = not_retired_df.drop(columns="plant_gen_id")
