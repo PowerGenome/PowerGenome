@@ -350,20 +350,47 @@ existing_om_multiplier: 1.5
 # ATB uses an average of conventional and advanced techs. We only want advanced. To use
 # standard ATB values set multipliers to 1.
 # Heat rate multipliers are an average of "heat rate" and "final heat rate" multipliers.
-atb_ct_multiplier:
-  capex: 0.76
-  # Inv_cost_per_MWyr: 0.76
-  Var_OM_cost_per_MWh: 1.51
-  Fixed_OM_cost_per_MWyr: 0.56
-  Heat_rate_MMBTU_per_MWh: 0.97
+# This parameter shoud be a set of nested dictionaries. Each lower-level dict must have
+# "technology" and "tech_detail" keys uniquely identifying the resource to be modified.
+atb_multipliers:
+  ngct:
+    technology: NaturalGas
+    tech_detail: CTAvgCF
+    capex: 0.76
+    # Inv_cost_per_MWyr: 0.76
+    Var_OM_cost_per_MWh: 1.51
+    Fixed_OM_cost_per_MWyr: 0.56
+    Heat_rate_MMBTU_per_MWh: 0.97
+  ngcc:
+    technology: NaturalGas
+    tech_detail: CCAvgCF
+    capex: 0.89
+    # Inv_cost_per_MWyr: 0.89
+    Var_OM_cost_per_MWh: 0.73
+    Fixed_OM_cost_per_MWyr: 0.95
+    Heat_rate_MMBTU_per_MWh: 0.98
+  # bioct:
+  #   technology: Biogas
+  #   tech_detail: CT
+  #   capex: 0.89
+  #   # Inv_cost_per_MWyr: 0.89
+  #   Var_OM_cost_per_MWh: 0.73
+  #   Fixed_OM_cost_per_MWyr: 0.95
+  #   Heat_rate_MMBTU_per_MWh: 0.98
 
-atb_cc_multiplier:
-  capex: 0.89
-  # Inv_cost_per_MWyr: 0.89
-  Var_OM_cost_per_MWh: 0.73
-  Fixed_OM_cost_per_MWyr: 0.95
-  Heat_rate_MMBTU_per_MWh: 0.98
 
+# Copy and modify an existing ATB new generator. This takes place BEFORE the ATB CC/CT
+# modifiers. If adding a copy of CC/CT technologies, add the copy to the atb_multipliers
+# parameter.
+modified_atb_new_gen: ~
+  # BioCT_mid:
+  #   new_technology: Biogas
+  #   new_tech_detail: CT
+  #   new_cost_case: Mid
+  #   atb_technology: NaturalGas
+  #   atb_tech_detail: CCAvgCF
+  #   atb_cost_case: Mid
+  #   capex: 1.05
 
 # ATB doesn't have a WACC for battery tech. Need to provide a value here.
 atb_battery_wacc: UtilityPV

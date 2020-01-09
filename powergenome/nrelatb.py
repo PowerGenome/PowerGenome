@@ -423,53 +423,6 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
         new_gen_df = pd.concat([new_gen_df, user_costs], ignore_index=True, sort=False)
         atb_hr = pd.concat([atb_hr, user_hr], ignore_index=True, sort=False)
 
-    new_gen_df = new_gen_df.rename(
-        columns={
-            "o_m_fixed_mw": "Fixed_OM_cost_per_MWyr",
-            "o_m_fixed_mwh": "Fixed_OM_cost_per_MWhyr",
-            "o_m_variable_mwh": "Var_OM_cost_per_MWh",
-        }
-    )
-    atb_hr = atb_hr.rename(columns={"heat_rate": "Heat_rate_MMBTU_per_MWh"})
-
-    # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
-    # ATB average of advanced and conventional.
-    ct_multipliers = settings["atb_ct_multiplier"]
-    cc_multipliers = settings["atb_cc_multiplier"]
-
-    for key in ct_multipliers.keys():
-        if "heat_rate" in key.lower():
-            atb_hr.loc[
-                (atb_hr.technology == "NaturalGas")
-                & (atb_hr.tech_detail.str.contains("CT")),
-                key,
-            ] *= ct_multipliers[key]
-
-            atb_hr.loc[
-                (atb_hr.technology == "NaturalGas")
-                & (
-                    (atb_hr.tech_detail.str.contains("CCAvg"))
-                    | (atb_hr.tech_detail.str.contains("CCHigh"))
-                ),
-                key,
-            ] *= cc_multipliers[key]
-
-        else:
-            new_gen_df.loc[
-                (new_gen_df.technology == "NaturalGas")
-                & (new_gen_df.tech_detail.str.contains("CT")),
-                key,
-            ] *= ct_multipliers[key]
-
-            new_gen_df.loc[
-                (new_gen_df.technology == "NaturalGas")
-                & (
-                    (new_gen_df.tech_detail.str.contains("CCAvg"))
-                    | (new_gen_df.tech_detail.str.contains("CCHigh"))
-                ),
-                key,
-            ] *= cc_multipliers[key]
-
     new_gen_df = new_gen_df.merge(
         atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
     )
@@ -482,6 +435,33 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
             "o_m_variable_mwh": "Var_OM_cost_per_MWh",
         }
     )
+
+    # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
+    # ATB average of advanced and conventional.
+    # This is now generalized for changes to ATB values for any technology type.
+    for tech, tech_multipliers in settings["atb_multipliers"].items():
+        assert isinstance(tech_multipliers, dict), (
+            "The settings parameter 'atb_multipliers' must be a nested list.\n"
+            "Each top-level key is a short name of the technology, with a nested"
+            " dictionary of items below it."
+        )
+        assert (
+            "technology" in tech_multipliers.keys()
+        ), "Each nested dictionary in atb_multipliers must have a 'technology' key."
+        assert (
+            "tech_detail" in tech_multipliers.keys()
+        ), "Each nested dictionary in atb_multipliers must have a 'tech_detail' key."
+
+        technology = tech_multipliers.pop("technology")
+        tech_detail = tech_multipliers.pop("tech_detail")
+
+        for key, multiplier in tech_multipliers.items():
+
+            new_gen_df.loc[
+                (new_gen_df.technology == technology)
+                & (new_gen_df.tech_detail == tech_detail),
+                key,
+            ] *= multiplier
 
     new_gen_df["technology"] = (
         new_gen_df["technology"]
