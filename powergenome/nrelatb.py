@@ -173,12 +173,13 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             existing_hr = 1
             new_build_hr = 1
 
-        if ("Natural Gas Fired" in eia_tech or "Coal" in eia_tech) and settings[
+        if ("Natural Gas" in eia_tech or "Coal" in eia_tech) and settings[
             "use_nems_coal_ng_om"
         ]:
             # Change CC and CT O&M to EIA NEMS values, which are much higher for CCs and
             # lower for CTs than a heat rate & linear mulitpler correction to the ATB
             # values.
+            # Add natural gas steam turbine O&M.
             # Also using the new values for coal plants, assuming 40-50 yr age and half
             # FGD
             # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
@@ -198,6 +199,13 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                         12.23 * 1000, 2017, target_usd_year
                     ),
                     "o_m_variable_mwh": 0,
+                },
+                "Natural Gas Steam Turbine": {
+                    # NEMS documenation splits capex and fixed O&M across 2 tables
+                    "o_m_fixed_mw": inflation_price_adjustment(
+                        (15.96 + 26.52) * 1000, 2017, target_usd_year
+                    ),
+                    "o_m_variable_mwh": 1.0,
                 },
                 "Coal": {
                     "o_m_fixed_mw": inflation_price_adjustment(
@@ -238,6 +246,12 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 fixed = ng_o_m["Combustion Turbine"]["o_m_fixed_mw"]
                 fixed = fixed - (variable * 8760 * 0.04)
 
+                _df["Fixed_OM_cost_per_MWyr"] = fixed
+                _df["Var_OM_cost_per_MWh"] = variable
+
+            if "Natural Gas Steam Turbine" in eia_tech:
+                fixed = ng_o_m["Natural Gas Steam Turbine"]["o_m_fixed_mw"]
+                variable = ng_o_m["Natural Gas Steam Turbine"]["o_m_variable_mwh"]
                 _df["Fixed_OM_cost_per_MWyr"] = fixed
                 _df["Var_OM_cost_per_MWh"] = variable
 
@@ -377,6 +391,13 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
     df["Inv_cost_per_MWhyr"] *= df["technology"].map(tech_multiplier_map)
 
     return df
+
+
+def add_modified_atb_generators(settings, atb_costs):
+
+    mod_tech_list = []
+    for name, mod_tech in settings["modified_atb_new_gen"].items():
+        pass
 
 
 def atb_new_generators(results, atb_costs, atb_hr, settings):
