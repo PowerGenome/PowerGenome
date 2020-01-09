@@ -143,7 +143,21 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
     for group, _df in grouped_results:
 
         eia_tech, existing_hr = group
-        atb_tech, tech_detail = techs[eia_tech]
+        try:
+            atb_tech, tech_detail = techs[eia_tech]
+        except KeyError as e:
+            if eia_tech in settings["tech_groups"].keys():
+                raise KeyError(
+                    f"{eia_tech} is defined in 'tech_groups' but doesn't have a "
+                    "corresponding ATB technology in 'eia_atb_tech_map'"
+                )
+
+            else:
+                raise KeyError(
+                    f"{eia_tech} doesn't have a corresponding ATB technology in "
+                    "'eia_atb_tech_map'"
+                )
+
         try:
             new_build_hr = (
                 atb_hr_df.query(
