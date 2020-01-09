@@ -352,6 +352,7 @@ existing_om_multiplier: 1.5
 # Heat rate multipliers are an average of "heat rate" and "final heat rate" multipliers.
 # This parameter shoud be a set of nested dictionaries. Each lower-level dict must have
 # "technology" and "tech_detail" keys uniquely identifying the resource to be modified.
+# The 'ngct' dictionary is required for calculating existing CT variable O&M costs.
 atb_multipliers:
   ngct:
     technology: NaturalGas

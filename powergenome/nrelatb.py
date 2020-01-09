@@ -217,7 +217,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     )
                     .squeeze()
                     .at["o_m_variable_mwh"]
-                    * settings["atb_ct_multiplier"]["Var_OM_cost_per_MWh"]
+                    * settings["atb_multipliers"]["ngct"]["Var_OM_cost_per_MWh"]
                 )
                 variable = atb_var_om_mwh * (existing_hr / new_build_hr)
 
@@ -402,6 +402,7 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
         ],
         ignore_index=True,
     )
+
     if isinstance(settings["atb_battery_wacc"], float):
         new_gen_df.loc[new_gen_df["technology"] == "Battery", "waccnomtech"] = settings[
             "atb_battery_wacc"
