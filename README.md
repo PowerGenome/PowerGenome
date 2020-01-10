@@ -44,24 +44,20 @@ conda activate powergenome
 pip install -e .
 ```
 
-5. Download a [modifed version of the PULD database](https://drive.google.com/open?id=18tLKbok1-me81SkfWAhSLXmy5HW6RdvI) that includes NREL ATB cost data and is not yet included in PUDL. ~~Build the local database following [PUDL instructions](https://catalystcoop-pudl.readthedocs.io/en/latest/index.html#getting-started). Skip the first step of creating the pudl conda environment since you have already installed pudl in the powergenome environment. I recommend modifying the example `pudl_data` line as follows:~~
+5. Download a [modifed version of the PULD database](https://drive.google.com/open?id=18tLKbok1-me81SkfWAhSLXmy5HW6RdvI) that includes NREL ATB cost data and is not yet included in PUDL.
 
-```sh
-pudl_data --sources eia923 eia860 ferc1 epaipm --years 2011 2012 2013 2014 2015 2016 2017
-```
+6. Once you have downloaded the sqlite database, change the `SETTINGS["pudl_db"]` parameter in `powergenome/params.py` to match the path on your computer.
 
-6. ~~Be sure to edit the `etl_example.yml` file to include all years of 860/923 data. Remove all years from `epacems`.~~
-
-7. Once you have downloaded ~~created~~ the sqlite database, change the `SETTINGS["pudl_db"]` parameter in `powergenome/params.py` to match the path on your computer.
-
-8. Get an [API key for EIA's OpenData portal](https://www.eia.gov/opendata/register.php). This key is needed to download projected fuel prices from the 2019 Annual Energy Outlook. Create the file `PowerGenome/powergenome/.env` and save the key in this file using the format `EIA_API_KEY=YOUR_KEY_HERE`. No quotation marks are needed around the API string. The `.env` file is included in `.gitignore` and will not be synced with the repository.
+7. Get an [API key for EIA's OpenData portal](https://www.eia.gov/opendata/register.php). This key is needed to download projected fuel prices from the 2019 Annual Energy Outlook. Create the file `PowerGenome/powergenome/.env` and save the key in this file using the format `EIA_API_KEY=YOUR_KEY_HERE`. No quotation marks are needed around the API string. The `.env` file is included in `.gitignore` and will not be synced with the repository.
 
 
 ## Running code
 
 Settings are controlled in a YAML file. The default is `pudl_data_extraction.yml`.
 
-The code is currently structured in three main modules - `generators.py`, `transmission.py`, and `load_profiles.py`. Functions from each can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, activate the  `pudl` conda environment, navigate to the `powergenome` folder, and run
+The code is currently structured in a series of modules - `load_data.py`, `generators.py`, `transmission.py`, `nrelatb.py`, `eia_opendata.py`, `load_profiles.py`, and a couple others. The code and architecture is under active development. While the outputs are all formatted for GenX we hope to make the data formatting code more module to allow users to easily switch between outputs for different power system models.
+
+Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, activate the  `pudl` conda environment, navigate to the `powergenome` folder, and run
 
 ```sh
 python extract_pudl_data.py
@@ -69,12 +65,18 @@ python extract_pudl_data.py
 
 There are currently 3 arguments that can be used after the script name:
 
-- -sf (--settings_file), the name of an alternative settings YAML file.
-- -rf (--results_folder), the name of a results subfolder to save files in. If no subfolder is specified the default is to create one named for the current datetime.
-- -a (--all_units), if information on all units should be saved in a separate CSV file. The default value is `True`.
+- --settings_file (-sf), the name of an alternative settings YAML file.
+- --results_folder (-rf), the name of a results subfolder to save files in. If no subfolder is specified the default is to create one named for the current datetime.
+- --no-current-gens, do not load and cluster existing generators.
+- --no-gens, do not create the generators file.
+- --no-load, do not calcualte hourly load profiles.
+- --no-transmission, do not calculate transmission constraints.
+- --no-fuel, do not create a fuels file.
+- --sort-gens, sort by generator name within a region (existing generators always show up above new generators)
 
-An example using all three options would be:
+
+The following example would use settings in the file `pudl_data_extraction_AZ_2030.yml` to create results for only new-build resources and save the files in the subfolder `results/AZ-future-resources`.
 
 ```sh
-python extract_pudl_data.py -sf pudl_data_extraction_CA_present.yml -rf CA-present -a True
+python extract_pudl_data.py -sf pudl_data_extraction_AZ_2030.yml -rf AZ-future-resources --no-current-gens
 ```
