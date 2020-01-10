@@ -1154,8 +1154,6 @@ def add_genx_model_tags(df, settings):
     dataframe
         The original generator cluster results with new columns for each model tag.
     """
-    check_cols = ["Heat_rate_MMBTU_per_MWh", "Existing_Cap_MW"]
-    start_totals = df[check_cols].sum()
     model_tag_cols = settings["model_tag_names"]
 
     # Create a new dataframe with the same index
@@ -1181,12 +1179,6 @@ def add_genx_model_tags(df, settings):
 
     # Make unit size = 1 where Commit = 0 to avoid GenX bug
     df.loc[df["Commit"] == 0, "Cap_size"] = 1
-
-    end_totals = df[check_cols].sum()
-
-    assert np.allclose(
-        start_totals, end_totals
-    ), "Something was messed up when adding model tags"
 
     return df
 
@@ -1684,6 +1676,8 @@ class GeneratorClusters:
         pudl_engine,
         pudl_out,
         settings,
+        current_gens=True,
+        sort_gens=False,
         plant_region_map_table="plant_region_map_epaipm",
         settings_agg_key="region_aggregations",
     ):
@@ -1701,48 +1695,58 @@ class GeneratorClusters:
         self.pudl_engine = pudl_engine
         self.pudl_out = pudl_out
         self.settings = settings
+        self.current_gens = current_gens
+        self.sort_gens = sort_gens
         self.model_regions_gdf = load_ipm_shapefile(self.settings)
-        self.data_years = self.settings["data_years"]
 
-        self.gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
-        self.gens_entity = pd.read_sql_table("generators_entity_eia", self.pudl_engine)
+        if self.current_gens:
+            self.data_years = self.settings["data_years"]
 
-        bga = self.pudl_out.bga()
-        self.bga = bga.loc[
-            bga.report_date.dt.year.isin(self.data_years), :
-        ].drop_duplicates(["plant_id_eia", "generator_id"])
+            self.gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
+            self.gens_entity = pd.read_sql_table(
+                "generators_entity_eia", self.pudl_engine
+            )
 
-        logger.info("Loading map of plants to IPM regions")
-        self.plant_region_map = load_plant_region_map(
-            self.gens_860,
-            self.pudl_engine,
-            self.settings,
-            self.model_regions_gdf,
-            table=plant_region_map_table,
-            settings_agg_key=settings_agg_key,
-        )
+            bga = self.pudl_out.bga()
+            self.bga = bga.loc[
+                bga.report_date.dt.year.isin(self.data_years), :
+            ].drop_duplicates(["plant_id_eia", "generator_id"])
 
-        self.gen_923 = load_923_gen_fuel_data(
-            self.pudl_engine,
-            self.pudl_out,
-            model_region_map=self.plant_region_map,
-            data_years=self.data_years,
-        )
+            logger.info("Loading map of plants to IPM regions")
+            self.plant_region_map = load_plant_region_map(
+                self.gens_860,
+                self.pudl_engine,
+                self.settings,
+                self.model_regions_gdf,
+                table=plant_region_map_table,
+                settings_agg_key=settings_agg_key,
+            )
 
-        self.eia_860m = download_860m(self.settings)
-        self.planned_860m = clean_860m_sheet(
-            self.eia_860m, sheet_name="Planned", settings=self.settings
-        )
-        self.canceled_860m = clean_860m_sheet(
-            self.eia_860m, sheet_name="Canceled or Postponed", settings=self.settings
-        )
-        self.retired_860m = clean_860m_sheet(
-            self.eia_860m, sheet_name="Retired", settings=self.settings
-        )
+            self.gen_923 = load_923_gen_fuel_data(
+                self.pudl_engine,
+                self.pudl_out,
+                model_region_map=self.plant_region_map,
+                data_years=self.data_years,
+            )
 
-        self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
-        self.plants_860 = load_plants_860(self.pudl_engine, self.data_years)
-        self.utilities_eia = load_utilities_eia(self.pudl_engine)
+            self.eia_860m = download_860m(self.settings)
+            self.planned_860m = clean_860m_sheet(
+                self.eia_860m, sheet_name="Planned", settings=self.settings
+            )
+            self.canceled_860m = clean_860m_sheet(
+                self.eia_860m,
+                sheet_name="Canceled or Postponed",
+                settings=self.settings,
+            )
+            self.retired_860m = clean_860m_sheet(
+                self.eia_860m, sheet_name="Retired", settings=self.settings
+            )
+
+            self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
+            self.plants_860 = load_plants_860(self.pudl_engine, self.data_years)
+            self.utilities_eia = load_utilities_eia(self.pudl_engine)
+        else:
+            self.existing_resources = pd.DataFrame()
 
         self.atb_costs = fetch_atb_costs(self.pudl_engine, self.settings)
         self.atb_hr = fetch_atb_heat_rates(self.pudl_engine)
@@ -1996,22 +2000,15 @@ class GeneratorClusters:
 
         # Save some data about individual units for easy access
         self.all_units = pd.concat(unit_list, sort=False)
-        self.all_units = (
-            pd.merge(
-                self.units_model.reset_index(),
-                self.all_units,
-                on=["plant_id_eia", "unit_id_pudl"],
-                how="left",
-            ).merge(
-                self.plants_860[["plant_id_eia", "utility_id_eia"]],
-                on=["plant_id_eia"],
-                how="left",
-            )
-            # .merge(
-            #     self.utilities_eia[["utility_id_eia", "utility_name"]],
-            #     on=["utility_id_eia"],
-            #     how="left",
-            # )
+        self.all_units = pd.merge(
+            self.units_model.reset_index(),
+            self.all_units,
+            on=["plant_id_eia", "unit_id_pudl"],
+            how="left",
+        ).merge(
+            self.plants_860[["plant_id_eia", "utility_id_eia"]],
+            on=["plant_id_eia"],
+            how="left",
         )
 
         logger.info("Finalizing generation clusters")
@@ -2074,37 +2071,75 @@ class GeneratorClusters:
             self.results.pipe(
                 atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings
             )
-            .pipe(atb_new_generators, self.atb_costs, self.atb_hr, self.settings)
+            # .pipe(atb_new_generators, self.atb_costs, self.atb_hr, self.settings)
             .pipe(startup_fuel, self.settings)
             .pipe(add_fuel_labels, self.fuel_prices, self.settings)
             .pipe(startup_nonfuel_costs, self.settings)
             .pipe(add_genx_model_tags, self.settings)
         )
-        # # Make unit size = 1 where Commit = 0 to avoid GenX bug
-        # self.results.loc[self.results["Commit"] == 0, "Cap_size"] = 1
 
-        # self.results = add_genx_model_tags(self.results, self.settings)
+        if self.sort_gens:
+            logger.info("Sorting new resources alphabetically.")
+            self.results = self.results.sort_values(["region", "technology"])
 
-        # Crazy to be rounding results again. Need to fix the order of stuff here
-        self.results = self.results.round(3)
-        self.results["Cap_size"] = self.results["Cap_size"].round(2)
-        self.results["Heat_rate_MMBTU_per_MWh"] = self.results[
+        return self.results
+
+    def create_new_generators(self):
+
+        self.new_generators = atb_new_generators(
+            self.atb_costs, self.atb_hr, self.settings
+        )
+
+        self.new_generators = (
+            self.new_generators.pipe(startup_fuel, self.settings)
+            .pipe(add_fuel_labels, self.fuel_prices, self.settings)
+            .pipe(startup_nonfuel_costs, self.settings)
+            .pipe(add_genx_model_tags, self.settings)
+        )
+
+        if self.sort_gens:
+            logger.info("Sorting new resources alphabetically.")
+            self.new_generators = self.new_generators.sort_values(
+                ["region", "technology"]
+            )
+
+        return self.new_generators
+
+    def create_all_generators(self):
+
+        if self.current_gens:
+            self.existing_resources = self.create_region_technology_clusters()
+
+        self.new_resources = self.create_new_generators()
+
+        self.all_resources = pd.concat(
+            [self.existing_resources, self.new_resources], ignore_index=True
+        )
+
+        self.all_resources = self.all_resources.round(3)
+        self.all_resources["Cap_size"] = self.all_resources["Cap_size"].round(2)
+        self.all_resources["Heat_rate_MMBTU_per_MWh"] = self.all_resources[
             "Heat_rate_MMBTU_per_MWh"
         ].round(2)
 
         # Convert technology names to snake_case and add a 1-indexed column R_ID
-        self.results["technology"] = snake_case_col(self.results["technology"])
+        self.all_resources["technology"] = snake_case_col(
+            self.all_resources["technology"]
+        )
 
         # Set Min_power of wind/solar to 0
-        self.results.loc[self.results["DISP"] == 1, "Min_power"] = 0
-        self.results = self.results.rename(columns={"technology": "Resource"})
-
-        self.results.set_index(["region", "Resource"], inplace=True)
-        self.results["R_ID"] = np.array(range(len(self.results))) + 1
-
-        logger.info(
-            f"Capacity of {self.results['Existing_Cap_MW'].sum()} MW in final clusters"
+        self.all_resources.loc[self.all_resources["DISP"] == 1, "Min_power"] = 0
+        self.all_resources = self.all_resources.rename(
+            columns={"technology": "Resource"}
         )
+
+        self.all_resources.set_index(["region", "Resource"], inplace=True)
+        self.all_resources["R_ID"] = np.array(range(len(self.all_resources))) + 1
+
+        if self.current_gens:
+            logger.info(
+                f"Capacity of {self.all_resources['Existing_Cap_MW'].sum()} MW in final clusters"
+            )
 
         col_order = [
             "cluster",
@@ -2144,7 +2179,7 @@ class GeneratorClusters:
             "Var_OM_cost_per_MWh",
             "Var_OM_cost_per_MWh_in",
             "Externality_cost_MWh",
-            "Start_cost",
+            # "Start_cost",
             "Start_cost_per_MW",
             "Start_fuel_MMBTU_per_MW",
             "Start_fuel_MMBTU_per_start",
@@ -2174,7 +2209,4 @@ class GeneratorClusters:
             "Rsv_Cost",
         ]
 
-        if return_retirement_capacity:
-            return self.results, self.retired
-        else:
-            return self.results.reindex(columns=col_order)
+        return self.all_resources.reindex(columns=col_order)
