@@ -188,22 +188,24 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             ng_o_m = {
                 "Combined Cycle": {
                     "o_m_fixed_mw": inflation_price_adjustment(
-                        28.84 * 1000, 2017, target_usd_year
+                        13.08 * 1000, 2017, target_usd_year
                     ),
                     "o_m_variable_mwh": inflation_price_adjustment(
                         3.91, 2017, target_usd_year
                     ),
                 },
                 "Combustion Turbine": {
+                    # This includes both the Fixed O&M and Capex. Capex includes
+                    # variable O&M, which is split out in the calculations below.
                     "o_m_fixed_mw": inflation_price_adjustment(
-                        12.23 * 1000, 2017, target_usd_year
+                        (5.33 + 6.90) * 1000, 2017, target_usd_year
                     ),
                     "o_m_variable_mwh": 0,
                 },
                 "Natural Gas Steam Turbine": {
                     # NEMS documenation splits capex and fixed O&M across 2 tables
                     "o_m_fixed_mw": inflation_price_adjustment(
-                        (15.96 + 26.52) * 1000, 2017, target_usd_year
+                        (15.96 + 24.68) * 1000, 2017, target_usd_year
                     ),
                     "o_m_variable_mwh": 1.0,
                 },
@@ -211,6 +213,8 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     "o_m_fixed_mw": inflation_price_adjustment(
                         ((22.2 + 27.88) / 2 + 46.01) * 1000, 2017, target_usd_year
                     ),
+                    # This variable O&M is ignored. It's the value in NEMS but we think
+                    # that it is too low. ATB new coal has $5/MWh
                     "o_m_variable_mwh": inflation_price_adjustment(
                         1.78, 2017, target_usd_year
                     ),
@@ -256,10 +260,28 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 _df["Var_OM_cost_per_MWh"] = variable
 
             if "Coal" in eia_tech:
+                # Doing a similar Variable O&M calculation to combustion turbines
+                # because the EIA/NEMS value of $1.78/MWh is so much lower than the ATB
+                # value of $5/MWh.
+                # Assume 59% CF from NEMS documentation
+                # Based on conversation with Jesse J. on Jan 10, 2020.
+
+                atb_var_om_mwh = (
+                    atb_costs_df.query(
+                        "technology==@atb_tech & cost_case=='Mid' "
+                        "& tech_detail==@tech_detail & basis_year==@existing_year"
+                    )
+                    .squeeze()
+                    .at["o_m_variable_mwh"]
+                )
+                variable = atb_var_om_mwh * (existing_hr / new_build_hr)
+
                 fixed = ng_o_m["Coal"]["o_m_fixed_mw"]
-                variable = ng_o_m["Coal"]["o_m_variable_mwh"]
+                fixed = fixed - (variable * 8760 * 0.59)
+
                 _df["Fixed_OM_cost_per_MWyr"] = fixed
                 _df["Var_OM_cost_per_MWh"] = variable
+
         else:
 
             atb_fixed_om_mw_yr = (
@@ -393,14 +415,39 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
     return df
 
 
-def add_modified_atb_generators(settings, atb_costs):
+def add_modified_atb_generators(settings, atb_costs, atb_hr, model_year_range):
 
     mod_tech_list = []
     for name, mod_tech in settings["modified_atb_new_gen"].items():
-        pass
+        atb_technology = mod_tech.pop("atb_technology")
+        atb_tech_detail = mod_tech.pop("atb_tech_detail")
+        atb_cost_case = mod_tech.pop("atb_cost_case")
+        size_mw = mod_tech.pop("size_mw")
+
+        atb_gen_hr = atb_hr.query(
+            "technology==@atb_technology & tech_detail==@atb_tech_detail "
+            "& basis_year.isin(@model_year_range)"
+        )["heat_rate"].mean()
+
+        new_gen_type = (atb_technology, atb_tech_detail, atb_cost_case, size_mw)
+
+        gen = single_generator_row(atb_costs, new_gen_type, model_year_range)
+        gen["technology"] = mod_tech.pop("new_technology")
+        gen["tech_detail"] = mod_tech.pop("new_tech_detail")
+        gen["cost_case"] = mod_tech.pop("new_cost_case")
+        gen["heat_rate"] = atb_gen_hr
+
+        for key, multiplier in mod_tech.items():
+            gen[key] *= multiplier
+
+        mod_tech_list.append(gen)
+
+    mod_gens = pd.concat(mod_tech_list, ignore_index=True)
+
+    return mod_gens
 
 
-def atb_new_generators(results, atb_costs, atb_hr, settings):
+def atb_new_generators(atb_costs, atb_hr, settings):
     """Add rows for new generators in each region
 
     Parameters
@@ -419,7 +466,7 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
     [type]
         [description]
     """
-
+    logger.info("Creating new resources for each region.")
     new_gen_types = settings["atb_new_gen"]
     model_year = settings["model_year"]
     try:
@@ -462,6 +509,12 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
     new_gen_df = new_gen_df.merge(
         atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
     )
+
+    if settings["modified_atb_new_gen"] is not None:
+        modified_gens = add_modified_atb_generators(
+            settings, atb_costs, atb_hr, model_year_range
+        )
+        new_gen_df = pd.concat([new_gen_df, modified_gens], ignore_index=True)
 
     new_gen_df = new_gen_df.rename(
         columns={
@@ -580,9 +633,7 @@ def atb_new_generators(results, atb_costs, atb_hr, settings):
 
         df_list.append(_df)
 
-    results = pd.concat(
-        [results, pd.concat(df_list, ignore_index=True)], ignore_index=True
-    )
+    results = pd.concat(df_list, ignore_index=True)
 
     int_cols = [
         "Fixed_OM_cost_per_MWyr",
@@ -632,7 +683,7 @@ def add_extra_wind_solar_rows(df, region, settings):
                 [df.iloc[:row_iloc], df.iloc[[row_iloc]], df.iloc[row_iloc:]]
             )
 
-    except KeyError:
+    except (KeyError, TypeError):
         logger.info(f"Not adding any extra onshore wind rows to {region}")
     try:
         solar_bins = settings["new_wind_solar_regional_bins"]["UtilityPV"][region]
@@ -646,7 +697,7 @@ def add_extra_wind_solar_rows(df, region, settings):
                 [df.iloc[:row_iloc], df.iloc[[row_iloc]], df.iloc[row_iloc:]]
             )
 
-    except KeyError:
+    except (KeyError, TypeError):
         logger.info(f"Not adding any extra utility PV rows to {region}")
 
     df = df.reset_index(drop=True)
