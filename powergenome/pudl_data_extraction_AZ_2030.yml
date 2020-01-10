@@ -382,14 +382,14 @@ atb_multipliers:
 
 # Copy and modify an existing ATB new generator. This takes place BEFORE the ATB CC/CT
 # modifiers. If adding a copy of CC/CT technologies, add the copy to the atb_multipliers
-# parameter.
+# parameter. Set parameter to none (~) if not adding any modified generators.
 modified_atb_new_gen: ~
   # BioCT_mid:
   #   new_technology: Biogas
   #   new_tech_detail: CT
   #   new_cost_case: Mid
   #   atb_technology: NaturalGas
-  #   atb_tech_detail: CCAvgCF
+  #   atb_tech_detail: CTAvgCF
   #   atb_cost_case: Mid
   #   capex: 1.05
 
@@ -461,34 +461,6 @@ new_gen_not_available:
 pv_ac_dc_ratio: 1.3
 
 new_wind_solar_regional_bins:
-#   pv:
-#     state_AZ: 3
-#     state_NM: 2
-#     state_CO: 2
-#     state_OR: 1
-#     state_WA: 1
-#     state_ID: 1
-#     state_MT: 1
-#     state_WY: 1
-#     state_UT: 1
-#     SoCA: 1
-#     NoCA: 1
-#     NoNV: 1
-#     SoNV: 1
-# wind:
-#     state_AZ: 3
-#     state_NM: 3
-#     state_CO: 3
-#     state_OR: 1
-#     state_WA: 1
-#     state_ID: 1
-#     state_MT: 1
-#     state_WY: 1
-#     state_UT: 1
-#     SoCA: 2
-#     NoCA: 2
-#     NoNV: 1
-#     SoNV: 1
   UtilityPV:
     CA_N: 3
     CA_S: 3
@@ -618,12 +590,6 @@ additional_planned:
   - [56545, 1, WECC_CO_NM]
 
 
-# SPLIT PLANT CAPACITY
-# Use this when assigning part of a single plant's capacity to it's own cluster for
-# use by another region
-split_plant_capacity:
-
-
 ######################################################################################
 # LOAD GROWTH ASSUMPTIONS
 # Include any load growth assumptions here
@@ -707,6 +673,7 @@ eia_series_scenario_names:
   low_price: LOWPRICE
   high_price: HIGHPRICE
   high_resource: HIGHRT
+  low_resource: LOWRT
 
 aeo_fuel_scenarios:
   coal: reference
