@@ -7,7 +7,7 @@ from datetime import datetime as dt
 import pandas as pd
 import powergenome
 from powergenome.fuels import fuel_cost_table
-from powergenome.generators import GeneratorClusters
+from powergenome.generators import GeneratorClusters, load_ipm_shapefile
 from powergenome.load_profiles import load_curves
 from powergenome.params import DATA_PATHS
 from powergenome.transmission import (
@@ -46,12 +46,61 @@ def parse_command_line(argv):
         help="Specify the results subfolder to write output",
     )
     parser.add_argument(
-        "-a",
-        "--all_units",
-        dest="all_units",
-        type=bool,
-        default=True,
-        help="Save information on all individual units (boolean)",
+        "--no-current-gens",
+        dest="current_gens",
+        action="store_false",
+        help="Don't load and cluster current generators.",
+    )
+    parser.add_argument(
+        # "-g",
+        "--no-gens",
+        dest="gens",
+        # type=bool,
+        action="store_false",
+        # default=True,
+        help="Use flag to not calculate generator clusters.",
+    )
+    parser.add_argument(
+        # "-l",
+        "--no-load",
+        dest="load",
+        # type=bool,
+        action="store_false",
+        # default=True,
+        help="Calculate hourly load. If False, file will not be written.",
+    )
+    parser.add_argument(
+        # "-t",
+        "--no-transmission",
+        dest="transmission",
+        # type=bool,
+        action="store_false",
+        # default=True,
+        help="Calculate transmission constraints. If False, file will not be written.",
+    )
+    parser.add_argument(
+        "-f",
+        "--no-fuel",
+        dest="fuel",
+        # type=bool,
+        action="store_false",
+        # default=True,
+        help=(
+            "Create fuel table. If False, file will not be written."
+            " Can not be created without the generators."
+        ),
+    )
+    parser.add_argument(
+        "-s",
+        "--sort-gens",
+        dest="sort_gens",
+        # type=bool,
+        action="store_true",
+        # default=True,
+        help=(
+            "Sort generators alphabetically within region. Existing resources will still"
+            " be separate from new resources."
+        ),
     )
     arguments = parser.parse_args(argv[1:])
     return arguments
@@ -121,46 +170,64 @@ def main():
         zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
 
-    gc = GeneratorClusters(
-        pudl_engine=pudl_engine, pudl_out=pudl_out, settings=settings
-    )
-    gen_clusters = gc.create_region_technology_clusters()
-    gen_clusters["zone"] = gen_clusters.index.get_level_values("region").map(
-        zone_num_map
-    )
+    if args.gens:
+        gc = GeneratorClusters(
+            pudl_engine=pudl_engine,
+            pudl_out=pudl_out,
+            settings=settings,
+            current_gens=args.current_gens,
+            sort_gens=args.sort_gens,
+        )
+        gen_clusters = gc.create_all_generators()
+        gen_clusters["zone"] = gen_clusters.index.get_level_values("region").map(
+            zone_num_map
+        )
 
-    load = load_curves(pudl_engine=pudl_engine, settings=settings)
-    load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
+    if args.load:
+        load = load_curves(pudl_engine=pudl_engine, settings=settings)
+        load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
 
-    transmission = agg_transmission_constraints(
-        pudl_engine=pudl_engine, settings=settings
-    )
-    transmission = transmission.pipe(
-        transmission_line_distance,
-        ipm_shapefile=gc.model_regions_gdf,
-        settings=settings,
-        units="mile",
-    )
+    if args.transmission:
+        if args.gens is False:
+            model_regions_gdf = load_ipm_shapefile(settings)
+        else:
+            model_regions_gdf = gc.model_regions_gdf
+        transmission = agg_transmission_constraints(
+            pudl_engine=pudl_engine, settings=settings
+        )
+        transmission = transmission.pipe(
+            transmission_line_distance,
+            ipm_shapefile=model_regions_gdf,
+            settings=settings,
+            units="mile",
+        )
 
-    fuels = fuel_cost_table(
-        fuel_costs=gc.fuel_prices, generators=gc.results, settings=settings
-    )
-    fuels["fuel_indices"] = range(1, len(fuels) + 1)
+    if args.fuel and args.gens:
+        fuels = fuel_cost_table(
+            fuel_costs=gc.fuel_prices, generators=gc.all_resources, settings=settings
+        )
+        fuels["fuel_indices"] = range(1, len(fuels) + 1)
 
-    logger.info("Write GenX input files")
-    gen_clusters.to_csv(
-        out_folder / f"generator_clusters_{args.results_folder}.csv",
-        # float_format="%.3f",
-    )
-    if args.all_units is True:
-        gc.all_units.to_csv(out_folder / f"all_units_{args.results_folder}.csv")
+    logger.info(f"Write GenX input files to {args.results_folder}")
+    if args.gens:
+        gen_clusters.to_csv(
+            out_folder / f"generator_clusters_{args.results_folder}.csv",
+            # float_format="%.3f",
+        )
+        # if args.all_units is True:
+        # gc.all_units.to_csv(out_folder / f"all_units_{args.results_folder}.csv")
 
-    load.astype(int).to_csv(out_folder / f"load_curves_{args.results_folder}.csv")
-    transmission.to_csv(
-        out_folder / f"transmission_constraints_{args.results_folder}.csv",
-        float_format="%.1f",
-    )
-    fuels.to_csv(out_folder / f"Fuels_data_{args.results_folder}.csv", index=False)
+    if args.load:
+        load.astype(int).to_csv(out_folder / f"load_curves_{args.results_folder}.csv")
+
+    if args.transmission:
+        transmission.to_csv(
+            out_folder / f"transmission_constraints_{args.results_folder}.csv",
+            float_format="%.1f",
+        )
+
+    if args.fuel and args.gens:
+        fuels.to_csv(out_folder / f"Fuels_data_{args.results_folder}.csv", index=False)
 
 
 if __name__ == "__main__":
