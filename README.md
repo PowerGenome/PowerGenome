@@ -63,10 +63,10 @@ Functions from each module can be imported and used in an interactive environmen
 python extract_pudl_data.py
 ```
 
-There are currently 3 arguments that can be used after the script name:
+The following flags can be used after the script name:
 
-- --settings_file (-sf), the name of an alternative settings YAML file.
-- --results_folder (-rf), the name of a results subfolder to save files in. If no subfolder is specified the default is to create one named for the current datetime.
+- --settings_file (-sf), include the name of an alternative settings YAML file.
+- --results_folder (-rf), include the name of a results subfolder to save files in. If no subfolder is specified the default is to create one named for the current datetime.
 - --no-current-gens, do not load and cluster existing generators.
 - --no-gens, do not create the generators file.
 - --no-load, do not calcualte hourly load profiles.
