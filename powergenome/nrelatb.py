@@ -353,6 +353,7 @@ def single_generator_row(atb_costs, new_gen_type, model_year_range):
         "lcoe",
         "o_m",
         "waccnomtech",
+        "heat_rate",
     ]
     s = atb_costs.query(
         "technology==@technology & tech_detail==@tech_detail "
@@ -373,6 +374,7 @@ def single_generator_row(atb_costs, new_gen_type, model_year_range):
         "lcoe",
         "o_m",
         "waccnomtech",
+        "heat_rate",
     ]
 
     row = pd.DataFrame([technology, cost_case, tech_detail] + s.to_list(), index=cols).T
@@ -477,9 +479,13 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
     regions = settings["model_regions"]
 
+    atb_costs_hr = atb_costs.merge(
+        atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
+    )
+
     new_gen_df = pd.concat(
         [
-            single_generator_row(atb_costs, new_gen, model_year_range)
+            single_generator_row(atb_costs_hr, new_gen, model_year_range)
             for new_gen in new_gen_types
         ],
         ignore_index=True,
@@ -502,13 +508,15 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     # This should probably be separate from ATB techs, and the regional cost multipliers
     # should be its own function.
     if settings["additional_technologies_fn"] is not None:
-        user_costs, user_hr = load_user_defined_techs(settings)
-        new_gen_df = pd.concat([new_gen_df, user_costs], ignore_index=True, sort=False)
-        atb_hr = pd.concat([atb_hr, user_hr], ignore_index=True, sort=False)
+        # user_costs, user_hr = load_user_defined_techs(settings)
+        user_tech = load_user_defined_techs(settings)
+        # new_gen_df = pd.concat([new_gen_df, user_costs], ignore_index=True, sort=False)
+        new_gen_df = pd.concat([new_gen_df, user_tech], ignore_index=True, sort=False)
+        # atb_hr = pd.concat([atb_hr, user_hr], ignore_index=True, sort=False)
 
-    new_gen_df = new_gen_df.merge(
-        atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
-    )
+    # new_gen_df = new_gen_df.merge(
+    #     atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
+    # )
 
     if settings["modified_atb_new_gen"] is not None:
         modified_gens = add_modified_atb_generators(
@@ -733,7 +741,7 @@ def load_user_defined_techs(settings):
     if "cost_case" not in user_techs.columns:
         user_techs["cost_case"] = ""
 
-    cost_cols = [
+    cols = [
         "technology",
         "tech_detail",
         "cost_case",
@@ -744,11 +752,12 @@ def load_user_defined_techs(settings):
         "o_m_fixed_mwh",
         "o_m_variable_mwh",
         "waccnomtech",
+        "heat_rate",
         "dollar_year",
     ]
 
-    hr_cols = ["technology", "tech_detail", "basis_year", "heat_rate"]
-    user_costs = user_techs.loc[:, cost_cols]
-    user_hr = user_techs.loc[:, hr_cols]
+    # hr_cols = ["technology", "tech_detail", "basis_year", "heat_rate"]
+    # user_costs = user_techs.loc[:, cost_cols]
+    # user_hr = user_techs.loc[:, hr_cols]
 
-    return user_costs, user_hr
+    return user_techs[cols]  # user_costs, user_hr
