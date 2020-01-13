@@ -16,6 +16,16 @@ Because computational complexity and run times increase as the number of regions
 
 The goal of PowerGenome is to let a user make all of these choices in a settings file and then run a single script that generates input files for the power system model. PowerGenome currently generates input files for [GenX](https://energy.mit.edu/wp-content/uploads/2017/10/Enhanced-Decision-Support-for-a-Changing-Electricity-Landscape.pdf), and we hope to expand to other models in the near future.
 
+## Data
+
+PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. Most of the data are already compiled into a [single sqlite database](https://drive.google.com/open?id=18tLKbok1-me81SkfWAhSLXmy5HW6RdvI) (see instructions for using it below). There are also a few data files stored in this repository:
+
+- Regional cost multipliers for individual technologies developed by EIA (`data/cost_multipliers/EIA regional cost multipliers.csv`).
+- A simplified geojson version of EPA's shapefile for IPM regions (`data/ipm_regions_simple.geojson`).
+- Information on user-defined technologies, which can be included in outputs. This can be used to define a custom cost case (e.g. $500/kW PV) or a new technology such as natural gas with 100% carbon capture. The CSV files are stored in `data/additional_technologies` and there is a documentation file in that folder describing what to include in the file.
+
+There are quite a few data inputs that we have not yet compiled for public use with PowerGenome. These include 2011 weather year wind/solar profiles for both existing and new-build resources by IPM region, electrification demand profiles to modify the 2011 IPM load shapes, and state electricity policies. [Contact us](mailto:powergenome@carbonimpact.co) if you want to help compile data.
+
 ## PUDL Dependency
 
 This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl). As such, it requires installation of PUDL to access a normalized sqlite database and some of the convienience PUDL functions.
