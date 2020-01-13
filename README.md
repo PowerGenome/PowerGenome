@@ -90,3 +90,12 @@ The following example would use settings in the file `pudl_data_extraction_AZ_20
 ```sh
 python extract_pudl_data.py -sf pudl_data_extraction_AZ_2030.yml -rf AZ-future-resources --no-current-gens
 ```
+
+## PowerGenome outputs
+
+The full set of outputs includes:
+
+- `generator_clusters` All of the existing and new-build resources for the model regions. This includes data such as investment cost, fixed/variable O&M, start-up costs, heat rates, and the fuel used by each resource.
+- `Fuels_data` Cost and emission rate for each fuel used by a resource.
+- `load_curves` Hourly demand profiles for each model region, scaled up from 2011 to the model year.
+- `transmission_constraints` Bulk constraints (MW) between each model region.
