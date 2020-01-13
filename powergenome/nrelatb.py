@@ -321,13 +321,13 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
     return mod_results
 
 
-def single_generator_row(atb_costs, new_gen_type, model_year_range):
+def single_generator_row(atb_costs_hr, new_gen_type, model_year_range):
     """Create a data row with NREL ATB costs and performace for a single technology
 
     Parameters
     ----------
     atb_costs : dataframe
-        Data from the sqlite table
+        Data from the sqlite tables of both resources costs and heat rates
     new_gen_type : str
         type of generating resource
     model_year_range : list
@@ -355,7 +355,7 @@ def single_generator_row(atb_costs, new_gen_type, model_year_range):
         "waccnomtech",
         "heat_rate",
     ]
-    s = atb_costs.query(
+    s = atb_costs_hr.query(
         "technology==@technology & tech_detail==@tech_detail "
         "& cost_case==@cost_case & basis_year.isin(@model_year_range)"
     )[numeric_cols].mean()
@@ -413,11 +413,12 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
 
     df["Inv_cost_per_MWyr"] *= df["technology"].map(tech_multiplier_map)
     df["Inv_cost_per_MWhyr"] *= df["technology"].map(tech_multiplier_map)
+    df["regional_cost_multiplier"] = df["technology"].map(tech_multiplier_map)
 
     return df
 
 
-def add_modified_atb_generators(settings, atb_costs, atb_hr, model_year_range):
+def add_modified_atb_generators(settings, atb_costs_hr, model_year_range):
 
     mod_tech_list = []
     for name, mod_tech in settings["modified_atb_new_gen"].items():
@@ -426,18 +427,18 @@ def add_modified_atb_generators(settings, atb_costs, atb_hr, model_year_range):
         atb_cost_case = mod_tech.pop("atb_cost_case")
         size_mw = mod_tech.pop("size_mw")
 
-        atb_gen_hr = atb_hr.query(
-            "technology==@atb_technology & tech_detail==@atb_tech_detail "
-            "& basis_year.isin(@model_year_range)"
-        )["heat_rate"].mean()
+        # atb_gen_hr = atb_hr.query(
+        #     "technology==@atb_technology & tech_detail==@atb_tech_detail "
+        #     "& basis_year.isin(@model_year_range)"
+        # )["heat_rate"].mean()
 
         new_gen_type = (atb_technology, atb_tech_detail, atb_cost_case, size_mw)
 
-        gen = single_generator_row(atb_costs, new_gen_type, model_year_range)
+        gen = single_generator_row(atb_costs_hr, new_gen_type, model_year_range)
         gen["technology"] = mod_tech.pop("new_technology")
         gen["tech_detail"] = mod_tech.pop("new_tech_detail")
         gen["cost_case"] = mod_tech.pop("new_cost_case")
-        gen["heat_rate"] = atb_gen_hr
+        # gen["heat_rate"] = atb_gen_hr
 
         for key, multiplier in mod_tech.items():
             gen[key] *= multiplier
@@ -520,7 +521,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
     if settings["modified_atb_new_gen"] is not None:
         modified_gens = add_modified_atb_generators(
-            settings, atb_costs, atb_hr, model_year_range
+            settings, atb_costs_hr, model_year_range
         )
         new_gen_df = pd.concat([new_gen_df, modified_gens], ignore_index=True)
 
@@ -580,10 +581,14 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         cap_rec_years=settings["atb_cap_recovery_years"],
     )
 
+    new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
+
     # Some technologies might have a different capital recovery period
     if settings["alt_atb_cap_recovery_years"] is not None:
         for tech, years in settings["alt_atb_cap_recovery_years"].items():
             tech_mask = new_gen_df["technology"].str.contains(tech)
+
+            new_gen_df.loc[tech_mask, "cap_recovery_years"] = years
 
             new_gen_df.loc[tech_mask, "Inv_cost_per_MWyr"] = investment_cost_calculator(
                 capex=new_gen_df.loc[tech_mask, "capex"],
@@ -611,6 +616,9 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Inv_cost_per_MWhyr",
         "Heat_rate_MMBTU_per_MWh",
         "Cap_size",
+        "cap_recovery_years",
+        "waccnomtech",
+        "regional_cost_multiplier",
     ]
 
     regional_cost_multipliers = pd.read_csv(

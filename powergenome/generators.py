@@ -2207,6 +2207,9 @@ class GeneratorClusters:
             "Rsv_Dn",
             "Reg_Cost",
             "Rsv_Cost",
+            "cap_recovery_years",
+            "waccnomtech",
+            "regional_cost_multiplier",
         ]
 
         return self.all_resources.reindex(columns=col_order)
