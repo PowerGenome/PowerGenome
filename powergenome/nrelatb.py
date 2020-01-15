@@ -173,7 +173,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             existing_hr = 1
             new_build_hr = 1
 
-        if ("Natural Gas" in eia_tech or "Coal" in eia_tech) and settings[
+        if ("Natural Gas Fired" in eia_tech or "Coal" in eia_tech) and settings[
             "use_nems_coal_ng_om"
         ]:
             # Change CC and CT O&M to EIA NEMS values, which are much higher for CCs and
@@ -642,7 +642,10 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         )
         _df = add_extra_wind_solar_rows(_df, region, settings)
 
-        if region in settings["new_gen_not_available"].keys():
+        if (
+            settings["new_gen_not_available"] is not None
+            and region in settings["new_gen_not_available"].keys()
+        ):
             techs = settings["new_gen_not_available"][region]
             for tech in techs:
                 _df = _df.loc[~_df["technology"].str.contains(tech), :]
