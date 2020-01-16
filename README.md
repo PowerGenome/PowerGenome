@@ -60,7 +60,6 @@ pip install -e .
 
 7. Get an [API key for EIA's OpenData portal](https://www.eia.gov/opendata/register.php). This key is needed to download projected fuel prices from the 2019 Annual Energy Outlook. Create the file `PowerGenome/powergenome/.env` and save the key in this file using the format `EIA_API_KEY=YOUR_KEY_HERE`. No quotation marks are needed around the API string. The `.env` file is included in `.gitignore` and will not be synced with the repository.
 
-
 ## Running code
 
 Settings are controlled in a YAML file. The default is `pudl_data_extraction.yml`.
