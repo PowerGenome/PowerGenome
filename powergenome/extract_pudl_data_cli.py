@@ -54,39 +54,28 @@ def parse_command_line(argv):
         help="Don't load and cluster current generators.",
     )
     parser.add_argument(
-        # "-g",
         "--no-gens",
         dest="gens",
-        # type=bool,
         action="store_false",
-        # default=True,
         help="Use flag to not calculate generator clusters.",
     )
     parser.add_argument(
-        # "-l",
         "--no-load",
         dest="load",
-        # type=bool,
         action="store_false",
-        # default=True,
         help="Calculate hourly load. If False, file will not be written.",
     )
     parser.add_argument(
-        # "-t",
         "--no-transmission",
         dest="transmission",
-        # type=bool,
         action="store_false",
-        # default=True,
         help="Calculate transmission constraints. If False, file will not be written.",
     )
     parser.add_argument(
         "-f",
         "--no-fuel",
         dest="fuel",
-        # type=bool,
         action="store_false",
-        # default=True,
         help=(
             "Create fuel table. If False, file will not be written."
             " Can not be created without the generators."
@@ -96,9 +85,7 @@ def parse_command_line(argv):
         "-s",
         "--sort-gens",
         dest="sort_gens",
-        # type=bool,
         action="store_true",
-        # default=True,
         help=(
             "Sort generators alphabetically within region. Existing resources will still"
             " be separate from new resources."
@@ -114,7 +101,6 @@ def main():
     cwd = Path.cwd()
 
     out_folder = cwd / args.results_folder
-    # DATA_PATHS["results"].mkdir(exist_ok=True)
     out_folder.mkdir(exist_ok=True)
 
     # Create a logger to output any messages we might have...
@@ -134,9 +120,6 @@ def main():
     filehandler.setFormatter(formatter)
     logger.addHandler(filehandler)
 
-    # git_hash = get_git_hash()
-    # logger.info(f"Current git hash is {git_hash}")
-
     logger.info("Reading settings file")
     settings = load_settings(path=args.settings_file)
 
@@ -155,10 +138,6 @@ def main():
     all_valid_regions = ipm_regions.tolist() + list(settings["region_aggregations"])
     good_regions = [region in all_valid_regions for region in settings["model_regions"]]
 
-    # assert all(good_regions), logger.warning(
-    #     "One or more model regions is not valid. Check to make sure all"
-    #     "regions are either in IPM or region_aggregations in the settings YAML file."
-    # )
     if not all(good_regions):
         logger.warning(
             "One or more model regions is not valid. Check to make sure all regions "
@@ -214,11 +193,8 @@ def main():
     logger.info(f"Write GenX input files to {args.results_folder}")
     if args.gens:
         gen_clusters.to_csv(
-            out_folder / f"generator_clusters_{args.results_folder}.csv",
-            # float_format="%.3f",
+            out_folder / f"generator_clusters_{args.results_folder}.csv"
         )
-        # if args.all_units is True:
-        # gc.all_units.to_csv(out_folder / f"all_units_{args.results_folder}.csv")
 
     if args.load:
         load.astype(int).to_csv(out_folder / f"load_curves_{args.results_folder}.csv")
