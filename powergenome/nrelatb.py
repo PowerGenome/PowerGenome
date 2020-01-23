@@ -2,10 +2,13 @@
 Functions to fetch and modify NREL ATB data from PUDL
 """
 
+import copy
 import logging
+import operator
 
 import numpy as np
 import pandas as pd
+
 from powergenome.params import DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.util import reverse_dict_of_lists
@@ -417,30 +420,69 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
     return df
 
 
-def add_modified_atb_generators(settings, atb_costs, atb_hr, model_year_range):
+def add_modified_atb_generators(settings, atb_costs_hr, model_year_range):
+    """Create a modified version of an ATB generator.
+
+    For each parameter (capex, heat_rate, etc) that users want modified they should
+    specify a list of [<operator>, <value>]. The operator can be add, mul, truediv, or
+    neg (substract). This is used to modify individual parameters of the ATB resource.
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined parameters from a settings file
+    atb_costs_hr : DataFrame
+        Cost and heat rate data for ATB resources
+    model_year_range : list-like
+        A list or range of years to average ATB values from.
+
+    Returns
+    -------
+    DataFrame
+        Row or rows of modified ATB resources. Each row includes the colums:
+        ['technology', 'cost_case', 'tech_detail', 'basis_year', 'o_m_fixed_mw',
+       'o_m_fixed_mwh', 'o_m_variable_mwh', 'capex', 'capex_mwh', 'cf', 'fuel',
+       'lcoe', 'o_m', 'waccnomtech', 'heat_rate', 'Cap_size'].
+    """
+
+    # copy settings so popped keys aren't removed permenantly
+    _settings = copy.deepcopy(settings)
+
+    allowed_operators = ["add", "mul", "truediv", "neg"]
 
     mod_tech_list = []
-    for name, mod_tech in settings["modified_atb_new_gen"].items():
+    for name, mod_tech in _settings["modified_atb_new_gen"].items():
         atb_technology = mod_tech.pop("atb_technology")
         atb_tech_detail = mod_tech.pop("atb_tech_detail")
         atb_cost_case = mod_tech.pop("atb_cost_case")
         size_mw = mod_tech.pop("size_mw")
 
-        atb_gen_hr = atb_hr.query(
-            "technology==@atb_technology & tech_detail==@atb_tech_detail "
-            "& basis_year.isin(@model_year_range)"
-        )["heat_rate"].mean()
-
         new_gen_type = (atb_technology, atb_tech_detail, atb_cost_case, size_mw)
 
-        gen = single_generator_row(atb_costs, new_gen_type, model_year_range)
+        gen = single_generator_row(atb_costs_hr, new_gen_type, model_year_range)
         gen["technology"] = mod_tech.pop("new_technology")
-        gen["tech_detail"] = mod_tech.pop("new_tech_detail")
+        gen["tech_detail"] = mod_tech.pop("new_tech_detail", "")
         gen["cost_case"] = mod_tech.pop("new_cost_case")
-        gen["heat_rate"] = atb_gen_hr
 
-        for key, multiplier in mod_tech.items():
-            gen[key] *= multiplier
+        for parameter, op_list in mod_tech.items():
+            assert len(op_list) == 2, (
+                "Two values, an operator and a numeric value, are needed in the parameter\n"
+                f"'{parameter}' for technology '{name}' in 'modified_atb_new_gen'."
+            )
+            op, op_value = op_list
+
+            assert parameter in gen.columns, (
+                f"'{parameter}' is not a valid parameter for new resources. Check '{name}'\n"
+                "in 'modified_atb_new_gen' of the settings file."
+            )
+            assert op in allowed_operators, (
+                f"The key {key} for technology {name} needs a valid operator from the list\n"
+                f"{allowed_operators}\n"
+                "in the format <key>-<operator> to modify the properties of an existing generator.\n"
+            )
+
+            f = operator.attrgetter(op)
+            gen[parameter] = f(operator)(gen[parameter], op_value)
 
         mod_tech_list.append(gen)
 
