@@ -57,11 +57,13 @@ Settings are controlled in a YAML file. The example `example_settings.yml` is in
 
 The code is currently structured in a series of modules - `load_data.py`, `generators.py`, `transmission.py`, `nrelatb.py`, `eia_opendata.py`, `load_profiles.py`, and a couple others. The code and architecture is under active development. While the outputs are all formatted for GenX we hope to make the data formatting code more module to allow users to easily switch between outputs for different power system models.
 
-Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, navigate to a project folder that contains a settings file (e.g. `myproject/powergenome`), activate the  `pudl` conda environment, and run the command `run_powergenome` with flags for the settings file name and where the results should be saved:
+Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, navigate to a project folder that contains a settings file (e.g. `myproject/powergenome`), activate the  `pudl` conda environment, and use the command `run_powergenome` with flags for the settings file name and where the results should be saved:
 
 ```sh
 run_powergenome --settings_file example_settings.yml --results_folder example
 ```
+
+If you have previously installed PowerGenome and the `run_powergenome` command doesn't work, try reinstalling it using `pip install -e .` as described above.
 
 The following flags can be used after the script name:
 
