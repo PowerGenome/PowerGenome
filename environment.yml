@@ -24,4 +24,4 @@ dependencies:
   - pip:
     - python-dotenv
     - cpi
-    - flatten_dict
+    - flatten-dict

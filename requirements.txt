@@ -8,9 +8,8 @@ requests
 pyyaml
 pyarrow
 python-dotenv
-sqlalchemy
 catalystcoop.pudl
 cpi
-flatten
+flatten-dict
 pre-commit
 isort
