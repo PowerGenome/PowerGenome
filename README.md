@@ -53,19 +53,19 @@ pip install -e .
 
 ## Running code
 
-Settings are controlled in a YAML file. The default is `pudl_data_extraction.yml`.
+Settings are controlled in a YAML file. The example `example_settings.yml` is included in this repository.
 
 The code is currently structured in a series of modules - `load_data.py`, `generators.py`, `transmission.py`, `nrelatb.py`, `eia_opendata.py`, `load_profiles.py`, and a couple others. The code and architecture is under active development. While the outputs are all formatted for GenX we hope to make the data formatting code more module to allow users to easily switch between outputs for different power system models.
 
-Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, activate the  `pudl` conda environment, navigate to the `powergenome` folder, and run
+Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, navigate to a project folder that contains a settings file (e.g. `myproject/powergenome`), activate the  `pudl` conda environment, and run the command `run_powergenome` with flags for the settings file name and where the results should be saved:
 
 ```sh
-python extract_pudl_data.py
+run_powergenome --settings_file example_settings.yml --results_folder example
 ```
 
 The following flags can be used after the script name:
 
-- --settings_file (-sf), include the name of an alternative settings YAML file.
+- --settings_file (-sf), include the name of a settings YAML file.
 - --results_folder (-rf), include the name of a results subfolder to save files in. If no subfolder is specified the default is to create one named for the current datetime.
 - --no-current-gens, do not load and cluster existing generators.
 - --no-gens, do not create the generators file.
@@ -73,10 +73,3 @@ The following flags can be used after the script name:
 - --no-transmission, do not calculate transmission constraints.
 - --no-fuel, do not create a fuels file.
 - --sort-gens, sort by generator name within a region (existing generators always show up above new generators)
-
-
-The following example would use settings in the file `pudl_data_extraction_AZ_2030.yml` to create results for only new-build resources and save the files in the subfolder `results/AZ-future-resources`.
-
-```sh
-python extract_pudl_data.py -sf pudl_data_extraction_AZ_2030.yml -rf AZ-future-resources --no-current-gens
-```
