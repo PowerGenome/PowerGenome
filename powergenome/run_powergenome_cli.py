@@ -36,7 +36,7 @@ def parse_command_line(argv):
         "--settings_file",
         dest="settings_file",
         type=str,
-        default="pudl_data_extraction.yml",
+        default="example_settings.yml",
         help="Specify a YAML settings file.",
     )
     parser.add_argument(
