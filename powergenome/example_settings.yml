@@ -4,7 +4,10 @@
 # This is used to determine which plants are retired. Can also be used for changes
 # in demand over time in the future.
 model_year: 2030
+model_first_planning_year: 2020
 
+# used for shifting IPM demand profiles, which are in PST
+target_region_pst_offset: -1
 
 # DATA YEAR
 # Pick one or more years of generator data to use when creating clusters. If
