@@ -496,19 +496,24 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
     Parameters
     ----------
-    results : DataFrame
-        Compiled results of clustered power plants with weighted average heat
-    atb_costs : [type]
-        [description]
-    atb_hr : [type]
-        [description]
-    settings : [type]
-        [description]
+    atb_costs : DataFrame
+        All cost parameters from the SQL table for new generators. Should include:
+        ['technology', 'cost_case', 'financial_case', 'basis_year', 'tech_detail',
+        'capex', 'capex_mwh', 'o_m_fixed_mw', 'o_m_fixed_mwh', 'o_m_variable_mwh',
+        'waccnomtech']
+    atb_hr : DataFrame
+        The technology, tech_detail, and heat_rate of new generators from ATB.
+    settings : dict
+        User-defined parameters from a settings file
 
     Returns
     -------
-    [type]
-        [description]
+    DataFrame
+        New generating resources in every region. Contains the columns:
+        ['technology', 'basis_year', 'Fixed_OM_cost_per_MWyr',
+       'Fixed_OM_cost_per_MWhyr', 'Var_OM_cost_per_MWh', 'capex', 'capex_mwh',
+       'Inv_cost_per_MWyr', 'Inv_cost_per_MWhyr', 'Heat_rate_MMBTU_per_MWh',
+       'Cap_size', 'region']
     """
     logger.info("Creating new resources for each region.")
     new_gen_types = settings["atb_new_gen"]
@@ -550,19 +555,23 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     # This should probably be separate from ATB techs, and the regional cost multipliers
     # should be its own function.
     if settings["additional_technologies_fn"] is not None:
-        # user_costs, user_hr = load_user_defined_techs(settings)
-        user_tech = load_user_defined_techs(settings)
-        # new_gen_df = pd.concat([new_gen_df, user_costs], ignore_index=True, sort=False)
-        new_gen_df = pd.concat([new_gen_df, user_tech], ignore_index=True, sort=False)
-        # atb_hr = pd.concat([atb_hr, user_hr], ignore_index=True, sort=False)
-
-    # new_gen_df = new_gen_df.merge(
-    #     atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
-    # )
+        if isinstance(settings["additional_new_gen"], list):
+            # user_costs, user_hr = load_user_defined_techs(settings)
+            user_tech = load_user_defined_techs(settings)
+            # new_gen_df = pd.concat([new_gen_df, user_costs], ignore_index=True, sort=False)
+            new_gen_df = pd.concat(
+                [new_gen_df, user_tech], ignore_index=True, sort=False
+            )
+            # atb_hr = pd.concat([atb_hr, user_hr], ignore_index=True, sort=False)
+        else:
+            logger.warning(
+                "A filename for additional technologies was included but no technologies"
+                " were specified in the settings file."
+            )
 
     if settings["modified_atb_new_gen"] is not None:
         modified_gens = add_modified_atb_generators(
-            settings, atb_costs, atb_hr, model_year_range
+            settings, atb_costs_hr, model_year_range
         )
         new_gen_df = pd.concat([new_gen_df, modified_gens], ignore_index=True)
 
@@ -716,10 +725,10 @@ def add_extra_wind_solar_rows(df, region, settings):
 
     Returns
     -------
-    [type]
-        [description]
+    DataFrame
+        A copy of the input dataframe with additional rows for UtilityPV, LandbasedWind,
+        and OffShoreWind as specified in the settings file.
     """
-    # Need to add offshore wind to this?
 
     try:
         wind_bins = settings["new_wind_solar_regional_bins"]["LandbasedWind"][region]
@@ -735,6 +744,7 @@ def add_extra_wind_solar_rows(df, region, settings):
 
     except (KeyError, TypeError):
         logger.info(f"Not adding any extra onshore wind rows to {region}")
+
     try:
         solar_bins = settings["new_wind_solar_regional_bins"]["UtilityPV"][region]
         extra_solar_bins = solar_bins - 1
@@ -746,9 +756,23 @@ def add_extra_wind_solar_rows(df, region, settings):
             df = pd.concat(
                 [df.iloc[:row_iloc], df.iloc[[row_iloc]], df.iloc[row_iloc:]]
             )
-
     except (KeyError, TypeError):
         logger.info(f"Not adding any extra utility PV rows to {region}")
+
+    try:
+        solar_bins = settings["new_wind_solar_regional_bins"]["OffShoreWind"][region]
+        extra_solar_bins = solar_bins - 1
+
+        for i in range(extra_solar_bins):
+            row_iloc = np.argwhere(
+                df.technology.str.contains("OffShoreWind")
+            ).flatten()[-1]
+            df = pd.concat(
+                [df.iloc[:row_iloc], df.iloc[[row_iloc]], df.iloc[row_iloc:]]
+            )
+
+    except (KeyError, TypeError):
+        logger.info(f"Not adding any extra offshore wind rows to {region}")
 
     df = df.reset_index(drop=True)
 
@@ -757,7 +781,7 @@ def add_extra_wind_solar_rows(df, region, settings):
 
 def load_user_defined_techs(settings):
     """Load user-defined technologies from a CSV file. Returns cost columns and heat
-    rate as separate dataframes.
+    rate.
 
     Parameters
     ----------
@@ -766,9 +790,8 @@ def load_user_defined_techs(settings):
 
     Returns
     -------
-    DataFrames
-        A tuple of 2 dataframes. The first contains cost columns, the second contains
-        heat rate. Both have technology, tech_detail, and cost_case.
+    DataFrame
+        A dataframe of user-defined resources with cost and heat rate columns.
     """
 
     fn = settings["additional_technologies_fn"]
@@ -798,8 +821,4 @@ def load_user_defined_techs(settings):
         "dollar_year",
     ]
 
-    # hr_cols = ["technology", "tech_detail", "basis_year", "heat_rate"]
-    # user_costs = user_techs.loc[:, cost_cols]
-    # user_hr = user_techs.loc[:, hr_cols]
-
-    return user_techs[cols]  # user_costs, user_hr
+    return user_techs[cols]
