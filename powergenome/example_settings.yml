@@ -215,56 +215,11 @@ model_tag_names:
   - RPS
   - CES
   - New_Build
+  - Hydro_level
 
 default_model_tag: 0
 
 model_tag_values:
-  THERM:
-    Conventional Steam Coal: 1
-    Natural Gas Fired Combined Cycle: 1
-    Natural Gas Fired Combustion Turbine: 1
-    Petroleum Liquids: 1
-    Natural Gas Internal Combustion Engine: 1
-    Nuclear: 1
-    Natural Gas Steam Turbine: 1
-    Wood/Wood Waste Biomass: 1
-    Petroleum Coke: 1
-    Geothermal: 1
-    Municipal Solid Waste: 1
-    Landfill Gas: 1
-    Coal Integrated Gasification Combined Cycle: 1
-    Other Waste Biomass: 1
-    Other Gases: 1
-    Other Natural Gas: 1
-    Peaker: 1 # Is there any way to do this based on the underlying categories?
-    Biomass: 1
-  DISP:
-    Onshore Wind Turbine: 1
-    Offshore Wind Turbine: 1
-    Solar Photovoltaic: 1
-    Solar Thermal without Energy Storage: 1
-  NDISP:
-    Geothermal: 1
-    Wood/Wood Waste Biomass: 1
-    Small Hydroelectric: 1
-  STOR:
-    Hydroelectric Pumped Storage: 1
-  DR: ~
-  HYDRO:
-    Conventional Hydroelectric: 1
-  Commit:
-    Conventional Steam Coal: 1
-    Natural Gas Fired Combined Cycle: 1
-    Natural Gas Fired Combustion Turbine: 1
-    Petroleum Liquids: 1
-    Natural Gas Internal Combustion Engine: 1
-    Nuclear: 1
-    Natural Gas Steam Turbine: 1
-    Petroleum Coke: 1
-    Coal Integrated Gasification Combined Cycle: 1
-    Peaker: 1 # Is there any way to do this based on the underlying categories?
-    Biomass: 1
-    model_tag_values:
   THERM:
     Conventional Steam Coal: 1
     Natural Gas Fired Combined Cycle: 1
@@ -348,6 +303,7 @@ model_tag_values:
     OffShoreWind_: 1
     Nuclear: 1
     NaturalGas_CCCCS: 1
+    NaturalGas_CCS100: 1
   New_Build:
     Conventional Hydroelectric: -1
     NaturalGas_: 1
@@ -365,13 +321,27 @@ regional_tag_values:
   CA_S:
     New_Build:
       Nuclear: 0
+  CA_N:
+    New_Build:
+      Nuclear: 0
 
 
 # Generator cost data from NREL ATB
 # ADD WHAT THE OPTIONS ARE
 atb_cost_case: Mid
 atb_financial_case: Market
-atb_cap_recovery_years: 20 # SHOULD BE FLEXIBLE FOR DIFFERENT TECHNOLOGIES
+atb_cap_recovery_years: 20
+
+# Alternate capital recovery periods for specific technologies, which are used to calculate
+# the annual investment costs. The names are matched using str.contains rather than
+# exact matches. Set parameter value to none (~) if not used.
+alt_atb_cap_recovery_years:
+  NaturalGas_CCAvg: 15
+  NaturalGas_CTAvg: 15
+  Battery: 15
+  Nuclear: 40
+
+# The year of NREL ATB data to use for matching existing generators (O&M costs)
 atb_existing_year: 2018
 atb_usd_year: 2017 # From Capex figure in atb documentation https://atb.nrel.gov/electricity/2019/summary.html
 
@@ -380,6 +350,33 @@ atb_usd_year: 2017 # From Capex figure in atb documentation https://atb.nrel.gov
 existing_om_multiplier: 1.0
 
 
+# ATB uses an average of conventional and advanced techs. We only want advanced. To use
+# standard ATB values set multipliers to 1.
+# Heat rate multipliers are an average of "heat rate" and "final heat rate" multipliers.
+# This parameter shoud be a set of nested dictionaries. Each lower-level dict must have
+# "technology" and "tech_detail" keys uniquely identifying the resource to be modified.
+# The 'ngct' dictionary is required for calculating existing CT variable O&M costs.
+atb_multipliers:
+  ngct:
+    technology: NaturalGas
+    tech_detail: CTAvgCF
+    capex: 0.76
+    # Inv_cost_per_MWyr: 0.76
+    Var_OM_cost_per_MWh: 1.51
+    Fixed_OM_cost_per_MWyr: 0.56
+    Heat_rate_MMBTU_per_MWh: 0.97
+  ngcc:
+    technology: NaturalGas
+    tech_detail: CCAvgCF
+    capex: 0.89
+    # Inv_cost_per_MWyr: 0.89
+    Var_OM_cost_per_MWh: 0.73
+    Fixed_OM_cost_per_MWyr: 0.95
+    Heat_rate_MMBTU_per_MWh: 0.98
+
+# ATB doesn't have a WACC for battery tech. Either provide a numeric value or the value
+# for UtilityPV will be used.
+atb_battery_wacc: UtilityPV
 
 # Format for ATB is <technology>_<tech_detail>, all are Mid cost case
 # Might want to change this to list format like the new generators below
@@ -404,6 +401,9 @@ eia_atb_tech_map:
   Natural Gas Steam Turbine: Coal_NewAvgCF # No gas steam turbines in ATB, using coal instead
   Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
 
+# NEMS has O&M (including capex) for existing generators. Boolean, true or false.
+use_nems_coal_ng_om: true
+
 
 # Offshore wind in the west will be floating - OTRG10 maybe.
 # Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
@@ -414,9 +414,64 @@ atb_new_gen:
   - [LandbasedWind, LTRG1, Mid, 1]
   - [OffShoreWind, OTRG3, Mid, 1]
   - [UtilityPV, Los Angeles, Mid, 1]
-  - [Battery, "*", Mid, 1] # SOMETHING GOING WRONG HERE
+  - [Battery, "*", Mid, 1]
   - [Biopower, Dedicated, Mid, 50]
 
+# Additional technologies can be specified in a csv file under data/additional_technologies
+# Provide the filename (no path needed) in the parameter below or "~" for none.
+# All technologies listed in the file will be included in the outputs unless they are
+# also included in "new_gen_not_available".
+additional_technologies_fn: sample_additional_tech.csv
+
+additional_new_gen: ~
+  - Nuclear_mid
+
+
+# Copy and modify an existing ATB new generator. This takes place BEFORE the ATB CC/CT
+# modifiers. If adding a copy of CC/CT technologies, add the copy to the atb_multipliers
+# parameter. Set parameter to none (~) if not adding any modified generators.
+# Modified parameters should have a list of [operator, value], where valid operators
+# include 'add', 'mul', 'truediv', and 'neg' (subtraction).
+modified_atb_new_gen:
+  NGCCS100:
+    new_technology: NaturalGas
+    new_tech_detail: CCS100
+    new_cost_case: Mid
+    atb_technology: NaturalGas
+    atb_tech_detail: CCCCSAvgCF
+    atb_cost_case: Mid
+    size_mw: 500
+    capex: [add, 116000]
+    heat_rate: [add, 0.365]
+    o_m_fixed_mw: [add, 9670]
+    o_m_variable_mwh: [mul, 1.076]
+
+
+# Dictionary of lists with model region as key and ATB tech (string matching) in list.
+# These resources will not be included in the generators file.
+new_gen_not_available:
+  WECC_SW:
+    - OffShoreWind
+
+# NREL ATB gives PV costs on the basis of DC rather than AC. Provide a conversion value.
+pv_ac_dc_ratio: 1.3
+
+# Include extra rows for UtilityPV, LandbasedWind, and OffShoreWind in the outputs.
+# This is the total number of rows. If a region is not included the default will be a
+# single row.
+new_wind_solar_regional_bins:
+  UtilityPV:
+    CA_N: 3
+    CA_S: 3
+    WECC_SW: 10
+    WECC_NW: 7
+  LandbasedWind:
+    CA_N: 2
+    CA_S: 3
+    WECC_SW: 10
+    WECC_NW: 10
+  OffShoreWind:
+    CA_S: 2
 
 # Fuel consumption for start-up events (mmbtu/MW from NREL's Western Wind and Solar
 # Integration Study Phase 2 (2013
@@ -425,8 +480,6 @@ startup_fuel_use:
   Natural Gas Fired Combined Cycle: 2.0
   Natural Gas Fired Combustion Turbine: 3.5 # FOLLOW UP WITH JESSE ON THIS
   Natural Gas Steam Turbine: 13.7
-
-# ADD A BLS INFLATION SCRIPT AND ABILITY TO SCALE DOLLAR TO ANY YEAR
 
 
 # Map user-regions to NERC subregions for cost multipliers
@@ -466,9 +519,9 @@ cost_multiplier_technology_map:
   Adv. CT: [NaturalGas_CTAvgCF, NaturalGas_CTHighCF]
   Conv CC: []
   Adv CC: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF]
-  Adv CC w/CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF]
+  Adv CC w/CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NaturalGas_CCS100]
   Fuel Cell: []
-  Nuclear: [Nuclear_*]
+  Nuclear: [Nuclear_]
   Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
   MSW: []
   Onshore Wind: [LandbasedWind]
@@ -519,23 +572,52 @@ additional_planned:
   - [56545, 1, WECC_CO_NM]
 
 
-# SPLIT PLANT CAPACITY
-# Use this when assigning part of a single plant's capacity to it's own cluster for
-# use by another region
-split_plant_capacity:
-
-
 ######################################################################################
 # LOAD GROWTH ASSUMPTIONS
 # Include any load growth assumptions here
 
+# Load from IPM is for 2011. The growth rates from 2011-2018 can be calculated using
+# historical data
 default_load_year: 2011
+regular_load_growth_start_year: 2018
 
 default_growth_rates:
   WECC_Northwest: 0.007
   WECC_Rockies: 0.011
   WECC_Southwest: 0.011
   WECC_California: 0.003
+  RFC_East: 0.004
+  RFC_West: 0.005
+  SERC_VC: 0.008
+  SERC_Southeast: 0.008
+  SERC_Gateway: 0.005
+  NEPP_UpstateNY: 0.001
+
+# 2011 load, from the 2012 AEO
+aeo_hist_start_elec_demand:
+  WECC_Southwest: 131.191
+  WECC_California: 270.271
+  WECC_Rockies: 64.484
+  WECC_Northwest: 245.317
+  RFC_East: 289.175
+  RFC_West: 551.497
+  SERC_VC: 329.273
+  SERC_Southeast: 253.703
+  SERC_Gateway: 106.478
+  NEPP_UpstateNY: 75.032
+
+# 2018 load, from the 2018 AEO
+aeo_hist_end_elec_demand:
+  WECC_Southwest: 132.281
+  WECC_California: 272.511
+  WECC_Rockies: 69.391
+  WECC_Northwest: 249.880
+  RFC_East: 277.543
+  RFC_West: 519.775
+  SERC_VC: 317.693
+  SERC_Southeast: 235.89
+  SERC_Gateway: 107.353
+  NEPP_UpstateNY: 82.008
 
 load_region_map:
   WECC_Northwest: [WECC_PNW, WECC_ID, WECC_MT, WECC_WY, WECC_UT, WECC_NNV, WECC_SNV]
@@ -543,6 +625,7 @@ load_region_map:
   WECC_Southwest: [WECC_AZ, WECC_NM]
   WECC_California: [WEC_CALN, WEC_BANC, WEC_SCE, WECC_SCE, WEC_LADW, WEC_SDGE, WECC_IID]
 
+# Make none (~) if no regions are included here
 alt_growth_rate:
   WECC_AZ: 0.02
 
@@ -553,8 +636,6 @@ alt_growth_rate:
 # Need to make choices about fuel regions when user-defined regions cross AEO fuel regions
 # I'm putting WECC_NW in the rockies because the PNW doesn't use as much coal/gas
 aeo_fuel_region_map:
-  # rockies: [WECC_CO, WECC_ID, WECC_MT, WECC_WY, WECC_UT, WECC_NNV, WECC_SNV, WECC_AZ, WECC_NM]
-  # pacific: [WECC_PNW, WEC_CALN, WEC_BANC, WEC_SCE, WECC_SCE, WEC_LADW, WEC_SDGE, WECC_IID]
   rockies: [WECC_SW, WECC_NW]
   pacific: [CA_N, CA_S]
 
@@ -572,10 +653,12 @@ eia_series_scenario_names:
   reference: REF2019
   low_price: LOWPRICE
   high_price: HIGHPRICE
+  high_resource: HIGHRT
+  low_resource: LOWRT
 
 aeo_fuel_scenarios:
   coal: reference
-  naturalgas: low_price
+  naturalgas: reference
   distillate: reference
   uranium: reference
 
@@ -596,13 +679,15 @@ tech_fuel_map:
 # ATB: technology_tech_detail.
 ccs_fuel_map:
   NaturalGas_CCCCS: naturalgas_ccs90
+  NaturalGas_CCS100: naturalgas_ccs100
   Coal_CCS30: coal_ccs30
   Coal_CCS90: coal_ccs90
 
 ccs_capture_rate:
   naturalgas_ccs90: 0.9
+  naturalgas_ccs100: 1.0
   coal_ccs30: 0.3
-  coal_ccs30: 0.9
+  coal_ccs90: 0.9
 
 # Pipeline and other costs, $/tonne
 ccs_disposal_cost: 10
@@ -619,8 +704,8 @@ fuel_emission_factors:
 # Wind/solar capacity density in MW/km^2
 # Consistent numbers are difficult to come by. Check to make sure that you are ok with
 # these values.
-onshore_wind_power_density: 5
-pv_power_density: 30
+onshore_wind_power_density: 1.6
+pv_power_density: 3
 
 
 # Digitally extracted VOM startup costs for each generator type from the NREL Western
@@ -660,5 +745,77 @@ new_build_startup_costs:
   Coal_CCS90: coal_supercritical
   Coal_IGCC: coal_supercritical
   Coal_new: coal_supercritical
-  NaturalGas_CT: gas_aero_ct
+  NaturalGas_CT: gas_large_ct
   NaturalGas_CC: gas_cc
+  NaturalGas_CCS100: gas_cc
+
+
+######################################################################################
+# MODEL OUTPUTS
+
+# This is a list of all column names included in the final generators file.
+# Remove any columns that you don't want/need.
+generator_columns: [
+            "cluster",
+            "R_ID",
+            "zone",
+            "voltage_level",
+            "THERM",
+            "DISP",
+            "NDISP",
+            "STOR",
+            "DR",
+            "HEAT",
+            "NACC",
+            "HYDRO",
+            "RPS",
+            "CES",
+            "Commit",
+            "Min_Share",
+            "Max_Share",
+            "Existing_Cap_MWh",
+            "Existing_Cap_MW",
+            "num_units",
+            "unmodified_existing_cap_mw",
+            "New_Build",
+            "Cap_size",
+            "Min_Cap_MW",
+            "Max_Cap_MW",
+            "Min_Share_percent",
+            "Max_Share_percent",
+            "capex",
+            "Inv_cost_per_MWyr",
+            "Fixed_OM_cost_per_MWyr",
+            "capex_mwh",
+            "Inv_cost_per_MWhyr",
+            "Fixed_OM_cost_per_MWhyr",
+            "Var_OM_cost_per_MWh",
+            "Var_OM_cost_per_MWh_in",
+            "Externality_cost_MWh",
+            "Start_cost_per_MW",
+            "Start_fuel_MMBTU_per_MW",
+            "Heat_rate_MMBTU_per_MWh",
+            "heat_rate_mmbtu_mwh_iqr",
+            "heat_rate_mmbtu_mwh_std",
+            "Fuel",
+            "Min_power",
+            "Self_disch",
+            "Eff_up",
+            "Eff_down",
+            "Ratio_power_to_energy",
+            "Min_Duration",
+            "Max_Duration",
+            "Max_DSM_delay",
+            "Ramp_Up_percentage",
+            "Ramp_Dn_percentage",
+            "Up_time",
+            "Down_time",
+            "NACC_Eff",
+            "NACC_Peak_to_Base",
+            "Reg_Up",
+            "Reg_Dn",
+            "Rsv_Up",
+            "Rsv_Dn",
+            "Reg_Cost",
+            "Rsv_Cost",
+        ]
