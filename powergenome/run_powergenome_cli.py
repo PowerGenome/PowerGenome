@@ -11,12 +11,11 @@ import powergenome
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters, load_ipm_shapefile
 from powergenome.load_profiles import load_curves
-from powergenome.params import DATA_PATHS
 from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
 )
-from powergenome.util import get_git_hash, init_pudl_connection, load_settings
+from powergenome.util import init_pudl_connection, load_settings
 
 if not sys.warnoptions:
     import warnings
@@ -87,8 +86,8 @@ def parse_command_line(argv):
         dest="sort_gens",
         action="store_true",
         help=(
-            "Sort generators alphabetically within region. Existing resources will still"
-            " be separate from new resources."
+            "Sort generators alphabetically within region. Existing resources will "
+            "still be separate from new resources."
         ),
     )
     arguments = parser.parse_args(argv[1:])
