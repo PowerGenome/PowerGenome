@@ -8,7 +8,7 @@ import pandas as pd
 import powergenome
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters, load_ipm_shapefile
-from powergenome.load_profiles import load_curves
+from powergenome.load_profiles import make_final_load_curves
 from powergenome.params import DATA_PATHS
 from powergenome.transmission import (
     agg_transmission_constraints,
@@ -179,12 +179,11 @@ def main():
             sort_gens=args.sort_gens,
         )
         gen_clusters = gc.create_all_generators()
-        gen_clusters["zone"] = gen_clusters.index.get_level_values("region").map(
-            zone_num_map
-        )
+        gen_clusters = remove_fuel_scenario_name(gen_clusters, settings)
+        gen_clusters["zone"] = gen_clusters["region"].map(zone_num_map)
 
     if args.load:
-        load = load_curves(pudl_engine=pudl_engine, settings=settings)
+        load = make_final_load_curves(pudl_engine=pudl_engine, settings=settings)
         load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
 
     if args.transmission:
@@ -207,11 +206,13 @@ def main():
             fuel_costs=gc.fuel_prices, generators=gc.all_resources, settings=settings
         )
         fuels["fuel_indices"] = range(1, len(fuels) + 1)
+        fuels = remove_fuel_scenario_name(fuels, settings)
 
     logger.info(f"Write GenX input files to {args.results_folder}")
     if args.gens:
         gen_clusters.to_csv(
             out_folder / f"generator_clusters_{args.results_folder}.csv",
+            index=False
             # float_format="%.3f",
         )
         # if args.all_units is True:
