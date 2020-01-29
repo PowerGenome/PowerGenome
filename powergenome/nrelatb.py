@@ -3,6 +3,7 @@ Functions to fetch and modify NREL ATB data from PUDL
 """
 
 import copy
+import collections
 import logging
 import operator
 
@@ -477,7 +478,7 @@ def add_modified_atb_generators(settings, atb_costs_hr, model_year_range):
                 "in 'modified_atb_new_gen' of the settings file."
             )
             assert op in allowed_operators, (
-                f"The key {key} for technology {name} needs a valid operator from the list\n"
+                f"The key {parameter} for technology {name} needs a valid operator from the list\n"
                 f"{allowed_operators}\n"
                 "in the format <key>-<operator> to modify the properties of an existing generator.\n"
             )
@@ -797,19 +798,33 @@ def load_user_defined_techs(settings):
     Parameters
     ----------
     settings : dict
-        User-defined parameters from a settings file
+        User-defined parameters from a settings file. It must have the key
+        'additional_technologies_fn'. The value can either be a string (name of a single
+        file) or a dictionary. If the value is a dictionary it should have integer keys
+        corresponding to model years and corresponding string values (file name).
+
+        settings['additional_technologies_fn'] = 'user_techs.csv'
+        OR
+        settings['additional_technologies_fn'] = {
+            2030: 'user_techs_2030.csv',
+            2045: 'user_techs_2045.csv'
+        }
 
     Returns
     -------
     DataFrame
         A dataframe of user-defined resources with cost and heat rate columns.
     """
-
-    fn = settings["additional_technologies_fn"]
+    if isinstance(settings["additional_technologies_fn"], collections.abc.Mapping):
+        fn = settings["additional_technologies_fn"][settings["model_year"]]
+    else:
+        fn = settings["additional_technologies_fn"]
     user_techs = pd.read_csv(DATA_PATHS["additional_techs"] / fn)
 
     user_techs = user_techs.loc[
-        user_techs["technology"].isin(settings["additional_new_gen"]), :
+        (user_techs["technology"].isin(settings["additional_new_gen"]))
+        & (user_techs["planning_year"] == settings["model_year"]),
+        :,
     ]
 
     if "tech_detail" not in user_techs.columns:
@@ -821,7 +836,6 @@ def load_user_defined_techs(settings):
         "technology",
         "tech_detail",
         "cost_case",
-        "basis_year",
         "capex",
         "capex_mwh",
         "o_m_fixed_mw",
