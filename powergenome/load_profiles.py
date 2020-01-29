@@ -7,11 +7,12 @@ import logging
 import pandas as pd
 
 from powergenome.util import reverse_dict_of_lists, shift_wrap_profiles
+from powergenome.external_data import make_demand_response_profiles
 
 logger = logging.getLogger(__name__)
 
 
-def load_curves(
+def make_load_curves(
     pudl_engine,
     settings,
     pudl_table="load_curves_epaipm",
@@ -63,7 +64,9 @@ def load_curves(
     pst_offset = settings["target_region_pst_offset"]
 
     lc_wide = shift_wrap_profiles(lc_wide, pst_offset)
+
     lc_wide.index.name = "time_index"
+    lc_wide.index = lc_wide.index + 1
 
     return lc_wide
 
@@ -127,3 +130,196 @@ def add_load_growth(load_curves, settings):
         ] *= growth_factor
 
     return load_curves
+
+
+def add_demand_response_resource_load(load_curves, settings):
+
+    dr_path = settings["input_folder"] / settings["demand_response_fn"]
+    dr_types = settings["demand_response_resources"][settings["model_year"]].keys()
+
+    dr_curves = make_demand_response_profiles(dr_path, list(dr_types)[0], settings)
+
+    if len(dr_types) > 1:
+        for dr in dr_types[1:]:
+            _dr_curves = make_demand_response_profiles(dr_path, dr, settings)
+            dr_curves = dr_curves + _dr_curves
+
+    for col in dr_curves.columns:
+        try:
+            load_curves.loc[:, col] += dr_curves[col].values
+        except KeyError:
+            pass
+
+    return load_curves
+
+
+def subtract_distributed_generation(load_curves, pudl_engine, settings):
+
+    dg_profiles = make_distributed_gen_profiles(pudl_engine, settings)
+    dg_profiles.index = dg_profiles.index + 1
+
+    for col in dg_profiles.columns:
+        load_curves.loc[:, col] = load_curves.loc[:, col] - (
+            dg_profiles[col].values * 1 + settings["avg_distribution_loss"]
+        )
+
+    return load_curves
+
+
+def make_final_load_curves(
+    pudl_engine,
+    settings,
+    pudl_table="load_curves_epaipm",
+    settings_agg_key="region_aggregations",
+):
+    load_curves_before_dg = make_load_curves(
+        pudl_engine, settings, pudl_table, settings_agg_key
+    )
+
+    if "demand_response_fn" in settings.keys():
+        load_curves_dr = add_demand_response_resource_load(
+            load_curves_before_dg, settings
+        )
+    else:
+        load_curves_dr = load_curves_before_dg
+
+    if "distributed_gen_profiles_fn" in settings.keys():
+        final_load_curves = subtract_distributed_generation(
+            load_curves_dr, pudl_engine, settings
+        )
+    else:
+        final_load_curves = load_curves_dr
+
+    final_load_curves = final_load_curves.astype(int)
+
+    return final_load_curves
+
+
+def make_distributed_gen_profiles(pudl_engine, settings):
+    """Create 8760 annual generation profiles for distributed generation in regions.
+    Uses a distribution loss parameter in the settings file when DG generation is
+    defined a fraction of delivered load.
+
+    Parameters
+    ----------
+    dg_profiles_path : path-like
+        Where to load the file from
+    pudl_engine : sqlalchemy.Engine
+        A sqlalchemy connection for use by pandas. Needed to create base load profiles.
+    settings : dict
+        User-defined parameters from a settings file
+
+    Returns
+    -------
+    DataFrame
+        Hourly generation profiles for DG resources in each region. Not all regions
+        need to be accounted for.
+
+    Raises
+    ------
+    KeyError
+        If the calculation method specified in settings is not 'capacity' or 'fraction_load'
+    """
+
+    year = settings["model_year"]
+    dg_profiles_path = (
+        settings["input_folder"] / settings["distributed_gen_profiles_fn"]
+    )
+
+    hourly_norm_profiles = pd.read_csv(dg_profiles_path)
+    profile_regions = hourly_norm_profiles.columns
+
+    dg_calc_methods = settings["distributed_gen_method"]
+    dg_calc_values = settings["distributed_gen_values"]
+
+    assert (
+        year in dg_calc_values.keys()
+    ), f"The years in settings parameter 'distributed_gen_values' do not match the model years."
+
+    for region, values in dg_calc_values[year].items():
+        assert region in set(profile_regions), (
+            "The profile regions in settings parameter 'distributed_gen_values' do not\n"
+            f"match the regions in {settings['distributed_gen_profiles_fn']} for year {year}"
+        )
+
+    if "fraction_load" in dg_calc_methods.values():
+        regional_load = make_load_curves(pudl_engine, settings)
+
+    dg_hourly_gen = pd.DataFrame(columns=dg_calc_methods.keys())
+
+    for region, method in dg_calc_methods.items():
+        region_norm_profile = hourly_norm_profiles[region]
+        region_calc_value = dg_calc_values[year][region]
+
+        if method == "capacity":
+            dg_hourly_gen[region] = calc_dg_capacity_method(
+                region_norm_profile, region_calc_value
+            )
+        elif method == "fraction_load":
+            region_load = regional_load[region]
+            dg_hourly_gen[region] = calc_dg_frac_load_method(
+                region_norm_profile, region_calc_value, region_load, settings
+            )
+        else:
+            raise KeyError(
+                "The settings parameter 'distributed_gen_method' can only have key "
+                "values of 'capapacity' or 'fraction_load' for each region.\n"
+                f"The value in your settings file is {method}"
+            )
+
+    return dg_hourly_gen
+
+
+def calc_dg_capacity_method(dg_profile, dg_capacity):
+    """Calculate the hourly distributed generation in a single region when given
+    installed capacity.
+
+    Parameters
+    ----------
+    dg_profile : Series
+        Hourly normalized generation profile
+    dg_capacity : float
+        Total installed DG capacity
+
+    Returns
+    -------
+    Series
+        8760 hourly generation
+    """
+
+    hourly_gen = dg_profile * dg_capacity
+
+    return hourly_gen.values
+
+
+def calc_dg_frac_load_method(dg_profile, dg_requirement, regional_load, settings):
+    """Calculate the hourly distributed generation in a single region where generation
+    required to be a fraction of total sales.
+
+    Parameters
+    ----------
+    dg_profile : Series
+        Hourly normalized generation profile
+    dg_requirement : float
+        The fraction of total sales that DG must constitute
+    regional_load : Series
+        Hourly load for a given region
+    settings : dict
+        User-defined parameters from a settings file
+
+    Returns
+    -------
+    Series
+        8760 hourly generation
+    """
+
+    annual_load = regional_load.sum()
+    dg_capacity_factor = dg_profile.mean()
+    distribution_loss = settings["avg_distribution_loss"]
+
+    required_dg_gen = annual_load * dg_requirement * (1 - distribution_loss)
+    dg_capacity = required_dg_gen / 8760 / dg_capacity_factor
+
+    hourly_gen = dg_profile * dg_capacity
+
+    return hourly_gen
