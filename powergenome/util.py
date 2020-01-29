@@ -1,3 +1,4 @@
+import collections
 import subprocess
 
 import pandas as pd
@@ -106,3 +107,21 @@ def shift_wrap_profiles(df, offset):
 
     shifted_wrapped_df = pd.concat([df.iloc[offset:, :], wrap_rows], ignore_index=True)
     return shifted_wrapped_df
+
+
+def update_dictionary(d, u):
+    """
+    Update keys in an existing dictionary (d) with values from u
+
+    https://stackoverflow.com/a/32357112
+    """
+    for k, v in u.items():
+        if isinstance(d, collections.abc.Mapping):
+            if isinstance(v, collections.abc.Mapping):
+                r = update_dictionary(d.get(k, {}), v)
+                d[k] = r
+            else:
+                d[k] = u[k]
+        else:
+            d = {k: u[k]}
+    return d
