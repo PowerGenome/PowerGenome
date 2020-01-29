@@ -5,11 +5,16 @@ import requests
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from pathlib import Path
 import pudl
 from bs4 import BeautifulSoup
 from flatten_dict import flatten
 from powergenome.cluster_method import cluster_by_owner, weighted_ownership_by_unit
 from powergenome.eia_opendata import fetch_fuel_prices
+from powergenome.external_data import (
+    make_demand_response_profiles,
+    demand_response_resource_capacity,
+)
 from powergenome.load_data import (
     load_ipm_plant_region_map,
     load_ownership_eia860,
@@ -1773,6 +1778,65 @@ class GeneratorClusters:
 
         return df
 
+    def create_demand_response_gen_rows(self, scenario):
+        """Create rows for demand response/management resources to include in the
+        generators file.
+
+        Parameters
+        ----------
+        scenario : str
+            Name of the scenario to use data for.
+
+        Returns
+        -------
+        DataFrame
+            One row for each region/DSM resource with values in all columns filled.
+        """
+        year = self.settings["model_year"]
+        df_list = []
+        self.demand_response_profiles = {}
+
+        for resource, parameters in self.settings["demand_response_resources"][
+            year
+        ].items():
+            # max_delay = parameters["max_dsm_delay"]
+
+            _df = pd.DataFrame(
+                index=self.settings["model_regions"],
+                columns=self.settings["generator_columns"],
+            )
+            _df = _df.drop(columns="Resource")
+            _df["technology"] = resource
+            _df["region"] = self.settings["model_regions"]
+
+            dr_path = (
+                Path.cwd()
+                / self.settings["input_folder"]
+                / self.settings["demand_response_fn"]
+            )
+            dr_profile = make_demand_response_profiles(dr_path, resource, self.settings)
+            self.demand_response_profiles[resource] = dr_profile
+
+            dr_capacity = demand_response_resource_capacity(
+                dr_profile, resource, self.settings
+            )
+            dr_capacity_scenario = dr_capacity.squeeze()
+            _df["Existing_Cap_MW"] = _df["region"].map(dr_capacity_scenario)
+            # _df["Max_DSM_delay"] = max_delay
+
+            if isinstance(parameters["parameter_values"], dict):
+                for col, value in parameters["parameter_values"].items():
+                    _df[col] = value
+
+            df_list.append(_df)
+
+        dr_rows = pd.concat(df_list)
+        dr_rows["New_Build"] = -1
+        dr_rows["Fuel"] = "None"
+        dr_rows = dr_rows.fillna(0)
+
+        return dr_rows
+
     def create_region_technology_clusters(self, return_retirement_capacity=False):
         """
         Calculation of average unit characteristics within a technology cluster
@@ -2103,6 +2167,13 @@ class GeneratorClusters:
                 ["region", "technology"]
             )
 
+        if "demand_response_fn" in self.settings:
+            if self.settings["demand_response_fn"] is not None:
+                dr_rows = self.create_demand_response_gen_rows(
+                    scenario=self.settings["demand_response"]
+                )
+
+            self.new_generators = pd.concat([self.new_generators, dr_rows])
         return self.new_generators
 
     def create_all_generators(self):
