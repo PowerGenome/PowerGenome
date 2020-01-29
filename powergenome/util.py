@@ -125,3 +125,12 @@ def update_dictionary(d, u):
         else:
             d = {k: u[k]}
     return d
+
+
+def remove_fuel_scenario_name(df, settings):
+
+    scenarios = settings["eia_series_scenario_names"].keys()
+    for s in scenarios:
+        df["Fuel"] = df["Fuel"].str.replace(f"_{s}", "")
+
+    return df
