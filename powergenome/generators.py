@@ -1639,7 +1639,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                     "year==@model_year & full_fuel_name==@fuel_name"
                 ).empty
                 is False
-            )
+            ), f"{fuel_name} doesn't show up in {model_year}"
 
             df.loc[
                 (df["technology"] == eia_tech) & df["region"].isin(model_regions),
@@ -2146,6 +2146,9 @@ class GeneratorClusters:
             logger.info("Sorting new resources alphabetically.")
             self.results = self.results.sort_values(["region", "technology"])
 
+        self.results = self.results.rename(columns={"technology": "Resource"})
+        self.results["Resource"] = snake_case_col(self.results["Resource"])
+
         return self.results
 
     def create_new_generators(self):
@@ -2174,6 +2177,14 @@ class GeneratorClusters:
                 )
 
             self.new_generators = pd.concat([self.new_generators, dr_rows])
+
+        self.new_generators = self.new_generators.rename(
+            columns={"technology": "Resource"}
+        )
+        self.new_generators["Resource"] = snake_case_col(
+            self.new_generators["Resource"]
+        )
+
         return self.new_generators
 
     def create_all_generators(self):
@@ -2193,18 +2204,9 @@ class GeneratorClusters:
             "Heat_rate_MMBTU_per_MWh"
         ].round(2)
 
-        # Convert technology names to snake_case and add a 1-indexed column R_ID
-        self.all_resources["technology"] = snake_case_col(
-            self.all_resources["technology"]
-        )
-
         # Set Min_power of wind/solar to 0
         self.all_resources.loc[self.all_resources["DISP"] == 1, "Min_power"] = 0
-        self.all_resources = self.all_resources.rename(
-            columns={"technology": "Resource"}
-        )
 
-        self.all_resources.set_index(["region", "Resource"], inplace=True)
         self.all_resources["R_ID"] = np.array(range(len(self.all_resources))) + 1
 
         if self.current_gens:
