@@ -173,5 +173,8 @@ def transmission_line_distance(
         for line_name in trans_constraints_df.index
     ]
     trans_constraints_df[f"distance_{units}"] = distances
+    trans_constraints_df[f"distance_{units}"] = trans_constraints_df[
+        f"distance_{units}"
+    ].round(1)
 
     return trans_constraints_df
