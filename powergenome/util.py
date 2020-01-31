@@ -134,3 +134,16 @@ def remove_fuel_scenario_name(df, settings):
         df["Fuel"] = df["Fuel"].str.replace(f"_{s}", "")
 
     return df
+
+
+def write_results_file(df, folder, file_name, include_index=False):
+    sub_folder = folder / "Inputs"
+    sub_folder.mkdir(exist_ok=True, parents=True)
+
+    path_out = sub_folder / file_name
+
+    df.to_csv(path_out, index=include_index)
+
+
+def write_case_settings_file(settings, out_folder, file_name):
+    pass

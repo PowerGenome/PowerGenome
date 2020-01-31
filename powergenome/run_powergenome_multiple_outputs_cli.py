@@ -22,6 +22,7 @@ from powergenome.util import (
     load_settings,
     update_dictionary,
     remove_fuel_scenario_name,
+    write_results_file,
 )
 
 if not sys.warnoptions:
@@ -99,28 +100,6 @@ def parse_command_line(argv):
     )
     arguments = parser.parse_args(argv[1:])
     return arguments
-
-
-def write_results_file(df, folder, file_name, include_index=False):
-    sub_folder = folder / "Inputs"
-    sub_folder.mkdir(exist_ok=True, parents=True)
-
-    path_out = sub_folder / file_name
-
-    df.to_csv(path_out, index=include_index)
-
-
-def write_case_settings_file(settings, out_folder, file_name):
-    pass
-
-
-# def remove_fuel_scenario_name(df, settings):
-
-#     scenarios = settings["eia_series_scenario_names"].keys()
-#     for s in scenarios:
-#         df["Fuel"] = df["Fuel"].str.replace(f"_{s}", "")
-
-#     return df
 
 
 def build_case_id_name_map(settings):
@@ -290,11 +269,7 @@ def main():
             case_folder = (
                 out_folder / f"{year}" / f"{case_id}_{year}_{_settings['case_name']}"
             )
-            case_scenario_definitions = scenario_definitions.loc[
-                (scenario_definitions.case_id == case_id)
-                & (scenario_definitions.year == year),
-                :,
-            ]
+
             if i == 0:
                 if args.gens:
                     gc = GeneratorClusters(
