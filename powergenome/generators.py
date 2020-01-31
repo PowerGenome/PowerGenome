@@ -14,6 +14,7 @@ from powergenome.eia_opendata import fetch_fuel_prices
 from powergenome.external_data import (
     make_demand_response_profiles,
     demand_response_resource_capacity,
+    add_resource_max_cap_spur_line,
 )
 from powergenome.load_data import (
     load_ipm_plant_region_map,
@@ -26,6 +27,7 @@ from powergenome.nrelatb import (
     atb_new_generators,
     fetch_atb_costs,
     fetch_atb_heat_rates,
+    investment_cost_calculator,
 )
 from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH
 from powergenome.price_adjustment import inflation_price_adjustment
@@ -1667,6 +1669,37 @@ def add_fuel_labels(df, fuel_prices, settings):
     return df
 
 
+def calculate_transmission_inv_cost(resource_df, settings):
+
+    for param in ["spur_line_wacc", "spur_line_investment_years"]:
+        assert (
+            param in settings
+        ), f"{param} is required but was not found in the settings file"
+
+    resource_df["spur_line_capex"] = (
+        resource_df["region"].map(settings["spur_line_capex_mw_mile"])
+        * resource_df["spur_line_miles"]
+    )
+
+    resource_df["spur_line_inv_mwyr"] = investment_cost_calculator(
+        resource_df["spur_line_capex"],
+        settings["spur_line_wacc"],
+        settings["spur_line_investment_years"],
+    )
+
+    return resource_df
+
+
+def add_transmission_inv_cost(resource_df):
+
+    resource_df["plant_inv_cost_mwyr"] = resource_df.loc[:, "Inv_cost_per_MWyr"]
+    resource_df["Inv_cost_per_MWyr"] = (
+        resource_df["Inv_cost_per_MWyr"] + resource_df["spur_line_inv_mwyr"]
+    )
+
+    return resource_df
+
+
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -1799,7 +1832,6 @@ class GeneratorClusters:
         for resource, parameters in self.settings["demand_response_resources"][
             year
         ].items():
-            # max_delay = parameters["max_dsm_delay"]
 
             _df = pd.DataFrame(
                 index=self.settings["model_regions"],
@@ -1822,7 +1854,6 @@ class GeneratorClusters:
             )
             dr_capacity_scenario = dr_capacity.squeeze()
             _df["Existing_Cap_MW"] = _df["region"].map(dr_capacity_scenario)
-            # _df["Max_DSM_delay"] = max_delay
 
             if isinstance(parameters["parameter_values"], dict):
                 for col, value in parameters["parameter_values"].items():
@@ -1833,6 +1864,7 @@ class GeneratorClusters:
         dr_rows = pd.concat(df_list)
         dr_rows["New_Build"] = -1
         dr_rows["Fuel"] = "None"
+        dr_rows["cluster"] = 1
         dr_rows = dr_rows.fillna(0)
 
         return dr_rows
@@ -2169,6 +2201,15 @@ class GeneratorClusters:
             self.new_generators = self.new_generators.sort_values(
                 ["region", "technology"]
             )
+
+        if "capacity_limit_spur_line_fn" in self.settings:
+            self.new_generators = (
+                self.new_generators.pipe(add_resource_max_cap_spur_line, self.settings)
+                .pipe(calculate_transmission_inv_cost, self.settings)
+                .pipe(add_transmission_inv_cost)
+            )
+        else:
+            logger.warning("No settings parameter for max capacity/spur line file")
 
         if "demand_response_fn" in self.settings:
             if self.settings["demand_response_fn"] is not None:

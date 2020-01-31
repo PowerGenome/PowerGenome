@@ -16,6 +16,7 @@ from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
 )
+from powergenome.external_data import make_generator_variability
 from powergenome.util import (
     init_pudl_connection,
     load_settings,
@@ -319,6 +320,16 @@ def main():
                         include_index=False,
                     )
 
+                    gen_variability = make_generator_variability(
+                        gen_clusters, _settings
+                    )
+                    write_results_file(
+                        df=gen_variability,
+                        folder=case_folder,
+                        file_name="Generators_variability.csv",
+                        include_index=True,
+                    )
+
                     i += 1
                 if args.transmission:
                     if args.gens is False:
@@ -349,6 +360,16 @@ def main():
                         df=gen_clusters,
                         folder=case_folder,
                         file_name="Generators_data.csv",
+                    )
+
+                    gen_variability = make_generator_variability(
+                        gen_clusters, _settings
+                    )
+                    write_results_file(
+                        df=gen_variability,
+                        folder=case_folder,
+                        file_name="Generators_variability.csv",
+                        include_index=True,
                     )
 
             if args.load:
