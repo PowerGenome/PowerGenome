@@ -145,5 +145,21 @@ def write_results_file(df, folder, file_name, include_index=False):
     df.to_csv(path_out, index=include_index)
 
 
-def write_case_settings_file(settings, out_folder, file_name):
-    pass
+def write_case_settings_file(settings, folder, file_name):
+    """Write a finalized dictionary to YAML file.
+
+    Parameters
+    ----------
+    settings : dict
+        A dictionary with settings
+    folder : Path-like
+        A Path object representing the folder for a single case/scenario
+    file_name : str
+        Name of the file.
+    """
+    folder.mkdir(exist_ok=True, parents=True)
+    path_out = folder / file_name
+
+    # stream = file(path_out, 'w')
+    with open(path_out, "w") as f:
+        yaml.dump(settings, f)

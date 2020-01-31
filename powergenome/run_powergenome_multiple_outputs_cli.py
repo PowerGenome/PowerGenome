@@ -11,7 +11,7 @@ import pandas as pd
 import powergenome
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters, load_ipm_shapefile
-from powergenome.GenX import add_emission_policies
+from powergenome.GenX import add_emission_policies, make_genx_settings_file
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
     agg_transmission_constraints,
@@ -24,6 +24,7 @@ from powergenome.util import (
     update_dictionary,
     remove_fuel_scenario_name,
     write_results_file,
+    write_case_settings_file,
 )
 
 if not sys.warnoptions:
@@ -321,6 +322,14 @@ def main():
                         settings=_settings,
                         units="mile",
                     )
+
+                genx_settings = make_genx_settings_file(pudl_engine, _settings)
+                write_case_settings_file(
+                    settings=genx_settings,
+                    folder=case_folder,
+                    file_name="GenX_settings.yml",
+                )
+
             else:
                 logger.info(f"Starting year {year} scenario {case_id}")
                 if args.gens:
@@ -380,6 +389,13 @@ def main():
                 write_results_file(
                     df=fuels, folder=case_folder, file_name="Fuels_data.csv"
                 )
+
+            genx_settings = make_genx_settings_file(pudl_engine, _settings)
+            write_case_settings_file(
+                settings=genx_settings,
+                folder=case_folder,
+                file_name="GenX_settings.yml",
+            )
 
 
 if __name__ == "__main__":
