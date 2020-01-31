@@ -948,9 +948,9 @@ carbon_tax: 0
 
 # tonne/MMBtu
 fuel_emission_factors:
-  naturalgas: 0.05306
-  coal: 0.09552 # EIA value for electric power sector
-  distillate: 0.07315
+  naturalgas: 0.5306
+  coal: 0.9552 # EIA value for electric power sector
+  distillate: 0.7315
 
 
 # Wind/solar capacity density in MW/km^2
