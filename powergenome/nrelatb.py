@@ -589,7 +589,8 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
     # ATB average of advanced and conventional.
     # This is now generalized for changes to ATB values for any technology type.
-    for tech, tech_multipliers in settings["atb_multipliers"].items():
+    for tech, _tech_multipliers in settings["atb_multipliers"].items():
+        tech_multipliers = copy.deepcopy(_tech_multipliers)
         assert isinstance(tech_multipliers, dict), (
             "The settings parameter 'atb_multipliers' must be a nested list.\n"
             "Each top-level key is a short name of the technology, with a nested"
