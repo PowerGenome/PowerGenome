@@ -11,6 +11,7 @@ import pandas as pd
 import powergenome
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters, load_ipm_shapefile
+from powergenome.GenX import add_emission_policies
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
     agg_transmission_constraints,
@@ -360,8 +361,9 @@ def main():
                 )
 
             if args.transmission:
+                network = add_emission_policies(transmission, _settings)
                 write_results_file(
-                    df=transmission,
+                    df=network,
                     folder=case_folder,
                     file_name="Network.csv",
                     include_index=True,

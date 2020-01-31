@@ -244,3 +244,48 @@ def make_generator_variability(resource_df, settings, resource_col="Resource"):
     ), "Something went wrong creating the gen variability file. The data has some NaN values"
 
     return gen_variability
+
+
+def load_policy_scenarios(settings):
+    """Load the policy scenarios and copy cases where indicated. The policy file should
+    start with columns `case_id` and `year`, and can contain an optional `copy_case_id`.
+    Other columns should match the desired output format. The value `None` is included
+    in na_values.
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined parameters from a settings file. Should have keys of `input_folder`
+        (a Path object of where to find user-supplied data) and
+        `emission_policies_fn` (the file to load).
+
+    Returns
+    -------
+    DataFrame
+        Emission policies for each case_id/year.
+    """
+
+    path = settings["input_folder"] / settings["emission_policies_fn"]
+    policies = pd.read_csv(path, na_values=["None"])
+
+    # Update the policies. The column `copy_case_id` can be used to copy values from
+    # another policy to reduce human copy/paste errors.
+    if "copy_case_id" in policies.columns:
+        grouped_policies = policies.groupby(["year", "copy_case_id"])
+        df_list = []
+        for (year, copy_case_id), _df in grouped_policies:
+
+            if copy_case_id in policies.case_id.tolist():
+                for col in _df.columns[2:]:
+                    _df.loc[:, col] = policies.loc[
+                        (policies.year == year) & (policies.case_id == copy_case_id), :
+                    ].squeeze()[col]
+            df_list.append(_df)
+
+        updated_policies = pd.concat(df_list)
+        policies.loc[updated_policies.index, :] = updated_policies
+
+    policies = policies.drop(columns="copy_case_id")
+    policies = policies.set_index(["case_id", "year"])
+
+    return policies
