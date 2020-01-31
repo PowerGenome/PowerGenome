@@ -137,6 +137,19 @@ def remove_fuel_scenario_name(df, settings):
 
 
 def write_results_file(df, folder, file_name, include_index=False):
+    """Write a finalized dataframe to one of the results csv files.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Data for a single results file
+    folder : Path-like
+        A Path object representing the folder for a single case/scenario
+    file_name : str
+        Name of the file.
+    include_index : bool, optional
+        If pandas should include the index when writing to csv, by default False
+    """
     sub_folder = folder / "Inputs"
     sub_folder.mkdir(exist_ok=True, parents=True)
 
