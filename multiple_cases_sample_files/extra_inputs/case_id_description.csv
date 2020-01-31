@@ -1,0 +1,18 @@
+﻿case_id,case_description
+p1,WRA CES with RPS
+p2,WRA CES
+p3,Tech CES with RPS
+p4,Tech CES
+p5,RPS only
+p6,Emissions Cap with RPS
+p7,Emissions Cap
+p8,No Policy
+s1,Slower AZ load growth
+s2,Half WECC load growth
+s3,Limits transmission
+s4,High EV penetration
+s5,Low cost nuclear
+s6,Low gas prices
+s7,Low cost CCS
+s8,High cost CCS
+s9,Low cost renewables
