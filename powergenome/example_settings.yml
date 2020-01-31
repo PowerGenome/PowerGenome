@@ -699,11 +699,11 @@ ccs_disposal_cost: 10
 
 # add carbon price parameter to Var_OM_cost_per_MWh
 
-# kg/MMBtu
+# tonne/MMBtu
 fuel_emission_factors:
   naturalgas: 0.05306
-  coal: 0.9552 # EIA value for electric power sector
-  distillate: 0.7315
+  coal: 0.09552 # EIA value for electric power sector
+  distillate: 0.07315
 
 
 # Wind/solar capacity density in MW/km^2
@@ -723,6 +723,7 @@ startup_vom_costs_mw:
   gas_large_ct: 0.77
   gas_aero_ct: 0.70
   gas_steam: 1.03
+  nuclear: 5.4 # approx 2x large coal.
 
 startup_vom_costs_usd_year: 2011
 
@@ -736,6 +737,7 @@ startup_costs_per_cold_start_mw:
   gas_large_ct: 103
   gas_aero_ct: 32
   gas_steam: 75
+  nuclear: 210 # Assumed 2x large coal plants
 
 startup_costs_per_cold_start_usd_year: 2011
 
@@ -761,6 +763,8 @@ new_build_startup_costs:
 # This is a list of all column names included in the final generators file.
 # Remove any columns that you don't want/need.
 generator_columns: [
+            "region",
+            "Resource",
             "cluster",
             "R_ID",
             "zone",
