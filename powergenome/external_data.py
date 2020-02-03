@@ -271,14 +271,17 @@ def load_policy_scenarios(settings):
     # Update the policies. The column `copy_case_id` can be used to copy values from
     # another policy to reduce human copy/paste errors.
     if "copy_case_id" in policies.columns:
-        grouped_policies = policies.groupby(["year", "copy_case_id"])
+        grouped_policies = policies.groupby(["year", "region", "copy_case_id"])
         df_list = []
-        for (year, copy_case_id), _df in grouped_policies:
+        for (year, region, copy_case_id), _df in grouped_policies:
 
             if copy_case_id in policies.case_id.tolist():
                 for col in _df.columns[2:]:
                     _df.loc[:, col] = policies.loc[
-                        (policies.year == year) & (policies.case_id == copy_case_id), :
+                        (policies.year == year)
+                        & (policies.case_id == copy_case_id)
+                        & (policies.region == region),
+                        :,
                     ].squeeze()[col]
             df_list.append(_df)
 

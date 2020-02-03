@@ -1,10 +1,14 @@
 "Functions specific to GenX outputs"
 
+from itertools import product
+import logging
 import pandas as pd
 
 from powergenome.external_data import load_policy_scenarios
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.util import load_settings
+
+logger = logging.getLogger(__name__)
 
 
 def add_emission_policies(transmission_df, settings, DistrZones=None):
@@ -48,9 +52,13 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
     if DistrZones is None:
         zone_df["DistrZones"] = 0
 
-        # Add code here to make DistrZones something else!
-
-    if year_case_policy["region"].lower() == "all":
+    # Add code here to make DistrZones something else!
+    # If there is only one region, assume that the policy is applied across all regions.
+    if isinstance(year_case_policy, pd.Series):
+        logger.info(
+            "Only one zone was found in the emissions policy file."
+            " The same emission policies are being applied to all zones."
+        )
         for col, value in year_case_policy.iteritems():
             if col == "CO_2_Max_Mtons":
                 zone_df.loc[:, col] = 0
@@ -58,7 +66,12 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
             else:
                 zone_df.loc[:, col] = value
     else:
-        print("REGIONAL POLICIES HAVE NOT BEEN IMPLEMENETED YET")
+        for region, col in product(
+            year_case_policy["region"].unique(), year_case_policy.columns
+        ):
+            zone_df.loc[
+                zone_df["Region description"] == region, col
+            ] = year_case_policy.loc[year_case_policy.region == region, col].values[0]
 
     zone_df = zone_df.drop(columns="region")
 
