@@ -653,16 +653,25 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         + new_gen_df["cost_case"]
     )
 
+    new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
+
+    if settings["alt_atb_cap_recovery_years"]:
+        for tech, years in settings["alt_atb_cap_recovery_years"].items():
+            new_gen_df.loc[
+                new_gen_df.technology.str.lower().str.contains(tech.lower()),
+                "cap_recovery_years",
+            ] = years
+
     new_gen_df["Inv_cost_per_MWyr"] = investment_cost_calculator(
         capex=new_gen_df["capex"],
         wacc=new_gen_df["waccnomtech"],
-        cap_rec_years=settings["atb_cap_recovery_years"],
+        cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
     new_gen_df["Inv_cost_per_MWhyr"] = investment_cost_calculator(
         capex=new_gen_df["capex_mwh"],
         wacc=new_gen_df["waccnomtech"],
-        cap_rec_years=settings["atb_cap_recovery_years"],
+        cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
     new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
