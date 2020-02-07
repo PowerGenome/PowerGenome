@@ -11,7 +11,11 @@ import pandas as pd
 import powergenome
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters, load_ipm_shapefile
-from powergenome.GenX import add_emission_policies, make_genx_settings_file
+from powergenome.GenX import (
+    add_emission_policies,
+    make_genx_settings_file,
+    reduce_time_domain,
+)
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
     agg_transmission_constraints,
@@ -304,12 +308,12 @@ def main():
                     gen_variability = make_generator_variability(
                         gen_clusters, _settings
                     )
-                    write_results_file(
-                        df=gen_variability,
-                        folder=case_folder,
-                        file_name="Generators_variability.csv",
-                        include_index=True,
-                    )
+                    # write_results_file(
+                    #     df=gen_variability,
+                    #     folder=case_folder,
+                    #     file_name="Generators_variability.csv",
+                    #     include_index=True,
+                    # )
 
                     i += 1
                 if args.transmission:
@@ -354,23 +358,33 @@ def main():
                     gen_variability = make_generator_variability(
                         gen_clusters, _settings
                     )
-                    write_results_file(
-                        df=gen_variability,
-                        folder=case_folder,
-                        file_name="Generators_variability.csv",
-                        include_index=True,
-                    )
+                    # write_results_file(
+                    #     df=gen_variability,
+                    #     folder=case_folder,
+                    #     file_name="Generators_variability.csv",
+                    #     include_index=True,
+                    # )
 
             if args.load:
                 load = make_final_load_curves(
                     pudl_engine=pudl_engine, settings=_settings
                 )
                 load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
+
+                reduced_resource_profile, reduced_load_profile = reduce_time_domain(
+                    gen_variability, load, _settings
+                )
                 write_results_file(
-                    df=load,
+                    df=reduced_load_profile,
                     folder=case_folder,
                     file_name="Load_data.csv",
-                    include_index=True,
+                    include_index=False,
+                )
+                write_results_file(
+                    df=reduced_resource_profile,
+                    folder=case_folder,
+                    file_name="Generators_variability.csv",
+                    include_index=False,
                 )
 
             if args.transmission:
