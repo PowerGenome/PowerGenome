@@ -292,3 +292,11 @@ def load_policy_scenarios(settings):
     policies = policies.set_index(["case_id", "year"])
 
     return policies
+
+
+def load_demand_segments(settings):
+
+    path = settings["input_folder"] / settings["demand_segments_fn"]
+    demand_segments = pd.read_csv(path)
+
+    return demand_segments
