@@ -114,25 +114,38 @@ def make_genx_settings_file(pudl_engine, settings):
     dg_generation = make_distributed_gen_profiles(pudl_engine, settings)
     total_dg_gen = dg_generation.sum().sum()
 
+    if isinstance(year_case_policy, pd.DataFrame):
+        year_case_policy = year_case_policy.sum()
+
     if float(year_case_policy["CO_2_Max_Mtons"]) > 0:
         genx_settings["CO2Cap"] = 2
     else:
         genx_settings["CO2Cap"] = 0
 
     if float(year_case_policy["RPS"]) > 0:
-        genx_settings["RPS"] = 3
-        genx_settings["RPS_Adjustment"] = float(
-            (1 - year_case_policy["RPS"]) * total_dg_gen
-        )
+        # print(total_dg_gen)
+        # print(year_case_policy["RPS"])
+        if len(policies.loc[(case_id, model_year), "region"].unique()) > 1:
+            genx_settings["RPS"] = 2
+            genx_settings["RPS_Adjustment"] = 0
+        else:
+            genx_settings["RPS"] = 3
+            genx_settings["RPS_Adjustment"] = float(
+                (1 - year_case_policy["RPS"]) * total_dg_gen
+            )
     else:
         genx_settings["RPS"] = 0
         genx_settings["RPS_Adjustment"] = 0
 
     if float(year_case_policy["CES"]) > 0:
-        genx_settings["CES"] = 3
-        genx_settings["CES_Adjustment"] = float(
-            (1 - year_case_policy["CES"]) * total_dg_gen
-        )
+        if len(policies.loc[(case_id, model_year), "region"].unique()) > 1:
+            genx_settings["CES"] = 2
+            genx_settings["CES_Adjustment"] = 0
+        else:
+            genx_settings["CES"] = 3
+            genx_settings["CES_Adjustment"] = float(
+                (1 - year_case_policy["CES"]) * total_dg_gen
+            )
     else:
         genx_settings["CES"] = 0
         genx_settings["CES_Adjustment"] = 0
