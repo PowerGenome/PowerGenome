@@ -204,7 +204,7 @@ def reduce_time_domain(
         return reduced_resource_profile, reduced_load_output
 
     else:
-        time_index = pd.Series(data=range(1, len(load_profiles + 1)), name="Time_index")
+        time_index = pd.Series(data=range(1, 8761), name="Time_index")
         sub_weights = pd.Series(data=[1], name="Sub_Weights")
         hours_per_period = pd.Series(data=[168], name="Hours_per_period")
         subperiods = pd.Series(data=[1], name="Subperiods")
@@ -217,7 +217,7 @@ def reduce_time_domain(
                 hours_per_period,
                 sub_weights,
                 time_index,
-                load_profiles,
+                load_profiles.reset_index(drop=True),
             ],
             axis=1,
         )
