@@ -144,6 +144,10 @@ def build_scenario_settings(settings, scenario_definitions):
         for case_id in scenario_definitions["case_id"].unique():
             _settings = copy.deepcopy(settings)
 
+            if "all_cases" in planning_year_settings_management:
+                new_parameter = planning_year_settings_management["all_cases"]
+                _settings = update_dictionary(_settings, new_parameter)
+
             # Add the scenario definition values to the settings files
             # e.g.
             # case_id	year	demand_response	growth	tx_expansion	ng_price
