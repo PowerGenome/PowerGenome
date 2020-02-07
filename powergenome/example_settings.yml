@@ -361,23 +361,25 @@ existing_om_multiplier: 1.0
 # This parameter shoud be a set of nested dictionaries. Each lower-level dict must have
 # "technology" and "tech_detail" keys uniquely identifying the resource to be modified.
 # The 'ngct' dictionary is required for calculating existing CT variable O&M costs.
-atb_multipliers:
+# Modified parameters should have a list of [operator, value], where valid operators
+# include 'add', 'mul', 'truediv', and 'sub'.
+atb_modifiers:
   ngct:
     technology: NaturalGas
     tech_detail: CTAvgCF
-    capex: 0.76
+    capex: [mul, 0.76]
     # Inv_cost_per_MWyr: 0.76
-    Var_OM_cost_per_MWh: 1.51
-    Fixed_OM_cost_per_MWyr: 0.56
-    Heat_rate_MMBTU_per_MWh: 0.97
+    Var_OM_cost_per_MWh: [mul, 1.51]
+    Fixed_OM_cost_per_MWyr: [mul, 0.56]
+    Heat_rate_MMBTU_per_MWh: [mul, 0.97]
   ngcc:
     technology: NaturalGas
     tech_detail: CCAvgCF
-    capex: 0.89
+    capex: [mul, 0.89]
     # Inv_cost_per_MWyr: 0.89
-    Var_OM_cost_per_MWh: 0.73
-    Fixed_OM_cost_per_MWyr: 0.95
-    Heat_rate_MMBTU_per_MWh: 0.98
+    Var_OM_cost_per_MWh: [mul, 0.73]
+    Fixed_OM_cost_per_MWyr: [mul, 0.95]
+    Heat_rate_MMBTU_per_MWh: [mul, 0.98]
 
 # ATB doesn't have a WACC for battery tech. Either provide a numeric value or the value
 # for UtilityPV will be used.
@@ -436,7 +438,7 @@ additional_new_gen: ~
 # modifiers. If adding a copy of CC/CT technologies, add the copy to the atb_multipliers
 # parameter. Set parameter to none (~) if not adding any modified generators.
 # Modified parameters should have a list of [operator, value], where valid operators
-# include 'add', 'mul', 'truediv', and 'neg' (subtraction).
+# include 'add', 'mul', 'truediv', and 'sub'.
 modified_atb_new_gen:
   NGCCS100:
     new_technology: NaturalGas
