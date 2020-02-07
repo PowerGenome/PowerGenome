@@ -266,7 +266,7 @@ def load_policy_scenarios(settings):
     """
 
     path = settings["input_folder"] / settings["emission_policies_fn"]
-    policies = pd.read_csv(path, na_values=["None"])
+    policies = pd.read_csv(path, na_values=["None", "none"])
 
     # Update the policies. The column `copy_case_id` can be used to copy values from
     # another policy to reduce human copy/paste errors.
