@@ -235,10 +235,13 @@ def make_generator_variability(resource_df, settings, resource_col="Resource"):
     )
 
     gen_variability = gen_variability.rename(index={"Resource_x": "Resource"})
-    gen_variability.columns = gen_variability.loc["Resource", :]
+    gen_variability.columns = [
+        f"{r}_{idx}" for idx, r in enumerate(gen_variability.loc["Resource", :])
+    ]
     gen_variability = gen_variability.drop(index="Resource")
     gen_variability.index = [int(x) for x in gen_variability.index]
 
+    gen_variability = gen_variability.astype(float)
     assert (
         any(gen_variability.isna().any()) is False
     ), "Something went wrong creating the gen variability file. The data has some NaN values"
