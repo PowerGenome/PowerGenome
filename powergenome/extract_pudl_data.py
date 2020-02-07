@@ -14,7 +14,12 @@ from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
 )
-from powergenome.util import get_git_hash, init_pudl_connection, load_settings
+from powergenome.util import (
+    get_git_hash,
+    init_pudl_connection,
+    load_settings,
+    remove_fuel_scenario_name,
+)
 
 if not sys.warnoptions:
     import warnings
