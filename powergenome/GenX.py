@@ -163,40 +163,63 @@ def reduce_time_domain(
 
     demand_segments = load_demand_segments(settings)
 
-    days = settings["time_domain_days_per_period"]
-    time_periods = settings["time_domain_periods"]
-    include_peak_day = settings["include_peak_day"]
-    load_weight = settings["demand_weight_factor"]
+    if settings["reduce_time_domain"]:
+        days = settings["time_domain_days_per_period"]
+        time_periods = settings["time_domain_periods"]
+        include_peak_day = settings["include_peak_day"]
+        load_weight = settings["demand_weight_factor"]
 
-    results, rep_point, cluster_weight = kmeans_time_clustering(
-        resource_profiles=resource_profiles,
-        load_profiles=load_profiles,
-        days_in_group=days,
-        num_clusters=time_periods,
-        include_peak_day=include_peak_day,
-        load_weight=load_weight,
-        variable_resources_only=variable_resources_only,
-    )
+        results, rep_point, cluster_weight = kmeans_time_clustering(
+            resource_profiles=resource_profiles,
+            load_profiles=load_profiles,
+            days_in_group=days,
+            num_clusters=time_periods,
+            include_peak_day=include_peak_day,
+            load_weight=load_weight,
+            variable_resources_only=variable_resources_only,
+        )
 
-    reduced_resource_profile = results["resource_profiles"]
-    reduced_load_profile = results["load_profiles"]
+        reduced_resource_profile = results["resource_profiles"]
+        reduced_load_profile = results["load_profiles"]
 
-    time_index = pd.Series(data=reduced_load_profile.index + 1, name="Time_index")
-    sub_weights = pd.Series(
-        data=[x * (days * 24) for x in results["ClusterWeights"]], name="Sub_Weights"
-    )
-    hours_per_period = pd.Series(data=[days * 24], name="Hours_per_period")
-    subperiods = pd.Series(data=[time_periods], name="Subperiods")
-    reduced_load_output = pd.concat(
-        [
-            demand_segments,
-            subperiods,
-            hours_per_period,
-            sub_weights,
-            time_index,
-            reduced_load_profile,
-        ],
-        axis=1,
-    )
+        time_index = pd.Series(data=reduced_load_profile.index + 1, name="Time_index")
+        sub_weights = pd.Series(
+            data=[x * (days * 24) for x in results["ClusterWeights"]],
+            name="Sub_Weights",
+        )
+        hours_per_period = pd.Series(data=[days * 24], name="Hours_per_period")
+        subperiods = pd.Series(data=[time_periods], name="Subperiods")
+        reduced_load_output = pd.concat(
+            [
+                demand_segments,
+                subperiods,
+                hours_per_period,
+                sub_weights,
+                time_index,
+                reduced_load_profile,
+            ],
+            axis=1,
+        )
 
-    return reduced_resource_profile, reduced_load_output
+        return reduced_resource_profile, reduced_load_output
+
+    else:
+        time_index = pd.Series(data=range(1, len(load_profiles + 1)), name="Time_index")
+        sub_weights = pd.Series(data=[1], name="Sub_Weights")
+        hours_per_period = pd.Series(data=[168], name="Hours_per_period")
+        subperiods = pd.Series(data=[1], name="Subperiods")
+
+        # Not actually reduced
+        load_output = pd.concat(
+            [
+                demand_segments,
+                subperiods,
+                hours_per_period,
+                sub_weights,
+                time_index,
+                load_profiles,
+            ],
+            axis=1,
+        )
+
+        return resource_profiles, load_output
