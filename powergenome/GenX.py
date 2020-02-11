@@ -125,27 +125,27 @@ def make_genx_settings_file(pudl_engine, settings):
     if float(year_case_policy["RPS"]) > 0:
         # print(total_dg_gen)
         # print(year_case_policy["RPS"])
-        if len(policies.loc[(case_id, model_year), "region"].unique()) > 1:
-            genx_settings["RPS"] = 2
-            genx_settings["RPS_Adjustment"] = 0
-        else:
+        if policies.loc[(case_id, model_year), "region"] == "all":
             genx_settings["RPS"] = 3
             genx_settings["RPS_Adjustment"] = float(
                 (1 - year_case_policy["RPS"]) * total_dg_gen
             )
+        else:
+            genx_settings["RPS"] = 2
+            genx_settings["RPS_Adjustment"] = 0
     else:
         genx_settings["RPS"] = 0
         genx_settings["RPS_Adjustment"] = 0
 
     if float(year_case_policy["CES"]) > 0:
-        if len(policies.loc[(case_id, model_year), "region"].unique()) > 1:
-            genx_settings["CES"] = 2
-            genx_settings["CES_Adjustment"] = 0
-        else:
+        if policies.loc[(case_id, model_year), "region"] == "all":
             genx_settings["CES"] = 3
             genx_settings["CES_Adjustment"] = float(
                 (1 - year_case_policy["CES"]) * total_dg_gen
             )
+        else:
+            genx_settings["CES"] = 2
+            genx_settings["CES_Adjustment"] = 0
     else:
         genx_settings["CES"] = 0
         genx_settings["CES_Adjustment"] = 0
