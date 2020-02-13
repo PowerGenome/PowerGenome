@@ -31,7 +31,7 @@ def load_ownership_eia860(pudl_engine, data_years=[2017]):
         "utility_id_eia",
         "plant_id_eia",
         "generator_id",
-        "operational_status_code",
+        # "operational_status_code",
         "owner_utility_id_eia",
         "owner_name",
         "owner_state",
