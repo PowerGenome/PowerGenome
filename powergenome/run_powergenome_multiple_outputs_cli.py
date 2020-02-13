@@ -359,25 +359,25 @@ def main():
                     # )
 
                     i += 1
-                # if args.transmission:
-                # if args.gens is False:
-                #     model_regions_gdf = load_ipm_shapefile(_settings)
-                # else:
-                #     model_regions_gdf = gc.model_regions_gdf
-                #     transmission = agg_transmission_constraints(
-                #         pudl_engine=pudl_engine, settings=_settings
-                #     )
-                #     transmission = (
-                #         transmission.pipe(
-                #             transmission_line_distance,
-                #             ipm_shapefile=model_regions_gdf,
-                #             settings=_settings,
-                #             units="mile",
-                #         )
-                #         .pipe(network_line_loss, settings=_settings)
-                #         .pipe(network_max_reinforcement, settings=_settings)
-                #         .pipe(network_reinforcement_cost, settings=_settings)
-                #     )
+                if args.transmission:
+                    if args.gens is False:
+                        model_regions_gdf = load_ipm_shapefile(_settings)
+                    else:
+                        model_regions_gdf = gc.model_regions_gdf
+                        transmission = agg_transmission_constraints(
+                            pudl_engine=pudl_engine, settings=_settings
+                        )
+                        transmission = (
+                            transmission.pipe(
+                                transmission_line_distance,
+                                ipm_shapefile=model_regions_gdf,
+                                settings=_settings,
+                                units="mile",
+                            )
+                            .pipe(network_line_loss, settings=_settings)
+                            .pipe(network_max_reinforcement, settings=_settings)
+                            .pipe(network_reinforcement_cost, settings=_settings)
+                        )
 
                 genx_settings = make_genx_settings_file(pudl_engine, _settings)
                 write_case_settings_file(
@@ -462,25 +462,17 @@ def main():
                 )
 
             if args.transmission:
-                if not model_regions_gdf:
-                    if args.gens is False:
-                        model_regions_gdf = load_ipm_shapefile(_settings)
-                    else:
-                        model_regions_gdf = gc.model_regions_gdf
-                transmission = agg_transmission_constraints(
-                    pudl_engine=pudl_engine, settings=_settings
-                )
-                transmission = (
-                    transmission.pipe(
-                        transmission_line_distance,
-                        ipm_shapefile=model_regions_gdf,
-                        settings=_settings,
-                        units="mile",
-                    )
-                    .pipe(network_line_loss, settings=_settings)
-                    .pipe(network_max_reinforcement, settings=_settings)
-                    .pipe(network_reinforcement_cost, settings=_settings)
-                )
+                # if not model_regions_gdf:
+                #     if args.gens is False:
+                #         model_regions_gdf = load_ipm_shapefile(_settings)
+                #     else:
+                #         model_regions_gdf = gc.model_regions_gdf
+                # transmission = agg_transmission_constraints(
+                #     pudl_engine=pudl_engine, settings=_settings
+                # )
+                transmission = transmission.pipe(
+                    network_max_reinforcement, settings=_settings
+                ).pipe(network_reinforcement_cost, settings=_settings)
                 network = add_emission_policies(transmission, _settings)
                 write_results_file(
                     df=network,
