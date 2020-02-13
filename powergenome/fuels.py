@@ -33,13 +33,15 @@ def fuel_cost_table(fuel_costs, generators, settings):
         fuel_emission_map[ccs_fuel] = fuel_emission_map[base_name]
 
     fuel_df["Cost_per_MMBtu"] = fuel_df["Fuel"].map(fuel_price_map)
-    fuel_df["CO2_content_tons_perMMBtu"] = fuel_df["Fuel"].map(fuel_emission_map)
+    fuel_df["CO2_content_tons_per_MMBtu"] = fuel_df["Fuel"].map(fuel_emission_map)
 
     # Slow to loop through all of the rows this way but the df shouldn't be too long
     fuel_df = fuel_df.apply(adjust_ccs_fuels, axis=1, settings=settings)
     fuel_df = add_carbon_tax(fuel_df, settings)
     fuel_df["Cost_per_MMBtu"] = fuel_df["Cost_per_MMBtu"].round(2)
-    fuel_df["CO2_content_tons_perMMBtu"] = fuel_df["CO2_content_tons_perMMBtu"].round(5)
+    fuel_df["CO2_content_tons_per_MMBtu"] = fuel_df["CO2_content_tons_per_MMBtu"].round(
+        5
+    )
     fuel_df.fillna(0, inplace=True)
 
     return fuel_df
@@ -55,9 +57,9 @@ def adjust_ccs_fuels(ccs_fuel_row, settings):
         base_fuel_name = ("_").join(ccs_fuel_row["Fuel"].split("_")[-2:])
         capture_rate = settings["ccs_capture_rate"][base_fuel_name]
 
-        co2_captured = ccs_fuel_row["CO2_content_tons_perMMBtu"] * capture_rate
+        co2_captured = ccs_fuel_row["CO2_content_tons_per_MMBtu"] * capture_rate
 
-        ccs_fuel_row["CO2_content_tons_perMMBtu"] -= co2_captured
+        ccs_fuel_row["CO2_content_tons_per_MMBtu"] -= co2_captured
         ccs_fuel_row["Cost_per_MMBtu"] += co2_captured * disposal_cost
 
     else:
@@ -74,7 +76,7 @@ def add_carbon_tax(fuel_df, settings):
         ctax = settings["carbon_tax"]
 
     fuel_df.loc[:, "Cost_per_MMBtu"] = fuel_df.loc[:, "Cost_per_MMBtu"] + (
-        fuel_df.loc[:, "CO2_content_tons_perMMBtu"] * ctax
+        fuel_df.loc[:, "CO2_content_tons_per_MMBtu"] * ctax
     )
 
     return fuel_df
