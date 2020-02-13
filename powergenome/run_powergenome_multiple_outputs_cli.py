@@ -318,11 +318,12 @@ def main():
 
                     # Save existing resources that aren't demand response for use in
                     # other cases
-                    existing_gens = gen_clusters.loc[
-                        (gen_clusters["Existing_Cap_MW"] >= 0)
-                        & (gen_clusters["DR"] == 0),
-                        :,
-                    ]
+                    existing_gens = gc.existing_resources.copy()
+                    # gen_clusters.loc[
+                    #     (gen_clusters["Existing_Cap_MW"] >= 0)
+                    #     & (gen_clusters["DR"] == 0),
+                    #     :,
+                    # ]
                     logger.info(
                         f"Finished first round with year {year} scenario {case_id}"
                     )
@@ -386,7 +387,12 @@ def main():
 
                     gc.settings = _settings
                     gc.current_gens = False
-                    gc.existing_resources = existing_gens
+
+                    # Change the fuel labels in existing generators to reflect the
+                    # correct AEO scenario for each fuel.
+                    gc.existing_resources = add_fuel_labels(
+                        existing_gens, gc.fuel_prices, _settings
+                    )
                     gen_clusters = gc.create_all_generators()
                     # if "partial_ces" in settings:
                     #     fuels = fuel_cost_table(
