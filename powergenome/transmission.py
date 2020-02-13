@@ -96,7 +96,7 @@ def agg_transmission_constraints(
     tc_joined["Transmission Path Name"] = (
         tc_joined["model_region_from"] + "_to_" + tc_joined["model_region_to"]
     )
-    tc_joined = tc_joined.set_index("Transmission Path Name")
+    # tc_joined = tc_joined.set_index("Transmission Path Name")
     tc_joined.drop(columns=["model_region_from", "model_region_to"], inplace=True)
 
     return tc_joined
@@ -170,7 +170,7 @@ def transmission_line_distance(
 
     distances = [
         single_line_distance(line_name, region_centroids, units=units)
-        for line_name in trans_constraints_df.index
+        for line_name in trans_constraints_df["Transmission Path Name"]
     ]
     trans_constraints_df[f"distance_{units}"] = distances
     trans_constraints_df[f"distance_{units}"] = trans_constraints_df[
