@@ -1,8 +1,11 @@
 # Read in and add external inputs (user-supplied files) to PowerGenome outputs
 
+import logging
 import pandas as pd
 
 from powergenome.util import snake_case_col
+
+logger = logging.getLogger(__name__)
 
 
 def make_demand_response_profiles(path, resource_name, settings):
@@ -109,6 +112,7 @@ def add_resource_max_cap_spur_line(
 
     path = settings["input_folder"] / settings["capacity_limit_spur_line_fn"]
     df = pd.read_csv(path)
+    df["cluster"] = df["cluster"].fillna(1)
 
     required_cols = [
         "region",
@@ -208,7 +212,7 @@ def make_generator_variability(resource_df, settings, resource_col="Resource"):
         _df["cluster"] = _df["cluster"].fillna(1)
         count = 0
         for r in df.Resource.unique():
-            if r in resource:
+            if r.lower() in resource.lower():
                 _df["_resource"] = r
                 count += 1
         if count > 1:
@@ -236,7 +240,7 @@ def make_generator_variability(resource_df, settings, resource_col="Resource"):
 
     gen_variability = gen_variability.rename(index={"Resource_x": "Resource"})
     gen_variability.columns = [
-        f"{r}_{idx}" for idx, r in enumerate(gen_variability.loc["Resource", :])
+        f"{r}_{idx + 1}" for idx, r in enumerate(gen_variability.loc["Resource", :])
     ]
     gen_variability = gen_variability.drop(index="Resource")
     gen_variability.index = [int(x) for x in gen_variability.index]
@@ -245,6 +249,14 @@ def make_generator_variability(resource_df, settings, resource_col="Resource"):
     assert (
         any(gen_variability.isna().any()) is False
     ), "Something went wrong creating the gen variability file. The data has some NaN values"
+
+    # Check to make sure no variable resources have identical hourly profiles
+    for r in df.Resource.unique():
+        for col in [x for x in gen_variability.columns if r in x]:
+            if gen_variability[col].std == 0:
+                logger.warning(
+                    f"Column {col} in the gen varability df has a standard deviation of 0."
+                )
 
     return gen_variability
 
