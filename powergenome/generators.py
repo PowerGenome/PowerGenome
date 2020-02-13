@@ -2253,8 +2253,8 @@ class GeneratorClusters:
             logger.info("Sorting new resources alphabetically.")
             self.results = self.results.sort_values(["region", "technology"])
 
-        self.results = self.results.rename(columns={"technology": "Resource"})
-        self.results["Resource"] = snake_case_col(self.results["Resource"])
+        # self.results = self.results.rename(columns={"technology": "Resource"})
+        self.results["Resource"] = snake_case_col(self.results["technology"])
 
         return self.results
 
@@ -2294,11 +2294,11 @@ class GeneratorClusters:
 
             self.new_generators = pd.concat([self.new_generators, dr_rows])
 
-        self.new_generators = self.new_generators.rename(
-            columns={"technology": "Resource"}
-        )
+        # self.new_generators = self.new_generators.rename(
+        #     columns={"technology": "Resource"}
+        # )
         self.new_generators["Resource"] = snake_case_col(
-            self.new_generators["Resource"]
+            self.new_generators["technology"]
         )
 
         return self.new_generators
