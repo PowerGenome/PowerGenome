@@ -231,7 +231,7 @@ def startup_nonfuel_costs(df, settings):
         ] = total_startup_costs
     df.loc[:, "Start_cost_per_MW"] = df.loc[:, "Start_cost_per_MW"].round(0)
 
-    df.loc[df["technology"].str.contains("Nuclear"), "Start_cost_per_MW"] = "FILL VALUE"
+    # df.loc[df["technology"].str.contains("Nuclear"), "Start_cost_per_MW"] = "FILL VALUE"
 
     return df
 
