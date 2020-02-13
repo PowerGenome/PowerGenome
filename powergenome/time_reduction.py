@@ -158,6 +158,9 @@ def kmeans_time_clustering(
     # Create an empty list storing name of each data point
     EachClusterRepPoint = [None] * num_clusters
 
+    #data required for the long duration storage constraint
+    LDH = pd.DataFrame(columns = ['week','cluster'])
+
     for k in range(num_clusters):
         # Number of points in kth cluster (i.e. label=0)
         EachClusterWeight[k] = len(model.labels_[model.labels_ == k])
@@ -173,7 +176,12 @@ def kmeans_time_clustering(
 
         # Select column name closest with the smallest euclidean distance to the mean
         EachClusterRepPoint[k] = min(dist, key=lambda k: dist[k])
-    # IP()
+        # Creating a list that matches each week to a representative week
+        for j in range(EachClusterWeight[k]):
+            LDH = LDH.append(pd.DataFrame({'week': int(ClusteringInputDF.loc[:,model.labels_ ==k].columns[j][1:]), 'cluster': k + 1}, index=[0]), ignore_index=True)
+    #appending the week representing peak load
+    LDH = LDH.append(pd.DataFrame({'week': int(GroupingwithPeakLoad[0][1:]), 'cluster': k+2},index=[0]),ignore_index=True)
+    
     # Storing selected groupings in a new data frame with appropriate dimensions (E.g. load in GW)
     ClusterOutputDataTemp = ModifiedData[EachClusterRepPoint]
 
@@ -304,6 +312,7 @@ def kmeans_time_clustering(
             "AnnualGenScaleFactor": ScaleFactor,  # Scale factor used to adjust load output to match annual generation of original data
             "RMSE": RMSE,  # Root mean square error between full year data and modeled full year data (duration curves)
             "AnnualProfile": FullLengthOutputs,
+            "LDH": LDH,
         },
         EachClusterRepPoint,
         EachClusterWeight,
