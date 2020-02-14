@@ -3,9 +3,9 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python>=3.7 # Remove for tox.ini & setup.py
+  - python=3.7 # Remove for tox.ini & setup.py
   - pip
-  - conda-forge::catalystcoop.pudl
+  - conda-forge::catalystcoop.pudl=0.3
   - jupyterlab
   - black
   - pytest
