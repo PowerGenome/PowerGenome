@@ -1,4 +1,4 @@
-name: powergenome-test2
+name: powergenome
 channels:
   - conda-forge
   - defaults
