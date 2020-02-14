@@ -408,3 +408,20 @@ def check_min_power_against_variability(gen_clusters, resource_profile):
     # )
 
     return gen_clusters
+
+
+def calc_emissions_ces_level(network_df, load_df, settings):
+
+    # load_cols = [col for col in load_df.columns if "Load" in col]
+    total_load = load_df.sum().sum()
+
+    emissions_limit = settings["emissions_ces_limit"]
+
+    if emissions_limit is not None:
+        ces_value = 1 - (emissions_limit / total_load)
+        network_df["CES"] = ces_value
+        network_df["CES"] = network_df["CES"].round(3)
+
+        return network_df
+    else:
+        return network_df

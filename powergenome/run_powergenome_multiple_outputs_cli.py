@@ -25,6 +25,7 @@ from powergenome.GenX import (
     network_reinforcement_cost,
     set_int_cols,
     calculate_partial_CES_values,
+    calc_emissions_ces_level,
 )
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
@@ -473,7 +474,13 @@ def main():
                 transmission = transmission.pipe(
                     network_max_reinforcement, settings=_settings
                 ).pipe(network_reinforcement_cost, settings=_settings)
+
                 network = add_emission_policies(transmission, _settings)
+
+                # Change the CES limit for cases where it's emissions based
+                if "emissions_ces_limit" in _settings:
+                    network = calc_emissions_ces_level(network, load, _settings)
+
                 write_results_file(
                     df=network,
                     folder=case_folder,
