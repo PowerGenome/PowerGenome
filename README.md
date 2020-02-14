@@ -30,7 +30,7 @@ There are quite a few data inputs that we have not yet compiled for public use w
 
 This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl). As such, it requires installation of PUDL to access a normalized sqlite database and some of the convienience PUDL functions.
 
-`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). The data used by PowerGenome have outstripped what is available in the public version of PULD, so download a modifed version of the [PUDL sqlite database here](https://drive.google.com/open?id=18tLKbok1-me81SkfWAhSLXmy5HW6RdvI).
+`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). The data used by PowerGenome have outstripped what is available in the public version of PULD, so download a modifed version of the [PUDL sqlite database here](https://drive.google.com/open?id=1LixZ6atMetvPRQlhO0kSWzzmIMh6GGw3). The package `catalystcoop.pudl` must be version 0.3.0 or above to work with this version of the database.
 
 ## Installation
 
