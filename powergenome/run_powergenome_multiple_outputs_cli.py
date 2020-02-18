@@ -514,6 +514,11 @@ def main():
                 folder=case_folder,
                 file_name="GenX_settings.yml",
             )
+            write_case_settings_file(
+                settings=_settings,
+                folder=case_folder,
+                file_name="powergenome_case_settings.yml",
+            )
 
 
 if __name__ == "__main__":
