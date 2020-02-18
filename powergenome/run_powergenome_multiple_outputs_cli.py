@@ -388,17 +388,19 @@ def main():
                 )
 
             else:
-                logger.info(f"Starting year {year} scenario {case_id}")
+                logger.info(f"\nStarting year {year} scenario {case_id}")
                 if args.gens:
 
                     gc.settings = _settings
                     gc.current_gens = False
 
                     # Change the fuel labels in existing generators to reflect the
-                    # correct AEO scenario for each fuel.
-                    gc.existing_resources = add_fuel_labels(
-                        existing_gens, gc.fuel_prices, _settings
-                    )
+                    # correct AEO scenario for each fuel and update GenX tags based
+                    # on settings.
+                    gc.existing_resources = existing_gens.pipe(
+                        add_fuel_labels, gc.fuel_prices, _settings
+                    ).pipe(add_genx_model_tags, _settings)
+
                     gen_clusters = gc.create_all_generators()
                     # if "partial_ces" in settings:
                     #     fuels = fuel_cost_table(
