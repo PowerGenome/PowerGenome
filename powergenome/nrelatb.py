@@ -874,6 +874,8 @@ def load_user_defined_techs(settings):
         user_techs["tech_detail"] = ""
     if "cost_case" not in user_techs.columns:
         user_techs["cost_case"] = ""
+    if "Cap_size" not in user_techs.columns:
+        user_techs["Cap_size"] = 1
 
     cols = [
         "technology",
@@ -886,6 +888,7 @@ def load_user_defined_techs(settings):
         "o_m_variable_mwh",
         "waccnomtech",
         "heat_rate",
+        "Cap_size",
         "dollar_year",
     ]
 
