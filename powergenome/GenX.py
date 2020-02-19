@@ -4,7 +4,11 @@ from itertools import product
 import logging
 import pandas as pd
 
-from powergenome.external_data import load_policy_scenarios, load_demand_segments
+from powergenome.external_data import (
+    load_policy_scenarios,
+    load_demand_segments,
+    load_user_genx_settings,
+)
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import load_settings
@@ -137,10 +141,11 @@ def make_genx_settings_file(pudl_engine, settings):
     if isinstance(year_case_policy, pd.DataFrame):
         year_case_policy = year_case_policy.sum()
 
-    if not float(year_case_policy["CO_2_Max_Mtons"]) > 0:
-        genx_settings["CO2Cap"] = 0
-    else:
+    # THIS WILL NEED TO BE MORE FLEXIBLE FOR OTHER SCENARIOS
+    if float(year_case_policy["CO_2_Max_Mtons"]) >= 0:
         genx_settings["CO2Cap"] = 2
+    else:
+        genx_settings["CO2Cap"] = 0
 
     if float(year_case_policy["RPS"]) > 0:
         # print(total_dg_gen)
@@ -173,6 +178,15 @@ def make_genx_settings_file(pudl_engine, settings):
     genx_settings["case_id"] = case_id
     genx_settings["case_name"] = case_name
     genx_settings["year"] = str(model_year)
+
+    # Load user defined values for the genx settigns file. This overrides the
+    # complicated logic above.
+    if "case_genx_settings_fn" in settings:
+        user_genx_settings = load_user_genx_settings(settings)
+        user_case_settings = user_genx_settings.loc[(case_id, model_year), :]
+        for key, value in user_case_settings.items():
+            if not pd.isna(value):
+                genx_settings[key] = value
 
     return genx_settings
 
