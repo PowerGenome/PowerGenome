@@ -420,7 +420,11 @@ def calc_emissions_ces_level(network_df, load_df, settings):
     emissions_limit = settings["emissions_ces_limit"]
 
     if emissions_limit is not None:
-        ces_value = 1 - (emissions_limit / total_load)
+        try:
+            ces_value = 1 - (emissions_limit / total_load)
+        except TypeError:
+            print(emissions_limit, total_load)
+            raise TypeError
         network_df["CES"] = ces_value
         network_df["CES"] = network_df["CES"].round(3)
 
