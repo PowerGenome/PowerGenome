@@ -14,6 +14,7 @@ from powergenome.generators import (
     GeneratorClusters,
     load_ipm_shapefile,
     add_fuel_labels,
+    add_genx_model_tags,
 )
 from powergenome.GenX import (
     add_emission_policies,
