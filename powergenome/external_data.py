@@ -286,22 +286,7 @@ def load_policy_scenarios(settings):
     # Update the policies. The column `copy_case_id` can be used to copy values from
     # another policy to reduce human copy/paste errors.
     if "copy_case_id" in policies.columns:
-        grouped_policies = policies.groupby(["year", "region", "copy_case_id"])
-        df_list = []
-        for (year, region, copy_case_id), _df in grouped_policies:
-
-            if copy_case_id in policies.case_id.tolist():
-                for col in _df.columns[2:]:
-                    _df.loc[:, col] = policies.loc[
-                        (policies.year == year)
-                        & (policies.case_id == copy_case_id)
-                        & (policies.region == region),
-                        :,
-                    ].squeeze()[col]
-            df_list.append(_df)
-
-        updated_policies = pd.concat(df_list)
-        policies.loc[updated_policies.index, :] = updated_policies
+        policies = copy_case_values(policies, match_cols=["case_id", "year", "region"])
 
     policies = policies.drop(columns="copy_case_id")
     policies = policies.set_index(["case_id", "year"])
@@ -309,9 +294,104 @@ def load_policy_scenarios(settings):
     return policies
 
 
+def copy_case_values(df, match_cols):
+    """Copy values for one case to others in an external data file. Must have column
+    "copy_case_id"
+
+    Parameters
+    ----------
+    df : DataFrame
+        Policies, settings, or some other type of data for each case/year.
+    match_cols : list
+        The columns used to match cases. Must include "case_id", can also include things
+        like "year" and "region".
+
+    Returns
+    -------
+    DataFrame
+        Modified copy of the original with values copied to rows with valid
+        "copy_case_id" values.
+    """
+    match_cols_len = len(match_cols)
+    settings_cols = [
+        col for col in df.columns if col not in match_cols + ["copy_case_id"]
+    ]
+    for row in df.itertuples(index=False):
+        if not pd.isna(row.copy_case_id):
+            # Create a dictionary with keys of each col from match_cols and values
+            # from the row. Then replace case_id key with copy_case_id value. This way
+            # we get the new case id but same region, year, etc.
+            filter_dict = {
+                col: value
+                for col, value in zip(df.columns[:match_cols_len], row[:match_cols_len])
+            }
+            filter_dict["case_id"] = row.copy_case_id  # Set to the case we want to copy
+
+            # Use the filter dictionary to filter the original df and assign the values
+            # from that row to the row in question.
+            # https://stackoverflow.com/a/34162576
+            new_values = df.loc[
+                (df[list(filter_dict)] == pd.Series(filter_dict)).all(axis=1),
+                settings_cols,
+            ].values
+
+            filter_dict["case_id"] = row.case_id  # Set back to case we want to modify
+
+            df.loc[
+                (df[list(filter_dict)] == pd.Series(filter_dict)).all(axis=1),
+                settings_cols,
+            ] = new_values
+
+    return df
+
+
 def load_demand_segments(settings):
+    """Load a file of demand segments as defined by the user in CSV.
+
+    Parameters
+    ----------
+    settings : dict
+        User defined PowerGenome settings. Must have the keys "input_folder" and
+        "demand_segments_fn".
+
+    Returns
+    -------
+    DataFrame
+        Demand segments with columns such as "Voll", "Demand_segment", etc.
+    """
 
     path = settings["input_folder"] / settings["demand_segments_fn"]
     demand_segments = pd.read_csv(path)
 
     return demand_segments
+
+
+def load_user_genx_settings(settings):
+    """Load a file with user-supplied GenX settings and copy values to cases where
+    needed.
+
+    Parameters
+    ----------
+    settings : dict
+        User defined PowerGenome settings. Must have the keys "input_folder" and
+        "case_genx_settings_fn".
+
+    Returns
+    -------
+    DataFrame
+        Values for GenX settings across cases and years as defined by the user. The
+        index is ["case_id", "year"] and columns are GenX parameters.
+    """
+
+    path = settings["input_folder"] / settings["case_genx_settings_fn"]
+    genx_case_settings = pd.read_csv(path)
+
+    if "copy_case_id" in genx_case_settings.columns:
+        genx_case_settings = copy_case_values(
+            genx_case_settings, match_cols=["case_id", "year"]
+        )
+
+    genx_case_settings = genx_case_settings.drop(columns=["copy_case_id"])
+    genx_case_settings = genx_case_settings.set_index(["case_id", "year"])
+
+    return genx_case_settings
