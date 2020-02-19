@@ -1,11 +1,15 @@
 import collections
+from copy import deepcopy
 import subprocess
 
 import pandas as pd
 import pudl
 import requests
 import sqlalchemy as sa
-import yaml
+
+# import yaml
+from ruamel.yaml import YAML
+from pathlib import Path
 
 from powergenome.params import SETTINGS
 
@@ -13,7 +17,9 @@ from powergenome.params import SETTINGS
 def load_settings(path):
 
     with open(path, "r") as f:
-        settings = yaml.safe_load(f)
+        #     settings = yaml.safe_load(f)
+        yaml = YAML(typ="safe")
+        settings = yaml.load(f)
 
     return settings
 
@@ -173,6 +179,12 @@ def write_case_settings_file(settings, folder, file_name):
     folder.mkdir(exist_ok=True, parents=True)
     path_out = folder / file_name
 
+    yaml = YAML(typ="unsafe")
+    _settings = deepcopy(settings)
+    # for key, value in _settings.items():
+    #     if isinstance(value, Path):
+    #         _settings[key] = str(value)
+    # yaml.register_class(Path)
     # stream = file(path_out, 'w')
     with open(path_out, "w") as f:
-        yaml.dump(settings, f)
+        yaml.dump(_settings, f)
