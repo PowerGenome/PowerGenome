@@ -371,8 +371,10 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
 
             gens.loc[
                 ~(gens["Resource"].str.contains("coal"))
-                & ~(gens["Resource"].str.contains("battery"))
-                & ~(gens["Resource"].str.contains("load_shifting")),
+                & (gens["STOR"] == 0)
+                & (gens["DR"] == 0),
+                # & ~(gens["Resource"].str.contains("battery"))
+                # & ~(gens["Resource"].str.contains("load_shifting")),
                 "CES",
             ] = partial_ces.round(3)
     # else:
