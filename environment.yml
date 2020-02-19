@@ -25,3 +25,4 @@ dependencies:
     - python-dotenv
     - cpi
     - flatten-dict
+    - ruamel.yaml
