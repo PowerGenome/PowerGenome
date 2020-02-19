@@ -318,7 +318,8 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
         crs={"init": "epsg:4326"},
     )
 
-    model_hydro_gdf = model_hydro_gdf.to_crs(model_regions_gdf.crs)
+    if model_hydro_gdf.crs != model_regions_gdf.crs:
+        model_hydro_gdf = model_hydro_gdf.to_crs(model_regions_gdf.crs)
 
     model_hydro_gdf = gpd.sjoin(model_regions_gdf, model_hydro_gdf)
     model_hydro_gdf = model_hydro_gdf.rename(columns={"IPM_Region": "region"})
@@ -1368,8 +1369,9 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
         geometry=gpd.points_from_xy(planned.longitude.copy(), planned.latitude.copy()),
         crs={"init": "epsg:4326"},
     )
-    planned_gdf.crs = {"init": "epsg:4326"}
-    planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
+    # planned_gdf.crs = {"init": "epsg:4326"}
+    if planned_gdf.crs != model_regions_gdf.crs:
+        planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
 
     planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
 
