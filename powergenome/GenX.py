@@ -370,7 +370,8 @@ def set_int_cols(df):
 def calculate_partial_CES_values(gen_clusters, fuels, settings):
     gens = gen_clusters.copy()
     if "partial_ces" in settings:
-        if settings["partial_ces"]:
+        if settings["partial_ces"] is True:
+            assert set(fuels["Fuel"]) == set(gens["Fuel"])
             fuel_emission_map = fuels.copy()
             fuel_emission_map = fuel_emission_map.set_index("Fuel")
 
