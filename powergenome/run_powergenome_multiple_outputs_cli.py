@@ -420,6 +420,11 @@ def main():
                     # gen_clusters = remove_fuel_scenario_name(gen_clusters, _settings)
                     gen_clusters["zone"] = gen_clusters["region"].map(zone_num_map)
 
+                    fuels = fuel_cost_table(
+                        fuel_costs=gc.fuel_prices,
+                        generators=gc.all_resources,
+                        settings=_settings,
+                    )
                     gens = calculate_partial_CES_values(gen_clusters, fuels, _settings)
                     write_results_file(
                         df=remove_fuel_scenario_name(gens.fillna(0), _settings),
