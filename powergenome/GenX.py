@@ -105,11 +105,14 @@ def add_misc_gen_values(gen_clusters, settings):
     return gen_clusters
 
 
-def make_genx_settings_file(pudl_engine, settings):
+def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     """Make a copy of the GenX settings file for a specific case.
 
-    This assumes that there is a base-level GenX settings file with parameters that
-    stay constant across all cases.
+    This function tries to make some intellegent choices about parameter values like
+    the RPS/CES type and can also read values from a file.
+
+    There should be a base-level GenX settings file with parameters like the solver and
+    solver-specific settings that stay constant across all cases.
 
     Parameters
     ----------
@@ -141,6 +144,11 @@ def make_genx_settings_file(pudl_engine, settings):
     if isinstance(year_case_policy, pd.DataFrame):
         year_case_policy = year_case_policy.sum()
 
+    # If a value isn't supplied to the function use value from file
+    if calculated_ces is None:
+        CES = year_case_policy["CES"]
+    RPS = year_case_policy["RPS"]
+
     # THIS WILL NEED TO BE MORE FLEXIBLE FOR OTHER SCENARIOS
     if float(year_case_policy["CO_2_Max_Mtons"]) >= 0:
         genx_settings["CO2Cap"] = 2
@@ -152,9 +160,7 @@ def make_genx_settings_file(pudl_engine, settings):
         # print(year_case_policy["RPS"])
         if policies.loc[(case_id, model_year), "region"] == "all":
             genx_settings["RPS"] = 3
-            genx_settings["RPS_Adjustment"] = float(
-                (1 - year_case_policy["RPS"]) * total_dg_gen
-            )
+            genx_settings["RPS_Adjustment"] = (1 - RPS) * total_dg_gen
         else:
             genx_settings["RPS"] = 2
             genx_settings["RPS_Adjustment"] = 0
@@ -165,9 +171,20 @@ def make_genx_settings_file(pudl_engine, settings):
     if float(year_case_policy["CES"]) > 0:
         if policies.loc[(case_id, model_year), "region"] == "all":
             genx_settings["CES"] = 3
-            genx_settings["CES_Adjustment"] = float(
-                (1 - year_case_policy["CES"]) * total_dg_gen
-            )
+
+            # This is a little confusing but for partial CES
+            if calculated_ces is None:
+                assert settings["partial_ces"] is False, (
+                    "If partial CES is used a calculated CES value must be passed to"
+                    " this function"
+                )
+                genx_settings["CES_Adjustment"] = (1 - CES) * total_dg_gen
+            else:
+                assert settings["partial_ces"] is True, (
+                    "A calculated CES value has been passed to this function but the"
+                    " settings parameter 'partial_ces' is not True"
+                )
+                genx_settings["CES_Adjustment"] = 0
         else:
             genx_settings["CES"] = 2
             genx_settings["CES_Adjustment"] = 0

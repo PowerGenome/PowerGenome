@@ -381,12 +381,12 @@ def main():
                             .pipe(network_reinforcement_cost, settings=_settings)
                         )
 
-                genx_settings = make_genx_settings_file(pudl_engine, _settings)
-                write_case_settings_file(
-                    settings=genx_settings,
-                    folder=case_folder,
-                    file_name="GenX_settings.yml",
-                )
+                # genx_settings = make_genx_settings_file(pudl_engine, _settings)
+                # write_case_settings_file(
+                #     settings=genx_settings,
+                #     folder=case_folder,
+                #     file_name="GenX_settings.yml",
+                # )
 
             else:
                 logger.info(f"\nStarting year {year} scenario {case_id}")
@@ -489,6 +489,14 @@ def main():
                 if "emissions_ces_limit" in _settings:
                     network = calc_emissions_ces_level(network, load, _settings)
 
+                # If single-value for CES, use that value for input to GenX
+                # settings creation. This way values that are calculated internally
+                # get used.
+                if network["CES"].std() == 0:
+                    ces = network["CES"].mean()
+                else:
+                    ces = None
+
                 write_results_file(
                     df=network,
                     folder=case_folder,
@@ -514,7 +522,9 @@ def main():
                     file_name="Fuels_data.csv",
                 )
 
-            genx_settings = make_genx_settings_file(pudl_engine, _settings)
+            genx_settings = make_genx_settings_file(
+                pudl_engine, _settings, calculated_ces=ces
+            )
             write_case_settings_file(
                 settings=genx_settings,
                 folder=case_folder,
