@@ -147,6 +147,8 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     # If a value isn't supplied to the function use value from file
     if calculated_ces is None:
         CES = year_case_policy["CES"]
+    else:
+        CES = calculated_ces
     RPS = year_case_policy["RPS"]
 
     # THIS WILL NEED TO BE MORE FLEXIBLE FOR OTHER SCENARIOS
@@ -160,7 +162,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
         # print(year_case_policy["RPS"])
         if policies.loc[(case_id, model_year), "region"] == "all":
             genx_settings["RPS"] = 3
-            genx_settings["RPS_Adjustment"] = (1 - RPS) * total_dg_gen
+            genx_settings["RPS_Adjustment"] = float((1 - RPS) * total_dg_gen)
         else:
             genx_settings["RPS"] = 2
             genx_settings["RPS_Adjustment"] = 0
@@ -173,18 +175,10 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
             genx_settings["CES"] = 3
 
             # This is a little confusing but for partial CES
-            if calculated_ces is None:
-                assert settings["partial_ces"] is False, (
-                    "If partial CES is used a calculated CES value must be passed to"
-                    " this function"
-                )
-                genx_settings["CES_Adjustment"] = (1 - CES) * total_dg_gen
-            else:
-                assert settings["partial_ces"] is True, (
-                    "A calculated CES value has been passed to this function but the"
-                    " settings parameter 'partial_ces' is not True"
-                )
+            if settings["partial_ces"] is True:
                 genx_settings["CES_Adjustment"] = 0
+            else:
+                genx_settings["CES_Adjustment"] = float((1 - CES) * total_dg_gen)
         else:
             genx_settings["CES"] = 2
             genx_settings["CES_Adjustment"] = 0
