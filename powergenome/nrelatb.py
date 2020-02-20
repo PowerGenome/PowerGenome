@@ -415,6 +415,9 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
 
     cost_region = region_map[region]
     tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
+    avg_multiplier = tech_multiplier.mean()
+
+    tech_multiplier = tech_multiplier.fillna(avg_multiplier)
 
     tech_multiplier_map = {}
     for atb_tech, eia_tech in tech_map.items():
