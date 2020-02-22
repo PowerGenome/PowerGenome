@@ -1906,43 +1906,48 @@ class GeneratorClusters:
         df_list = []
         self.demand_response_profiles = {}
 
-        for resource, parameters in self.settings["demand_response_resources"][
-            year
-        ].items():
+        if self.settings["demand_response_resources"] is not None:
+            for resource, parameters in self.settings["demand_response_resources"][
+                year
+            ].items():
 
-            _df = pd.DataFrame(
-                index=self.settings["model_regions"],
-                columns=self.settings["generator_columns"],
-            )
-            _df = _df.drop(columns="Resource")
-            _df["technology"] = resource
-            _df["region"] = self.settings["model_regions"]
+                _df = pd.DataFrame(
+                    index=self.settings["model_regions"],
+                    columns=self.settings["generator_columns"],
+                )
+                _df = _df.drop(columns="Resource")
+                _df["technology"] = resource
+                _df["region"] = self.settings["model_regions"]
 
-            dr_path = (
-                Path.cwd()
-                / self.settings["input_folder"]
-                / self.settings["demand_response_fn"]
-            )
-            dr_profile = make_demand_response_profiles(dr_path, resource, self.settings)
-            self.demand_response_profiles[resource] = dr_profile
+                dr_path = (
+                    Path.cwd()
+                    / self.settings["input_folder"]
+                    / self.settings["demand_response_fn"]
+                )
+                dr_profile = make_demand_response_profiles(
+                    dr_path, resource, self.settings
+                )
+                self.demand_response_profiles[resource] = dr_profile
 
-            dr_capacity = demand_response_resource_capacity(
-                dr_profile, resource, self.settings
-            )
-            dr_capacity_scenario = dr_capacity.squeeze()
-            _df["Existing_Cap_MW"] = _df["region"].map(dr_capacity_scenario)
+                dr_capacity = demand_response_resource_capacity(
+                    dr_profile, resource, self.settings
+                )
+                dr_capacity_scenario = dr_capacity.squeeze()
+                _df["Existing_Cap_MW"] = _df["region"].map(dr_capacity_scenario)
 
-            if isinstance(parameters["parameter_values"], dict):
-                for col, value in parameters["parameter_values"].items():
-                    _df[col] = value
+                if isinstance(parameters["parameter_values"], dict):
+                    for col, value in parameters["parameter_values"].items():
+                        _df[col] = value
 
-            df_list.append(_df)
+                df_list.append(_df)
 
-        dr_rows = pd.concat(df_list)
-        dr_rows["New_Build"] = -1
-        dr_rows["Fuel"] = "None"
-        dr_rows["cluster"] = 1
-        dr_rows = dr_rows.fillna(0)
+            dr_rows = pd.concat(df_list)
+            dr_rows["New_Build"] = -1
+            dr_rows["Fuel"] = "None"
+            dr_rows["cluster"] = 1
+            dr_rows = dr_rows.fillna(0)
+        else:
+            dr_rows = pd.DataFrame()
 
         return dr_rows
 
