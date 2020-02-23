@@ -137,9 +137,10 @@ def add_resource_max_cap_spur_line(
         )
 
         assert len(new_resource_df.loc[mask, :]) == len(_df), (
-            f"There is a mismatch between the number of {tech} resources in {region} "
-            f"and the number of spur line distances provided in"
-            f" {settings['capacity_limit_spur_line_fn']}"
+            f"There is a mismatch between the number of {tech} resources in {region}, "
+            f"({len(new_resource_df.loc[mask, :])}) and the number of spur line "
+            f"distances provided in {settings['capacity_limit_spur_line_fn']}, "
+            f"({len(_df)})"
         )
 
         new_resource_df.loc[mask, capacity_col] = _df["max_capacity"].values
