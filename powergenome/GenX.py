@@ -138,8 +138,11 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     genx_settings = load_settings(settings["genx_settings_fn"])
     policies = load_policy_scenarios(settings)
     year_case_policy = policies.loc[(case_id, model_year), :]
-    dg_generation = make_distributed_gen_profiles(pudl_engine, settings)
-    total_dg_gen = dg_generation.sum().sum()
+    if "distributed_gen_profiles_fn" in settings:
+        dg_generation = make_distributed_gen_profiles(pudl_engine, settings)
+        total_dg_gen = dg_generation.sum().sum()
+    else:
+        total_dg_gen = 0
 
     if isinstance(year_case_policy, pd.DataFrame):
         year_case_policy = year_case_policy.sum()
@@ -189,6 +192,10 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     genx_settings["case_id"] = case_id
     genx_settings["case_name"] = case_name
     genx_settings["year"] = str(model_year)
+
+    # This is a new setting, will need to have a way to change.
+    genx_settings["CapacityReserveMargin"] = 0
+    genx_settings["LDS"] = 0
 
     # Load user defined values for the genx settigns file. This overrides the
     # complicated logic above.
