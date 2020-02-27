@@ -138,7 +138,10 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     genx_settings = load_settings(settings["genx_settings_fn"])
     policies = load_policy_scenarios(settings)
     year_case_policy = policies.loc[(case_id, model_year), :]
-    if "distributed_gen_profiles_fn" in settings:
+    if (
+        "distributed_gen_profiles_fn" in settings
+        and settings["distributed_gen_profiles_fn"] is not None
+    ):
         dg_generation = make_distributed_gen_profiles(pudl_engine, settings)
         total_dg_gen = dg_generation.sum().sum()
     else:
