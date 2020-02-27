@@ -7,7 +7,7 @@ import pudl
 import requests
 import sqlalchemy as sa
 
-# import yaml
+import yaml
 from ruamel.yaml import YAML
 from pathlib import Path
 
@@ -179,7 +179,7 @@ def write_case_settings_file(settings, folder, file_name):
     folder.mkdir(exist_ok=True, parents=True)
     path_out = folder / file_name
 
-    yaml = YAML(typ="unsafe")
+    # yaml = YAML(typ="unsafe")
     _settings = deepcopy(settings)
     # for key, value in _settings.items():
     #     if isinstance(value, Path):
