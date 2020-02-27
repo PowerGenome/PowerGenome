@@ -192,6 +192,10 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
         genx_settings["CES"] = 0
         genx_settings["CES_Adjustment"] = 0
 
+    # Don't wrap when time domain isn't reduced
+    if settings["reduce_time_domain"] is False:
+        genx_settings["OperationWrapping"] = 0
+
     genx_settings["case_id"] = case_id
     genx_settings["case_name"] = case_name
     genx_settings["year"] = str(model_year)
