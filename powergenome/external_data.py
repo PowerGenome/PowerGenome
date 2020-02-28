@@ -136,12 +136,16 @@ def add_resource_max_cap_spur_line(
             new_resource_df["technology"].str.lower().str.contains(tech.lower())
         )
 
-        assert len(new_resource_df.loc[mask, :]) == len(_df), (
-            f"There is a mismatch between the number of {tech} resources in {region}, "
-            f"({len(new_resource_df.loc[mask, :])}) and the number of spur line "
-            f"distances provided in {settings['capacity_limit_spur_line_fn']}, "
-            f"({len(_df)})"
-        )
+        # assert len(new_resource_df.loc[mask, :]) == len(_df), (
+        #     f"There is a mismatch between the number of {tech} resources in {region}, "
+        #     f"({len(new_resource_df.loc[mask, :])}) and the number of spur line "
+        #     f"distances provided in {settings['capacity_limit_spur_line_fn']}, "
+        #     f"({len(_df)})"
+        # )
+        if len(new_resource_df.loc[mask, :]) != len(_df):
+            print(region, tech, new_resource_df.technology.unique())
+            print(new_resource_df.loc[mask, :])
+            print(_df)
 
         new_resource_df.loc[mask, capacity_col] = _df["max_capacity"].values
         new_resource_df.loc[mask, "spur_line_miles"] = _df["spur_line_miles"].values
