@@ -361,10 +361,13 @@ def single_generator_row(atb_costs_hr, new_gen_type, model_year_range):
         "waccnomtech",
         "heat_rate",
     ]
-    s = atb_costs_hr.query(
-        "technology==@technology & tech_detail==@tech_detail "
-        "& cost_case==@cost_case & basis_year.isin(@model_year_range)"
-    )[numeric_cols].mean()
+    s = atb_costs_hr.loc[
+        (atb_costs_hr["technology"] == technology)
+        & (atb_costs_hr["tech_detail"] == tech_detail)
+        & (atb_costs_hr["cost_case"] == cost_case)
+        & (atb_costs_hr["basis_year"].isin(model_year_range)),
+        numeric_cols,
+    ].mean()
     cols = [
         "technology",
         "cost_case",
