@@ -133,6 +133,25 @@ def build_case_id_name_map(settings):
 
 
 def build_scenario_settings(settings, scenario_definitions):
+    """Build a nested dictionary of settings for each planning year/scenario
+
+    Parameters
+    ----------
+    settings : dict
+        The full settings file, including the "settings_management" section with
+        alternate values for each scenario
+    scenario_definitions : DataFrame
+        Values from the csv file defined in the settings file "scenario_definitions_fn"
+        parameter. This df has columns corresponding to categories in the
+        "settings_management" section of the settings file, with row values defining
+        specific case/scenario names.
+
+    Returns
+    -------
+    dict
+        A nested dictionary. The first set of keys are the planning years, the second
+        set of keys are the case ID values associated with each case.
+    """
 
     model_planning_period_dict = {
         year: (start_year, year)
@@ -188,7 +207,10 @@ def build_scenario_settings(settings, scenario_definitions):
                         case_value
                     ]
                     # print(new_parameter)
-                    settings_keys = list(new_parameter.keys())
+                    try:
+                        settings_keys = list(new_parameter.keys())
+                    except AttributeError:
+                        settings_keys = {}
 
                     for key in settings_keys:
                         assert (
@@ -197,7 +219,8 @@ def build_scenario_settings(settings, scenario_definitions):
 
                         modified_settings.append(key)
 
-                    _settings = update_dictionary(_settings, new_parameter)
+                    if new_parameter is not None:
+                        _settings = update_dictionary(_settings, new_parameter)
                     # print(_settings[list(new_parameter.keys())[0]])
 
                 except KeyError:
