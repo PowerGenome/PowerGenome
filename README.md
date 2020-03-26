@@ -62,28 +62,17 @@ pip install -e .
 
 ## Running code
 
-Settings are controlled in a YAML file. The example `example_settings.yml` is included in this repository.
+Settings are controlled in a YAML file. An example set of settings files, which sets up a small 2-zone model of California, is included in the folder `example_system`.
 
 The code is currently structured in a series of modules - `load_data.py`, `generators.py`, `transmission.py`, `nrelatb.py`, `eia_opendata.py`, `load_profiles.py`, and a couple others. The code and architecture is under active development. While the outputs are all formatted for GenX we hope to make the data formatting code more module to allow users to easily switch between outputs for different power system models.
 
-Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, navigate to a project folder that contains a settings file (e.g. `myproject/powergenome`), activate the  `pudl` conda environment, and use the command `run_powergenome` with flags for the settings file name and where the results should be saved:
+Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, navigate to a project folder that contains a settings file (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome_multiple` with flags for the settings file name and where the results should be saved:
 
 ```sh
-run_powergenome --settings_file example_settings.yml --results_folder example
+run_powergenome_multiple --settings_file test_settings.yml --results_folder test_system
 ```
 
-If you have previously installed PowerGenome and the `run_powergenome` command doesn't work, try reinstalling it using `pip install -e .` as described above.
-
-The following flags can be used after the script name:
-
-- --settings_file (-sf), include the name of a settings YAML file.
-- --results_folder (-rf), include the name of a results subfolder to save files in. If no subfolder is specified the default is to create one named for the current datetime.
-- --no-current-gens, do not load and cluster existing generators.
-- --no-gens, do not create the generators file.
-- --no-load, do not calcualte hourly load profiles.
-- --no-transmission, do not calculate transmission constraints.
-- --no-fuel, do not create a fuels file.
-- --sort-gens, sort by generator name within a region (existing generators always show up above new generators)
+If you have previously installed PowerGenome and the `run_powergenome_multiple` command doesn't work, try reinstalling it using `pip install -e .` as described above.
 
 ## Contributing
 
