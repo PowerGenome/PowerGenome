@@ -15,6 +15,8 @@ from powergenome.price_adjustment import inflation_price_adjustment
 def fetch_fuel_prices(settings):
     API_KEY = SETTINGS["EIA_API_KEY"]
 
+    aeo_year = settings["eia_aeo_year"]
+
     fuel_price_cases = product(
         settings["eia_series_region_names"].items(),
         settings["eia_series_fuel_names"].items(),
@@ -27,11 +29,17 @@ def fetch_fuel_prices(settings):
         fuel_name, fuel_series = fuel
         scenario_name, scenario_series = scenario
 
-        SERIES_ID = f"AEO.2019.{scenario_series}.PRCE_REAL_ELEP_NA_{fuel_series}_NA_{region_series}_Y13DLRPMMBTU.A"
+        SERIES_ID = f"AEO.{aeo_year}.{scenario_series}.PRCE_REAL_ELEP_NA_{fuel_series}_NA_{region_series}_Y13DLRPMMBTU.A"
 
         url = f"http://api.eia.gov/series/?series_id={SERIES_ID}&api_key={API_KEY}&out=json"
         r = requests.get(url)
-        df = pd.DataFrame(r.json()["series"][0]["data"], columns=["year", "price"])
+        try:
+            df = pd.DataFrame(r.json()["series"][0]["data"], columns=["year", "price"])
+        except KeyError:
+            print(
+                "There was an error getting EIA AEO fuel price data.\n"
+                f"Your requested url was {url}, make sure it looks right."
+            )
         df["fuel"] = fuel_name
         df["region"] = region_name
         df["scenario"] = scenario_name

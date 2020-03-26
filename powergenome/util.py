@@ -1,10 +1,15 @@
+import collections
+from copy import deepcopy
 import subprocess
 
 import pandas as pd
 import pudl
 import requests
 import sqlalchemy as sa
+
 import yaml
+from ruamel.yaml import YAML
+from pathlib import Path
 
 from powergenome.params import SETTINGS
 
@@ -12,7 +17,9 @@ from powergenome.params import SETTINGS
 def load_settings(path):
 
     with open(path, "r") as f:
-        settings = yaml.safe_load(f)
+        #     settings = yaml.safe_load(f)
+        yaml = YAML(typ="safe")
+        settings = yaml.load(f)
 
     return settings
 
@@ -106,3 +113,78 @@ def shift_wrap_profiles(df, offset):
 
     shifted_wrapped_df = pd.concat([df.iloc[offset:, :], wrap_rows], ignore_index=True)
     return shifted_wrapped_df
+
+
+def update_dictionary(d, u):
+    """
+    Update keys in an existing dictionary (d) with values from u
+
+    https://stackoverflow.com/a/32357112
+    """
+    for k, v in u.items():
+        if isinstance(d, collections.abc.Mapping):
+            if isinstance(v, collections.abc.Mapping):
+                r = update_dictionary(d.get(k, {}), v)
+                d[k] = r
+            else:
+                d[k] = u[k]
+        else:
+            d = {k: u[k]}
+    return d
+
+
+def remove_fuel_scenario_name(df, settings):
+    _df = df.copy()
+    scenarios = settings["eia_series_scenario_names"].keys()
+    for s in scenarios:
+        _df["Fuel"] = _df["Fuel"].str.replace(f"_{s}", "")
+
+    return _df
+
+
+def write_results_file(df, folder, file_name, include_index=False):
+    """Write a finalized dataframe to one of the results csv files.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Data for a single results file
+    folder : Path-like
+        A Path object representing the folder for a single case/scenario
+    file_name : str
+        Name of the file.
+    include_index : bool, optional
+        If pandas should include the index when writing to csv, by default False
+    """
+    sub_folder = folder / "Inputs"
+    sub_folder.mkdir(exist_ok=True, parents=True)
+
+    path_out = sub_folder / file_name
+
+    df.to_csv(path_out, index=include_index)
+
+
+def write_case_settings_file(settings, folder, file_name):
+    """Write a finalized dictionary to YAML file.
+
+    Parameters
+    ----------
+    settings : dict
+        A dictionary with settings
+    folder : Path-like
+        A Path object representing the folder for a single case/scenario
+    file_name : str
+        Name of the file.
+    """
+    folder.mkdir(exist_ok=True, parents=True)
+    path_out = folder / file_name
+
+    # yaml = YAML(typ="unsafe")
+    _settings = deepcopy(settings)
+    # for key, value in _settings.items():
+    #     if isinstance(value, Path):
+    #         _settings[key] = str(value)
+    # yaml.register_class(Path)
+    # stream = file(path_out, 'w')
+    with open(path_out, "w") as f:
+        yaml.dump(_settings, f)

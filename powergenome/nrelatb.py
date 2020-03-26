@@ -3,6 +3,7 @@ Functions to fetch and modify NREL ATB data from PUDL
 """
 
 import copy
+import collections
 import logging
 import operator
 
@@ -238,15 +239,17 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 # (~$11/MWh) by relative heat rate and subtract a /kW-yr value as
                 # calculated above from the FOM.
                 # Based on conversation with Jesse J. on Dec 20, 2019.
-
-                atb_var_om_mwh = (
+                op, op_value = settings["atb_modifiers"]["ngct"]["Var_OM_cost_per_MWh"]
+                f = operator.attrgetter(op)
+                atb_var_om_mwh = f(operator)(
                     atb_costs_df.query(
                         "technology==@atb_tech & cost_case=='Mid' "
                         "& tech_detail==@tech_detail & basis_year==@existing_year"
                     )
                     .squeeze()
-                    .at["o_m_variable_mwh"]
-                    * settings["atb_multipliers"]["ngct"]["Var_OM_cost_per_MWh"]
+                    .at["o_m_variable_mwh"],
+                    op_value
+                    # * settings["atb_modifiers"]["ngct"]["Var_OM_cost_per_MWh"]
                 )
                 variable = atb_var_om_mwh * (existing_hr / new_build_hr)
 
@@ -351,17 +354,20 @@ def single_generator_row(atb_costs_hr, new_gen_type, model_year_range):
         "o_m_variable_mwh",
         "capex",
         "capex_mwh",
-        "cf",
-        "fuel",
-        "lcoe",
-        "o_m",
+        # "cf",
+        # "fuel",
+        # "lcoe",
+        # "o_m",
         "waccnomtech",
         "heat_rate",
     ]
-    s = atb_costs_hr.query(
-        "technology==@technology & tech_detail==@tech_detail "
-        "& cost_case==@cost_case & basis_year.isin(@model_year_range)"
-    )[numeric_cols].mean()
+    s = atb_costs_hr.loc[
+        (atb_costs_hr["technology"] == technology)
+        & (atb_costs_hr["tech_detail"] == tech_detail)
+        & (atb_costs_hr["cost_case"] == cost_case)
+        & (atb_costs_hr["basis_year"].isin(model_year_range)),
+        numeric_cols,
+    ].mean()
     cols = [
         "technology",
         "cost_case",
@@ -372,10 +378,10 @@ def single_generator_row(atb_costs_hr, new_gen_type, model_year_range):
         "o_m_variable_mwh",
         "capex",
         "capex_mwh",
-        "cf",
-        "fuel",
-        "lcoe",
-        "o_m",
+        # "cf",
+        # "fuel",
+        # "lcoe",
+        # "o_m",
         "waccnomtech",
         "heat_rate",
     ]
@@ -392,6 +398,13 @@ def investment_cost_calculator(capex, wacc, cap_rec_years):
     # wacc comes through as an object type series now that we're averaging across years
     if not isinstance(wacc, float):
         wacc = wacc.astype(float)
+    if not isinstance(capex, float):
+        capex = capex.astype(float)
+
+    for variable in [capex, wacc, cap_rec_years]:
+        if np.isnan(variable).any():
+            raise ValueError(f"Investment costs contains nan values")
+
     inv_cost = capex * (
         np.exp(wacc * cap_rec_years)
         * (np.exp(wacc) - 1)
@@ -405,6 +418,9 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
 
     cost_region = region_map[region]
     tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
+    avg_multiplier = tech_multiplier.mean()
+
+    tech_multiplier = tech_multiplier.fillna(avg_multiplier)
 
     tech_multiplier_map = {}
     for atb_tech, eia_tech in tech_map.items():
@@ -426,7 +442,7 @@ def add_modified_atb_generators(settings, atb_costs_hr, model_year_range):
 
     For each parameter (capex, heat_rate, etc) that users want modified they should
     specify a list of [<operator>, <value>]. The operator can be add, mul, truediv, or
-    neg (substract). This is used to modify individual parameters of the ATB resource.
+    sub (substract). This is used to modify individual parameters of the ATB resource.
 
     Parameters
     ----------
@@ -449,7 +465,7 @@ def add_modified_atb_generators(settings, atb_costs_hr, model_year_range):
     # copy settings so popped keys aren't removed permenantly
     _settings = copy.deepcopy(settings)
 
-    allowed_operators = ["add", "mul", "truediv", "neg"]
+    allowed_operators = ["add", "mul", "truediv", "sub"]
 
     mod_tech_list = []
     for name, mod_tech in _settings["modified_atb_new_gen"].items():
@@ -477,9 +493,9 @@ def add_modified_atb_generators(settings, atb_costs_hr, model_year_range):
                 "in 'modified_atb_new_gen' of the settings file."
             )
             assert op in allowed_operators, (
-                f"The key {key} for technology {name} needs a valid operator from the list\n"
+                f"The key {parameter} for technology {name} needs a valid operator from the list\n"
                 f"{allowed_operators}\n"
-                "in the format <key>-<operator> to modify the properties of an existing generator.\n"
+                "in the format [<operator>, <value>] to modify the properties of an existing generator.\n"
             )
 
             f = operator.attrgetter(op)
@@ -588,29 +604,52 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
     # ATB average of advanced and conventional.
     # This is now generalized for changes to ATB values for any technology type.
-    for tech, tech_multipliers in settings["atb_multipliers"].items():
-        assert isinstance(tech_multipliers, dict), (
-            "The settings parameter 'atb_multipliers' must be a nested list.\n"
+    for tech, _tech_modifiers in settings["atb_modifiers"].items():
+        tech_modifiers = copy.deepcopy(_tech_modifiers)
+        assert isinstance(tech_modifiers, dict), (
+            "The settings parameter 'atb_modifiers' must be a nested list.\n"
             "Each top-level key is a short name of the technology, with a nested"
             " dictionary of items below it."
         )
         assert (
-            "technology" in tech_multipliers.keys()
-        ), "Each nested dictionary in atb_multipliers must have a 'technology' key."
+            "technology" in tech_modifiers.keys()
+        ), "Each nested dictionary in atb_modifiers must have a 'technology' key."
         assert (
-            "tech_detail" in tech_multipliers.keys()
-        ), "Each nested dictionary in atb_multipliers must have a 'tech_detail' key."
+            "tech_detail" in tech_modifiers.keys()
+        ), "Each nested dictionary in atb_modifiers must have a 'tech_detail' key."
 
-        technology = tech_multipliers.pop("technology")
-        tech_detail = tech_multipliers.pop("tech_detail")
+        technology = tech_modifiers.pop("technology")
+        tech_detail = tech_modifiers.pop("tech_detail")
 
-        for key, multiplier in tech_multipliers.items():
+        allowed_operators = ["add", "mul", "truediv", "sub"]
 
+        for key, op_list in tech_modifiers.items():
+
+            assert len(op_list) == 2, (
+                "Two values, an operator and a numeric value, are needed in the parameter\n"
+                f"'{parameter}' for technology '{tech}' in 'atb_modifiers'."
+            )
+            op, op_value = op_list
+
+            assert op in allowed_operators, (
+                f"The key {key} for technology {tech} needs a valid operator from the list\n"
+                f"{allowed_operators}\n"
+                "in the format [<operator>, <value>] to modify the properties of an existing generator.\n"
+            )
+
+            f = operator.attrgetter(op)
             new_gen_df.loc[
                 (new_gen_df.technology == technology)
                 & (new_gen_df.tech_detail == tech_detail),
                 key,
-            ] *= multiplier
+            ] = f(operator)(
+                new_gen_df.loc[
+                    (new_gen_df.technology == technology)
+                    & (new_gen_df.tech_detail == tech_detail),
+                    key,
+                ],
+                op_value,
+            )
 
     new_gen_df["technology"] = (
         new_gen_df["technology"]
@@ -620,16 +659,25 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         + new_gen_df["cost_case"]
     )
 
+    new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
+
+    if settings["alt_atb_cap_recovery_years"]:
+        for tech, years in settings["alt_atb_cap_recovery_years"].items():
+            new_gen_df.loc[
+                new_gen_df.technology.str.lower().str.contains(tech.lower()),
+                "cap_recovery_years",
+            ] = years
+
     new_gen_df["Inv_cost_per_MWyr"] = investment_cost_calculator(
         capex=new_gen_df["capex"],
         wacc=new_gen_df["waccnomtech"],
-        cap_rec_years=settings["atb_cap_recovery_years"],
+        cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
     new_gen_df["Inv_cost_per_MWhyr"] = investment_cost_calculator(
         capex=new_gen_df["capex_mwh"],
         wacc=new_gen_df["waccnomtech"],
-        cap_rec_years=settings["atb_cap_recovery_years"],
+        cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
     new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
@@ -797,31 +845,48 @@ def load_user_defined_techs(settings):
     Parameters
     ----------
     settings : dict
-        User-defined parameters from a settings file
+        User-defined parameters from a settings file. It must have the key
+        'additional_technologies_fn'. The value can either be a string (name of a single
+        file) or a dictionary. If the value is a dictionary it should have integer keys
+        corresponding to model years and corresponding string values (file name).
+
+        settings['additional_technologies_fn'] = 'user_techs.csv'
+        OR
+        settings['additional_technologies_fn'] = {
+            2030: 'user_techs_2030.csv',
+            2045: 'user_techs_2045.csv'
+        }
 
     Returns
     -------
     DataFrame
         A dataframe of user-defined resources with cost and heat rate columns.
     """
-
-    fn = settings["additional_technologies_fn"]
+    if isinstance(settings["additional_technologies_fn"], collections.abc.Mapping):
+        fn = settings["additional_technologies_fn"][settings["model_year"]]
+    else:
+        fn = settings["additional_technologies_fn"]
     user_techs = pd.read_csv(DATA_PATHS["additional_techs"] / fn)
 
     user_techs = user_techs.loc[
-        user_techs["technology"].isin(settings["additional_new_gen"]), :
+        (user_techs["technology"].isin(settings["additional_new_gen"]))
+        & (user_techs["planning_year"] == settings["model_year"]),
+        :,
     ]
+
+    user_techs = user_techs.fillna(0)
 
     if "tech_detail" not in user_techs.columns:
         user_techs["tech_detail"] = ""
     if "cost_case" not in user_techs.columns:
         user_techs["cost_case"] = ""
+    if "Cap_size" not in user_techs.columns:
+        user_techs["Cap_size"] = 1
 
     cols = [
         "technology",
         "tech_detail",
         "cost_case",
-        "basis_year",
         "capex",
         "capex_mwh",
         "o_m_fixed_mw",
@@ -829,6 +894,7 @@ def load_user_defined_techs(settings):
         "o_m_variable_mwh",
         "waccnomtech",
         "heat_rate",
+        "Cap_size",
         "dollar_year",
     ]
 

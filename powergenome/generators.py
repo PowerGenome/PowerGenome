@@ -1,15 +1,23 @@
+import collections
 import logging
+from numbers import Number
 
 import requests
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from pathlib import Path
 import pudl
 from bs4 import BeautifulSoup
 from flatten_dict import flatten
 from powergenome.cluster_method import cluster_by_owner, weighted_ownership_by_unit
 from powergenome.eia_opendata import fetch_fuel_prices
+from powergenome.external_data import (
+    make_demand_response_profiles,
+    demand_response_resource_capacity,
+    add_resource_max_cap_spur_line,
+)
 from powergenome.load_data import (
     load_ipm_plant_region_map,
     load_ownership_eia860,
@@ -21,6 +29,7 @@ from powergenome.nrelatb import (
     atb_new_generators,
     fetch_atb_costs,
     fetch_atb_heat_rates,
+    investment_cost_calculator,
 )
 from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH
 from powergenome.price_adjustment import inflation_price_adjustment
@@ -222,7 +231,7 @@ def startup_nonfuel_costs(df, settings):
         ] = total_startup_costs
     df.loc[:, "Start_cost_per_MW"] = df.loc[:, "Start_cost_per_MW"].round(0)
 
-    df.loc[df["technology"].str.contains("Nuclear"), "Start_cost_per_MW"] = "FILL VALUE"
+    # df.loc[df["technology"].str.contains("Nuclear"), "Start_cost_per_MW"] = "FILL VALUE"
 
     return df
 
@@ -309,7 +318,8 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
         crs={"init": "epsg:4326"},
     )
 
-    model_hydro_gdf = model_hydro_gdf.to_crs(model_regions_gdf.crs)
+    if model_hydro_gdf.crs != model_regions_gdf.crs:
+        model_hydro_gdf = model_hydro_gdf.to_crs(model_regions_gdf.crs)
 
     model_hydro_gdf = gpd.sjoin(model_regions_gdf, model_hydro_gdf)
     model_hydro_gdf = model_hydro_gdf.rename(columns={"IPM_Region": "region"})
@@ -1359,8 +1369,9 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
         geometry=gpd.points_from_xy(planned.longitude.copy(), planned.latitude.copy()),
         crs={"init": "epsg:4326"},
     )
-    planned_gdf.crs = {"init": "epsg:4326"}
-    planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
+    # planned_gdf.crs = {"init": "epsg:4326"}
+    if planned_gdf.crs != model_regions_gdf.crs:
+        planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
 
     planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
 
@@ -1634,7 +1645,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                     "year==@model_year & full_fuel_name==@fuel_name"
                 ).empty
                 is False
-            )
+            ), f"{fuel_name} doesn't show up in {model_year}"
 
             df.loc[
                 (df["technology"] == eia_tech) & df["region"].isin(model_regions),
@@ -1660,6 +1671,110 @@ def add_fuel_labels(df, fuel_prices, settings):
             ] = ccs_fuel_name
 
     return df
+
+
+def calculate_transmission_inv_cost(resource_df, settings):
+    """Calculate the transmission investment cost for each new resource
+
+    Parameters
+    ----------
+    resource_df : DataFrame
+        Each row represents a single resource within a region. Should have columns
+        `region` and `spur_line_miles`.
+    settings : dict
+        A dictionary of user-supplied settings. Must have keys `spur_line_wacc`,
+        'spur_line_investment_years', and 'spur_line_capex_mw_mile'.
+
+    Returns
+    -------
+    DataFrame
+        Modified copy of the input dataframe with new columns of 'spur_line_capex' and
+        'spur_line_inv_mwyr'.
+
+    Raises
+    ------
+    UserWarning
+        Spur line capex per MW-mile was not provided for all of the model regions.
+    TypeError
+        The settings parameter 'spur_line_capex_mw_mile' is neither a dictionary nor a
+        numeric value.
+    KeyError
+        Not all of the required keys are in the settings dictionary.
+    """
+
+    for param in [
+        "spur_line_wacc",
+        "spur_line_investment_years",
+        "spur_line_capex_mw_mile",
+    ]:
+        if param not in settings:
+            raise KeyError(
+                f"{param} is a required parameter but was not found in the settings file"
+            )
+
+    if isinstance(settings["spur_line_capex_mw_mile"], collections.abc.Mapping):
+        if not set(settings["spur_line_capex_mw_mile"]).issubset(
+            settings["model_regions"]
+        ):
+            raise UserWarning(
+                f"Spur line capex values were only provided for regions"
+                f" {settings['spur_line_capex_mw_mile'].keys()} in the settings file.\n"
+                f"All regions ({settings['model_regions']}) must be included if region"
+                " mappings are used."
+            )
+        else:
+            resource_df["spur_line_capex"] = (
+                resource_df["region"].map(settings["spur_line_capex_mw_mile"])
+                * resource_df["spur_line_miles"]
+            )
+    elif isinstance(settings["spur_line_capex_mw_mile"], Number):
+        resource_df["spur_line_capex"] = (
+            settings["spur_line_capex_mw_mile"] * resource_df["spur_line_miles"]
+        )
+    else:
+        raise TypeError(
+            "The settings parameter 'spur_line_capex_mw_mile' should be a dictionary"
+            " with <region>: <capex> or a single numeric value.\n"
+            f"You provided {settings['spur_line_capex_mw_mile']}"
+        )
+
+    resource_df["spur_line_inv_mwyr"] = investment_cost_calculator(
+        resource_df["spur_line_capex"],
+        settings["spur_line_wacc"],
+        settings["spur_line_investment_years"],
+    )
+
+    return resource_df
+
+
+def add_transmission_inv_cost(resource_df):
+    """Add tranmission investment costs to plant investment costs
+
+    Parameters
+    ----------
+    resource_df : DataFrame
+        Each row represents a single resource within a region. Should have columns
+        `Inv_cost_per_MWyr` and `spur_line_inv_mwyr`.
+
+    Returns
+    -------
+    DataFrame
+        A modified copy of the input dataframe where 'Inv_cost_per_MWyr' represents the
+        combined plant and spur line investment costs. The new column
+        plant_inv_cost_mwyr represents just the plant investment costs.
+    """
+
+    if "spur_line_inv_mwyr" not in resource_df.columns:
+        logger.warning(
+            "Spur line investment costs have not been calculated and are not included "
+            "in the total investment costs."
+        )
+    resource_df["plant_inv_cost_mwyr"] = resource_df.loc[:, "Inv_cost_per_MWyr"]
+    resource_df["Inv_cost_per_MWyr"] = (
+        resource_df["Inv_cost_per_MWyr"] + resource_df["spur_line_inv_mwyr"]
+    )
+
+    return resource_df
 
 
 class GeneratorClusters:
@@ -1772,6 +1887,69 @@ class GeneratorClusters:
         df["heat_rate_mmbtu_mwh"].fillna(median_hr, inplace=True)
 
         return df
+
+    def create_demand_response_gen_rows(self, scenario):
+        """Create rows for demand response/management resources to include in the
+        generators file.
+
+        Parameters
+        ----------
+        scenario : str
+            Name of the scenario to use data for.
+
+        Returns
+        -------
+        DataFrame
+            One row for each region/DSM resource with values in all columns filled.
+        """
+        year = self.settings["model_year"]
+        df_list = []
+        self.demand_response_profiles = {}
+
+        if self.settings["demand_response_resources"] is not None:
+            for resource, parameters in self.settings["demand_response_resources"][
+                year
+            ].items():
+
+                _df = pd.DataFrame(
+                    index=self.settings["model_regions"],
+                    columns=self.settings["generator_columns"],
+                )
+                _df = _df.drop(columns="Resource")
+                _df["technology"] = resource
+                _df["region"] = self.settings["model_regions"]
+
+                dr_path = (
+                    Path.cwd()
+                    / self.settings["input_folder"]
+                    / self.settings["demand_response_fn"]
+                )
+                dr_profile = make_demand_response_profiles(
+                    dr_path, resource, self.settings
+                )
+                self.demand_response_profiles[resource] = dr_profile
+
+                dr_capacity = demand_response_resource_capacity(
+                    dr_profile, resource, self.settings
+                )
+                dr_capacity_scenario = dr_capacity.squeeze()
+                _df["Existing_Cap_MW"] = _df["region"].map(dr_capacity_scenario)
+
+                if isinstance(parameters["parameter_values"], dict):
+                    for col, value in parameters["parameter_values"].items():
+                        _df[col] = value
+
+                df_list.append(_df)
+
+            dr_rows = pd.concat(df_list)
+            dr_rows["New_Build"] = -1
+            dr_rows["Fuel"] = "None"
+            dr_rows["cluster"] = 1
+            dr_rows = dr_rows.fillna(0)
+        else:
+            dr_rows = pd.DataFrame()
+
+        return dr_rows
 
     def create_region_technology_clusters(self, return_retirement_capacity=False):
         """
@@ -2082,6 +2260,9 @@ class GeneratorClusters:
             logger.info("Sorting new resources alphabetically.")
             self.results = self.results.sort_values(["region", "technology"])
 
+        # self.results = self.results.rename(columns={"technology": "Resource"})
+        self.results["Resource"] = snake_case_col(self.results["technology"])
+
         return self.results
 
     def create_new_generators(self):
@@ -2103,6 +2284,30 @@ class GeneratorClusters:
                 ["region", "technology"]
             )
 
+        if "capacity_limit_spur_line_fn" in self.settings:
+            self.new_generators = (
+                self.new_generators.pipe(add_resource_max_cap_spur_line, self.settings)
+                .pipe(calculate_transmission_inv_cost, self.settings)
+                .pipe(add_transmission_inv_cost)
+            )
+        else:
+            logger.warning("No settings parameter for max capacity/spur line file")
+
+        if "demand_response_fn" in self.settings:
+            if self.settings["demand_response_fn"] is not None:
+                dr_rows = self.create_demand_response_gen_rows(
+                    scenario=self.settings["demand_response"]
+                )
+
+            self.new_generators = pd.concat([self.new_generators, dr_rows])
+
+        # self.new_generators = self.new_generators.rename(
+        #     columns={"technology": "Resource"}
+        # )
+        self.new_generators["Resource"] = snake_case_col(
+            self.new_generators["technology"]
+        )
+
         return self.new_generators
 
     def create_all_generators(self):
@@ -2122,18 +2327,9 @@ class GeneratorClusters:
             "Heat_rate_MMBTU_per_MWh"
         ].round(2)
 
-        # Convert technology names to snake_case and add a 1-indexed column R_ID
-        self.all_resources["technology"] = snake_case_col(
-            self.all_resources["technology"]
-        )
-
         # Set Min_power of wind/solar to 0
         self.all_resources.loc[self.all_resources["DISP"] == 1, "Min_power"] = 0
-        self.all_resources = self.all_resources.rename(
-            columns={"technology": "Resource"}
-        )
 
-        self.all_resources.set_index(["region", "Resource"], inplace=True)
         self.all_resources["R_ID"] = np.array(range(len(self.all_resources))) + 1
 
         if self.current_gens:

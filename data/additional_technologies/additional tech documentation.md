@@ -4,7 +4,7 @@ heat rate assumptions to cases.
 technology: Name of the technology. Should be distinct in some way from the ATB names,
 especially the ATB <technology>_<tech_detail> combination.
 
-basis_year: The year that technology costs and attributes are based on.
+planning_year: The model planning year. This might be different from the basis year that technology costs and attributes are based on.
 
 capex: USD/MW capital expenses, including construction financing costs, etc. Be sure to
 convert from $/kW.

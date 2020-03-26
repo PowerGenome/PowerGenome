@@ -13,3 +13,4 @@ cpi
 flatten-dict
 pre-commit
 isort
+ruamel.yaml
