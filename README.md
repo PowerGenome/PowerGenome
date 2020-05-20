@@ -63,15 +63,17 @@ pip install -e .
 
 ## Running code
 
-Settings are controlled in a YAML file. An example set of settings files, which sets up a small 2-zone model of California, is included in the folder `example_system`.
+Settings are controlled in a YAML file. An example settings file (`test_settings.yml`) and folder with extra user inputs (`extra_inputs`), which set up a small 2-zone model of California, are included in the folder `example_system`.
 
 The code is currently structured in a series of modules - `load_data.py`, `generators.py`, `transmission.py`, `nrelatb.py`, `eia_opendata.py`, `load_profiles.py`, and a couple others. The code and architecture is under active development. While the outputs are all formatted for GenX we hope to make the data formatting code more module to allow users to easily switch between outputs for different power system models.
 
-Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, navigate to a project folder that contains a settings file (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome_multiple` with flags for the settings file name and where the results should be saved:
+Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, navigate to a project folder that contains a settings file and extra inputs (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome_multiple` with flags for the settings file name and where the results should be saved:
 
 ```sh
 run_powergenome_multiple --settings_file test_settings.yml --results_folder test_system
 ```
+
+A folder with extra user inputs is required when using the `run_powergenome_multiple` command. The name of this folder is defined in the settings YAML file with the `input_folder` parameter. Look at the files in `PowerGenome/example_system` for a working test case to follow.
 
 If you have previously installed PowerGenome and the `run_powergenome_multiple` command doesn't work, try reinstalling it using `pip install -e .` as described above.
 
