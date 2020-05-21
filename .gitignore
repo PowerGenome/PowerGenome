@@ -126,6 +126,7 @@ data/transformed_data/*
 
 # Results files
 /results
+/example_system/test_system
 
 # Data files
 /data/eia/*
