@@ -61,6 +61,13 @@ pip install -e .
 
 7. Get an [API key for EIA's OpenData portal](https://www.eia.gov/opendata/register.php). This key is needed to download projected fuel prices from the 2019 Annual Energy Outlook. Create the file `PowerGenome/powergenome/.env` and save the key in this file using the format `EIA_API_KEY=YOUR_KEY_HERE`. No quotation marks are needed around the API string. The `.env` file is included in `.gitignore` and will not be synced with the repository.
 
+8. Update the Consumer Price Index (CPI) data used to adjust U.S. dollars for inflation (see https://github.com/datadesk/cpi#updating-the-cpi) by starting a `python` session and running:
+
+```python
+import cpi
+cpi.update()
+```
+
 ## Running code
 
 Settings are controlled in a YAML file. An example settings file (`test_settings.yml`) and folder with extra user inputs (`extra_inputs`), which set up a small 2-zone model of California, are included in the folder `example_system`.
