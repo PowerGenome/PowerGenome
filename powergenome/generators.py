@@ -847,7 +847,7 @@ def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[
 def modify_cc_prime_mover_code(df, gens_860):
     """Change combined cycle prime movers from CA and CT to CC.
 
-    The heat rate of combined cycle plants that aren't included in PULD heat rate by
+    The heat rate of combined cycle plants that aren't included in PUDL heat rate by
     unit should probably be done with the combustion and steam turbines combined. This
     modifies the prime mover code of those two generator types so that they match. It
     doesn't touch the CS code, which is for single shaft combined units.

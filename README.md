@@ -31,7 +31,7 @@ There are quite a few data inputs that we have not yet compiled for public use w
 
 This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl). As such, it requires installation of PUDL to access a normalized sqlite database and some of the convienience PUDL functions.
 
-`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). The data used by PowerGenome have outstripped what is available in the public version of PULD, so download a modifed version of the [PUDL sqlite database here](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5). The package `catalystcoop.pudl` must be version 0.3.0 or above to work with this version of the database.
+`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). The data used by PowerGenome have outstripped what is available in the public version of PUDL, so download a modifed version of the [PUDL sqlite database here](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5). The package `catalystcoop.pudl` must be version 0.3.0 or above to work with this version of the database.
 
 ## Installation
 
@@ -55,7 +55,7 @@ conda activate powergenome
 pip install -e .
 ```
 
-5. Download a [modifed version of the PULD database](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5) that includes NREL ATB cost data and is not yet included in PUDL.
+5. Download a [modifed version of the PUDL database](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5) that includes NREL ATB cost data and is not yet included in PUDL.
 
 6. Once you have downloaded the sqlite database, change the `SETTINGS["pudl_db"]` parameter in `powergenome/params.py` to match the path on your computer.
 
