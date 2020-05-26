@@ -571,8 +571,8 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     # Add user-defined technologies
     # This should probably be separate from ATB techs, and the regional cost multipliers
     # should be its own function.
-    if settings["additional_technologies_fn"] is not None:
-        if isinstance(settings["additional_new_gen"], list):
+    if settings.get("additional_technologies_fn"):
+        if isinstance(settings.get("additional_new_gen"), list):
             # user_costs, user_hr = load_user_defined_techs(settings)
             user_tech = load_user_defined_techs(settings)
             # new_gen_df = pd.concat([new_gen_df, user_costs], ignore_index=True, sort=False)
@@ -586,7 +586,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
                 " were specified in the settings file."
             )
 
-    if settings["modified_atb_new_gen"] is not None:
+    if settings.get("modified_atb_new_gen"):
         modified_gens = add_modified_atb_generators(
             settings, atb_costs_hr, model_year_range
         )
@@ -604,7 +604,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
     # ATB average of advanced and conventional.
     # This is now generalized for changes to ATB values for any technology type.
-    for tech, _tech_modifiers in settings["atb_modifiers"].items():
+    for tech, _tech_modifiers in settings.get("atb_modifiers", {}).items():
         tech_modifiers = copy.deepcopy(_tech_modifiers)
         assert isinstance(tech_modifiers, dict), (
             "The settings parameter 'atb_modifiers' must be a nested list.\n"
@@ -661,12 +661,11 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
     new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
 
-    if settings["alt_atb_cap_recovery_years"]:
-        for tech, years in settings["alt_atb_cap_recovery_years"].items():
-            new_gen_df.loc[
-                new_gen_df.technology.str.lower().str.contains(tech.lower()),
-                "cap_recovery_years",
-            ] = years
+    for tech, years in settings.get("alt_atb_cap_recovery_years", {}).items():
+        new_gen_df.loc[
+            new_gen_df.technology.str.lower().str.contains(tech.lower()),
+            "cap_recovery_years",
+        ] = years
 
     new_gen_df["Inv_cost_per_MWyr"] = investment_cost_calculator(
         capex=new_gen_df["capex"],
@@ -683,25 +682,22 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
 
     # Some technologies might have a different capital recovery period
-    if settings["alt_atb_cap_recovery_years"] is not None:
-        for tech, years in settings["alt_atb_cap_recovery_years"].items():
-            tech_mask = new_gen_df["technology"].str.contains(tech)
+    for tech, years in settings.get("alt_atb_cap_recovery_years", {}).items():
+        tech_mask = new_gen_df["technology"].str.contains(tech)
 
-            new_gen_df.loc[tech_mask, "cap_recovery_years"] = years
+        new_gen_df.loc[tech_mask, "cap_recovery_years"] = years
 
-            new_gen_df.loc[tech_mask, "Inv_cost_per_MWyr"] = investment_cost_calculator(
-                capex=new_gen_df.loc[tech_mask, "capex"],
-                wacc=new_gen_df.loc[tech_mask, "waccnomtech"],
-                cap_rec_years=years,
-            )
+        new_gen_df.loc[tech_mask, "Inv_cost_per_MWyr"] = investment_cost_calculator(
+            capex=new_gen_df.loc[tech_mask, "capex"],
+            wacc=new_gen_df.loc[tech_mask, "waccnomtech"],
+            cap_rec_years=years,
+        )
 
-            new_gen_df.loc[
-                tech_mask, "Inv_cost_per_MWhyr"
-            ] = investment_cost_calculator(
-                capex=new_gen_df.loc[tech_mask, "capex_mwh"],
-                wacc=new_gen_df.loc[tech_mask, "waccnomtech"],
-                cap_rec_years=years,
-            )
+        new_gen_df.loc[tech_mask, "Inv_cost_per_MWhyr"] = investment_cost_calculator(
+            capex=new_gen_df.loc[tech_mask, "capex_mwh"],
+            wacc=new_gen_df.loc[tech_mask, "waccnomtech"],
+            cap_rec_years=years,
+        )
 
     keep_cols = [
         "technology",
@@ -741,10 +737,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         )
         _df = add_extra_wind_solar_rows(_df, region, settings)
 
-        if (
-            settings["new_gen_not_available"] is not None
-            and region in settings["new_gen_not_available"].keys()
-        ):
+        if region in settings.get("new_gen_not_available", {}).keys():
             techs = settings["new_gen_not_available"][region]
             for tech in techs:
                 _df = _df.loc[~_df["technology"].str.contains(tech), :]

@@ -80,11 +80,10 @@ def add_load_growth(load_curves, settings):
         for ipm_region, load_region in load_map.items()
     }
 
-    if settings["alt_growth_rate"] is not None:
-        for region, rate in settings["alt_growth_rate"].items():
-            load_growth_map[region] = rate
+    for region, rate in settings.get("alt_growth_rate", {}).items():
+        load_growth_map[region] = rate
 
-    if "regular_load_growth_start_year" in settings.keys():
+    if settings.get("regular_load_growth_start_year"):
         # historical load growth
 
         demand_start = settings["aeo_hist_start_elec_demand"]
@@ -176,14 +175,14 @@ def make_final_load_curves(
         pudl_engine, settings, pudl_table, settings_agg_key
     )
 
-    if "demand_response_fn" in settings.keys():
+    if settings.get("demand_response_fn"):
         load_curves_dr = add_demand_response_resource_load(
             load_curves_before_dg, settings
         )
     else:
         load_curves_dr = load_curves_before_dg
 
-    if "distributed_gen_profiles_fn" in settings.keys():
+    if settings.get("distributed_gen_profiles_fn"):
         final_load_curves = subtract_distributed_generation(
             load_curves_dr, pudl_engine, settings
         )

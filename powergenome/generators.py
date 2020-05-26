@@ -153,8 +153,8 @@ def startup_fuel(df, settings):
         All generator clusters. Must have a column "technology". Can include both EIA
         and NRELATB technology names.
     settings : dictionary
-        User-defined settings loaded from a YAML file. Must have keys "startup_fuel_use"
-        and "eia_atb_tech_map".
+        User-defined settings loaded from a YAML file. Keys in "startup_fuel_use"
+        must match those in "eia_atb_tech_map".
 
     Returns
     -------
@@ -162,7 +162,7 @@ def startup_fuel(df, settings):
         Modified dataframe with the new column "Start_fuel_MMBTU_per_MW".
     """
     df["Start_fuel_MMBTU_per_MW"] = 0
-    for eia_tech, fuel_use in settings["startup_fuel_use"].items():
+    for eia_tech, fuel_use in settings.get("startup_fuel_use", {}).items():
         atb_tech = settings["eia_atb_tech_map"][eia_tech].split("_")[0]
 
         df.loc[df["technology"] == eia_tech, "Start_fuel_MMBTU_per_MW"] = fuel_use
@@ -254,23 +254,22 @@ def group_technologies(df, settings):
     dataframe
         Same as incoming dataframe but with grouped technology types
     """
-    if settings["group_technologies"] is True:
+    if settings.get("group_technologies"):
 
         df["_technology"] = df["technology_description"]
         for tech, group in settings["tech_groups"].items():
             df.loc[df["technology_description"].isin(group), "_technology"] = tech
 
-        if settings["regional_no_grouping"] is not None:
-            for region, tech_list in settings["regional_no_grouping"].items():
-                df.loc[
-                    (df["model_region"] == region)
-                    & (df["technology_description"].isin(tech_list)),
-                    "_technology",
-                ] = df.loc[
-                    (df["model_region"] == region)
-                    & (df["technology_description"].isin(tech_list)),
-                    "technology_description",
-                ]
+        for region, tech_list in settings.get("regional_no_grouping", {}).items():
+            df.loc[
+                (df["model_region"] == region)
+                & (df["technology_description"].isin(tech_list)),
+                "_technology",
+            ] = df.loc[
+                (df["model_region"] == region)
+                & (df["technology_description"].isin(tech_list)),
+                "technology_description",
+            ]
 
         df.loc[:, "technology_description"] = df.loc[:, "_technology"]
         df = df.drop(columns=["_technology"])
@@ -456,7 +455,7 @@ def label_retirement_year(
         pass
 
     # Add additonal retirements from settings file
-    if settings["additional_retirements"] and add_additional_retirements:
+    if settings.get("additional_retirements") and add_additional_retirements:
         logger.info("Changing retirement dates based on settings file")
         model_year = settings["model_year"]
         start_ret_cap = df.loc[
@@ -529,60 +528,60 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
         If the user wants to label small hydro plants, some of the conventional
         hydro facilities will have their technology type changed to small hydro.
     """
-    if settings["small_hydro"] is True:
-        if "report_date" not in by and "report_date" in df.columns:
-            # by.append("report_date")
-            logger.warning("'report_date' is in the df but not used in the groupby")
-        region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
-        keep_regions = [
-            x
-            for x in settings["model_regions"] + list(region_agg_map)
-            if x in settings["small_hydro_regions"]
-        ]
-        start_len = len(df)
-        size_cap = settings["small_hydro_mw"]
-        if settings["capacity_col"] in df:
-            cap_col = settings["capacity_col"]
-        else:
-            cap_col = "capacity_mw"
+    if not settings.get("small_hydro"):
+        return None
+    if "report_date" not in by and "report_date" in df.columns:
+        # by.append("report_date")
+        logger.warning("'report_date' is in the df but not used in the groupby")
+    region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
+    keep_regions = [
+        x
+        for x in settings["model_regions"] + list(region_agg_map)
+        if x in settings["small_hydro_regions"]
+    ]
+    start_len = len(df)
+    size_cap = settings["small_hydro_mw"]
+    cap_col = settings.get("capacity_col")
+    if not cap_col in df:
+        cap_col = "capacity_mw"
 
-        start_hydro_capacity = df.query(
-            "technology_description=='Conventional Hydroelectric'"
-        )[cap_col].sum()
+    start_hydro_capacity = df.query(
+        "technology_description=='Conventional Hydroelectric'"
+    )[cap_col].sum()
 
-        plant_capacity = (
-            df.loc[
-                (df["technology_description"] == "Conventional Hydroelectric")
-                & (df["model_region"].isin(keep_regions))
-            ]
-            .groupby(by, as_index=False)[cap_col]
-            .sum()
-        )
-
-        small_hydro_plants = plant_capacity.loc[
-            plant_capacity[cap_col] <= size_cap, "plant_id_eia"
-        ]
-
+    plant_capacity = (
         df.loc[
             (df["technology_description"] == "Conventional Hydroelectric")
-            & (df["plant_id_eia"].isin(small_hydro_plants)),
-            "technology_description",
-        ] = "Small Hydroelectric"
+            & (df["model_region"].isin(keep_regions))
+        ]
+        .groupby(by, as_index=False)[cap_col]
+        .sum()
+    )
 
-        end_len = len(df)
-        small_hydro_capacity = df.query(
-            "technology_description=='Small Hydroelectric'"
-        )[cap_col].sum()
-        end_conv_hydro_capacity = df.query(
-            "technology_description=='Conventional Hydroelectric'"
-        )[cap_col].sum()
+    small_hydro_plants = plant_capacity.loc[
+        plant_capacity[cap_col] <= size_cap, "plant_id_eia"
+    ]
 
-        assert start_len == end_len
-        assert np.allclose(
-            start_hydro_capacity, small_hydro_capacity + end_conv_hydro_capacity
-        )
+    df.loc[
+        (df["technology_description"] == "Conventional Hydroelectric")
+        & (df["plant_id_eia"].isin(small_hydro_plants)),
+        "technology_description",
+    ] = "Small Hydroelectric"
 
-        return df
+    end_len = len(df)
+    small_hydro_capacity = df.query("technology_description=='Small Hydroelectric'")[
+        cap_col
+    ].sum()
+    end_conv_hydro_capacity = df.query(
+        "technology_description=='Conventional Hydroelectric'"
+    )[cap_col].sum()
+
+    assert start_len == end_len
+    assert np.allclose(
+        start_hydro_capacity, small_hydro_capacity + end_conv_hydro_capacity
+    )
+
+    return df
 
 
 def load_generator_860_data(pudl_engine, data_years=[2017]):
@@ -1376,20 +1375,17 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
     planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
 
     # Add planned additions from the settings file
-    if settings["additional_planned"]:
-        i = 0
-        for record in settings["additional_planned"]:
-            plant_id, gen_id, model_region = record
-            plant_record = planned.loc[
-                (planned["plant_id_eia"] == plant_id)
-                & (planned["generator_id"] == gen_id),
-                :,
-            ]
-            plant_record["model_region"] = model_region
+    for i, record in enumerate(settings.get("additional_planned", [])):
+        plant_id, gen_id, model_region = record
+        plant_record = planned.loc[
+            (planned["plant_id_eia"] == plant_id) & (planned["generator_id"] == gen_id),
+            :,
+        ]
+        plant_record["model_region"] = model_region
 
-            planned_gdf = planned_gdf.append(plant_record, sort=False)
-            i += 1
-        logger.info(f"{i} generators were added to the planned list based on settings")
+        planned_gdf = planned_gdf.append(plant_record, sort=False)
+
+    logger.info(f"{i} generators were added to the planned list based on settings")
 
     planned_gdf.loc[:, "heat_rate_mmbtu_mwh"] = planned_gdf.loc[
         :, "technology_description"
@@ -1421,7 +1417,7 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
         add_additional_retirements=False,
     )
 
-    if settings["group_technologies"] is True:
+    if settings.get("group_technologies"):
         planned_gdf = group_technologies(planned_gdf, settings)
         print(planned_gdf["technology_description"].unique().tolist())
 
@@ -1531,7 +1527,7 @@ def gentype_region_capacity_factor(
         plant_tech_cap, generation, on=["plant_id_eia"], how="left"
     )
 
-    if settings["group_technologies"] is True:
+    if settings.get("group_technologies"):
         capacity_factor = group_technologies(capacity_factor, settings)
 
     if years_filter is None:
@@ -1623,7 +1619,7 @@ def add_fuel_labels(df, fuel_prices, settings):
     """
 
     df["Fuel"] = "None"
-    for eia_tech, fuel in settings["tech_fuel_map"].items():
+    for eia_tech, fuel in settings.get("tech_fuel_map", {}).items():
         try:
             if eia_tech == "Natural Gas Steam Turbine":
                 # No ATB natural gas steam turbine and I match it with coal for O&M
@@ -1659,7 +1655,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                     "Fuel",
                 ] = fuel_name
 
-    for ccs_tech, ccs_fuel in settings["ccs_fuel_map"].items():
+    for ccs_tech, ccs_fuel in settings.get("ccs_fuel_map", {}).items():
         scenario = settings["aeo_fuel_scenarios"][ccs_fuel.split("_")[0]]
         for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
             ccs_fuel_name = ("_").join([aeo_region, scenario, ccs_fuel])
@@ -1906,7 +1902,7 @@ class GeneratorClusters:
         df_list = []
         self.demand_response_profiles = {}
 
-        if self.settings["demand_response_resources"] is not None:
+        if self.settings.get("demand_response_resources"):
             for resource, parameters in self.settings["demand_response_resources"][
                 year
             ].items():
@@ -2119,9 +2115,7 @@ class GeneratorClusters:
         logger.info("Creating technology clusters by region")
         unit_list = []
         self.cluster_list = []
-        alt_cluster_method = self.settings["alt_cluster_method"]
-        if alt_cluster_method is None:
-            alt_cluster_method = {}
+        alt_cluster_method = self.settings.get("alt_cluster_method", {})
 
         for _, df in region_tech_grouped:
             region, tech = _
@@ -2130,7 +2124,7 @@ class GeneratorClusters:
             # This is bad. Should be setting up a dictionary of objects that picks the
             # correct clustering method. Can't keep doing if statements as the number of
             # methods grows. CHANGE LATER.
-            if self.settings["alt_cluster_method"] is None:
+            if not alt_cluster_method:
                 if num_clusters[region][tech] > 0:
                     clusters = cluster.KMeans(
                         n_clusters=num_clusters[region][tech], random_state=6
@@ -2141,11 +2135,9 @@ class GeneratorClusters:
                     )  # Change to 1-index for julia
 
             else:
-                if (region in self.settings[alt_cluster_method].keys()) and (
-                    tech
-                    in self.settings[alt_cluster_method][region][
-                        "technology_description"
-                    ]
+                if (
+                    region in alt_cluster_method
+                    and tech in alt_cluster_method[region]["technology_description"]
                 ):
 
                     grouped = cluster_by_owner(
@@ -2219,7 +2211,7 @@ class GeneratorClusters:
                 how="left",
             )
 
-            if self.settings["derate_capacity"] is True:
+            if self.settings.get("derate_capacity"):
                 derate_techs = self.settings["derate_techs"]
                 self.results.loc[:, "unmodified_cap_size"] = self.results.loc[
                     :, "Cap_size"
@@ -2284,7 +2276,7 @@ class GeneratorClusters:
                 ["region", "technology"]
             )
 
-        if "capacity_limit_spur_line_fn" in self.settings:
+        if self.settings.get("capacity_limit_spur_line_fn"):
             self.new_generators = (
                 self.new_generators.pipe(add_resource_max_cap_spur_line, self.settings)
                 .pipe(calculate_transmission_inv_cost, self.settings)
@@ -2293,13 +2285,12 @@ class GeneratorClusters:
         else:
             logger.warning("No settings parameter for max capacity/spur line file")
 
-        if "demand_response_fn" in self.settings:
-            if self.settings["demand_response_fn"] is not None:
-                dr_rows = self.create_demand_response_gen_rows(
-                    scenario=self.settings["demand_response"]
-                )
+        if self.settings.get("demand_response_fn"):
+            dr_rows = self.create_demand_response_gen_rows(
+                scenario=self.settings["demand_response"]
+            )
 
-            self.new_generators = pd.concat([self.new_generators, dr_rows])
+        self.new_generators = pd.concat([self.new_generators, dr_rows])
 
         # self.new_generators = self.new_generators.rename(
         #     columns={"technology": "Resource"}

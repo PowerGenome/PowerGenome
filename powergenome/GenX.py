@@ -138,10 +138,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     genx_settings = load_settings(settings["genx_settings_fn"])
     policies = load_policy_scenarios(settings)
     year_case_policy = policies.loc[(case_id, model_year), :]
-    if (
-        "distributed_gen_profiles_fn" in settings
-        and settings["distributed_gen_profiles_fn"] is not None
-    ):
+    if settings.get("distributed_gen_profiles_fn"):
         dg_generation = make_distributed_gen_profiles(pudl_engine, settings)
         total_dg_gen = dg_generation.sum().sum()
     else:
@@ -181,7 +178,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
             genx_settings["CES"] = 3
 
             # This is a little confusing but for partial CES
-            if settings["partial_ces"] is True:
+            if settings.get("partial_ces"):
                 genx_settings["CES_Adjustment"] = 0
             else:
                 genx_settings["CES_Adjustment"] = float((1 - CES) * total_dg_gen)
@@ -193,7 +190,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
         genx_settings["CES_Adjustment"] = 0
 
     # Don't wrap when time domain isn't reduced
-    if settings["reduce_time_domain"] is False:
+    if not settings.get("reduce_time_domain"):
         genx_settings["OperationWrapping"] = 0
 
     genx_settings["case_id"] = case_id
@@ -206,7 +203,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
 
     # Load user defined values for the genx settigns file. This overrides the
     # complicated logic above.
-    if "case_genx_settings_fn" in settings:
+    if settings.get("case_genx_settings_fn"):
         user_genx_settings = load_user_genx_settings(settings)
         user_case_settings = user_genx_settings.loc[(case_id, model_year), :]
         for key, value in user_case_settings.items():
@@ -222,7 +219,7 @@ def reduce_time_domain(
 
     demand_segments = load_demand_segments(settings)
 
-    if settings["reduce_time_domain"]:
+    if settings.get("reduce_time_domain"):
         days = settings["time_domain_days_per_period"]
         time_periods = settings["time_domain_periods"]
         include_peak_day = settings["include_peak_day"]
@@ -394,29 +391,28 @@ def set_int_cols(df):
 
 def calculate_partial_CES_values(gen_clusters, fuels, settings):
     gens = gen_clusters.copy()
-    if "partial_ces" in settings:
-        if settings["partial_ces"] is True:
-            assert set(fuels["Fuel"]) == set(gens["Fuel"])
-            fuel_emission_map = fuels.copy()
-            fuel_emission_map = fuel_emission_map.set_index("Fuel")
+    if settings.get("partial_ces"):
+        assert set(fuels["Fuel"]) == set(gens["Fuel"])
+        fuel_emission_map = fuels.copy()
+        fuel_emission_map = fuel_emission_map.set_index("Fuel")
 
-            gens["co2_emission_rate"] = gens["Heat_rate_MMBTU_per_MWh"] * gens[
-                "Fuel"
-            ].map(fuel_emission_map["CO2_content_tons_per_MMBtu"])
+        gens["co2_emission_rate"] = gens["Heat_rate_MMBTU_per_MWh"] * gens["Fuel"].map(
+            fuel_emission_map["CO2_content_tons_per_MMBtu"]
+        )
 
-            # Make the partial CES credit equal to 1 ton minus the emissions rate, but
-            # don't include coal plants
+        # Make the partial CES credit equal to 1 ton minus the emissions rate, but
+        # don't include coal plants
 
-            partial_ces = 1 - gens["co2_emission_rate"]
+        partial_ces = 1 - gens["co2_emission_rate"]
 
-            gens.loc[
-                ~(gens["Resource"].str.contains("coal"))
-                & (gens["STOR"] == 0)
-                & (gens["DR"] == 0),
-                # & ~(gens["Resource"].str.contains("battery"))
-                # & ~(gens["Resource"].str.contains("load_shifting")),
-                "CES",
-            ] = partial_ces.round(3)
+        gens.loc[
+            ~(gens["Resource"].str.contains("coal"))
+            & (gens["STOR"] == 0)
+            & (gens["DR"] == 0),
+            # & ~(gens["Resource"].str.contains("battery"))
+            # & ~(gens["Resource"].str.contains("load_shifting")),
+            "CES",
+        ] = partial_ces.round(3)
     # else:
     #     gen_clusters = add_genx_model_tags(gen_clusters, settings)
 

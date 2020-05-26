@@ -357,7 +357,7 @@ def main():
                     logger.info(
                         f"Finished first round with year {year} scenario {case_id}"
                     )
-                    # if "partial_ces" in settings:
+                    # if settings.get("partial_ces"):
                     gens = calculate_partial_CES_values(gen_clusters, fuels, _settings)
                     write_results_file(
                         df=remove_fuel_scenario_name(gens.fillna(0), _settings),
@@ -426,7 +426,7 @@ def main():
                     ).pipe(add_genx_model_tags, _settings)
 
                     gen_clusters = gc.create_all_generators()
-                    # if "partial_ces" in settings:
+                    # if settings.get("partial_ces"):
                     #     fuels = fuel_cost_table(
                     #         fuel_costs=gc.fuel_prices,
                     #         generators=gc.all_resources,
