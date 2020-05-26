@@ -1884,14 +1884,9 @@ class GeneratorClusters:
 
         return df
 
-    def create_demand_response_gen_rows(self, scenario):
+    def create_demand_response_gen_rows(self):
         """Create rows for demand response/management resources to include in the
         generators file.
-
-        Parameters
-        ----------
-        scenario : str
-            Name of the scenario to use data for.
 
         Returns
         -------
@@ -2286,9 +2281,7 @@ class GeneratorClusters:
             logger.warning("No settings parameter for max capacity/spur line file")
 
         if self.settings.get("demand_response_fn"):
-            dr_rows = self.create_demand_response_gen_rows(
-                scenario=self.settings["demand_response"]
-            )
+            dr_rows = self.create_demand_response_gen_rows()
 
         self.new_generators = pd.concat([self.new_generators, dr_rows])
 
