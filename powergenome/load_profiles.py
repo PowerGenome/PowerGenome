@@ -89,7 +89,7 @@ def add_load_growth(load_curves, settings):
         demand_start = settings["aeo_hist_start_elec_demand"]
         demand_end = settings["aeo_hist_end_elec_demand"]
 
-        if not all([key in demand_end.keys() for key in demand_start.keys()]):
+        if not all([key in demand_end for key in demand_start]):
             raise KeyError(
                 "Error in keys for historical electricity demand. /n"
                 "Not all keys in 'aeo_hist_start_elec_demand' are also in "
@@ -232,7 +232,7 @@ def make_distributed_gen_profiles(pudl_engine, settings):
     dg_calc_values = settings["distributed_gen_values"]
 
     assert (
-        year in dg_calc_values.keys()
+        year in dg_calc_values
     ), f"The years in settings parameter 'distributed_gen_values' do not match the model years."
 
     for region, values in dg_calc_values[year].items():

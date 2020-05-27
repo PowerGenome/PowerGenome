@@ -310,7 +310,7 @@ def main():
 
     i = 0
     model_regions_gdf = None
-    for year in scenario_settings.keys():
+    for year in scenario_settings:
         for case_id, _settings in scenario_settings[year].items():
             case_folder = (
                 out_folder / f"{year}" / f"{case_id}_{year}_{_settings['case_name']}"

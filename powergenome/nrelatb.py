@@ -150,7 +150,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
         try:
             atb_tech, tech_detail = techs[eia_tech]
         except KeyError as e:
-            if eia_tech in settings["tech_groups"].keys():
+            if eia_tech in settings["tech_groups"]:
                 raise KeyError(
                     f"{eia_tech} is defined in 'tech_groups' but doesn't have a "
                     "corresponding ATB technology in 'eia_atb_tech_map'"
@@ -612,10 +612,10 @@ def atb_new_generators(atb_costs, atb_hr, settings):
             " dictionary of items below it."
         )
         assert (
-            "technology" in tech_modifiers.keys()
+            "technology" in tech_modifiers
         ), "Each nested dictionary in atb_modifiers must have a 'technology' key."
         assert (
-            "tech_detail" in tech_modifiers.keys()
+            "tech_detail" in tech_modifiers
         ), "Each nested dictionary in atb_modifiers must have a 'tech_detail' key."
 
         technology = tech_modifiers.pop("technology")
@@ -737,7 +737,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         )
         _df = add_extra_wind_solar_rows(_df, region, settings)
 
-        if region in (settings.get("new_gen_not_available") or {}).keys():
+        if region in (settings.get("new_gen_not_available") or {}):
             techs = settings["new_gen_not_available"][region]
             for tech in techs:
                 _df = _df.loc[~_df["technology"].str.contains(tech), :]
