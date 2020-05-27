@@ -8,7 +8,7 @@ from dotenv import find_dotenv, load_dotenv
 
 from powergenome import __file__
 
-load_dotenv(find_dotenv(usecwd=True))
+load_dotenv(find_dotenv())
 
 # Not convinced this is the best way to set folder paths but it works!
 powergenome_path = Path(__file__).parent
