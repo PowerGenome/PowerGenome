@@ -162,7 +162,7 @@ def startup_fuel(df, settings):
         Modified dataframe with the new column "Start_fuel_MMBTU_per_MW".
     """
     df["Start_fuel_MMBTU_per_MW"] = 0
-    for eia_tech, fuel_use in settings.get("startup_fuel_use", {}).items():
+    for eia_tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
         atb_tech = settings["eia_atb_tech_map"][eia_tech].split("_")[0]
 
         df.loc[df["technology"] == eia_tech, "Start_fuel_MMBTU_per_MW"] = fuel_use
@@ -260,7 +260,7 @@ def group_technologies(df, settings):
         for tech, group in settings["tech_groups"].items():
             df.loc[df["technology_description"].isin(group), "_technology"] = tech
 
-        for region, tech_list in settings.get("regional_no_grouping", {}).items():
+        for region, tech_list in (settings.get("regional_no_grouping") or {}).items():
             df.loc[
                 (df["model_region"] == region)
                 & (df["technology_description"].isin(tech_list)),
@@ -1375,7 +1375,7 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
     planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
 
     # Add planned additions from the settings file
-    for i, record in enumerate(settings.get("additional_planned", [])):
+    for i, record in enumerate(settings.get("additional_planned") or []):
         plant_id, gen_id, model_region = record
         plant_record = planned.loc[
             (planned["plant_id_eia"] == plant_id) & (planned["generator_id"] == gen_id),
@@ -1619,7 +1619,7 @@ def add_fuel_labels(df, fuel_prices, settings):
     """
 
     df["Fuel"] = "None"
-    for eia_tech, fuel in settings.get("tech_fuel_map", {}).items():
+    for eia_tech, fuel in (settings.get("tech_fuel_map") or {}).items():
         try:
             if eia_tech == "Natural Gas Steam Turbine":
                 # No ATB natural gas steam turbine and I match it with coal for O&M
@@ -1655,7 +1655,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                     "Fuel",
                 ] = fuel_name
 
-    for ccs_tech, ccs_fuel in settings.get("ccs_fuel_map", {}).items():
+    for ccs_tech, ccs_fuel in (settings.get("ccs_fuel_map") or {}).items():
         scenario = settings["aeo_fuel_scenarios"][ccs_fuel.split("_")[0]]
         for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
             ccs_fuel_name = ("_").join([aeo_region, scenario, ccs_fuel])
@@ -2110,7 +2110,7 @@ class GeneratorClusters:
         logger.info("Creating technology clusters by region")
         unit_list = []
         self.cluster_list = []
-        alt_cluster_method = self.settings.get("alt_cluster_method", {})
+        alt_cluster_method = self.settings.get("alt_cluster_method") or {}
 
         for _, df in region_tech_grouped:
             region, tech = _

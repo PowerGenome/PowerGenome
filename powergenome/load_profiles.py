@@ -80,7 +80,7 @@ def add_load_growth(load_curves, settings):
         for ipm_region, load_region in load_map.items()
     }
 
-    for region, rate in settings.get("alt_growth_rate", {}).items():
+    for region, rate in (settings.get("alt_growth_rate") or {}).items():
         load_growth_map[region] = rate
 
     if settings.get("regular_load_growth_start_year"):

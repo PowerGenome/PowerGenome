@@ -604,7 +604,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
     # ATB average of advanced and conventional.
     # This is now generalized for changes to ATB values for any technology type.
-    for tech, _tech_modifiers in settings.get("atb_modifiers", {}).items():
+    for tech, _tech_modifiers in (settings.get("atb_modifiers") or {}).items():
         tech_modifiers = copy.deepcopy(_tech_modifiers)
         assert isinstance(tech_modifiers, dict), (
             "The settings parameter 'atb_modifiers' must be a nested list.\n"
@@ -661,7 +661,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
     new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
 
-    for tech, years in settings.get("alt_atb_cap_recovery_years", {}).items():
+    for tech, years in (settings.get("alt_atb_cap_recovery_years") or {}).items():
         new_gen_df.loc[
             new_gen_df.technology.str.lower().str.contains(tech.lower()),
             "cap_recovery_years",
@@ -682,7 +682,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
 
     # Some technologies might have a different capital recovery period
-    for tech, years in settings.get("alt_atb_cap_recovery_years", {}).items():
+    for tech, years in (settings.get("alt_atb_cap_recovery_years") or {}).items():
         tech_mask = new_gen_df["technology"].str.contains(tech)
 
         new_gen_df.loc[tech_mask, "cap_recovery_years"] = years
@@ -737,7 +737,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         )
         _df = add_extra_wind_solar_rows(_df, region, settings)
 
-        if region in settings.get("new_gen_not_available", {}).keys():
+        if region in (settings.get("new_gen_not_available") or {}).keys():
             techs = settings["new_gen_not_available"][region]
             for tech in techs:
                 _df = _df.loc[~_df["technology"].str.contains(tech), :]
