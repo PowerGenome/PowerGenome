@@ -1375,7 +1375,8 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
     planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
 
     # Add planned additions from the settings file
-    for i, record in enumerate(settings.get("additional_planned") or []):
+    additional_planned = settings.get("additional_planned") or []
+    for record in additional_planned:
         plant_id, gen_id, model_region = record
         plant_record = planned.loc[
             (planned["plant_id_eia"] == plant_id) & (planned["generator_id"] == gen_id),
@@ -1385,7 +1386,9 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
 
         planned_gdf = planned_gdf.append(plant_record, sort=False)
 
-    logger.info(f"{i} generators were added to the planned list based on settings")
+    logger.info(
+        f"{len(additional_planned)} generators were added to the planned list based on settings"
+    )
 
     planned_gdf.loc[:, "heat_rate_mmbtu_mwh"] = planned_gdf.loc[
         :, "technology_description"
