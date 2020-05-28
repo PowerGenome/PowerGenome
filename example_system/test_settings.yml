@@ -76,7 +76,7 @@ demand_response_resources:
       parameter_values:
         Max_DSM_delay: 5
         DR: 2
-
+demand_response: 'moderate'
 
 # Spur line financial information to calculate annual investment costs
 # Capital cost per MW-mile in each region. Use either a single numeric value for all
