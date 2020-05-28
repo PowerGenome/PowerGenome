@@ -627,7 +627,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
             assert len(op_list) == 2, (
                 "Two values, an operator and a numeric value, are needed in the parameter\n"
-                f"'{parameter}' for technology '{tech}' in 'atb_modifiers'."
+                f"'{key}' for technology '{tech}' in 'atb_modifiers'."
             )
             op, op_value = op_list
 
