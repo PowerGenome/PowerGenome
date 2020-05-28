@@ -87,7 +87,7 @@ def agg_transmission_constraints(
     reverse_tc.index = tc_joined.index
     tc_joined["Line_Min_Flow_MW"] = reverse_tc
 
-    for idx, row in tc_joined.iterrows():
+    for idx, _ in tc_joined.iterrows():
         tc_joined.loc[idx, idx[0]] = 1
         tc_joined.loc[idx, idx[-1]] = -1
 

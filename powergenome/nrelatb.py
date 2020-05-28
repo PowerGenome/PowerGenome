@@ -135,7 +135,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
     """
     logger.info("Adding fixed and variable O&M for existing plants")
     techs = settings["eia_atb_tech_map"]
-    existing_year = settings["atb_existing_year"]
 
     # ATB string is <technology>_<tech_detail>
     techs = {eia: atb_costs_df.split("_") for eia, atb_costs_df in techs.items()}
@@ -148,8 +147,8 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
 
         eia_tech, existing_hr = group
         try:
-            atb_tech, tech_detail = techs[eia_tech]
-        except KeyError as e:
+            techs[eia_tech]
+        except KeyError:
             if eia_tech in settings["tech_groups"]:
                 raise KeyError(
                     f"{eia_tech} is defined in 'tech_groups' but doesn't have a "
@@ -786,7 +785,7 @@ def add_extra_wind_solar_rows(df, region, settings):
         wind_bins = settings["new_wind_solar_regional_bins"]["LandbasedWind"][region]
         extra_wind_bins = wind_bins - 1
 
-        for i in range(extra_wind_bins):
+        for _ in range(extra_wind_bins):
             row_iloc = np.argwhere(
                 df.technology.str.contains("LandbasedWind")
             ).flatten()[-1]
@@ -801,7 +800,7 @@ def add_extra_wind_solar_rows(df, region, settings):
         solar_bins = settings["new_wind_solar_regional_bins"]["UtilityPV"][region]
         extra_solar_bins = solar_bins - 1
 
-        for i in range(extra_solar_bins):
+        for _ in range(extra_solar_bins):
             row_iloc = np.argwhere(df.technology.str.contains("UtilityPV")).flatten()[
                 -1
             ]
@@ -815,7 +814,7 @@ def add_extra_wind_solar_rows(df, region, settings):
         solar_bins = settings["new_wind_solar_regional_bins"]["OffShoreWind"][region]
         extra_solar_bins = solar_bins - 1
 
-        for i in range(extra_solar_bins):
+        for _ in range(extra_solar_bins):
             row_iloc = np.argwhere(
                 df.technology.str.contains("OffShoreWind")
             ).flatten()[-1]

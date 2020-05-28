@@ -225,7 +225,7 @@ def reduce_time_domain(
         include_peak_day = settings["include_peak_day"]
         load_weight = settings["demand_weight_factor"]
 
-        results, rep_point, cluster_weight = kmeans_time_clustering(
+        results, _, _ = kmeans_time_clustering(
             resource_profiles=resource_profiles,
             load_profiles=load_profiles,
             days_in_group=days,
@@ -422,7 +422,6 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
 def check_min_power_against_variability(gen_clusters, resource_profile):
 
     min_gen_levels = resource_profile.min()
-    original_min_power = gen_clusters["Min_power"].copy()
 
     assert len(min_gen_levels) == len(
         gen_clusters

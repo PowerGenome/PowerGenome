@@ -235,7 +235,7 @@ def make_distributed_gen_profiles(pudl_engine, settings):
         year in dg_calc_values
     ), f"The years in settings parameter 'distributed_gen_values' do not match the model years."
 
-    for region, values in dg_calc_values[year].items():
+    for region in dg_calc_values[year]:
         assert region in set(profile_regions), (
             "The profile regions in settings parameter 'distributed_gen_values' do not\n"
             f"match the regions in {settings['distributed_gen_profiles_fn']} for year {year}"
