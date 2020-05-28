@@ -8,11 +8,11 @@ from dotenv import find_dotenv, load_dotenv
 
 from powergenome import __file__
 
-load_dotenv(find_dotenv())
-
 # Not convinced this is the best way to set folder paths but it works!
 powergenome_path = Path(__file__).parent
 project_path = powergenome_path.parent
+
+load_dotenv(dotenv_path=powergenome_path / ".env")
 
 DATA_PATHS = {}
 DATA_PATHS["results"] = project_path / "results"
