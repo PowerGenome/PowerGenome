@@ -54,7 +54,7 @@ def snake_case_col(col):
     "Remove special characters and convert to snake case"
     clean = (
         col.str.lower()
-        .str.replace("[^0-9a-zA-Z\-]+", " ")
+        .str.replace(r"[^0-9a-zA-Z\-]+", " ")
         .str.replace("-", "")
         .str.strip()
         .str.replace(" ", "_")
@@ -66,7 +66,7 @@ def snake_case_str(s):
     "Remove special characters and convert to snake case"
     clean = (
         s.lower()
-        .replace("[^0-9a-zA-Z\-]+", " ")
+        .replace(r"[^0-9a-zA-Z\-]+", " ")
         .replace("-", "")
         .strip()
         .replace(" ", "_")
