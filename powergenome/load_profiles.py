@@ -3,7 +3,7 @@ Hourly demand profiles
 """
 
 import logging
-
+from pathlib import Path
 import pandas as pd
 
 from powergenome.util import reverse_dict_of_lists, shift_wrap_profiles
@@ -133,7 +133,7 @@ def add_load_growth(load_curves, settings):
 
 def add_demand_response_resource_load(load_curves, settings):
 
-    dr_path = settings["input_folder"] / settings["demand_response_fn"]
+    dr_path = Path(settings["input_folder"]) / settings["demand_response_fn"]
     dr_types = settings["demand_response_resources"][settings["model_year"]].keys()
 
     dr_curves = make_demand_response_profiles(dr_path, list(dr_types)[0], settings)
@@ -222,7 +222,7 @@ def make_distributed_gen_profiles(pudl_engine, settings):
 
     year = settings["model_year"]
     dg_profiles_path = (
-        settings["input_folder"] / settings["distributed_gen_profiles_fn"]
+        Path(settings["input_folder"]) / settings["distributed_gen_profiles_fn"]
     )
 
     hourly_norm_profiles = pd.read_csv(dg_profiles_path)

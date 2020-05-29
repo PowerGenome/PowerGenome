@@ -122,7 +122,7 @@ def parse_command_line(argv):
 
 def build_case_id_name_map(settings):
     case_id_name_df = pd.read_csv(
-        settings["input_folder"] / settings["case_id_description_fn"],
+        Path(settings["input_folder"]) / settings["case_id_description_fn"],
         index_col=0,
         squeeze=True,
     )

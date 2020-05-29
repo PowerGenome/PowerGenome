@@ -2,6 +2,7 @@
 
 import logging
 import pandas as pd
+from pathlib import Path
 
 from powergenome.util import snake_case_col
 
@@ -110,7 +111,7 @@ def add_resource_max_cap_spur_line(
         cluster name to uniquely identify them.
     """
 
-    path = settings["input_folder"] / settings["capacity_limit_spur_line_fn"]
+    path = Path(settings["input_folder"]) / settings["capacity_limit_spur_line_fn"]
     df = pd.read_csv(path)
     df["cluster"] = df["cluster"].fillna(1)
 
@@ -197,7 +198,7 @@ def make_generator_variability(resource_df, settings, resource_col="Resource"):
 
     # Load resource variability (8760 values) and make it into a df with columns
     # 'region', 'Resource', 'cluster', and then the hourly values.
-    path = settings["input_folder"] / settings["resource_variability_fn"]
+    path = Path(settings["input_folder"]) / settings["resource_variability_fn"]
     df = pd.read_csv(path, index_col=0)
     df.index = [str(x) for x in df.index]
     df = df.T
@@ -285,7 +286,7 @@ def load_policy_scenarios(settings):
         Emission policies for each case_id/year.
     """
 
-    path = settings["input_folder"] / settings["emission_policies_fn"]
+    path = Path(settings["input_folder"]) / settings["emission_policies_fn"]
     policies = pd.read_csv(path, na_values=["None", "none"])
 
     # Update the policies. The column `copy_case_id` can be used to copy values from
@@ -365,7 +366,7 @@ def load_demand_segments(settings):
         Demand segments with columns such as "Voll", "Demand_segment", etc.
     """
 
-    path = settings["input_folder"] / settings["demand_segments_fn"]
+    path = Path(settings["input_folder"]) / settings["demand_segments_fn"]
     demand_segments = pd.read_csv(path)
 
     return demand_segments
@@ -388,7 +389,7 @@ def load_user_genx_settings(settings):
         index is ["case_id", "year"] and columns are GenX parameters.
     """
 
-    path = settings["input_folder"] / settings["case_genx_settings_fn"]
+    path = Path(settings["input_folder"]) / settings["case_genx_settings_fn"]
     genx_case_settings = pd.read_csv(path)
 
     if "copy_case_id" in genx_case_settings.columns:

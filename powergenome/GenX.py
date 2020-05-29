@@ -2,6 +2,7 @@
 
 from itertools import product
 import logging
+from pathlib import Path
 import pandas as pd
 
 from powergenome.external_data import (
@@ -88,7 +89,7 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
 
 
 def add_misc_gen_values(gen_clusters, settings):
-    path = settings["input_folder"] / settings["misc_gen_inputs_fn"]
+    path = Path(settings["input_folder"]) / settings["misc_gen_inputs_fn"]
     misc_values = pd.read_csv(path)
     misc_values = misc_values.fillna("skip")
 
