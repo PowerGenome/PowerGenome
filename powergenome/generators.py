@@ -2244,6 +2244,12 @@ class GeneratorClusters:
             self.results["unmodified_cap_size"] * self.results["num_units"]
         )
 
+        if self.settings.get("region_wind_pv_cap_fn"):
+            from powergenome.external_data import overwrite_wind_pv_capacity
+
+            logger.info("Setting existing wind/pv using external file")
+            self.results = overwrite_wind_pv_capacity(self.results, self.settings)
+
         # Add fixed/variable O&M based on NREL atb
         self.results = (
             self.results.pipe(

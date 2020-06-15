@@ -400,3 +400,38 @@ def load_user_genx_settings(settings):
     genx_case_settings = genx_case_settings.set_index(["case_id", "year"])
 
     return genx_case_settings
+
+
+def overwrite_wind_pv_capacity(df, settings):
+    from powergenome.util import reverse_dict_of_lists
+
+    idx = pd.IndexSlice
+
+    path = settings["input_folder"] / settings["region_wind_pv_cap_fn"]
+
+    wind_pv_ipm_region_capacity = pd.read_csv(path)
+
+    region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
+
+    wind_pv_ipm_region_capacity["model_region"] = wind_pv_ipm_region_capacity[
+        "IPM_Region"
+    ].map(region_agg_map)
+    wind_pv_model_region_capacity = wind_pv_ipm_region_capacity.groupby(
+        ["model_region", "technology"]
+    ).sum()
+
+    df = df.reset_index()
+
+    for region in df["region"].unique():
+        for tech in ["Solar Photovoltaic", "Onshore Wind Turbine"]:
+            if tech in df.query("region == @region")["technology"].to_list():
+                df.loc[
+                    (df["region"] == region) & (df["technology"] == tech),
+                    "Existing_Cap_MW",
+                ] = wind_pv_model_region_capacity.loc[
+                    idx[region, tech], "nameplate_capacity_mw"
+                ]
+
+    df = df.set_index(["region", "technology", "cluster"])
+
+    return df
