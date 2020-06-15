@@ -118,8 +118,9 @@ def add_resource_max_cap_spur_line(
         "region",
         "technology",
         "cluster",
-        "spur_line_miles",
+        # "spur_line_miles",
         "max_capacity",
+        # "interconnect_annuity",
     ]
 
     for col in required_cols:
@@ -148,7 +149,14 @@ def add_resource_max_cap_spur_line(
             print(_df)
 
         new_resource_df.loc[mask, capacity_col] = _df["max_capacity"].values
-        new_resource_df.loc[mask, "spur_line_miles"] = _df["spur_line_miles"].values
+        for col in [
+            "spur_miles",
+            "offshore_spur_miles",
+            "tx_miles",
+            "interconnect_annuity",
+        ]:
+            if col in _df.columns:
+                new_resource_df.loc[mask, col] = _df[col].values
         new_resource_df.loc[mask, "cluster"] = _df["cluster"].values
 
         if mask.sum() > 1:

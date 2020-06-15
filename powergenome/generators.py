@@ -798,6 +798,37 @@ def remove_retired_860m(df, retired_860m):
     return not_retired_df
 
 
+def remove_future_retirements_860m(df, retired_860m):
+    """Remove generators that 860m shows as having been retired
+
+    Parameters
+    ----------
+    df : dataframe
+        All of the EIA 860 generators
+    retired_860m : dataframe
+        From the 860m Retired sheet
+
+    Returns
+    -------
+    dataframe
+        Same as input, but possibly without generators that have retired
+    """
+
+    df = create_plant_gen_id(df)
+    retired_860m = create_plant_gen_id(retired_860m)
+
+    retired = df.loc[df["plant_gen_id"].isin(retired_860m["plant_gen_id"]), :]
+
+    not_retired_df = df.loc[~df["plant_gen_id"].isin(retired_860m["plant_gen_id"]), :]
+
+    not_retired_df = not_retired_df.drop(columns="plant_gen_id")
+
+    if not retired.empty:
+        assert len(df) == len(retired) + len(not_retired_df)
+
+    return not_retired_df
+
+
 def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
     """
     Load generation and fuel data for each plant. EIA-923 provides these values for
@@ -1725,7 +1756,7 @@ def calculate_transmission_inv_cost(resource_df, settings):
         else:
             resource_df["spur_line_capex"] = (
                 resource_df["region"].map(settings["spur_line_capex_mw_mile"])
-                * resource_df["spur_line_miles"]
+                * resource_df["spur_miles"]
             )
     elif isinstance(settings["spur_line_capex_mw_mile"], Number):
         resource_df["spur_line_capex"] = (
@@ -1738,7 +1769,9 @@ def calculate_transmission_inv_cost(resource_df, settings):
             f"You provided {settings['spur_line_capex_mw_mile']}"
         )
 
-    resource_df["spur_line_inv_mwyr"] = investment_cost_calculator(
+    resource_df.loc[
+        ~(resource_df["interconnect_annuity"] > 0), "interconnect_annuity"
+    ] = investment_cost_calculator(
         resource_df["spur_line_capex"],
         settings["spur_line_wacc"],
         settings["spur_line_investment_years"],
@@ -1764,14 +1797,14 @@ def add_transmission_inv_cost(resource_df):
         plant_inv_cost_mwyr represents just the plant investment costs.
     """
 
-    if "spur_line_inv_mwyr" not in resource_df.columns:
+    if "interconnect_annuity" not in resource_df.columns:
         logger.warning(
             "Spur line investment costs have not been calculated and are not included "
             "in the total investment costs."
         )
     resource_df["plant_inv_cost_mwyr"] = resource_df.loc[:, "Inv_cost_per_MWyr"]
     resource_df["Inv_cost_per_MWyr"] = (
-        resource_df["Inv_cost_per_MWyr"] + resource_df["spur_line_inv_mwyr"]
+        resource_df["Inv_cost_per_MWyr"] + resource_df["interconnect_annuity"]
     )
 
     return resource_df
@@ -2195,6 +2228,12 @@ class GeneratorClusters:
             f"Results technologies are {self.results.technology.unique().tolist()}"
         )
 
+        # if self.settings.get("region_wind_pv_cap_fn"):
+        #     from powergenome.external_data import overwrite_wind_pv_capacity
+
+        #     logger.info("Setting existing wind/pv using external file")
+        #     self.results = overwrite_wind_pv_capacity(self.results, self.settings)
+
         self.results = self.results.reset_index().set_index(
             ["region", "technology", "cluster"]
         )
@@ -2287,7 +2326,7 @@ class GeneratorClusters:
         if "capacity_limit_spur_line_fn" in self.settings:
             self.new_generators = (
                 self.new_generators.pipe(add_resource_max_cap_spur_line, self.settings)
-                .pipe(calculate_transmission_inv_cost, self.settings)
+                # .pipe(calculate_transmission_inv_cost, self.settings)
                 .pipe(add_transmission_inv_cost)
             )
         else:
