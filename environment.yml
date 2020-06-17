@@ -15,7 +15,7 @@ dependencies:
   - conda-forge::pre-commit
   - isort
   - pre-commit
-  - nb_conda_kernals
+  - conda-forge::nb_conda_kernels
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona
