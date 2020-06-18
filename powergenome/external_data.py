@@ -131,7 +131,7 @@ def add_resource_max_cap_spur_line(
     grouped_df = df.groupby(["region", "technology"])
 
     new_resource_df[capacity_col] = -1
-    new_resource_df["spur_line_miles"] = 0
+    new_resource_df["spur_miles"] = 0
     for (region, tech), _df in grouped_df:
         mask = (new_resource_df["region"] == region) & (
             new_resource_df["technology"].str.lower().str.contains(tech.lower())
@@ -166,6 +166,19 @@ def add_resource_max_cap_spur_line(
                 f"The resource {tech} in region {region} has multiple rows and each row"
                 " must have a cluster value."
             )
+
+    if "interconnect_annuity" in new_resource_df.columns:
+        from powergenome.price_adjustment import inflation_price_adjustment
+
+        logger.info(
+            f"Inflating external interconnect annuity costs from 2017 to "
+            f"{settings['target_usd_year']}"
+        )
+        new_resource_df["interconnect_annuity"] = inflation_price_adjustment(
+            new_resource_df["interconnect_annuity"].fillna(0),
+            2017,
+            settings["target_usd_year"],
+        )
 
     return new_resource_df
 

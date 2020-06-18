@@ -1760,7 +1760,7 @@ def calculate_transmission_inv_cost(resource_df, settings):
             )
     elif isinstance(settings["spur_line_capex_mw_mile"], Number):
         resource_df["spur_line_capex"] = (
-            settings["spur_line_capex_mw_mile"] * resource_df["spur_line_miles"]
+            settings["spur_line_capex_mw_mile"] * resource_df["spur_miles"]
         )
     else:
         raise TypeError(
@@ -2326,7 +2326,7 @@ class GeneratorClusters:
         if "capacity_limit_spur_line_fn" in self.settings:
             self.new_generators = (
                 self.new_generators.pipe(add_resource_max_cap_spur_line, self.settings)
-                # .pipe(calculate_transmission_inv_cost, self.settings)
+                .pipe(calculate_transmission_inv_cost, self.settings)
                 .pipe(add_transmission_inv_cost)
             )
         else:
