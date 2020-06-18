@@ -1185,7 +1185,7 @@ generator_columns: [
             "Rsv_Dn",
             "Reg_Cost",
             "Rsv_Cost",
-            "spur_line_miles",
-            "spur_line_capex"
-
+            "spur_miles",
+            "spur_line_capex",
+            "interconnect_annuity"
         ]
