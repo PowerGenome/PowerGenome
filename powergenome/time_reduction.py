@@ -67,6 +67,7 @@ def kmeans_time_clustering(
     # Initialize dataframes to store final and intermediate data in
 
     input_data = pd.concat([load_profiles, resource_profiles], axis=1)
+    input_data = input_data.reset_index()
     original_col_names = input_data.columns.tolist()
     # CAUTION: Load Column lables should be named with the phrase "Load_"
     load_col_names = load_profiles.columns
