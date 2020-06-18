@@ -159,6 +159,9 @@ def kmeans_time_clustering(
     # Create an empty list storing name of each data point
     EachClusterRepPoint = [None] * num_clusters
 
+    #creating a dataframe for storing long duration storage related data
+    LDS = pd.DataFrame(columns = ['slot','cluster'])
+
     for k in range(num_clusters):
         # Number of points in kth cluster (i.e. label=0)
         EachClusterWeight[k] = len(model.labels_[model.labels_ == k])
@@ -174,7 +177,17 @@ def kmeans_time_clustering(
 
         # Select column name closest with the smallest euclidean distance to the mean
         EachClusterRepPoint[k] = min(dist, key=lambda k: dist[k])
-    # IP()
+
+        # Creating a list that matches each week to a representative week
+        for j in range(EachClusterWeight[k]):
+            LDS = LDS.append(pd.DataFrame({'slot': int(ClusteringInputDF.loc[:,model.labels_ ==k].columns[j][1:]), 'cluster': k + 1}, index=[0]), ignore_index=True)
+    
+    #appending the week representing peak load
+    LDS = LDS.append(pd.DataFrame({'slot': int(GroupingwithPeakLoad[0][1:]), 'cluster': k+2},index=[0]),ignore_index=True)
+    
+    # same CSV file that will be used in GenX
+    LDS = LDS.sort_values(by=['slot'])
+    
     # Storing selected groupings in a new data frame with appropriate dimensions (E.g. load in GW)
     ClusterOutputDataTemp = ModifiedData[EachClusterRepPoint]
 
@@ -305,6 +318,7 @@ def kmeans_time_clustering(
             "AnnualGenScaleFactor": ScaleFactor,  # Scale factor used to adjust load output to match annual generation of original data
             "RMSE": RMSE,  # Root mean square error between full year data and modeled full year data (duration curves)
             "AnnualProfile": FullLengthOutputs,
+            "LDS": LDS,
         },
         EachClusterRepPoint,
         EachClusterWeight,
