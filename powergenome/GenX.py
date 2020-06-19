@@ -222,7 +222,7 @@ def reduce_time_domain(
 
     demand_segments = load_demand_segments(settings)
 
-    if settings["reduce_time_domain"]:
+    if settings.get("reduce_time_domain"):
         days = settings["time_domain_days_per_period"]
         time_periods = settings["time_domain_periods"]
         include_peak_day = settings["include_peak_day"]
@@ -284,7 +284,7 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return resource_profiles, load_output
+        return resource_profiles, load_output, None
 
 
 def network_line_loss(transmission, settings):
