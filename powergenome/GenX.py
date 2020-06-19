@@ -242,7 +242,7 @@ def reduce_time_domain(
         reduced_resource_profile.index.name = "Resource"
         reduced_resource_profile.index = range(1, len(reduced_resource_profile) + 1)
         reduced_load_profile = results["load_profiles"]
-        long_duration_storage = results["LDS"]
+        long_duration_storage = results["long_duration_storage"]
 
         time_index = pd.Series(data=reduced_load_profile.index + 1, name="Time_index")
         sub_weights = pd.Series(
