@@ -168,9 +168,10 @@ def subtract_distributed_generation(load_curves, pudl_engine, settings):
 
 def load_usr_demand_profiles(settings):
     "Temp function to load user-generated demand profiles"
+    from powergenome.external_data import make_usr_demand_profiles
 
     lp_path = settings["input_folder"] / settings["regional_load_fn"]
-    hourly_load_profiles = pd.read_csv(lp_path, index_col="region")
+    hourly_load_profiles = make_usr_demand_profiles(lp_path, settings)
 
     return hourly_load_profiles
 

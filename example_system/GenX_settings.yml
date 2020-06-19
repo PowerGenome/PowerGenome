@@ -16,6 +16,7 @@ NetworkExpansion: 1 # 1 = active otherwise no active
 HeatMarket: 0 # 1 = active otherwise no active
 Externalities: 0 # 1 = active otherwise no active
 OperationWrapping: 2 # 0 = Full Year First-Last Hour Year; 1 = Full Year First-Last Hour Week; 2 = Sample Weeks First-Last Hour Week;
+LDS: 0 # 0 = no long duration storage constraints; 1 = consider long duration storage constraints. Default is 0
 pTolerance: 0.05 # Wrap-up tolerance
 Reserves: 0 # 0 = no reserves, 1 regulation (primary) and operating (secondary) reserves
 PrintModel: 0 # 1 for including the model equation as an output; 0 for the model equation not being included as an output

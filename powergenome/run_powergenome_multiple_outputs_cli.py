@@ -494,7 +494,7 @@ def main():
                     file_name="Generators_variability.csv",
                     include_index=True,
                 )
-                if long_duration_storage:
+                if long_duration_storage is not None:
                     write_results_file(
                         df=long_duration_storage,
                         folder=case_folder,
