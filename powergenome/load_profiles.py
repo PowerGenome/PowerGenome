@@ -165,6 +165,12 @@ def subtract_distributed_generation(load_curves, pudl_engine, settings):
 
     return load_curves
 
+def load_usr_demand_profiles(settings):
+
+    lp_path = settings["input_folder"] / settings["regional_load_fn"]
+    hourly_load_profiles = pd.read_csv(lp_path, index_col='region')
+    
+    return hourly_load_profiles
 
 def make_final_load_curves(
     pudl_engine,
@@ -172,16 +178,19 @@ def make_final_load_curves(
     pudl_table="load_curves_epaipm",
     settings_agg_key="region_aggregations",
 ):
-    load_curves_before_dg = make_load_curves(
-        pudl_engine, settings, pudl_table, settings_agg_key
-    )
-
-    if "demand_response_fn" in settings.keys():
-        load_curves_dr = add_demand_response_resource_load(
-            load_curves_before_dg, settings
-        )
+    if settings["regional_load_fn"] is not None:
+        load_curves_dr = load_usr_demand_profiles(settings)
     else:
-        load_curves_dr = load_curves_before_dg
+        load_curves_before_dg = make_load_curves(
+            pudl_engine, settings, pudl_table, settings_agg_key
+        )
+
+        if "demand_response_fn" in settings.keys():
+            load_curves_dr = add_demand_response_resource_load(
+                load_curves_before_dg, settings
+           )
+        else:
+            load_curves_dr = load_curves_before_dg
 
     if "distributed_gen_profiles_fn" in settings.keys():
         final_load_curves = subtract_distributed_generation(
