@@ -456,3 +456,14 @@ def overwrite_wind_pv_capacity(df, settings):
     df = df.set_index(["region", "technology", "cluster"])
 
     return df
+
+
+def make_usr_demand_profiles(path, settings):
+    idx = pd.IndexSlice
+    year = settings["model_year"]
+    scenario = settings["electrification"]
+
+    df = pd.read_csv(path, header=[0, 1, 2])
+    scenario_df = df.loc[:, idx[str(year), scenario]]
+
+    return scenario_df

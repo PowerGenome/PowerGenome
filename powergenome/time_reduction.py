@@ -53,12 +53,6 @@ def kmeans_time_clustering(
 
         The second list has integer weights of each cluster.
     """
-    # InputData - Annual timeseries of load and variable resources
-    ##- this could be either for a single year (8760 rows)or multiple year (e.g. 2 year data should have 17520 rows)
-    # NumGrpDays- number of days in each subperiod
-    # NClusters - number of subperiods to be generated as part of outputs
-    # PeakDayinCluster - whether model should include subperiod with the peak system wide load ('yes' or 'no')
-    # LoadWeight -  relative weight of load time series compared to renewables (default = 1)
     resource_col_names = resource_profiles.columns
     if variable_resources_only:
         input_std = resource_profiles.describe().loc["std", :]
@@ -66,7 +60,14 @@ def kmeans_time_clustering(
         resource_profiles = resource_profiles.loc[:, var_col_names]
     # Initialize dataframes to store final and intermediate data in
 
-    input_data = pd.concat([load_profiles, resource_profiles], axis=1)
+    input_data = pd.concat(
+        [
+            load_profiles.reset_index(drop=True),
+            resource_profiles.reset_index(drop=True),
+        ],
+        axis=1,
+    )
+    input_data = input_data.reset_index(drop=True)
     original_col_names = input_data.columns.tolist()
     # CAUTION: Load Column lables should be named with the phrase "Load_"
     load_col_names = load_profiles.columns
@@ -81,23 +82,20 @@ def kmeans_time_clustering(
 
     hours_per_year = len(input_data)
 
-    # Normalized all load and renewables data 0 and LoadWeight, All Renewables b/w 0 and 1
+    # Normalized all load and renewables data 0 and LoadWeight, All Renewables b/w 0
+    # and 1
     norm_tseries = pd.DataFrame(
         data=minmax_scale(input_data), columns=input_data.columns
     )
     norm_tseries.loc[:, load_col_names] *= load_weight
-    #     for j in range(len(OldColNames)):
-    #         AnnualTSeriesNormalized.loc[:,OldColNames[j]] = (InputData.loc[:,OldColNames[j]] -min(InputData.loc[:,OldColNames[j]]))/float(max(InputData.loc[:,OldColNames[j]])-min(InputData.loc[:,OldColNames[j]]))
-
-    #         if OldColNames[j] in LoadColNames:
-    #             # If j corresponds to load columns scale them to be twice as important as Renewables
-    #             AnnualTSeriesNormalized.loc[:,OldColNames[j]] =LoadWeight*AnnualTSeriesNormalized.loc[:,OldColNames[j]]
 
     # Identify hour with maximum system wide load
     hr_maxSysLoad = input_data.loc[:, load_col_names].sum(axis=1).idxmax()
-    ################################ pre-processing data to create concatenated column of load, pv and wind data
+    ################################ pre-processing data to create concatenated column
+    # of load, pv and wind data
 
-    # Number of such samples in a year - by avoiding division by float we are excluding a few days in each sample set
+    # Number of such samples in a year - by avoiding division by float we are excluding
+    # a few days in each sample set
     # Hence annual generation for each zone will not exactly match up with raw data
     # num_data_points = round(hours_per_year / 24 / days_in_group)
     num_data_points = int(hours_per_year / 24 // days_in_group)
@@ -130,7 +128,8 @@ def kmeans_time_clustering(
             HourlyGroupings[j + 1], :
         ].melt(id_vars=None)["value"]
 
-    # Eliminate grouping including the hour with largest system laod (GW) - this group will be manually included in the outputs
+    # Eliminate grouping including the hour with largest system laod (GW) - this group
+    # will be manually included in the outputs
     if include_peak_day:
         # IP()
         GroupingwithPeakLoad = ["p" + str(int(hr_maxSysLoad / 24 / days_in_group + 1))]
@@ -158,6 +157,9 @@ def kmeans_time_clustering(
     # Create an empty list storing name of each data point
     EachClusterRepPoint = [None] * num_clusters
 
+    # creating a dataframe for storing long duration storage related data
+    long_duration_storage = pd.DataFrame(columns=["slot", "cluster"])
+
     for k in range(num_clusters):
         # Number of points in kth cluster (i.e. label=0)
         EachClusterWeight[k] = len(model.labels_[model.labels_ == k])
@@ -173,11 +175,39 @@ def kmeans_time_clustering(
 
         # Select column name closest with the smallest euclidean distance to the mean
         EachClusterRepPoint[k] = min(dist, key=lambda k: dist[k])
-    # IP()
-    # Storing selected groupings in a new data frame with appropriate dimensions (E.g. load in GW)
+
+        # Creating a list that matches each week to a representative week
+        for j in range(EachClusterWeight[k]):
+            long_duration_storage = long_duration_storage.append(
+                pd.DataFrame(
+                    {
+                        "slot": int(
+                            ClusteringInputDF.loc[:, model.labels_ == k].columns[j][1:]
+                        ),
+                        "cluster": k + 1,
+                    },
+                    index=[0],
+                ),
+                ignore_index=True,
+            )
+
+    # appending the week representing peak load
+    long_duration_storage = long_duration_storage.append(
+        pd.DataFrame(
+            {"slot": int(GroupingwithPeakLoad[0][1:]), "cluster": k + 2}, index=[0]
+        ),
+        ignore_index=True,
+    )
+
+    # same CSV file that will be used in GenX
+    long_duration_storage = long_duration_storage.sort_values(by=["slot"])
+
+    # Storing selected groupings in a new data frame with appropriate dimensions
+    # (E.g. load in GW)
     ClusterOutputDataTemp = ModifiedData[EachClusterRepPoint]
 
-    # Selecting rows corresponding to Load in excluded subperiods and exclude them from scale factor calculation
+    # Selecting rows corresponding to Load in excluded subperiods and exclude them from
+    # scale factor calculation
     NRowsLoad = len(load_col_names)
     # Excluding grouping with peak hr from scale factor calculation
     if include_peak_day:
@@ -187,7 +217,8 @@ def kmeans_time_clustering(
     else:
         Actualdata = ModifiedData.loc[0 : 24 * days_in_group * NRowsLoad - 1, :]
 
-    # Scale factor to adjust total generation in original data set to be equal to scaled up total generation in sampled data set
+    # Scale factor to adjust total generation in original data set to be equal to scaled
+    # up total generation in sampled data set
     SampleweeksAnnualTWh = sum(
         [
             ClusterOutputDataTemp.loc[
@@ -208,7 +239,8 @@ def kmeans_time_clustering(
         * ClusterOutputDataTemp.loc[0 : 24 * days_in_group * NRowsLoad - 1, :]
     )
 
-    # Add the grouping with the peak hour back into the cluster if that is excluded in the clustering
+    # Add the grouping with the peak hour back into the cluster if that is excluded in
+    # the clustering
     if include_peak_day:
         EachClusterRepPoint = EachClusterRepPoint + GroupingwithPeakLoad
         EachClusterWeight = EachClusterWeight + [1]
@@ -229,7 +261,8 @@ def kmeans_time_clustering(
     # Storing weights in final output data column
     final_output_data["GrpWeight"] = ClusteredWeights.melt(id_vars=None)["value"]
 
-    # Regenerating data organized by time series (columns) and representative time periods (hours)
+    # Regenerating data organized by time series (columns) and representative time
+    # periods (hours)
     for i in range(len(new_col_names) - 1):
         final_output_data[new_col_names[i]] = ClusterOutputData.loc[
             ConcatenatedRowNames == new_col_names[i], :
@@ -251,19 +284,8 @@ def kmeans_time_clustering(
             )
 
     #  Root mean square error between the duration curves of each time series
-    # Only conisder the points consider in the k-means clustering - ignoring any days dropped off from original data set  due to rounding
-    # RMSE = {
-    #     OldColNames[j]: np.linalg.norm(
-    #         np.sort(
-    #             InputData.truncate(after=len(FullLengthOutputs) - 1)[
-    #                 OldColNames[j]
-    #             ].values
-    #         )
-    #         - np.sort(FullLengthOutputs[OldColNames[j]].values)
-    #     )
-    #     for j in range(len(OldColNames))
-    # }
-
+    # Only conisder the points consider in the k-means clustering - ignoring any days
+    # dropped off from original data set  due to rounding
     RMSE = {
         col: np.linalg.norm(
             np.sort(input_data.truncate(after=len(FullLengthOutputs))[col].values)
@@ -304,6 +326,7 @@ def kmeans_time_clustering(
             "AnnualGenScaleFactor": ScaleFactor,  # Scale factor used to adjust load output to match annual generation of original data
             "RMSE": RMSE,  # Root mean square error between full year data and modeled full year data (duration curves)
             "AnnualProfile": FullLengthOutputs,
+            "long_duration_storage": long_duration_storage,
         },
         EachClusterRepPoint,
         EachClusterWeight,
