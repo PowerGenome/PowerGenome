@@ -630,6 +630,30 @@ model_tag_values:
     NGCCS100: 1
   Hydro_level:
     Conventional Hydroelectric: 0.5
+  CapRes:
+    Conventional Steam Coal: 0.9
+    Natural Gas Fired Combined Cycle: 0.9
+    Natural Gas Fired Combustion Turbine: 0.9
+    Petroleum Liquids: 0.9
+    Natural Gas Internal Combustion Engine: 0.9
+    Nuclear: 0.9
+    Natural Gas Steam Turbine: 0.9
+    Wood/Wood Waste Biomass: 0.9
+    Petroleum Coke: 0.9
+    Geothermal: 0.9
+    Municipal Solid Waste: 0.9
+    Landfill Gas: 0.9
+    Coal Integrated Gasification Combined Cycle: 0.9
+    Other Waste Biomass: 0.9
+    Other Gases: 0.9
+    Other Natural Gas: 0.9
+    Other_peaker: 0.9 # Is there any way to do this based on the underlying categories?
+    Biomass: 0.9
+    NaturalGas_: 0.9
+    Biopower_: 0.9
+    Nuclear_: 0.9
+    CSP_: 0.9
+    NGCCS0.900: 0.9
 
 # Tags for a technology in a specific region
 # Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>
@@ -1127,6 +1151,7 @@ generator_columns: [
             "R_ID",
             "zone",
             "voltage_level",
+            "CapRes",
             "THERM",
             "DISP",
             "NDISP",
