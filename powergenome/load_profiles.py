@@ -182,8 +182,23 @@ def make_final_load_curves(
     pudl_table="load_curves_epaipm",
     settings_agg_key="region_aggregations",
 ):
+    # Check if regional loads are supplied by the user
     if settings.get("regional_load_fn"):
+        logger.info("Loading regional demand profiles from user")
         load_curves_dr = load_usr_demand_profiles(settings)
+        if not settings.get("regional_load_includes_demand_response"):
+            if settings.get("demand_response_fn"):
+                logger.info("Adding DR profiles to user regional demand")
+                load_curves_dr = add_demand_response_resource_load(
+                    load_curves_dr, settings
+                )
+            else:
+                logger.warning(
+                    "The settings parameter 'regional_load_includes_demand_response' "
+                    f"is {settings.get('regional_load_includes_demand_response')}, so "
+                    "a filename is expected for 'demand_response_fn' in the settings "
+                    "file. No filename has been provided."
+                )
     else:
         load_curves_before_dg = make_load_curves(
             pudl_engine, settings, pudl_table, settings_agg_key
