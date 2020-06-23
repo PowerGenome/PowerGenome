@@ -721,7 +721,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     ]
 
     regional_cost_multipliers = pd.read_csv(
-        DATA_PATHS["cost_multipliers"] / "EIA regional cost multipliers.csv",
+        DATA_PATHS["cost_multipliers"] / "AEO_2020_regional_cost_corrections.csv",
         index_col=0,
     )
     rev_mult_region_map = reverse_dict_of_lists(settings["cost_multiplier_region_map"])
