@@ -17,6 +17,8 @@ from powergenome.util import reverse_dict_of_lists
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
+MAX_COAL_VAR_OM = 10  # $/MWh
+
 
 def fetch_atb_costs(pudl_engine, settings):
     """Get NREL ATB power plant cost data from database, filter where applicable
@@ -142,11 +144,12 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
 
     df_list = []
     grouped_results = results.reset_index().groupby(
-        ["technology", "Heat_rate_MMBTU_per_MWh"], as_index=False
+        ["plant_id_eia", "technology"], as_index=False
     )
     for group, _df in grouped_results:
 
-        eia_tech, existing_hr = group
+        plant_id, eia_tech = group
+        existing_hr = _df["heat_rate_mmbtu_mwh"].mean()
         try:
             atb_tech, tech_detail = techs[eia_tech]
         except KeyError as e:
@@ -228,8 +231,21 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             }
 
             if "Combined Cycle" in eia_tech:
-                fixed = ng_o_m["Combined Cycle"]["o_m_fixed_mw"]
-                variable = ng_o_m["Combined Cycle"]["o_m_variable_mwh"]
+                # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
+                plant_capacity = _df[settings["capacity_col"]].sum()
+                assert plant_capacity > 0
+                if plant_capacity < 500:
+                    fixed = 15.62 * 1000
+                    variable = 4.31
+                elif 500 <= plant_capacity < 1000:
+                    fixed = 9.27 * 1000
+                    variable = 3.42
+                else:
+                    fixed = 11.68 * 1000
+                    variable = 3.37
+
+                # fixed = ng_o_m["Combined Cycle"]["o_m_fixed_mw"]
+                # variable = ng_o_m["Combined Cycle"]["o_m_variable_mwh"]
                 _df["Fixed_OM_cost_per_MWyr"] = fixed
                 _df["Var_OM_cost_per_MWh"] = variable
 
@@ -262,8 +278,20 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 _df["Var_OM_cost_per_MWh"] = variable
 
             if "Natural Gas Steam Turbine" in eia_tech:
-                fixed = ng_o_m["Natural Gas Steam Turbine"]["o_m_fixed_mw"]
-                variable = ng_o_m["Natural Gas Steam Turbine"]["o_m_variable_mwh"]
+                # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
+                plant_capacity = _df[settings["capacity_col"]].sum()
+                assert plant_capacity > 0
+                if plant_capacity < 500:
+                    annual_capex = 18.86 * 1000
+                    fixed = annual_capex + 29.73 * 1000
+                elif 500 <= plant_capacity < 1000:
+                    annual_capex = 11.57 * 1000
+                    fixed = annual_capex + 17.98 * 1000
+                else:
+                    annual_capex = 10.82 * 1000
+                    fixed = annual_capex + 14.51 * 1000
+                # fixed = ng_o_m["Natural Gas Steam Turbine"]["o_m_fixed_mw"]
+                variable = ng_o_m["Natural Gas Steam Turbine"]["o_m_variable_mw"]
                 _df["Fixed_OM_cost_per_MWyr"] = fixed
                 _df["Var_OM_cost_per_MWh"] = variable
 
@@ -274,6 +302,9 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 # Assume 59% CF from NEMS documentation
                 # Based on conversation with Jesse J. on Jan 10, 2020.
 
+                plant_capacity = _df[settings["capacity_col"]].sum()
+                assert plant_capacity > 0
+
                 atb_var_om_mwh = (
                     atb_costs_df.query(
                         "technology==@atb_tech & cost_case=='Mid' "
@@ -283,9 +314,25 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     .at["o_m_variable_mwh"]
                 )
                 variable = atb_var_om_mwh * (existing_hr / new_build_hr)
+                variable = min([variable, MAX_COAL_VAR_OM])
 
-                fixed = ng_o_m["Coal"]["o_m_fixed_mw"]
-                fixed = fixed - (variable * 8760 * 0.59)
+                age = settings["model_year"] - _df.operating_date.dt.year
+
+                # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
+                annual_capex = (16.53 + (0.126 * age) + (5.68 * 0.5) + 46.01) * 1000
+
+                if plant_capacity < 500:
+                    fixed = 44.21 * 1000
+                elif 500 <= plant_capacity < 1000:
+                    fixed = 34.02 * 1000
+                elif 1000 <= plant_capacity < 2000:
+                    fixed = 28.52 * 1000
+                else:
+                    fixed = 33.27 * 1000
+                # fixed = ng_o_m["Coal"]["o_m_fixed_mw"]
+                fixed = inflation_price_adjustment(
+                    fixed + annual_capex, 2017, target_usd_year
+                ) - (variable * 8760 * 0.59)
 
                 _df["Fixed_OM_cost_per_MWyr"] = fixed
                 _df["Var_OM_cost_per_MWh"] = variable
@@ -318,7 +365,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
         df_list.append(_df)
 
     mod_results = pd.concat(df_list, ignore_index=True)
-    mod_results = mod_results.sort_values(["region", "technology", "cluster"])
+    # mod_results = mod_results.sort_values(["model_region", "technology", "cluster"])
     mod_results.loc[:, "Fixed_OM_cost_per_MWyr"] = mod_results.loc[
         :, "Fixed_OM_cost_per_MWyr"
     ].astype(int)
