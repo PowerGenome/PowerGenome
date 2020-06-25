@@ -135,6 +135,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
     """
     logger.info("Adding fixed and variable O&M for existing plants")
     techs = settings["eia_atb_tech_map"]
+    existing_year = settings["atb_existing_year"]
 
     # ATB string is <technology>_<tech_detail>
     techs = {eia: atb_costs_df.split("_") for eia, atb_costs_df in techs.items()}
@@ -147,7 +148,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
 
         eia_tech, existing_hr = group
         try:
-            techs[eia_tech]
+            atb_tech, tech_detail = techs[eia_tech]
         except KeyError:
             if eia_tech in settings["tech_groups"]:
                 raise KeyError(
