@@ -28,29 +28,36 @@ class ClusterBuilder:
     """
     Builds clusters of resources.
 
-    Attributes:
-        groups (list of dict): Resource group metadata.
-            - `metadata` (str): Relative path to resource metadata file.
-            - `profiles` (str): Relative path to variable resource profiles file.
-            - `technology` (str): Resource type.
-            - ... and any additional (optional) keys.
-        clusters (list of dict): Resource clusters.
-            - `group` (dict): Resource group from :attr:`groups`.
-            - `kwargs` (dict): Arguments used to uniquely identify the group.
-            - `region` (str): Model region in which the clustering was performed.
-            - `clusters` (pd.DataFrame): Computed resource clusters.
-            - `profiles` (np.ndarray): Computed profiles for the resource clusters.
+    Attributes
+    ----------
+    groups : list of dict
+        Resource group metadata.
+        - `metadata` (str): Relative path to resource metadata file.
+        - `profiles` (str): Relative path to variable resource profiles file.
+        - `technology` (str): Resource type.
+        - ... and any additional (optional) keys.
+    clusters : list of dict
+        Resource clusters.
+        - `group` (dict): Resource group from :attr:`groups`.
+        - `kwargs` (dict): Arguments used to uniquely identify the group.
+        - `region` (str): Model region in which the clustering was performed.
+        - `clusters` (pd.DataFrame): Computed resource clusters.
+        - `profiles` (np.ndarray): Computed profiles for the resource clusters.
     """
 
     def __init__(self, path: str = ".") -> None:
         """
         Initialize with resource group metadata.
 
-        Arguments:
-            path: Path to the directory containing the metadata files ('*_group.json').
+        Arguments
+        ---------
+        path
+            Path to the directory containing the metadata files ('*_group.json').
 
-        Raises:
-            ValueError: Group metadata missing required keys.
+        Raises
+        ------
+        ValueError
+            Group metadata missing required keys.
         """
         self.groups = load_groups(path)
         required = ("metadata", "profiles", "technology")
@@ -70,8 +77,10 @@ class ClusterBuilder:
         """
         Return the groups matching the specified arguments.
 
-        Arguments:
-            **kwargs: Arguments to match against group metadata.
+        Arguments
+        ---------
+        **kwargs
+            Arguments to match against group metadata.
         """
         return [
             g
@@ -93,20 +102,29 @@ class ClusterBuilder:
 
         This method can be called as many times as desired before generating outputs.
 
-        Arguments:
-            region: Model region (used only to label results).
-            ipm_regions: IPM regions in which to select resources.
-            min_capacity: Minimum total capacity (GW). Resources are selected,
-                from lowest to highest levelized cost of energy (lcoe),
-                until the minimum capacity is just exceeded.
-                If `None`, all resources are selected for clustering.
-            max_clusters: Maximum number of resource clusters to compute.
-                If `None`, no clustering is performed; resources are returned unchanged.
-            cap_multiplier: Capacity multiplier applied to resource metadata.
-            **kwargs: Arguments to :meth:`get_groups` for selecting the resource group.
+        Arguments
+        ---------
+        region
+            Model region (used only to label results).
+        ipm_regions
+            IPM regions in which to select resources.
+        min_capacity
+            Minimum total capacity (GW). Resources are selected,
+            from lowest to highest levelized cost of energy (lcoe),
+            until the minimum capacity is just exceeded.
+            If `None`, all resources are selected for clustering.
+        max_clusters
+            Maximum number of resource clusters to compute.
+            If `None`, no clustering is performed; resources are returned unchanged.
+        cap_multiplier
+            Capacity multiplier applied to resource metadata.
+        **kwargs
+            Arguments to :meth:`get_groups` for selecting the resource group.
 
-        Raises:
-            ValueError: Arguments match multiple resource groups.
+        Raises
+        ------
+        ValueError
+            Arguments match multiple resource groups.
         """
         groups = self.find_groups(**kwargs)
         if len(groups) > 1:
@@ -140,8 +158,10 @@ class ClusterBuilder:
         - `max_capacity`: From 'gw'.
         - `area_km2`: From 'area'.
 
-        Raises:
-            ValueError: No clusters have yet been computed.
+        Raises
+        ------
+        ValueError
+            No clusters have yet been computed.
         """
         self._test_clusters_exist()
         dfs = []
@@ -175,8 +195,10 @@ class ClusterBuilder:
         The first column is the hour number.
         Subsequent columns are the cluster profiles.
 
-        Raises:
-            ValueError: No clusters have yet been computed.
+        Raises
+        ------
+        ValueError
+            No clusters have yet been computed.
         """
         self._test_clusters_exist()
         profiles = np.column_stack([c["profiles"] for c in self.clusters])
