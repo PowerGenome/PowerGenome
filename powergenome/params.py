@@ -32,7 +32,7 @@ IPM_SHAPEFILE_PATH = DATA_PATHS["ipm_shapefiles"] / "IPM_Regions_201770405.shp"
 IPM_GEOJSON_PATH = DATA_PATHS["data"] / "ipm_regions_simple.geojson"
 
 SETTINGS = {}
-SETTINGS["pudl_db"] = "sqlite:////Users/greg/Downloads/pudl_updated.sqlite"
+SETTINGS["PUDL_DB"] = os.environ.get("PUDL_DB")
 SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
 
 # "postgresql://catalyst@127.0.0.1/pudl"
