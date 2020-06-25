@@ -113,7 +113,7 @@ data/transformed_data/*
 *.zip
 
 # Ignore all vscode settings
-**/.vscode/settings.json
+**/.vscode
 *.code-workspace
 
 # Ignore figures
