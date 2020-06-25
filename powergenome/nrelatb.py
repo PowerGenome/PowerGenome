@@ -211,7 +211,9 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     "o_m_fixed_mw": inflation_price_adjustment(
                         (15.96 + 24.68) * 1000, 2017, target_usd_year
                     ),
-                    "o_m_variable_mwh": 1.0,
+                    "o_m_variable_mwh": inflation_price_adjustment(
+                        1.0, 2017, target_usd_year
+                    ),
                 },
                 "Coal": {
                     "o_m_fixed_mw": inflation_price_adjustment(
