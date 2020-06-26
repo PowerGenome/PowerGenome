@@ -1071,6 +1071,8 @@ def group_units(df, settings):
             settings["capacity_col"]: "sum",
             "minimum_load_mw": "sum",
             "heat_rate_mmbtu_mwh": "mean",
+            "Fixed_OM_cost_per_MWyr": "mean",
+            "Var_OM_cost_per_MWh": "mean",
         }
     )
     grouped_units = grouped_units.replace([np.inf, -np.inf], np.nan)
@@ -1120,6 +1122,8 @@ def calc_unit_cluster_values(df, settings, technology=None):
             settings["capacity_col"]: "mean",
             "minimum_load_mw": "mean",
             "heat_rate_mmbtu_mwh": wm,
+            "Fixed_OM_cost_per_MWyr": wm,
+            "Var_OM_cost_per_MWh": wm,
         }
     )
     if df_values["heat_rate_mmbtu_mwh"].isnull().values.any():
@@ -1813,6 +1817,7 @@ class GeneratorClusters:
         self.current_gens = current_gens
         self.sort_gens = sort_gens
         self.model_regions_gdf = load_ipm_shapefile(self.settings)
+        self.weighted_unit_hr = None
 
         if self.current_gens:
             self.data_years = self.settings["data_years"]
@@ -2001,9 +2006,12 @@ class GeneratorClusters:
         # Add heat rates to the data we already have from 860
         logger.info("Loading heat rate data for units and generator/fuel combinations")
         self.prime_mover_hr_map = plant_pm_heat_rates(self.annual_gen_hr_923)
-        self.weighted_unit_hr = unit_generator_heat_rates(
-            self.pudl_out, self.data_years
-        )
+        if self.weighted_unit_hr is None:
+            self.weighted_unit_hr = unit_generator_heat_rates(
+                self.pudl_out, self.data_years
+            )
+        else:
+            logger.info("Using unit heat rates from previous round.")
 
         # Merge the PUDL calculated heat rate data and set the index for easy
         # mapping using plant/prime mover heat rates from 923
@@ -2078,10 +2086,18 @@ class GeneratorClusters:
         ).values
         self.units_model.set_index(idx, inplace=True)
 
-        logger.info(
-            f"After adding proposed, units model technologies are "
-            f"{self.units_model.technology_description.unique().tolist()}"
+        logger.info("Calculating plant O&M costs")
+        techs = self.settings["num_clusters"].keys()
+        self.units_model = (
+            self.units_model.rename(columns={"technology_description": "technology"})
+            .query("technology.isin(@techs).values")
+            .pipe(atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings)
         )
+
+        # logger.info(
+        #     f"After adding proposed, units model technologies are "
+        #     f"{self.units_model.technology_description.unique().tolist()}"
+        # )
         logger.info(
             f"After adding proposed generators, {len(self.units_model)} units with "
             f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
@@ -2098,10 +2114,10 @@ class GeneratorClusters:
                 num_clusters[region][tech] = cluster_size
 
         region_tech_grouped = self.units_model.loc[
-            (self.units_model.technology_description.isin(techs))
+            (self.units_model.technology.isin(techs))
             & (self.units_model.retirement_year >= self.settings["model_year"]),
             :,
-        ].groupby(["model_region", "technology_description"])
+        ].groupby(["model_region", "technology"])
 
         self.retired = self.units_model.loc[
             self.units_model.retirement_year < self.settings["model_year"], :
@@ -2142,10 +2158,7 @@ class GeneratorClusters:
 
             else:
                 if (region in self.settings[alt_cluster_method].keys()) and (
-                    tech
-                    in self.settings[alt_cluster_method][region][
-                        "technology_description"
-                    ]
+                    tech in self.settings[alt_cluster_method][region]["technology"]
                 ):
 
                     grouped = cluster_by_owner(
@@ -2246,9 +2259,10 @@ class GeneratorClusters:
 
         # Add fixed/variable O&M based on NREL atb
         self.results = (
-            self.results.pipe(
-                atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings
-            )
+            self.results
+            # .pipe(
+            #     atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings
+            # )
             # .pipe(atb_new_generators, self.atb_costs, self.atb_hr, self.settings)
             .pipe(startup_fuel, self.settings)
             .pipe(add_fuel_labels, self.fuel_prices, self.settings)

@@ -190,7 +190,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             # Also using the new values for coal plants, assuming 40-50 yr age and half
             # FGD
             # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
-            logger.info(f"Using NEMS values for {eia_tech} fixed/variable O&M")
+            # logger.info(f"Using NEMS values for {eia_tech} fixed/variable O&M")
             target_usd_year = settings["target_usd_year"]
             ng_o_m = {
                 "Combined Cycle": {

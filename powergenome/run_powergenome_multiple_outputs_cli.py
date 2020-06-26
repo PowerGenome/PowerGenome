@@ -33,6 +33,7 @@ from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
 )
+from powergenome.nrelatb import atb_fixed_var_om_existing
 from powergenome.external_data import make_generator_variability
 from powergenome.util import (
     init_pudl_connection,
@@ -416,14 +417,14 @@ def main():
                 if args.gens:
 
                     gc.settings = _settings
-                    gc.current_gens = False
+                    # gc.current_gens = False
 
                     # Change the fuel labels in existing generators to reflect the
                     # correct AEO scenario for each fuel and update GenX tags based
                     # on settings.
-                    gc.existing_resources = existing_gens.pipe(
-                        add_fuel_labels, gc.fuel_prices, _settings
-                    ).pipe(add_genx_model_tags, _settings)
+                    # gc.existing_resources = existing_gens.pipe(
+                    #     add_fuel_labels, gc.fuel_prices, _settings
+                    # ).pipe(add_genx_model_tags, _settings)
 
                     gen_clusters = gc.create_all_generators()
                     # if "partial_ces" in settings:
