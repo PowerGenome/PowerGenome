@@ -327,18 +327,18 @@ def build_clusters(
     if len(cdf) > max_clusters:
         # Aggregate singleton metro area clusters
         Z = scipy.cluster.hierarchy.linkage(cdf[["lcoe"]].values, method="ward")
-        # TODO: Store mask in temporary table
-        cdf["_keep"] = True
+        mask = [True] * len(cdf)
         for child_idx in Z[:, 0:2].astype(int):
-            cdf.loc[child_idx, "_keep"] = False
+            mask[child_idx] = False
             parent = _merge_children(
-                cdf.loc[child_idx], _keep=True, ids=_flat(*cdf.loc[child_idx, "ids"])
+                cdf.loc[child_idx], ids=_flat(*cdf.loc[child_idx, "ids"])
             )
             cdf.loc[len(cdf)] = parent
-            if not cdf["_keep"].sum() > max_clusters:
+            mask.append(True)
+            if not sum(mask) > max_clusters:
                 break
-        cdf = cdf[cdf["_keep"]]
-    return cdf[columns]
+        cdf = cdf[mask]
+    return cdf
 
 
 def build_cluster_profiles(
