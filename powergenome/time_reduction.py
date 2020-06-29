@@ -288,7 +288,7 @@ def kmeans_time_clustering(
     # dropped off from original data set  due to rounding
     RMSE = {
         col: np.linalg.norm(
-            np.sort(input_data.truncate(after=len(FullLengthOutputs))[col].values)
+            np.sort(input_data.truncate(after=len(FullLengthOutputs)-1)[col].values)
             - np.sort(FullLengthOutputs[col].values)
         )
         for col in original_col_names
