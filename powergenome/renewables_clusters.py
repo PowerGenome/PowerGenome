@@ -8,7 +8,8 @@ import numpy as np
 import pandas as pd
 import scipy.cluster.hierarchy
 
-WEIGHT = "gw"
+CAPACITY = "mw"
+WEIGHT = CAPACITY
 MEANS = [
     "lcoe",
     "interconnect_annuity",
@@ -19,7 +20,7 @@ MEANS = [
     "substation_metro_tx_miles",
     "site_metro_spur_miles",
 ]
-SUMS = ["area", "gw"]
+SUMS = ["area", CAPACITY]
 PROFILE_KEYS = ["cbsa_id", "cluster_level", "cluster"]
 HOURS_IN_YEAR = 8784
 
@@ -109,7 +110,7 @@ class ClusterBuilder:
         ipm_regions
             IPM regions in which to select resources.
         min_capacity
-            Minimum total capacity (GW). Resources are selected,
+            Minimum total capacity (MW). Resources are selected,
             from lowest to highest levelized cost of energy (lcoe),
             until the minimum capacity is just exceeded.
             If `None`, all resources are selected for clustering.
@@ -155,7 +156,7 @@ class ClusterBuilder:
         - `cluster` (int): Unique identifier for each cluster to link to other outputs.
 
         The following fields are renamed:
-        - `max_capacity`: From 'gw'.
+        - `max_capacity`: From 'mw'.
         - `area_km2`: From 'area'.
 
         Raises
@@ -177,7 +178,7 @@ class ClusterBuilder:
                     technology=c["group"]["technology"],
                     cluster=np.arange(start, start + n),
                 )
-                .rename(columns={"gw": "max_capacity", "area": "area_km2"})
+                .rename(columns={CAPACITY: "max_capacity", "area": "area_km2"})
             )
             dfs.append(df)
             start += n
@@ -232,7 +233,7 @@ def load_metadata(path: str, cap_multiplier: float = None) -> pd.DataFrame:
     """Load resource metadata."""
     df = pd.read_csv(path)
     if cap_multiplier:
-        df["gw"] = df["gw"] * cap_multiplier
+        df[CAPACITY] = df[CAPACITY] * cap_multiplier
     df.set_index("id", drop=False, inplace=True)
     return df
 
@@ -275,10 +276,10 @@ def build_clusters(
         raise ValueError(f"No resources found in {ipm_regions}")
     if min_capacity:
         # Drop clusters with highest LCOE until min_capacity reached
-        end = cdf["gw"].cumsum().searchsorted(min_capacity) + 1
+        end = cdf[CAPACITY].cumsum().searchsorted(min_capacity) + 1
         if end > len(cdf):
             raise ValueError(
-                f"Capacity in {ipm_regions} ({cdf['gw'].sum()} GW) less than minimum ({min_capacity} GW)"
+                f"Capacity in {ipm_regions} ({cdf[CAPACITY].sum()} MW) less than minimum ({min_capacity} MW)"
             )
         cdf = cdf[:end]
     # Track ids of base clusters through aggregation
