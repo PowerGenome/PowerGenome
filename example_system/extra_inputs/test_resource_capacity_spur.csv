@@ -1,4 +1,4 @@
-﻿region,technology,cluster,spur_line_miles,max_capacity
+﻿region,technology,cluster,spur_miles,max_capacity
 CA_N,NaturalGas_CCCCS,,20,-1
 CA_N,NaturalGas_CCAvgCF,,0,-1
 CA_N,NaturalGas_CT,,0,-1

@@ -16,7 +16,7 @@ from powergenome.eia_opendata import fetch_fuel_prices
 from powergenome.external_data import (
     make_demand_response_profiles,
     demand_response_resource_capacity,
-    add_resource_max_cap_spur_line,
+    add_resource_max_cap_spur,
 )
 from powergenome.load_data import (
     load_ipm_plant_region_map,
@@ -1679,68 +1679,66 @@ def calculate_transmission_inv_cost(resource_df, settings):
     ----------
     resource_df : DataFrame
         Each row represents a single resource within a region. Should have columns
-        `region` and `spur_line_miles`.
+        `region` and `spur_miles`.
     settings : dict
-        A dictionary of user-supplied settings. Must have keys `spur_line_wacc`,
-        'spur_line_investment_years', and 'spur_line_capex_mw_mile'.
+        A dictionary of user-supplied settings. Must have keys `spur_wacc`,
+        'spur_investment_years', and 'spur_capex_mw_mile'.
 
     Returns
     -------
     DataFrame
-        Modified copy of the input dataframe with new columns of 'spur_line_capex' and
-        'spur_line_inv_mwyr'.
+        Modified copy of the input dataframe with new columns of 'spur_capex' and
+        'spur_inv_mwyr'.
 
     Raises
     ------
     UserWarning
         Spur line capex per MW-mile was not provided for all of the model regions.
     TypeError
-        The settings parameter 'spur_line_capex_mw_mile' is neither a dictionary nor a
+        The settings parameter 'spur_capex_mw_mile' is neither a dictionary nor a
         numeric value.
     KeyError
         Not all of the required keys are in the settings dictionary.
     """
 
     for param in [
-        "spur_line_wacc",
-        "spur_line_investment_years",
-        "spur_line_capex_mw_mile",
+        "spur_wacc",
+        "spur_investment_years",
+        "spur_capex_mw_mile",
     ]:
         if param not in settings:
             raise KeyError(
                 f"{param} is a required parameter but was not found in the settings file"
             )
 
-    if isinstance(settings["spur_line_capex_mw_mile"], collections.abc.Mapping):
-        if not set(settings["spur_line_capex_mw_mile"]).issubset(
-            settings["model_regions"]
-        ):
+    if isinstance(settings["spur_capex_mw_mile"], collections.abc.Mapping):
+        if not set(settings["spur_capex_mw_mile"]).issubset(settings["model_regions"]):
             raise UserWarning(
                 f"Spur line capex values were only provided for regions"
-                f" {settings['spur_line_capex_mw_mile'].keys()} in the settings file.\n"
+                f" {settings['spur_capex_mw_mile'].keys()} in the settings file.\n"
                 f"All regions ({settings['model_regions']}) must be included if region"
                 " mappings are used."
             )
         else:
-            resource_df["spur_line_capex"] = (
-                resource_df["region"].map(settings["spur_line_capex_mw_mile"])
-                * resource_df["spur_line_miles"]
+            resource_df["spur_capex"] = (
+                resource_df["region"].map(settings["spur_capex_mw_mile"])
+                * resource_df["spur_miles"]
             )
-    elif isinstance(settings["spur_line_capex_mw_mile"], Number):
-        resource_df["spur_line_capex"] = (
-            settings["spur_line_capex_mw_mile"] * resource_df["spur_line_miles"]
+    elif isinstance(settings["spur_capex_mw_mile"], Number):
+        resource_df["spur_capex"] = (
+            settings["spur_capex_mw_mile"] * resource_df["spur_miles"]
         )
     else:
         raise TypeError(
-            "The settings parameter 'spur_line_capex_mw_mile' should be a dictionary"
+            "The settings parameter 'spur_capex_mw_mile' should be a dictionary"
             " with <region>: <capex> or a single numeric value.\n"
-            f"You provided {settings['spur_line_capex_mw_mile']}"
+            f"You provided {settings['spur_capex_mw_mile']}"
         )
 
-    resource_df["spur_line_inv_mwyr"] = investment_cost_calculator(
-        resource_df["spur_line_capex"],
-        settings["spur_line_wacc"],
-        settings["spur_line_investment_years"],
+    resource_df["spur_inv_mwyr"] = investment_cost_calculator(
+        resource_df["spur_capex"],
+        settings["spur_wacc"],
+        settings["spur_investment_years"],
     )
 
     return resource_df
@@ -1753,7 +1751,7 @@ def add_transmission_inv_cost(resource_df):
     ----------
     resource_df : DataFrame
         Each row represents a single resource within a region. Should have columns
-        `Inv_cost_per_MWyr` and `spur_line_inv_mwyr`.
+        `Inv_cost_per_MWyr` and `spur_inv_mwyr`.
 
     Returns
     -------
@@ -1763,14 +1761,14 @@ def add_transmission_inv_cost(resource_df):
         plant_inv_cost_mwyr represents just the plant investment costs.
     """
 
-    if "spur_line_inv_mwyr" not in resource_df.columns:
+    if "spur_inv_mwyr" not in resource_df.columns:
         logger.warning(
             "Spur line investment costs have not been calculated and are not included "
             "in the total investment costs."
         )
     resource_df["plant_inv_cost_mwyr"] = resource_df.loc[:, "Inv_cost_per_MWyr"]
     resource_df["Inv_cost_per_MWyr"] = (
-        resource_df["Inv_cost_per_MWyr"] + resource_df["spur_line_inv_mwyr"]
+        resource_df["Inv_cost_per_MWyr"] + resource_df["spur_inv_mwyr"]
     )
 
     return resource_df
@@ -2274,14 +2272,14 @@ class GeneratorClusters:
                 ["region", "technology"]
             )
 
-        if self.settings.get("capacity_limit_spur_line_fn"):
+        if self.settings.get("capacity_limit_spur_fn"):
             self.new_generators = (
-                self.new_generators.pipe(add_resource_max_cap_spur_line, self.settings)
+                self.new_generators.pipe(add_resource_max_cap_spur, self.settings)
                 .pipe(calculate_transmission_inv_cost, self.settings)
                 .pipe(add_transmission_inv_cost)
             )
         else:
-            logger.warning("No settings parameter for max capacity/spur line file")
+            logger.warning("No settings parameter for max capacity/spur file")
 
         if self.settings.get("demand_response_fn"):
             dr_rows = self.create_demand_response_gen_rows()

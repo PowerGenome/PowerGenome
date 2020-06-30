@@ -28,10 +28,10 @@ Hourly (not normalized) profiles for demand response resources in each region/ye
 
 Describes the emission policies in each case. The first two columns are `case_id` and `year`. Next, the `region` column can either contain the name of a model region or the string "all" (when identical policies are applied to all regions). The column `copy_case_id` indicates if policies from another case should be used (slightly more clear and hopefully fewer errors than just using copy/paste across multiple rows). Other column names should match the columns used in output policy files (e.g. `RPS`, `CES`, etc) and contain numeric values or the string `None`.
 
-## capacity_limit_spur_line_fn
+## capacity_limit_spur_fn
 
 Provides the maximum capacity and spur-line construction distance for new resources. Starts with the required columns `region` and `technology`. `cluster` can be omitted, but is required when more than one resource of the same name is used within a region. The `cluster` value should match values from `resource_variability_fn`.
 
-The data columns in this file are `spur_line_miles` and `max_capacity`.
+The data columns in this file are `spur_miles` and `max_capacity`.
 
 ## demand_segments_fn

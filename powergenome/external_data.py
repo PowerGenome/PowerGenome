@@ -83,9 +83,7 @@ def demand_response_resource_capacity(df, resource_name, settings):
     return shiftable_capacity
 
 
-def add_resource_max_cap_spur_line(
-    new_resource_df, settings, capacity_col="Max_Cap_MW"
-):
+def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_MW"):
     """Load user supplied maximum capacity and spur line data for new resources. Add
     those values to the resources dataframe.
 
@@ -99,19 +97,19 @@ def add_resource_max_cap_spur_line(
     settings : dict
         User-defined parameters from a settings file. Should have keys of `input_folder`
         (a Path object of where to find user-supplied data) and
-        `capacity_limit_spur_line_fn` (the file to load).
+        `capacity_limit_spur_fn` (the file to load).
     capacity_col : str, optional
         The column that indicates maximum capacity constraints, by default "Max_Cap_MW"
 
     Returns
     -------
     DataFrame
-        A modified version of new_resource_df with spur_line_miles and the maximum
+        A modified version of new_resource_df with spur_miles and the maximum
         capacity for a resource. Copies of a resource within a region should have a
         cluster name to uniquely identify them.
     """
 
-    path = Path(settings["input_folder"]) / settings["capacity_limit_spur_line_fn"]
+    path = Path(settings["input_folder"]) / settings["capacity_limit_spur_fn"]
     df = pd.read_csv(path)
     df["cluster"] = df["cluster"].fillna(1)
 
@@ -119,7 +117,7 @@ def add_resource_max_cap_spur_line(
         "region",
         "technology",
         "cluster",
-        "spur_line_miles",
+        "spur_miles",
         "max_capacity",
     ]
 
@@ -131,7 +129,7 @@ def add_resource_max_cap_spur_line(
     grouped_df = df.groupby(["region", "technology"])
 
     new_resource_df[capacity_col] = -1
-    new_resource_df["spur_line_miles"] = 0
+    new_resource_df["spur_miles"] = 0
     for (region, tech), _df in grouped_df:
         mask = (new_resource_df["region"] == region) & (
             new_resource_df["technology"].str.lower().str.contains(tech.lower())
@@ -140,7 +138,7 @@ def add_resource_max_cap_spur_line(
         # assert len(new_resource_df.loc[mask, :]) == len(_df), (
         #     f"There is a mismatch between the number of {tech} resources in {region}, "
         #     f"({len(new_resource_df.loc[mask, :])}) and the number of spur line "
-        #     f"distances provided in {settings['capacity_limit_spur_line_fn']}, "
+        #     f"distances provided in {settings['capacity_limit_spur_fn']}, "
         #     f"({len(_df)})"
         # )
         if len(new_resource_df.loc[mask, :]) != len(_df):
@@ -149,13 +147,13 @@ def add_resource_max_cap_spur_line(
             print(_df)
 
         new_resource_df.loc[mask, capacity_col] = _df["max_capacity"].values
-        new_resource_df.loc[mask, "spur_line_miles"] = _df["spur_line_miles"].values
+        new_resource_df.loc[mask, "spur_miles"] = _df["spur_miles"].values
         new_resource_df.loc[mask, "cluster"] = _df["cluster"].values
 
         if mask.sum() > 1:
             assert new_resource_df.loc[mask, "cluster"].isna().sum() == 0, (
                 f"Error with cluster names in user-supplied file"
-                f" {settings['capacity_limit_spur_line_fn']}.\n"
+                f" {settings['capacity_limit_spur_fn']}.\n"
                 f"The resource {tech} in region {region} has multiple rows and each row"
                 " must have a cluster value."
             )
