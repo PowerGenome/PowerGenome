@@ -1,6 +1,7 @@
 import collections
 import logging
 from numbers import Number
+import re
 
 import requests
 
@@ -1165,28 +1166,28 @@ def add_genx_model_tags(df, settings):
     dataframe
         The original generator cluster results with new columns for each model tag.
     """
-    model_tag_cols = settings["model_tag_names"]
-
+    technology = df["technology"].str.replace(r"\s+", "")
     # Create a new dataframe with the same index
-    for tag_col in model_tag_cols:
-        df[tag_col] = settings["default_model_tag"]
+    default = settings.get("default_model_tag", 0)
+    for tag_col in settings.get("model_tag_names", []):
+        df[tag_col] = default
 
         try:
             for tech, tag_value in settings["model_tag_values"][tag_col].items():
-                df.loc[df["technology"].str.contains(tech), tag_col] = tag_value
+                tech = re.sub(r"\s+", "", tech)
+                mask = technology.str.contains(fr"^{tech}", case=False)
+                df.loc[mask, tag_col] = tag_value
         except (KeyError, AttributeError) as e:
             logger.warning(f"No model tag values found for {tag_col} ({e})")
 
     # Change tags with specific regional values for a technology
-    if isinstance(settings["regional_tag_values"], dict):
-        flat_regional_tags = flatten(settings["regional_tag_values"])
+    flat_regional_tags = flatten(settings.get("regional_tag_values", {}))
 
-        for tag_tuple, tag_value in flat_regional_tags.items():
-            region, tag_col, tech = tag_tuple
-            df.loc[
-                (df["region"] == region) & (df["technology"].str.contains(tech)),
-                tag_col,
-            ] = tag_value
+    for tag_tuple, tag_value in flat_regional_tags.items():
+        region, tag_col, tech = tag_tuple
+        tech = re.sub(r"\s+", "", tech)
+        mask = technology.str.contains(fr"^{tech}", case=False)
+        df.loc[(df["region"] == region) & mask, tag_col,] = tag_value
 
     # Make unit size = 1 where Commit = 0 to avoid GenX bug
     df.loc[df["Commit"] == 0, "Cap_size"] = 1
