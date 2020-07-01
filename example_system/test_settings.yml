@@ -78,16 +78,28 @@ demand_response_resources:
         DR: 2
 demand_response: 'moderate'
 
-# Spur line financial information to calculate annual investment costs
-# Capital cost per MW-mile in each region. Use either a single numeric value for all
-# regions or a dictionary of <region>: <value>, which must account for all model regions.
-spur_capex_mw_mile:
-  CA_N: 8904
-  CA_S: 8904
-
+# Transmission financial information to calculate annual investment costs
+# capex_mw_mile: Capital cost per MW-mile for all (numeric) or each model region (dict).
 # WACC and investment years from https://www.sciencedirect.com/science/article/abs/pii/S0301421519305816
-spur_wacc: 0.069
-spur_nvestment_years: 60
+transmission_investment_cost:
+  spur:
+    capex_mw_mile:
+      CA_N: 8904
+      CA_S: 8904
+    wacc: 0.069
+    investment_years: 60
+  offshore_spur:
+    capex_mw_mile:
+      CA_N: 8904
+      CA_S: 8904
+    wacc: 0.069
+    investment_years: 60
+  tx:
+    capex_mw_mile:
+      CA_N: 8904
+      CA_S: 8904
+    wacc: 0.069
+    investment_years: 60
 
 tx_reinforcement_cost_mw_mile:
   CA_N: 3728

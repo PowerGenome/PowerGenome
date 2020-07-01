@@ -82,6 +82,8 @@ op_status_map = {
     "(OT) Other": "OT",
 }
 
+TRANSMISSION_TYPES = ["spur", "offshore_spur", "tx"]
+
 
 def fill_missing_tech_descriptions(df):
     """
@@ -1673,74 +1675,74 @@ def add_fuel_labels(df, fuel_prices, settings):
 
 
 def calculate_transmission_inv_cost(resource_df, settings):
-    """Calculate the transmission investment cost for each new resource
+    """Calculate the transmission investment cost for each new resource.
 
     Parameters
     ----------
     resource_df : DataFrame
         Each row represents a single resource within a region. Should have columns
-        `region` and `spur_miles`.
+        `region` and `<type>_miles`, where transmission <type> is one of
+        'spur', 'offshore_spure', or 'tx'.
     settings : dict
-        A dictionary of user-supplied settings. Must have keys `spur_wacc`,
-        'spur_investment_years', and 'spur_capex_mw_mile'.
+        A dictionary of user-supplied settings. Must have key
+        `transmission_investment_cost` with the format:
+            - <type>
+                - `capex_mw_mile` (float)
+                - `wacc` (float)
+                - `investment_years` (int)
+            - ...
 
     Returns
     -------
     DataFrame
-        Modified copy of the input dataframe with new columns of 'spur_capex' and
-        'spur_inv_mwyr'.
+        Modified copy of the input dataframe with new columns '<type>_capex' and
+        '<type>_inv_mwyr' for each column `<type>_miles`.
 
     Raises
     ------
-    UserWarning
-        Spur line capex per MW-mile was not provided for all of the model regions.
-    TypeError
-        The settings parameter 'spur_capex_mw_mile' is neither a dictionary nor a
-        numeric value.
     KeyError
-        Not all of the required keys are in the settings dictionary.
+        Settings missing transmission types present in resources.
+    KeyError
+        Settings missing required keys.
+    KeyError
+        Setting capex_mw_mile missing regions present in resources.
+    TypeError
+        Setting capex_mw_mile is neither a dictionary nor a numeric value.
     """
-
-    for param in [
-        "spur_wacc",
-        "spur_investment_years",
-        "spur_capex_mw_mile",
-    ]:
-        if param not in settings:
-            raise KeyError(
-                f"{param} is a required parameter but was not found in the settings file"
-            )
-
-    if isinstance(settings["spur_capex_mw_mile"], collections.abc.Mapping):
-        if not set(settings["spur_capex_mw_mile"]).issubset(settings["model_regions"]):
-            raise UserWarning(
-                f"Spur line capex values were only provided for regions"
-                f" {settings['spur_capex_mw_mile'].keys()} in the settings file.\n"
-                f"All regions ({settings['model_regions']}) must be included if region"
-                " mappings are used."
-            )
+    SETTING = "transmission_investment_cost"
+    KEYS = ["wacc", "investment_years", "capex_mw_mile"]
+    ttypes = settings.get(SETTING, {})
+    # Check coverage of transmission types in resources
+    resource_ttypes = [x for x in TRANSMISSION_TYPES if f"{x}_miles" in resource_df]
+    missing_ttypes = set(resource_ttypes) - set(ttypes)
+    if missing_ttypes:
+        raise KeyError(f"{SETTING} missing transmission line types {missing_ttypes}")
+    # Apply calculation for
+    regions = resource_df["region"].unique()
+    for ttype, params in ttypes.items():
+        # Check presence of required keys
+        missing_keys = set(KEYS) - set(params)
+        if missing_keys:
+            raise KeyError(f"{SETTING}.{ttype} missing required keys {missing_keys}")
+        if isinstance(params["capex_mw_mile"], dict):
+            # Check coverage of regions in resources
+            missing_regions = set(regions) - set(params["capex_mw_mile"])
+            if missing_regions:
+                raise KeyError(
+                    f"{SETTING}.{ttype}.capex_mw_mile missing regions {missing_regions}"
+                )
+            capex_mw_mile = resource_df["region"].map(params["capex_mw_mile"])
+        elif isinstance(params["capex_mw_mile"], Number):
+            capex_mw_mile = params["capex_mw_mile"]
         else:
-            resource_df["spur_capex"] = (
-                resource_df["region"].map(settings["spur_capex_mw_mile"])
-                * resource_df["spur_miles"]
+            raise TypeError(
+                f"{SETTING}.{ttype}.capex_mw_mile should be numeric or a dictionary"
+                f" of <region>: <capex>, not {params['capex_mw_mile']}"
             )
-    elif isinstance(settings["spur_capex_mw_mile"], Number):
-        resource_df["spur_capex"] = (
-            settings["spur_capex_mw_mile"] * resource_df["spur_miles"]
+        resource_df[f"{ttype}_capex"] = capex_mw_mile * resource_df[f"{ttype}_miles"]
+        resource_df[f"{ttype}_inv_mwyr"] = investment_cost_calculator(
+            resource_df[f"{ttype}_capex"], params["wacc"], params["investment_years"],
         )
-    else:
-        raise TypeError(
-            "The settings parameter 'spur_capex_mw_mile' should be a dictionary"
-            " with <region>: <capex> or a single numeric value.\n"
-            f"You provided {settings['spur_capex_mw_mile']}"
-        )
-
-    resource_df["spur_inv_mwyr"] = investment_cost_calculator(
-        resource_df["spur_capex"],
-        settings["spur_wacc"],
-        settings["spur_investment_years"],
-    )
-
     return resource_df
 
 
@@ -1751,26 +1753,26 @@ def add_transmission_inv_cost(resource_df):
     ----------
     resource_df : DataFrame
         Each row represents a single resource within a region. Should have columns
-        `Inv_cost_per_MWyr` and `spur_inv_mwyr`.
+        `Inv_cost_per_MWyr` and `<type>_inv_mwyr`, where transmission <type> is one of
+        'spur', 'offshore_spur', or 'tx'.
 
     Returns
     -------
     DataFrame
         A modified copy of the input dataframe where 'Inv_cost_per_MWyr' represents the
         combined plant and spur line investment costs. The new column
-        plant_inv_cost_mwyr represents just the plant investment costs.
+        `plant_inv_cost_mwyr` represents just the plant investment costs.
     """
-
-    if "spur_inv_mwyr" not in resource_df.columns:
+    columns = [
+        f"{x}_inv_mwyr" for x in TRANSMISSION_TYPES if f"{x}_inv_mwyr" in resource_df
+    ]
+    if not columns:
         logger.warning(
-            "Spur line investment costs have not been calculated and are not included "
+            "Transmission investment costs are missing and will not be included "
             "in the total investment costs."
         )
     resource_df["plant_inv_cost_mwyr"] = resource_df.loc[:, "Inv_cost_per_MWyr"]
-    resource_df["Inv_cost_per_MWyr"] = (
-        resource_df["Inv_cost_per_MWyr"] + resource_df["spur_inv_mwyr"]
-    )
-
+    resource_df["Inv_cost_per_MWyr"] += resource_df.loc[:, columns].sum(axis=1)
     return resource_df
 
 
