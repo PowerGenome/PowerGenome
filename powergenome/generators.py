@@ -369,10 +369,7 @@ def load_plant_region_map(
 
     # Settings has a dictionary of lists for regional aggregations. Need
     # to reverse this to use in a map method.
-    if settings.get(settings_agg_key):
-        region_agg_map = reverse_dict_of_lists(settings[settings_agg_key])
-    else:
-        region_agg_map = dict()
+    region_agg_map = reverse_dict_of_lists(settings.get(settings_agg_key))
 
     # IPM regions to keep. Regions not in this list will be dropped from the
     # dataframe
@@ -536,7 +533,7 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
         if "report_date" not in by and "report_date" in df.columns:
             # by.append("report_date")
             logger.warning("'report_date' is in the df but not used in the groupby")
-        region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
+        region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations"))
         keep_regions = [
             x
             for x in settings["model_regions"] + list(region_agg_map)
@@ -1211,8 +1208,7 @@ def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
     geodataframe
         Regions to use in the study with the matching geometry for each.
     """
-
-    region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
+    region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations"))
 
     # IPM regions to keep. Regions not in this list will be dropped
     keep_regions = [
