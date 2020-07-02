@@ -362,9 +362,16 @@ def load_plant_region_map(
 
     if settings.get("plant_region_map_fn"):
         user_region_map_df = pd.read_csv(
-            Path(settings["input_folder"] / settings["plant_region_map_fn"]),
-            index_col="plant_id_eia",
+            Path(settings["input_folder"] / settings["plant_region_map_fn"])
         )
+        assert (
+            "region" in user_region_map_df.columns
+        ), f"The column 'region' must appear in {settings['plant_region_map_fn']}"
+        assert (
+            "plant_id_eia" in user_region_map_df.columns
+        ), f"The column 'plant_id_eia' must appear in {settings['plant_region_map_fn']}"
+
+        user_region_map_df = user_region_map_df.set_index("plant_id_eia")
 
         region_map_df.loc[
             region_map_df["plant_id_eia"].isin(user_region_map_df.index), "region"
