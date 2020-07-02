@@ -35,8 +35,11 @@ def init_pudl_connection(freq="YS"):
 
 
 def reverse_dict_of_lists(d):
-
-    return {v: k for k in d for v in d[k]}
+    if isinstance(d, collections.abc.Mapping):
+        rev = {v: k for k in d for v in d[k]}
+    else:
+        rev = dict()
+    return rev
 
 
 def map_agg_region_names(df, region_agg_map, original_col_name, new_col_name):
