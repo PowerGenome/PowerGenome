@@ -369,7 +369,10 @@ def load_plant_region_map(
 
     # Settings has a dictionary of lists for regional aggregations. Need
     # to reverse this to use in a map method.
-    region_agg_map = reverse_dict_of_lists(settings[settings_agg_key])
+    if settings.get(settings_agg_key):
+        region_agg_map = reverse_dict_of_lists(settings[settings_agg_key])
+    else:
+        region_agg_map = dict()
 
     # IPM regions to keep. Regions not in this list will be dropped from the
     # dataframe
