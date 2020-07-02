@@ -84,6 +84,7 @@ demand_response_resources:
 spur_line_capex_mw_mile:
   CA_N: 8904
   CA_S: 8904
+  WECC_AZ: 3667
 
 # WACC and investment years from https://www.sciencedirect.com/science/article/abs/pii/S0301421519305816
 spur_line_wacc: 0.069
@@ -377,6 +378,7 @@ small_hydro_regions:
 model_regions:
   - CA_N
   - CA_S
+  - WECC_AZ
 
 region_aggregations:
   CA_N: [WEC_CALN, WEC_BANC]
