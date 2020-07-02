@@ -360,6 +360,16 @@ def load_plant_region_map(
     # Load dataframe of region labels for each EIA plant id
     region_map_df = pd.read_sql_table(table, con=pudl_engine)
 
+    if settings.get("plant_region_map_fn"):
+        user_region_map_df = pd.read_csv(
+            Path(settings["input_folder"] / settings["plant_region_map_fn"]),
+            index_col="plant_id_eia",
+        )
+
+        region_map_df.loc[
+            region_map_df["plant_id_eia"].isin(user_region_map_df.index), "region"
+        ] = region_map_df["plant_id_eia"].map(user_region_map_df["region"])
+
     # Label hydro using the IPM shapefile because NEEDS seems to drop some hydro
     all_hydro_regions = label_hydro_region(gens_860, pudl_engine, model_regions_gdf)
 
