@@ -362,7 +362,7 @@ def load_plant_region_map(
 
     if settings.get("plant_region_map_fn"):
         user_region_map_df = pd.read_csv(
-            Path(settings["input_folder"] / settings["plant_region_map_fn"])
+            Path(settings["input_folder"]) / settings["plant_region_map_fn"]
         )
         assert (
             "region" in user_region_map_df.columns
