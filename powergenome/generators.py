@@ -1266,12 +1266,20 @@ def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
     ]
 
     ipm_regions = gpd.read_file(IPM_GEOJSON_PATH)
+
+    if settings.get("user_region_geodata_fn"):
+        logger.info("Appending user regions to IPM Regions")
+        user_regions = gpd.read_file(
+            Path(settings["input_folder"]) / settings["user_region_geodata_fn"]
+        )
+        user_regions = user_regions.to_crs(ipm_regions.crs)
+        ipm_regions = ipm_regions.append(user_regions)
     # ipm_regions = gpd.read_file(IPM_SHAPEFILE_PATH)
 
     model_regions_gdf = ipm_regions.loc[ipm_regions["IPM_Region"].isin(keep_regions)]
     model_regions_gdf = map_agg_region_names(
         model_regions_gdf, region_agg_map, "IPM_Region", "model_region"
-    )
+    ).reset_index(drop=True)
 
     return model_regions_gdf
 
