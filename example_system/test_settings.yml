@@ -28,6 +28,9 @@ demand_segments_fn: test_demand_segments_voll.csv
 misc_gen_inputs_fn: test_misc_gen_inputs.csv
 genx_settings_fn: GenX_settings.yml # In the same folder as this file, not in "input_folder" subfolder
 regional_load_fn: test_regional_load_profiles.csv #Externally provide load data
+user_region_geodata_fn: PJM_CUSTOM_REGIONS.geojson
+plant_region_map_fn: pjm_withGenX_plants_eia.csv
+user_transmission_constraints_fn: pjm_user_transmission.csv
 
 # If regional load is provided by the user and it already includes demand response
 # loads, set this parameter to "true". If the regional hourly loads do not include
