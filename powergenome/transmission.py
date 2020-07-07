@@ -152,8 +152,8 @@ def single_line_distance(line_name, region_centroids, units):
     """
 
     start, end = line_name.split("_to_")
-    start_lat, start_lon = getXY(region_centroids[start])
-    end_lat, end_lon = getXY(region_centroids[end])
+    start_lon, start_lat = getXY(region_centroids[start])
+    end_lon, end_lat = getXY(region_centroids[end])
     distance = haversine(start_lon, start_lat, end_lon, end_lat, units=units)
 
     return distance
