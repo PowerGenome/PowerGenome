@@ -318,10 +318,10 @@ def network_reinforcement_cost(transmission, settings):
     ----------
     transmission : DataFrame
         One network line per row with columns "Transmission Path Name" and
-        "distance_mile"
+        "distance_mile".
     settings : dict
-        User-defined settings with parameters "tx_reinforcement_cost_mw_mile",
-        "tx_reinforcement_wacc", and "tx_reinforcement_investment_years"
+        User-defined settings with dictionary "transmission_investment_cost.tx" with
+        keys "capex_mw_mile", "wacc", and "investment_years".
 
     Returns
     -------
@@ -329,7 +329,7 @@ def network_reinforcement_cost(transmission, settings):
         Same as input but with the new column 'Line_Reinforcement_Cost_per_MW_yr'
     """
 
-    cost_dict = settings["tx_reinforcement_cost_mw_mile"]
+    cost_dict = settings["transmission_investment_cost"]["tx"]["capex_mw_mile"]
     origin_region_cost = (
         transmission["Transmission Path Name"].str.split("_to_").str[0].map(cost_dict)
     )
@@ -339,8 +339,8 @@ def network_reinforcement_cost(transmission, settings):
 
     # Average the costs per mile between origin and destination regions
     line_capex = (origin_region_cost + dest_region_cost) / 2
-    line_wacc = settings["tx_reinforcement_wacc"]
-    line_inv_period = settings["tx_reinforcement_investment_years"]
+    line_wacc = settings["transmission_investment_cost"]["tx"]["wacc"]
+    line_inv_period = settings["transmission_investment_cost"]["tx"]["investment_years"]
 
     line_inv_cost = (
         investment_cost_calculator(line_capex, line_wacc, line_inv_period)

@@ -96,22 +96,15 @@ transmission_investment_cost:
     investment_years: 60
   tx:
     capex_mw_mile:
-      CA_N: 8904
-      CA_S: 8904
+      CA_N: 3728
+      CA_S: 3728
+      WECC_CO: 1457
+      WECC_NM: 1457
+      WECC_NW: 1457
+      WECC_SNV: 1457
+      WECC_AZ: 1457
     wacc: 0.069
     investment_years: 60
-
-tx_reinforcement_cost_mw_mile:
-  CA_N: 3728
-  CA_S: 3728
-  WECC_CO: 1457
-  WECC_NM: 1457
-  WECC_NW: 1457
-  WECC_SNV: 1457
-  WECC_AZ: 1457
-
-tx_reinforcement_wacc: 0.069
-tx_reinforcement_investment_years: 60
 
 # Percent expansion in planning period above and beyond existing transmission
 tx_expansion_per_period: 1.0
