@@ -191,3 +191,49 @@ def write_case_settings_file(settings, folder, file_name):
     # stream = file(path_out, 'w')
     with open(path_out, "w") as f:
         yaml.dump(_settings, f)
+
+
+def find_centroid(gdf):
+    """Find the centroid of polygons, even when in a geographic CRS
+
+    If the crs is geographic (uses lat/lon) then it is converted to a projection before
+    calculating the centroid.
+
+    The projected CRS used here is:
+
+    <Projected CRS: EPSG:3857>
+    Name: WGS 84 / Pseudo-Mercator
+    Axis Info [cartesian]:
+    - X[east]: Easting (metre)
+    - Y[north]: Northing (metre)
+    Area of Use:
+    - name: World - 85°S to 85°N
+    - bounds: (-180.0, -85.06, 180.0, 85.06)
+    Coordinate Operation:
+    - name: Popular Visualisation Pseudo-Mercator
+    - method: Popular Visualisation Pseudo Mercator
+    Datum: World Geodetic System 1984
+    - Ellipsoid: WGS 84
+    - Prime Meridian: Greenwich
+
+    Parameters
+    ----------
+    gdf : GeoDataFrame
+        A gdf with a geometry column.
+
+    Returns
+    -------
+    GeoSeries
+        A GeoSeries of centroid Points.
+    """
+
+    crs = gdf.crs
+
+    if crs.is_geographic:
+        _gdf = gdf.to_crs("EPSG:3857")
+        centroid = _gdf.centroid
+        centroid = centroid.to_crs(crs)
+    else:
+        centroid = gdf.centroid
+
+    return centroid
