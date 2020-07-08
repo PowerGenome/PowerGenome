@@ -2,6 +2,7 @@ import glob
 import itertools
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
@@ -23,6 +24,83 @@ MEANS = [
 SUMS = ["area", CAPACITY]
 PROFILE_KEYS = ["cbsa_id", "cluster_level", "cluster"]
 HOURS_IN_YEAR = 8784
+NREL_ATB_TECHNOLOGY_MAP = {
+    ("utilitypv", None): {"technology": "utilitypv"},
+    ("landbasedwind", None): {"technology": "landbasedwind"},
+    ("offshorewind", None): {"technology": "offshorewind"},
+    **{
+        ("offshorewind", f"otrg{x}"): {
+            "technology": "offshorewind",
+            "turbine_type": "fixed",
+        }
+        for x in range(1, 6)
+    },
+    **{
+        ("offshorewind", f"otrg{x}"): {
+            "technology": "offshorewind",
+            "turbine_type": "floating",
+        }
+        for x in range(6, 16)
+    },
+}
+
+
+def _normalize(x: Optional[str]) -> Optional[str]:
+    """
+    Normalize string to lowercase and no whitespace.
+
+    Examples
+    --------
+    >>> _normalize('Offshore Wind')
+    'offshorewind'
+    >>> _normalize('OffshoreWind')
+    'offshorewind'
+    >>> _normalize(None) is None
+    True
+    """
+    if not x:
+        return x
+    return re.sub(r"\s+", "", x.lower())
+
+
+def map_nrel_atb_technology(tech: str, detail: str = None) -> Dict[str, Any]:
+    """
+    Map NREL ATB technology to resource groups.
+
+    Arguments
+    ---------
+    tech
+        Technology.
+    detail
+        Technology detail.
+
+    Returns
+    -------
+    dict
+        Key, value pairs identifying one or more resource groups.
+
+    Examples
+    --------
+    >>> map_nrel_atb_technology('UtilityPV', 'LosAngeles')
+    {'technology': 'utilitypv'}
+    >>> map_nrel_atb_technology('LandbasedWind', 'LTRG1')
+    {'technology': 'landbasedwind'}
+    >>> map_nrel_atb_technology('OffShoreWind')
+    {'technology': 'offshorewind'}
+    >>> map_nrel_atb_technology('OffShoreWind', 'OTRG3')
+    {'technology': 'offshorewind', 'turbine_type': 'fixed'}
+    >>> map_nrel_atb_technology('OffShoreWind', 'OTRG7')
+    {'technology': 'offshorewind', 'turbine_type': 'floating'}
+    >>> map_nrel_atb_technology('Unknown')
+    {}
+    """
+    tech = _normalize(tech)
+    detail = _normalize(detail)
+    group = {}
+    for k, v in NREL_ATB_TECHNOLOGY_MAP.items():
+        if (tech == k[0] or not k[0]) and (detail == k[1] or not k[1]):
+            group.update(v)
+    return group
 
 
 class ClusterBuilder:
