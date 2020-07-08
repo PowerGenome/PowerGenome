@@ -424,6 +424,25 @@ def load_user_genx_settings(settings):
 
 
 def overwrite_wind_pv_capacity(df, settings):
+    """Use external data to overwrite the wind and solarpv capacity extracted from
+    EIA860.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Existing generators dataframe, with columns "region", "technology", and
+        "Existing_Cap_MW". The technologies should include "Solar Photovoltaic"
+        and "Onshore Wind Turbine".
+    settings : dict
+        User defined PowerGenome settings. Must have the keys "input_folder" and
+        "region_wind_pv_cap_fn".
+
+    Returns
+    -------
+    DataFrame
+        Same as input dataframe but with new capacity values for technologies defined
+        in the "region_wind_pv_cap_fn" file.
+    """
     from powergenome.util import reverse_dict_of_lists
 
     idx = pd.IndexSlice
@@ -432,11 +451,20 @@ def overwrite_wind_pv_capacity(df, settings):
 
     wind_pv_ipm_region_capacity = pd.read_csv(path)
 
-    region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
+    region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations"))
 
+    # Set model_region as IPM_region to start
     wind_pv_ipm_region_capacity["model_region"] = wind_pv_ipm_region_capacity[
         "IPM_Region"
-    ].map(region_agg_map)
+    ]
+    # Change any aggregated regions to the user-defined model_region
+    wind_pv_ipm_region_capacity.loc[
+        wind_pv_ipm_region_capacity["IPM_Region"].isin(region_agg_map), "model_region"
+    ] = wind_pv_ipm_region_capacity.loc[
+        wind_pv_ipm_region_capacity["IPM_Region"].isin(region_agg_map), "IPM_Region"
+    ].map(
+        region_agg_map
+    )
     wind_pv_model_region_capacity = wind_pv_ipm_region_capacity.groupby(
         ["model_region", "technology"]
     ).sum()
