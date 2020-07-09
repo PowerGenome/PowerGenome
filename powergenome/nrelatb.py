@@ -18,7 +18,7 @@ idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
 
-def fetch_atb_costs(pudl_engine, settings):
+def fetch_atb_costs(pudl_engine, settings, offshore_spur_costs=None):
     """Get NREL ATB power plant cost data from database, filter where applicable
 
     Parameters
@@ -80,7 +80,48 @@ def fetch_atb_costs(pudl_engine, settings):
         atb_costs["technology"].str.contains("PV"), ["o_m_fixed_mw", "o_m_variable_mwh"]
     ] *= settings["pv_ac_dc_ratio"]
 
+    if offshore_spur_costs is not None:
+        idx_cols = ["technology", "tech_detail", "cost_case", "basis_year"]
+        offshore_spur_costs = offshore_spur_costs.set_index(idx_cols)
+        atb_costs = atb_costs.set_index(idx_cols)
+
+        atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"] = (
+            atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"]
+            - offshore_spur_costs["capex"]
+        )
+        atb_costs = atb_costs.reset_index()
+
     return atb_costs
+
+
+def fetch_atb_offshore_spur_costs(pudl_engine, settings):
+    """Load offshore spur-line costs and convert to desired dollar-year.
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.Engine
+        A sqlalchemy connection for use by pandas
+    settings : dict
+        User-defined parameters from a settings file
+
+    Returns
+    -------
+    DataFrame
+        Total offshore spur line capex from ATB for each technology/tech_detail/
+        basis_year/cost_case combination.
+    """
+    spur_costs = pd.read_sql_table("offshore_spur_costs_nrelatb", pudl_engine)
+
+    atb_base_year = settings["atb_usd_year"]
+    atb_target_year = settings["target_usd_year"]
+
+    spur_costs.loc[:, "capex"] = inflation_price_adjustment(
+        price=spur_costs.loc[:, "capex"],
+        base_year=atb_base_year,
+        target_year=atb_target_year,
+    )
+
+    return spur_costs
 
 
 def fetch_atb_heat_rates(pudl_engine):
