@@ -198,19 +198,19 @@ def find_centroid(gdf):
 
     The projected CRS used here is:
 
-    <Projected CRS: EPSG:3857>
-    Name: WGS 84 / Pseudo-Mercator
+    <Projected CRS: EPSG:2163>
+    Name: US National Atlas Equal Area
     Axis Info [cartesian]:
     - X[east]: Easting (metre)
     - Y[north]: Northing (metre)
     Area of Use:
-    - name: World - 85°S to 85°N
-    - bounds: (-180.0, -85.06, 180.0, 85.06)
+    - name: USA
+    - bounds: (167.65, 15.56, -65.69, 74.71)
     Coordinate Operation:
-    - name: Popular Visualisation Pseudo-Mercator
-    - method: Popular Visualisation Pseudo Mercator
-    Datum: World Geodetic System 1984
-    - Ellipsoid: WGS 84
+    - name: US National Atlas Equal Area
+    - method: Lambert Azimuthal Equal Area (Spherical)
+    Datum: Not specified (based on Clarke 1866 Authalic Sphere)
+    - Ellipsoid: Clarke 1866 Authalic Sphere
     - Prime Meridian: Greenwich
 
     Parameters
@@ -227,10 +227,38 @@ def find_centroid(gdf):
     crs = gdf.crs
 
     if crs.is_geographic:
-        _gdf = gdf.to_crs("EPSG:3857")
+        _gdf = gdf.to_crs("EPSG:2163")
         centroid = _gdf.centroid
         centroid = centroid.to_crs(crs)
     else:
         centroid = gdf.centroid
 
     return centroid
+
+
+def regions_to_keep(settings):
+    """Create a list of all IPM regions that are used in the model, either as single
+    regions or as part of a user-defined model region. Also includes the aggregate
+    regions defined by user.
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined parameters from a settings YAML file with keys "model_regions" and
+        "region_aggregations".
+
+    Returns
+    -------
+    list
+        All of the IPM regions and user defined model regions.
+    """
+    # Settings has a dictionary of lists for regional aggregations.
+    region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations"))
+
+    # IPM regions to keep - single in model_regions plus those aggregated by the user
+    keep_regions = [
+        x
+        for x in settings["model_regions"] + list(region_agg_map)
+        if x not in region_agg_map.values()
+    ]
+    return keep_regions, region_agg_map
