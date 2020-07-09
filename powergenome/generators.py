@@ -1750,33 +1750,50 @@ def calculate_transmission_inv_cost(resource_df, settings):
     return resource_df
 
 
-def add_transmission_inv_cost(resource_df):
+def add_transmission_inv_cost(
+    resource_df: pd.DataFrame, settings: dict
+) -> pd.DataFrame:
     """Add tranmission investment costs to plant investment costs
 
     Parameters
     ----------
-    resource_df : DataFrame
+    resource_df
         Each row represents a single resource within a region. Should have columns
-        `Inv_cost_per_MWyr` and `<type>_inv_mwyr`, where transmission <type> is one of
-        'spur', 'offshore_spur', or 'tx'.
+        `Inv_cost_per_MWyr` and transmission costs.
+            - one or more `<type>_inv_mwyr`,
+                where <type> is 'spur', 'offshore_spur', or 'tx'.
+            - `interconnect_annuity`
+    settings
+        User settings. If `transmission_investment_cost.use_total` is present and true,
+        `interconnect_annuity` is used over `<type>_inv_mwys` if present, not null,
+        and not zero.
 
     Returns
     -------
     DataFrame
         A modified copy of the input dataframe where 'Inv_cost_per_MWyr' represents the
-        combined plant and spur line investment costs. The new column
+        combined plant and transmission investment costs. The new column
         `plant_inv_cost_mwyr` represents just the plant investment costs.
     """
+    use_total = (
+        settings.get("transmission_investment_cost", {}).get("use_total", False)
+        and "interconnect_annuity" in resource_df
+    )
+    resource_df["plant_inv_cost_mwyr"] = resource_df["Inv_cost_per_MWyr"]
     columns = [
-        f"{x}_inv_mwyr" for x in TRANSMISSION_TYPES if f"{x}_inv_mwyr" in resource_df
+        c for c in [f"{t}_inv_mwyr" for t in TRANSMISSION_TYPES] if c in resource_df
     ]
-    if not columns:
+    cost = resource_df[columns].sum(axis=1)
+    if use_total:
+        total = resource_df["interconnect_annuity"]
+        has_total = ~total.isna() & total != 0
+        cost[has_total] = total[has_total]
+    if cost.isna().any() or (cost == 0).any():
         logger.warning(
-            "Transmission investment costs are missing and will not be included "
-            "in the total investment costs."
+            "Transmission investment costs are missing or zero for some resources"
+            " and will not be included in the total investment costs."
         )
-    resource_df["plant_inv_cost_mwyr"] = resource_df.loc[:, "Inv_cost_per_MWyr"]
-    resource_df["Inv_cost_per_MWyr"] += resource_df.loc[:, columns].sum(axis=1)
+    resource_df["Inv_cost_per_MWyr"] += cost
     return resource_df
 
 
@@ -2286,7 +2303,7 @@ class GeneratorClusters:
             logger.warning("No settings parameter for max capacity/spur file")
         self.new_generators = self.new_generators.pipe(
             calculate_transmission_inv_cost, self.settings
-        ).pipe(add_transmission_inv_cost)
+        ).pipe(add_transmission_inv_cost, self.settings)
 
         if self.settings.get("demand_response_fn"):
             dr_rows = self.create_demand_response_gen_rows()

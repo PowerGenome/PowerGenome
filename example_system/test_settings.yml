@@ -82,6 +82,8 @@ demand_response: 'moderate'
 # capex_mw_mile: Capital cost per MW-mile for all (numeric) or each model region (dict).
 # WACC and investment years from https://www.sciencedirect.com/science/article/abs/pii/S0301421519305816
 transmission_investment_cost:
+  # If true, uses interconnect_annuity when available
+  use_total: true
   spur:
     capex_mw_mile:
       CA_N: 8904
