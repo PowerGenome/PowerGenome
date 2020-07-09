@@ -679,7 +679,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "waccnomtech",
         "regional_cost_multiplier",
     ]
-    new_gen_df = new_gen_df.loc[:, keep_cols]
+    new_gen_df = new_gen_df[keep_cols]
 
     regional_cost_multipliers = pd.read_csv(
         DATA_PATHS["cost_multipliers"] / "EIA regional cost multipliers.csv",
@@ -761,21 +761,22 @@ def add_renewables_clusters(
     ValueError
         Renewables clusters match multiple NREL ATB technologies.
     """
-    if not settings.get("renewables_clusters"):
-        # NOTE: Leaves placeholder renewable resources in place.
-        return df
     if not df["technology"].is_unique:
         raise ValueError(
             f"NREL ATB technologies are not unique: {df['technology'].to_list()}"
         )
-    scenarios = [x for x in settings["renewables_clusters"] if x["region"] == region]
-    if not scenarios:
-        return df
-    ipm_regions = settings["region_aggregations"][region]
     atb_map = {
         x: map_nrel_atb_technology(x.split("_")[0], x.split("_")[1])
         for x in df["technology"]
     }
+    mask = df["technology"].isin([tech for tech, match in atb_map.items() if match]) & (
+        df["region"] == region
+    )
+    scenarios = [
+        x for x in settings.get("renewables_clusters", []) if x["region"] == region
+    ]
+    ipm_regions = settings["region_aggregations"][region]
+    cdfs = []
     for scenario in scenarios:
         # Match cluster technology to NREL ATB technologies
         technologies = [
@@ -799,9 +800,10 @@ def add_renewables_clusters(
             .rename(columns={"mw": "Cap_size"})
             .assign(technology=technology)
         )
-        mask = (df["technology"] == technology) & (df["region"] == region)
-        base = {k: v for k, v in df[mask].iloc[0].items() if k not in clusters}
-        return pd.concat([df[~mask], clusters.assign(**base)], sort=False)
+        row = df[df["technology"] == technology].iloc[0]
+        kwargs = {k: v for k, v in row.items() if k not in clusters}
+        cdfs.append(clusters.assign(**kwargs))
+    return pd.concat([df[~mask]] + cdfs, sort=False)
 
 
 def load_user_defined_techs(settings):
