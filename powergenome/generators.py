@@ -38,6 +38,7 @@ from powergenome.util import (
     map_agg_region_names,
     reverse_dict_of_lists,
     snake_case_col,
+    regions_to_keep,
 )
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
@@ -329,12 +330,7 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
 
 
 def load_plant_region_map(
-    gens_860,
-    pudl_engine,
-    settings,
-    model_regions_gdf,
-    table="plant_region_map_epaipm",
-    settings_agg_key="region_aggregations",
+    gens_860, pudl_engine, settings, model_regions_gdf, table="plant_region_map_epaipm"
 ):
     """
     Load the region that each plant is located in.
@@ -347,9 +343,6 @@ def load_plant_region_map(
         The dictionary of settings with a dictionary of region aggregations
     table : str, optional
         The SQL table to load, by default "plant_region_map_epaipm"
-    settings_agg_key : str, optional
-        The name of a dictionary of lists aggregatign regions in the settings
-        object, by default "region_aggregations"
 
     Returns
     -------
@@ -386,15 +379,7 @@ def load_plant_region_map(
 
     # Settings has a dictionary of lists for regional aggregations. Need
     # to reverse this to use in a map method.
-    region_agg_map = reverse_dict_of_lists(settings.get(settings_agg_key))
-
-    # IPM regions to keep. Regions not in this list will be dropped from the
-    # dataframe
-    keep_regions = [
-        x
-        for x in settings["model_regions"] + list(region_agg_map)
-        if x not in region_agg_map.values()
-    ]
+    keep_regions, region_agg_map = regions_to_keep(settings)
 
     # Create a new column "model_region" with labels that we're using for aggregated
     # regions
@@ -1256,14 +1241,7 @@ def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
     geodataframe
         Regions to use in the study with the matching geometry for each.
     """
-    region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations"))
-
-    # IPM regions to keep. Regions not in this list will be dropped
-    keep_regions = [
-        x
-        for x in settings["model_regions"] + list(region_agg_map)
-        if x not in region_agg_map.values()
-    ]
+    keep_regions, region_agg_map = regions_to_keep(settings)
 
     ipm_regions = gpd.read_file(IPM_GEOJSON_PATH)
 
@@ -1834,6 +1812,10 @@ def add_transmission_inv_cost(resource_df):
     return resource_df
 
 
+def save_weighted_hr(weighted_unit_hr, pudl_engine):
+    pass
+
+
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -1891,7 +1873,6 @@ class GeneratorClusters:
                 self.settings,
                 self.model_regions_gdf,
                 table=plant_region_map_table,
-                settings_agg_key=settings_agg_key,
             )
 
             self.gen_923 = load_923_gen_fuel_data(
@@ -2150,9 +2131,12 @@ class GeneratorClusters:
         for region in self.settings["model_regions"]:
             num_clusters[region] = self.settings["num_clusters"].copy()
 
-        for region in self.settings["alt_num_clusters"]:
-            for tech, cluster_size in self.settings["alt_num_clusters"][region].items():
-                num_clusters[region][tech] = cluster_size
+        if self.settings.get("alt_num_clusters"):
+            for region in self.settings["alt_num_clusters"]:
+                for tech, cluster_size in self.settings["alt_num_clusters"][
+                    region
+                ].items():
+                    num_clusters[region][tech] = cluster_size
 
         region_tech_grouped = self.units_model.loc[
             (self.units_model.technology_description.isin(techs))
@@ -2176,7 +2160,7 @@ class GeneratorClusters:
         logger.info("Creating technology clusters by region")
         unit_list = []
         self.cluster_list = []
-        alt_cluster_method = self.settings["alt_cluster_method"]
+        alt_cluster_method = self.settings.get("alt_cluster_method")
         if alt_cluster_method is None:
             alt_cluster_method = {}
 
