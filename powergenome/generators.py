@@ -29,6 +29,7 @@ from powergenome.nrelatb import (
     atb_new_generators,
     fetch_atb_costs,
     fetch_atb_heat_rates,
+    fetch_atb_offshore_spur_costs,
     investment_cost_calculator,
 )
 from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH
@@ -1881,7 +1882,12 @@ class GeneratorClusters:
         else:
             self.existing_resources = pd.DataFrame()
 
-        self.atb_costs = fetch_atb_costs(self.pudl_engine, self.settings)
+        self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
+            self.pudl_engine, self.settings
+        )
+        self.atb_costs = fetch_atb_costs(
+            self.pudl_engine, self.settings, self.offshore_spur_costs
+        )
         self.atb_hr = fetch_atb_heat_rates(self.pudl_engine)
 
         self.fuel_prices = fetch_fuel_prices(self.settings)
