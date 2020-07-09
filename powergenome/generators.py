@@ -1716,19 +1716,21 @@ def calculate_transmission_inv_cost(resource_df, settings):
     ttypes = settings.get(SETTING, {})
     # Check coverage of transmission types in resources
     resource_ttypes = [x for x in TRANSMISSION_TYPES if f"{x}_miles" in resource_df]
-    missing_ttypes = set(resource_ttypes) - set(ttypes)
+    missing_ttypes = list(set(resource_ttypes) - set(ttypes))
     if missing_ttypes:
         raise KeyError(f"{SETTING} missing transmission line types {missing_ttypes}")
     # Apply calculation for
     regions = resource_df["region"].unique()
     for ttype, params in ttypes.items():
+        if ttype not in resource_ttypes:
+            continue
         # Check presence of required keys
-        missing_keys = set(KEYS) - set(params)
+        missing_keys = list(set(KEYS) - set(params))
         if missing_keys:
             raise KeyError(f"{SETTING}.{ttype} missing required keys {missing_keys}")
         if isinstance(params["capex_mw_mile"], dict):
             # Check coverage of regions in resources
-            missing_regions = set(regions) - set(params["capex_mw_mile"])
+            missing_regions = list(set(regions) - set(params["capex_mw_mile"]))
             if missing_regions:
                 raise KeyError(
                     f"{SETTING}.{ttype}.capex_mw_mile missing regions {missing_regions}"
@@ -2277,22 +2279,20 @@ class GeneratorClusters:
             )
 
         if self.settings.get("capacity_limit_spur_fn"):
-            self.new_generators = (
-                self.new_generators.pipe(add_resource_max_cap_spur, self.settings)
-                .pipe(calculate_transmission_inv_cost, self.settings)
-                .pipe(add_transmission_inv_cost)
+            self.new_generators = self.new_generators.pipe(
+                add_resource_max_cap_spur, self.settings
             )
         else:
             logger.warning("No settings parameter for max capacity/spur file")
+        self.new_generators = self.new_generators.pipe(
+            calculate_transmission_inv_cost, self.settings
+        ).pipe(add_transmission_inv_cost)
 
         if self.settings.get("demand_response_fn"):
             dr_rows = self.create_demand_response_gen_rows()
 
-        self.new_generators = pd.concat([self.new_generators, dr_rows])
+        self.new_generators = pd.concat([self.new_generators, dr_rows], sort=False)
 
-        # self.new_generators = self.new_generators.rename(
-        #     columns={"technology": "Resource"}
-        # )
         self.new_generators["Resource"] = snake_case_col(
             self.new_generators["technology"]
         )
@@ -2307,7 +2307,7 @@ class GeneratorClusters:
         self.new_resources = self.create_new_generators()
 
         self.all_resources = pd.concat(
-            [self.existing_resources, self.new_resources], ignore_index=True
+            [self.existing_resources, self.new_resources], ignore_index=True, sort=False
         )
 
         self.all_resources = self.all_resources.round(3)
@@ -2319,13 +2319,17 @@ class GeneratorClusters:
         # Set Min_power of wind/solar to 0
         self.all_resources.loc[self.all_resources["DISP"] == 1, "Min_power"] = 0
 
-        self.all_resources["R_ID"] = np.array(range(len(self.all_resources))) + 1
+        self.all_resources["R_ID"] = np.arange(len(self.all_resources)) + 1
 
         if self.current_gens:
             logger.info(
                 f"Capacity of {self.all_resources['Existing_Cap_MW'].sum()} MW in final clusters"
             )
 
-        col_order = self.settings["generator_columns"]
+        cols = [
+            col
+            for col in self.settings["generator_columns"]
+            if col in self.all_resources
+        ]
 
-        return self.all_resources.reindex(columns=col_order)
+        return self.all_resources.reindex(columns=cols)

@@ -3,7 +3,7 @@ import itertools
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -230,12 +230,6 @@ class ClusterBuilder:
 
         The following fields are added:
         - `region` (str): Region label passed to :meth:`build_clusters`.
-        - `technology` (str): From resource metadata 'technology'.
-        - `cluster` (int): Unique identifier for each cluster to link to other outputs.
-
-        The following fields are renamed:
-        - `max_capacity`: From 'mw'.
-        - `area_km2`: From 'area'.
 
         Raises
         ------
@@ -244,22 +238,11 @@ class ClusterBuilder:
         """
         self._test_clusters_exist()
         dfs = []
-        start = 0
         for c in self.clusters:
             df = c["clusters"].reset_index()
             columns = [x for x in np.unique([WEIGHT] + MEANS + SUMS) if x in df]
-            n = len(df)
-            df = (
-                df[columns]
-                .assign(
-                    region=c["region"],
-                    technology=c["group"]["technology"],
-                    cluster=np.arange(start, start + n),
-                )
-                .rename(columns={CAPACITY: "max_capacity", "area": "area_km2"})
-            )
+            df = df[columns].assign(region=c["region"])
             dfs.append(df)
-            start += n
         return pd.concat(dfs, axis=0, ignore_index=True, sort=False)
 
     def get_cluster_profiles(self) -> Optional[pd.DataFrame]:
@@ -349,9 +332,10 @@ def build_clusters(
     if max_clusters < 1:
         raise ValueError("Max number of clusters must be greater than zero")
     df = metadata
-    cdf = _get_base_clusters(df, ipm_regions).sort_values("lcoe")
+    cdf = _get_base_clusters(df, ipm_regions)
     if cdf.empty:
         raise ValueError(f"No resources found in {ipm_regions}")
+    cdf = cdf.sort_values("lcoe")
     if min_capacity:
         # Drop clusters with highest LCOE until min_capacity reached
         end = cdf[CAPACITY].cumsum().searchsorted(min_capacity) + 1
@@ -408,7 +392,7 @@ def build_clusters(
         Z = scipy.cluster.hierarchy.linkage(cdf[["lcoe"]].values, method="ward")
         mask = [True] * len(cdf)
         for child_idx in Z[:, 0:2].astype(int):
-            mask[child_idx] = False
+            mask[child_idx[0]], mask[child_idx[1]] = False, False
             parent = _merge_children(
                 cdf.loc[child_idx], ids=_flat(*cdf.loc[child_idx, "ids"])
             )

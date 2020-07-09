@@ -111,8 +111,7 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
 
     path = Path(settings["input_folder"]) / settings["capacity_limit_spur_fn"]
     df = pd.read_csv(path)
-    df["cluster"] = df["cluster"].fillna(1)
-
+    # Prepare file
     required_cols = [
         "region",
         "technology",
@@ -120,44 +119,33 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
         "spur_miles",
         "max_capacity",
     ]
-
     for col in required_cols:
         assert (
             col in df.columns
         ), f"The capacity limit/spur line distance file must have column {col}"
-
+    df["cluster"] = df["cluster"].fillna(1)
+    # Prepare resources
+    defaults = {"cluster": 1, "spur_miles": 0, capacity_col: -1}
+    for key, value in defaults.items():
+        new_resource_df[key] = (
+            new_resource_df[key].fillna(value) if key in new_resource_df else value
+        )
+    # Update resources
     grouped_df = df.groupby(["region", "technology"])
-
-    new_resource_df[capacity_col] = -1
-    new_resource_df["spur_miles"] = 0
     for (region, tech), _df in grouped_df:
         mask = (new_resource_df["region"] == region) & (
             new_resource_df["technology"].str.lower().str.contains(tech.lower())
         )
-
-        # assert len(new_resource_df.loc[mask, :]) == len(_df), (
-        #     f"There is a mismatch between the number of {tech} resources in {region}, "
-        #     f"({len(new_resource_df.loc[mask, :])}) and the number of spur line "
-        #     f"distances provided in {settings['capacity_limit_spur_fn']}, "
-        #     f"({len(_df)})"
-        # )
-        if len(new_resource_df.loc[mask, :]) != len(_df):
-            print(region, tech, new_resource_df.technology.unique())
-            print(new_resource_df.loc[mask, :])
-            print(_df)
-
-        new_resource_df.loc[mask, capacity_col] = _df["max_capacity"].values
-        new_resource_df.loc[mask, "spur_miles"] = _df["spur_miles"].values
-        new_resource_df.loc[mask, "cluster"] = _df["cluster"].values
-
         if mask.sum() > 1:
-            assert new_resource_df.loc[mask, "cluster"].isna().sum() == 0, (
-                f"Error with cluster names in user-supplied file"
-                f" {settings['capacity_limit_spur_fn']}.\n"
-                f"The resource {tech} in region {region} has multiple rows and each row"
-                " must have a cluster value."
+            raise ValueError(
+                f"Resource {tech} in region {region} from file "
+                f"{settings['capacity_limit_spur_fn']} matches multiple resources"
             )
-
+        for key, value in defaults.items():
+            _key = "max_capacity" if key == capacity_col else key
+            new_resource_df.loc[mask & (new_resource_df[key] == value), key] = _df[
+                _key
+            ].values
     return new_resource_df
 
 

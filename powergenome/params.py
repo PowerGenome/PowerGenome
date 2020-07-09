@@ -34,6 +34,7 @@ IPM_GEOJSON_PATH = DATA_PATHS["data"] / "ipm_regions_simple.geojson"
 SETTINGS = {}
 SETTINGS["PUDL_DB"] = os.environ.get("PUDL_DB")
 SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
+SETTINGS["RENEWABLES_CLUSTERS"] = os.environ.get("RENEWABLES_CLUSTERS")
 
 # "postgresql://catalyst@127.0.0.1/pudl"
 

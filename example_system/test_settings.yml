@@ -777,13 +777,11 @@ new_gen_not_available:
 
 pv_ac_dc_ratio: 1.3
 
-new_wind_solar_regional_bins:
-  UtilityPV:
-    CA_N: 3
-    CA_S: 3
-  LandbasedWind:
-    CA_N: 2
-    CA_S: 2
+renewables_clusters:
+  - region: CA_N
+    technology: landbasedwind
+    min_capacity:
+    max_clusters: 3
 
 # How much of the theoretical
 wind_pv_fraction_developable: 0.5
@@ -1154,6 +1152,9 @@ generator_columns: [
             "Reg_Cost",
             "Rsv_Cost",
             "spur_miles",
-            "spur_capex"
-
+            "spur_capex",
+            "offshore_spur_miles",
+            "offshore_spur_capex"
+            "tx_miles",
+            "tx_capex"
         ]
