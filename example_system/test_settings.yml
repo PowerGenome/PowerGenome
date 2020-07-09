@@ -28,9 +28,6 @@ demand_segments_fn: test_demand_segments_voll.csv
 misc_gen_inputs_fn: test_misc_gen_inputs.csv
 genx_settings_fn: GenX_settings.yml # In the same folder as this file, not in "input_folder" subfolder
 regional_load_fn: test_regional_load_profiles.csv #Externally provide load data
-user_region_geodata_fn: PJM_CUSTOM_REGIONS.geojson
-plant_region_map_fn: pjm_withGenX_plants_eia.csv
-user_transmission_constraints_fn: pjm_user_transmission.csv
 
 # If regional load is provided by the user and it already includes demand response
 # loads, set this parameter to "true". If the regional hourly loads do not include
@@ -765,7 +762,7 @@ eia_atb_tech_map:
   Onshore Wind Turbine: LandbasedWind_LTRG1 # All onshore wind is the same
   Offshore Wind Turbine: OffShoreWind_OTRG3 # Mid-range of fixed offshore wind
   Nuclear: Nuclear_*
-  Natural Gas Steam Turbine: Coal_NewAvgCF # No gas steam turbines in ATB, using coal instead
+  Natural Gas Steam Turbine: Coal_newAvgCF # No gas steam turbines in ATB, using coal instead
   Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
 
 # NEMS has O&M (including capex) for existing generators. Boolean, true or false.
