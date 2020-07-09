@@ -762,7 +762,7 @@ eia_atb_tech_map:
   Onshore Wind Turbine: LandbasedWind_LTRG1 # All onshore wind is the same
   Offshore Wind Turbine: OffShoreWind_OTRG3 # Mid-range of fixed offshore wind
   Nuclear: Nuclear_*
-  Natural Gas Steam Turbine: Coal_NewAvgCF # No gas steam turbines in ATB, using coal instead
+  Natural Gas Steam Turbine: Coal_newAvgCF # No gas steam turbines in ATB, using coal instead
   Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
 
 # NEMS has O&M (including capex) for existing generators. Boolean, true or false.
