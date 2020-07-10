@@ -121,6 +121,9 @@ def fetch_atb_offshore_spur_costs(pudl_engine, settings):
         target_year=atb_target_year,
     )
 
+    # ATB assumes a 30km distance for offshore spur. Normalize to per mile
+    spur_costs["capex_mw_mile"] = spur_costs["capex"] / 30 * 1.60934
+
     return spur_costs
 
 
