@@ -87,8 +87,8 @@ def fetch_atb_costs(pudl_engine, settings, offshore_spur_costs=None):
         atb_costs = atb_costs.set_index(idx_cols)
 
         atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"] = (
-            atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"]
-            - offshore_spur_costs["capex"]
+            atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"].values
+            - offshore_spur_costs["capex"].values
         )
         atb_costs = atb_costs.reset_index()
 
