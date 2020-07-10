@@ -479,9 +479,11 @@ def main():
                 )
                 load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
 
-                reduced_resource_profile, reduced_load_profile = reduce_time_domain(
-                    gen_variability, load, _settings
-                )
+                (
+                    reduced_resource_profile,
+                    reduced_load_profile,
+                    long_duration_storage,
+                ) = reduce_time_domain(gen_variability, load, _settings)
                 write_results_file(
                     df=reduced_load_profile,
                     folder=case_folder,
@@ -494,6 +496,13 @@ def main():
                     file_name="Generators_variability.csv",
                     include_index=True,
                 )
+                if long_duration_storage is not None:
+                    write_results_file(
+                        df=long_duration_storage,
+                        folder=case_folder,
+                        file_name="Long_Duration_Storage.csv",
+                        include_index=False,
+                    )
 
             if args.transmission:
                 # if not model_regions_gdf:

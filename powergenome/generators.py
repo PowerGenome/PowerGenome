@@ -30,6 +30,7 @@ from powergenome.nrelatb import (
     atb_new_generators,
     fetch_atb_costs,
     fetch_atb_heat_rates,
+    fetch_atb_offshore_spur_costs,
     investment_cost_calculator,
 )
 from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH
@@ -39,6 +40,7 @@ from powergenome.util import (
     map_agg_region_names,
     reverse_dict_of_lists,
     snake_case_col,
+    regions_to_keep,
 )
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
@@ -331,12 +333,7 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
 
 
 def load_plant_region_map(
-    gens_860,
-    pudl_engine,
-    settings,
-    model_regions_gdf,
-    table="plant_region_map_epaipm",
-    settings_agg_key="region_aggregations",
+    gens_860, pudl_engine, settings, model_regions_gdf, table="plant_region_map_epaipm"
 ):
     """
     Load the region that each plant is located in.
@@ -349,9 +346,6 @@ def load_plant_region_map(
         The dictionary of settings with a dictionary of region aggregations
     table : str, optional
         The SQL table to load, by default "plant_region_map_epaipm"
-    settings_agg_key : str, optional
-        The name of a dictionary of lists aggregatign regions in the settings
-        object, by default "region_aggregations"
 
     Returns
     -------
@@ -371,15 +365,7 @@ def load_plant_region_map(
 
     # Settings has a dictionary of lists for regional aggregations. Need
     # to reverse this to use in a map method.
-    region_agg_map = reverse_dict_of_lists(settings[settings_agg_key])
-
-    # IPM regions to keep. Regions not in this list will be dropped from the
-    # dataframe
-    keep_regions = [
-        x
-        for x in settings["model_regions"] + list(region_agg_map)
-        if x not in region_agg_map.values()
-    ]
+    keep_regions, region_agg_map = regions_to_keep(settings)
 
     # Create a new column "model_region" with labels that we're using for aggregated
     # regions
@@ -770,6 +756,37 @@ def remove_canceled_860m(df, canceled_860m):
 
 
 def remove_retired_860m(df, retired_860m):
+    """Remove generators that 860m shows as having been retired
+
+    Parameters
+    ----------
+    df : dataframe
+        All of the EIA 860 generators
+    retired_860m : dataframe
+        From the 860m Retired sheet
+
+    Returns
+    -------
+    dataframe
+        Same as input, but possibly without generators that have retired
+    """
+
+    df = create_plant_gen_id(df)
+    retired_860m = create_plant_gen_id(retired_860m)
+
+    retired = df.loc[df["plant_gen_id"].isin(retired_860m["plant_gen_id"]), :]
+
+    not_retired_df = df.loc[~df["plant_gen_id"].isin(retired_860m["plant_gen_id"]), :]
+
+    not_retired_df = not_retired_df.drop(columns="plant_gen_id")
+
+    if not retired.empty:
+        assert len(df) == len(retired) + len(not_retired_df)
+
+    return not_retired_df
+
+
+def remove_future_retirements_860m(df, retired_860m):
     """Remove generators that 860m shows as having been retired
 
     Parameters
@@ -1208,15 +1225,7 @@ def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
     geodataframe
         Regions to use in the study with the matching geometry for each.
     """
-
-    region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
-
-    # IPM regions to keep. Regions not in this list will be dropped
-    keep_regions = [
-        x
-        for x in settings["model_regions"] + list(region_agg_map)
-        if x not in region_agg_map.values()
-    ]
+    keep_regions, region_agg_map = regions_to_keep(settings)
 
     ipm_regions = gpd.read_file(IPM_GEOJSON_PATH)
     # ipm_regions = gpd.read_file(IPM_SHAPEFILE_PATH)
@@ -1794,6 +1803,10 @@ def add_transmission_inv_cost(
     return resource_df
 
 
+def save_weighted_hr(weighted_unit_hr, pudl_engine):
+    pass
+
+
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -1851,7 +1864,6 @@ class GeneratorClusters:
                 self.settings,
                 self.model_regions_gdf,
                 table=plant_region_map_table,
-                settings_agg_key=settings_agg_key,
             )
 
             self.gen_923 = load_923_gen_fuel_data(
@@ -1880,7 +1892,12 @@ class GeneratorClusters:
         else:
             self.existing_resources = pd.DataFrame()
 
-        self.atb_costs = fetch_atb_costs(self.pudl_engine, self.settings)
+        self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
+            self.pudl_engine, self.settings
+        )
+        self.atb_costs = fetch_atb_costs(
+            self.pudl_engine, self.settings, self.offshore_spur_costs
+        )
         self.atb_hr = fetch_atb_heat_rates(self.pudl_engine)
 
         self.fuel_prices = fetch_fuel_prices(self.settings)
@@ -2105,9 +2122,12 @@ class GeneratorClusters:
         for region in self.settings["model_regions"]:
             num_clusters[region] = self.settings["num_clusters"].copy()
 
-        for region in self.settings["alt_num_clusters"]:
-            for tech, cluster_size in self.settings["alt_num_clusters"][region].items():
-                num_clusters[region][tech] = cluster_size
+        if self.settings.get("alt_num_clusters"):
+            for region in self.settings["alt_num_clusters"]:
+                for tech, cluster_size in self.settings["alt_num_clusters"][
+                    region
+                ].items():
+                    num_clusters[region][tech] = cluster_size
 
         region_tech_grouped = self.units_model.loc[
             (self.units_model.technology_description.isin(techs))
@@ -2203,6 +2223,12 @@ class GeneratorClusters:
             f"Results technologies are {self.results.technology.unique().tolist()}"
         )
 
+        # if self.settings.get("region_wind_pv_cap_fn"):
+        #     from powergenome.external_data import overwrite_wind_pv_capacity
+
+        #     logger.info("Setting existing wind/pv using external file")
+        #     self.results = overwrite_wind_pv_capacity(self.results, self.settings)
+
         self.results = self.results.reset_index().set_index(
             ["region", "technology", "cluster"]
         )
@@ -2251,6 +2277,12 @@ class GeneratorClusters:
         self.results["unmodified_existing_cap_mw"] = (
             self.results["unmodified_cap_size"] * self.results["num_units"]
         )
+
+        if self.settings.get("region_wind_pv_cap_fn"):
+            from powergenome.external_data import overwrite_wind_pv_capacity
+
+            logger.info("Setting existing wind/pv using external file")
+            self.results = overwrite_wind_pv_capacity(self.results, self.settings)
 
         # Add fixed/variable O&M based on NREL atb
         self.results = (

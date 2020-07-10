@@ -188,3 +188,77 @@ def write_case_settings_file(settings, folder, file_name):
     # stream = file(path_out, 'w')
     with open(path_out, "w") as f:
         yaml.dump(_settings, f)
+
+
+def find_centroid(gdf):
+    """Find the centroid of polygons, even when in a geographic CRS
+
+    If the crs is geographic (uses lat/lon) then it is converted to a projection before
+    calculating the centroid.
+
+    The projected CRS used here is:
+
+    <Projected CRS: EPSG:2163>
+    Name: US National Atlas Equal Area
+    Axis Info [cartesian]:
+    - X[east]: Easting (metre)
+    - Y[north]: Northing (metre)
+    Area of Use:
+    - name: USA
+    - bounds: (167.65, 15.56, -65.69, 74.71)
+    Coordinate Operation:
+    - name: US National Atlas Equal Area
+    - method: Lambert Azimuthal Equal Area (Spherical)
+    Datum: Not specified (based on Clarke 1866 Authalic Sphere)
+    - Ellipsoid: Clarke 1866 Authalic Sphere
+    - Prime Meridian: Greenwich
+
+    Parameters
+    ----------
+    gdf : GeoDataFrame
+        A gdf with a geometry column.
+
+    Returns
+    -------
+    GeoSeries
+        A GeoSeries of centroid Points.
+    """
+
+    crs = gdf.crs
+
+    if crs.is_geographic:
+        _gdf = gdf.to_crs("EPSG:2163")
+        centroid = _gdf.centroid
+        centroid = centroid.to_crs(crs)
+    else:
+        centroid = gdf.centroid
+
+    return centroid
+
+
+def regions_to_keep(settings):
+    """Create a list of all IPM regions that are used in the model, either as single
+    regions or as part of a user-defined model region. Also includes the aggregate
+    regions defined by user.
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined parameters from a settings YAML file with keys "model_regions" and
+        "region_aggregations".
+
+    Returns
+    -------
+    list
+        All of the IPM regions and user defined model regions.
+    """
+    # Settings has a dictionary of lists for regional aggregations.
+    region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations"))
+
+    # IPM regions to keep - single in model_regions plus those aggregated by the user
+    keep_regions = [
+        x
+        for x in settings["model_regions"] + list(region_agg_map)
+        if x not in region_agg_map.values()
+    ]
+    return keep_regions, region_agg_map

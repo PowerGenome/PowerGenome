@@ -8,7 +8,7 @@ from math import asin, cos, radians, sin, sqrt
 
 import pandas as pd
 
-from powergenome.util import map_agg_region_names, reverse_dict_of_lists
+from powergenome.util import map_agg_region_names, reverse_dict_of_lists, find_centroid
 
 logger = logging.getLogger(__name__)
 
@@ -152,8 +152,8 @@ def single_line_distance(line_name, region_centroids, units):
     """
 
     start, end = line_name.split("_to_")
-    start_lat, start_lon = getXY(region_centroids[start])
-    end_lat, end_lon = getXY(region_centroids[end])
+    start_lon, start_lat = getXY(region_centroids[start])
+    end_lon, end_lat = getXY(region_centroids[end])
     distance = haversine(start_lon, start_lat, end_lon, end_lat, units=units)
 
     return distance
@@ -166,7 +166,7 @@ def transmission_line_distance(
     ipm_shapefile["geometry"] = ipm_shapefile.buffer(0.01)
     model_polygons = ipm_shapefile.dissolve(by="model_region")
     model_polygons = model_polygons.to_crs({"init": "epsg:4326"})
-    region_centroids = model_polygons.centroid
+    region_centroids = find_centroid(model_polygons)
 
     distances = [
         single_line_distance(line_name, region_centroids, units=units)

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
+from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.util import snake_case_col
 
 logger = logging.getLogger(__name__)
@@ -110,24 +111,20 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
         cluster name to uniquely identify them.
     """
 
+    defaults = {
+        "cluster": 1,
+        "spur_miles": 0,
+        capacity_col: -1,
+        "interconnect_annuity": 0,
+    }
+    # Prepare file
     path = Path(settings["input_folder"]) / settings["capacity_limit_spur_fn"]
     df = pd.read_csv(path)
-    # Prepare file
-    required_cols = [
-        "region",
-        "technology",
-        "cluster",
-        "spur_miles",
-        "max_capacity",
-    ]
-    for col in required_cols:
-        assert (
-            col in df.columns
-        ), f"The capacity limit/spur line distance file must have column {col}"
-    df["cluster"] = df["cluster"].fillna(1)
-    # Prepare resources
-    defaults = {"cluster": 1, "spur_miles": 0, capacity_col: -1}
+    for col in "region", "technology":
+        if col not in df:
+            raise KeyError(f"The max capacity/spur file must have column {col}")
     for key, value in defaults.items():
+        df[key] = df[key].fillna(value) if key in df else value
         new_resource_df[key] = (
             new_resource_df[key].fillna(value) if key in new_resource_df else value
         )
@@ -147,6 +144,13 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
             new_resource_df.loc[mask & (new_resource_df[key] == value), key] = _df[
                 _key
             ].values
+    logger.info(
+        f"Inflating external interconnect annuity costs from 2017 to "
+        f"{settings['target_usd_year']}"
+    )
+    new_resource_df["interconnect_annuity"] = inflation_price_adjustment(
+        new_resource_df["interconnect_annuity"], 2017, settings["target_usd_year"],
+    )
     return new_resource_df
 
 
@@ -364,3 +368,77 @@ def load_user_genx_settings(settings):
     genx_case_settings = genx_case_settings.set_index(["case_id", "year"])
 
     return genx_case_settings
+
+
+def overwrite_wind_pv_capacity(df, settings):
+    """Use external data to overwrite the wind and solarpv capacity extracted from
+    EIA860.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Existing generators dataframe, with columns "region", "technology", and
+        "Existing_Cap_MW". The technologies should include "Solar Photovoltaic"
+        and "Onshore Wind Turbine".
+    settings : dict
+        User defined PowerGenome settings. Must have the keys "input_folder" and
+        "region_wind_pv_cap_fn".
+
+    Returns
+    -------
+    DataFrame
+        Same as input dataframe but with new capacity values for technologies defined
+        in the "region_wind_pv_cap_fn" file.
+    """
+    from powergenome.util import reverse_dict_of_lists
+
+    idx = pd.IndexSlice
+
+    path = settings["input_folder"] / settings["region_wind_pv_cap_fn"]
+
+    wind_pv_ipm_region_capacity = pd.read_csv(path)
+
+    region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations"))
+
+    # Set model_region as IPM_region to start
+    wind_pv_ipm_region_capacity["model_region"] = wind_pv_ipm_region_capacity[
+        "IPM_Region"
+    ]
+    # Change any aggregated regions to the user-defined model_region
+    wind_pv_ipm_region_capacity.loc[
+        wind_pv_ipm_region_capacity["IPM_Region"].isin(region_agg_map), "model_region"
+    ] = wind_pv_ipm_region_capacity.loc[
+        wind_pv_ipm_region_capacity["IPM_Region"].isin(region_agg_map), "IPM_Region"
+    ].map(
+        region_agg_map
+    )
+    wind_pv_model_region_capacity = wind_pv_ipm_region_capacity.groupby(
+        ["model_region", "technology"]
+    ).sum()
+
+    df = df.reset_index()
+
+    for region in df["region"].unique():
+        for tech in ["Solar Photovoltaic", "Onshore Wind Turbine"]:
+            if tech in df.query("region == @region")["technology"].to_list():
+                df.loc[
+                    (df["region"] == region) & (df["technology"] == tech),
+                    "Existing_Cap_MW",
+                ] = wind_pv_model_region_capacity.loc[
+                    idx[region, tech], "nameplate_capacity_mw"
+                ]
+
+    df = df.set_index(["region", "technology", "cluster"])
+
+    return df
+
+
+def make_usr_demand_profiles(path, settings):
+    idx = pd.IndexSlice
+    year = settings["model_year"]
+    scenario = settings["electrification"]
+
+    df = pd.read_csv(path, header=[0, 1, 2])
+    scenario_df = df.loc[:, idx[str(year), scenario]]
+
+    return scenario_df
