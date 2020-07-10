@@ -422,14 +422,10 @@ def single_generator_row(atb_costs_hr, new_gen_type, model_year_range):
 
 
 def investment_cost_calculator(capex, wacc, cap_rec_years):
+    capex = np.asarray(capex, dtype=float)
+    wacc = np.asarray(wacc, dtype=float)
 
-    # wacc comes through as an object type series now that we're averaging across years
-    if not isinstance(wacc, float):
-        wacc = wacc.astype(float)
-    if not isinstance(capex, float):
-        capex = capex.astype(float)
-
-    for variable in [capex, wacc, cap_rec_years]:
+    for variable in capex, wacc, cap_rec_years:
         if np.isnan(variable).any():
             raise ValueError(f"Investment costs contains nan values")
 
