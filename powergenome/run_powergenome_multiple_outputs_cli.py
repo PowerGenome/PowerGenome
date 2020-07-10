@@ -359,8 +359,9 @@ def main():
                     )
                     # if settings.get("partial_ces"):
                     gens = calculate_partial_CES_values(gen_clusters, fuels, _settings)
+                    cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
-                        df=remove_fuel_scenario_name(gens.fillna(0), _settings),
+                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,
@@ -449,8 +450,9 @@ def main():
                         settings=_settings,
                     )
                     gens = calculate_partial_CES_values(gen_clusters, fuels, _settings)
+                    cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
-                        df=remove_fuel_scenario_name(gens.fillna(0), _settings),
+                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,

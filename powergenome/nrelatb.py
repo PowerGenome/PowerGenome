@@ -677,7 +677,6 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Cap_size",
         "cap_recovery_years",
         "waccnomtech",
-        "regional_cost_multiplier",
     ]
     new_gen_df = new_gen_df[keep_cols]
 
@@ -795,10 +794,11 @@ def add_renewables_clusters(
         technology = technologies[0]
         builder = ClusterBuilder(SETTINGS["RENEWABLES_CLUSTERS"])
         builder.build_clusters(**scenario, ipm_regions=ipm_regions)
+        profiles = builder.get_cluster_profiles()
         clusters = (
             builder.get_cluster_metadata()
             .rename(columns={"mw": "Cap_size"})
-            .assign(technology=technology)
+            .assign(technology=technology, variability=list(profiles))
         )
         row = df[df["technology"] == technology].iloc[0]
         kwargs = {k: v for k, v in row.items() if k not in clusters}

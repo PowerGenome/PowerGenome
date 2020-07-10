@@ -1156,7 +1156,7 @@ generator_columns: [
             "spur_miles",
             "spur_capex",
             "offshore_spur_miles",
-            "offshore_spur_capex"
+            "offshore_spur_capex",
             "tx_miles",
             "tx_capex"
         ]

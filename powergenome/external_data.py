@@ -1,6 +1,7 @@
 # Read in and add external inputs (user-supplied files) to PowerGenome outputs
 
 import logging
+import numpy as np
 import pandas as pd
 from pathlib import Path
 
@@ -149,23 +150,28 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
     return new_resource_df
 
 
-def make_generator_variability(resource_df, settings, resource_col="Resource"):
+def make_generator_variability(resource_df, settings):
     """Make a generator variability dataframe with normalized (0-1) hourly profiles
-    for each resource in resource_df. Any resources that are not supplied in the user
-    file are assumed to have constant hourly profiles with a value of 1.
+    for each resource in resource_df.
+    
+    Any resources that are not supplied in the file or have a profile in column
+    `variability` are assumed to have constant hourly profiles with a value of 1.
+    February 29 is removed from any profiles of length 8784 (leap year).
+
+    Matching between the file and resources in `resource_df` are done by:
+        - region (exact, case-sensitive)
+        - Resource (exact after conversion to snake case)
 
     Parameters
     ----------
     resource_df : DataFrame
-        All resources (new and existing), with a single row for each resource. Must have
-        columns of `region` and `cluster` in addition to a resource/technology column
-        that can be changed with the parameter `resource_col`.
+        All resources (new and existing), with a single row for each resource.
+        Must have columns `region`, `Resource`, `cluster`, and
+        (optional) `variability` which takes precedence over the file.
     settings : dict
         User-defined parameters from a settings file. Should have keys of `input_folder`
         (a Path object of where to find user-supplied data) and
         `resource_variability_fn` (the file to load).
-    resource_col : str, optional
-        Name of the column with resource/technology names, by default "Resource"
 
     Returns
     -------
@@ -175,82 +181,53 @@ def make_generator_variability(resource_df, settings, resource_col="Resource"):
 
     Raises
     ------
-    KeyError
+    MergeError
         More than one match from the user supplied data was found for a resource in
-        `resource_df`. These matches are done using str.contains() with names that have
-        been transformed to snake case. e.g. the user file might have `PV` as a resource
-        and `resource_df` might have both `UtilityPV` and `IndustrialPV`.
+        `resource_df`.
     """
 
     # Load resource variability (8760 values) and make it into a df with columns
     # 'region', 'Resource', 'cluster', and then the hourly values.
     path = Path(settings["input_folder"]) / settings["resource_variability_fn"]
     df = pd.read_csv(path, index_col=0)
-    df.index = [str(x) for x in df.index]
-    df = df.T
-
-    region_list = [x.split(".")[0] for x in df.index]
-    df = df.reset_index()
-    df.rename(columns={"index": "region"}, inplace=True)
-    df["region"] = region_list
-    df["Resource"] = snake_case_col(df["Resource"])
-    df["cluster"] = df["cluster"].fillna(1)
-
-    # Make a modified version of resource_df, where a new _resource column is populated
-    # with the names from generator variability. Resource has already been snake_case
-    # transformed.
-    df_list = []
-    for resource, _df in resource_df.groupby("Resource"):
-        _df["cluster"] = _df["cluster"].fillna(1)
-        count = 0
-        for r in df.Resource.unique():
-            if r.lower() in resource.lower():
-                _df["_resource"] = r
-                count += 1
-        if count > 1:
-            raise KeyError(
-                f"More than one name match was found for {resource} in the generator"
-                " variability file."
-            )
-        df_list.append(_df)
-    mod_resource_df = pd.concat(df_list)
-    mod_resource_df = mod_resource_df.sort_values("R_ID")
-
-    keep_cols = ["Resource_x"] + [str(x) for x in range(1, 8761)]
-
-    gen_variability = (
-        mod_resource_df.merge(
-            df.reset_index(drop=True),
-            left_on=["region", "_resource", "cluster"],
-            right_on=["region", "Resource", "cluster"],
-            how="left",
-        )
-        .loc[:, keep_cols]
-        .fillna(1)
-        .T
+    df = pd.DataFrame(
+        {
+            "region": df.columns.str.replace(r"\.[0-9]+$", ""),
+            "Resource": snake_case_col(df.iloc[0]).values,
+            "cluster": df.iloc[1].fillna(1).values,
+            "variability": list(df.iloc[2:].values.astype(float).T),
+        }
     )
 
-    gen_variability = gen_variability.rename(index={"Resource_x": "Resource"})
-    gen_variability.columns = [
-        f"{r}_{idx + 1}" for idx, r in enumerate(gen_variability.loc["Resource", :])
-    ]
-    gen_variability = gen_variability.drop(index="Resource")
-    gen_variability.index = [int(x) for x in gen_variability.index]
-
-    gen_variability = gen_variability.astype(float)
-    assert (
-        any(gen_variability.isna().any()) is False
-    ), "Something went wrong creating the gen variability file. The data has some NaN values"
-
-    # Check to make sure no variable resources have identical hourly profiles
-    for r in df.Resource.unique():
-        for col in [x for x in gen_variability.columns if r in x]:
-            if gen_variability[col].std == 0:
-                logger.warning(
-                    f"Column {col} in the gen varability df has a standard deviation of 0."
-                )
-
-    return gen_variability
+    merge = pd.merge(
+        resource_df.fillna({"cluster": 1}),
+        df,
+        how="left",
+        on=["region", "Resource", "cluster"],
+        suffixes=["__x", "__y"],
+        validate="many_to_one",
+    ).sort_values("R_ID")
+    if "variability__x" in merge:
+        # Fill missing with variability from file
+        # TODO: Ensure missing always NaN, not also 0, ...
+        missing = ~merge["variability__x"].apply(isinstance, args=[np.ndarray])
+        merge.loc[missing, "variability__x"] = merge.loc[missing, "variability__y"]
+        merge = merge.rename(columns={"variability__x": "variability"}).drop(
+            columns=["variability__y"]
+        )
+    # Fill missing with default (1)
+    merge["variability"] = merge["variability"].map(
+        lambda x: x if isinstance(x, np.ndarray) else np.ones(8760, dtype=float)
+    )
+    # Remove February 29 from leap year
+    merge["variability"] = merge["variability"].map(
+        lambda x: np.delete(x, slice(1416, 1440)) if len(x) == 8784 else x
+    )
+    return pd.DataFrame(
+        np.column_stack(merge["variability"]),
+        columns=merge[["R_ID", "Resource"]].astype(str).agg("_".join, axis=1),
+        index=range(1, 8761),
+    )
 
 
 def load_policy_scenarios(settings):

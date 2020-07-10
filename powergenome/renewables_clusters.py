@@ -245,17 +245,14 @@ class ClusterBuilder:
             dfs.append(df)
         return pd.concat(dfs, axis=0, ignore_index=True, sort=False)
 
-    def get_cluster_profiles(self) -> Optional[pd.DataFrame]:
+    def get_cluster_profiles(self) -> np.ndarray:
         """
         Return computed cluster profiles.
 
-        Uses multi-index columns ('region', 'Resource', 'cluster'), where
-        - `region` (str): Region label passed to :meth:`build_clusters`.
-        - `Resource` (str): From resource metadata 'technology'.
-        - `cluster` (int): Unique identifier for each cluster to link to other outputs.
-
-        The first column is the hour number.
-        Subsequent columns are the cluster profiles.
+        Returns
+        -------
+        np.ndarray
+            Hourly normalized (0-1) generation profiles (n clusters, m hours).
 
         Raises
         ------
@@ -263,21 +260,7 @@ class ClusterBuilder:
             No clusters have yet been computed.
         """
         self._test_clusters_exist()
-        profiles = np.column_stack([c["profiles"] for c in self.clusters])
-        columns = []
-        start = 0
-        for c in self.clusters:
-            for _ in range(c["profiles"].shape[1]):
-                columns.append((c["region"], c["group"]["technology"], start))
-                start += 1
-        df = pd.DataFrame(profiles, columns=columns)
-        # Insert hour numbers into first column
-        df.insert(
-            loc=0,
-            column=("region", "Resource", "cluster"),
-            value=np.arange(HOURS_IN_YEAR),
-        )
-        return df
+        return np.row_stack([c["profiles"] for c in self.clusters])
 
 
 def load_groups(path: str = ".") -> List[dict]:
@@ -408,7 +391,7 @@ def build_cluster_profiles(
     path: str, clusters: pd.DataFrame, metadata: pd.DataFrame
 ) -> np.ndarray:
     """Build cluster profiles."""
-    results = np.zeros((HOURS_IN_YEAR, len(clusters)), dtype=float)
+    results = np.zeros((len(clusters), HOURS_IN_YEAR), dtype=float)
     for i, cids in enumerate(clusters["ids"]):
         weights = metadata.loc[cids, WEIGHT].values
         weights /= weights.sum()
@@ -421,7 +404,7 @@ def build_cluster_profiles(
             )
             # Assumes profile is already sorted by hour (ascending)
             df = read_parquet(path, filters=filters, columns=["capacity_factor"])
-            results[:, i] += df["capacity_factor"].values * weights[j]
+            results[i] += df["capacity_factor"].values * weights[j]
     return results
 
 

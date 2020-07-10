@@ -1190,9 +1190,6 @@ def add_genx_model_tags(df, settings):
         mask = technology.str.contains(fr"^{tech}", case=False)
         df.loc[(df["region"] == region) & mask, tag_col,] = tag_value
 
-    # Make unit size = 1 where Commit = 0 to avoid GenX bug
-    df.loc[df["Commit"] == 0, "Cap_size"] = 1
-
     return df
 
 
@@ -2343,10 +2340,4 @@ class GeneratorClusters:
                 f"Capacity of {self.all_resources['Existing_Cap_MW'].sum()} MW in final clusters"
             )
 
-        cols = [
-            col
-            for col in self.settings["generator_columns"]
-            if col in self.all_resources
-        ]
-
-        return self.all_resources.reindex(columns=cols)
+        return self.all_resources
