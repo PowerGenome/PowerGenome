@@ -384,9 +384,9 @@ def network_max_reinforcement(transmission, settings):
 
 def set_int_cols(df):
 
-    df["Up_time"] = df["Up_time"].astype(int)
-    df["Down_time"] = df["Down_time"].astype(int)
-    df["Max_DSM_delay"] = df["Max_DSM_delay"].astype(int)
+    df["Up_time"] = df["Up_time"].fillna(0).astype(int)
+    df["Down_time"] = df["Down_time"].fillna(0).astype(int)
+    df["Max_DSM_delay"] = df["Max_DSM_delay"].fillna(0).astype(int)
 
     return df
 

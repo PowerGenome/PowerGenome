@@ -99,9 +99,8 @@ transmission_investment_cost:
     wacc: 0.069
     investment_years: 60
   offshore_spur:
+    # If missing, NREL ATB capex_mw_mile is used
     capex_mw_mile:
-      CA_N: 8904
-      CA_S: 8904
     wacc: 0.069
     investment_years: 60
   tx:
@@ -208,7 +207,7 @@ settings_management:
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
           - [LandbasedWind, LTRG1, Mid, 1]
-          - [OffShoreWind, OTRG3, Mid, 1]
+          - [OffShoreWind, OTRG10, Mid, 1]
           - [UtilityPV, LosAngeles, Mid, 1]
           - [Battery, "*", Mid, 1]
       low:
@@ -217,7 +216,7 @@ settings_management:
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
           - [LandbasedWind, LTRG1, Low, 1]
-          - [OffShoreWind, OTRG3, Low, 1]
+          - [OffShoreWind, OTRG10, Low, 1]
           - [UtilityPV, LosAngeles, Low, 1]
           - [Battery, "*", Low, 1]
     nuclear_capex:
@@ -315,7 +314,7 @@ settings_management:
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
           - [LandbasedWind, LTRG1, Mid, 1]
-          - [OffShoreWind, OTRG3, Mid, 1]
+          - [OffShoreWind, OTRG10, Mid, 1]
           - [UtilityPV, LosAngeles, Mid, 1]
           - [Battery, "*", Mid, 1]
       low:
@@ -324,7 +323,7 @@ settings_management:
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
           - [LandbasedWind, LTRG1, Low, 1]
-          - [OffShoreWind, OTRG3, Low, 1]
+          - [OffShoreWind, OTRG10, Low, 1]
           - [UtilityPV, LosAngeles, Low, 1]
           - [Battery, "*", Low, 1]
     nuclear_capex:
@@ -765,7 +764,7 @@ eia_atb_tech_map:
   Hydroelectric Pumped Storage: Hydropower_NSD4 # Large variability based on choice
   Small Hydroelectric: Hydropower_NSD3 # Large variability based on choice
   Onshore Wind Turbine: LandbasedWind_LTRG1 # All onshore wind is the same
-  Offshore Wind Turbine: OffShoreWind_OTRG3 # Mid-range of fixed offshore wind
+  Offshore Wind Turbine: OffShoreWind_OTRG10 # Mid-range of floating offshore wind
   Nuclear: Nuclear_*
   Natural Gas Steam Turbine: Coal_newAvgCF # No gas steam turbines in ATB, using coal instead
   Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
@@ -781,7 +780,7 @@ atb_new_gen:
   - [NaturalGas, CCAvgCF, Mid, 500]
   - [NaturalGas, CTAvgCF, Mid, 100]
   - [LandbasedWind, LTRG1, Mid, 1]
-  - [OffShoreWind, OTRG3, Mid, 1]
+  - [OffShoreWind, OTRG10, Mid, 1]
   - [UtilityPV, LosAngeles, Mid, 1]
   - [Battery, "*", Mid, 1]
   # - [Nuclear, "*", Mid, 500]
@@ -814,7 +813,11 @@ pv_ac_dc_ratio: 1.3
 renewables_clusters:
   - region: CA_N
     technology: landbasedwind
-    min_capacity:
+    max_clusters: 3
+  - region: CA_N
+    technology: offshorewind
+    turbine_type: floating
+    pref_site: 1
     max_clusters: 3
 
 # How much of the theoretical

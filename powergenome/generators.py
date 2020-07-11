@@ -1682,7 +1682,7 @@ def add_fuel_labels(df, fuel_prices, settings):
     return df
 
 
-def calculate_transmission_inv_cost(resource_df, settings):
+def calculate_transmission_inv_cost(resource_df, settings, offshore_spur_costs=None):
     """Calculate the transmission investment cost for each new resource.
 
     Parameters
@@ -1699,6 +1699,10 @@ def calculate_transmission_inv_cost(resource_df, settings):
                 - `wacc` (float)
                 - `investment_years` (int)
             - ...
+    offshore_spur_costs : DataFrame
+        Offshore spur costs per mile in the format
+        `technology` ('OffShoreWind'), `tech_detail`, `cost_case`, and `capex_mw_mile`.
+        Only used if `settings.transmission_investment_cost.capex_mw_mile` is missing.
 
     Returns
     -------
@@ -1725,23 +1729,46 @@ def calculate_transmission_inv_cost(resource_df, settings):
     missing_ttypes = list(set(resource_ttypes) - set(ttypes))
     if missing_ttypes:
         raise KeyError(f"{SETTING} missing transmission line types {missing_ttypes}")
-    # Apply calculation for
+    # Apply calculation for each transmission type
     regions = resource_df["region"].unique()
+    use_offshore_spur_costs = False
     for ttype, params in ttypes.items():
         if ttype not in resource_ttypes:
             continue
+        if (
+            ttype == "offshore_spur"
+            and offshore_spur_costs is not None
+            and not params.get("capex_mw_mile")
+        ):
+            use_offshore_spur_costs = True
+            # Build technology: capex_mw_mile map
+            params = params.copy()
+            params["capex_mw_mile"] = (
+                offshore_spur_costs.assign(
+                    technology=offshore_spur_costs[
+                        ["technology", "tech_detail", "cost_case"]
+                    ]
+                    .astype(str)
+                    .agg("_".join, axis=1)
+                )
+                .set_index("technology")["capex_mw_mile"]
+                .to_dict()
+            )
         # Check presence of required keys
         missing_keys = list(set(KEYS) - set(params))
         if missing_keys:
             raise KeyError(f"{SETTING}.{ttype} missing required keys {missing_keys}")
         if isinstance(params["capex_mw_mile"], dict):
-            # Check coverage of regions in resources
-            missing_regions = list(set(regions) - set(params["capex_mw_mile"]))
-            if missing_regions:
-                raise KeyError(
-                    f"{SETTING}.{ttype}.capex_mw_mile missing regions {missing_regions}"
-                )
-            capex_mw_mile = resource_df["region"].map(params["capex_mw_mile"])
+            if use_offshore_spur_costs:
+                capex_mw_mile = resource_df["technology"].map(params["capex_mw_mile"])
+            else:
+                # Check coverage of regions in resources
+                missing_regions = list(set(regions) - set(params["capex_mw_mile"]))
+                if missing_regions:
+                    raise KeyError(
+                        f"{SETTING}.{ttype}.capex_mw_mile missing regions {missing_regions}"
+                    )
+                capex_mw_mile = resource_df["region"].map(params["capex_mw_mile"])
         elif isinstance(params["capex_mw_mile"], Number):
             capex_mw_mile = params["capex_mw_mile"]
         else:
@@ -1749,7 +1776,9 @@ def calculate_transmission_inv_cost(resource_df, settings):
                 f"{SETTING}.{ttype}.capex_mw_mile should be numeric or a dictionary"
                 f" of <region>: <capex>, not {params['capex_mw_mile']}"
             )
-        resource_df[f"{ttype}_capex"] = capex_mw_mile * resource_df[f"{ttype}_miles"]
+        resource_df[f"{ttype}_capex"] = (
+            capex_mw_mile.fillna(0) * resource_df[f"{ttype}_miles"]
+        )
         resource_df[f"{ttype}_inv_mwyr"] = investment_cost_calculator(
             resource_df[f"{ttype}_capex"], params["wacc"], params["investment_years"],
         )
@@ -2331,7 +2360,7 @@ class GeneratorClusters:
         else:
             logger.warning("No settings parameter for max capacity/spur file")
         self.new_generators = self.new_generators.pipe(
-            calculate_transmission_inv_cost, self.settings
+            calculate_transmission_inv_cost, self.settings, self.offshore_spur_costs
         ).pipe(add_transmission_inv_cost, self.settings)
 
         if self.settings.get("demand_response_fn"):
