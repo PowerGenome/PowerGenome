@@ -135,10 +135,14 @@ class ClusterBuilder:
 
         Raises
         ------
+        FileNotFoundError
+            No group metadata files found.
         ValueError
             Group metadata missing required keys.
         """
         self.groups = load_groups(path)
+        if not self.groups:
+            raise FileNotFoundError(f"No group metadata files found in {path}")
         required = ("metadata", "profiles", "technology")
         for g in self.groups:
             missing = [k for k in required if k not in g]
