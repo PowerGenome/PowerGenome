@@ -22,7 +22,7 @@ MEANS = [
     "site_metro_spur_miles",
 ]
 SUMS = ["area", CAPACITY]
-PROFILE_KEYS = ["cbsa_id", "cluster_level", "cluster"]
+PROFILE_KEYS = ["metro_id", "cluster_level", "cluster"]
 HOURS_IN_YEAR = 8784
 NREL_ATB_TECHNOLOGY_MAP = {
     ("utilitypv", None): {"technology": "utilitypv"},
@@ -329,7 +329,7 @@ def build_clusters(
         cdf = cdf[:end]
     # Track ids of base clusters through aggregation
     cdf["ids"] = [[x] for x in cdf["id"]]
-    # Aggregate clusters within each metro area (cbsa_id)
+    # Aggregate clusters within each metro area (metro_id)
     while len(cdf) > max_clusters:
         # Sort parents by lowest LCOE distance of children
         diff = lambda x: abs(x.max() - x.min())
@@ -411,9 +411,9 @@ def build_cluster_profiles(
 def _get_base_clusters(df: pd.DataFrame, ipm_regions: Sequence[str]) -> pd.DataFrame:
     return (
         df[df["ipm_region"].isin(ipm_regions)]
-        .groupby("cbsa_id")
+        .groupby("metro_id")
         .apply(lambda g: g[g["cluster_level"] == g["cluster_level"].max()])
-        .reset_index(level=["cbsa_id"], drop=True)
+        .reset_index(level=["metro_id"], drop=True)
     )
 
 
