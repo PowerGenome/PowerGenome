@@ -1198,14 +1198,16 @@ def add_genx_model_tags(df, settings):
     dataframe
         The original generator cluster results with new columns for each model tag.
     """
-    model_tag_cols = settings["model_tag_names"]
+    model_tag_cols = settings.get("model_tag_names", [])
 
     # Create a new dataframe with the same index
     for tag_col in model_tag_cols:
-        df[tag_col] = settings["default_model_tag"]
+        df[tag_col] = settings.get("default_model_tag")
 
         try:
-            for tech, tag_value in settings["model_tag_values"][tag_col].items():
+            for tech, tag_value in settings.get("model_tag_values", {})[
+                tag_col
+            ].items():
                 df.loc[df["technology"].str.contains(tech), tag_col] = tag_value
         except (KeyError, AttributeError) as e:
             logger.warning(f"No model tag values found for {tag_col} ({e})")
@@ -1222,7 +1224,10 @@ def add_genx_model_tags(df, settings):
             ] = tag_value
 
     # Make unit size = 1 where Commit = 0 to avoid GenX bug
-    df.loc[df["Commit"] == 0, "Cap_size"] = 1
+    try:
+        df.loc[df["Commit"] == 0, "Cap_size"] = 1
+    except KeyError:
+        logger.warning("No model tag 'Commit' is included in the settings file.")
 
     return df
 
