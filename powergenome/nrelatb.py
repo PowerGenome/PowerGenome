@@ -228,6 +228,18 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                         1.78, 2017, target_usd_year
                     ),
                 },
+                "Conventional Hydroelectric": {
+                    "o_m_fixed_mw": inflation_price_adjustment(
+                        44.56 * 1000, 2017, target_usd_year
+                    ),
+                    "o_m_variable_mwh": 0,
+                },
+                "Geothermal": {
+                    "o_m_fixed_mw": inflation_price_adjustment(
+                        198.04 * 1000, 2017, target_usd_year
+                    ),
+                    "o_m_variable_mwh": 0,
+                },
             }
 
             if "Combined Cycle" in eia_tech:
@@ -336,6 +348,16 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
 
                 _df["Fixed_OM_cost_per_MWyr"] = fixed
                 _df["Var_OM_cost_per_MWh"] = variable
+            if "Hydroelectric" in eia_tech:
+                _df["Fixed_OM_cost_per_MWyr"] = ng_o_m["Conventional Hydroelectric"][
+                    "o_m_fixed_mw"
+                ]
+                _df["Var_OM_cost_per_MWh"] = ng_o_m["Conventional Hydroelectric"][
+                    "o_m_variable_mwh"
+                ]
+            if "Geothermal" in eia_tech:
+                _df["Fixed_OM_cost_per_MWyr"] = ng_o_m["Geothermal"]["o_m_fixed_mw"]
+                _df["Var_OM_cost_per_MWh"] = ng_o_m["Geothermal"]["o_m_variable_mwh"]
 
         else:
 
