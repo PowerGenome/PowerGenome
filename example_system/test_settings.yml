@@ -814,6 +814,7 @@ renewables_clusters:
   - region: CA_N
     technology: landbasedwind
     max_clusters: 3
+    max_lcoe: 50
   - region: CA_N
     technology: offshorewind
     turbine_type: floating

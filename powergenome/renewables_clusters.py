@@ -1,6 +1,7 @@
 import glob
 import itertools
 import json
+import logging
 import os
 import re
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -8,6 +9,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 import scipy.cluster.hierarchy
+
+logger = logging.getLogger(__name__)
 
 CAPACITY = "mw"
 WEIGHT = CAPACITY
@@ -177,6 +180,7 @@ class ClusterBuilder:
         ipm_regions: Sequence[str],
         min_capacity: float = None,
         max_clusters: int = None,
+        max_lcoe: float = None,
         cap_multiplier: float = None,
         **kwargs: Any,
     ) -> None:
@@ -199,6 +203,9 @@ class ClusterBuilder:
         max_clusters
             Maximum number of resource clusters to compute.
             If `None`, no clustering is performed; resources are returned unchanged.
+        max_lcoe
+            Select only the resources with a levelized cost of electricity (lcoe)
+            below this maximum. Takes precedence over `min_capacity`.
         cap_multiplier
             Capacity multiplier applied to resource metadata.
         **kwargs
@@ -222,6 +229,7 @@ class ClusterBuilder:
             ipm_regions=ipm_regions,
             min_capacity=min_capacity,
             max_clusters=max_clusters,
+            max_lcoe=max_lcoe,
         )
         c["profiles"] = build_cluster_profiles(
             c["group"]["profiles"], c["clusters"], metadata
@@ -312,6 +320,7 @@ def build_clusters(
     ipm_regions: Sequence[str],
     min_capacity: float = None,
     max_clusters: int = None,
+    max_lcoe: float = None,
 ) -> pd.DataFrame:
     """Build resource clusters."""
     if max_clusters is None:
@@ -320,17 +329,21 @@ def build_clusters(
         raise ValueError("Max number of clusters must be greater than zero")
     df = metadata
     cdf = _get_base_clusters(df, ipm_regions)
-    if cdf.empty:
-        raise ValueError(f"No resources found in {ipm_regions}")
     cdf = cdf.sort_values("lcoe")
     if min_capacity:
         # Drop clusters with highest LCOE until min_capacity reached
-        end = cdf[CAPACITY].cumsum().searchsorted(min_capacity) + 1
-        if end > len(cdf):
-            raise ValueError(
-                f"Capacity in {ipm_regions} ({cdf[CAPACITY].sum()} MW) less than minimum ({min_capacity} MW)"
-            )
+        end = min(len(cdf), cdf[CAPACITY].cumsum().searchsorted(min_capacity) + 1)
         cdf = cdf[:end]
+    if max_lcoe:
+        # Drop clusters with LCOE above the cutoff
+        cdf = cdf[cdf["lcoe"] > max_lcoe]
+    if cdf.empty:
+        raise ValueError(f"No resources found or selected in {ipm_regions}")
+    capacity = cdf[CAPACITY].sum()
+    if min_capacity and capacity < min_capacity:
+        logger.warning(
+            f"Selected capacity in {ipm_regions} ({capacity} MW) less than minimum ({min_capacity} MW)"
+        )
     # Track ids of base clusters through aggregation
     cdf["ids"] = [[x] for x in cdf["id"]]
     # Aggregate clusters within each metro area (metro_id)
