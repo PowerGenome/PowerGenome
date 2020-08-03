@@ -18,7 +18,17 @@ def kmeans_time_clustering(
     """Reduce the number of hours in load and resource variability timeseries using
     kmeans clustering.
 
-    This script is adapted from work originally created by Dharik Mallapragada.
+    This script is adapted from work originally created by Dharik Mallapragada. For more
+    information see:
+    - Mallapragada, D. S., Papageorgiou, D. J., Venkatesh, A., Lara, C. L., & Grossmann,
+    I. E. (2018). Impact of model resolution on scenario outcomes for electricity sector
+    system expansion. Energy, 163, 1231–1244.
+    https://doi.org/10.1016/j.energy.2018.08.015
+    - Mallapragada, D. S., Sepulveda, N. A., & Jenkins, J. D. (2020). Long-run system
+    value of battery energy storage in future grids with increasing wind and solar
+    generation. Applied Energy, 275, 115390.
+    https://doi.org/10.1016/j.apenergy.2020.115390
+
 
     Parameters
     ----------
