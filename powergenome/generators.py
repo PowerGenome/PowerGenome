@@ -2357,11 +2357,10 @@ class GeneratorClusters:
         else:
             logger.warning("No settings parameter for max capacity/spur line file")
 
-        if "demand_response_fn" in self.settings:
-            if self.settings["demand_response_fn"] is not None:
-                dr_rows = self.create_demand_response_gen_rows(
-                    scenario=self.settings["demand_response"]
-                )
+        if self.settings.get("demand_response_fn"):
+            dr_rows = self.create_demand_response_gen_rows(
+                scenario=self.settings["demand_response"]
+            )
 
             self.new_generators = pd.concat([self.new_generators, dr_rows])
 
