@@ -336,7 +336,7 @@ def build_clusters(
         cdf = cdf[:end]
     if max_lcoe:
         # Drop clusters with LCOE above the cutoff
-        cdf = cdf[cdf["lcoe"] > max_lcoe]
+        cdf = cdf[cdf["lcoe"] <= max_lcoe]
     if cdf.empty:
         raise ValueError(f"No resources found or selected in {ipm_regions}")
     capacity = cdf[CAPACITY].sum()
