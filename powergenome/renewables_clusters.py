@@ -123,13 +123,13 @@ class Table:
 
     Attributes
     ----------
-    path : str, os.PathLike
+    path : Union[str, os.PathLike]
         Path to the dataset.
     df : pd.DataFrame
         Cached dataframe.
     format : str
         Dataset format ('parquet' or 'csv'), or `None` if in-memory only.
-    columns : Iterable[str]
+    columns : Iterable[Union[str, int]]
         Dataset column names.
 
     Raises
@@ -215,7 +215,9 @@ class Table:
                 self._columns = pd.read_csv(self.path, nrows=0).columns
         return list(self._columns)
 
-    def read(self, columns: Iterable[str] = None, cache: bool = None) -> pd.DataFrame:
+    def read(
+        self, columns: Iterable[Union[str, int]] = None, cache: bool = None
+    ) -> pd.DataFrame:
         """
         Read data from memory or from disk.
 
