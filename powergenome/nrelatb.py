@@ -768,6 +768,14 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         DATA_PATHS["cost_multipliers"] / "AEO_2020_regional_cost_corrections.csv",
         index_col=0,
     )
+    if settings.get("user_regional_cost_multiplier_fn"):
+        user_cost_multipliers = pd.read_csv(
+            Path(settings["extra_inputs"])
+            / settings["user_regional_cost_multiplier_fn"]
+        )
+        regional_cost_multipliers = pd.concat(
+            [regional_cost_multipliers, user_cost_multipliers]
+        )
     rev_mult_region_map = reverse_dict_of_lists(settings["cost_multiplier_region_map"])
     rev_mult_tech_map = reverse_dict_of_lists(
         settings["cost_multiplier_technology_map"]
