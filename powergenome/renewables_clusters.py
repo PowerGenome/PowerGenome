@@ -257,6 +257,180 @@ class Table:
             self.df = None
 
 
+class ResourceGroup:
+    """
+    Group of resources sharing common attributes.
+
+    Parameters
+    ----------
+    group
+        Group metadata.
+
+        - `technology` : str
+          Resource type ('utilitypv', 'landbasedwind', or 'offshorewind').
+        - `existing` : bool
+          Whether resources are new (`False`, default) or existing (`True`).
+        - `clustered` : str, optional
+          The name of the resource metadata attribute by
+          which to differentiate between multiple precomputed hierarchical trees.
+          Defaults to `None` (resource group does not represent hierarchical trees).
+        - `metadata` : str, optional
+          Relative path to resource metadata dataset (optional if `metadata` is `None`).
+        - `profiles` : str, optional
+          Relative path to resource profiles dataset (optional if `profiles` is `None`).
+        - ... and any additional (optional) keys.
+
+    metadata
+        Resource metadata, with one resource per row.
+
+        - `id`: int
+          Resource identifier, unique within the group.
+        - `ipm_region` : str
+          IPM region to which the resource delivers power.
+        - `mw` : float
+          Maximum resource capacity in MW.
+        - `lcoe` : float, optional
+          Levelized cost of energy, used to guide the selection
+          (from lowest to highest) and clustering (by nearest) of resources.
+          If missing, selection and clustering is by largest and nearest `mw`.
+
+        Resources representing hierarchical trees (see `group.clustered`)
+        require additional attributes.
+    
+        - `parent_id` : int
+          Identifier of the resource formed by clustering this resource with the one
+          other resource with the same `parent_id`.
+          Only resources with `cluster_level` of 1 have no `parent_id`.
+        - `cluster_level` : int
+          Cluster level where the resource first appears, from `m`
+          (the number of resources at the base of the tree), to 1.
+        - `[group.clustered]` : Any
+          Each unique value of this grouping attribute represents a precomputed
+          hierarchical tree. When clustering resources, every tree is traversed to its
+          crown before the singleton resources from the trees are clustered together.
+        
+        The following resource attributes (all float) are propagaged as:
+
+        - weighted means (weighted by `mw`):
+
+            - `lcoe`
+            - `interconnect_annuity`
+            - `tx_miles`
+            - `spur_miles`
+            - `offshore_spur_miles`
+            - `site_substation_spur_miles`
+            - `substation_metro_tx_miles`
+            - `site_metro_spur_miles`
+        
+        - sums:
+
+            - `mw`
+            - `area`
+    
+    profiles
+        Variable resource capacity profiles with normalized capacity factors
+        (from 0 to 1) for every hour of the year (either 8760 or 8784 for a leap year).
+        Each profile must be a column whose name matches the resource `metadata.id`.
+    path
+        Directory relative to which the file paths `group.metadata` and `group.profiles`
+        should be read.
+
+    Attributes
+    ----------
+    group : Dict[str, Any]
+    metadata : Table
+        Cached interface to resource metadata.
+    profiles : Table
+        Cached interface to resource profiles.
+
+    Examples
+    --------
+    >>> group = {'technology': 'utilitypv'}
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['A', 'A'], 'mw': [1, 2]})
+    >>> profiles = pd.DataFrame({0: np.random.rand(8784), 1: np.random.rand(8784)})
+    >>> rg = ResourceGroup(group, metadata, profiles)
+    >>> rg.test_metadata()
+    >>> rg.test_profiles()
+    """
+
+    def __init__(
+        self,
+        group: Dict[str, Any],
+        metadata: pd.DataFrame = None,
+        profiles: pd.DataFrame = None,
+        path: str = ".",
+    ) -> None:
+        self.group = {"existing": False, "clustered": None, **group.copy()}
+        for key in ["metadata", "profiles"]:
+            if self.group.get(key):
+                # Convert relative paths (relative to group file) to absolute paths
+                self.group[key] = os.path.abspath(os.path.join(path, self.group[key]))
+        required = ["technology"]
+        if metadata is None:
+            required += ["metadata"]
+        if profiles is None:
+            required += ["profiles"]
+        missing = [key for key in required if not self.group.get(key)]
+        if missing:
+            raise ValueError(
+                f"Group metadata missing required keys {missing}: {self.group}"
+            )
+        self.metadata = Table(df=metadata, path=self.group.get("metadata"))
+        self.profiles = Table(df=profiles, path=self.group.get("profiles"))
+
+    @classmethod
+    def from_json(cls, path: Union[str, os.PathLike]) -> "ResourceGroup":
+        """
+        Build from JSON file.
+
+        Parameters
+        ----------
+        path
+            Path to JSON file.
+        """
+        with open(path, mode="r") as fp:
+            group = json.load(fp)
+        return cls(group, path=os.path.dirname(path))
+
+    def test_metadata(self) -> None:
+        """
+        Test that `:attr:metadata` is valid.
+
+        Raises
+        ------
+        ValueError
+            Resource metadata missing required keys.
+        """
+        columns = self.metadata.columns
+        required = ["ipm_region", "id", "mw"]
+        if self.group.get("clustered"):
+            required += ["parent_id", "cluster_level", self.group["clustered"]]
+        missing = [key for key in required if key not in columns]
+        if missing:
+            raise ValueError(f"Resource metadata missing required keys {missing}")
+
+    def test_profiles(self) -> None:
+        """
+        Test that `:attr:profiles` is valid.
+
+        Raises
+        ------
+        ValueError
+            Resource profiles column names do not match resource identifiers.
+        ValueError
+            Resource profiles are not either 8760 or 8784 elements.
+        """
+        ids = self.metadata.read(columns=["id"])["id"]
+        columns = self.profiles.columns
+        if not set(columns) == set(ids):
+            raise ValueError(
+                f"Resource profiles column names do not match resource identifiers"
+            )
+        df = self.profiles.read(columns=columns[0])
+        if len(df) not in [8760, 8784]:
+            raise ValueError(f"Resource profiles are not either 8760 or 8784 elements")
+
+
 class ClusterBuilder:
     """
     Builds clusters of resources.
