@@ -502,7 +502,7 @@ class ClusterBuilder:
     def build_clusters(
         self,
         region: str,
-        ipm_regions: Sequence[str],
+        ipm_regions: Iterable[str] = None,
         min_capacity: float = None,
         max_clusters: int = None,
         max_lcoe: float = None,
@@ -520,6 +520,7 @@ class ClusterBuilder:
             Model region (used only to label results).
         ipm_regions
             IPM regions in which to select resources.
+            If `None`, all IPM regions are selected.
         min_capacity
             Minimum total capacity (MW). Resources are selected,
             from lowest to highest levelized cost of energy (lcoe),
@@ -642,7 +643,7 @@ def read_parquet(
 
 def build_clusters(
     metadata: pd.DataFrame,
-    ipm_regions: Sequence[str],
+    ipm_regions: Iterable[str] = None,
     min_capacity: float = None,
     max_clusters: int = None,
     max_lcoe: float = None,
@@ -654,6 +655,8 @@ def build_clusters(
         raise ValueError("Max number of clusters must be greater than zero")
     df = metadata
     cdf = _get_base_clusters(df, ipm_regions)
+    if ipm_regions is None:
+        ipm_regions = cdf["ipm_regions"].unique().tolist()
     cdf = cdf.sort_values("lcoe")
     if min_capacity:
         # Drop clusters with highest LCOE until min_capacity reached
@@ -750,10 +753,13 @@ def build_cluster_profiles(
     return results
 
 
-def _get_base_clusters(df: pd.DataFrame, ipm_regions: Sequence[str]) -> pd.DataFrame:
+def _get_base_clusters(
+    df: pd.DataFrame, ipm_regions: Iterable[str] = None
+) -> pd.DataFrame:
+    if ipm_regions is not None:
+        df = df[df["ipm_region"].isin(ipm_regions)]
     return (
-        df[df["ipm_region"].isin(ipm_regions)]
-        .groupby("metro_id")
+        df.groupby("metro_id")
         .apply(lambda g: g[g["cluster_level"] == g["cluster_level"].max()])
         .reset_index(level=["metro_id"], drop=True)
     )
