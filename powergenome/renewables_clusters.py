@@ -4,10 +4,12 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
+import pyarrow.csv
+import pyarrow.parquet as pq
 import scipy.cluster.hierarchy
 
 logger = logging.getLogger(__name__)
@@ -104,6 +106,153 @@ def map_nrel_atb_technology(tech: str, detail: str = None) -> Dict[str, Any]:
         if (tech == k[0] or not k[0]) and (detail == k[1] or not k[1]):
             group.update(v)
     return group
+
+
+class Table:
+    """
+    Cached interface for tabular data.
+
+    Supports parquet and csv formats.
+
+    Parameters
+    ----------
+    path
+        Path to dataset.
+    df
+        In-memory dataframe.
+
+    Attributes
+    ----------
+    path : str, os.PathLike
+        Path to the dataset.
+    df : pd.DataFrame
+        Cached dataframe.
+    format : str
+        Dataset format ('parquet' or 'csv'), or `None` if in-memory only.
+    columns : Iterable[str]
+        Dataset column names.
+
+    Raises
+    ------
+    ValueError
+        Missing either path or dataframe.
+
+    Examples
+    --------
+    In-memory dataframe:
+
+    >>> df = pd.DataFrame({'id': [1, 2], 'x': [10, 20]})
+    >>> table = Table(df = df)
+    >>> table.format is None
+    True
+    >>> table.columns
+    ['id', 'x']
+    >>> table.read()
+       id   x
+    0   1  10
+    1   2  20
+    >>> table.read(columns=['id'])
+       id
+    0   1
+    1   2
+    >>> table.clear()
+    >>> table.df is not None
+    True
+
+    File dataset (csv):
+
+    >>> import tempfile
+    >>> fp = tempfile.NamedTemporaryFile()
+    >>> df.to_csv(fp.name, index=False)
+    >>> table = Table(path = fp.name)
+    >>> table.format
+    'csv'
+    >>> table.columns
+    ['id', 'x']
+    >>> table.read(cache=False)
+       id   x
+    0   1  10
+    1   2  20
+    >>> table.df is None
+    True
+    >>> table.read(columns=['id'], cache=True)
+       id
+    0   1
+    1   2
+    >>> table.df is not None
+    True
+    >>> table.clear()
+    >>> table.df is None
+    True
+    >>> fp.close()
+    """
+
+    def __init__(
+        self, path: Union[str, os.PathLike] = None, df: pd.DataFrame = None
+    ) -> None:
+        self.path = path
+        self.df = df
+        self.format = None
+        self._dataset = None
+        self._columns = None
+        if path is not None:
+            try:
+                self._dataset = pq.ParquetDataset(path)
+                self._columns = self._dataset.schema.names
+                self.format = "parquet"
+            except pyarrow.lib.ArrowInvalid:
+                # Assume CSV file
+                self.format = "csv"
+        if path is None and df is None:
+            raise ValueError("Mising either path to tabular data or a pandas DataFrame")
+
+    @property
+    def columns(self) -> List[str]:
+        if self.df is not None:
+            return list(self.df.columns)
+        if self._columns is None:
+            if self.format == "csv":
+                self._columns = pd.read_csv(self.path, nrows=0).columns
+        return list(self._columns)
+
+    def read(self, columns: Iterable[str] = None, cache: bool = None) -> pd.DataFrame:
+        """
+        Read data from memory or from disk.
+
+        Parameters
+        ----------
+        columns
+            Names of column to read. If `None`, all columns are read. 
+        cache
+            Whether to cache the full dataset in memory. If `None`,
+            the dataset is cached if `columns` is `None`, and not otherwise.
+
+        Returns
+        -------
+        pd.DataFrame
+            Data as a dataframe.
+        """
+        if self.df is not None:
+            return self.df[columns] if columns is not None else self.df
+        if cache is None:
+            cache = columns is None
+        read_columns = None if cache else columns
+        if self.format == "csv":
+            df = pd.read_csv(self.path, usecols=read_columns)
+        elif self.format == "parquet":
+            df = self._dataset.read(columns=read_columns).to_pandas()
+        if cache:
+            self.df = df
+        return df[columns] if columns is not None else df
+
+    def clear(self) -> None:
+        """
+        Clear the dataset cache.
+
+        Only applies if :attr:`path` is set so that the dataset can be reread from file.
+        """
+        if self.path is not None:
+            self.df = None
 
 
 class ClusterBuilder:
