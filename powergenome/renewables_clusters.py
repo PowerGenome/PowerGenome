@@ -26,8 +26,6 @@ MEANS = [
     "site_metro_spur_miles",
 ]
 SUMS = ["area", CAPACITY]
-PROFILE_KEYS = ["metro_id", "cluster_level", "cluster"]
-HOURS_IN_YEAR = 8784
 NREL_ATB_TECHNOLOGY_MAP = {
     ("utilitypv", None): {"technology": "utilitypv"},
     ("landbasedwind", None): {"technology": "landbasedwind"},
