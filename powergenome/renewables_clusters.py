@@ -347,10 +347,15 @@ class ResourceGroup:
     --------
     >>> group = {'technology': 'utilitypv'}
     >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['A', 'A'], 'mw': [1, 2]})
-    >>> profiles = pd.DataFrame({0: np.random.rand(8784), 1: np.random.rand(8784)})
+    >>> profiles = pd.DataFrame({0: np.full(8784, 0.1), 1: np.full(8784, 0.4)})
     >>> rg = ResourceGroup(group, metadata, profiles)
     >>> rg.test_metadata()
     >>> rg.test_profiles()
+    >>> rg.get_clusters(max_clusters=1)
+           ipm_region   mw
+    (1, 0)        NaN  3.0
+    >>> rg.get_cluster_profiles(ids=[(0, 1)])
+    array([[0.3, 0.3, 0.3, ..., 0.3, 0.3, 0.3]])
     """
 
     def __init__(
@@ -429,6 +434,137 @@ class ResourceGroup:
         df = self.profiles.read(columns=columns[0])
         if len(df) not in [8760, 8784]:
             raise ValueError(f"Resource profiles are not either 8760 or 8784 elements")
+
+    def get_clusters(
+        self,
+        ipm_regions: Iterable[str] = None,
+        min_capacity: float = None,
+        max_clusters: int = None,
+        max_lcoe: float = None,
+        cap_multiplier: float = None,
+    ) -> pd.DataFrame:
+        """
+        Compute resource clusters.
+
+        Parameters
+        ----------
+        ipm_regions
+            IPM regions in which to select resources.
+            If `None`, all IPM regions are selected.
+        min_capacity
+            Minimum total capacity (MW). Resources are selected,
+            from lowest to highest levelized cost of energy (lcoe),
+            or from highest to lowest capacity if lcoe not available,
+            until the minimum capacity is just exceeded.
+            If `None`, all resources are selected for clustering.
+        max_clusters
+            Maximum number of resource clusters to compute.
+            If `None`, no clustering is performed; resources are returned unchanged.
+        max_lcoe
+            Select only the resources with a levelized cost of electricity (lcoe)
+            below this maximum. Takes precedence over `min_capacity`.
+        cap_multiplier
+            Multiplier applied to resource capacity before selection by `min_capacity`.
+
+        Returns
+        -------
+        pd.DataFrame
+            Clustered resources whose indices are tuples of the resource identifiers
+            from which they were constructed.
+
+        Raises
+        ------
+        ValueError
+            No resources found or selected.
+        """
+        if max_clusters is None:
+            max_clusters = float("inf")
+        df = self.metadata.read().set_index("id")
+        if ipm_regions is not None:
+            # Filter by IPM region
+            df = df[df["ipm_region"].isin(ipm_regions)]
+        if cap_multiplier is not None:
+            # Apply capacity multiplier
+            df[CAPACITY] *= cap_multiplier
+        # Sort resources by lcoe (ascending) or capacity (descending)
+        by = "lcoe" if "lcoe" in df else CAPACITY
+        df = df.sort_values(by, ascending=by == "lcoe")
+        # Select base resources
+        tree = self.group["clustered"]
+        if tree:
+            max_level = df[tree].map(df.groupby(tree)["cluster_level"].max())
+            base = (df["cluster_level"] == max_level).values
+            mask = base.copy()
+        else:
+            mask = np.ones(len(df), dtype=bool)
+        if min_capacity:
+            # Select resources until min_capacity reached
+            temp = df.loc[mask, CAPACITY].cumsum() < min_capacity
+            temp[-1] = True
+            mask[mask] = temp
+        if max_lcoe and "lcoe" in df:
+            # Selet clusters with LCOE above the cutoff
+            mask[mask] = df.loc[mask, "lcoe"] <= max_lcoe
+        if not mask.any():
+            raise ValueError(f"No resources found or selected")
+        # Warn if total capacity less than expected
+        capacity = df.loc[mask, CAPACITY].sum()
+        if min_capacity and capacity < min_capacity:
+            logger.warning(
+                f"Selected capacity less than minimum ({capacity} < {min_capacity} MW)"
+            )
+        # Prepare row merge arguments
+        merge = {
+            "sums": [key for key in SUMS if key in df] or None,
+            "means": [key for key in MEANS if key in df] or None,
+            "weight": WEIGHT,
+        }
+        # Compute clusters
+        if tree:
+            return cluster_row_trees(
+                df[mask | ~base], by=by, tree=tree, max_rows=max_clusters, **merge
+            )
+        return cluster_rows(df[mask], by=df[[by]], max_rows=max_clusters, **merge)
+
+    def get_cluster_profiles(self, ids: Iterable[Iterable]) -> np.ndarray:
+        """
+        Compute resource cluster profiles.
+
+        Parameters
+        ----------
+        ids
+            Identifiers of the resources to combine in each cluster.
+
+        Returns
+        -------
+        np.ndarray
+            Hourly normalized (0-1) generation profiles (n clusters, m hours).
+        """
+        # Compute unique columns
+        columns = []
+        for cids in ids:
+            columns.extend(cids)
+        columns = list(set(columns))
+        # Read unique columns
+        profiles = self.profiles.read(columns=columns)
+        metadata = self.metadata.read(columns=["id", WEIGHT]).set_index("id")
+        # Compute cluster profiles
+        results = np.zeros((len(ids), len(profiles)), dtype=float)
+        for i, cids in enumerate(ids):
+            if len(cids) == 1:
+                results[i] = profiles[cids[0]].values
+            else:
+                weights = metadata.loc[cids, WEIGHT].values.astype(float, copy=False)
+                weights /= weights.sum()
+                results[i] = (profiles[list(cids)].values * weights).sum(axis=1)
+        return results
+
+    def clear(self) -> None:
+        """
+        Clear dataset cache.
+        """
+        self.metadata.clear()
+        self.profiles.clear()
 
 
 class ClusterBuilder:
