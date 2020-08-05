@@ -1,14 +1,13 @@
 import glob
-import itertools
 import json
 import logging
 import os
 import re
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-import pyarrow.csv
+import pyarrow
 import pyarrow.parquet as pq
 import scipy.cluster.hierarchy
 
@@ -499,8 +498,8 @@ class ResourceGroup:
             mask = np.ones(len(df), dtype=bool)
         if min_capacity:
             # Select resources until min_capacity reached
-            temp = df.loc[mask, CAPACITY].cumsum() < min_capacity
-            temp[-1] = True
+            temp = (df.loc[mask, CAPACITY].cumsum() < min_capacity).values
+            temp[temp.argmin()] = True
             mask[mask] = temp
         if max_lcoe and "lcoe" in df:
             # Selet clusters with LCOE above the cutoff
@@ -559,80 +558,113 @@ class ResourceGroup:
                 results[i] = (profiles[list(cids)].values * weights).sum(axis=1)
         return results
 
-    def clear(self) -> None:
-        """
-        Clear dataset cache.
-        """
-        self.metadata.clear()
-        self.profiles.clear()
-
 
 class ClusterBuilder:
     """
     Builds clusters of resources.
 
+    Parameters
+    ----------
+    groups
+        Groups of resources. See :class:`ResourceGroup`.
+
     Attributes
     ----------
-    groups : list of dict
-        Resource group metadata.
-        - `metadata` (str): Relative path to resource metadata file.
-        - `profiles` (str): Relative path to variable resource profiles file.
-        - `technology` (str): Resource type.
-        - ... and any additional (optional) keys.
-    clusters : list of dict
+    groups : Iterable[ResourceGroup]
+    clusters : List[dict]
         Resource clusters.
-        - `group` (dict): Resource group from :attr:`groups`.
-        - `kwargs` (dict): Arguments used to uniquely identify the group.
-        - `region` (str): Model region in which the clustering was performed.
+
+        - `group` (ResourceGroup): Resource group from :attr:`groups`.
+        - `kwargs` (dict): Parameters used to uniquely identify the group.
+        - `region` (str): Model region label.
         - `clusters` (pd.DataFrame): Computed resource clusters.
         - `profiles` (np.ndarray): Computed profiles for the resource clusters.
+
+    Examples
+    --------
+    Prepare the resource groups.
+
+    >>> groups = []
+    >>> group = {'technology': 'utilitypv'}
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['A', 'A'], 'mw': [1, 2]})
+    >>> profiles = pd.DataFrame({0: np.full(8784, 0.1), 1: np.full(8784, 0.4)})
+    >>> groups.append(ResourceGroup(group, metadata, profiles))
+    >>> group = {'technology': 'utilitypv', 'existing': True}
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['B', 'B'], 'mw': [1, 2]})
+    >>> profiles = pd.DataFrame({0: np.full(8784, 0.1), 1: np.full(8784, 0.4)})
+    >>> groups.append(ResourceGroup(group, metadata, profiles))
+    >>> builder = ClusterBuilder(groups)
+
+    Incrementally build clusters and export the results.
+
+    >>> builder.build_clusters(region='A', ipm_regions=['A'], max_clusters=1,
+    ...     technology='utilitypv', existing=False)
+    >>> builder.build_clusters(region='B', ipm_regions=['B'], min_capacity=2,
+    ...     technology='utilitypv', existing=True)
+    >>> builder.get_cluster_metadata()
+          ids   mw region
+    0  (1, 0)  3.0      A
+    1    (1,)  2.0      B
+    >>> builder.get_cluster_profiles()
+    array([[0.3, 0.3, 0.3, ..., 0.3, 0.3, 0.3],
+           [0.4, 0.4, 0.4, ..., 0.4, 0.4, 0.4]])
+
+    Errors arise if search criteria is either ambiguous or results in an empty result.
+
+    >>> builder.build_clusters(region='A', ipm_regions=['A'], technology='utilitypv')
+    Traceback (most recent call last):
+      ...
+    ValueError: Parameters match multiple resource groups: [{...}, {...}]
+    >>> builder.build_clusters(region='A', ipm_regions=['B'],
+    ...     technology='utilitypv', existing=False)
+    Traceback (most recent call last):
+      ...
+    ValueError: No resources found or selected
     """
 
-    def __init__(self, path: str = ".") -> None:
+    def __init__(self, groups: Iterable[ResourceGroup]) -> None:
+        self.groups = groups
+        self.clusters: List[dict] = []
+
+    @classmethod
+    def from_path(cls, path: Union[str, os.PathLike] = ".") -> "ClusterBuilder":
         """
-        Initialize with resource group metadata.
+        Load resources from directory.
+
+        Reads all files matching pattern '*_group.json'.
 
         Parameters
         ----------
         path
-            Path to the directory containing the metadata files ('*_group.json').
+            Path to directory.
 
         Raises
         ------
         FileNotFoundError
-            No group metadata files found.
-        ValueError
-            Group metadata missing required keys.
+            No resource groups found in path.
         """
-        self.groups = load_groups(path)
-        if not self.groups:
-            raise FileNotFoundError(f"No group metadata files found in {path}")
-        required = ("metadata", "profiles", "technology")
-        for g in self.groups:
-            missing = [k for k in required if k not in g]
-            if missing:
-                raise ValueError(f"Group metadata missing required keys {missing}: {g}")
-            g["metadata"] = os.path.abspath(os.path.join(path, g["metadata"]))
-            g["profiles"] = os.path.abspath(os.path.join(path, g["profiles"]))
-        self.clusters: List[dict] = []
+        paths = glob.glob(os.path.join(path, "*_group.json"))
+        if not paths:
+            raise FileNotFoundError(f"No resource groups found in {path}")
+        return cls([ResourceGroup.from_json(p) for p in paths])
 
     def _test_clusters_exist(self) -> None:
         if not self.clusters:
             raise ValueError("No clusters have been built")
 
-    def find_groups(self, **kwargs: Any) -> List[dict]:
+    def find_groups(self, **kwargs: Any) -> List[ResourceGroup]:
         """
-        Return the groups matching the specified arguments.
+        Return the resource groups matching the specified arguments.
 
         Parameters
         ----------
         **kwargs
-            Arguments to match against group metadata.
+            Parameters to match against resource group metadata.
         """
         return [
-            g
-            for g in self.groups
-            if all(k in g and g[k] == v for k, v in kwargs.items())
+            rg
+            for rg in self.groups
+            if all(k in rg.group and rg.group[k] == v for k, v in kwargs.items())
         ]
 
     def build_clusters(
@@ -649,29 +681,19 @@ class ClusterBuilder:
         Build and append resource clusters to the collection.
 
         This method can be called as many times as desired before generating outputs.
+        See :meth:`ResourceGroup.get_clusters` for parameter descriptions.
 
         Parameters
         ----------
         region
             Model region (used only to label results).
         ipm_regions
-            IPM regions in which to select resources.
-            If `None`, all IPM regions are selected.
         min_capacity
-            Minimum total capacity (MW). Resources are selected,
-            from lowest to highest levelized cost of energy (lcoe),
-            until the minimum capacity is just exceeded.
-            If `None`, all resources are selected for clustering.
         max_clusters
-            Maximum number of resource clusters to compute.
-            If `None`, no clustering is performed; resources are returned unchanged.
         max_lcoe
-            Select only the resources with a levelized cost of electricity (lcoe)
-            below this maximum. Takes precedence over `min_capacity`.
         cap_multiplier
-            Capacity multiplier applied to resource metadata.
         **kwargs
-            Parameters to :meth:`get_groups` for selecting the resource group.
+            Parameters to :meth:`find_groups` for selecting the resource group.
 
         Raises
         ------
@@ -682,28 +704,28 @@ class ClusterBuilder:
         if len(groups) > 1:
             meta = [rg.group for rg in groups]
             raise ValueError(f"Parameters match multiple resource groups: {meta}")
-        c: Dict[str, Any] = {}
-        c["group"] = groups[0]
-        c["kwargs"] = kwargs
-        c["region"] = region
-        metadata = load_metadata(c["group"]["metadata"], cap_multiplier=cap_multiplier)
-        c["clusters"] = build_clusters(
-            metadata,
-            ipm_regions=ipm_regions,
-            min_capacity=min_capacity,
-            max_clusters=max_clusters,
-            max_lcoe=max_lcoe,
-        )
-        c["profiles"] = build_cluster_profiles(
-            c["group"]["profiles"], c["clusters"], metadata
-        )
+        c = {
+            "group": groups[0],
+            "kwargs": kwargs,
+            "region": region,
+            "clusters": groups[0].get_clusters(
+                ipm_regions=ipm_regions,
+                min_capacity=min_capacity,
+                max_clusters=max_clusters,
+                max_lcoe=max_lcoe,
+                cap_multiplier=cap_multiplier,
+            ),
+        }
+        c["profiles"] = groups[0].get_cluster_profiles(ids=c["clusters"].index)
         self.clusters.append(c)
 
-    def get_cluster_metadata(self) -> Optional[pd.DataFrame]:
+    def get_cluster_metadata(self) -> pd.DataFrame:
         """
         Return computed cluster metadata.
 
         The following fields are added:
+
+        - `ids` (tuple): Original resource identifiers
         - `region` (str): Region label passed to :meth:`build_clusters`.
 
         Raises
@@ -714,9 +736,9 @@ class ClusterBuilder:
         self._test_clusters_exist()
         dfs = []
         for c in self.clusters:
-            df = c["clusters"].reset_index()
+            df = c["clusters"]
             columns = [x for x in np.unique([WEIGHT] + MEANS + SUMS) if x in df]
-            df = df[columns].assign(region=c["region"])
+            df = df[columns].assign(region=c["region"]).rename_axis("ids").reset_index()
             dfs.append(df)
         return pd.concat(dfs, axis=0, ignore_index=True, sort=False)
 
@@ -964,9 +986,7 @@ def cluster_row_trees(
         df = df.copy()
         df.index = [_tuple(x) for x in df.index]
         return df
-    df["_id"] = df.index
-    df["_ids"] = [_tuple(x) for x in df.index]
-    df["_mask"] = mask
+    df = df.assign(_id=df.index, _ids=[_tuple(x) for x in df.index], _mask=mask)
     diff = lambda x: abs(x.max() - x.min())
     while drows > 0:
         # Sort parents by ascending distance of children
@@ -1007,9 +1027,9 @@ def cluster_row_trees(
             columns = ["_id", "parent_id", "cluster_level"]
             df.loc[child_id, columns] = df.loc[parent_id, columns]
             # Update index
-            df.rename(index={child_id: parent_id}, inplace=True)
-            # Drop parent
-            df.loc[parent_id, "_mask"] = False
+            df.rename(
+                index={child_id: parent_id, parent_id: float("nan")}, inplace=True
+            )
     # Apply mask
     df = df[df["_mask"]]
     # Drop temporary columns
@@ -1018,181 +1038,3 @@ def cluster_row_trees(
     if len(df) > max_rows:
         df = cluster_rows(df, by=df[[by]], max_rows=max_rows, **kwargs)
     return df
-
-
-def load_groups(path: str = ".") -> List[dict]:
-    """Load group metadata."""
-    paths = glob.glob(os.path.join(path, "*_group.json"))
-    groups = []
-    for p in paths:
-        with open(p, mode="r") as fp:
-            groups.append(json.load(fp))
-    return groups
-
-
-def load_metadata(path: str, cap_multiplier: float = None) -> pd.DataFrame:
-    """Load resource metadata."""
-    df = pd.read_csv(path)
-    if cap_multiplier:
-        df[CAPACITY] = df[CAPACITY] * cap_multiplier
-    df.set_index("id", drop=False, inplace=True)
-    return df
-
-
-def read_parquet(
-    path: str, columns: Sequence[str] = None, filters: Sequence[dict] = None
-) -> pd.DataFrame:
-    """Read parquet file."""
-    # NOTE: Due to pyarrow bug, cannot pass more than two dictionaries in `filters`.
-    dnf = None
-    if filters:
-        # Convert to disjunctive normal form (dnf)
-        dnf = [[(str(k), "=", v) for k, v in d.items()] for d in filters]
-    # https://arrow.apache.org/docs/python/generated/pyarrow.parquet.ParquetDataset.html
-    return pd.read_parquet(
-        path,
-        engine="pyarrow",
-        columns=columns,
-        filters=dnf,
-        # Needed for unpartitioned datasets
-        use_legacy_dataset=False,
-        memory_map=True,
-    )
-
-
-def build_clusters(
-    metadata: pd.DataFrame,
-    ipm_regions: Iterable[str] = None,
-    min_capacity: float = None,
-    max_clusters: int = None,
-    max_lcoe: float = None,
-) -> pd.DataFrame:
-    """Build resource clusters."""
-    if max_clusters is None:
-        max_clusters = np.inf
-    if max_clusters < 1:
-        raise ValueError("Max number of clusters must be greater than zero")
-    df = metadata
-    cdf = _get_base_clusters(df, ipm_regions)
-    if ipm_regions is None:
-        ipm_regions = cdf["ipm_regions"].unique().tolist()
-    cdf = cdf.sort_values("lcoe")
-    if min_capacity:
-        # Drop clusters with highest LCOE until min_capacity reached
-        end = min(len(cdf), cdf[CAPACITY].cumsum().searchsorted(min_capacity) + 1)
-        cdf = cdf[:end]
-    if max_lcoe:
-        # Drop clusters with LCOE above the cutoff
-        cdf = cdf[cdf["lcoe"] <= max_lcoe]
-    if cdf.empty:
-        raise ValueError(f"No resources found or selected in {ipm_regions}")
-    capacity = cdf[CAPACITY].sum()
-    if min_capacity and capacity < min_capacity:
-        logger.warning(
-            f"Selected capacity in {ipm_regions} ({capacity} MW) less than minimum ({min_capacity} MW)"
-        )
-    # Track ids of base clusters through aggregation
-    cdf["ids"] = [[x] for x in cdf["id"]]
-    # Aggregate clusters within each metro area (metro_id)
-    while len(cdf) > max_clusters:
-        # Sort parents by lowest LCOE distance of children
-        diff = lambda x: abs(x.max() - x.min())
-        parents = (
-            cdf.groupby("parent_id", sort=False)
-            .agg(child_ids=("id", list), n=("id", "count"), lcoe=("lcoe", diff))
-            .sort_values(["n", "lcoe"], ascending=[False, True])
-        )
-        if parents.empty:
-            break
-        if parents["n"].iloc[0] == 2:
-            # Choose parent with lowest LCOE
-            best = parents.iloc[0]
-            # Compute parent
-            parent = pd.Series(
-                _merge_children(
-                    cdf.loc[best["child_ids"]],
-                    ids=_flat(*cdf.loc[best["child_ids"], "ids"]),
-                    **df.loc[best.name],
-                )
-            )
-            # Add parent
-            cdf.loc[best.name] = parent
-            # Drop children
-            cdf.drop(best["child_ids"], inplace=True)
-        else:
-            # Promote child with deepest parent
-            parent_id = df.loc[parents.index, "cluster_level"].idxmax()
-            parent = df.loc[parent_id]
-            child_id = parents.loc[parent_id, "child_ids"][0]
-            # Update child
-            columns = ["id", "parent_id", "cluster_level"]
-            cdf.loc[child_id, columns] = parent[columns]
-            # Update index
-            cdf.rename(index={child_id: parent_id}, inplace=True)
-    # Keep only computed columns
-    columns = _flat(MEANS, SUMS, "ids")
-    columns = [col for col in columns if col in cdf.columns]
-    cdf = cdf[columns]
-    cdf.reset_index(inplace=True, drop=True)
-    if len(cdf) > max_clusters:
-        # Aggregate singleton metro area clusters
-        Z = scipy.cluster.hierarchy.linkage(cdf[["lcoe"]].values, method="ward")
-        mask = [True] * len(cdf)
-        for child_idx in Z[:, 0:2].astype(int):
-            mask[child_idx[0]], mask[child_idx[1]] = False, False
-            parent = _merge_children(
-                cdf.loc[child_idx], ids=_flat(*cdf.loc[child_idx, "ids"])
-            )
-            cdf.loc[len(cdf)] = parent
-            mask.append(True)
-            if not sum(mask) > max_clusters:
-                break
-        cdf = cdf[mask]
-    return cdf
-
-
-def build_cluster_profiles(
-    path: str, clusters: pd.DataFrame, metadata: pd.DataFrame
-) -> np.ndarray:
-    """Build cluster profiles."""
-    results = np.zeros((len(clusters), HOURS_IN_YEAR), dtype=float)
-    for i, cids in enumerate(clusters["ids"]):
-        weights = metadata.loc[cids, WEIGHT].values
-        weights /= weights.sum()
-        for j, cid in enumerate(cids):
-            # Include ipm_region (partitioning column) to speed up filter
-            filters = (
-                metadata.loc[[cid], ["ipm_region"] + PROFILE_KEYS]
-                .reset_index(drop=True)
-                .to_dict("records")
-            )
-            # Assumes profile is already sorted by hour (ascending)
-            df = read_parquet(path, filters=filters, columns=["capacity_factor"])
-            results[i] += df["capacity_factor"].values * weights[j]
-    return results
-
-
-def _get_base_clusters(
-    df: pd.DataFrame, ipm_regions: Iterable[str] = None
-) -> pd.DataFrame:
-    if ipm_regions is not None:
-        df = df[df["ipm_region"].isin(ipm_regions)]
-    return (
-        df.groupby("metro_id")
-        .apply(lambda g: g[g["cluster_level"] == g["cluster_level"].max()])
-        .reset_index(level=["metro_id"], drop=True)
-    )
-
-
-def _merge_children(df: pd.DataFrame, **kwargs: Any) -> dict:
-    parent = kwargs
-    for key in SUMS:
-        parent[key] = df[key].sum()
-    for key in [k for k in MEANS if k in df.columns]:
-        parent[key] = (df[key] * df[WEIGHT]).sum() / df[WEIGHT].sum()
-    return parent
-
-
-def _flat(*args: Sequence) -> list:
-    lists = [x if np.iterable(x) and not isinstance(x, str) else [x] for x in args]
-    return list(itertools.chain(*lists))
