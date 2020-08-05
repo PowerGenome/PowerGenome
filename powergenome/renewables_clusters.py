@@ -745,7 +745,7 @@ def cluster_rows(
     for i, link in enumerate(Z[:drows, 0:2].astype(int)):
         mask[link[0]] = False
         mask[link[1]] = False
-        df.loc[nrows + i] = merge_rows(df.loc[link], **kwargs)
+        df.loc[nrows + i] = pd.Series(merge_rows(df.loc[link], **kwargs))
         index.append(index[link[0]] + index[link[1]])
         mask.append(True)
     df = df[mask]
@@ -837,7 +837,7 @@ def cluster_row_trees(
         parents = (
             df[df["_mask"]]
             .groupby("parent_id", sort=False)
-            .agg(ids=("_id", list), n=("_id", "count"), distance=(sort, diff))
+            .agg(ids=("_id", list), n=("_id", "count"), distance=(by, diff))
             .sort_values(["n", "distance"], ascending=[False, True])
         )
         if parents.empty:
