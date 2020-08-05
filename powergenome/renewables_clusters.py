@@ -755,7 +755,7 @@ def cluster_rows(
 
 
 def cluster_row_trees(
-    df: pd.DataFrame, by: str, max_rows: int = 1, tree: str = None, **kwargs: Any
+    df: pd.DataFrame, by: str, tree: str = None, max_rows: int = 1, **kwargs: Any
 ) -> pd.DataFrame:
     """
     Merge rows in a dataframe following precomputed hierarchical trees.
@@ -769,13 +769,13 @@ def cluster_row_trees(
     by
         Name of column to use for determining merge order.
         Children with the smallest pairwise distance on this column are merged first.
+    tree
+        Name of column to use for differentiating between hierarchical trees.
+        If `None`, assumes rows represent a single tree.
     max_rows
         Number of rows at which to stop merging rows.
         If smaller than the number of trees, :func:`cluster_rows` is used to merge
         tree heads.
-    tree
-        Name of column to use for differentiating between hierarchical trees.
-        If `None`, assumes rows represent a single tree.
     **kwargs
         Optional parameters to :func:`merge_rows`.
 
