@@ -601,6 +601,287 @@ class ClusterBuilder:
         return np.row_stack([c["profiles"] for c in self.clusters])
 
 
+def _tuple(x: Any) -> tuple:
+    """
+    Cast object to tuple.
+
+    Examples
+    --------
+    >>> _tuple(1)
+    (1,)
+    >>> _tuple([1])
+    (1,)
+    >>> _tuple('string')
+    ('string',)
+    """
+    if np.iterable(x) and not isinstance(x, str):
+        return tuple(x)
+    return (x,)
+
+
+def merge_rows(
+    df: pd.DataFrame, sums: Iterable = None, means: Iterable = None, weight=None
+) -> dict:
+    """
+    Merge all rows in dataframe into one.
+
+    Parameters
+    ----------
+    df
+        Rows to merge.
+    sums
+        Names of columns to sum.
+    means
+        Names of columns to average.
+    weight
+        Name of column to use for weighted averages.
+        If `None`, averages are not weighted.
+
+    Returns
+    -------
+    dict
+        Merged row as a dictionary.
+
+    Examples
+    --------
+    >>> df = pd.DataFrame({'mw': [1, 2], 'area': [10, 20], 'lcoe': [0.1, 0.4]})
+    >>> merge_rows(df, sums=['area', 'mw'], means=['lcoe'], weight='mw')
+    {'area': 30, 'mw': 3, 'lcoe': 0.3}
+    >>> merge_rows(df, sums=['area', 'mw'], means=['lcoe'])
+    {'area': 30, 'mw': 3, 'lcoe': 0.25}
+    """
+    merge = {}
+    if sums is not None:
+        merge.update(df[sums].sum())
+    if means is not None:
+        if weight:
+            merge.update(
+                df[means].multiply(df[weight], axis=0).sum() / df[weight].sum()
+            )
+        else:
+            merge.update(df[means].mean())
+    return merge
+
+
+def cluster_rows(
+    df: pd.DataFrame, by: Iterable[Iterable], max_rows: int = 1, **kwargs: Any
+) -> pd.DataFrame:
+    """
+    Merge rows in dataframe by hierarchical clustering.
+
+    Uses the Ward variance minimization algorithm to incrementally merge rows.
+    See :func:`scipy.cluster.hierarchy.linkage`.
+
+    Parameters
+    ----------
+    df
+        Rows to merge (m, ...).
+    by
+        2-dimensional array of observation vectors (m, ...) from which to compute
+        distances between each row pair.
+    max_rows
+        Number of rows at which to stop merging rows.
+    **kwargs
+        Optional parameters to :func:`merge_rows`.
+
+    Returns
+    -------
+    pd.DataFrame
+        Merged rows as a dataframe.
+        Their indices are tuples of the original row indices from which they were built.
+        If original indices were already iterables, they are merged
+        (e.g. (1, 2) and (3, ) becomes (1, 2, 3)).
+
+    Raises
+    ------
+    ValueError
+        Max number of rows must be greater than zero.
+
+    Examples
+    --------
+    With the default (range) row index:
+
+    >>> df = pd.DataFrame({'mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
+    >>> kwargs = {'sums': ['area', 'mw'], 'means': ['lcoe'], 'weight': 'mw'}
+    >>> cluster_rows(df, by=df[['lcoe']], max_rows=len(df), **kwargs)
+          mw  area  lcoe
+    (0,)   1     4   0.1
+    (1,)   2     5   0.4
+    (2,)   3     6   0.2
+    >>> cluster_rows(df, by=df[['lcoe']], max_rows=2, **kwargs)
+             mw  area   lcoe
+    (1,)    2.0   5.0  0.400
+    (0, 2)  4.0  10.0  0.175
+
+    With a custom row index:
+
+    >>> df.index = ['a', 'b', 'c']
+    >>> cluster_rows(df, by=df[['lcoe']], max_rows=2, **kwargs)
+             mw  area   lcoe
+    (b,)    2.0   5.0  0.400
+    (a, c)  4.0  10.0  0.175
+
+    With an iterable row index:
+
+    >>> df.index = [(1, 2), (4, ), (3, )]
+    >>> cluster_rows(df, by=df[['lcoe']], max_rows=2, **kwargs)
+                mw  area   lcoe
+    (4,)       2.0   5.0  0.400
+    (1, 2, 3)  4.0  10.0  0.175
+    """
+    if max_rows < 1:
+        raise ValueError("Max number of rows must be greater than zero")
+    index = [_tuple(x) for x in df.index]
+    df = df.reset_index(drop=True)
+    nrows = len(df)
+    drows = nrows - max_rows
+    if drows < 1:
+        df.index = index
+        return df
+    # Preallocate new rows
+    df = df.reindex(pd.Index(pd.RangeIndex(stop=nrows + drows)))
+    Z = scipy.cluster.hierarchy.linkage(by, method="ward")
+    mask = [True] * nrows
+    for i, link in enumerate(Z[:drows, 0:2].astype(int)):
+        mask[link[0]] = False
+        mask[link[1]] = False
+        df.loc[nrows + i] = merge_rows(df.loc[link], **kwargs)
+        index.append(index[link[0]] + index[link[1]])
+        mask.append(True)
+    df = df[mask]
+    df.index = [idx for m, idx in zip(mask, index) if m]
+    return df
+
+
+def cluster_row_trees(
+    df: pd.DataFrame, by: str, max_rows: int = 1, tree: str = None, **kwargs: Any
+) -> pd.DataFrame:
+    """
+    Merge rows in a dataframe following precomputed hierarchical trees.
+
+    Parameters
+    ----------
+    df
+        Rows to merge.
+        Must have columns `parent_id` (matching values in index), `cluster_level`, and
+        the columns named in **by** and **tree**.
+    by
+        Name of column to use for determining merge order.
+        Children with the smallest pairwise distance on this column are merged first.
+    max_rows
+        Number of rows at which to stop merging rows.
+        If smaller than the number of trees, :func:`cluster_rows` is used to merge
+        tree heads.
+    tree
+        Name of column to use for differentiating between hierarchical trees.
+        If `None`, assumes rows represent a single tree.
+    **kwargs
+        Optional parameters to :func:`merge_rows`.
+
+    Returns
+    -------
+    pd.DataFrame
+        Merged rows as a dataframe.
+        Their indices are tuples of the original row indices from which they were built.
+        If original indices were already iterables, they are merged
+        (e.g. (1, 2) and (3, ) becomes (1, 2, 3)).
+
+    Raises
+    ------
+    ValueError
+        Max number of rows must be greater than zero.
+    ValueError
+        Missing required fields.
+
+    Examples
+    --------
+    >>> df = pd.DataFrame({
+    ...     'cluster_level': [3, 3, 3, 2, 1],
+    ...     'parent_id': [3, 3, 4, 4, float('nan')],
+    ...     'mw': [0.1, 0.1, 0.1, 0.2, 0.3]
+    ... }, index=[0, 1, 2, 3, 4])
+    >>> cluster_row_trees(df, by='mw', sums=['mw'], max_rows=2)
+            cluster_level  parent_id   mw
+    (2,)                3        4.0  0.1
+    (0, 1)              2        4.0  0.2
+    >>> cluster_row_trees(df, by='mw', sums=['mw'])
+               cluster_level  parent_id   mw
+    (2, 0, 1)              1        NaN  0.3
+    """
+    if max_rows < 1:
+        raise ValueError("Max number of rows must be greater than zero")
+    missing = [
+        key for key in ["parent_id", "cluster_level", sort, tree] if key not in df
+    ]
+    if missing:
+        raise ValueError(f"Missing required fields {missing}")
+    if tree:
+        mask = df["cluster_level"] == df[tree].map(
+            df.groupby(tree)["cluster_level"].max()
+        )
+    else:
+        mask = df["cluster_level"] == df["cluster_level"].max()
+    drows = mask.sum() - max_rows
+    if drows < 1:
+        df = df.copy()
+        df.index = [_tuple(x) for x in df.index]
+        return df
+    df["_id"] = df.index
+    df["_ids"] = [_tuple(x) for x in df.index]
+    df["_mask"] = mask
+    diff = lambda x: abs(x.max() - x.min())
+    while drows > 0:
+        # Sort parents by ascending distance of children
+        # NOTE: Inefficient to recompute for all parents every time
+        parents = (
+            df[df["_mask"]]
+            .groupby("parent_id", sort=False)
+            .agg(ids=("_id", list), n=("_id", "count"), distance=(sort, diff))
+            .sort_values(["n", "distance"], ascending=[False, True])
+        )
+        if parents.empty:
+            break
+        if parents["n"].iloc[0] == 2:
+            # Choose complete parent with lowest distance of children
+            best = parents.iloc[0]
+            # Compute parent
+            parent = {
+                # Initial attributes
+                **df.loc[best.name],
+                # Merged children attributes
+                # NOTE: Needed only if a child is incomplete
+                **merge_rows(df.loc[best["ids"]], **kwargs),
+                # Indices of all past children
+                "_ids": df.loc[best["ids"][0], "_ids"] + df.loc[best["ids"][1], "_ids"],
+                "_mask": True,
+            }
+            # Add parent
+            df.loc[best.name] = pd.Series(parent)
+            # Drop children
+            df.loc[best["ids"], "_mask"] = False
+            # Decrement rows
+            drows -= 1
+        else:
+            # Promote child with deepest parent
+            parent_id = df.loc[parents.index, "cluster_level"].idxmax()
+            child_id = parents.loc[parent_id, "ids"][0]
+            # Update child
+            columns = ["_id", "parent_id", "cluster_level"]
+            df.loc[child_id, columns] = df.loc[parent_id, columns]
+            # Update index
+            df.rename(index={child_id: parent_id}, inplace=True)
+            # Drop parent
+            df.loc[parent_id, "_mask"] = False
+    # Apply mask
+    df = df[df["_mask"]]
+    # Drop temporary columns
+    df.index = df["_ids"].values
+    df = df.drop(columns=["_id", "_ids", "_mask"])
+    if len(df) > max_rows:
+        df = cluster_rows(df, by=df[[by]], max_rows=max_rows, **kwargs)
+    return df
+
+
 def load_groups(path: str = ".") -> List[dict]:
     """Load group metadata."""
     paths = glob.glob(os.path.join(path, "*_group.json"))
