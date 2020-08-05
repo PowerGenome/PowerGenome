@@ -128,13 +128,15 @@ class Table:
         Cached dataframe.
     format : str
         Dataset format ('parquet' or 'csv'), or `None` if in-memory only.
-    columns : Iterable[Union[str, int]]
+    columns : list
         Dataset column names.
 
     Raises
     ------
     ValueError
         Missing either path or dataframe.
+    ValueError
+        Dataframe columns are not all strings.
 
     Examples
     --------
@@ -191,6 +193,9 @@ class Table:
     ) -> None:
         self.path = path
         self.df = df
+        if df is not None:
+            if any(not isinstance(x, str) for x in df.columns):
+                raise ValueError("Dataframe columns are not all strings")
         self.format = None
         self._dataset = None
         self._columns = None
@@ -206,7 +211,7 @@ class Table:
             raise ValueError("Mising either path to tabular data or a pandas DataFrame")
 
     @property
-    def columns(self) -> List[str]:
+    def columns(self) -> list:
         if self.df is not None:
             return list(self.df.columns)
         if self._columns is None:
@@ -214,9 +219,7 @@ class Table:
                 self._columns = pd.read_csv(self.path, nrows=0).columns
         return list(self._columns)
 
-    def read(
-        self, columns: Iterable[Union[str, int]] = None, cache: bool = None
-    ) -> pd.DataFrame:
+    def read(self, columns: Iterable = None, cache: bool = None) -> pd.DataFrame:
         """
         Read data from memory or from disk.
 
@@ -346,7 +349,7 @@ class ResourceGroup:
     --------
     >>> group = {'technology': 'utilitypv'}
     >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['A', 'A'], 'mw': [1, 2]})
-    >>> profiles = pd.DataFrame({0: np.full(8784, 0.1), 1: np.full(8784, 0.4)})
+    >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> rg = ResourceGroup(group, metadata, profiles)
     >>> rg.test_metadata()
     >>> rg.test_profiles()
@@ -424,7 +427,8 @@ class ResourceGroup:
         ValueError
             Resource profiles are not either 8760 or 8784 elements.
         """
-        ids = self.metadata.read(columns=["id"])["id"]
+        # Cast identifiers to string to match profile columns
+        ids = self.metadata.read(columns=["id"])["id"].astype(str)
         columns = self.profiles.columns
         if not set(columns) == set(ids):
             raise ValueError(
@@ -539,14 +543,17 @@ class ResourceGroup:
         np.ndarray
             Hourly normalized (0-1) generation profiles (n clusters, m hours).
         """
-        # Compute unique columns
+        # Cast resource identifiers to string to match profile columns
+        ids = [[str(x) for x in cids] for cids in ids]
+        metadata = self.metadata.read(columns=["id", WEIGHT]).set_index("id")
+        metadata.index = metadata.index.astype(str)
+        # Compute unique resource identifiers
         columns = []
         for cids in ids:
             columns.extend(cids)
         columns = list(set(columns))
-        # Read unique columns
+        # Read resource profiles
         profiles = self.profiles.read(columns=columns)
-        metadata = self.metadata.read(columns=["id", WEIGHT]).set_index("id")
         # Compute cluster profiles
         results = np.zeros((len(ids), len(profiles)), dtype=float)
         for i, cids in enumerate(ids):
@@ -555,7 +562,7 @@ class ResourceGroup:
             else:
                 weights = metadata.loc[cids, WEIGHT].values.astype(float, copy=False)
                 weights /= weights.sum()
-                results[i] = (profiles[list(cids)].values * weights).sum(axis=1)
+                results[i] = (profiles[cids].values * weights).sum(axis=1)
         return results
 
 
@@ -587,11 +594,11 @@ class ClusterBuilder:
     >>> groups = []
     >>> group = {'technology': 'utilitypv'}
     >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['A', 'A'], 'mw': [1, 2]})
-    >>> profiles = pd.DataFrame({0: np.full(8784, 0.1), 1: np.full(8784, 0.4)})
+    >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> groups.append(ResourceGroup(group, metadata, profiles))
     >>> group = {'technology': 'utilitypv', 'existing': True}
     >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['B', 'B'], 'mw': [1, 2]})
-    >>> profiles = pd.DataFrame({0: np.full(8784, 0.1), 1: np.full(8784, 0.4)})
+    >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> groups.append(ResourceGroup(group, metadata, profiles))
     >>> builder = ClusterBuilder(groups)
 
