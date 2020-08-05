@@ -367,9 +367,9 @@ class ResourceGroup:
                 self.group[key] = os.path.abspath(os.path.join(path, self.group[key]))
         required = ["technology"]
         if metadata is None:
-            required += ["metadata"]
+            required.append("metadata")
         if profiles is None:
-            required += ["profiles"]
+            required.append("profiles")
         missing = [key for key in required if not self.group.get(key)]
         if missing:
             raise ValueError(
@@ -404,7 +404,7 @@ class ResourceGroup:
         columns = self.metadata.columns
         required = ["ipm_region", "id", "mw"]
         if self.group.get("clustered"):
-            required += ["parent_id", "cluster_level", self.group["clustered"]]
+            required.extend(["parent_id", "cluster_level", self.group["clustered"]])
         missing = [key for key in required if key not in columns]
         if missing:
             raise ValueError(f"Resource metadata missing required keys {missing}")
@@ -810,9 +810,10 @@ def cluster_row_trees(
     """
     if max_rows < 1:
         raise ValueError("Max number of rows must be greater than zero")
-    missing = [
-        key for key in ["parent_id", "cluster_level", sort, tree] if key not in df
-    ]
+    required = ["parent_id", "cluster_level", by]
+    if tree:
+        required.append(tree)
+    missing = [key for key in required if key not in df]
     if missing:
         raise ValueError(f"Missing required fields {missing}")
     if tree:
