@@ -609,9 +609,9 @@ class ClusterBuilder:
     >>> builder.build_clusters(region='B', ipm_regions=['B'], min_capacity=2,
     ...     technology='utilitypv', existing=True)
     >>> builder.get_cluster_metadata()
-          ids   mw region
-    0  (1, 0)  3.0      A
-    1    (1,)  2.0      B
+          ids   mw region technology  existing
+    0  (1, 0)  3.0      A  utilitypv     False
+    1    (1,)  2.0      B  utilitypv      True
     >>> builder.get_cluster_profiles()
     array([[0.3, 0.3, 0.3, ..., 0.3, 0.3, 0.3],
            [0.4, 0.4, 0.4, ..., 0.4, 0.4, 0.4]])
@@ -734,6 +734,7 @@ class ClusterBuilder:
 
         - `ids` (tuple): Original resource identifiers
         - `region` (str): Region label passed to :meth:`build_clusters`.
+        - **kwargs: Parameters used to uniquely identify the group.
 
         Raises
         ------
@@ -745,7 +746,12 @@ class ClusterBuilder:
         for c in self.clusters:
             df = c["clusters"]
             columns = [x for x in np.unique([WEIGHT] + MEANS + SUMS) if x in df]
-            df = df[columns].assign(region=c["region"]).rename_axis("ids").reset_index()
+            df = (
+                df[columns]
+                .assign(region=c["region"], **c["kwargs"])
+                .rename_axis("ids")
+                .reset_index()
+            )
             dfs.append(df)
         return pd.concat(dfs, axis=0, ignore_index=True, sort=False)
 
