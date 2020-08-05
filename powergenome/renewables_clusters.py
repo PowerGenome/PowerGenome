@@ -25,6 +25,7 @@ MEANS = [
     "substation_metro_tx_miles",
     "site_metro_spur_miles",
 ]
+UNIQUES = ["ipm_region", "metro_id"]
 SUMS = ["area", CAPACITY]
 NREL_ATB_TECHNOLOGY_MAP = {
     ("utilitypv", None): {"technology": "utilitypv"},
@@ -353,7 +354,7 @@ class ResourceGroup:
     >>> rg.test_profiles()
     >>> rg.get_clusters(max_clusters=1)
            ipm_region   mw
-    (1, 0)        NaN  3.0
+    (1, 0)          A  3.0
     >>> rg.get_cluster_profiles(ids=[(0, 1)])
     array([[0.3, 0.3, 0.3, ..., 0.3, 0.3, 0.3]])
     """
@@ -519,6 +520,7 @@ class ResourceGroup:
             "sums": [key for key in SUMS if key in df] or None,
             "means": [key for key in MEANS if key in df] or None,
             "weight": WEIGHT,
+            "uniques": [key for key in UNIQUES if key in df] or None,
         }
         # Compute clusters
         if tree:
@@ -789,8 +791,33 @@ def _tuple(x: Any) -> tuple:
     return (x,)
 
 
+def _unique(x: Iterable) -> Any:
+    """
+    Return the unique value (if it is unique).
+
+    Examples
+    --------
+    >>> _unique((1, 2)) is None
+    True
+    >>> _unique((1, 1))
+    1
+    >>> _unique(['a', 'b']) is None
+    True
+    >>> _unique(['a', 'a'])
+    'a'
+    """
+    unique = pd.Series(x).unique()
+    if len(unique) == 1:
+        return unique[0]
+    return None
+
+
 def merge_rows(
-    df: pd.DataFrame, sums: Iterable = None, means: Iterable = None, weight=None
+    df: pd.DataFrame,
+    sums: Iterable = None,
+    means: Iterable = None,
+    weight=None,
+    uniques: Iterable = None,
 ) -> dict:
     """
     Merge all rows in dataframe into one.
@@ -806,6 +833,8 @@ def merge_rows(
     weight
         Name of column to use for weighted averages.
         If `None`, averages are not weighted.
+    uniques
+        Names of columns for which to return the unique value if unique, and NaN if not.
 
     Returns
     -------
@@ -819,6 +848,9 @@ def merge_rows(
     {'area': 30, 'mw': 3, 'lcoe': 0.3}
     >>> merge_rows(df, sums=['area', 'mw'], means=['lcoe'])
     {'area': 30, 'mw': 3, 'lcoe': 0.25}
+    >>> df.loc[:, 'mw'] = [1, 1]
+    >>> merge_rows(df, uniques=['mw', 'area'])
+    {'mw': 1.0, 'area': nan}
     """
     merge = {}
     if sums is not None:
@@ -830,6 +862,8 @@ def merge_rows(
             )
         else:
             merge.update(df[means].mean())
+    if uniques is not None:
+        merge.update(df[uniques].apply(_unique))
     return merge
 
 
