@@ -72,8 +72,8 @@ def map_nrel_atb_technology(tech: str, detail: str = None) -> Dict[str, Any]:
     """
     Map NREL ATB technology to resource groups.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     tech
         Technology.
     detail
@@ -456,8 +456,8 @@ class ClusterBuilder:
         """
         Initialize with resource group metadata.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         path
             Path to the directory containing the metadata files ('*_group.json').
 
@@ -488,8 +488,8 @@ class ClusterBuilder:
         """
         Return the groups matching the specified arguments.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         **kwargs
             Arguments to match against group metadata.
         """
@@ -514,8 +514,8 @@ class ClusterBuilder:
 
         This method can be called as many times as desired before generating outputs.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         region
             Model region (used only to label results).
         ipm_regions
@@ -535,16 +535,17 @@ class ClusterBuilder:
         cap_multiplier
             Capacity multiplier applied to resource metadata.
         **kwargs
-            Arguments to :meth:`get_groups` for selecting the resource group.
+            Parameters to :meth:`get_groups` for selecting the resource group.
 
         Raises
         ------
         ValueError
-            Arguments match multiple resource groups.
+            Parameters match multiple resource groups.
         """
         groups = self.find_groups(**kwargs)
         if len(groups) > 1:
-            raise ValueError(f"Arguments match multiple resource groups: {groups}")
+            meta = [rg.group for rg in groups]
+            raise ValueError(f"Parameters match multiple resource groups: {meta}")
         c: Dict[str, Any] = {}
         c["group"] = groups[0]
         c["kwargs"] = kwargs
