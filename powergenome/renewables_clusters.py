@@ -960,6 +960,116 @@ def cluster_rows(
     return df
 
 
+def build_row_tree(
+    df: pd.DataFrame, by: Iterable[Iterable], max_level: int = None, **kwargs: Any,
+) -> pd.DataFrame:
+    """
+    Build a hierarchical tree of rows in a dataframe.
+
+    Uses the Ward variance minimization algorithm to incrementally merge rows.
+    See :func:`scipy.cluster.hierarchy.linkage`.
+
+    Parameters
+    ----------
+    df
+        Rows to merge (m, ...).
+        Should not have columns `id`, `parent_id`, and `level`, as these are appended to
+        the result dataframe.
+    by
+        2-dimensional array of observation vectors (m, ...) from which to compute
+        distances between each row pair.
+    max_level
+        Maximum level of tree to return,
+        from m (the number of rows in `df`, if `None`) to 1.
+    **kwargs
+        Optional parameters to :func:`merge_rows`.
+
+    Returns
+    -------
+    pd.DataFrame
+        Hierarchical tree as a dataframe.
+        Row indices are tuples of the original row indices from which they were built.
+        If original indices were already iterables, they are merged
+        (e.g. (1, 2) and (3, ) becomes (1, 2, 3)).
+        The following columns are added:
+
+        - `id` (int): New row identifier (0, ..., 0 + n).
+        - `parent_id` (Int64): New row identifer of parent row.
+        - `level` (int): Tree level of row (max_level, ..., 1).
+
+    Raises
+    ------
+    ValueError
+        Max level of tree must be greater than zero.
+
+    Examples
+    --------
+    >>> df = pd.DataFrame({'mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
+    >>> kwargs = {'sums': ['area', 'mw'], 'means': ['lcoe'], 'weight': 'mw'}
+    >>> build_row_tree(df, by=df[['lcoe']], **kwargs)
+                mw  area   lcoe  id  parent_id  level
+    (0,)       1.0   4.0  0.100   0          3      3
+    (1,)       2.0   5.0  0.400   1          4      3
+    (2,)       3.0   6.0  0.200   2          3      3
+    (0, 2)     4.0  10.0  0.175   3          4      2
+    (1, 0, 2)  6.0  15.0  0.250   4        NaN      1
+    >>> build_row_tree(df, by=df[['lcoe']], max_level=2, **kwargs)
+                mw  area   lcoe  id  parent_id  level
+    (1,)       2.0   5.0  0.400   0          2      2
+    (0, 2)     4.0  10.0  0.175   1          2      2
+    (1, 0, 2)  6.0  15.0  0.250   2        NaN      1
+    >>> build_row_tree(df, by=df[['lcoe']], max_level=1, **kwargs)
+                mw  area  lcoe  id  parent_id  level
+    (1, 0, 2)  6.0  15.0  0.25   0        NaN      1
+    """
+    nrows = len(df)
+    if max_level is None:
+        max_level = nrows
+    else:
+        max_level = min(max_level, nrows)
+    if max_level < 1:
+        raise ValueError("Max level of tree must be greater than zero")
+    index = [_tuple(x) for x in df.index]
+    df = df.reset_index(drop=True)
+    drows = nrows - 1
+    if drows < 1:
+        df.index = index
+        return df
+    # Preallocate new rows
+    df = df.reindex(pd.Index(pd.RangeIndex(stop=nrows + drows)))
+    Z = scipy.cluster.hierarchy.linkage(by, method="ward")
+    mask = [True] * (nrows + drows)
+    level = [nrows] * nrows + list(range(nrows - 1, 0, -1))
+    parent_id = [None] * (nrows + drows)
+    for i, link in enumerate(Z[:drows, 0:2].astype(int)):
+        if nrows - i > max_level:
+            mask[link[0]] = False
+            mask[link[1]] = False
+        pid = nrows + i
+        parent_id[link[0]] = pid
+        parent_id[link[1]] = pid
+        df.loc[pid] = pd.Series(merge_rows(df.loc[link], **kwargs))
+        index.append(index[link[0]] + index[link[1]])
+    df = df[mask]
+    # Normalize ids to 0, ..., n
+    old_ids = df.index.tolist()
+    new_ids = np.arange(len(df))
+    new_parent_ids = [old_ids.index(x) for m, x in zip(mask, parent_id[:-1]) if m] + [
+        None
+    ]
+    # Reset index for alignment with parent_id series
+    df = df.reset_index(drop=True).assign(
+        id=new_ids,
+        # Preserve parent id as integer with nullable type
+        parent_id=pd.Series(new_parent_ids, dtype="Int64"),
+        level=[x for m, x in zip(mask, level) if m],
+    )
+    # Bump lower levels to max_level
+    df.loc[df["level"] > max_level, "level"] = max_level
+    df.index = [x for m, x in zip(mask, index) if m]
+    return df
+
+
 def cluster_row_trees(
     df: pd.DataFrame, by: str, tree: str = None, max_rows: int = 1, **kwargs: Any
 ) -> pd.DataFrame:
