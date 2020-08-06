@@ -301,9 +301,9 @@ class ResourceGroup:
         - `parent_id` : int
           Identifier of the resource formed by clustering this resource with the one
           other resource with the same `parent_id`.
-          Only resources with `cluster_level` of 1 have no `parent_id`.
-        - `cluster_level` : int
-          Cluster level where the resource first appears, from `m`
+          Only resources with `level` of 1 have no `parent_id`.
+        - `level` : int
+          Level of tree where the resource first appears, from `m`
           (the number of resources at the base of the tree), to 1.
         - `[group.clustered]` : Any
           Each unique value of this grouping attribute represents a precomputed
@@ -410,7 +410,7 @@ class ResourceGroup:
         columns = self.metadata.columns
         required = ["ipm_region", "id", "mw"]
         if self.group.get("clustered"):
-            required.extend(["parent_id", "cluster_level", self.group["clustered"]])
+            required.extend(["parent_id", "level", self.group["clustered"]])
         missing = [key for key in required if key not in columns]
         if missing:
             raise ValueError(f"Resource metadata missing required keys {missing}")
@@ -494,8 +494,8 @@ class ResourceGroup:
         # Select base resources
         tree = self.group["clustered"]
         if tree:
-            max_level = df[tree].map(df.groupby(tree)["cluster_level"].max())
-            base = (df["cluster_level"] == max_level).values
+            max_level = df[tree].map(df.groupby(tree)["level"].max())
+            base = (df["level"] == max_level).values
             mask = base.copy()
         else:
             mask = np.ones(len(df), dtype=bool)
@@ -1080,7 +1080,7 @@ def cluster_row_trees(
     ----------
     df
         Rows to merge.
-        Must have columns `parent_id` (matching values in index), `cluster_level`, and
+        Must have columns `parent_id` (matching values in index), `level`, and
         the columns named in **by** and **tree**.
     by
         Name of column to use for determining merge order.
@@ -1113,32 +1113,30 @@ def cluster_row_trees(
     Examples
     --------
     >>> df = pd.DataFrame({
-    ...     'cluster_level': [3, 3, 3, 2, 1],
+    ...     'level': [3, 3, 3, 2, 1],
     ...     'parent_id': [3, 3, 4, 4, float('nan')],
     ...     'mw': [0.1, 0.1, 0.1, 0.2, 0.3]
     ... }, index=[0, 1, 2, 3, 4])
     >>> cluster_row_trees(df, by='mw', sums=['mw'], max_rows=2)
-            cluster_level  parent_id   mw
-    (2,)                3        4.0  0.1
-    (0, 1)              2        4.0  0.2
+            level  parent_id   mw
+    (2,)        3        4.0  0.1
+    (0, 1)      2        4.0  0.2
     >>> cluster_row_trees(df, by='mw', sums=['mw'])
-               cluster_level  parent_id   mw
-    (2, 0, 1)              1        NaN  0.3
+               level  parent_id   mw
+    (2, 0, 1)      1        NaN  0.3
     """
     if max_rows < 1:
         raise ValueError("Max number of rows must be greater than zero")
-    required = ["parent_id", "cluster_level", by]
+    required = ["parent_id", "level", by]
     if tree:
         required.append(tree)
     missing = [key for key in required if key not in df]
     if missing:
         raise ValueError(f"Missing required fields {missing}")
     if tree:
-        mask = df["cluster_level"] == df[tree].map(
-            df.groupby(tree)["cluster_level"].max()
-        )
+        mask = df["level"] == df[tree].map(df.groupby(tree)["level"].max())
     else:
-        mask = df["cluster_level"] == df["cluster_level"].max()
+        mask = df["level"] == df["level"].max()
     drows = mask.sum() - max_rows
     if drows < 1:
         df = df.copy()
@@ -1179,10 +1177,10 @@ def cluster_row_trees(
             drows -= 1
         else:
             # Promote child with deepest parent
-            parent_id = df.loc[parents.index, "cluster_level"].idxmax()
+            parent_id = df.loc[parents.index, "level"].idxmax()
             child_id = parents.loc[parent_id, "ids"][0]
             # Update child
-            columns = ["_id", "parent_id", "cluster_level"]
+            columns = ["_id", "parent_id", "level"]
             df.loc[child_id, columns] = df.loc[parent_id, columns]
             # Update index
             df.rename(
