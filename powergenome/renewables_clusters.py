@@ -271,7 +271,7 @@ class ResourceGroup:
           Resource type ('utilitypv', 'landbasedwind', or 'offshorewind').
         - `existing` : bool
           Whether resources are new (`False`, default) or existing (`True`).
-        - `clustered` : str, optional
+        - `tree` : str, optional
           The name of the resource metadata attribute by
           which to differentiate between multiple precomputed hierarchical trees.
           Defaults to `None` (resource group does not represent hierarchical trees).
@@ -295,7 +295,7 @@ class ResourceGroup:
           (from lowest to highest) and clustering (by nearest) of resources.
           If missing, selection and clustering is by largest and nearest `mw`.
 
-        Resources representing hierarchical trees (see `group.clustered`)
+        Resources representing hierarchical trees (see `group.tree`)
         require additional attributes.
     
         - `parent_id` : int
@@ -305,7 +305,7 @@ class ResourceGroup:
         - `level` : int
           Level of tree where the resource first appears, from `m`
           (the number of resources at the base of the tree), to 1.
-        - `[group.clustered]` : Any
+        - `[group.tree]` : Any
           Each unique value of this grouping attribute represents a precomputed
           hierarchical tree. When clustering resources, every tree is traversed to its
           crown before the singleton resources from the trees are clustered together.
@@ -366,7 +366,7 @@ class ResourceGroup:
         profiles: pd.DataFrame = None,
         path: str = ".",
     ) -> None:
-        self.group = {"existing": False, "clustered": None, **group.copy()}
+        self.group = {"existing": False, "tree": None, **group.copy()}
         for key in ["metadata", "profiles"]:
             if self.group.get(key):
                 # Convert relative paths (relative to group file) to absolute paths
@@ -409,8 +409,8 @@ class ResourceGroup:
         """
         columns = self.metadata.columns
         required = ["ipm_region", "id", "mw"]
-        if self.group.get("clustered"):
-            required.extend(["parent_id", "level", self.group["clustered"]])
+        if self.group.get("tree"):
+            required.extend(["parent_id", "level", self.group["tree"]])
         missing = [key for key in required if key not in columns]
         if missing:
             raise ValueError(f"Resource metadata missing required keys {missing}")
@@ -492,7 +492,7 @@ class ResourceGroup:
         by = "lcoe" if "lcoe" in df else CAPACITY
         df = df.sort_values(by, ascending=by == "lcoe")
         # Select base resources
-        tree = self.group["clustered"]
+        tree = self.group["tree"]
         if tree:
             max_level = df[tree].map(df.groupby(tree)["level"].max())
             base = (df["level"] == max_level).values
