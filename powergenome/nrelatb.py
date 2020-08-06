@@ -832,7 +832,7 @@ def add_renewables_clusters(
                 f"Renewables clusters match multiple NREL ATB technologies: {scenario}"
             )
         technology = technologies[0]
-        builder = ClusterBuilder(SETTINGS["RENEWABLES_CLUSTERS"])
+        builder = ClusterBuilder.from_path(SETTINGS["RENEWABLES_CLUSTERS"])
         builder.build_clusters(**scenario, ipm_regions=ipm_regions)
         profiles = builder.get_cluster_profiles()
         clusters = (
