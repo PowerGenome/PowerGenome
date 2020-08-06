@@ -327,6 +327,11 @@ class ResourceGroup:
 
             - `mw`
             - `area`
+        
+        - uniques:
+
+            - `ipm_region`
+            - `metro_id`
     
     profiles
         Variable resource capacity profiles with normalized capacity factors
@@ -609,9 +614,9 @@ class ClusterBuilder:
     >>> builder.build_clusters(region='B', ipm_regions=['B'], min_capacity=2,
     ...     technology='utilitypv', existing=True)
     >>> builder.get_cluster_metadata()
-          ids   mw region technology  existing
-    0  (1, 0)  3.0      A  utilitypv     False
-    1    (1,)  2.0      B  utilitypv      True
+          ids ipm_region   mw region technology  existing
+    0  (1, 0)          A  3.0      A  utilitypv     False
+    1    (1,)          B  2.0      B  utilitypv      True
     >>> builder.get_cluster_profiles()
     array([[0.3, 0.3, 0.3, ..., 0.3, 0.3, 0.3],
            [0.4, 0.4, 0.4, ..., 0.4, 0.4, 0.4]])
