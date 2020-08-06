@@ -745,7 +745,9 @@ class ClusterBuilder:
         dfs = []
         for c in self.clusters:
             df = c["clusters"]
-            columns = [x for x in np.unique([WEIGHT] + MEANS + SUMS) if x in df]
+            columns = [
+                x for x in np.unique([WEIGHT] + MEANS + SUMS + UNIQUES) if x in df
+            ]
             df = (
                 df[columns]
                 .assign(region=c["region"], **c["kwargs"])
