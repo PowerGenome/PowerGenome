@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -850,20 +850,21 @@ def merge_rows(
     {'area': 30, 'mw': 3, 'lcoe': 0.25}
     >>> df.loc[:, 'mw'] = [1, 1]
     >>> merge_rows(df, uniques=['mw', 'area'])
-    {'mw': 1.0, 'area': nan}
+    {'mw': 1, 'area': None}
     """
+
+    def _update(d: dict, df: pd.DataFrame, columns: Iterable, func: Callable) -> None:
+        if columns is not None:
+            for key in columns:
+                d[key] = func(df[key])
+
     merge = {}
-    if sums is not None:
-        merge.update(df[sums].sum())
-    if means is not None:
-        if weight:
-            merge.update(
-                df[means].multiply(df[weight], axis=0).sum() / df[weight].sum()
-            )
-        else:
-            merge.update(df[means].mean())
-    if uniques is not None:
-        merge.update(df[uniques].apply(_unique))
+    _update(merge, df, sums, pd.Series.sum)
+    if weight is None:
+        _update(merge, df, means, pd.Series.mean)
+    else:
+        _update(merge, df, means, lambda x: (x * df[weight]).sum() / df[weight].sum())
+    _update(merge, df, uniques, _unique)
     return merge
 
 
