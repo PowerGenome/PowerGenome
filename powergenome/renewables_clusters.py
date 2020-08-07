@@ -1074,67 +1074,67 @@ def build_row_tree(
     >>> df = pd.DataFrame({'mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
     >>> kwargs = {'sums': ['area', 'mw'], 'means': ['lcoe'], 'weight': 'mw'}
     >>> build_row_tree(df, by=df[['lcoe']], **kwargs)
-                mw  area   lcoe  id  parent_id  level
-    (0,)       1.0   4.0  0.100   0          3      3
-    (1,)       2.0   5.0  0.400   1          4      3
-    (2,)       3.0   6.0  0.200   2          3      3
-    (0, 2)     4.0  10.0  0.175   3          4      2
-    (1, 0, 2)  6.0  15.0  0.250   4        NaN      1
+               mw  area   lcoe  id  parent_id  level
+    (0,)        1     4  0.100   0          3      3
+    (1,)        2     5  0.400   1          4      3
+    (2,)        3     6  0.200   2          3      3
+    (0, 2)      4    10  0.175   3          4      2
+    (1, 0, 2)   6    15  0.250   4        NaN      1
     >>> build_row_tree(df, by=df[['lcoe']], max_level=2, **kwargs)
-                mw  area   lcoe  id  parent_id  level
-    (1,)       2.0   5.0  0.400   0          2      2
-    (0, 2)     4.0  10.0  0.175   1          2      2
-    (1, 0, 2)  6.0  15.0  0.250   2        NaN      1
+               mw  area   lcoe  id  parent_id  level
+    (1,)        2     5  0.400   0          2      2
+    (0, 2)      4    10  0.175   1          2      2
+    (1, 0, 2)   6    15  0.250   2        NaN      1
     >>> build_row_tree(df, by=df[['lcoe']], max_level=1, **kwargs)
-                mw  area  lcoe  id  parent_id  level
-    (1, 0, 2)  6.0  15.0  0.25   0        NaN      1
+               mw  area  lcoe  id  parent_id  level
+    (1, 0, 2)   6    15  0.25   0        NaN      1
     """
     nrows = len(df)
     if max_level is None:
         max_level = nrows
     else:
         max_level = min(max_level, nrows)
-    if max_level < 1:
-        raise ValueError("Max level of tree must be greater than zero")
-    index = [_tuple(x) for x in df.index]
-    df = df.reset_index(drop=True)
+        if max_level < 1:
+            raise ValueError("Max level of tree must be greater than zero")
     drows = nrows - 1
+    index = np.array([_tuple(x) for x in df.index] + [None] * drows)
+    df = df.reset_index(drop=True)
     if drows < 1:
         df.index = index
         return df
+    # Convert dataframe rows to dictionaries
+    rows = df.to_dict("rows")
     # Preallocate new rows
-    df = df.reindex(pd.Index(pd.RangeIndex(stop=nrows + drows)))
+    rows += [None] * drows
     Z = scipy.cluster.hierarchy.linkage(by, method="ward")
-    mask = [True] * (nrows + drows)
-    level = [nrows] * nrows + list(range(nrows - 1, 0, -1))
-    parent_id = [None] * (nrows + drows)
-    for i, link in enumerate(Z[:drows, 0:2].astype(int)):
-        if nrows - i > max_level:
-            mask[link[0]] = False
-            mask[link[1]] = False
+    n = nrows + drows
+    mask = np.ones(n, dtype=bool)
+    level = np.concatenate((np.full(nrows, nrows), np.arange(drows, 0, -1)))
+    parent_id = np.zeros(n)
+    drop = nrows - max_level
+    for i, link in enumerate(Z[:, 0:2].astype(int)):
+        if i < drop:
+            mask[link] = False
         pid = nrows + i
-        parent_id[link[0]] = pid
-        parent_id[link[1]] = pid
-        df.loc[pid] = pd.Series(merge_rows(df.loc[link], **kwargs))
-        index.append(index[link[0]] + index[link[1]])
-    df = df[mask]
+        parent_id[link] = pid
+        rows[pid] = merge_row_pair(rows[link[0]], rows[link[1]], **kwargs)
+        index[pid] = index[link[0]] + index[link[1]]
+    tree = pd.DataFrame([r for r, m in zip(rows, mask) if m])
+    # Preserve original column order
+    tree = tree[[x for x in df.columns if x in tree]]
     # Normalize ids to 0, ..., n
-    old_ids = df.index.tolist()
-    new_ids = np.arange(len(df))
-    new_parent_ids = [old_ids.index(x) for m, x in zip(mask, parent_id[:-1]) if m] + [
-        None
-    ]
-    # Reset index for alignment with parent_id series
-    df = df.reset_index(drop=True).assign(
-        id=new_ids,
-        # Preserve parent id as integer with nullable type
-        parent_id=pd.Series(new_parent_ids, dtype="Int64"),
-        level=[x for m, x in zip(mask, level) if m],
-    )
+    old_ids = np.where(mask)[0]
+    new_ids = np.arange(len(old_ids))
+    new_parent_ids = pd.Series(np.searchsorted(old_ids, parent_id[mask]), dtype="Int64")
+    new_parent_ids.iloc[-1] = np.nan
     # Bump lower levels to max_level
-    df.loc[df["level"] > max_level, "level"] = max_level
-    df.index = [x for m, x in zip(mask, index) if m]
-    return df
+    level = level[mask]
+    if max_level < nrows:
+        stop = level.size - np.searchsorted(level[::-1], max_level, side="right")
+        level[:stop] = max_level
+    tree = tree.assign(id=new_ids, parent_id=new_parent_ids, level=level)
+    tree.index = index[mask]
+    return tree
 
 
 def cluster_row_trees(
