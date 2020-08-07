@@ -748,12 +748,8 @@ class ClusterBuilder:
         dfs = []
         for c in self.clusters:
             df = c["clusters"]
-            columns = [
-                x for x in np.unique([WEIGHT] + MEANS + SUMS + UNIQUES) if x in df
-            ]
             df = (
-                df[columns]
-                .assign(region=c["region"], **c["kwargs"])
+                df.assign(region=c["region"], **c["kwargs"])
                 .rename_axis("ids")
                 .reset_index()
             )
@@ -1127,6 +1123,8 @@ def cluster_row_trees(
         Max number of rows must be greater than zero.
     ValueError
         Missing required fields.
+    ValueError
+        `by` column not included in row merge arguments (`kwargs`).
 
     Examples
     --------
@@ -1136,17 +1134,17 @@ def cluster_row_trees(
     ...     'mw': [0.1, 0.1, 0.1, 0.2, 0.3]
     ... }, index=[0, 1, 2, 3, 4])
     >>> cluster_row_trees(df, by='mw', sums=['mw'], max_rows=2)
-            level  parent_id   mw
-    (2,)        3          4  0.1
-    (0, 1)      2          4  0.2
+             mw
+    (2,)    0.1
+    (0, 1)  0.2
     >>> cluster_row_trees(df, by='mw', sums=['mw'], max_rows=1)
-               level  parent_id   mw
-    (2, 0, 1)      1        NaN  0.3
+                mw
+    (2, 0, 1)  0.3
     >>> cluster_row_trees(df, by='mw', sums=['mw'])
-          level  parent_id   mw
-    (0,)      3          3  0.1
-    (1,)      3          3  0.1
-    (2,)      3          4  0.1
+           mw
+    (0,)  0.1
+    (1,)  0.1
+    (2,)  0.1
     """
     required = ["parent_id", "level", by]
     if tree:
@@ -1163,9 +1161,16 @@ def cluster_row_trees(
         max_rows = nrows
     elif max_rows < 1:
         raise ValueError("Max number of rows must be greater than zero")
+    columns = (
+        (kwargs.get("sums") or [])
+        + (kwargs.get("means") or [])
+        + (kwargs.get("uniques") or [])
+    )
+    if by not in columns:
+        raise ValueError(f"{by} not included in row merge arguments")
     drows = nrows - max_rows
     if drows < 1:
-        df = df.copy()[mask]
+        df = df.copy().loc[mask, columns]
         df.index = [_tuple(x) for x in df.index]
         return df
     df = df.assign(_id=df.index, _ids=[_tuple(x) for x in df.index], _mask=mask)
@@ -1183,24 +1188,23 @@ def cluster_row_trees(
             break
         if parents["n"].iloc[0] == 2:
             # Choose complete parent with lowest distance of children
-            best = parents.iloc[0]
+            pid = parents.index[0]
+            ids = parents["ids"].iloc[0]
             # Compute parent
             parent = {
                 # Initial attributes
-                **df.loc[best.name],
+                **df.loc[[pid], ["_id", "parent_id", "level"]].to_dict("rows")[0],
                 # Merged children attributes
                 # NOTE: Needed only if a child is incomplete
-                **merge_row_pair(
-                    df.loc[best["ids"][0]], df.loc[best["ids"][1]], **kwargs
-                ),
+                **merge_row_pair(df.loc[ids[0]], df.loc[ids[1]], **kwargs),
                 # Indices of all past children
-                "_ids": df.loc[best["ids"][0], "_ids"] + df.loc[best["ids"][1], "_ids"],
+                "_ids": [df.loc[ids[0], "_ids"] + df.loc[ids[1], "_ids"]],
                 "_mask": True,
             }
             # Add parent
-            df.loc[best.name] = pd.Series(parent)
+            df.loc[[pid]] = pd.DataFrame(parent, index=[pid])
             # Drop children
-            df.loc[best["ids"], "_mask"] = False
+            df.loc[ids, "_mask"] = False
             # Decrement rows
             drows -= 1
         else:
@@ -1211,9 +1215,7 @@ def cluster_row_trees(
             columns = ["_id", "parent_id", "level"]
             df.loc[child_id, columns] = df.loc[parent_id, columns]
             # Update index
-            df.rename(
-                index={child_id: parent_id, parent_id: float("nan")}, inplace=True
-            )
+            df.rename(index={child_id: parent_id, parent_id: np.nan}, inplace=True)
     # Apply mask
     df = df[df["_mask"]]
     # Drop temporary columns
@@ -1221,4 +1223,4 @@ def cluster_row_trees(
     df = df.drop(columns=["_id", "_ids", "_mask"])
     if len(df) > max_rows:
         df = cluster_rows(df, by=df[[by]], max_rows=max_rows, **kwargs)
-    return df
+    return df[columns]
