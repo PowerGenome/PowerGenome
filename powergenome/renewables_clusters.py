@@ -358,8 +358,8 @@ class ResourceGroup:
     >>> rg.test_metadata()
     >>> rg.test_profiles()
     >>> rg.get_clusters(max_clusters=1)
-           ipm_region   mw
-    (1, 0)          A  3.0
+           ipm_region  mw
+    (1, 0)          A   3
     >>> rg.get_cluster_profiles(ids=[(0, 1)])
     array([[0.3, 0.3, 0.3, ..., 0.3, 0.3, 0.3]])
     """
@@ -484,8 +484,6 @@ class ResourceGroup:
         ValueError
             No resources found or selected.
         """
-        if max_clusters is None:
-            max_clusters = float("inf")
         df = self.metadata.read().set_index("id")
         if ipm_regions is not None:
             # Filter by IPM region
@@ -614,9 +612,9 @@ class ClusterBuilder:
     >>> builder.build_clusters(region='B', ipm_regions=['B'], min_capacity=2,
     ...     technology='utilitypv', existing=True)
     >>> builder.get_cluster_metadata()
-          ids ipm_region   mw region technology  existing
-    0  (1, 0)          A  3.0      A  utilitypv     False
-    1    (1,)          B  2.0      B  utilitypv      True
+          ids ipm_region  mw region technology  existing
+    0  (1, 0)          A   3      A  utilitypv     False
+    1    (1,)          B   2      B  utilitypv      True
     >>> builder.get_cluster_profiles()
     array([[0.3, 0.3, 0.3, ..., 0.3, 0.3, 0.3],
            [0.4, 0.4, 0.4, ..., 0.4, 0.4, 0.4]])
@@ -938,7 +936,7 @@ def merge_row_pair(
 
 
 def cluster_rows(
-    df: pd.DataFrame, by: Iterable[Iterable], max_rows: int = 1, **kwargs: Any
+    df: pd.DataFrame, by: Iterable[Iterable], max_rows: int = None, **kwargs: Any
 ) -> pd.DataFrame:
     """
     Merge rows in dataframe by hierarchical clustering.
@@ -955,6 +953,7 @@ def cluster_rows(
         distances between each row pair.
     max_rows
         Number of rows at which to stop merging rows.
+        If `None`, no clustering is performed.
     **kwargs
         Optional parameters to :func:`merge_rows`.
 
@@ -977,54 +976,61 @@ def cluster_rows(
 
     >>> df = pd.DataFrame({'mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
     >>> kwargs = {'sums': ['area', 'mw'], 'means': ['lcoe'], 'weight': 'mw'}
-    >>> cluster_rows(df, by=df[['lcoe']], max_rows=len(df), **kwargs)
+    >>> cluster_rows(df, by=df[['lcoe']], **kwargs)
           mw  area  lcoe
     (0,)   1     4   0.1
     (1,)   2     5   0.4
     (2,)   3     6   0.2
     >>> cluster_rows(df, by=df[['lcoe']], max_rows=2, **kwargs)
-             mw  area   lcoe
-    (1,)    2.0   5.0  0.400
-    (0, 2)  4.0  10.0  0.175
+            mw  area   lcoe
+    (1,)     2     5  0.400
+    (0, 2)   4    10  0.175
 
     With a custom row index:
 
     >>> df.index = ['a', 'b', 'c']
     >>> cluster_rows(df, by=df[['lcoe']], max_rows=2, **kwargs)
-             mw  area   lcoe
-    (b,)    2.0   5.0  0.400
-    (a, c)  4.0  10.0  0.175
+            mw  area   lcoe
+    (b,)     2     5  0.400
+    (a, c)   4    10  0.175
 
     With an iterable row index:
 
     >>> df.index = [(1, 2), (4, ), (3, )]
     >>> cluster_rows(df, by=df[['lcoe']], max_rows=2, **kwargs)
-                mw  area   lcoe
-    (4,)       2.0   5.0  0.400
-    (1, 2, 3)  4.0  10.0  0.175
+               mw  area   lcoe
+    (4,)        2     5  0.400
+    (1, 2, 3)   4    10  0.175
     """
-    if max_rows < 1:
-        raise ValueError("Max number of rows must be greater than zero")
-    index = [_tuple(x) for x in df.index]
-    df = df.reset_index(drop=True)
     nrows = len(df)
+    if max_rows is None:
+        max_rows = len(df)
+    elif max_rows < 1:
+        raise ValueError("Max number of rows must be greater than zero")
     drows = nrows - max_rows
+    index = [_tuple(x) for x in df.index] + [None] * drows
+    df = df.reset_index(drop=True)
     if drows < 1:
         df.index = index
         return df
+    # Convert dataframe rows to dictionaries
+    rows = df.to_dict("rows")
     # Preallocate new rows
-    df = df.reindex(pd.Index(pd.RangeIndex(stop=nrows + drows)))
-    Z = scipy.cluster.hierarchy.linkage(by, method="ward")
-    mask = [True] * nrows
+    rows += [None] * drows
+    # Preallocate new rows
+    Z = scipy.cluster.hierarchy.ward(by)
+    n = nrows + drows
+    mask = np.ones(n, dtype=bool)
     for i, link in enumerate(Z[:drows, 0:2].astype(int)):
-        mask[link[0]] = False
-        mask[link[1]] = False
-        df.loc[nrows + i] = pd.Series(merge_rows(df.loc[link], **kwargs))
-        index.append(index[link[0]] + index[link[1]])
-        mask.append(True)
-    df = df[mask]
-    df.index = [idx for m, idx in zip(mask, index) if m]
-    return df
+        mask[link] = False
+        pid = nrows + i
+        rows[pid] = merge_row_pair(rows[link[0]], rows[link[1]], **kwargs)
+        index[pid] = index[link[0]] + index[link[1]]
+    clusters = pd.DataFrame([x for x, m in zip(rows, mask) if m])
+    # Preserve original column order
+    clusters = clusters[[x for x in df.columns if x in clusters]]
+    clusters.index = [x for x, m in zip(index, mask) if m]
+    return clusters
 
 
 def build_row_tree(
@@ -1097,7 +1103,7 @@ def build_row_tree(
         if max_level < 1:
             raise ValueError("Max level of tree must be greater than zero")
     drows = nrows - 1
-    index = np.array([_tuple(x) for x in df.index] + [None] * drows)
+    index = [_tuple(x) for x in df.index] + [None] * drows
     df = df.reset_index(drop=True)
     if drows < 1:
         df.index = index
@@ -1119,7 +1125,7 @@ def build_row_tree(
         parent_id[link] = pid
         rows[pid] = merge_row_pair(rows[link[0]], rows[link[1]], **kwargs)
         index[pid] = index[link[0]] + index[link[1]]
-    tree = pd.DataFrame([r for r, m in zip(rows, mask) if m])
+    tree = pd.DataFrame([x for x, m in zip(rows, mask) if m])
     # Preserve original column order
     tree = tree[[x for x in df.columns if x in tree]]
     # Normalize ids to 0, ..., n
@@ -1133,12 +1139,12 @@ def build_row_tree(
         stop = level.size - np.searchsorted(level[::-1], max_level, side="right")
         level[:stop] = max_level
     tree = tree.assign(id=new_ids, parent_id=new_parent_ids, level=level)
-    tree.index = index[mask]
+    tree.index = [x for x, m in zip(index, mask) if m]
     return tree
 
 
 def cluster_row_trees(
-    df: pd.DataFrame, by: str, tree: str = None, max_rows: int = 1, **kwargs: Any
+    df: pd.DataFrame, by: str, tree: str = None, max_rows: int = None, **kwargs: Any
 ) -> pd.DataFrame:
     """
     Merge rows in a dataframe following precomputed hierarchical trees.
@@ -1159,6 +1165,7 @@ def cluster_row_trees(
         Number of rows at which to stop merging rows.
         If smaller than the number of trees, :func:`cluster_rows` is used to merge
         tree heads.
+        If `None`, no merging is performed and only the base rows are returned.
     **kwargs
         Optional parameters to :func:`merge_rows`.
 
@@ -1181,19 +1188,22 @@ def cluster_row_trees(
     --------
     >>> df = pd.DataFrame({
     ...     'level': [3, 3, 3, 2, 1],
-    ...     'parent_id': [3, 3, 4, 4, float('nan')],
+    ...     'parent_id': pd.Series([3, 3, 4, 4, float('nan')], dtype='Int64'),
     ...     'mw': [0.1, 0.1, 0.1, 0.2, 0.3]
     ... }, index=[0, 1, 2, 3, 4])
     >>> cluster_row_trees(df, by='mw', sums=['mw'], max_rows=2)
             level  parent_id   mw
-    (2,)        3        4.0  0.1
-    (0, 1)      2        4.0  0.2
-    >>> cluster_row_trees(df, by='mw', sums=['mw'])
+    (2,)        3          4  0.1
+    (0, 1)      2          4  0.2
+    >>> cluster_row_trees(df, by='mw', sums=['mw'], max_rows=1)
                level  parent_id   mw
     (2, 0, 1)      1        NaN  0.3
+    >>> cluster_row_trees(df, by='mw', sums=['mw'])
+          level  parent_id   mw
+    (0,)      3          3  0.1
+    (1,)      3          3  0.1
+    (2,)      3          4  0.1
     """
-    if max_rows < 1:
-        raise ValueError("Max number of rows must be greater than zero")
     required = ["parent_id", "level", by]
     if tree:
         required.append(tree)
@@ -1204,9 +1214,14 @@ def cluster_row_trees(
         mask = df["level"] == df[tree].map(df.groupby(tree)["level"].max())
     else:
         mask = df["level"] == df["level"].max()
-    drows = mask.sum() - max_rows
+    nrows = mask.sum()
+    if max_rows is None:
+        max_rows = nrows
+    elif max_rows < 1:
+        raise ValueError("Max number of rows must be greater than zero")
+    drows = nrows - max_rows
     if drows < 1:
-        df = df.copy()
+        df = df.copy()[mask]
         df.index = [_tuple(x) for x in df.index]
         return df
     df = df.assign(_id=df.index, _ids=[_tuple(x) for x in df.index], _mask=mask)
