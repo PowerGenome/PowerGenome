@@ -817,62 +817,6 @@ def _unique(x: Iterable) -> Any:
     return None
 
 
-def merge_rows(
-    df: pd.DataFrame,
-    sums: Iterable = None,
-    means: Iterable = None,
-    weight=None,
-    uniques: Iterable = None,
-) -> dict:
-    """
-    Merge all rows in dataframe into one.
-
-    Parameters
-    ----------
-    df
-        Rows to merge.
-    sums
-        Names of columns to sum.
-    means
-        Names of columns to average.
-    weight
-        Name of column to use for weighted averages.
-        If `None`, averages are not weighted.
-    uniques
-        Names of columns for which to return the unique value if unique, and NaN if not.
-
-    Returns
-    -------
-    dict
-        Merged row as a dictionary.
-
-    Examples
-    --------
-    >>> df = pd.DataFrame({'mw': [1, 2], 'area': [10, 20], 'lcoe': [0.1, 0.4]})
-    >>> merge_rows(df, sums=['area', 'mw'], means=['lcoe'], weight='mw')
-    {'area': 30, 'mw': 3, 'lcoe': 0.3}
-    >>> merge_rows(df, sums=['area', 'mw'], means=['lcoe'])
-    {'area': 30, 'mw': 3, 'lcoe': 0.25}
-    >>> df.loc[:, 'mw'] = [1, 1]
-    >>> merge_rows(df, uniques=['mw', 'area'])
-    {'mw': 1, 'area': None}
-    """
-
-    def _update(d: dict, df: pd.DataFrame, columns: Iterable, func: Callable) -> None:
-        if columns is not None:
-            for key in columns:
-                d[key] = func(df[key])
-
-    merge = {}
-    _update(merge, df, sums, pd.Series.sum)
-    if weight is None:
-        _update(merge, df, means, pd.Series.mean)
-    else:
-        _update(merge, df, means, lambda x: (x * df[weight]).sum() / df[weight].sum())
-    _update(merge, df, uniques, _unique)
-    return merge
-
-
 def merge_row_pair(
     a: Mapping,
     b: Mapping,
@@ -955,7 +899,7 @@ def cluster_rows(
         Number of rows at which to stop merging rows.
         If `None`, no clustering is performed.
     **kwargs
-        Optional parameters to :func:`merge_rows`.
+        Optional parameters to :func:`merge_row_pair`.
 
     Returns
     -------
@@ -1055,7 +999,7 @@ def build_row_tree(
         Maximum level of tree to return,
         from m (the number of rows in `df`, if `None`) to 1.
     **kwargs
-        Optional parameters to :func:`merge_rows`.
+        Optional parameters to :func:`merge_row_pair`.
 
     Returns
     -------
@@ -1167,7 +1111,7 @@ def cluster_row_trees(
         tree heads.
         If `None`, no merging is performed and only the base rows are returned.
     **kwargs
-        Optional parameters to :func:`merge_rows`.
+        Optional parameters to :func:`merge_row_pair`.
 
     Returns
     -------
@@ -1246,7 +1190,9 @@ def cluster_row_trees(
                 **df.loc[best.name],
                 # Merged children attributes
                 # NOTE: Needed only if a child is incomplete
-                **merge_rows(df.loc[best["ids"]], **kwargs),
+                **merge_row_pair(
+                    df.loc[best["ids"][0]], df.loc[best["ids"][1]], **kwargs
+                ),
                 # Indices of all past children
                 "_ids": df.loc[best["ids"][0], "_ids"] + df.loc[best["ids"][1], "_ids"],
                 "_mask": True,
