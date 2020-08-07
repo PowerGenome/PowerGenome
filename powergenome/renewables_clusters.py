@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import re
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -872,6 +872,68 @@ def merge_rows(
     else:
         _update(merge, df, means, lambda x: (x * df[weight]).sum() / df[weight].sum())
     _update(merge, df, uniques, _unique)
+    return merge
+
+
+def merge_row_pair(
+    a: Mapping,
+    b: Mapping,
+    sums: Iterable = None,
+    means: Iterable = None,
+    weight: Any = None,
+    uniques: Iterable = None,
+) -> dict:
+    """
+    Merge two mappings into one.
+
+    Parameters
+    ----------
+    a
+        First mapping (e.g. :class:`dict`, :class:`pd.Series`).
+    b
+        Second mapping.
+    means
+        Keys of values to average.
+    weight
+        Key of values to use as weights for weighted averages.
+        If `None`, averages are not weighted.
+    uniques
+        Keys of values for which to return the value if equal, and `None` if not.
+
+    Returns
+    -------
+    dict
+        Merged row as a dictionary.
+
+    Examples
+    --------
+    >>> df = pd.DataFrame({'mw': [1, 2], 'area': [10, 20], 'lcoe': [0.1, 0.4]})
+    >>> a, b = df.to_dict('rows')
+    >>> merge_row_pair(a, b, sums=['area', 'mw'], means=['lcoe'], weight='mw')
+    {'area': 30, 'mw': 3, 'lcoe': 0.3}
+    >>> merge_row_pair(a, b, sums=['area', 'mw'], means=['lcoe'])
+    {'area': 30, 'mw': 3, 'lcoe': 0.25}
+    >>> b['mw'] = 1
+    >>> merge_row_pair(a, b, uniques=['mw', 'area'])
+    {'mw': 1, 'area': None}
+    """
+    merge = {}
+    if sums:
+        for key in sums:
+            merge[key] = a[key] + b[key]
+    if means:
+        if weight:
+            total = a[weight] + b[weight]
+            aw = a[weight] / total
+            bw = b[weight] / total
+        else:
+            aw = 0.5
+            bw = 0.5
+        for key in means:
+            merge[key] = a[key] * aw + b[key] * bw
+    if uniques:
+        for key in uniques:
+            merge[key] = a[key] if a[key] == b[key] else None
     return merge
 
 
