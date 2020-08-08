@@ -1224,3 +1224,35 @@ def cluster_row_trees(
     if len(df) > max_rows:
         df = cluster_rows(df, by=df[[by]], max_rows=max_rows, **kwargs)
     return df[columns]
+
+
+def group_rows(
+    df: pd.DataFrame, ids: Iterable[Iterable]
+) -> pd.core.groupby.DataFrameGroupBy:
+    """
+    Group dataframe rows by index.
+
+    Parameters
+    ----------
+    df
+        Dataframe to group.
+    ids
+        Groups of rows indices.
+
+    Returns
+    -------
+    pd.core.groupby.DataFrameGroupBy
+        Rows of `df` grouped by their membership in each index group.
+
+    Examples
+    --------
+    >>> df = pd.DataFrame({'x': [2, 1, 3]}, index=[2, 1, 3])
+    >>> group_rows(df, [(1, ), (2, 3), (1, 2, 3)]).sum()
+       x
+    0  1
+    1  5
+    2  6
+    """
+    groups = np.repeat(np.arange(len(ids)), [len(x) for x in ids])
+    index = np.concatenate(ids)
+    return df.loc[index].groupby(groups, sort=False)
