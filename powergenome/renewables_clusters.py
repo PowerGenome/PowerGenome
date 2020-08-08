@@ -1257,3 +1257,50 @@ def group_rows(
     groups = np.repeat(np.arange(len(ids)), [len(x) for x in ids])
     index = np.concatenate(ids)
     return df.loc[index].groupby(groups, sort=False)
+
+
+def prune_tree(df: pd.DataFrame, level: int) -> pd.DataFrame:
+    """
+    Prune base levels of hierarchical tree.
+
+    Parameters
+    ----------
+    df
+        Dataframe representing a hierarchical tree.
+        Must have columns `id`, `parent_id` and `level`.
+    level
+        Level at which to prune tree.
+
+    Returns
+    -------
+    pd.DataFrame
+        Pruned hierarchical tree.
+        Column `id` (and `parent_id`) is reset to (0, ..., nrows - 1).
+
+    Examples
+    --------
+    >>> parent_id = pd.Series([3, 3, 4, 4, None], dtype='Int64')
+    >>> df = pd.DataFrame({
+    ...     'id': [0, 1, 2, 3, 4],
+    ...     'parent_id': parent_id,
+    ...     'level': [3, 3, 3, 2, 1]
+    ... })
+    >>> prune_tree(df, level=2)
+       id  parent_id  level
+    2   0          2      2
+    3   1          2      2
+    4   2        NaN      1
+    """
+    levels = df["level"].max()
+    if level > levels:
+        return df
+    # Drop direct children of all parents up to and including max_level
+    pids = df["id"][(df["level"] >= level) & (df["level"] < levels)]
+    df = df[~df["parent_id"].isin(pids)].copy()
+    # Bump level of remaining children
+    df.loc[df["level"] > level, "level"] = level
+    # Normalize ids to 0, ..., n
+    mask = ~df["parent_id"].isna()
+    df.loc[mask, "parent_id"] = np.searchsorted(df["id"], df["parent_id"][mask])
+    df["id"] = np.arange(len(df))
+    return df
