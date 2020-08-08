@@ -382,15 +382,15 @@ class ResourceGroup:
         required = ["technology"]
         if metadata is None:
             required.append("metadata")
-        if profiles is None:
-            required.append("profiles")
         missing = [key for key in required if not self.group.get(key)]
         if missing:
             raise ValueError(
                 f"Group metadata missing required keys {missing}: {self.group}"
             )
         self.metadata = Table(df=metadata, path=self.group.get("metadata"))
-        self.profiles = Table(df=profiles, path=self.group.get("profiles"))
+        self.profiles = None
+        if profiles is not None or self.group.get("profiles"):
+            self.profiles = Table(df=profiles, path=self.group.get("profiles"))
 
     @classmethod
     def from_json(cls, path: Union[str, os.PathLike]) -> "ResourceGroup":
@@ -434,6 +434,8 @@ class ResourceGroup:
         ValueError
             Resource profiles are not either 8760 or 8784 elements.
         """
+        if self.profiles is None:
+            return None
         # Cast identifiers to string to match profile columns
         ids = self.metadata.read(columns=["id"])["id"].astype(str)
         columns = self.profiles.columns
@@ -544,6 +546,8 @@ class ResourceGroup:
         np.ndarray
             Hourly normalized (0-1) generation profiles (n clusters, m hours).
         """
+        if self.profiles is None:
+            return ValueError("Resource profiles are not available")
         # Cast resource identifiers to string to match profile columns
         ids = [[str(x) for x in cids] for cids in ids]
         metadata = self.metadata.read(columns=["id", CAPACITY]).set_index("id")
