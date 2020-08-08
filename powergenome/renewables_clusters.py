@@ -24,6 +24,7 @@ MEANS = [
     "site_substation_spur_miles",
     "substation_metro_tx_miles",
     "site_metro_spur_miles",
+    "m_popden",
 ]
 UNIQUES = ["ipm_region", "metro_id"]
 SUMS = ["area", CAPACITY]
