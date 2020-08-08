@@ -14,20 +14,22 @@ import scipy.cluster.hierarchy
 logger = logging.getLogger(__name__)
 
 CAPACITY = "mw"
-WEIGHT = CAPACITY
-MEANS = [
-    "lcoe",
-    "interconnect_annuity",
-    "offshore_spur_miles",
-    "spur_miles",
-    "tx_miles",
-    "site_substation_spur_miles",
-    "substation_metro_tx_miles",
-    "site_metro_spur_miles",
-    "m_popden",
-]
-UNIQUES = ["ipm_region", "metro_id"]
-SUMS = ["area", CAPACITY]
+MERGE = {
+    "sums": [CAPACITY, "area"],
+    "means": [
+        "lcoe",
+        "interconnect_annuity",
+        "offshore_spur_miles",
+        "spur_miles",
+        "tx_miles",
+        "site_substation_spur_miles",
+        "substation_metro_tx_miles",
+        "site_metro_spur_miles",
+        "m_popden",
+    ],
+    "weight": CAPACITY,
+    "uniques": ["ipm_region", "metro_id"],
+}
 NREL_ATB_TECHNOLOGY_MAP = {
     ("utilitypv", None): {"technology": "utilitypv"},
     ("landbasedwind", None): {"technology": "landbasedwind"},
@@ -519,13 +521,8 @@ class ResourceGroup:
             logger.warning(
                 f"Selected capacity less than minimum ({capacity} < {min_capacity} MW)"
             )
-        # Prepare row merge arguments
-        merge = {
-            "sums": [key for key in SUMS if key in df] or None,
-            "means": [key for key in MEANS if key in df] or None,
-            "weight": WEIGHT,
-            "uniques": [key for key in UNIQUES if key in df] or None,
-        }
+        # Prepare merge
+        merge = prepare_merge(MERGE, df)
         # Compute clusters
         if tree:
             return cluster_trees(
@@ -549,7 +546,7 @@ class ResourceGroup:
         """
         # Cast resource identifiers to string to match profile columns
         ids = [[str(x) for x in cids] for cids in ids]
-        metadata = self.metadata.read(columns=["id", WEIGHT]).set_index("id")
+        metadata = self.metadata.read(columns=["id", CAPACITY]).set_index("id")
         metadata.index = metadata.index.astype(str)
         # Compute unique resource identifiers
         columns = []
@@ -564,7 +561,7 @@ class ResourceGroup:
             if len(cids) == 1:
                 results[i] = profiles[cids[0]].values
             else:
-                weights = metadata.loc[cids, WEIGHT].values.astype(float, copy=False)
+                weights = metadata.loc[cids, CAPACITY].values.astype(float, copy=False)
                 weights /= weights.sum()
                 results[i] = (profiles[cids].values * weights).sum(axis=1)
         return results
@@ -916,7 +913,7 @@ def cluster_rows(
     With the default (range) row index:
 
     >>> df = pd.DataFrame({'mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
-    >>> kwargs = {'sums': ['area', 'mw'], 'means': ['lcoe'], 'weight': 'mw'}
+    >>> kwargs = {'sums': ['mw', 'area'], 'means': ['lcoe'], 'weight': 'mw'}
     >>> cluster_rows(df, by=df[['lcoe']], **kwargs)
           mw  area  lcoe
     (0,)   1     4   0.1
@@ -950,7 +947,8 @@ def cluster_rows(
         raise ValueError("Max number of rows must be greater than zero")
     drows = nrows - max_rows
     index = [_tuple(x) for x in df.index] + [None] * drows
-    df = df.reset_index(drop=True)
+    merge = prepare_merge(kwargs, df)
+    df = df[get_merge_columns(merge, df)].reset_index(drop=True)
     if drows < 1:
         df.index = index
         return df
@@ -1162,19 +1160,18 @@ def cluster_trees(
         max_rows = nrows
     elif max_rows < 1:
         raise ValueError("Max number of rows must be greater than zero")
-    columns = (
-        (kwargs.get("sums") or [])
-        + (kwargs.get("means") or [])
-        + (kwargs.get("uniques") or [])
-    )
+    merge = prepare_merge(kwargs, df)
+    columns = get_merge_columns(merge, df)
     if by not in columns:
         raise ValueError(f"{by} not included in row merge arguments")
     drows = nrows - max_rows
     if drows < 1:
-        df = df.copy().loc[mask, columns]
+        df = df.loc[mask, columns].copy()
         df.index = [_tuple(x) for x in df.index]
         return df
-    df = df.assign(_id=df.index, _ids=[_tuple(x) for x in df.index], _mask=mask)
+    df = df[set(columns + required)].assign(
+        _id=df.index, _ids=[_tuple(x) for x in df.index], _mask=mask
+    )
     diff = lambda x: abs(x.max() - x.min())
     while drows > 0:
         # Sort parents by ascending distance of children
@@ -1213,8 +1210,8 @@ def cluster_trees(
             parent_id = df.loc[parents.index, "level"].idxmax()
             child_id = parents.loc[parent_id, "ids"][0]
             # Update child
-            columns = ["_id", "parent_id", "level"]
-            df.loc[child_id, columns] = df.loc[parent_id, columns]
+            tree_columns = ["_id", "parent_id", "level"]
+            df.loc[child_id, tree_columns] = df.loc[parent_id, tree_columns]
             # Update index
             df.rename(index={child_id: parent_id, parent_id: np.nan}, inplace=True)
     # Apply mask
@@ -1304,3 +1301,86 @@ def prune_tree(df: pd.DataFrame, level: int) -> pd.DataFrame:
     df.loc[mask, "parent_id"] = np.searchsorted(df["id"], df["parent_id"][mask])
     df["id"] = np.arange(len(df))
     return df
+
+
+def prepare_merge(merge: dict, df: pd.DataFrame) -> dict:
+    """
+    Prepare merge for a target dataframe.
+
+    Parameters
+    ----------
+    merge
+        Parameters to :func:`merge_row_pair`.
+    df
+        Dataframe to prepare merge for.
+
+    Raises
+    ------
+    ValueError
+        Column names duplicated in merge.
+    ValueError
+        Weights not present in dataframe.
+    ValueError
+        Weights not included in merge.
+
+    Examples
+    --------
+    >>> df = pd.DataFrame(columns=['mw', 'lcoe'])
+    >>> merge = {'sums': ['mw', 'area'], 'means': ['lcoe'], 'weight': 'mw'}
+    >>> prepare_merge(merge, df)
+    {'sums': ['mw'], 'means': ['lcoe'], 'weight': 'mw'}
+    """
+    reduced = {}
+    for key in "sums", "means", "uniques":
+        if merge.get(key):
+            reduced[key] = [x for x in merge[key] if x in df]
+    columns = get_merge_columns(reduced)
+    if reduced.get("means") and merge.get("weight"):
+        weight = merge["weight"]
+        if weight not in df:
+            raise ValueError(f"Weights {weight} not present in dataframe")
+        if weight not in columns:
+            raise ValueError(f"Weights {weight} not included in merge")
+        reduced["weight"] = weight
+    return reduced
+
+
+def get_merge_columns(merge: dict, df: pd.DataFrame = None) -> list:
+    """
+    Get columns included in merge.
+
+    Parameters
+    ----------
+    merge
+        Parameters to :func:`merge_row_pair`.
+    df
+        Dataframe.
+        If provided, only matching column names are returned, in order of appearance.
+
+    Raises
+    ------
+    ValueError
+        Column names duplicated in merge.
+
+    Examples
+    --------
+    >>> merge = {'sums': ['mw'], 'means': ['lcoe'], 'uniques': None, 'weight': 'lcoe'}
+    >>> get_merge_columns(merge)
+    ['mw', 'lcoe']
+    >>> get_merge_columns(merge, pd.DataFrame(columns=['lcoe', 'mw']))
+    ['lcoe', 'mw']
+    >>> get_merge_columns({'sums': ['mw'], 'means': ['mw']})
+    Traceback (most recent call last):
+      ...
+    ValueError: Column names duplicated in merge
+    """
+    columns = (
+        (merge.get("sums") or [])
+        + (merge.get("means") or [])
+        + (merge.get("uniques") or [])
+    )
+    if len(columns) > len(set(columns)):
+        raise ValueError("Column names duplicated in merge")
+    if df is not None:
+        return [x for x in df if x in columns]
+    return columns
