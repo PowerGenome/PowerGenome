@@ -528,7 +528,7 @@ class ResourceGroup:
         }
         # Compute clusters
         if tree:
-            return cluster_row_trees(
+            return cluster_trees(
                 df[mask | ~base], by=by, tree=tree, max_rows=max_clusters, **merge
             )
         return cluster_rows(df[mask], by=df[[by]], max_rows=max_clusters, **merge)
@@ -974,7 +974,7 @@ def cluster_rows(
     return clusters
 
 
-def build_row_tree(
+def build_tree(
     df: pd.DataFrame, by: Iterable[Iterable], max_level: int = None, **kwargs: Any,
 ) -> pd.DataFrame:
     """
@@ -1020,19 +1020,19 @@ def build_row_tree(
     --------
     >>> df = pd.DataFrame({'mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
     >>> kwargs = {'sums': ['area', 'mw'], 'means': ['lcoe'], 'weight': 'mw'}
-    >>> build_row_tree(df, by=df[['lcoe']], **kwargs)
+    >>> build_tree(df, by=df[['lcoe']], **kwargs)
                mw  area   lcoe  id  parent_id  level
     (0,)        1     4  0.100   0          3      3
     (1,)        2     5  0.400   1          4      3
     (2,)        3     6  0.200   2          3      3
     (0, 2)      4    10  0.175   3          4      2
     (1, 0, 2)   6    15  0.250   4        NaN      1
-    >>> build_row_tree(df, by=df[['lcoe']], max_level=2, **kwargs)
+    >>> build_tree(df, by=df[['lcoe']], max_level=2, **kwargs)
                mw  area   lcoe  id  parent_id  level
     (1,)        2     5  0.400   0          2      2
     (0, 2)      4    10  0.175   1          2      2
     (1, 0, 2)   6    15  0.250   2        NaN      1
-    >>> build_row_tree(df, by=df[['lcoe']], max_level=1, **kwargs)
+    >>> build_tree(df, by=df[['lcoe']], max_level=1, **kwargs)
                mw  area  lcoe  id  parent_id  level
     (1, 0, 2)   6    15  0.25   0        NaN      1
     """
@@ -1084,7 +1084,7 @@ def build_row_tree(
     return tree
 
 
-def cluster_row_trees(
+def cluster_trees(
     df: pd.DataFrame, by: str, tree: str = None, max_rows: int = None, **kwargs: Any
 ) -> pd.DataFrame:
     """
@@ -1134,14 +1134,14 @@ def cluster_row_trees(
     ...     'parent_id': pd.Series([3, 3, 4, 4, float('nan')], dtype='Int64'),
     ...     'mw': [0.1, 0.1, 0.1, 0.2, 0.3]
     ... }, index=[0, 1, 2, 3, 4])
-    >>> cluster_row_trees(df, by='mw', sums=['mw'], max_rows=2)
+    >>> cluster_trees(df, by='mw', sums=['mw'], max_rows=2)
              mw
     (2,)    0.1
     (0, 1)  0.2
-    >>> cluster_row_trees(df, by='mw', sums=['mw'], max_rows=1)
+    >>> cluster_trees(df, by='mw', sums=['mw'], max_rows=1)
                 mw
     (2, 0, 1)  0.3
-    >>> cluster_row_trees(df, by='mw', sums=['mw'])
+    >>> cluster_trees(df, by='mw', sums=['mw'])
            mw
     (0,)  0.1
     (1,)  0.1
