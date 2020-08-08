@@ -847,7 +847,7 @@ def merge_row_pair(
     Examples
     --------
     >>> df = pd.DataFrame({'mw': [1, 2], 'area': [10, 20], 'lcoe': [0.1, 0.4]})
-    >>> a, b = df.to_dict('rows')
+    >>> a, b = df.to_dict('records')
     >>> merge_row_pair(a, b, sums=['area', 'mw'], means=['lcoe'], weight='mw')
     {'area': 30, 'mw': 3, 'lcoe': 0.3}
     >>> merge_row_pair(a, b, sums=['area', 'mw'], means=['lcoe'])
@@ -955,7 +955,7 @@ def cluster_rows(
         df.index = index
         return df
     # Convert dataframe rows to dictionaries
-    rows = df.to_dict("rows")
+    rows = df.to_dict("records")
     # Preallocate new rows
     rows += [None] * drows
     # Preallocate new rows
@@ -1050,7 +1050,7 @@ def build_row_tree(
         df.index = index
         return df
     # Convert dataframe rows to dictionaries
-    rows = df.to_dict("rows")
+    rows = df.to_dict("records")
     # Preallocate new rows
     rows += [None] * drows
     Z = scipy.cluster.hierarchy.linkage(by, method="ward")
@@ -1194,7 +1194,7 @@ def cluster_row_trees(
             # Compute parent
             parent = {
                 # Initial attributes
-                **df.loc[[pid], ["_id", "parent_id", "level"]].to_dict("rows")[0],
+                **df.loc[[pid], ["_id", "parent_id", "level"]].to_dict("records")[0],
                 # Merged children attributes
                 # NOTE: Needed only if a child is incomplete
                 **merge_row_pair(df.loc[ids[0]], df.loc[ids[1]], **kwargs),
