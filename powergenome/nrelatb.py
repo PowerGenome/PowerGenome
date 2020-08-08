@@ -834,11 +834,10 @@ def add_renewables_clusters(
         technology = technologies[0]
         builder = ClusterBuilder.from_path(SETTINGS["RENEWABLES_CLUSTERS"])
         builder.build_clusters(**scenario, ipm_regions=ipm_regions)
-        profiles = builder.get_cluster_profiles()
         clusters = (
             builder.get_cluster_metadata()
-            .rename(columns={"mw": "Cap_size"})
-            .assign(technology=technology, variability=list(profiles))
+            .rename(columns={"mw": "Cap_size", "profile": "variability"})
+            .assign(technology=technology)
         )
         row = df[df["technology"] == technology].iloc[0]
         kwargs = {k: v for k, v in row.items() if k not in clusters}

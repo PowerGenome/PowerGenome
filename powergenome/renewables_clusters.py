@@ -1,3 +1,4 @@
+import copy
 import glob
 import json
 import logging
@@ -361,10 +362,8 @@ class ResourceGroup:
     >>> rg.test_metadata()
     >>> rg.test_profiles()
     >>> rg.get_clusters(max_clusters=1)
-           ipm_region  mw
-    (1, 0)          A   3
-    >>> rg.get_cluster_profiles(ids=[(0, 1)])
-    array([[0.3, 0.3, 0.3, ..., 0.3, 0.3, 0.3]])
+           ipm_region  mw                                            profile
+    (1, 0)          A   3  [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, ...
     """
 
     def __init__(
@@ -454,6 +453,7 @@ class ResourceGroup:
         max_clusters: int = None,
         max_lcoe: float = None,
         cap_multiplier: float = None,
+        profiles: bool = True,
     ) -> pd.DataFrame:
         """
         Compute resource clusters.
@@ -477,6 +477,8 @@ class ResourceGroup:
             below this maximum. Takes precedence over `min_capacity`.
         cap_multiplier
             Multiplier applied to resource capacity before selection by `min_capacity`.
+        profiles
+            Whether to include cluster profiles, if available, in column `profile`.
 
         Returns
         -------
@@ -523,52 +525,20 @@ class ResourceGroup:
             logger.warning(
                 f"Selected capacity less than minimum ({capacity} < {min_capacity} MW)"
             )
+        # Apply mask
+        df = df[mask | ~base] if tree else df[mask]
         # Prepare merge
-        merge = prepare_merge(MERGE, df)
+        merge = copy.deepcopy(MERGE)
+        # Prepare profiles
+        if profiles and self.profiles is not None:
+            df["profile"] = list(
+                self.profiles.read(columns=df.index.astype(str)).values.T
+            )
+            merge["means"].append("profile")
         # Compute clusters
         if tree:
-            return cluster_trees(
-                df[mask | ~base], by=by, tree=tree, max_rows=max_clusters, **merge
-            )
-        return cluster_rows(df[mask], by=df[[by]], max_rows=max_clusters, **merge)
-
-    def get_cluster_profiles(self, ids: Iterable[Iterable]) -> np.ndarray:
-        """
-        Compute resource cluster profiles.
-
-        Parameters
-        ----------
-        ids
-            Identifiers of the resources to combine in each cluster.
-
-        Returns
-        -------
-        np.ndarray
-            Hourly normalized (0-1) generation profiles (n clusters, m hours).
-        """
-        if self.profiles is None:
-            return ValueError("Resource profiles are not available")
-        # Cast resource identifiers to string to match profile columns
-        ids = [[str(x) for x in cids] for cids in ids]
-        metadata = self.metadata.read(columns=["id", CAPACITY]).set_index("id")
-        metadata.index = metadata.index.astype(str)
-        # Compute unique resource identifiers
-        columns = []
-        for cids in ids:
-            columns.extend(cids)
-        columns = list(set(columns))
-        # Read resource profiles
-        profiles = self.profiles.read(columns=columns)
-        # Compute cluster profiles
-        results = np.zeros((len(ids), len(profiles)), dtype=float)
-        for i, cids in enumerate(ids):
-            if len(cids) == 1:
-                results[i] = profiles[cids[0]].values
-            else:
-                weights = metadata.loc[cids, CAPACITY].values.astype(float, copy=False)
-                weights /= weights.sum()
-                results[i] = (profiles[cids].values * weights).sum(axis=1)
-        return results
+            return cluster_trees(df, by=by, tree=tree, max_rows=max_clusters, **merge)
+        return cluster_rows(df, by=df[[by]], max_rows=max_clusters, **merge)
 
 
 class ClusterBuilder:
@@ -590,7 +560,6 @@ class ClusterBuilder:
         - `kwargs` (dict): Parameters used to uniquely identify the group.
         - `region` (str): Model region label.
         - `clusters` (pd.DataFrame): Computed resource clusters.
-        - `profiles` (np.ndarray): Computed profiles for the resource clusters.
 
     Examples
     --------
@@ -613,13 +582,10 @@ class ClusterBuilder:
     ...     technology='utilitypv', existing=False)
     >>> builder.build_clusters(region='B', ipm_regions=['B'], min_capacity=2,
     ...     technology='utilitypv', existing=True)
-    >>> builder.get_cluster_metadata()
-          ids ipm_region  mw region technology  existing
-    0  (1, 0)          A   3      A  utilitypv     False
-    1    (1,)          B   2      B  utilitypv      True
-    >>> builder.get_cluster_profiles()
-    array([[0.3, 0.3, 0.3, ..., 0.3, 0.3, 0.3],
-           [0.4, 0.4, 0.4, ..., 0.4, 0.4, 0.4]])
+    >>> builder.get_clusters()
+          ids ipm_region  mw  ...         profile region technology  existing
+    0  (1, 0)          A   3  [0.3, 0.3, 0.3, ...      A  utilitypv     False
+    1    (1,)          B   2  [0.4, 0.4, 0.4, ...      B  utilitypv      True
 
     Errors arise if search criteria is either ambiguous or results in an empty result.
 
@@ -659,10 +625,6 @@ class ClusterBuilder:
         if not paths:
             raise FileNotFoundError(f"No resource groups found in {path}")
         return cls([ResourceGroup.from_json(p) for p in paths])
-
-    def _test_clusters_exist(self) -> None:
-        if not self.clusters:
-            raise ValueError("No clusters have been built")
 
     def find_groups(self, **kwargs: Any) -> List[ResourceGroup]:
         """
@@ -728,10 +690,9 @@ class ClusterBuilder:
                 cap_multiplier=cap_multiplier,
             ),
         }
-        c["profiles"] = groups[0].get_cluster_profiles(ids=c["clusters"].index)
         self.clusters.append(c)
 
-    def get_cluster_metadata(self) -> pd.DataFrame:
+    def get_clusters(self) -> pd.DataFrame:
         """
         Return computed cluster metadata.
 
@@ -746,34 +707,17 @@ class ClusterBuilder:
         ValueError
             No clusters have yet been computed.
         """
-        self._test_clusters_exist()
+        if not self.clusters:
+            raise ValueError("No clusters have been built")
         dfs = []
         for c in self.clusters:
-            df = c["clusters"]
-            df = (
-                df.assign(region=c["region"], **c["kwargs"])
+            dfs.append(
+                c["clusters"]
+                .assign(region=c["region"], **c["kwargs"])
                 .rename_axis("ids")
                 .reset_index()
             )
-            dfs.append(df)
         return pd.concat(dfs, axis=0, ignore_index=True, sort=False)
-
-    def get_cluster_profiles(self) -> np.ndarray:
-        """
-        Return computed cluster profiles.
-
-        Returns
-        -------
-        np.ndarray
-            Hourly normalized (0-1) generation profiles (n clusters, m hours).
-
-        Raises
-        ------
-        ValueError
-            No clusters have yet been computed.
-        """
-        self._test_clusters_exist()
-        return np.row_stack([c["profiles"] for c in self.clusters])
 
 
 def _tuple(x: Any) -> tuple:
@@ -967,7 +911,7 @@ def cluster_rows(
     for i, link in enumerate(Z[:drows, 0:2].astype(int)):
         mask[link] = False
         pid = nrows + i
-        rows[pid] = merge_row_pair(rows[link[0]], rows[link[1]], **kwargs)
+        rows[pid] = merge_row_pair(rows[link[0]], rows[link[1]], **merge)
         index[pid] = index[link[0]] + index[link[1]]
     clusters = pd.DataFrame([x for x, m in zip(rows, mask) if m])
     # Preserve original column order
@@ -1198,7 +1142,7 @@ def cluster_trees(
                 **df.loc[[pid], ["_id", "parent_id", "level"]].to_dict("records")[0],
                 # Merged children attributes
                 # NOTE: Needed only if a child is incomplete
-                **merge_row_pair(df.loc[ids[0]], df.loc[ids[1]], **kwargs),
+                **merge_row_pair(df.loc[ids[0]], df.loc[ids[1]], **merge),
                 # Indices of all past children
                 "_ids": [df.loc[ids[0], "_ids"] + df.loc[ids[1], "_ids"]],
                 "_mask": True,
