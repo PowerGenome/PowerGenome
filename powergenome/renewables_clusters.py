@@ -282,7 +282,7 @@ class ResourceGroup:
         - `metadata` : str, optional
           Relative path to resource metadata dataset (optional if `metadata` is `None`).
         - `profiles` : str, optional
-          Relative path to resource profiles dataset (optional if `profiles` is `None`).
+          Relative path to resource profiles dataset.
         - ... and any additional (optional) keys.
 
     metadata
@@ -350,7 +350,7 @@ class ResourceGroup:
     group : Dict[str, Any]
     metadata : Table
         Cached interface to resource metadata.
-    profiles : Table
+    profiles : Optional[Table]
         Cached interface to resource profiles.
 
     Examples
