@@ -738,27 +738,6 @@ def _tuple(x: Any) -> tuple:
     return (x,)
 
 
-def _unique(x: Iterable) -> Any:
-    """
-    Return the unique value (if it is unique).
-
-    Examples
-    --------
-    >>> _unique((1, 2)) is None
-    True
-    >>> _unique((1, 1))
-    1
-    >>> _unique(['a', 'b']) is None
-    True
-    >>> _unique(['a', 'a'])
-    'a'
-    """
-    unique = pd.Series(x).unique()
-    if len(unique) == 1:
-        return unique[0]
-    return None
-
-
 def merge_row_pair(
     a: Mapping,
     b: Mapping,
