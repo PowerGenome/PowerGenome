@@ -835,7 +835,7 @@ def add_renewables_clusters(
         builder = ClusterBuilder.from_path(SETTINGS["RENEWABLES_CLUSTERS"])
         builder.build_clusters(**scenario, ipm_regions=ipm_regions)
         clusters = (
-            builder.get_cluster_metadata()
+            builder.get_clusters()
             .rename(columns={"mw": "Cap_size", "profile": "variability"})
             .assign(technology=technology)
         )
