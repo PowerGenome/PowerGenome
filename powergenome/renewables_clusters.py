@@ -1060,12 +1060,13 @@ def cluster_trees(
     >>> df = pd.DataFrame({
     ...     'level': [3, 3, 3, 2, 1],
     ...     'parent_id': pd.Series([3, 3, 4, 4, float('nan')], dtype='Int64'),
-    ...     'mw': [0.1, 0.1, 0.1, 0.2, 0.3]
+    ...     'mw': [0.1, 0.1, 0.1, 0.2, 0.3],
+    ...     'area': [1, 1, 1, 2, 3]
     ... }, index=[0, 1, 2, 3, 4])
-    >>> cluster_trees(df, by='mw', sums=['mw'], max_rows=2)
-             mw
-    (2,)    0.1
-    (0, 1)  0.2
+    >>> cluster_trees(df, by='mw', sums=['mw', 'area'], max_rows=2)
+             mw  area
+    (2,)    0.1     1
+    (0, 1)  0.2     2
     >>> cluster_trees(df, by='mw', sums=['mw'], max_rows=1)
                 mw
     (2, 0, 1)  0.3
@@ -1118,19 +1119,21 @@ def cluster_trees(
             # Choose complete parent with lowest distance of children
             pid = parents.index[0]
             ids = parents["ids"].iloc[0]
+            children = df.loc[ids].to_dict("records")
             # Compute parent
             parent = {
                 # Initial attributes
-                **df.loc[[pid], ["_id", "parent_id", "level"]].to_dict("records")[0],
+                # Can access series because all columns integer
+                **df.loc[pid, ["_id", "parent_id", "level"]],
                 # Merged children attributes
                 # NOTE: Needed only if a child is incomplete
-                **merge_row_pair(df.loc[ids[0]], df.loc[ids[1]], **merge),
+                **merge_row_pair(children[0], children[1], **merge),
                 # Indices of all past children
-                "_ids": [df.loc[ids[0], "_ids"] + df.loc[ids[1], "_ids"]],
+                "_ids": df.loc[ids[0], "_ids"] + df.loc[ids[1], "_ids"],
                 "_mask": True,
             }
             # Add parent
-            df.loc[[pid]] = pd.DataFrame(parent, index=[pid])
+            df.loc[pid] = pd.Series(parent, dtype=object)
             # Drop children
             df.loc[ids, "_mask"] = False
             # Decrement rows
