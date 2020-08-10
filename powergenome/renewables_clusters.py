@@ -992,6 +992,9 @@ def build_tree(
     drows = nrows - 1
     index = [_tuple(x) for x in df.index] + [None] * drows
     df = df.reset_index(drop=True)
+    merge = prepare_merge(kwargs, df)
+    columns = get_merge_columns(merge, df)
+    df = df[columns]
     if drows < 1:
         df.index = index
         return df
@@ -1010,11 +1013,11 @@ def build_tree(
             mask[link] = False
         pid = nrows + i
         parent_id[link] = pid
-        rows[pid] = merge_row_pair(rows[link[0]], rows[link[1]], **kwargs)
+        rows[pid] = merge_row_pair(rows[link[0]], rows[link[1]], **merge)
         index[pid] = index[link[0]] + index[link[1]]
     tree = pd.DataFrame([x for x, m in zip(rows, mask) if m])
-    # Preserve original column order
-    tree = tree[[x for x in df.columns if x in tree]]
+    # Restore original column order
+    tree = tree[columns]
     # Normalize ids to 0, ..., n
     old_ids = np.where(mask)[0]
     new_ids = np.arange(len(old_ids))
