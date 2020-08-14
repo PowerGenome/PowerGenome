@@ -769,7 +769,7 @@ def add_renewables_clusters(
     df: pd.DataFrame, region: str, settings: dict
 ) -> pd.DataFrame:
     """
-    Add renewables clusters 
+    Add renewables clusters
 
     Parameters
     ----------
@@ -836,7 +836,7 @@ def add_renewables_clusters(
         builder.build_clusters(**scenario, ipm_regions=ipm_regions)
         clusters = (
             builder.get_clusters()
-            .rename(columns={"mw": "Cap_size", "profile": "variability"})
+            .rename(columns={"mw": "Max_Cap_MW", "profile": "variability"})
             .assign(technology=technology)
         )
         row = df[df["technology"] == technology].iloc[0]
