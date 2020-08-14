@@ -719,6 +719,8 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "waccnomtech",
     ]
     new_gen_df = new_gen_df[keep_cols]
+    # Set no capacity limit on new resources that aren't renewables.
+    new_gen_df["Max_Cap_MW"] = -1
 
     regional_cost_multipliers = pd.read_csv(
         DATA_PATHS["cost_multipliers"] / "AEO_2020_regional_cost_corrections.csv",
