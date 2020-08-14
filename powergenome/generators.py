@@ -1205,7 +1205,7 @@ def add_genx_model_tags(df, settings):
         region, tag_col, tech = tag_tuple
         tech = re.sub(ignored, "", tech)
         mask = technology.str.contains(fr"^{tech}", case=False)
-        df.loc[(df["region"] == region) & mask, tag_col,] = tag_value
+        df.loc[(df["region"] == region) & mask, tag_col] = tag_value
 
     return df
 
@@ -1780,7 +1780,7 @@ def calculate_transmission_inv_cost(resource_df, settings, offshore_spur_costs=N
             capex_mw_mile.fillna(0) * resource_df[f"{ttype}_miles"]
         )
         resource_df[f"{ttype}_inv_mwyr"] = investment_cost_calculator(
-            resource_df[f"{ttype}_capex"], params["wacc"], params["investment_years"],
+            resource_df[f"{ttype}_capex"], params["wacc"], params["investment_years"]
         )
     return resource_df
 
@@ -2365,8 +2365,7 @@ class GeneratorClusters:
 
         if self.settings.get("demand_response_fn"):
             dr_rows = self.create_demand_response_gen_rows()
-
-        self.new_generators = pd.concat([self.new_generators, dr_rows], sort=False)
+            self.new_generators = pd.concat([self.new_generators, dr_rows], sort=False)
 
         self.new_generators["Resource"] = snake_case_col(
             self.new_generators["technology"]
