@@ -229,7 +229,7 @@ class Table:
         Parameters
         ----------
         columns
-            Names of column to read. If `None`, all columns are read. 
+            Names of column to read. If `None`, all columns are read.
         cache
             Whether to cache the full dataset in memory. If `None`,
             the dataset is cached if `columns` is `None`, and not otherwise.
@@ -301,7 +301,7 @@ class ResourceGroup:
 
         Resources representing hierarchical trees (see `group.tree`)
         require additional attributes.
-    
+
         - `parent_id` : int
           Identifier of the resource formed by clustering this resource with the one
           other resource with the same `parent_id`.
@@ -313,7 +313,7 @@ class ResourceGroup:
           Each unique value of this grouping attribute represents a precomputed
           hierarchical tree. When clustering resources, every tree is traversed to its
           crown before the singleton resources from the trees are clustered together.
-        
+
         The following resource attributes (all float) are propagaged as:
 
         - weighted means (weighted by `mw`):
@@ -326,17 +326,17 @@ class ResourceGroup:
             - `site_substation_spur_miles`
             - `substation_metro_tx_miles`
             - `site_metro_spur_miles`
-        
+
         - sums:
 
             - `mw`
             - `area`
-        
+
         - uniques:
 
             - `ipm_region`
             - `metro_id`
-    
+
     profiles
         Variable resource capacity profiles with normalized capacity factors
         (from 0 to 1) for every hour of the year (either 8760 or 8784 for a leap year).
@@ -454,6 +454,8 @@ class ResourceGroup:
         max_lcoe: float = None,
         cap_multiplier: float = None,
         profiles: bool = True,
+        region: str = None,
+        technology: str = None,
     ) -> pd.DataFrame:
         """
         Compute resource clusters.
@@ -479,6 +481,10 @@ class ResourceGroup:
             Multiplier applied to resource capacity before selection by `min_capacity`.
         profiles
             Whether to include cluster profiles, if available, in column `profile`.
+        region:
+            Name of the model region
+        technology:
+            Name of the resource technology
 
         Returns
         -------
@@ -523,7 +529,8 @@ class ResourceGroup:
         capacity = df.loc[mask, CAPACITY].sum()
         if min_capacity and capacity < min_capacity:
             logger.warning(
-                f"Selected capacity less than minimum ({capacity} < {min_capacity} MW)"
+                f"Selected technology {technology} capacity in region {region} less "
+                f"than minimum ({capacity} < {min_capacity} MW)"
             )
         # Apply mask
         df = df[mask | ~base] if tree else df[mask]
@@ -688,6 +695,8 @@ class ClusterBuilder:
                 max_clusters=max_clusters,
                 max_lcoe=max_lcoe,
                 cap_multiplier=cap_multiplier,
+                region=region,
+                technology=kwargs.get("technology"),
             ),
         }
         self.clusters.append(c)
@@ -900,7 +909,7 @@ def cluster_rows(
 
 
 def build_tree(
-    df: pd.DataFrame, by: Iterable[Iterable], max_level: int = None, **kwargs: Any,
+    df: pd.DataFrame, by: Iterable[Iterable], max_level: int = None, **kwargs: Any
 ) -> pd.DataFrame:
     """
     Build a hierarchical tree of rows in a dataframe.
