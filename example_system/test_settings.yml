@@ -813,13 +813,26 @@ pv_ac_dc_ratio: 1.3
 renewables_clusters:
   - region: CA_N
     technology: landbasedwind
-    max_clusters: 3
-    max_lcoe: 250
+    max_clusters: 2
+    max_lcoe: 110
+    min_capacity: 25000
   - region: CA_N
     technology: offshorewind
     turbine_type: floating
     pref_site: 1
     max_clusters: 3
+    min_capacity: 40000
+  - region: CA_S
+    technology: landbasedwind
+    max_clusters: 4
+    max_lcoe: 100
+    min_capacity: 45000
+  - region: CA_S
+    technology: utilitypv
+    max_clusters: 5
+    max_lcoe: 75
+    min_capacity: 100000
+    cap_multiplier: 0.2
 
 # How much of the theoretical
 wind_pv_fraction_developable: 0.5
