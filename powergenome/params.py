@@ -35,10 +35,10 @@ IPM_GEOJSON_PATH = DATA_PATHS["data"] / "ipm_regions_simple.geojson"
 SETTINGS = {}
 SETTINGS["PUDL_DB"] = os.environ.get("PUDL_DB")
 SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
-SETTINGS["RENEWABLES_CLUSTERS"] = os.environ.get("RENEWABLES_CLUSTERS")
+SETTINGS["RESOURCE_GROUPS"] = os.environ.get("RESOURCE_GROUPS")
 
 CLUSTER_BUILDER = ClusterBuilder.from_json(
-    Path(SETTINGS["RENEWABLES_CLUSTERS"]).glob("**/*.json")
+    Path(SETTINGS["RESOURCE_GROUPS"]).glob("**/*.json")
 )
 
 # "postgresql://catalyst@127.0.0.1/pudl"
