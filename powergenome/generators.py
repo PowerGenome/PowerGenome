@@ -33,8 +33,9 @@ from powergenome.nrelatb import (
     fetch_atb_offshore_spur_costs,
     investment_cost_calculator,
 )
-from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH
+from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH, SETTINGS
 from powergenome.price_adjustment import inflation_price_adjustment
+from powergenome.renewables_clusters import ClusterBuilder, map_eia_technology
 from powergenome.util import (
     download_save,
     map_agg_region_names,
@@ -2331,6 +2332,38 @@ class GeneratorClusters:
 
         # self.results = self.results.rename(columns={"technology": "Resource"})
         self.results["Resource"] = snake_case_col(self.results["technology"])
+
+        # Add variable resource profiles
+        self.results["variability"] = None
+        paths = Path(SETTINGS["RENEWABLES_CLUSTERS"]).glob("**/*.json")
+        builder = ClusterBuilder.from_json(paths)
+        for i, row in enumerate(self.results.itertuples()):
+            params = map_eia_technology(row.technology)
+            if not params:
+                # EIA technology not supported
+                continue
+            params.update({"existing": True})
+            groups = builder.find_groups(**params)
+            if not groups:
+                # No matching resource groups
+                continue
+            if len(groups) > 1:
+                # Multiple matching resource groups
+                raise ValueError(
+                    f"Multiple existing resource groups match EIA technology"
+                    + row.technology
+                )
+            group = groups[0]
+            if group.profiles is None:
+                # Resource group has no profiles
+                continue
+            ipm_regions = self.settings["region_aggregations"][row.region]
+            metadata = group.metadata.read()
+            if not metadata["ipm_region"].isin(ipm_regions).any():
+                # Resource group has no resources in selected IPM regions
+                continue
+            clusters = group.get_clusters(ipm_regions=ipm_regions, max_clusters=1)
+            self.results["variability"][i] = clusters["profile"][0]
 
         return self.results
 
