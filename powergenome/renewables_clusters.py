@@ -49,7 +49,8 @@ NREL_ATB_TECHNOLOGY_MAP = {
     },
 }
 EIA_TECHNOLOGY_MAP = {
-    "conventionalhydroelectric": {"technology": "hydro"},
+    "conventionalhydroelectric": {"technology": "hydro", "small": False},
+    "smallhydroelectric": {"technology": "hydro", "small": True},
     "onshorewindturbine": {"technology": "landbasedwind"},
     "offshorewindturbine": {"technology": "offshorewind"},
     "solarphotovoltaic": {"technology": "utilitypv"},
@@ -138,14 +139,16 @@ def map_eia_technology(tech: str) -> Dict[str, Any]:
     --------
     >>> map_eia_technology('Solar Photovoltaic')
     {'technology': 'utilitypv'}
+    >>> map_eia_technology('solar_photovoltaic')
+    {'technology': 'utilitypv'}
     >>> map_eia_technology('Onshore Wind Turbine')
     {'technology': 'landbasedwind'}
     >>> map_eia_technology('Offshore Wind Turbine')
     {'technology': 'offshorewind'}
     >>> map_eia_technology('Conventional Hydroelectric')
-    {'technology': 'hydro'}
-    >>> map_eia_technology('Conventional_Hydroelectric')
-    {'technology': 'hydro'}
+    {'technology': 'hydro', 'small': False}
+    >>> map_eia_technology('Small Hydroelectric')
+    {'technology': 'hydro', 'small': True}
     >>> map_eia_technology('Unknown')
     {}
     """
