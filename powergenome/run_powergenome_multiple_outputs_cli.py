@@ -374,9 +374,7 @@ def main():
                     #         include_index=False,
                     #     )
 
-                    gen_variability = make_generator_variability(
-                        gen_clusters, _settings
-                    )
+                    gen_variability = make_generator_variability(gen_clusters)
                     # write_results_file(
                     #     df=gen_variability,
                     #     folder=case_folder,
@@ -463,9 +461,7 @@ def main():
                     #     file_name="Generators_data.csv",
                     # )
 
-                    gen_variability = make_generator_variability(
-                        gen_clusters, _settings
-                    )
+                    gen_variability = make_generator_variability(gen_clusters)
                     # write_results_file(
                     #     df=gen_variability,
                     #     folder=case_folder,
