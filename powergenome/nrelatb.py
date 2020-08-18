@@ -13,7 +13,7 @@ import pandas as pd
 
 from powergenome.params import CLUSTER_BUILDER, DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.renewables_clusters import map_nrel_atb_technology
+from powergenome.resource_clusters import map_nrel_atb_technology
 from powergenome.util import reverse_dict_of_lists
 
 idx = pd.IndexSlice

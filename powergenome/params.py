@@ -7,7 +7,7 @@ from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
 from powergenome import __file__
-from powergenome.renewables_clusters import ClusterBuilder
+from powergenome.resource_clusters import ClusterBuilder
 
 # Not convinced this is the best way to set folder paths but it works!
 powergenome_path = Path(__file__).parent

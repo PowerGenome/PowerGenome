@@ -35,7 +35,7 @@ from powergenome.nrelatb import (
 )
 from powergenome.params import CLUSTER_BUILDER, DATA_PATHS, IPM_GEOJSON_PATH
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.renewables_clusters import map_eia_technology
+from powergenome.resource_clusters import map_eia_technology
 from powergenome.util import (
     download_save,
     map_agg_region_names,
