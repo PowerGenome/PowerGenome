@@ -2334,7 +2334,7 @@ class GeneratorClusters:
         self.results["Resource"] = snake_case_col(self.results["technology"])
 
         # Add variable resource profiles
-        self.results["variability"] = None
+        self.results["profile"] = None
         for i, row in enumerate(self.results.itertuples()):
             params = map_eia_technology(row.technology)
             if not params:
@@ -2361,7 +2361,7 @@ class GeneratorClusters:
                 # Resource group has no resources in selected IPM regions
                 continue
             clusters = group.get_clusters(ipm_regions=ipm_regions, max_clusters=1)
-            self.results["variability"][i] = clusters["profile"][0]
+            self.results["profile"][i] = clusters["profile"][0]
 
         return self.results
 

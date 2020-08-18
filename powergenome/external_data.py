@@ -160,23 +160,23 @@ def make_generator_variability(df: pd.DataFrame) -> pd.DataFrame:
     for each resource in resource_df.
     
     Any resources that do not have a profile in column
-    `variability` are assumed to have constant hourly profiles with a value of 1.
+    `profile` are assumed to have constant hourly profiles with a value of 1.
     February 29 is removed from any profiles of length 8784 (leap year).
 
     Parameters
     ----------
     df
-        Dataframe with a single row for each resource. May have column `variability`.
+        Dataframe with a single row for each resource. May have column `profile`.
 
     Returns
     -------
     pd.DataFrame
-        A new dataframe with one column for each row of `resource_df` and 8760 rows
+        A new dataframe with one column for each row of `df` and 8760 rows
         of generation profiles.
 
     Examples
     --------
-    >>> df = pd.DataFrame({'variability': [np.zeros(8760), np.ones(8784) / 2, None]})
+    >>> df = pd.DataFrame({'profile': [np.zeros(8760), np.ones(8784) / 2, None]})
     >>> make_generator_variability(df)
             0    1    2
     0     0.0  0.5  1.0
@@ -203,8 +203,8 @@ def make_generator_variability(df: pd.DataFrame) -> pd.DataFrame:
         # Fill missing with default [1, ...]
         return np.ones(8760, dtype=float)
 
-    if "variability" in df:
-        profiles = np.column_stack(df["variability"].map(format_profile).values)
+    if "profile" in df:
+        profiles = np.column_stack(df["profile"].map(format_profile).values)
     else:
         profiles = np.ones((8760, len(df)), dtype=float)
     return pd.DataFrame(profiles, columns=np.arange(len(df)).astype(str))

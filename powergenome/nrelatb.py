@@ -841,7 +841,7 @@ def add_renewables_clusters(
             CLUSTER_BUILDER.get_clusters(
                 **scenario, ipm_regions=ipm_regions, existing=False
             )
-            .rename(columns={"mw": "Max_Cap_MW", "profile": "variability"})
+            .rename(columns={"mw": "Max_Cap_MW"})
             .assign(technology=technology, region=region)
         )
         if scenario.get("min_capacity"):
