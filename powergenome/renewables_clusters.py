@@ -48,6 +48,12 @@ NREL_ATB_TECHNOLOGY_MAP = {
         for x in range(6, 16)
     },
 }
+EIA_TECHNOLOGY_MAP = {
+    "conventionalhydroelectric": {"technology": "hydro"},
+    "onshorewindturbine": {"technology": "landbasedwind"},
+    "offshorewindturbine": {"technology": "offshorewind"},
+    "solarphotovoltaic": {"technology": "utilitypv"},
+}
 
 
 def _normalize(x: Optional[str]) -> Optional[str]:
@@ -108,6 +114,41 @@ def map_nrel_atb_technology(tech: str, detail: str = None) -> Dict[str, Any]:
     group = {}
     for k, v in NREL_ATB_TECHNOLOGY_MAP.items():
         if (tech == k[0] or not k[0]) and (detail == k[1] or not k[1]):
+            group.update(v)
+    return group
+
+
+def map_eia_technology(tech: str) -> Dict[str, Any]:
+    """
+    Map EIA technology to resource groups.
+
+    Parameters
+    ----------
+    tech
+        Technology.
+
+    Returns
+    -------
+    dict
+        Key, value pairs identifying one or more resource groups.
+
+    Examples
+    --------
+    >>> map_eia_technology('Solar Photovoltaic')
+    {'technology': 'utilitypv'}
+    >>> map_eia_technology('Onshore Wind Turbine')
+    {'technology': 'landbasedwind'}
+    >>> map_eia_technology('Offshore Wind Turbine')
+    {'technology': 'offshorewind'}
+    >>> map_eia_technology('Conventional Hydroelectric')
+    {'technology': 'hydro'}
+    >>> map_eia_technology('Unknown')
+    {}
+    """
+    tech = _normalize(tech)
+    group = {}
+    for k, v in EIA_TECHNOLOGY_MAP.items():
+        if tech == k or not k:
             group.update(v)
     return group
 
