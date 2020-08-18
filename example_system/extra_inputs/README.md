@@ -10,12 +10,6 @@ Starts with mandatory columns `case_id`, which should use `case_id` from the fil
 
 The column names and values in each column are used in the settings parameter `settings_management` to define how the default settings values should be changed across each case.
 
-## resource_variability_fn
-
-Contains normalized hourly profiles for all variable resources. This includes existing renewables, new renewables, demand response resources, etc. As indicated by the top 3 values in the first column, the first three rows should include the `region`, `Resource`, and (if applicable) `cluster` name of each resource. Cluster names are required when more than one resource with the same name is used in a single region. Resource names are matched to technology/resource names from EIA/ATB using string matching.
-
-The first 3 rows are followed by hourly profile values for each resource.
-
 ## distributed_gen_profiles_fn
 
 Normalized hourly generation profiles for distributed generation in all regions listed in the settings file under `distributed_gen_method` and `distributed_gen_values`.
@@ -30,7 +24,7 @@ Describes the emission policies in each case. The first two columns are `case_id
 
 ## capacity_limit_spur_fn
 
-Provides the maximum capacity and spur-line construction distance for new resources. Starts with the required columns `region` and `technology`. `cluster` can be omitted, but is required when more than one resource of the same name is used within a region. The `cluster` value should match values from `resource_variability_fn`.
+Provides the maximum capacity and spur-line construction distance for new resources. Starts with the required columns `region` and `technology`. `cluster` can be omitted, but is required when more than one resource of the same name is used within a region.
 
 The data columns in this file are `spur_miles` and `max_capacity`.
 
