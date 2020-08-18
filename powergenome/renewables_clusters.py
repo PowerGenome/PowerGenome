@@ -640,23 +640,23 @@ class ClusterBuilder:
         self.groups = groups
 
     @classmethod
-    def from_pattern(cls, pattern: str = "*.json") -> "ClusterBuilder":
+    def from_json(cls, paths: Iterable[Union[str, os.PathLike]]) -> "ClusterBuilder":
         """
-        Load resources from filename pattern.
+        Load resources from resource group JSON files.
 
         Parameters
         ----------
-        pattern
-            Pathname pattern for resource JSON metadata files (see :func:`glob.glob`).
+        paths
+            Paths to resource group JSON files.
 
         Raises
         ------
-        FileNotFoundError
-            No resource groups found.
+        ValueError
+            No resource groups specified.
         """
-        paths = glob.glob(pattern, recursive=True)
+        paths = list(paths)
         if not paths:
-            raise FileNotFoundError(f"No resource groups found in {pattern}")
+            raise ValueError(f"No resource groups specified")
         return cls([ResourceGroup.from_json(path) for path in paths])
 
     def find_groups(self, **kwargs: Any) -> List[ResourceGroup]:

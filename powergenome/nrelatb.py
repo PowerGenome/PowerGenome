@@ -6,6 +6,7 @@ import copy
 import collections
 import logging
 import operator
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -823,7 +824,8 @@ def add_renewables_clusters(
             scenario["ipm_regions"] = ipm_regions
             scenario["existing"] = False
     cdfs = []
-    builder = ClusterBuilder.from_pattern(f"{SETTINGS['RENEWABLES_CLUSTERS']}/*.json")
+    paths = Path(SETTINGS["RENEWABLES_CLUSTERS"]).glob("**/*.json")
+    builder = ClusterBuilder.from_json(paths)
     for scenario in scenarios:
         # Match cluster technology to NREL ATB technologies
         technologies = [
