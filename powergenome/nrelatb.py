@@ -814,19 +814,13 @@ def add_renewables_clusters(
     mask = df["technology"].isin([tech for tech, match in atb_map.items() if match]) & (
         df["region"] == region
     )
-    # Replace model region with IPM regions
-    ipm_regions = settings["region_aggregations"][region]
-    scenarios = []
-    for scenario in settings.get("renewables_clusters", []):
-        if scenario["region"] == region:
-            scenario = scenario.copy()
-            scenario.pop("region")
-            scenario["ipm_regions"] = ipm_regions
-            scenario["existing"] = False
     cdfs = []
     paths = Path(SETTINGS["RENEWABLES_CLUSTERS"]).glob("**/*.json")
     builder = ClusterBuilder.from_json(paths)
-    for scenario in scenarios:
+    ipm_regions = settings["region_aggregations"][region]
+    for scenario in settings.get("renewables_clusters", []):
+        if scenario["region"] != region:
+            continue
         # Match cluster technology to NREL ATB technologies
         technologies = [
             k
@@ -842,19 +836,22 @@ def add_renewables_clusters(
                 f"Renewables clusters match multiple NREL ATB technologies: {scenario}"
             )
         technology = technologies[0]
+        # region not an argument to ClusterBuilder.get_clusters()
+        scenario = scenario.copy()
+        scenario.pop("region")
         clusters = (
-            builder.get_clusters(**scenario)
+            builder.get_clusters(**scenario, ipm_regions=ipm_regions, existing=False)
             .rename(columns={"mw": "Max_Cap_MW", "profile": "variability"})
-            .assign(technology=technology)
+            .assign(technology=technology, region=region)
         )
         if scenario.get("min_capacity"):
             # Warn if total capacity less than expected
             capacity = clusters["Max_Cap_MW"].sum()
             if capacity < scenario["min_capacity"]:
                 logger.warning(
-                    f"Selected technology {scenario['technology']} capacity".
-                    f" in region {region}"
-                    f" less than minimum ({capacity} < {scenario['min_capacity']} MW)"
+                    f"Selected technology {scenario['technology']} capacity"
+                    + f" in region {region}"
+                    + f" less than minimum ({capacity} < {scenario['min_capacity']} MW)"
                 )
         row = df[df["technology"] == technology].to_dict("records")[0]
         kwargs = {k: v for k, v in row.items() if k not in clusters}

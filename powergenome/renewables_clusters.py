@@ -565,7 +565,7 @@ class ResourceGroup:
             temp[temp.argmin()] = True
             mask[mask] = temp
         if max_lcoe and "lcoe" in df:
-            # Select clusters with LCOE above the cutoff
+            # Select clusters with LCOE below the cutoff
             mask[mask] = df.loc[mask, "lcoe"] <= max_lcoe
         if not mask.any():
             raise ValueError(f"No resources found or selected")
@@ -712,7 +712,7 @@ class ClusterBuilder:
         """
         groups = self.find_groups(**kwargs)
         if not groups:
-            raise ValueError(f"Parameters do not match any resource groups")
+            raise ValueError(f"Parameters do not match any resource groups: {kwargs}")
         if len(groups) > 1:
             meta = [rg.group for rg in groups]
             raise ValueError(f"Parameters match multiple resource groups: {meta}")
