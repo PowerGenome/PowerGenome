@@ -821,6 +821,7 @@ def add_renewables_clusters(
             scenario = scenario.copy()
             scenario.pop("region")
             scenario["ipm_regions"] = ipm_regions
+            scenario["existing"] = False
     cdfs = []
     builder = ClusterBuilder.from_pattern(f"{SETTINGS['RENEWABLES_CLUSTERS']}/*.json")
     for scenario in scenarios:
