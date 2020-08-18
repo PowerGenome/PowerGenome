@@ -32,6 +32,7 @@ NREL_ATB_TECHNOLOGY_MAP = {
     ("utilitypv", None): {"technology": "utilitypv"},
     ("landbasedwind", None): {"technology": "landbasedwind"},
     ("offshorewind", None): {"technology": "offshorewind"},
+    ("hydropower", None): {"technology": "hydro"},
     **{
         ("offshorewind", f"otrg{x}"): {
             "technology": "offshorewind",
@@ -95,6 +96,10 @@ def map_nrel_atb_technology(tech: str, detail: str = None) -> Dict[str, Any]:
     {'technology': 'offshorewind', 'turbine_type': 'fixed'}
     >>> map_nrel_atb_technology('OffShoreWind', 'OTRG7')
     {'technology': 'offshorewind', 'turbine_type': 'floating'}
+    >>> map_nrel_atb_technology('Hydropower')
+    {'technology': 'hydro'}
+    >>> map_nrel_atb_technology('Hydropower', 'NSD4')
+    {'technology': 'hydro'}
     >>> map_nrel_atb_technology('Unknown')
     {}
     """
