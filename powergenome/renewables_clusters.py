@@ -58,7 +58,7 @@ EIA_TECHNOLOGY_MAP = {
 
 def _normalize(x: Optional[str]) -> Optional[str]:
     """
-    Normalize string to lowercase and no whitespace.
+    Normalize string to lowercase, no whitespace, and no underscores.
 
     Examples
     --------
@@ -66,12 +66,14 @@ def _normalize(x: Optional[str]) -> Optional[str]:
     'offshorewind'
     >>> _normalize('OffshoreWind')
     'offshorewind'
+    >>> _normalize('Offshore_Wind')
+    'offshorewind'
     >>> _normalize(None) is None
     True
     """
     if not x:
         return x
-    return re.sub(r"\s+", "", x.lower())
+    return re.sub(r"\s+|_", "", x.lower())
 
 
 def map_nrel_atb_technology(tech: str, detail: str = None) -> Dict[str, Any]:
@@ -141,6 +143,8 @@ def map_eia_technology(tech: str) -> Dict[str, Any]:
     >>> map_eia_technology('Offshore Wind Turbine')
     {'technology': 'offshorewind'}
     >>> map_eia_technology('Conventional Hydroelectric')
+    {'technology': 'hydro'}
+    >>> map_eia_technology('Conventional_Hydroelectric')
     {'technology': 'hydro'}
     >>> map_eia_technology('Unknown')
     {}
