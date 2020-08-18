@@ -11,9 +11,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from powergenome.params import DATA_PATHS, SETTINGS
+from powergenome.params import CLUSTER_BUILDER, DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.renewables_clusters import ClusterBuilder, map_nrel_atb_technology
+from powergenome.renewables_clusters import map_nrel_atb_technology
 from powergenome.util import reverse_dict_of_lists
 
 idx = pd.IndexSlice
@@ -815,8 +815,6 @@ def add_renewables_clusters(
         df["region"] == region
     )
     cdfs = []
-    paths = Path(SETTINGS["RENEWABLES_CLUSTERS"]).glob("**/*.json")
-    builder = ClusterBuilder.from_json(paths)
     ipm_regions = settings["region_aggregations"][region]
     for scenario in settings.get("renewables_clusters", []):
         if scenario["region"] != region:
@@ -840,7 +838,9 @@ def add_renewables_clusters(
         scenario = scenario.copy()
         scenario.pop("region")
         clusters = (
-            builder.get_clusters(**scenario, ipm_regions=ipm_regions, existing=False)
+            CLUSTER_BUILDER.get_clusters(
+                **scenario, ipm_regions=ipm_regions, existing=False
+            )
             .rename(columns={"mw": "Max_Cap_MW", "profile": "variability"})
             .assign(technology=technology, region=region)
         )

@@ -7,6 +7,7 @@ from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
 from powergenome import __file__
+from powergenome.renewables_clusters import ClusterBuilder
 
 # Not convinced this is the best way to set folder paths but it works!
 powergenome_path = Path(__file__).parent
@@ -35,6 +36,10 @@ SETTINGS = {}
 SETTINGS["PUDL_DB"] = os.environ.get("PUDL_DB")
 SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
 SETTINGS["RENEWABLES_CLUSTERS"] = os.environ.get("RENEWABLES_CLUSTERS")
+
+CLUSTER_BUILDER = ClusterBuilder.from_json(
+    Path(SETTINGS["RENEWABLES_CLUSTERS"]).glob("**/*.json")
+)
 
 # "postgresql://catalyst@127.0.0.1/pudl"
 

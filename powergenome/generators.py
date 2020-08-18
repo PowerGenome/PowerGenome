@@ -33,9 +33,9 @@ from powergenome.nrelatb import (
     fetch_atb_offshore_spur_costs,
     investment_cost_calculator,
 )
-from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH, SETTINGS
+from powergenome.params import CLUSTER_BUILDER, DATA_PATHS, IPM_GEOJSON_PATH
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.renewables_clusters import ClusterBuilder, map_eia_technology
+from powergenome.renewables_clusters import map_eia_technology
 from powergenome.util import (
     download_save,
     map_agg_region_names,
@@ -2335,15 +2335,13 @@ class GeneratorClusters:
 
         # Add variable resource profiles
         self.results["variability"] = None
-        paths = Path(SETTINGS["RENEWABLES_CLUSTERS"]).glob("**/*.json")
-        builder = ClusterBuilder.from_json(paths)
         for i, row in enumerate(self.results.itertuples()):
             params = map_eia_technology(row.technology)
             if not params:
                 # EIA technology not supported
                 continue
             params.update({"existing": True})
-            groups = builder.find_groups(**params)
+            groups = CLUSTER_BUILDER.find_groups(**params)
             if not groups:
                 # No matching resource groups
                 continue
