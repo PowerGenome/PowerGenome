@@ -1,7 +1,6 @@
 import copy
 import glob
 import json
-import logging
 import os
 import re
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
@@ -11,8 +10,6 @@ import pandas as pd
 import pyarrow
 import pyarrow.parquet as pq
 import scipy.cluster.hierarchy
-
-logger = logging.getLogger(__name__)
 
 CAPACITY = "mw"
 MERGE = {
@@ -547,13 +544,6 @@ class ClusterBuilder:
     Attributes
     ----------
     groups : Iterable[ResourceGroup]
-    clusters : List[dict]
-        Resource clusters.
-
-        - `group` (ResourceGroup): Resource group from :attr:`groups`.
-        - `kwargs` (dict): Parameters used to uniquely identify the group.
-        - `region` (str): Model region label.
-        - `clusters` (pd.DataFrame): Computed resource clusters.
 
     Examples
     --------
@@ -570,25 +560,24 @@ class ClusterBuilder:
     >>> groups.append(ResourceGroup(group, metadata, profiles))
     >>> builder = ClusterBuilder(groups)
 
-    Incrementally build clusters and export the results.
+    Compute resource clusters.
 
-    >>> builder.build_clusters(region='A', ipm_regions=['A'], max_clusters=1,
+    >>> builder.get_clusters(ipm_regions=['A'], max_clusters=1,
     ...     technology='utilitypv', existing=False)
-    >>> builder.build_clusters(region='B', ipm_regions=['B'], min_capacity=2,
+          ids ipm_region  mw  ...         profile technology  existing
+    0  (1, 0)          A   3  [0.3, 0.3, 0.3, ...  utilitypv     False
+    >>> builder.get_clusters(ipm_regions=['B'], min_capacity=2,
     ...     technology='utilitypv', existing=True)
-    >>> builder.get_clusters()
-          ids ipm_region  mw  ...         profile region technology  existing
-    0  (1, 0)          A   3  [0.3, 0.3, 0.3, ...      A  utilitypv     False
-    1    (1,)          B   2  [0.4, 0.4, 0.4, ...      B  utilitypv      True
+        ids ipm_region  mw  ...         profile technology  existing
+    0  (1,)          B   2  [0.4, 0.4, 0.4, ...  utilitypv      True
 
     Errors arise if search criteria is either ambiguous or results in an empty result.
 
-    >>> builder.build_clusters(region='A', ipm_regions=['A'], technology='utilitypv')
+    >>> builder.get_clusters(ipm_regions=['A'], technology='utilitypv')
     Traceback (most recent call last):
       ...
     ValueError: Parameters match multiple resource groups: [{...}, {...}]
-    >>> builder.build_clusters(region='A', ipm_regions=['B'],
-    ...     technology='utilitypv', existing=False)
+    >>> builder.get_clusters(ipm_regions=['B'], technology='utilitypv', existing=False)
     Traceback (most recent call last):
       ...
     ValueError: No resources found or selected
@@ -596,7 +585,6 @@ class ClusterBuilder:
 
     def __init__(self, groups: Iterable[ResourceGroup]) -> None:
         self.groups = groups
-        self.clusters: List[dict] = []
 
     @classmethod
     def from_pattern(cls, pattern: str = "*.json") -> "ClusterBuilder":
@@ -633,26 +621,27 @@ class ClusterBuilder:
             if all(k in rg.group and rg.group[k] == v for k, v in kwargs.items())
         ]
 
-    def build_clusters(
+    def get_clusters(
         self,
-        region: str,
         ipm_regions: Iterable[str] = None,
         min_capacity: float = None,
         max_clusters: int = None,
         max_lcoe: float = None,
         cap_multiplier: float = None,
         **kwargs: Any,
-    ) -> None:
+    ) -> pd.DataFrame:
         """
-        Build and append resource clusters to the collection.
+        Compute resource clusters.
 
-        This method can be called as many times as desired before generating outputs.
         See :meth:`ResourceGroup.get_clusters` for parameter descriptions.
+
+        The following fields are added:
+
+        - `ids` (tuple): Original resource identifiers.
+        - **kwargs: Parameters used to uniquely identify the group.
 
         Parameters
         ----------
-        region
-            Model region (used only to label results).
         ipm_regions
         min_capacity
         max_clusters
@@ -664,61 +653,29 @@ class ClusterBuilder:
         Raises
         ------
         ValueError
+            Parameters do not match any resource groups.
+        ValueError
             Parameters match multiple resource groups.
         """
         groups = self.find_groups(**kwargs)
+        if not groups:
+            raise ValueError(f"Parameters do not match any resource groups")
         if len(groups) > 1:
             meta = [rg.group for rg in groups]
             raise ValueError(f"Parameters match multiple resource groups: {meta}")
-        c = {
-            "group": groups[0],
-            "kwargs": kwargs,
-            "region": region,
-            "clusters": groups[0].get_clusters(
+        return (
+            groups[0]
+            .get_clusters(
                 ipm_regions=ipm_regions,
                 min_capacity=min_capacity,
                 max_clusters=max_clusters,
                 max_lcoe=max_lcoe,
                 cap_multiplier=cap_multiplier,
-            ),
-        }
-        if min_capacity:
-            # Warn if total capacity less than expected
-            capacity = c["clusters"][CAPACITY].sum()
-            technology = groups[0].group["technology"]
-            if capacity < min_capacity:
-                logger.warning(
-                    f"Selected technology {technology} capacity in region {region} less"
-                    f" than minimum ({capacity} < {min_capacity} MW)"
-                )
-        self.clusters.append(c)
-
-    def get_clusters(self) -> pd.DataFrame:
-        """
-        Return computed cluster metadata.
-
-        The following fields are added:
-
-        - `ids` (tuple): Original resource identifiers
-        - `region` (str): Region label passed to :meth:`build_clusters`.
-        - **kwargs: Parameters used to uniquely identify the group.
-
-        Raises
-        ------
-        ValueError
-            No clusters have yet been computed.
-        """
-        if not self.clusters:
-            raise ValueError("No clusters have been built")
-        dfs = []
-        for c in self.clusters:
-            dfs.append(
-                c["clusters"]
-                .assign(region=c["region"], **c["kwargs"])
-                .rename_axis("ids")
-                .reset_index()
             )
-        return pd.concat(dfs, axis=0, ignore_index=True, sort=False)
+            .assign(**kwargs)
+            .rename_axis("ids")
+            .reset_index()
+        )
 
 
 def _tuple(x: Any) -> tuple:

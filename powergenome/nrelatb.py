@@ -813,11 +813,16 @@ def add_renewables_clusters(
     mask = df["technology"].isin([tech for tech, match in atb_map.items() if match]) & (
         df["region"] == region
     )
-    scenarios = [
-        x for x in settings.get("renewables_clusters", []) if x["region"] == region
-    ]
+    # Replace model region with IPM regions
     ipm_regions = settings["region_aggregations"][region]
+    scenarios = []
+    for scenario in settings.get("renewables_clusters", []):
+        if scenario["region"] == region:
+            scenario = scenario.copy()
+            scenario.pop("region")
+            scenario["ipm_regions"] = ipm_regions
     cdfs = []
+    builder = ClusterBuilder.from_pattern(f"{SETTINGS['RENEWABLES_CLUSTERS']}/*.json")
     for scenario in scenarios:
         # Match cluster technology to NREL ATB technologies
         technologies = [
@@ -834,14 +839,21 @@ def add_renewables_clusters(
                 f"Renewables clusters match multiple NREL ATB technologies: {scenario}"
             )
         technology = technologies[0]
-        builder = ClusterBuilder.from_path(SETTINGS["RENEWABLES_CLUSTERS"])
-        builder.build_clusters(**scenario, ipm_regions=ipm_regions)
         clusters = (
-            builder.get_clusters()
+            builder.get_clusters(**scenario)
             .rename(columns={"mw": "Max_Cap_MW", "profile": "variability"})
             .assign(technology=technology)
         )
-        row = df[df["technology"] == technology].iloc[0]
+        if scenario.get("min_capacity"):
+            # Warn if total capacity less than expected
+            capacity = clusters["Max_Cap_MW"].sum()
+            if capacity < scenario["min_capacity"]:
+                logger.warning(
+                    f"Selected technology {scenario['technology']} capacity".
+                    f" in region {region}"
+                    f" less than minimum ({capacity} < {scenario['min_capacity']} MW)"
+                )
+        row = df[df["technology"] == technology].to_dict("records")[0]
         kwargs = {k: v for k, v in row.items() if k not in clusters}
         cdfs.append(clusters.assign(**kwargs))
     return pd.concat([df[~mask]] + cdfs, sort=False)
