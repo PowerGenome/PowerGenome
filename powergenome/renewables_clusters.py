@@ -454,8 +454,6 @@ class ResourceGroup:
         max_lcoe: float = None,
         cap_multiplier: float = None,
         profiles: bool = True,
-        region: str = None,
-        technology: str = None,
     ) -> pd.DataFrame:
         """
         Compute resource clusters.
@@ -481,10 +479,6 @@ class ResourceGroup:
             Multiplier applied to resource capacity before selection by `min_capacity`.
         profiles
             Whether to include cluster profiles, if available, in column `profile`.
-        region:
-            Name of the model region
-        technology:
-            Name of the resource technology
 
         Returns
         -------
@@ -521,17 +515,10 @@ class ResourceGroup:
             temp[temp.argmin()] = True
             mask[mask] = temp
         if max_lcoe and "lcoe" in df:
-            # Selet clusters with LCOE above the cutoff
+            # Select clusters with LCOE above the cutoff
             mask[mask] = df.loc[mask, "lcoe"] <= max_lcoe
         if not mask.any():
             raise ValueError(f"No resources found or selected")
-        # Warn if total capacity less than expected
-        capacity = df.loc[mask, CAPACITY].sum()
-        if min_capacity and capacity < min_capacity:
-            logger.warning(
-                f"Selected technology {technology} capacity in region {region} less "
-                f"than minimum ({capacity} < {min_capacity} MW)"
-            )
         # Apply mask
         df = df[mask | ~base] if tree else df[mask]
         # Prepare merge
@@ -695,10 +682,17 @@ class ClusterBuilder:
                 max_clusters=max_clusters,
                 max_lcoe=max_lcoe,
                 cap_multiplier=cap_multiplier,
-                region=region,
-                technology=kwargs.get("technology"),
             ),
         }
+        if min_capacity:
+            # Warn if total capacity less than expected
+            capacity = c["clusters"][CAPACITY].sum()
+            technology = groups[0].group["technology"]
+            if capacity < min_capacity:
+                logger.warning(
+                    f"Selected technology {technology} capacity in region {region} less"
+                    f" than minimum ({capacity} < {min_capacity} MW)"
+                )
         self.clusters.append(c)
 
     def get_clusters(self) -> pd.DataFrame:
