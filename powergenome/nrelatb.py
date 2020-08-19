@@ -404,7 +404,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 # ) - (variable * 8760 * 0.59)
 
                 _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
-                    fixed, 2017, target_usd_year
+                    fixed + annual_capex, 2017, target_usd_year
                 )
                 _df["Var_OM_cost_per_MWh"] = simple_o_m["Coal"]["o_m_variable_mwh"]
             if "Hydroelectric" in eia_tech:
