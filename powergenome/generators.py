@@ -2335,6 +2335,7 @@ class GeneratorClusters:
 
         # Add variable resource profiles
         self.results["profile"] = None
+        self.results = self.results.reset_index(drop=True)
         for i, row in enumerate(self.results.itertuples()):
             params = map_eia_technology(row.technology)
             if not params:
