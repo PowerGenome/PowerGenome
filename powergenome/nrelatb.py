@@ -180,9 +180,15 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             existing_hr = 1
             new_build_hr = 1
 
-        if ("Natural Gas Fired" in eia_tech or "Coal" in eia_tech) and settings[
-            "use_nems_coal_ng_om"
-        ]:
+        nems_o_m_techs = [
+            "Combined Cycle",
+            "Combustion Turbine",
+            "Coal",
+            "Steam Turbine",
+            "Hydroelectric",
+            "Geothermal",
+        ]
+        if any(t in eia_tech for t in nems_o_m_techs):
             # Change CC and CT O&M to EIA NEMS values, which are much higher for CCs and
             # lower for CTs than a heat rate & linear mulitpler correction to the ATB
             # values.
@@ -192,41 +198,41 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
             # logger.info(f"Using NEMS values for {eia_tech} fixed/variable O&M")
             target_usd_year = settings["target_usd_year"]
-            ng_o_m = {
+            simple_o_m = {
                 "Combined Cycle": {
-                    "o_m_fixed_mw": inflation_price_adjustment(
-                        13.08 * 1000, 2017, target_usd_year
-                    ),
+                    # "o_m_fixed_mw": inflation_price_adjustment(
+                    #     13.08 * 1000, 2017, target_usd_year
+                    # ),
                     "o_m_variable_mwh": inflation_price_adjustment(
                         3.91, 2017, target_usd_year
-                    ),
+                    )
                 },
-                "Combustion Turbine": {
-                    # This includes both the Fixed O&M and Capex. Capex includes
-                    # variable O&M, which is split out in the calculations below.
-                    "o_m_fixed_mw": inflation_price_adjustment(
-                        (5.33 + 6.90) * 1000, 2017, target_usd_year
-                    ),
-                    "o_m_variable_mwh": 0,
-                },
+                # "Combustion Turbine": {
+                #     # This includes both the Fixed O&M and Capex. Capex includes
+                #     # variable O&M, which is split out in the calculations below.
+                #     "o_m_fixed_mw": inflation_price_adjustment(
+                #         (5.33 + 6.90) * 1000, 2017, target_usd_year
+                #     ),
+                #     "o_m_variable_mwh": 0,
+                # },
                 "Natural Gas Steam Turbine": {
                     # NEMS documenation splits capex and fixed O&M across 2 tables
-                    "o_m_fixed_mw": inflation_price_adjustment(
-                        (15.96 + 24.68) * 1000, 2017, target_usd_year
-                    ),
+                    # "o_m_fixed_mw": inflation_price_adjustment(
+                    #     (15.96 + 24.68) * 1000, 2017, target_usd_year
+                    # ),
                     "o_m_variable_mwh": inflation_price_adjustment(
                         1.0, 2017, target_usd_year
-                    ),
+                    )
                 },
                 "Coal": {
-                    "o_m_fixed_mw": inflation_price_adjustment(
-                        ((22.2 + 27.88) / 2 + 46.01) * 1000, 2017, target_usd_year
-                    ),
+                    # "o_m_fixed_mw": inflation_price_adjustment(
+                    #     ((22.2 + 27.88) / 2 + 46.01) * 1000, 2017, target_usd_year
+                    # ),
                     # This variable O&M is ignored. It's the value in NEMS but we think
                     # that it is too low. ATB new coal has $5/MWh
                     "o_m_variable_mwh": inflation_price_adjustment(
                         1.78, 2017, target_usd_year
-                    ),
+                    )
                 },
                 "Conventional Hydroelectric": {
                     "o_m_fixed_mw": inflation_price_adjustment(
@@ -237,6 +243,12 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 "Geothermal": {
                     "o_m_fixed_mw": inflation_price_adjustment(
                         198.04 * 1000, 2017, target_usd_year
+                    ),
+                    "o_m_variable_mwh": 0,
+                },
+                "Pumped Hydro": {
+                    "o_m_fixed_mw": inflation_price_adjustment(
+                        (23.63 + 14.83) * 1000, 2017, target_usd_year
                     ),
                     "o_m_variable_mwh": 0,
                 },
@@ -254,12 +266,16 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     variable = 3.42
                 else:
                     fixed = 11.68 * 1000
-                    variable = 3.37
+                    # variable = 3.37
 
                 # fixed = ng_o_m["Combined Cycle"]["o_m_fixed_mw"]
                 # variable = ng_o_m["Combined Cycle"]["o_m_variable_mwh"]
-                _df["Fixed_OM_cost_per_MWyr"] = fixed
-                _df["Var_OM_cost_per_MWh"] = variable
+                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
+                    fixed, 2017, target_usd_year
+                )
+                _df["Var_OM_cost_per_MWh"] = simple_o_m["Combined Cycle"][
+                    "o_m_variable_mwh"
+                ]
 
             if "Combustion Turbine" in eia_tech:
                 # need to adjust the EIA fixed/variable costs because they have no
@@ -269,25 +285,64 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 # (~$11/MWh) by relative heat rate and subtract a /kW-yr value as
                 # calculated above from the FOM.
                 # Based on conversation with Jesse J. on Dec 20, 2019.
-                op, op_value = settings["atb_modifiers"]["ngct"]["Var_OM_cost_per_MWh"]
-                f = operator.attrgetter(op)
-                atb_var_om_mwh = f(operator)(
+                plant_capacity = _df[settings["capacity_col"]].sum()
+                op, op_value = (
+                    settings.get("atb_modifiers", {})
+                    .get("ngct", {})
+                    .get("Var_OM_cost_per_MWh", (None, None))
+                )
+
+                # Variable O&M for new-build
+                atb_var_om_mwh = (
                     atb_costs_df.query(
                         "technology==@atb_tech & cost_case=='Mid' "
                         "& tech_detail==@tech_detail & basis_year==@existing_year"
                     )
                     .squeeze()
-                    .at["o_m_variable_mwh"],
-                    op_value
-                    # * settings["atb_modifiers"]["ngct"]["Var_OM_cost_per_MWh"]
+                    .at["o_m_variable_mwh"]
                 )
-                variable = atb_var_om_mwh * (existing_hr / new_build_hr)
+                if op:
+                    f = operator.attrgetter(op)
+                    atb_var_om_mwh = f(operator)(atb_var_om_mwh, op_value)
 
-                fixed = ng_o_m["Combustion Turbine"]["o_m_fixed_mw"]
+                # Heat rate for new-build
+                # op, op_value = (
+                #     settings.get("atb_modifiers", {})
+                #     .get("ngct", {})
+                #     .get("Heat_rate_MMBTU_per_MWh", (None, None))
+                # )
+                # new_build_hr = (
+                #     atb_hr_df.query(
+                #         "technology==@atb_tech & tech_detail==@tech_detail"
+                #         "& basis_year==@existing_year"
+                #     )
+                #     .squeeze()
+                #     .at["heat_rate"]
+                # )
+                # if op:
+                #     f = operator.attrgetter(op)
+                #     new_build_hr *= f(operator)(new_build_hr, op_value)
+
+                variable = atb_var_om_mwh  # * (existing_hr / new_build_hr)
+
+                if plant_capacity < 100:
+                    annual_capex = 9.0 * 1000
+                    fixed = annual_capex + 5.96 * 1000
+                elif 100 <= plant_capacity <= 300:
+                    annual_capex = 6.18 * 1000
+                    fixed = annual_capex + 6.43 * 1000
+                else:
+                    annual_capex = 6.95 * 1000
+                    fixed = annual_capex + 3.99 * 1000
+
                 fixed = fixed - (variable * 8760 * 0.04)
 
-                _df["Fixed_OM_cost_per_MWyr"] = fixed
-                _df["Var_OM_cost_per_MWh"] = variable
+                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
+                    fixed, 2017, target_usd_year
+                )
+                _df["Var_OM_cost_per_MWh"] = inflation_price_adjustment(
+                    variable, 2017, target_usd_year
+                )
 
             if "Natural Gas Steam Turbine" in eia_tech:
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
@@ -303,9 +358,13 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     annual_capex = 10.82 * 1000
                     fixed = annual_capex + 14.51 * 1000
                 # fixed = ng_o_m["Natural Gas Steam Turbine"]["o_m_fixed_mw"]
-                variable = ng_o_m["Natural Gas Steam Turbine"]["o_m_variable_mw"]
-                _df["Fixed_OM_cost_per_MWyr"] = fixed
-                _df["Var_OM_cost_per_MWh"] = variable
+
+                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
+                    fixed, 2017, target_usd_year
+                )
+                _df["Var_OM_cost_per_MWh"] = simple_o_m["Natural Gas Steam Turbine"][
+                    "o_m_variable_mwh"
+                ]
 
             if "Coal" in eia_tech:
                 # Doing a similar Variable O&M calculation to combustion turbines
@@ -325,8 +384,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     .squeeze()
                     .at["o_m_variable_mwh"]
                 )
-                variable = atb_var_om_mwh * (existing_hr / new_build_hr)
-                variable = min([variable, MAX_COAL_VAR_OM])
 
                 age = settings["model_year"] - _df.operating_date.dt.year
 
@@ -342,22 +399,33 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 else:
                     fixed = 33.27 * 1000
                 # fixed = ng_o_m["Coal"]["o_m_fixed_mw"]
-                fixed = inflation_price_adjustment(
-                    fixed + annual_capex, 2017, target_usd_year
-                ) - (variable * 8760 * 0.59)
+                # fixed = inflation_price_adjustment(
+                #     fixed + annual_capex, 2017, target_usd_year
+                # ) - (variable * 8760 * 0.59)
 
-                _df["Fixed_OM_cost_per_MWyr"] = fixed
-                _df["Var_OM_cost_per_MWh"] = variable
+                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
+                    fixed, 2017, target_usd_year
+                )
+                _df["Var_OM_cost_per_MWh"] = simple_o_m["Coal"]["o_m_variable_mwh"]
             if "Hydroelectric" in eia_tech:
-                _df["Fixed_OM_cost_per_MWyr"] = ng_o_m["Conventional Hydroelectric"][
-                    "o_m_fixed_mw"
-                ]
-                _df["Var_OM_cost_per_MWh"] = ng_o_m["Conventional Hydroelectric"][
+                _df["Fixed_OM_cost_per_MWyr"] = simple_o_m[
+                    "Conventional Hydroelectric"
+                ]["o_m_fixed_mw"]
+                _df["Var_OM_cost_per_MWh"] = simple_o_m["Conventional Hydroelectric"][
                     "o_m_variable_mwh"
                 ]
             if "Geothermal" in eia_tech:
-                _df["Fixed_OM_cost_per_MWyr"] = ng_o_m["Geothermal"]["o_m_fixed_mw"]
-                _df["Var_OM_cost_per_MWh"] = ng_o_m["Geothermal"]["o_m_variable_mwh"]
+                _df["Fixed_OM_cost_per_MWyr"] = simple_o_m["Geothermal"]["o_m_fixed_mw"]
+                _df["Var_OM_cost_per_MWh"] = simple_o_m["Geothermal"][
+                    "o_m_variable_mwh"
+                ]
+            if "Pumped" in eia_tech:
+                _df["Fixed_OM_cost_per_MWyr"] = simple_o_m["Pumped Hydro"][
+                    "o_m_fixed_mw"
+                ]
+                _df["Var_OM_cost_per_MWh"] = simple_o_m["Pumped Hydro"][
+                    "o_m_variable_mwh"
+                ]
 
         else:
 
@@ -377,11 +445,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 .squeeze()
                 .at["o_m_variable_mwh"]
             )
-            _df["Fixed_OM_cost_per_MWyr"] = (
-                atb_fixed_om_mw_yr
-                * settings["existing_om_multiplier"]
-                * (existing_hr / new_build_hr)
-            )
+            _df["Fixed_OM_cost_per_MWyr"] = atb_fixed_om_mw_yr
             _df["Var_OM_cost_per_MWh"] = atb_var_om_mwh * (existing_hr / new_build_hr)
 
         df_list.append(_df)
