@@ -1972,7 +1972,7 @@ class GeneratorClusters:
 
                 _df = pd.DataFrame(
                     index=self.settings["model_regions"],
-                    columns=self.settings["generator_columns"],
+                    columns=list(self.settings["generator_columns"]) + ["profile"],
                 )
                 _df = _df.drop(columns="Resource")
                 _df["technology"] = resource
@@ -1987,6 +1987,11 @@ class GeneratorClusters:
                     dr_path, resource, self.settings
                 )
                 self.demand_response_profiles[resource] = dr_profile
+
+                dr_cf = dr_profile / dr_profile.max()
+
+                for i, row in enumerate(_df.itertuples()):
+                    _df["profile"][i] = dr_cf.iloc[:, i].values
 
                 dr_capacity = demand_response_resource_capacity(
                     dr_profile, resource, self.settings
