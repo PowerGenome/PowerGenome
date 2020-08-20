@@ -375,6 +375,13 @@ def main():
                     #     )
 
                     gen_variability = make_generator_variability(gen_clusters)
+                    gen_variability.columns = (
+                        gen_clusters["region"]
+                        + "_"
+                        + gen_clusters["Resource"]
+                        + "_"
+                        + gen_clusters["cluster"].astype(str)
+                    )
                     # write_results_file(
                     #     df=gen_variability,
                     #     folder=case_folder,
@@ -462,6 +469,13 @@ def main():
                     # )
 
                     gen_variability = make_generator_variability(gen_clusters)
+                    gen_variability.columns = (
+                        gen_clusters["region"]
+                        + "_"
+                        + gen_clusters["Resource"]
+                        + "_"
+                        + gen_clusters["cluster"].astype(str)
+                    )
                     # write_results_file(
                     #     df=gen_variability,
                     #     folder=case_folder,
