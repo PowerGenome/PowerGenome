@@ -1965,53 +1965,61 @@ class GeneratorClusters:
         df_list = []
         self.demand_response_profiles = {}
 
-        if self.settings.get("demand_response_resources"):
-            for resource, parameters in self.settings["demand_response_resources"][
-                year
-            ].items():
+        if not self.settings.get("demand_response_resources"):
+            logger.warning(
+                "A demand response file is included in extra inputs but the parameter "
+                "`demand_response_resources` is not in the settings file. No demand "
+                "response resources will be included with the generators."
+            )
+            return pd.DataFrame()
 
-                _df = pd.DataFrame(
-                    index=self.settings["model_regions"],
-                    columns=list(self.settings["generator_columns"]) + ["profile"],
+        for resource, parameters in self.settings["demand_response_resources"][
+            year
+        ].items():
+
+            _df = pd.DataFrame(
+                index=self.settings["model_regions"],
+                columns=list(self.settings["generator_columns"]) + ["profile"],
+            )
+            _df = _df.drop(columns="Resource")
+            _df["technology"] = resource
+            _df["region"] = self.settings["model_regions"]
+
+            dr_path = (
+                Path.cwd()
+                / self.settings["input_folder"]
+                / self.settings["demand_response_fn"]
+            )
+            dr_profile = make_demand_response_profiles(dr_path, resource, self.settings)
+            self.demand_response_profiles[resource] = dr_profile
+            # Add hourly profile to demand response rows
+            dr_cf = dr_profile / dr_profile.max()
+            _df["profile"] = list(dr_cf.values.T)
+
+            dr_capacity = demand_response_resource_capacity(
+                dr_profile, resource, self.settings
+            )
+            dr_capacity_scenario = dr_capacity.squeeze()
+            _df["Existing_Cap_MW"] = _df["region"].map(dr_capacity_scenario)
+
+            if not parameters.get("parameter_values"):
+                logger.warning(
+                    "No model parameter values are provided in the settings file for "
+                    f"the demand response resource '{resource}'. If another DR resource"
+                    " has values under "
+                    "`demand_response_resource.<year>.<DR_type>.parameter_values`, "
+                    f"those columns will have a value of 0 for '{resource}'."
                 )
-                _df = _df.drop(columns="Resource")
-                _df["technology"] = resource
-                _df["region"] = self.settings["model_regions"]
+            for col, value in parameters.get("parameter_values", {}).items():
+                _df[col] = value
 
-                dr_path = (
-                    Path.cwd()
-                    / self.settings["input_folder"]
-                    / self.settings["demand_response_fn"]
-                )
-                dr_profile = make_demand_response_profiles(
-                    dr_path, resource, self.settings
-                )
-                self.demand_response_profiles[resource] = dr_profile
+            df_list.append(_df)
 
-                dr_cf = dr_profile / dr_profile.max()
-
-                for i, row in enumerate(_df.itertuples()):
-                    _df["profile"][i] = dr_cf.iloc[:, i].values
-
-                dr_capacity = demand_response_resource_capacity(
-                    dr_profile, resource, self.settings
-                )
-                dr_capacity_scenario = dr_capacity.squeeze()
-                _df["Existing_Cap_MW"] = _df["region"].map(dr_capacity_scenario)
-
-                if isinstance(parameters["parameter_values"], dict):
-                    for col, value in parameters["parameter_values"].items():
-                        _df[col] = value
-
-                df_list.append(_df)
-
-            dr_rows = pd.concat(df_list)
-            dr_rows["New_Build"] = -1
-            dr_rows["Fuel"] = "None"
-            dr_rows["cluster"] = 1
-            dr_rows = dr_rows.fillna(0)
-        else:
-            dr_rows = pd.DataFrame()
+        dr_rows = pd.concat(df_list)
+        dr_rows["New_Build"] = -1
+        dr_rows["Fuel"] = "None"
+        dr_rows["cluster"] = 1
+        dr_rows = dr_rows.fillna(0)
 
         return dr_rows
 
