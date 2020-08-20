@@ -844,6 +844,7 @@ def add_renewables_clusters(
             .rename(columns={"mw": "Max_Cap_MW"})
             .assign(technology=technology, region=region)
         )
+        clusters["cluster"] = range(1, 1 + len(clusters))
         if scenario.get("min_capacity"):
             # Warn if total capacity less than expected
             capacity = clusters["Max_Cap_MW"].sum()
