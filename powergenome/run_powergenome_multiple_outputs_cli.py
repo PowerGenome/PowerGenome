@@ -566,14 +566,15 @@ def main():
                     file_name="Fuels_data.csv",
                 )
 
-            genx_settings = make_genx_settings_file(
-                pudl_engine, _settings, calculated_ces=ces
-            )
-            write_case_settings_file(
-                settings=genx_settings,
-                folder=case_folder,
-                file_name="GenX_settings.yml",
-            )
+            if _settings.get("genx_settings_fn"):
+                genx_settings = make_genx_settings_file(
+                    pudl_engine, _settings, calculated_ces=ces
+                )
+                write_case_settings_file(
+                    settings=genx_settings,
+                    folder=case_folder,
+                    file_name="GenX_settings.yml",
+                )
             write_case_settings_file(
                 settings=_settings,
                 folder=case_folder,
