@@ -519,7 +519,7 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
         hydro facilities will have their technology type changed to small hydro.
     """
     if not settings.get("small_hydro"):
-        return None
+        return df
     if "report_date" not in by and "report_date" in df.columns:
         # by.append("report_date")
         logger.warning("'report_date' is in the df but not used in the groupby")
