@@ -57,11 +57,13 @@ pip install -e .
 
 5. Download a [modifed version of the PUDL database](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5) that includes NREL ATB cost data and is not yet included in PUDL.
 
-6. Get an [API key for EIA's OpenData portal](https://www.eia.gov/opendata/register.php). This key is needed to download projected fuel prices from the 2019 Annual Energy Outlook.
+6. Download the [renewable resource data](https://drive.google.com/file/d/1F0t0WW72eiBOJ3m_bTgRb8Dc61m0VS5Z/view?usp=sharing) containing generation profiles and capacity for existing and new-build renewable resources. Save and unzip this file. The suggested location for all of the unzipped files is `PowerGenome/data/resource_groups/`. These files will eventually be provided through a data repository with citation information.
 
-7. Create the file `PowerGenome/powergenome/.env`. To this file, add `PUDL_DB=YOUR_PATH_HERE` (your path to the PUDL database) and `EIA_API_KEY=YOUR_KEY_HERE` (your EIA API key). Quotation marks are only needed if your values contain spaces. The `.env` file is included in `.gitignore` and will not be synced with the repository. See the [SQLAlchemy documentation](https://docs.sqlalchemy.org/en/13/dialects/sqlite.html#connect-strings) for examples of how to format the `PUDL_DB` path.
+7. Get an [API key for EIA's OpenData portal](https://www.eia.gov/opendata/register.php). This key is needed to download projected fuel prices from the 2019 Annual Energy Outlook.
 
-8. Update the Consumer Price Index (CPI) data used to adjust U.S. dollars for inflation (see https://github.com/datadesk/cpi#updating-the-cpi) by starting a `python` session and running:
+8. Create the file `PowerGenome/powergenome/.env`. To this file, add `PUDL_DB=YOUR_PATH_HERE` (your path to the PUDL database), `EIA_API_KEY=YOUR_KEY_HERE` (your EIA API key) and `RESOURCE_GROUPS=YOUR_PATH_HERE` (your path to where the resource groups data from Step 6 are saved). Quotation marks are only needed if your values contain spaces. The `.env` file is included in `.gitignore` and will not be synced with the repository. See the [SQLAlchemy documentation](https://docs.sqlalchemy.org/en/13/dialects/sqlite.html#connect-strings) for examples of how to format the `PUDL_DB` path.
+
+9. Update the Consumer Price Index (CPI) data used to adjust U.S. dollars for inflation (see https://github.com/datadesk/cpi#updating-the-cpi) by starting a `python` session and running:
 
 ```python
 import cpi
@@ -74,7 +76,7 @@ Settings are controlled in a YAML file. An example settings file (`test_settings
 
 The code is currently structured in a series of modules - `load_data.py`, `generators.py`, `transmission.py`, `nrelatb.py`, `eia_opendata.py`, `load_profiles.py`, and a couple others. The code and architecture is under active development. While the outputs are all formatted for GenX we hope to make the data formatting code more module to allow users to easily switch between outputs for different power system models.
 
-Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). To run from the command line, navigate to a project folder that contains a settings file and extra inputs (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome_multiple` with flags for the settings file name and where the results should be saved:
+Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). Examples of how to load data in this way are included in `PowerGenome/notebooks`. To run from the command line, navigate to a project folder that contains a settings file and extra inputs (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome_multiple` with flags for the settings file name and where the results should be saved:
 
 ```sh
 run_powergenome_multiple --settings_file test_settings.yml --results_folder test_system
@@ -82,7 +84,7 @@ run_powergenome_multiple --settings_file test_settings.yml --results_folder test
 
 A folder with extra user inputs is required when using the `run_powergenome_multiple` command. The name of this folder is defined in the settings YAML file with the `input_folder` parameter. Look at the files in `PowerGenome/example_system` for a working test case to follow.
 
-If you have previously installed PowerGenome and the `run_powergenome_multiple` command doesn't work, try reinstalling it using `pip install -e .` as described above.
+If you have previously installed PowerGenome and the `run_powergenome_multiple` command doesn't work, try reinstalling it using `pip install -e .` as described above. If you downloaded the custom PUDL database before May of 2020, some errors may be resolved by downloading a new version.
 
 ## Contributing
 
