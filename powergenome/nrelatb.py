@@ -388,7 +388,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 age = settings["model_year"] - _df.operating_date.dt.year
 
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
-                annual_capex = (16.53 + (0.126 * age) + (5.68 * 0.5) + 46.01) * 1000
+                annual_capex = (16.53 + (0.126 * age) + (5.68 * 0.5)) * 1000
 
                 if plant_capacity < 500:
                     fixed = 44.21 * 1000
