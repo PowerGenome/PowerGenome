@@ -1,6 +1,8 @@
 import collections
 import logging
 from numbers import Number
+from typing import Dict
+from numpy.core.arrayprint import _none_or_positive_arg
 
 import requests
 
@@ -1233,7 +1235,7 @@ def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
     return model_regions_gdf
 
 
-def download_860m(settings):
+def download_860m(settings: dict) -> pd.ExcelFile:
     """Load the entire 860m file into memory as an ExcelFile object.
 
     Parameters
@@ -1244,8 +1246,8 @@ def download_860m(settings):
 
     Returns
     -------
-    [type]
-        [description]
+    pd.ExcelFile
+        The ExcelFile object with all sheets from 860m.
     """
     try:
         fn = settings["eia_860m_fn"]
@@ -1276,7 +1278,7 @@ def download_860m(settings):
     return eia_860m
 
 
-def find_newest_860m():
+def find_newest_860m() -> str:
     """Scrape the EIA 860m page to find the most recently posted file.
 
     Returns
@@ -1294,7 +1296,9 @@ def find_newest_860m():
     return fn
 
 
-def clean_860m_sheet(eia_860m, sheet_name, settings):
+def clean_860m_sheet(
+    eia_860m: pd.ExcelFile, sheet_name: str, settings: dict
+) -> pd.DataFrame:
     """Load a sheet from the 860m ExcelFile object and clean it.
 
     Parameters
@@ -1308,7 +1312,7 @@ def clean_860m_sheet(eia_860m, sheet_name, settings):
 
     Returns
     -------
-    dataframe
+    pd.DataFrame
         One of the sheets from 860m
     """
 
@@ -1328,6 +1332,47 @@ def clean_860m_sheet(eia_860m, sheet_name, settings):
         ]
 
     return df
+
+
+def load_860m(settings: dict) -> Dict[str, pd.DataFrame]:
+    """Load the planned, canceled, and retired sheets from an EIA 860m file.
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined settings loaded from a YAML file. This is where the EIA860m
+        filename is defined.
+
+    Returns
+    -------
+    Dict[str, pd.DataFrame]
+        The 860m dataframes, with the keys 'planned', 'canceled', and 'retired'.
+    """
+    sheet_map = {
+        "planned": "Planned",
+        "canceled": "Canceled or Postponed",
+        "retired": "Retired",
+    }
+
+    fn = settings.get("eia_860m_fn")
+    if not fn:
+        fn = find_newest_860m()
+
+    fn_name = Path(fn).stem
+
+    data_dict = {}
+    eia_860m_excelfile = None
+    for name, sheet in sheet_map.items():
+        pkl_path = DATA_PATHS["eia_860m"] / f"{fn_name}_{name}.pkl"
+        if pkl_path.exists():
+            data_dict[name] = pd.read_pickle(pkl_path)
+        else:
+            if eia_860m_excelfile is None:
+                eia_860m_excelfile = download_860m(settings)
+            data_dict[name] = clean_860m_sheet(eia_860m_excelfile, sheet, settings)
+            data_dict[name].to_pickle(pkl_path)
+
+    return data_dict
 
 
 def import_proposed_generators(planned, settings, model_regions_gdf):
@@ -1849,18 +1894,10 @@ class GeneratorClusters:
                 data_years=self.data_years,
             )
 
-            self.eia_860m = download_860m(self.settings)
-            self.planned_860m = clean_860m_sheet(
-                self.eia_860m, sheet_name="Planned", settings=self.settings
-            )
-            self.canceled_860m = clean_860m_sheet(
-                self.eia_860m,
-                sheet_name="Canceled or Postponed",
-                settings=self.settings,
-            )
-            self.retired_860m = clean_860m_sheet(
-                self.eia_860m, sheet_name="Retired", settings=self.settings
-            )
+            self.eia_860m = load_860m(self.settings)
+            self.planned_860m = self.eia_860m["planned"]
+            self.canceled_860m = self.eia_860m["canceled"]
+            self.retired_860m = self.eia_860m["retired"]
 
             self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
             self.plants_860 = load_plants_860(self.pudl_engine, self.data_years)
