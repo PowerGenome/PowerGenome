@@ -1,6 +1,8 @@
 import collections
 import logging
 from numbers import Number
+from typing import Dict
+from numpy.core.arrayprint import _none_or_positive_arg
 
 import requests
 
@@ -1105,6 +1107,8 @@ def group_units(df, settings):
             settings["capacity_col"]: "sum",
             "minimum_load_mw": "sum",
             "heat_rate_mmbtu_mwh": "mean",
+            "Fixed_OM_cost_per_MWyr": "mean",
+            "Var_OM_cost_per_MWh": "mean",
         }
     )
     grouped_units = grouped_units.replace([np.inf, -np.inf], np.nan)
@@ -1154,6 +1158,8 @@ def calc_unit_cluster_values(df, settings, technology=None):
             settings["capacity_col"]: "mean",
             "minimum_load_mw": "mean",
             "heat_rate_mmbtu_mwh": wm,
+            "Fixed_OM_cost_per_MWyr": wm,
+            "Var_OM_cost_per_MWh": wm,
         }
     )
     if df_values["heat_rate_mmbtu_mwh"].isnull().values.any():
@@ -1268,7 +1274,7 @@ def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
     return model_regions_gdf
 
 
-def download_860m(settings):
+def download_860m(settings: dict) -> pd.ExcelFile:
     """Load the entire 860m file into memory as an ExcelFile object.
 
     Parameters
@@ -1279,8 +1285,8 @@ def download_860m(settings):
 
     Returns
     -------
-    [type]
-        [description]
+    pd.ExcelFile
+        The ExcelFile object with all sheets from 860m.
     """
     try:
         fn = settings["eia_860m_fn"]
@@ -1311,7 +1317,7 @@ def download_860m(settings):
     return eia_860m
 
 
-def find_newest_860m():
+def find_newest_860m() -> str:
     """Scrape the EIA 860m page to find the most recently posted file.
 
     Returns
@@ -1329,7 +1335,9 @@ def find_newest_860m():
     return fn
 
 
-def clean_860m_sheet(eia_860m, sheet_name, settings):
+def clean_860m_sheet(
+    eia_860m: pd.ExcelFile, sheet_name: str, settings: dict
+) -> pd.DataFrame:
     """Load a sheet from the 860m ExcelFile object and clean it.
 
     Parameters
@@ -1343,7 +1351,7 @@ def clean_860m_sheet(eia_860m, sheet_name, settings):
 
     Returns
     -------
-    dataframe
+    pd.DataFrame
         One of the sheets from 860m
     """
 
@@ -1363,6 +1371,47 @@ def clean_860m_sheet(eia_860m, sheet_name, settings):
         ]
 
     return df
+
+
+def load_860m(settings: dict) -> Dict[str, pd.DataFrame]:
+    """Load the planned, canceled, and retired sheets from an EIA 860m file.
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined settings loaded from a YAML file. This is where the EIA860m
+        filename is defined.
+
+    Returns
+    -------
+    Dict[str, pd.DataFrame]
+        The 860m dataframes, with the keys 'planned', 'canceled', and 'retired'.
+    """
+    sheet_map = {
+        "planned": "Planned",
+        "canceled": "Canceled or Postponed",
+        "retired": "Retired",
+    }
+
+    fn = settings.get("eia_860m_fn")
+    if not fn:
+        fn = find_newest_860m()
+
+    fn_name = Path(fn).stem
+
+    data_dict = {}
+    eia_860m_excelfile = None
+    for name, sheet in sheet_map.items():
+        pkl_path = DATA_PATHS["eia_860m"] / f"{fn_name}_{name}.pkl"
+        if pkl_path.exists():
+            data_dict[name] = pd.read_pickle(pkl_path)
+        else:
+            if eia_860m_excelfile is None:
+                eia_860m_excelfile = download_860m(settings)
+            data_dict[name] = clean_860m_sheet(eia_860m_excelfile, sheet, settings)
+            data_dict[name].to_pickle(pkl_path)
+
+    return data_dict
 
 
 def import_proposed_generators(planned, settings, model_regions_gdf):
@@ -1858,6 +1907,7 @@ class GeneratorClusters:
         self.current_gens = current_gens
         self.sort_gens = sort_gens
         self.model_regions_gdf = load_ipm_shapefile(self.settings)
+        self.weighted_unit_hr = None
 
         if self.current_gens:
             self.data_years = self.settings["data_years"]
@@ -1888,18 +1938,10 @@ class GeneratorClusters:
                 data_years=self.data_years,
             )
 
-            self.eia_860m = download_860m(self.settings)
-            self.planned_860m = clean_860m_sheet(
-                self.eia_860m, sheet_name="Planned", settings=self.settings
-            )
-            self.canceled_860m = clean_860m_sheet(
-                self.eia_860m,
-                sheet_name="Canceled or Postponed",
-                settings=self.settings,
-            )
-            self.retired_860m = clean_860m_sheet(
-                self.eia_860m, sheet_name="Retired", settings=self.settings
-            )
+            self.eia_860m = load_860m(self.settings)
+            self.planned_860m = self.eia_860m["planned"]
+            self.canceled_860m = self.eia_860m["canceled"]
+            self.retired_860m = self.eia_860m["retired"]
 
             self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
             self.plants_860 = load_plants_860(self.pudl_engine, self.data_years)
@@ -2050,9 +2092,12 @@ class GeneratorClusters:
         # Add heat rates to the data we already have from 860
         logger.info("Loading heat rate data for units and generator/fuel combinations")
         self.prime_mover_hr_map = plant_pm_heat_rates(self.annual_gen_hr_923)
-        self.weighted_unit_hr = unit_generator_heat_rates(
-            self.pudl_out, self.data_years
-        )
+        if self.weighted_unit_hr is None:
+            self.weighted_unit_hr = unit_generator_heat_rates(
+                self.pudl_out, self.data_years
+            )
+        else:
+            logger.info("Using unit heat rates from previous round.")
 
         # Merge the PUDL calculated heat rate data and set the index for easy
         # mapping using plant/prime mover heat rates from 923
@@ -2127,10 +2172,18 @@ class GeneratorClusters:
         ).values
         self.units_model.set_index(idx, inplace=True)
 
-        logger.info(
-            f"After adding proposed, units model technologies are "
-            f"{self.units_model.technology_description.unique().tolist()}"
+        logger.info("Calculating plant O&M costs")
+        techs = self.settings["num_clusters"].keys()
+        self.units_model = (
+            self.units_model.rename(columns={"technology_description": "technology"})
+            .query("technology.isin(@techs).values")
+            .pipe(atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings)
         )
+
+        # logger.info(
+        #     f"After adding proposed, units model technologies are "
+        #     f"{self.units_model.technology_description.unique().tolist()}"
+        # )
         logger.info(
             f"After adding proposed generators, {len(self.units_model)} units with "
             f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
@@ -2150,10 +2203,10 @@ class GeneratorClusters:
                     num_clusters[region][tech] = cluster_size
 
         region_tech_grouped = self.units_model.loc[
-            (self.units_model.technology_description.isin(techs))
+            (self.units_model.technology.isin(techs))
             & (self.units_model.retirement_year >= self.settings["model_year"]),
             :,
-        ].groupby(["model_region", "technology_description"])
+        ].groupby(["model_region", "technology"])
 
         self.retired = self.units_model.loc[
             self.units_model.retirement_year < self.settings["model_year"], :
@@ -2194,10 +2247,7 @@ class GeneratorClusters:
 
             else:
                 if (region in self.settings[alt_cluster_method].keys()) and (
-                    tech
-                    in self.settings[alt_cluster_method][region][
-                        "technology_description"
-                    ]
+                    tech in self.settings[alt_cluster_method][region]["technology"]
                 ):
 
                     grouped = cluster_by_owner(
@@ -2310,9 +2360,10 @@ class GeneratorClusters:
 
         # Add fixed/variable O&M based on NREL atb
         self.results = (
-            self.results.pipe(
-                atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings
-            )
+            self.results
+            # .pipe(
+            #     atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings
+            # )
             # .pipe(atb_new_generators, self.atb_costs, self.atb_hr, self.settings)
             .pipe(startup_fuel, self.settings)
             .pipe(add_fuel_labels, self.fuel_prices, self.settings)
