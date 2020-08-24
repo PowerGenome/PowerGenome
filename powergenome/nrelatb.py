@@ -17,8 +17,6 @@ from powergenome.util import reverse_dict_of_lists
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
-MAX_COAL_VAR_OM = 10  # $/MWh
-
 
 def fetch_atb_costs(pudl_engine, settings):
     """Get NREL ATB power plant cost data from database, filter where applicable
@@ -203,9 +201,9 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     # "o_m_fixed_mw": inflation_price_adjustment(
                     #     13.08 * 1000, 2017, target_usd_year
                     # ),
-                    "o_m_variable_mwh": inflation_price_adjustment(
-                        3.91, 2017, target_usd_year
-                    )
+                    # "o_m_variable_mwh": inflation_price_adjustment(
+                    #     3.91, 2017, target_usd_year
+                    # )
                 },
                 # "Combustion Turbine": {
                 #     # This includes both the Fixed O&M and Capex. Capex includes
@@ -228,8 +226,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     # "o_m_fixed_mw": inflation_price_adjustment(
                     #     ((22.2 + 27.88) / 2 + 46.01) * 1000, 2017, target_usd_year
                     # ),
-                    # This variable O&M is ignored. It's the value in NEMS but we think
-                    # that it is too low. ATB new coal has $5/MWh
                     "o_m_variable_mwh": inflation_price_adjustment(
                         1.78, 2017, target_usd_year
                     )
@@ -303,24 +299,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     f = operator.attrgetter(op)
                     atb_var_om_mwh = f(operator)(atb_var_om_mwh, op_value)
 
-                # Heat rate for new-build
-                # op, op_value = (
-                #     settings.get("atb_modifiers", {})
-                #     .get("ngct", {})
-                #     .get("Heat_rate_MMBTU_per_MWh", (None, None))
-                # )
-                # new_build_hr = (
-                #     atb_hr_df.query(
-                #         "technology==@atb_tech & tech_detail==@tech_detail"
-                #         "& basis_year==@existing_year"
-                #     )
-                #     .squeeze()
-                #     .at["heat_rate"]
-                # )
-                # if op:
-                #     f = operator.attrgetter(op)
-                #     new_build_hr *= f(operator)(new_build_hr, op_value)
-
                 variable = atb_var_om_mwh  # * (existing_hr / new_build_hr)
 
                 if plant_capacity < 100:
@@ -355,7 +333,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 else:
                     annual_capex = 10.82 * 1000
                     fixed = annual_capex + 14.51 * 1000
-                # fixed = ng_o_m["Natural Gas Steam Turbine"]["o_m_fixed_mw"]
 
                 _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
                     fixed, 2017, target_usd_year
@@ -365,11 +342,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 ]
 
             if "Coal" in eia_tech:
-                # Doing a similar Variable O&M calculation to combustion turbines
-                # because the EIA/NEMS value of $1.78/MWh is so much lower than the ATB
-                # value of $5/MWh.
-                # Assume 59% CF from NEMS documentation
-                # Based on conversation with Jesse J. on Jan 10, 2020.
 
                 plant_capacity = _df[settings["capacity_col"]].sum()
                 assert plant_capacity > 0
@@ -396,10 +368,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     fixed = 28.52 * 1000
                 else:
                     fixed = 33.27 * 1000
-                # fixed = ng_o_m["Coal"]["o_m_fixed_mw"]
-                # fixed = inflation_price_adjustment(
-                #     fixed + annual_capex, 2017, target_usd_year
-                # ) - (variable * 8760 * 0.59)
 
                 _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
                     fixed + annual_capex, 2017, target_usd_year
