@@ -6,6 +6,7 @@ import copy
 import collections
 import logging
 import operator
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -18,7 +19,7 @@ idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
 
-def fetch_atb_costs(pudl_engine, settings):
+def fetch_atb_costs(pudl_engine, settings, offshore_spur_costs=None):
     """Get NREL ATB power plant cost data from database, filter where applicable
 
     Parameters
@@ -80,7 +81,51 @@ def fetch_atb_costs(pudl_engine, settings):
         atb_costs["technology"].str.contains("PV"), ["o_m_fixed_mw", "o_m_variable_mwh"]
     ] *= settings["pv_ac_dc_ratio"]
 
+    if offshore_spur_costs is not None:
+        idx_cols = ["technology", "tech_detail", "cost_case", "basis_year"]
+        offshore_spur_costs = offshore_spur_costs.set_index(idx_cols)
+        atb_costs = atb_costs.set_index(idx_cols)
+
+        atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"] = (
+            atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"]
+            - offshore_spur_costs["capex"]
+        )
+        atb_costs = atb_costs.reset_index()
+
     return atb_costs
+
+
+def fetch_atb_offshore_spur_costs(pudl_engine, settings):
+    """Load offshore spur-line costs and convert to desired dollar-year.
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.Engine
+        A sqlalchemy connection for use by pandas
+    settings : dict
+        User-defined parameters from a settings file
+
+    Returns
+    -------
+    DataFrame
+        Total offshore spur line capex from ATB for each technology/tech_detail/
+        basis_year/cost_case combination.
+    """
+    spur_costs = pd.read_sql_table("offshore_spur_costs_nrelatb", pudl_engine)
+
+    atb_base_year = settings["atb_usd_year"]
+    atb_target_year = settings["target_usd_year"]
+
+    spur_costs.loc[:, "capex"] = inflation_price_adjustment(
+        price=spur_costs.loc[:, "capex"],
+        base_year=atb_base_year,
+        target_year=atb_target_year,
+    )
+
+    # ATB assumes a 30km distance for offshore spur. Normalize to per mile
+    spur_costs["capex_mw_mile"] = spur_costs["capex"] / 30 * 1.60934
+
+    return spur_costs
 
 
 def fetch_atb_heat_rates(pudl_engine):
@@ -825,6 +870,14 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         DATA_PATHS["cost_multipliers"] / "AEO_2020_regional_cost_corrections.csv",
         index_col=0,
     )
+    if settings.get("user_regional_cost_multiplier_fn"):
+        user_cost_multipliers = pd.read_csv(
+            Path(settings["extra_inputs"])
+            / settings["user_regional_cost_multiplier_fn"]
+        )
+        regional_cost_multipliers = pd.concat(
+            [regional_cost_multipliers, user_cost_multipliers]
+        )
     rev_mult_region_map = reverse_dict_of_lists(settings["cost_multiplier_region_map"])
     rev_mult_tech_map = reverse_dict_of_lists(
         settings["cost_multiplier_technology_map"]
