@@ -266,16 +266,14 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     variable = 3.42
                 else:
                     fixed = 11.68 * 1000
-                    # variable = 3.37
+                    variable = 3.37
 
-                # fixed = ng_o_m["Combined Cycle"]["o_m_fixed_mw"]
-                # variable = ng_o_m["Combined Cycle"]["o_m_variable_mwh"]
                 _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
                     fixed, 2017, target_usd_year
                 )
-                _df["Var_OM_cost_per_MWh"] = simple_o_m["Combined Cycle"][
-                    "o_m_variable_mwh"
-                ]
+                _df["Var_OM_cost_per_MWh"] = inflation_price_adjustment(
+                    variable, 2017, target_usd_year
+                )
 
             if "Combustion Turbine" in eia_tech:
                 # need to adjust the EIA fixed/variable costs because they have no
