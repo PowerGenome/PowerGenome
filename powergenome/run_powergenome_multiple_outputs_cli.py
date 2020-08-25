@@ -33,6 +33,7 @@ from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
 )
+from powergenome.nrelatb import atb_fixed_var_om_existing
 from powergenome.external_data import make_generator_variability
 from powergenome.util import (
     init_pudl_connection,
@@ -416,14 +417,14 @@ def main():
                 if args.gens:
 
                     gc.settings = _settings
-                    gc.current_gens = False
+                    # gc.current_gens = False
 
                     # Change the fuel labels in existing generators to reflect the
                     # correct AEO scenario for each fuel and update GenX tags based
                     # on settings.
-                    gc.existing_resources = existing_gens.pipe(
-                        add_fuel_labels, gc.fuel_prices, _settings
-                    ).pipe(add_genx_model_tags, _settings)
+                    # gc.existing_resources = existing_gens.pipe(
+                    #     add_fuel_labels, gc.fuel_prices, _settings
+                    # ).pipe(add_genx_model_tags, _settings)
 
                     gen_clusters = gc.create_all_generators()
                     # if "partial_ces" in settings:
@@ -477,9 +478,11 @@ def main():
                 )
                 load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
 
-                reduced_resource_profile, reduced_load_profile = reduce_time_domain(
-                    gen_variability, load, _settings
-                )
+                (
+                    reduced_resource_profile,
+                    reduced_load_profile,
+                    long_duration_storage,
+                ) = reduce_time_domain(gen_variability, load, _settings)
                 write_results_file(
                     df=reduced_load_profile,
                     folder=case_folder,
@@ -492,6 +495,13 @@ def main():
                     file_name="Generators_variability.csv",
                     include_index=True,
                 )
+                if long_duration_storage is not None:
+                    write_results_file(
+                        df=long_duration_storage,
+                        folder=case_folder,
+                        file_name="Long_Duration_Storage.csv",
+                        include_index=False,
+                    )
 
             if args.transmission:
                 # if not model_regions_gdf:
