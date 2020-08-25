@@ -2,7 +2,6 @@ import collections
 import logging
 from numbers import Number
 from typing import Dict
-from numpy.core.arrayprint import _none_or_positive_arg
 
 import requests
 
@@ -13,7 +12,11 @@ from pathlib import Path
 import pudl
 from bs4 import BeautifulSoup
 from flatten_dict import flatten
-from powergenome.cluster_method import cluster_by_owner, weighted_ownership_by_unit
+from powergenome.cluster_method import (
+    cluster_by_owner,
+    cluster_kmeans,
+    weighted_ownership_by_unit,
+)
 from powergenome.eia_opendata import fetch_fuel_prices
 from powergenome.external_data import (
     make_demand_response_profiles,
@@ -2235,15 +2238,17 @@ class GeneratorClusters:
             # This is bad. Should be setting up a dictionary of objects that picks the
             # correct clustering method. Can't keep doing if statements as the number of
             # methods grows. CHANGE LATER.
-            if self.settings["alt_cluster_method"] is None:
-                if num_clusters[region][tech] > 0:
-                    clusters = cluster.KMeans(
-                        n_clusters=num_clusters[region][tech], random_state=6
-                    ).fit(preprocessing.StandardScaler().fit_transform(grouped))
+            if not self.settings.get("alt_cluster_method"):
 
-                    grouped["cluster"] = (
-                        clusters.labels_ + 1
-                    )  # Change to 1-index for julia
+                grouped = cluster_kmeans(grouped, region, tech, self.settings)
+                # if num_clusters[region][tech] > 0:
+                #     clusters = cluster.KMeans(
+                #         n_clusters=num_clusters[region][tech], random_state=6
+                #     ).fit(preprocessing.StandardScaler().fit_transform(grouped))
+
+                #     grouped["cluster"] = (
+                #         clusters.labels_ + 1
+                #     )  # Change to 1-index for julia
 
             else:
                 if (region in self.settings[alt_cluster_method].keys()) and (
