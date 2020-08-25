@@ -387,7 +387,6 @@ def load_plant_region_map(
     # to reverse this to use in a map method.
     keep_regions, region_agg_map = regions_to_keep(settings)
 
-
     # Create a new column "model_region" with labels that we're using for aggregated
     # regions
 
@@ -1258,7 +1257,6 @@ def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
         Regions to use in the study with the matching geometry for each.
     """
     keep_regions, region_agg_map = regions_to_keep(settings)
-
 
     ipm_regions = gpd.read_file(IPM_GEOJSON_PATH)
 
@@ -2241,16 +2239,27 @@ class GeneratorClusters:
             # correct clustering method. Can't keep doing if statements as the number of
             # methods grows. CHANGE LATER.
             if not self.settings.get("alt_cluster_method"):
+                # if not self.settings.get("alt_cluster_features"):
+                # grouped = cluster_kmeans(grouped, region, tech, self.settings)
 
-                grouped = cluster_kmeans(grouped, region, tech, self.settings)
-                # if num_clusters[region][tech] > 0:
-                #     clusters = cluster.KMeans(
-                #         n_clusters=num_clusters[region][tech], random_state=6
-                #     ).fit(preprocessing.StandardScaler().fit_transform(grouped))
+                if num_clusters[region][tech] > 0:
+                    cluster_cols = [
+                        "Fixed_OM_cost_per_MWyr",
+                        # "Var_OM_cost_per_MWh",
+                        # "minimum_load_mw",
+                        "heat_rate_mmbtu_mwh",
+                    ]
+                    clusters = cluster.KMeans(
+                        n_clusters=num_clusters[region][tech], random_state=6
+                    ).fit(
+                        preprocessing.StandardScaler().fit_transform(
+                            grouped[cluster_cols]
+                        )
+                    )
 
-                #     grouped["cluster"] = (
-                #         clusters.labels_ + 1
-                #     )  # Change to 1-index for julia
+                    grouped["cluster"] = (
+                        clusters.labels_ + 1
+                    )  # Change to 1-index for julia
 
             else:
                 if (region in self.settings[alt_cluster_method].keys()) and (
@@ -2367,7 +2376,7 @@ class GeneratorClusters:
 
         # Add fixed/variable O&M based on NREL atb
         self.results = (
-            self.results
+            self.results.reset_index()
             # .pipe(
             #     atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings
             # )
