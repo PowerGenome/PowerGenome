@@ -384,6 +384,7 @@ def load_plant_region_map(
     # to reverse this to use in a map method.
     keep_regions, region_agg_map = regions_to_keep(settings)
 
+
     # Create a new column "model_region" with labels that we're using for aggregated
     # regions
 
@@ -1254,6 +1255,7 @@ def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
         Regions to use in the study with the matching geometry for each.
     """
     keep_regions, region_agg_map = regions_to_keep(settings)
+
 
     ipm_regions = gpd.read_file(IPM_GEOJSON_PATH)
 

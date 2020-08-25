@@ -25,6 +25,5 @@ dependencies:
 
   - pip:
     - python-dotenv
-    - cpi
     - flatten-dict
     - ruamel.yaml
