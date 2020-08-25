@@ -1,0 +1,59 @@
+code,id,name
+0000,0000,U.S. city average
+0100,0100,Northeast
+0110,0110,New England
+0120,0120,Middle Atlantic
+0200,0200,Midwest
+0230,0230,East North Central
+0240,0240,West North Central
+0300,0300,South
+0350,0350,South Atlantic
+0360,0360,East South Central
+0370,0370,West South Central
+0400,0400,West
+0480,0480,Mountain
+0490,0490,Pacific
+A104,A104,"Pittsburgh, PA"
+A210,A210,"Cleveland-Akron, OH"
+A212,A212,"Milwaukee-Racine, WI"
+A213,A213,"Cincinnati-Hamilton, OH-KY-IN"
+A214,A214,"Kansas City, MO-KS"
+A311,A311,"Washington-Baltimore, DC-MD-VA-WV"
+A421,A421,"Los Angeles-Riverside-Orange County, CA"
+A425,A425,"Portland-Salem, OR-WA"
+D000,D000,Size Class D
+D200,D200,Midwest - Size Class D
+D300,D300,South - Size Class D
+N000,N000,Size Class B/C
+N100,N100,Northeast - Size Class B/C
+N200,N200,Midwest - Size Class B/C
+N300,N300,South - Size Class B/C
+N400,N400,West - Size Class B/C
+S000,S000,Size Class A
+S100,S100,Northeast - Size Class A
+S11A,S11A,"Boston-Cambridge-Newton, MA-NH"
+S12A,S12A,"New York-Newark-Jersey City, NY-NJ-PA"
+S12B,S12B,"Philadelphia-Camden-Wilmington, PA-NJ-DE-MD"
+S200,S200,Midwest - Size Class A
+S23A,S23A,"Chicago-Naperville-Elgin, IL-IN-WI"
+S23B,S23B,"Detroit-Warren-Dearborn, MI"
+S24A,S24A,"Minneapolis-St.Paul-Bloomington, MN-WI"
+S24B,S24B,"St. Louis, MO-IL"
+S300,S300,South - Size Class A
+S35A,S35A,"Washington-Arlington-Alexandria, DC-VA-MD-WV"
+S35B,S35B,"Miami-Fort Lauderdale-West Palm Beach, FL"
+S35C,S35C,"Atlanta-Sandy Springs-Roswell, GA"
+S35D,S35D,"Tampa-St. Petersburg-Clearwater, FL"
+S35E,S35E,"Baltimore-Columbia-Towson, MD"
+S37A,S37A,"Dallas-Fort Worth-Arlington, TX"
+S37B,S37B,"Houston-The Woodlands-Sugar Land, TX"
+S400,S400,West - Size Class A
+S48A,S48A,"Phoenix-Mesa-Scottsdale, AZ"
+S48B,S48B,"Denver-Aurora-Lakewood, CO"
+S49A,S49A,"Los Angeles-Long Beach-Anaheim, CA"
+S49B,S49B,"San Francisco-Oakland-Hayward, CA"
+S49C,S49C,"Riverside-San Bernardino-Ontario, CA"
+S49D,S49D,Seattle-Tacoma-Bellevue WA
+S49E,S49E,"San Diego-Carlsbad, CA"
+S49F,S49F,Urban Hawaii
+S49G,S49G,Urban Alaska

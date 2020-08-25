@@ -4,7 +4,7 @@ Adjust price/cost from one year to another
 
 import logging
 
-import cpi
+from powergenome.externals.cpi import cpi as cpi
 
 logger = logging.getLogger(__name__)
 
