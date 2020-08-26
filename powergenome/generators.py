@@ -2130,6 +2130,11 @@ class GeneratorClusters:
             self.prime_mover_hr_map
         )
 
+        # Set negative heat rates to nan
+        self.units_model.loc[
+            self.units_model.heat_rate_mmbtu_mwh < 0, "heat_rate_mmbtu_mwh"
+        ] = np.nan
+
         # Fill any null heat rate values for each tech
         for tech in self.units_model["technology_description"]:
             self.units_model.loc[
