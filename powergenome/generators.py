@@ -1946,9 +1946,9 @@ class GeneratorClusters:
             self.canceled_860m = self.eia_860m["canceled"]
             self.retired_860m = self.eia_860m["retired"]
 
-            self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
+            # self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
             self.plants_860 = load_plants_860(self.pudl_engine, self.data_years)
-            self.utilities_eia = load_utilities_eia(self.pudl_engine)
+            # self.utilities_eia = load_utilities_eia(self.pudl_engine)
         else:
             self.existing_resources = pd.DataFrame()
 
@@ -2221,11 +2221,11 @@ class GeneratorClusters:
         ]
 
         # gens_860 lost the ownership code... refactor this!
-        self.all_gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
+        # self.all_gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
         # Getting weighted ownership for each unit, which will be used below.
-        self.weighted_ownership = weighted_ownership_by_unit(
-            self.units_model, self.all_gens_860, self.ownership, self.settings
-        )
+        # self.weighted_ownership = weighted_ownership_by_unit(
+        #     self.units_model, self.all_gens_860, self.ownership, self.settings
+        # )
 
         # For each group, cluster and calculate the average size/min load/heat rate
         # logger.info("Creating technology clusters by region")
