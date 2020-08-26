@@ -40,7 +40,7 @@ def cluster_kmeans(
         )
         grouped["cluster"] = clusters.labels_ + 1  # Change to 1-index for julia
 
-        return grouped
+    return grouped
 
 
 def cluster_by_owner(grouped_units, weighted_ownership, plants, region, tech, settings):
