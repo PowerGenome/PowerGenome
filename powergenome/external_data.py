@@ -1,8 +1,12 @@
 # Read in and add external inputs (user-supplied files) to PowerGenome outputs
 
 import logging
+import numpy as np
 import pandas as pd
+from pathlib import Path
+from typing import Any
 
+from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.util import snake_case_col
 
 logger = logging.getLogger(__name__)
@@ -82,9 +86,7 @@ def demand_response_resource_capacity(df, resource_name, settings):
     return shiftable_capacity
 
 
-def add_resource_max_cap_spur_line(
-    new_resource_df, settings, capacity_col="Max_Cap_MW"
-):
+def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_MW"):
     """Load user supplied maximum capacity and spur line data for new resources. Add
     those values to the resources dataframe.
 
@@ -98,193 +100,114 @@ def add_resource_max_cap_spur_line(
     settings : dict
         User-defined parameters from a settings file. Should have keys of `input_folder`
         (a Path object of where to find user-supplied data) and
-        `capacity_limit_spur_line_fn` (the file to load).
+        `capacity_limit_spur_fn` (the file to load).
     capacity_col : str, optional
         The column that indicates maximum capacity constraints, by default "Max_Cap_MW"
 
     Returns
     -------
     DataFrame
-        A modified version of new_resource_df with spur_line_miles and the maximum
+        A modified version of new_resource_df with spur_miles and the maximum
         capacity for a resource. Copies of a resource within a region should have a
         cluster name to uniquely identify them.
     """
 
-    path = settings["input_folder"] / settings["capacity_limit_spur_line_fn"]
+    defaults = {
+        "cluster": 1,
+        "spur_miles": 0,
+        capacity_col: -1,
+        "interconnect_annuity": 0,
+    }
+    # Prepare file
+    path = Path(settings["input_folder"]) / settings["capacity_limit_spur_fn"]
     df = pd.read_csv(path)
-    df["cluster"] = df["cluster"].fillna(1)
-
-    required_cols = [
-        "region",
-        "technology",
-        "cluster",
-        # "spur_line_miles",
-        "max_capacity",
-        # "interconnect_annuity",
-    ]
-
-    for col in required_cols:
-        assert (
-            col in df.columns
-        ), f"The capacity limit/spur line distance file must have column {col}"
-
+    for col in "region", "technology":
+        if col not in df:
+            raise KeyError(f"The max capacity/spur file must have column {col}")
+    for key, value in defaults.items():
+        df[key] = df[key].fillna(value) if key in df else value
+        new_resource_df[key] = (
+            new_resource_df[key].fillna(value) if key in new_resource_df else value
+        )
+    # Update resources
     grouped_df = df.groupby(["region", "technology"])
-
-    new_resource_df[capacity_col] = -1
-    new_resource_df["spur_miles"] = 0
     for (region, tech), _df in grouped_df:
         mask = (new_resource_df["region"] == region) & (
             new_resource_df["technology"].str.lower().str.contains(tech.lower())
         )
-
-        # assert len(new_resource_df.loc[mask, :]) == len(_df), (
-        #     f"There is a mismatch between the number of {tech} resources in {region}, "
-        #     f"({len(new_resource_df.loc[mask, :])}) and the number of spur line "
-        #     f"distances provided in {settings['capacity_limit_spur_line_fn']}, "
-        #     f"({len(_df)})"
-        # )
-        if len(new_resource_df.loc[mask, :]) != len(_df):
-            print(region, tech, new_resource_df.technology.unique())
-            print(new_resource_df.loc[mask, :])
-            print(_df)
-
-        new_resource_df.loc[mask, capacity_col] = _df["max_capacity"].values
-        for col in [
-            "spur_miles",
-            "offshore_spur_miles",
-            "tx_miles",
-            "interconnect_annuity",
-        ]:
-            if col in _df.columns:
-                new_resource_df.loc[mask, col] = _df[col].values
-        new_resource_df.loc[mask, "cluster"] = _df["cluster"].values
-
         if mask.sum() > 1:
-            assert new_resource_df.loc[mask, "cluster"].isna().sum() == 0, (
-                f"Error with cluster names in user-supplied file"
-                f" {settings['capacity_limit_spur_line_fn']}.\n"
-                f"The resource {tech} in region {region} has multiple rows and each row"
-                " must have a cluster value."
+            raise ValueError(
+                f"Resource {tech} in region {region} from file "
+                f"{settings['capacity_limit_spur_fn']} matches multiple resources"
             )
-
-    if "interconnect_annuity" in new_resource_df.columns:
-        from powergenome.price_adjustment import inflation_price_adjustment
-
-        logger.info(
-            f"Inflating external interconnect annuity costs from 2017 to "
-            f"{settings['target_usd_year']}"
-        )
-        new_resource_df["interconnect_annuity"] = inflation_price_adjustment(
-            new_resource_df["interconnect_annuity"].fillna(0),
-            2017,
-            settings["target_usd_year"],
-        )
-
+        for key, value in defaults.items():
+            _key = "max_capacity" if key == capacity_col else key
+            new_resource_df.loc[mask & (new_resource_df[key] == value), key] = _df[
+                _key
+            ].values
+    logger.info(
+        f"Inflating external interconnect annuity costs from 2017 to "
+        f"{settings['target_usd_year']}"
+    )
+    new_resource_df["interconnect_annuity"] = inflation_price_adjustment(
+        new_resource_df["interconnect_annuity"], 2017, settings["target_usd_year"],
+    )
     return new_resource_df
 
 
-def make_generator_variability(resource_df, settings, resource_col="Resource"):
+def make_generator_variability(df: pd.DataFrame) -> pd.DataFrame:
     """Make a generator variability dataframe with normalized (0-1) hourly profiles
-    for each resource in resource_df. Any resources that are not supplied in the user
-    file are assumed to have constant hourly profiles with a value of 1.
+    for each resource in resource_df.
+    
+    Any resources that do not have a profile in column
+    `profile` are assumed to have constant hourly profiles with a value of 1.
+    February 29 is removed from any profiles of length 8784 (leap year).
 
     Parameters
     ----------
-    resource_df : DataFrame
-        All resources (new and existing), with a single row for each resource. Must have
-        columns of `region` and `cluster` in addition to a resource/technology column
-        that can be changed with the parameter `resource_col`.
-    settings : dict
-        User-defined parameters from a settings file. Should have keys of `input_folder`
-        (a Path object of where to find user-supplied data) and
-        `resource_variability_fn` (the file to load).
-    resource_col : str, optional
-        Name of the column with resource/technology names, by default "Resource"
+    df
+        Dataframe with a single row for each resource. May have column `profile`.
 
     Returns
     -------
-    DataFrame
-        A new DataFrame with one column for each row of `resource_df` and 8760 rows
+    pd.DataFrame
+        A new dataframe with one column for each row of `df` and 8760 rows
         of generation profiles.
 
-    Raises
-    ------
-    KeyError
-        More than one match from the user supplied data was found for a resource in
-        `resource_df`. These matches are done using str.contains() with names that have
-        been transformed to snake case. e.g. the user file might have `PV` as a resource
-        and `resource_df` might have both `UtilityPV` and `IndustrialPV`.
+    Examples
+    --------
+    >>> df = pd.DataFrame({'profile': [np.zeros(8760), np.ones(8784) / 2, None]})
+    >>> make_generator_variability(df)
+            0    1    2
+    0     0.0  0.5  1.0
+    1     0.0  0.5  1.0
+    2     0.0  0.5  1.0
+    3     0.0  0.5  1.0
+    4     0.0  0.5  1.0
+    ...   ...  ...  ...
+    8755  0.0  0.5  1.0
+    8756  0.0  0.5  1.0
+    8757  0.0  0.5  1.0
+    8758  0.0  0.5  1.0
+    8759  0.0  0.5  1.0
+    <BLANKLINE>
+    [8760 rows x 3 columns]
     """
 
-    # Load resource variability (8760 values) and make it into a df with columns
-    # 'region', 'Resource', 'cluster', and then the hourly values.
-    path = settings["input_folder"] / settings["resource_variability_fn"]
-    df = pd.read_csv(path, index_col=0)
-    df.index = [str(x) for x in df.index]
-    df = df.T
+    def format_profile(x: Any) -> np.ndarray:
+        if isinstance(x, np.ndarray):
+            if len(x) == 8784:
+                # Remove February 29 from leap year
+                return np.delete(x, slice(1416, 1440))
+            return x
+        # Fill missing with default [1, ...]
+        return np.ones(8760, dtype=float)
 
-    region_list = [x.split(".")[0] for x in df.index]
-    df = df.reset_index()
-    df.rename(columns={"index": "region"}, inplace=True)
-    df["region"] = region_list
-    df["Resource"] = snake_case_col(df["Resource"])
-    df["cluster"] = df["cluster"].fillna(1)
-
-    # Make a modified version of resource_df, where a new _resource column is populated
-    # with the names from generator variability. Resource has already been snake_case
-    # transformed.
-    df_list = []
-    for resource, _df in resource_df.groupby("Resource"):
-        _df["cluster"] = _df["cluster"].fillna(1)
-        count = 0
-        for r in df.Resource.unique():
-            if r.lower() in resource.lower():
-                _df["_resource"] = r
-                count += 1
-        if count > 1:
-            raise KeyError(
-                f"More than one name match was found for {resource} in the generator"
-                " variability file."
-            )
-        df_list.append(_df)
-    mod_resource_df = pd.concat(df_list)
-    mod_resource_df = mod_resource_df.sort_values("R_ID")
-
-    keep_cols = ["Resource_x"] + [str(x) for x in range(1, 8761)]
-
-    gen_variability = (
-        mod_resource_df.merge(
-            df.reset_index(drop=True),
-            left_on=["region", "_resource", "cluster"],
-            right_on=["region", "Resource", "cluster"],
-            how="left",
-        )
-        .loc[:, keep_cols]
-        .fillna(1)
-        .T
-    )
-
-    gen_variability = gen_variability.rename(index={"Resource_x": "Resource"})
-    gen_variability.columns = [
-        f"{r}_{idx + 1}" for idx, r in enumerate(gen_variability.loc["Resource", :])
-    ]
-    gen_variability = gen_variability.drop(index="Resource")
-    gen_variability.index = [int(x) for x in gen_variability.index]
-
-    gen_variability = gen_variability.astype(float)
-    assert (
-        any(gen_variability.isna().any()) is False
-    ), "Something went wrong creating the gen variability file. The data has some NaN values"
-
-    # Check to make sure no variable resources have identical hourly profiles
-    for r in df.Resource.unique():
-        for col in [x for x in gen_variability.columns if r in x]:
-            if gen_variability[col].std == 0:
-                logger.warning(
-                    f"Column {col} in the gen varability df has a standard deviation of 0."
-                )
-
-    return gen_variability
+    if "profile" in df:
+        profiles = np.column_stack(df["profile"].map(format_profile).values)
+    else:
+        profiles = np.ones((8760, len(df)), dtype=float)
+    return pd.DataFrame(profiles, columns=np.arange(len(df)).astype(str))
 
 
 def load_policy_scenarios(settings):
@@ -306,7 +229,7 @@ def load_policy_scenarios(settings):
         Emission policies for each case_id/year.
     """
 
-    path = settings["input_folder"] / settings["emission_policies_fn"]
+    path = Path(settings["input_folder"]) / settings["emission_policies_fn"]
     policies = pd.read_csv(path, na_values=["None", "none"])
 
     # Update the policies. The column `copy_case_id` can be used to copy values from
@@ -386,7 +309,7 @@ def load_demand_segments(settings):
         Demand segments with columns such as "Voll", "Demand_segment", etc.
     """
 
-    path = settings["input_folder"] / settings["demand_segments_fn"]
+    path = Path(settings["input_folder"]) / settings["demand_segments_fn"]
     demand_segments = pd.read_csv(path)
 
     return demand_segments
@@ -409,7 +332,7 @@ def load_user_genx_settings(settings):
         index is ["case_id", "year"] and columns are GenX parameters.
     """
 
-    path = settings["input_folder"] / settings["case_genx_settings_fn"]
+    path = Path(settings["input_folder"]) / settings["case_genx_settings_fn"]
     genx_case_settings = pd.read_csv(path)
 
     if "copy_case_id" in genx_case_settings.columns:

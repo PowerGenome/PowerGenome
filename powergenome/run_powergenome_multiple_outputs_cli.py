@@ -36,12 +36,13 @@ from powergenome.transmission import (
 from powergenome.nrelatb import atb_fixed_var_om_existing
 from powergenome.external_data import make_generator_variability
 from powergenome.util import (
+    build_scenario_settings,
     init_pudl_connection,
     load_settings,
-    update_dictionary,
     remove_fuel_scenario_name,
-    write_results_file,
+    update_dictionary,
     write_case_settings_file,
+    write_results_file,
 )
 
 if not sys.warnoptions:
@@ -121,120 +122,6 @@ def parse_command_line(argv):
     return arguments
 
 
-def build_case_id_name_map(settings):
-    case_id_name_df = pd.read_csv(
-        settings["input_folder"] / settings["case_id_description_fn"],
-        index_col=0,
-        squeeze=True,
-    )
-    case_id_name_df = case_id_name_df.str.replace(" ", "_")
-    case_id_name_map = case_id_name_df.to_dict()
-
-    return case_id_name_map
-
-
-def build_scenario_settings(settings, scenario_definitions):
-    """Build a nested dictionary of settings for each planning year/scenario
-
-    Parameters
-    ----------
-    settings : dict
-        The full settings file, including the "settings_management" section with
-        alternate values for each scenario
-    scenario_definitions : DataFrame
-        Values from the csv file defined in the settings file "scenario_definitions_fn"
-        parameter. This df has columns corresponding to categories in the
-        "settings_management" section of the settings file, with row values defining
-        specific case/scenario names.
-
-    Returns
-    -------
-    dict
-        A nested dictionary. The first set of keys are the planning years, the second
-        set of keys are the case ID values associated with each case.
-    """
-
-    model_planning_period_dict = {
-        year: (start_year, year)
-        for year, start_year in zip(
-            settings["model_year"], settings["model_first_planning_year"]
-        )
-    }
-
-    case_id_name_map = build_case_id_name_map(settings)
-
-    scenario_settings = {}
-    for year in scenario_definitions["year"].unique():
-        scenario_settings[year] = {}
-        planning_year_settings_management = settings["settings_management"][year]
-
-        # Create a dictionary with keys of things that change (e.g. ccs_capex) and
-        # values of nested dictionaries that give case_id: scenario name
-        planning_year_scenario_definitions_dict = (
-            scenario_definitions.loc[scenario_definitions.year == year]
-            .set_index("case_id")
-            .to_dict()
-        )
-        planning_year_scenario_definitions_dict.pop("year")
-
-        for case_id in scenario_definitions["case_id"].unique():
-            _settings = copy.deepcopy(settings)
-
-            if "all_cases" in planning_year_settings_management:
-                new_parameter = planning_year_settings_management["all_cases"]
-                _settings = update_dictionary(_settings, new_parameter)
-
-            # Add the scenario definition values to the settings files
-            # e.g.
-            # case_id	year	demand_response	growth	tx_expansion	ng_price
-            # p1	    2030	moderate	            normal	high	reference
-            case_scenario_definitions = scenario_definitions.loc[
-                (scenario_definitions.case_id == case_id)
-                & (scenario_definitions.year == year),
-                :,
-            ]
-            for col in scenario_definitions.columns:
-                _settings[col] = case_scenario_definitions.squeeze().at[col]
-
-            modified_settings = []
-            for (
-                category,
-                case_value_dict,
-            ) in planning_year_scenario_definitions_dict.items():
-                # key is the category e.g. ccs_capex, case_value_dict is p1: mid
-                try:
-                    case_value = case_value_dict[case_id]
-                    new_parameter = planning_year_settings_management[category][
-                        case_value
-                    ]
-                    # print(new_parameter)
-                    try:
-                        settings_keys = list(new_parameter.keys())
-                    except AttributeError:
-                        settings_keys = {}
-
-                    for key in settings_keys:
-                        assert (
-                            key not in modified_settings
-                        ), f"The settings key {key} is modified twice in case id {case_id}"
-
-                        modified_settings.append(key)
-
-                    if new_parameter is not None:
-                        _settings = update_dictionary(_settings, new_parameter)
-                    # print(_settings[list(new_parameter.keys())[0]])
-
-                except KeyError:
-                    pass
-
-            _settings["model_first_planning_year"] = model_planning_period_dict[year][0]
-            _settings["model_year"] = model_planning_period_dict[year][1]
-            _settings["case_name"] = case_id_name_map[case_id]
-            scenario_settings[year][case_id] = _settings
-
-    return scenario_settings
-
-
 def main():
 
     args = parse_command_line(sys.argv)
@@ -311,7 +198,7 @@ def main():
 
     i = 0
     model_regions_gdf = None
-    for year in scenario_settings.keys():
+    for year in scenario_settings:
         for case_id, _settings in scenario_settings[year].items():
             case_folder = (
                 out_folder / f"{year}" / f"{case_id}_{year}_{_settings['case_name']}"
@@ -358,10 +245,11 @@ def main():
                     logger.info(
                         f"Finished first round with year {year} scenario {case_id}"
                     )
-                    # if "partial_ces" in settings:
+                    # if settings.get("partial_ces"):
                     gens = calculate_partial_CES_values(gen_clusters, fuels, _settings)
+                    cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
-                        df=remove_fuel_scenario_name(gens.fillna(0), _settings),
+                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,
@@ -374,8 +262,13 @@ def main():
                     #         include_index=False,
                     #     )
 
-                    gen_variability = make_generator_variability(
-                        gen_clusters, _settings
+                    gen_variability = make_generator_variability(gen_clusters)
+                    gen_variability.columns = (
+                        gen_clusters["region"]
+                        + "_"
+                        + gen_clusters["Resource"]
+                        + "_"
+                        + gen_clusters["cluster"].astype(str)
                     )
                     # write_results_file(
                     #     df=gen_variability,
@@ -427,7 +320,7 @@ def main():
                     # ).pipe(add_genx_model_tags, _settings)
 
                     gen_clusters = gc.create_all_generators()
-                    # if "partial_ces" in settings:
+                    # if settings.get("partial_ces"):
                     #     fuels = fuel_cost_table(
                     #         fuel_costs=gc.fuel_prices,
                     #         generators=gc.all_resources,
@@ -450,8 +343,9 @@ def main():
                         settings=_settings,
                     )
                     gens = calculate_partial_CES_values(gen_clusters, fuels, _settings)
+                    cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
-                        df=remove_fuel_scenario_name(gens.fillna(0), _settings),
+                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,
@@ -462,8 +356,13 @@ def main():
                     #     file_name="Generators_data.csv",
                     # )
 
-                    gen_variability = make_generator_variability(
-                        gen_clusters, _settings
+                    gen_variability = make_generator_variability(gen_clusters)
+                    gen_variability.columns = (
+                        gen_clusters["region"]
+                        + "_"
+                        + gen_clusters["Resource"]
+                        + "_"
+                        + gen_clusters["cluster"].astype(str)
                     )
                     # write_results_file(
                     #     df=gen_variability,
@@ -555,14 +454,15 @@ def main():
                     file_name="Fuels_data.csv",
                 )
 
-            genx_settings = make_genx_settings_file(
-                pudl_engine, _settings, calculated_ces=ces
-            )
-            write_case_settings_file(
-                settings=genx_settings,
-                folder=case_folder,
-                file_name="GenX_settings.yml",
-            )
+            if _settings.get("genx_settings_fn"):
+                genx_settings = make_genx_settings_file(
+                    pudl_engine, _settings, calculated_ces=ces
+                )
+                write_case_settings_file(
+                    settings=genx_settings,
+                    folder=case_folder,
+                    file_name="GenX_settings.yml",
+                )
             write_case_settings_file(
                 settings=_settings,
                 folder=case_folder,

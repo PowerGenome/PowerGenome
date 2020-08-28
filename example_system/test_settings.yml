@@ -21,8 +21,7 @@ scenario_definitions_fn: test_scenario_inputs.csv # Define policy/cost scenarios
 distributed_gen_profiles_fn: test_dg_profiles.csv # Hourly profiles of distributed gen by region
 demand_response_fn: test_ev_load_shifting.csv # Load profiles of DR resources by model_year and scenario
 emission_policies_fn: test_rps_ces_emission_limits.csv # Emission policies for each model_year/region/case_id
-capacity_limit_spur_line_fn: test_resource_capacity_spur_line.csv # Max capacity and spur line distance for each renewable resource
-resource_variability_fn: test_variable_resource_profiles.csv
+capacity_limit_spur_fn: test_resource_capacity_spur.csv # Max capacity and spur line distance for each renewable resource
 region_wind_pv_cap_fn: existing_wind_pv_capacity.csv
 demand_segments_fn: test_demand_segments_voll.csv
 misc_gen_inputs_fn: test_misc_gen_inputs.csv
@@ -84,31 +83,36 @@ demand_response_resources:
       parameter_values:
         Max_DSM_delay: 5
         DR: 2
+demand_response: 'moderate'
 
-
-# Spur line financial information to calculate annual investment costs
-# Capital cost per MW-mile in each region. Use either a single numeric value for all
-# regions or a dictionary of <region>: <value>, which must account for all model regions.
-spur_line_capex_mw_mile:
-  CA_N: 8904
-  CA_S: 8904
-  WECC_AZ: 3667
-
+# Transmission financial information to calculate annual investment costs
+# capex_mw_mile: Capital cost per MW-mile for all (numeric) or each model region (dict).
 # WACC and investment years from https://www.sciencedirect.com/science/article/abs/pii/S0301421519305816
-spur_line_wacc: 0.069
-spur_line_investment_years: 60
-
-tx_reinforcement_cost_mw_mile:
-  CA_N: 3728
-  CA_S: 3728
-  WECC_CO: 1457
-  WECC_NM: 1457
-  WECC_NW: 1457
-  WECC_SNV: 1457
-  WECC_AZ: 1457
-
-tx_reinforcement_wacc: 0.069
-tx_reinforcement_investment_years: 60
+transmission_investment_cost:
+  # If true, uses interconnect_annuity when available
+  use_total: true
+  spur:
+    capex_mw_mile:
+      CA_N: 8904
+      CA_S: 8904
+    wacc: 0.069
+    investment_years: 60
+  offshore_spur:
+    # If missing, NREL ATB capex_mw_mile is used
+    capex_mw_mile:
+    wacc: 0.069
+    investment_years: 60
+  tx:
+    capex_mw_mile:
+      CA_N: 3728
+      CA_S: 3728
+      WECC_CO: 1457
+      WECC_NM: 1457
+      WECC_NW: 1457
+      WECC_SNV: 1457
+      WECC_AZ: 1457
+    wacc: 0.069
+    investment_years: 60
 
 # Percent expansion in planning period above and beyond existing transmission
 tx_expansion_per_period: 1.0
@@ -202,7 +206,7 @@ settings_management:
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
           - [LandbasedWind, LTRG1, Mid, 1]
-          - [OffShoreWind, OTRG3, Mid, 1]
+          - [OffShoreWind, OTRG10, Mid, 1]
           - [UtilityPV, LosAngeles, Mid, 1]
           - [Battery, "*", Mid, 1]
       low:
@@ -211,7 +215,7 @@ settings_management:
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
           - [LandbasedWind, LTRG1, Low, 1]
-          - [OffShoreWind, OTRG3, Low, 1]
+          - [OffShoreWind, OTRG10, Low, 1]
           - [UtilityPV, LosAngeles, Low, 1]
           - [Battery, "*", Low, 1]
     nuclear_capex:
@@ -309,7 +313,7 @@ settings_management:
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
           - [LandbasedWind, LTRG1, Mid, 1]
-          - [OffShoreWind, OTRG3, Mid, 1]
+          - [OffShoreWind, OTRG10, Mid, 1]
           - [UtilityPV, LosAngeles, Mid, 1]
           - [Battery, "*", Mid, 1]
       low:
@@ -318,7 +322,7 @@ settings_management:
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
           - [LandbasedWind, LTRG1, Low, 1]
-          - [OffShoreWind, OTRG3, Low, 1]
+          - [OffShoreWind, OTRG10, Low, 1]
           - [UtilityPV, LosAngeles, Low, 1]
           - [Battery, "*", Low, 1]
     nuclear_capex:
@@ -390,7 +394,7 @@ model_regions:
 
 region_aggregations:
   CA_N: [WEC_CALN, WEC_BANC]
-  CA_S: [WEC_SCE, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
+  CA_S: [WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
 
 
 # CLUSTERING
@@ -517,6 +521,10 @@ retirement_ages:
 
 # CLUSTER TAGS
 # All of the values will be 0 by default. If non-zero, add here.
+# The names below are matched to technology names in the data ignoring case, whitespace,
+# and underscores, and must only match the start of the technology name. Since e.g.
+# "Natural Gas" will match any "Natural Gas *", more specific terms should be listed
+# after more general terms ("Natural Gas CCS100: 0" should come after "Natural Gas: 1").
 
 model_tag_names:
   - THERM
@@ -535,107 +543,101 @@ default_model_tag: 0
 
 model_tag_values:
   THERM:
+    Biomass: 1
+    Biopower: 1
+    Coal Integrated Gasification Combined Cycle: 1
     Conventional Steam Coal: 1
+    CSP: 1
+    Geothermal: 1
+    Landfill Gas: 1
+    Municipal Solid Waste: 1
+    Natural Gas: 1
     Natural Gas Fired Combined Cycle: 1
     Natural Gas Fired Combustion Turbine: 1
-    Petroleum Liquids: 1
     Natural Gas Internal Combustion Engine: 1
-    Nuclear: 1
     Natural Gas Steam Turbine: 1
-    Wood/Wood Waste Biomass: 1
-    Petroleum Coke: 1
-    Geothermal: 1
-    Municipal Solid Waste: 1
-    Landfill Gas: 1
-    Coal Integrated Gasification Combined Cycle: 1
-    Other Waste Biomass: 1
+    NGCCS100: 1
+    Nuclear: 1
     Other Gases: 1
     Other Natural Gas: 1
-    Other_peaker: 1 # Is there any way to do this based on the underlying categories?
-    Biomass: 1
-    NaturalGas_: 1
-    Biopower_: 1
-    Nuclear_: 1
-    CSP_: 1
-    NGCCS100: 1
+    Other Waste Biomass: 1
+    Other Peaker: 1 # Is there any way to do this based on the underlying categories?
+    Petroleum Coke: 1
+    Petroleum Liquids: 1
+    Wood/Wood Waste Biomass: 1
   DISP:
-    Onshore Wind Turbine: 1
-    Offshore Wind Turbine: 1
+    CSP: 1
+    Landbased Wind: 1
+    Offshore Wind: 1
+    Onshore Wind: 1
     Solar Photovoltaic: 1
     Solar Thermal without Energy Storage: 1
-    LandbasedWind_: 1
-    OffShoreWind_: 1
-    UtilityPV_: 1
-    CSP_: 1
+    Utility PV: 1
   NDISP:
-    Geothermal: 1
-    Wood/Wood Waste Biomass: 1
     Biomass: 1
+    Geothermal: 1
     Small Hydroelectric: 1
+    Wood/Wood Waste Biomass: 1
   STOR:
-    Hydroelectric Pumped Storage: 1
     Battery: 2
+    Hydroelectric Pumped Storage: 1
   DR: ~
   HYDRO:
     Conventional Hydroelectric: 1
   Commit:
+    Biomass: 1
+    Biopower: 1
+    Coal Integrated Gasification Combined Cycle: 1
     Conventional Steam Coal: 1
+    Natural Gas: 1
     Natural Gas Fired Combined Cycle: 1
     Natural Gas Fired Combustion Turbine: 1
-    Petroleum Liquids: 1
     Natural Gas Internal Combustion Engine: 1
-    Nuclear: 1
     Natural Gas Steam Turbine: 1
-    Petroleum Coke: 1
-    Coal Integrated Gasification Combined Cycle: 1
-    Other_peaker: 1 # Is there any way to do this based on the underlying categories?
-    Biomass: 1
-    NaturalGas_: 1
-    Biopower_: 1
-    Nuclear_: 1
     NGCCS100: 1
+    Nuclear: 1
+    Other Peaker: 1 # Is there any way to do this based on the underlying categories?
+    Petroleum Coke: 1
+    Petroleum Liquids: 1
   RPS:
     Biomass: 1
-    Geothermal: 1
-    Small Hydroelectric: 1
+    Biopower: 1
     Conventional Hydroelectric: 0 # Need they key here to update value in 2045 cases
-    Onshore Wind Turbine: 1
-    Offshore Wind Turbine: 1
+    CSP: 1
+    Geothermal: 1
+    Landbased Wind: 1
+    Offshore Wind: 1
+    Onshore Wind: 1
+    Small Hydroelectric: 1
     Solar Photovoltaic: 1
-    Biopower_: 1
-    CSP_: 1
-    UtilityPV_: 1
-    LandbasedWind_: 1
-    OffShoreWind_: 1
+    Utility PV: 1
   CES:
     Biomass: 1
-    Geothermal: 1
-    Small Hydroelectric: 1
+    Biopower: 1
     Conventional Hydroelectric: 1
-    Onshore Wind Turbine: 1
-    Offshore Wind Turbine: 1
-    Solar Photovoltaic: 1
-    Biopower_: 1
-    CSP_: 1
-    UtilityPV_: 1
-    LandbasedWind_: 1
-    OffShoreWind_: 1
-    Nuclear: 1
-    NaturalGas_CCCCS: 1
-    NaturalGas_CCS100: 1
+    CSP: 1
+    Geothermal: 1
+    Landbased Wind: 1
+    Natural Gas CCS100: 1
     NGCCS100: 1
+    Nuclear: 1
+    Offshore Wind: 1
+    Onshore Wind: 1
+    Small Hydroelectric: 1
+    Solar Photovoltaic: 1
+    Utility PV: 1
   New_Build:
+    Battery: 1
+    Biomass: -1
+    Biopower: 1
     Conventional Hydroelectric: -1
     Geothermal: -1
-    Biomass: -1
-    Small Hydroelectric: -1
-    NaturalGas_: 1
-    LandbasedWind_: 1
-    OffShoreWind_: 1
-    UtilityPV_: 1
-    Battery_: 1
-    Biopower_: 1
+    Landbased Wind: 1
+    Natural Gas: 1
     NGCCS100: 1
+    Offshore Wind: 1
+    Small Hydroelectric: -1
+    Utility PV: 1
   Hydro_level:
     Conventional Hydroelectric: 0.5
   CapRes:
@@ -762,7 +764,7 @@ eia_atb_tech_map:
   Hydroelectric Pumped Storage: Hydropower_NSD4 # Large variability based on choice
   Small Hydroelectric: Hydropower_NSD3 # Large variability based on choice
   Onshore Wind Turbine: LandbasedWind_LTRG1 # All onshore wind is the same
-  Offshore Wind Turbine: OffShoreWind_OTRG3 # Mid-range of fixed offshore wind
+  Offshore Wind Turbine: OffShoreWind_OTRG10 # Mid-range of floating offshore wind
   Nuclear: Nuclear_*
   Natural Gas Steam Turbine: Coal_newAvgCF # No gas steam turbines in ATB, using coal instead
   Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
@@ -778,7 +780,7 @@ atb_new_gen:
   - [NaturalGas, CCAvgCF, Mid, 500]
   - [NaturalGas, CTAvgCF, Mid, 100]
   - [LandbasedWind, LTRG1, Mid, 1]
-  - [OffShoreWind, OTRG3, Mid, 1]
+  - [OffShoreWind, OTRG10, Mid, 1]
   - [UtilityPV, LosAngeles, Mid, 1]
   - [Battery, "*", Mid, 1]
   # - [Nuclear, "*", Mid, 500]
@@ -808,13 +810,29 @@ new_gen_not_available:
 
 pv_ac_dc_ratio: 1.3
 
-new_wind_solar_regional_bins:
-  UtilityPV:
-    CA_N: 3
-    CA_S: 3
-  LandbasedWind:
-    CA_N: 2
-    CA_S: 2
+renewables_clusters:
+  - region: CA_N
+    technology: landbasedwind
+    max_clusters: 2
+    max_lcoe: 110
+    min_capacity: 25000
+  - region: CA_N
+    technology: offshorewind
+    turbine_type: floating
+    pref_site: 1
+    max_clusters: 3
+    min_capacity: 40000
+  - region: CA_S
+    technology: landbasedwind
+    max_clusters: 4
+    max_lcoe: 100
+    min_capacity: 45000
+  - region: CA_S
+    technology: utilitypv
+    max_clusters: 5
+    max_lcoe: 75
+    min_capacity: 100000
+    cap_multiplier: 0.2
 
 # How much of the theoretical
 wind_pv_fraction_developable: 0.5
@@ -940,52 +958,39 @@ additional_planned: ~
 
 # Load from IPM is for 2011. The growth rates from 2011-2018 can be calculated using
 # historical data
-default_load_year: 2011
-regular_load_growth_start_year: 2018
+default_load_year: 2012
+regular_load_growth_start_year: 2019
 
-default_growth_rates:
-  WECC_Northwest: 0.007
-  WECC_Rockies: 0.011
-  WECC_Southwest: 0.011
-  WECC_California: 0.003
-  RFC_East: 0.004
-  RFC_West: 0.005
-  SERC_VC: 0.008
-  SERC_Southeast: 0.008
-  SERC_Gateway: 0.005
-  NEPP_UpstateNY: 0.001
-
-# 2011 load, from the 2012 AEO
-aeo_hist_start_elec_demand:
-  WECC_Southwest: 131.191
-  WECC_California: 270.271
-  WECC_Rockies: 64.484
-  WECC_Northwest: 245.317
-  RFC_East: 289.175
-  RFC_West: 551.497
-  SERC_VC: 329.273
-  SERC_Southeast: 253.703
-  SERC_Gateway: 106.478
-  NEPP_UpstateNY: 75.032
-
-# 2018 load, from the 2018 AEO
-aeo_hist_end_elec_demand:
-  WECC_Southwest: 132.281
-  WECC_California: 272.511
-  WECC_Rockies: 69.391
-  WECC_Northwest: 249.880
-  RFC_East: 277.543
-  RFC_West: 519.775
-  SERC_VC: 317.693
-  SERC_Southeast: 235.89
-  SERC_Gateway: 107.353
-  NEPP_UpstateNY: 82.008
-
-load_region_map:
-  WECC_Northwest: [WECC_PNW, WECC_ID, WECC_MT, WECC_WY, WECC_UT, WECC_NNV, WECC_SNV]
-  WECC_Rockies: [WECC_CO]
-  WECC_Southwest: [WECC_AZ, WECC_NM]
-  WECC_California: [WEC_CALN, WEC_BANC, WEC_SCE, WECC_SCE, WEC_LADW, WEC_SDGE, WECC_IID]
+historical_load_region_maps:
+  TRE: [ERC_PHDL, ERC_REST, ERC_WEST]
+  FLRC: [FRCC] #FRCC
+  MWRCE: [MIS_WUMS]
+  MWRCW: [MIS_MAPP, SPP_WAUE, SPP_NEBR, MIS_MIDA, MIS_IA, MIS_MNWI]
+  NPCCNE: [NENG_ME, NENG_CT, NENGREST]
+  NPCCNYWE: [NY_Z_J]
+  NPCCL: [NY_Z_K]
+  NPCCUPNY: [
+    NY_Z_A,
+    NY_Z_B,
+    NY_Z_C&E,
+    NY_Z_D,
+    NY_Z_F,
+    NY_Z_G-I,
+  ]
+  RFCET: [PJM_WMAC, PJM_EMAC, PJM_SMAC, PJM_PENE]
+  RFCMI: [MIS_LMI]
+  RFCWT: [PJM_West, PJM_AP, PJM_ATSI, PJM_COMD]
+  SERCDLT: [MIS_WOTA, MIS_LA, MIS_AMSO, MIS_AR]
+  SERCGW: [MIS_MO, S_D_AECI, MIS_IL]
+  SERCSOES: [S_SOU]
+  SERCCNT: [S_C_TVA, S_C_KY]
+  SERCVC: [S_VACA]
+  SWPPNO: [SPP_N]
+  SWPPSO: [SPP_SPS, SPP_WEST]
+  WECCSW: [WECC_AZ, WECC_NM, WECC_SNV]
+  WECCCA: [WEC_CALN, WEC_BANC, WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE]
+  WENWPP: [WECC_PNW, WECC_MT, WECC_ID, WECC_WY, WECC_UT, WECC_NNV]
+  WECCRKS: [WECC_CO]
 
 future_load_region_map:
   TRE: [ERC_PHDL, ERC_REST, ERC_WEST]
@@ -1031,12 +1036,20 @@ alt_growth_rate: ~
 # Need to make choices about fuel regions when user-defined regions cross AEO fuel regions
 # I'm putting WECC_NW in the rockies because the PNW doesn't use as much coal/gas
 aeo_fuel_region_map:
-  rockies: [WECC_AZ, WECC_NM, WECC_CO, WECC_SNV, WECC_NW]
+  mountain: [WECC_AZ, WECC_NM, WECC_CO, WECC_SNV, WECC_NW]
   pacific: [CA_N, CA_S]
 
 eia_series_region_names:
-  rockies: MTN
+  mountain: MTN
   pacific: PCF
+  west_south_central: WSC
+  east_south_central: ESC
+  south_atlantic: SOATL
+  west_north_central: WNC
+  east_north_central: ENC
+  middle_atlantic: MDATL
+  new_england: NEENGL
+
 
 eia_series_fuel_names:
   coal: STC
@@ -1048,6 +1061,8 @@ eia_series_fuel_names:
 # so those may need to be modified accordingly.
 eia_aeo_year: 2020
 
+# This is a subset of AEO 2020 scenarios. For a full list, look at the eia open data
+# page https://www.eia.gov/opendata/qb.php?category=3604304
 eia_series_scenario_names:
   reference: REF2020
   low_price: LOWPRICE
@@ -1099,13 +1114,6 @@ fuel_emission_factors:
   naturalgas: 0.05306
   coal: 0.09552 # EIA value for electric power sector
   distillate: 0.07315
-
-
-# Wind/solar capacity density in MW/km^2
-# Consistent numbers are difficult to come by. Check to make sure that you are ok with
-# these values.
-onshore_wind_power_density: 1.6
-pv_power_density: 3
 
 
 # Digitally extracted VOM startup costs for each generator type from the NREL Western
@@ -1226,6 +1234,10 @@ generator_columns: [
             "Reg_Cost",
             "Rsv_Cost",
             "spur_miles",
-            "spur_line_capex",
+            "spur_capex",
+            "offshore_spur_miles",
+            "offshore_spur_capex",
+            "tx_miles",
+            "tx_capex",
             "interconnect_annuity"
         ]
