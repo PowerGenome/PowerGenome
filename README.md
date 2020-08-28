@@ -21,11 +21,9 @@ The goal of PowerGenome is to let a user make all of these choices in a settings
 
 PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. Most of the data are already compiled into a [single sqlite database](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5) (see instructions for using it below). There are also a few data files stored in this repository:
 
-- Regional cost multipliers for individual technologies developed by EIA (`data/cost_multipliers/EIA regional cost multipliers.csv`).
+- Regional cost multipliers for individual technologies developed by EIA (`data/cost_multipliers/AEO_2020_regional_cost_corrections.csv`).
 - A simplified geojson version of EPA's shapefile for IPM regions (`data/ipm_regions_simple.geojson`).
 - Information on user-defined technologies, which can be included in outputs. This can be used to define a custom cost case (e.g. $500/kW PV) or a new technology such as natural gas with 100% carbon capture. The CSV files are stored in `data/additional_technologies` and there is a documentation file in that folder describing what to include in the file.
-
-There are quite a few data inputs that we have not yet compiled for public use with PowerGenome. These include 2011 weather year wind/solar profiles for both existing and new-build resources by IPM region, electrification demand profiles to modify the 2011 IPM load shapes, and state electricity policies. [Contact us](mailto:powergenome@carbonimpact.co) if you want to help compile data.
 
 ## PUDL Dependency
 
@@ -57,7 +55,7 @@ pip install -e .
 
 5. Download a [modifed version of the PUDL database](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5) that includes NREL ATB cost data and is not yet included in PUDL.
 
-6. Download the [renewable resource data](https://drive.google.com/file/d/1F0t0WW72eiBOJ3m_bTgRb8Dc61m0VS5Z/view?usp=sharing) containing generation profiles and capacity for existing and new-build renewable resources. Save and unzip this file. The suggested location for all of the unzipped files is `PowerGenome/data/resource_groups/`. These files will eventually be provided through a data repository with citation information.
+6. Download the [renewable resource data](https://drive.google.com/file/d/1g0Q6TdNp4C12HQJy6pAURzp_oVg0Q7ly/view?usp=sharing) containing generation profiles and capacity for existing and new-build renewable resources. Save and unzip this file. The suggested location for all of the unzipped files is `PowerGenome/data/resource_groups/`. These files will eventually be provided through a data repository with citation information.
 
 7. Get an [API key for EIA's OpenData portal](https://www.eia.gov/opendata/register.php). This key is needed to download projected fuel prices from the 2019 Annual Energy Outlook.
 
