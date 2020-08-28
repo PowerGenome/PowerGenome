@@ -93,8 +93,9 @@ transmission_investment_cost:
   use_total: true
   spur:
     capex_mw_mile:
-      CA_N: 8904
-      CA_S: 8904
+      CA_N: 8775 # 2.5x the rest of WECC
+      CA_S: 8775 # 2.5x the rest of WECC
+      WECC_AZ: 3900
     wacc: 0.069
     investment_years: 60
   offshore_spur:
@@ -104,13 +105,9 @@ transmission_investment_cost:
     investment_years: 60
   tx:
     capex_mw_mile:
-      CA_N: 3728
-      CA_S: 3728
-      WECC_CO: 1457
-      WECC_NM: 1457
-      WECC_NW: 1457
-      WECC_SNV: 1457
-      WECC_AZ: 1457
+      CA_N: 3037.5 # 2.5x the rest of WECC
+      CA_S: 3037.5 # 2.5x the rest of WECC
+      WECC_AZ: 1350
     wacc: 0.069
     investment_years: 60
 
