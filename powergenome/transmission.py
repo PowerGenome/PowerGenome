@@ -165,7 +165,7 @@ def transmission_line_distance(
     logger.info("Calculating transmission line distance")
     ipm_shapefile["geometry"] = ipm_shapefile.buffer(0.01)
     model_polygons = ipm_shapefile.dissolve(by="model_region")
-    model_polygons = model_polygons.to_crs({"init": "epsg:4326"})
+    model_polygons = model_polygons.to_crs(epsg=4326)
     region_centroids = find_centroid(model_polygons)
 
     distances = [
