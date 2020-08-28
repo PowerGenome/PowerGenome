@@ -393,7 +393,7 @@ model_regions:
 
 region_aggregations:
   CA_N: [WEC_CALN, WEC_BANC]
-  CA_S: [WEC_SCE, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
+  CA_S: [WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
 
 
 # CLUSTERING
