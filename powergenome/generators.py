@@ -518,6 +518,7 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
         If the user wants to label small hydro plants, some of the conventional
         hydro facilities will have their technology type changed to small hydro.
     """
+
     if not settings.get("small_hydro"):
         return df
     if "report_date" not in by and "report_date" in df.columns:
@@ -543,6 +544,7 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
         df.loc[
             (df["technology_description"] == "Conventional Hydroelectric")
             & (df["model_region"].isin(keep_regions))
+
         ]
         .groupby(by, as_index=False)[cap_col]
         .sum()
