@@ -1048,12 +1048,20 @@ alt_growth_rate: ~
 # Need to make choices about fuel regions when user-defined regions cross AEO fuel regions
 # I'm putting WECC_NW in the rockies because the PNW doesn't use as much coal/gas
 aeo_fuel_region_map:
-  rockies: [WECC_AZ, WECC_NM, WECC_CO, WECC_SNV, WECC_NW]
+  mountain: [WECC_AZ, WECC_NM, WECC_CO, WECC_SNV, WECC_NW]
   pacific: [CA_N, CA_S]
 
 eia_series_region_names:
-  rockies: MTN
+  mountain: MTN
   pacific: PCF
+  west_south_central: WSC
+  east_south_central: ESC
+  south_atlantic: SOATL
+  west_north_central: WNC
+  east_north_central: ENC
+  middle_atlantic: MDATL
+  new_england: NEENGL
+
 
 eia_series_fuel_names:
   coal: STC
@@ -1065,6 +1073,8 @@ eia_series_fuel_names:
 # so those may need to be modified accordingly.
 eia_aeo_year: 2020
 
+# This is a subset of AEO 2020 scenarios. For a full list, look at the eia open data
+# page https://www.eia.gov/opendata/qb.php?category=3604304
 eia_series_scenario_names:
   reference: REF2020
   low_price: LOWPRICE
@@ -1116,13 +1126,6 @@ fuel_emission_factors:
   naturalgas: 0.05306
   coal: 0.09552 # EIA value for electric power sector
   distillate: 0.07315
-
-
-# Wind/solar capacity density in MW/km^2
-# Consistent numbers are difficult to come by. Check to make sure that you are ok with
-# these values.
-onshore_wind_power_density: 1.6
-pv_power_density: 3
 
 
 # Digitally extracted VOM startup costs for each generator type from the NREL Western
