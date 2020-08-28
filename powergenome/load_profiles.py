@@ -6,8 +6,9 @@ import logging
 from pathlib import Path
 import pandas as pd
 
-from powergenome.util import reverse_dict_of_lists, shift_wrap_profiles
+from powergenome.util import regions_to_keep, reverse_dict_of_lists, shift_wrap_profiles
 from powergenome.external_data import make_demand_response_profiles
+from powergenome.eia_opendata import get_aeo_load
 
 logger = logging.getLogger(__name__)
 
@@ -18,18 +19,9 @@ def make_load_curves(
     pudl_table="load_curves_epaipm",
     settings_agg_key="region_aggregations",
 ):
-
-    # Settings has a dictionary of lists for regional aggregations. Need
-    # to reverse this to use in a map method.
-    region_agg_map = reverse_dict_of_lists(settings[settings_agg_key])
-
     # IPM regions to keep. Regions not in this list will be dropped from the
     # dataframe
-    keep_regions = [
-        x
-        for x in settings["model_regions"] + list(region_agg_map)
-        if x not in region_agg_map.values()
-    ]
+    keep_regions, region_agg_map = regions_to_keep(settings)
 
     # I'd rather use a sql query and only pull the regions of interest but
     # sqlalchemy doesn't allow table names to be parameterized.
@@ -71,62 +63,67 @@ def make_load_curves(
     return lc_wide
 
 
-def add_load_growth(load_curves, settings):
+def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
+    keep_regions, region_agg_map = regions_to_keep(settings)
+    hist_region_map = reverse_dict_of_lists(settings["historical_load_region_maps"])
+    future_region_map = reverse_dict_of_lists(settings["future_load_region_map"])
 
-    load_map = reverse_dict_of_lists(settings["load_region_map"])
-
-    load_growth_map = {
-        ipm_region: settings["default_growth_rates"][load_region]
-        for ipm_region, load_region in load_map.items()
+    hist_demand_start = {
+        ipm_region: get_aeo_load(
+            region=hist_region_map[ipm_region],
+            aeo_year=2014,
+            scenario_series="REF2014",
+        ).set_index("year").loc[2012, "demand"]
+        for ipm_region in keep_regions
+    }
+    hist_demand_end = {
+        ipm_region: get_aeo_load(
+            region=hist_region_map[ipm_region],
+            aeo_year=2019,
+            scenario_series="REF2019",
+        ).set_index("year").loc[2018, "demand"]
+        for ipm_region in keep_regions
     }
 
-    for region, rate in (settings.get("alt_growth_rate") or {}).items():
-        load_growth_map[region] = rate
-
-    if settings.get("regular_load_growth_start_year"):
-        # historical load growth
-
-        demand_start = settings["aeo_hist_start_elec_demand"]
-        demand_end = settings["aeo_hist_end_elec_demand"]
-
-        if not all([key in demand_end for key in demand_start]):
-            raise KeyError(
-                "Error in keys for historical electricity demand. /n"
-                "Not all keys in 'aeo_hist_start_elec_demand' are also in "
-                "'aeo_hist_end_elec_demand'"
-            )
-
-        historic_growth_ratio = {
-            region: demand_end[region] / demand_start[region] for region in demand_start
-        }
-        historic_growth_map = {
-            ipm_region: historic_growth_ratio[load_region]
-            for ipm_region, load_region in load_map.items()
-        }
-
-        for region in load_curves["region_id_epaipm"].unique():
-            hist_growth_factor = historic_growth_map[region]
-            load_curves.loc[
-                load_curves["region_id_epaipm"] == region, "load_mw"
-            ] *= hist_growth_factor
-
-        # Don't grow load over years where we already have historical data
-        years_growth = (
+    load_growth_dict = {
+        ipm_region: get_aeo_load(
+            region=future_region_map[ipm_region],
+            aeo_year=settings.get("eia_aeo_year", 2020),
+            scenario_series="REF2020",
+        ).set_index("year")
+        for ipm_region in keep_regions
+    }
+    
+    load_growth_start_map = {
+        ipm_region: _df.loc[settings.get("regular_load_growth_start_year", 2019), "demand"]
+        for ipm_region, _df in load_growth_dict.items()
+    }
+    
+    load_growth_end_map = {
+        ipm_region: _df.loc[settings["model_year"], "demand"]
+        for ipm_region, _df in load_growth_dict.items()
+    }
+    
+    future_growth_factor = {
+        ipm_region: load_growth_end_map[ipm_region] / load_growth_start_map[ipm_region]
+        for ipm_region in keep_regions
+    }
+    hist_growth_factor = {
+        ipm_region: hist_demand_end[ipm_region] / hist_demand_start[ipm_region]
+        for ipm_region in keep_regions
+    }
+    
+    years_growth = (
             settings["model_year"] - settings["regular_load_growth_start_year"]
         )
 
-    else:
-        years_growth = settings["model_year"] - settings["default_load_year"]
+    for region, rate in (settings.get("alt_growth_rate") or {}).items():
+        future_growth_factor[region] = (1 + rate) ** years_growth
 
-    load_growth_factor = {
-        region: (1 + rate) ** years_growth for region, rate in load_growth_map.items()
-    }
-
-    for region in load_curves["region_id_epaipm"].unique():
-        growth_factor = load_growth_factor[region]
+    for region in keep_regions:
         load_curves.loc[
             load_curves["region_id_epaipm"] == region, "load_mw"
-        ] *= growth_factor
+        ] *= (hist_growth_factor[region] * future_growth_factor[region])
 
     return load_curves
 

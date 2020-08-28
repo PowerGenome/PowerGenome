@@ -4,12 +4,15 @@ Load data from EIA's Open Data API. Requires an api key, which should be include
 """
 
 from itertools import product
+from typing import Union
 
 import pandas as pd
 import requests
 
 from powergenome.params import SETTINGS
 from powergenome.price_adjustment import inflation_price_adjustment
+
+numeric = Union[int, float]
 
 
 def fetch_fuel_prices(settings):
@@ -59,3 +62,47 @@ def fetch_fuel_prices(settings):
     )
 
     return final
+
+
+def get_aeo_load(
+    region: str, aeo_year: Union[str, numeric], scenario_series: str,
+) -> pd.DataFrame:
+    """Find the electricity demand in a single AEO region. Use EIA API if data has not
+    been previously saved.
+
+    Parameters
+    ----------
+    region : str
+        Short name of the AEO region
+    aeo_year : Union[str, numeric]
+        AEO data year
+    scenario_series : str
+        Short name of the AEO scenario
+
+    Returns
+    -------
+    pd.DataFrame
+        The demand data for a single region.
+    """
+    from powergenome.params import DATA_PATHS
+
+    data_dir = DATA_PATHS["eia"] / "open_data"
+    data_dir.mkdir(exist_ok=True)
+
+    API_KEY = SETTINGS["EIA_API_KEY"]
+
+    SERIES_ID = (
+        f"AEO.{aeo_year}.{scenario_series}.CNSM_NA_ELEP_NA_ELC_NA_{region}_BLNKWH.A"
+    )
+
+    if not (data_dir / f"{SERIES_ID}.csv").exists():
+        url = f"http://api.eia.gov/series/?series_id={SERIES_ID}&api_key={API_KEY}&out=json"
+        r = requests.get(url)
+        df = pd.DataFrame(
+            r.json()["series"][0]["data"], columns=["year", "demand"], dtype=float
+        )
+        df.to_csv(data_dir / f"{SERIES_ID}.csv", index=False)
+    else:
+        df = pd.read_csv(data_dir / f"{SERIES_ID}.csv")
+
+    return df
