@@ -285,19 +285,19 @@ def reduce_time_domain(
         return resource_profiles, load_output, None
 
 
-def network_line_loss(transmission, settings):
+def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFrame:
     """Add line loss percentage for each network line between regions.
 
     Parameters
     ----------
-    transmission : DataFrame
+    transmission : pd.DataFrame
         One network line per row with a column "distance_mile"
     settings : dict
         User-defined settings with a parameter "tx_line_loss_100_miles"
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         Same as input but with the new column 'Line_Loss_Percentage'
     """
     if "tx_line_loss_100_miles" not in settings:
@@ -312,12 +312,14 @@ def network_line_loss(transmission, settings):
     return transmission
 
 
-def network_reinforcement_cost(transmission, settings):
+def network_reinforcement_cost(
+    transmission: pd.DataFrame, settings: dict
+) -> pd.DataFrame:
     """Add transmission line reinforcement investment costs (per MW-mile-year)
 
     Parameters
     ----------
-    transmission : DataFrame
+    transmission : pd.DataFrame
         One network line per row with columns "Transmission Path Name" and
         "distance_mile".
     settings : dict
@@ -326,11 +328,22 @@ def network_reinforcement_cost(transmission, settings):
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         Same as input but with the new column 'Line_Reinforcement_Cost_per_MW_yr'
     """
 
-    cost_dict = settings["transmission_investment_cost"]["tx"]["capex_mw_mile"]
+    cost_dict = (
+        settings.get("transmission_investment_cost", {})
+        .get("tx", {})
+        .get("capex_mw_mile")
+    )
+    if not cost_dict:
+        raise KeyError(
+            "No value for transmission reinforcement costs is included in the settings."
+            " These costs are included under transmission_investment_costs.tx."
+            "capex_mw_mile.<model_region>. See the `test_settings.yml` file for an "
+            "example."
+        )
     origin_region_cost = (
         transmission["Transmission Path Name"].str.split("_to_").str[0].map(cost_dict)
     )
@@ -340,9 +353,28 @@ def network_reinforcement_cost(transmission, settings):
 
     # Average the costs per mile between origin and destination regions
     line_capex = (origin_region_cost + dest_region_cost) / 2
-    line_wacc = settings["transmission_investment_cost"]["tx"]["wacc"]
-    line_inv_period = settings["transmission_investment_cost"]["tx"]["investment_years"]
-
+    line_wacc = (
+        settings.get("transmission_investment_cost", {}).get("tx", {}).get("wacc")
+    )
+    if not line_wacc:
+        raise KeyError(
+            "No value for the transmission weighted average cost of capital (wacc) is "
+            "included in the settings."
+            "This numeric value is included under transmission_investment_costs.tx."
+            "wacc. See the `test_settings.yml` file for an "
+            "example."
+        )
+    line_inv_period = (
+        settings.get("transmission_investment_cost", {})
+        .get("tx", {})
+        .get("investment_years")
+    )
+    if not line_inv_period:
+        raise KeyError(
+            "No value for the transmission investment period is included in the settings."
+            "This numeric value is included under transmission_investment_costs.tx."
+            "investment_years. See the `test_settings.yml` file for an example."
+        )
     line_inv_cost = (
         investment_cost_calculator(line_capex, line_wacc, line_inv_period)
         * transmission["distance_mile"]
@@ -353,24 +385,35 @@ def network_reinforcement_cost(transmission, settings):
     return transmission
 
 
-def network_max_reinforcement(transmission, settings):
+def network_max_reinforcement(
+    transmission: pd.DataFrame, settings: dict
+) -> pd.DataFrame:
     """Add the maximum amount that transmission lines between regions can be reinforced
     in a planning period.
 
     Parameters
     ----------
-    transmission : DataFrame
+    transmission : pd.DataFrame
         One network line per row with the column "Line_Max_Flow_MW"
     settings : dict
         User-defined settings with the parameter "Line_Max_Reinforcement_MW"
 
     Returns
     -------
-    [type]
-        [description]
+    pd.DataFrame
+        A copy of the input transmission constraint dataframe with a new column
+        `Line_Max_Reinforcement_MW`.
     """
 
-    max_expansion = settings["tx_expansion_per_period"]
+    max_expansion = settings.get("tx_expansion_per_period")
+
+    if not max_expansion:
+        raise KeyError(
+            "No value for the transmission expansion allowed in this model period is "
+            "included in the settings."
+            "This numeric value is included under tx_expansion_per_period. See the "
+            "`test_settings.yml` file for an example."
+        )
 
     transmission.loc[:, "Line_Max_Reinforcement_MW"] = (
         transmission.loc[:, "Line_Max_Flow_MW"] * max_expansion
