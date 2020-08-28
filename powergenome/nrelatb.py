@@ -924,7 +924,10 @@ def add_renewables_clusters(
         df["region"] == region
     )
     cdfs = []
-    ipm_regions = settings["region_aggregations"][region]
+    if region in settings["region_aggregations"]:
+        ipm_regions = settings["region_aggregations"][region]
+    else:
+        ipm_regions = [region]
     for scenario in settings.get("renewables_clusters", []):
         if scenario["region"] != region:
             continue

@@ -2469,7 +2469,10 @@ class GeneratorClusters:
             if group.profiles is None:
                 # Resource group has no profiles
                 continue
-            ipm_regions = self.settings["region_aggregations"][row.region]
+            if row.region in self.settings["region_aggregations"]:
+                ipm_regions = self.settings["region_aggregations"][row.region]
+            else:
+                ipm_regions = [row.region]
             metadata = group.metadata.read()
             if not metadata["ipm_region"].isin(ipm_regions).any():
                 # Resource group has no resources in selected IPM regions
