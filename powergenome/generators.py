@@ -2065,6 +2065,8 @@ class GeneratorClusters:
             self.demand_response_profiles[resource] = dr_profile
             # Add hourly profile to demand response rows
             dr_cf = dr_profile / dr_profile.max()
+            dr_regions = dr_cf.columns
+            _df = _df.loc[dr_regions, :]
             _df["profile"] = list(dr_cf.values.T)
 
             dr_capacity = demand_response_resource_capacity(
