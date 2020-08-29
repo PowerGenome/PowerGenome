@@ -38,7 +38,7 @@ SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
 SETTINGS["RESOURCE_GROUPS"] = os.environ.get("RESOURCE_GROUPS")
 
 CLUSTER_BUILDER = ClusterBuilder.from_json(
-    Path(SETTINGS["RESOURCE_GROUPS"]).glob("**/*.json")
+    Path(SETTINGS.get("RESOURCE_GROUPS"), ".").glob("**/*.json")
 )
 
 # "postgresql://catalyst@127.0.0.1/pudl"
