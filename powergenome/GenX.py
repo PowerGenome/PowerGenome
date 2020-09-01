@@ -222,7 +222,7 @@ def reduce_time_domain(
 
     demand_segments = load_demand_segments(settings)
 
-    if settings["reduce_time_domain"]:
+    if settings.get("reduce_time_domain"):
         days = settings["time_domain_days_per_period"]
         time_periods = settings["time_domain_periods"]
         include_peak_day = settings["include_peak_day"]
@@ -242,6 +242,7 @@ def reduce_time_domain(
         reduced_resource_profile.index.name = "Resource"
         reduced_resource_profile.index = range(1, len(reduced_resource_profile) + 1)
         reduced_load_profile = results["load_profiles"]
+        long_duration_storage = results["long_duration_storage"]
 
         time_index = pd.Series(data=reduced_load_profile.index + 1, name="Time_index")
         sub_weights = pd.Series(
@@ -262,7 +263,7 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return reduced_resource_profile, reduced_load_output
+        return reduced_resource_profile, reduced_load_output, long_duration_storage
 
     else:
         time_index = pd.Series(data=range(1, 8761), name="Time_index")
@@ -283,7 +284,7 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return resource_profiles, load_output
+        return resource_profiles, load_output, None
 
 
 def network_line_loss(transmission, settings):
