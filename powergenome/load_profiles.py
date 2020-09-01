@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 def make_load_curves(
     pudl_engine,
     settings,
-    pudl_table="load_curves_epaipm",
+    pudl_table="load_curves_ferc",
     settings_agg_key="region_aggregations",
 ):
 
