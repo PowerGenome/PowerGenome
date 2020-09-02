@@ -65,7 +65,8 @@ def make_load_curves(
         lc_wide = remove_feb_29(lc_wide)
 
     lc_wide.index.name = "time_index"
-    lc_wide.index = lc_wide.index + 1
+    if lc_wide.index.min() == 0:
+        lc_wide.index = lc_wide.index + 1
 
     return lc_wide
 
@@ -181,7 +182,7 @@ def load_usr_demand_profiles(settings):
 def make_final_load_curves(
     pudl_engine,
     settings,
-    pudl_table="load_curves_epaipm",
+    pudl_table="load_curves_ferc",
     settings_agg_key="region_aggregations",
 ):
     # Check if regional loads are supplied by the user
