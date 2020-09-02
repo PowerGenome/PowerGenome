@@ -4,6 +4,7 @@ import logging
 import pandas as pd
 
 from powergenome.util import snake_case_col
+from powergenome.load_profiles import remove_feb_29
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,9 @@ def make_demand_response_profiles(path, resource_name, settings):
 
     resource_df = resource_df.loc[:, scenario]
     resource_df = resource_df.reset_index(drop=True)
+
+    if len(resource_df) == 8784:
+        remove_feb_29(resource_df)
 
     return resource_df
 

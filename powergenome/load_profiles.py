@@ -61,9 +61,8 @@ def make_load_curves(
     lc_wide = load_curves_agg.unstack(level=0)
     lc_wide.columns = lc_wide.columns.droplevel()
 
-    pst_offset = settings["target_region_pst_offset"]
-
-    lc_wide = shift_wrap_profiles(lc_wide, pst_offset)
+    if len(lc_wide) == 8784:
+        lc_wide = remove_feb_29(lc_wide)
 
     lc_wide.index.name = "time_index"
     lc_wide.index = lc_wide.index + 1
@@ -172,6 +171,9 @@ def load_usr_demand_profiles(settings):
 
     lp_path = settings["input_folder"] / settings["regional_load_fn"]
     hourly_load_profiles = make_usr_demand_profiles(lp_path, settings)
+
+    if len(hourly_load_profiles) == 8784:
+        remove_feb_29(hourly_load_profiles)
 
     return hourly_load_profiles
 
@@ -295,6 +297,9 @@ def make_distributed_gen_profiles(pudl_engine, settings):
                 f"The value in your settings file is {method}"
             )
 
+    if len(dg_hourly_gen) == 8784:
+        remove_feb_29(dg_hourly_gen)
+
     return dg_hourly_gen
 
 
@@ -351,3 +356,15 @@ def calc_dg_frac_load_method(dg_profile, dg_requirement, regional_load, settings
     hourly_gen = dg_profile * dg_capacity
 
     return hourly_gen
+
+
+def remove_feb_29(df):
+    idx_start = df.index.min()
+    idx_name = df.index.name
+    df["datetime"] = pd.date_range(start="2012-01-01", freq="H", periods=8784)
+
+    df = df.loc[~((df.datetime.dt.month == 2) & (df.datetime.dt.day == 29)), :]
+    df.index = range(idx_start, idx_start + 8760)
+    df.index.name = idx_name
+
+    return df.drop(columns=["datetime"])
