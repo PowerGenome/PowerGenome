@@ -336,7 +336,7 @@ def build_scenario_settings(settings: dict, scenario_definitions: pd.DataFrame) 
         planning_year_scenario_definitions_dict.pop("year")
 
         for case_id in scenario_definitions["case_id"].unique():
-            _settings = copy.deepcopy(settings)
+            _settings = deepcopy(settings)
 
             if "all_cases" in planning_year_settings_management:
                 new_parameter = planning_year_settings_management["all_cases"]
