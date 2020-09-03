@@ -6,7 +6,12 @@ import logging
 from pathlib import Path
 import pandas as pd
 
-from powergenome.util import regions_to_keep, reverse_dict_of_lists, shift_wrap_profiles
+from powergenome.util import (
+    regions_to_keep,
+    reverse_dict_of_lists,
+    shift_wrap_profiles,
+    remove_feb_29,
+)
 from powergenome.external_data import make_demand_response_profiles
 from powergenome.eia_opendata import get_aeo_load
 
@@ -70,18 +75,18 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
     hist_demand_start = {
         ipm_region: get_aeo_load(
-            region=hist_region_map[ipm_region],
-            aeo_year=2014,
-            scenario_series="REF2014",
-        ).set_index("year").loc[2012, "demand"]
+            region=hist_region_map[ipm_region], aeo_year=2014, scenario_series="REF2014"
+        )
+        .set_index("year")
+        .loc[2012, "demand"]
         for ipm_region in keep_regions
     }
     hist_demand_end = {
         ipm_region: get_aeo_load(
-            region=hist_region_map[ipm_region],
-            aeo_year=2019,
-            scenario_series="REF2019",
-        ).set_index("year").loc[2018, "demand"]
+            region=hist_region_map[ipm_region], aeo_year=2019, scenario_series="REF2019"
+        )
+        .set_index("year")
+        .loc[2018, "demand"]
         for ipm_region in keep_regions
     }
 
@@ -93,17 +98,19 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         ).set_index("year")
         for ipm_region in keep_regions
     }
-    
+
     load_growth_start_map = {
-        ipm_region: _df.loc[settings.get("regular_load_growth_start_year", 2019), "demand"]
+        ipm_region: _df.loc[
+            settings.get("regular_load_growth_start_year", 2019), "demand"
+        ]
         for ipm_region, _df in load_growth_dict.items()
     }
-    
+
     load_growth_end_map = {
         ipm_region: _df.loc[settings["model_year"], "demand"]
         for ipm_region, _df in load_growth_dict.items()
     }
-    
+
     future_growth_factor = {
         ipm_region: load_growth_end_map[ipm_region] / load_growth_start_map[ipm_region]
         for ipm_region in keep_regions
@@ -112,18 +119,16 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         ipm_region: hist_demand_end[ipm_region] / hist_demand_start[ipm_region]
         for ipm_region in keep_regions
     }
-    
-    years_growth = (
-            settings["model_year"] - settings["regular_load_growth_start_year"]
-        )
+
+    years_growth = settings["model_year"] - settings["regular_load_growth_start_year"]
 
     for region, rate in (settings.get("alt_growth_rate") or {}).items():
         future_growth_factor[region] = (1 + rate) ** years_growth
 
     for region in keep_regions:
-        load_curves.loc[
-            load_curves["region_id_epaipm"] == region, "load_mw"
-        ] *= (hist_growth_factor[region] * future_growth_factor[region])
+        load_curves.loc[load_curves["region_id_epaipm"] == region, "load_mw"] *= (
+            hist_growth_factor[region] * future_growth_factor[region]
+        )
 
     return load_curves
 
