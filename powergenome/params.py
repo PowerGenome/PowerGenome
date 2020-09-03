@@ -36,9 +36,11 @@ SETTINGS = {}
 SETTINGS["PUDL_DB"] = os.environ.get("PUDL_DB")
 SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
 SETTINGS["RESOURCE_GROUPS"] = os.environ.get("RESOURCE_GROUPS")
-
-CLUSTER_BUILDER = ClusterBuilder.from_json(
-    Path(SETTINGS["RESOURCE_GROUPS"]).glob("**/*.json")
+if not SETTINGS["RESOURCE_GROUPS"]:
+    CLUSTER_BUILDER = ClusterBuilder([])
+else:
+    CLUSTER_BUILDER = ClusterBuilder.from_json(
+        Path(SETTINGS.get("RESOURCE_GROUPS"), ".").glob("**/*.json")
 )
 
 # "postgresql://catalyst@127.0.0.1/pudl"

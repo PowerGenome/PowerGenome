@@ -5,6 +5,7 @@ Transmission constraints between regions and line distance
 import itertools
 import logging
 from math import asin, cos, radians, sin, sqrt
+from pathlib import Path
 
 import pandas as pd
 
@@ -30,9 +31,19 @@ def agg_transmission_constraints(
 
     logger.info("Loading transmission constraints from PUDL")
     transmission_constraints_table = pd.read_sql_table(pudl_table, con=pudl_engine)
+
+    if settings.get("user_transmission_constraints_fn"):
+        user_tx_constraints = pd.read_csv(
+            Path(settings["input_folder"])
+            / settings["user_transmission_constraints_fn"]
+        )
+
+        transmission_constraints_table = pd.concat(
+            [transmission_constraints_table, user_tx_constraints]
+        )
     # Settings has a dictionary of lists for regional aggregations. Need
     # to reverse this to use in a map method.
-    region_agg_map = reverse_dict_of_lists(settings[settings_agg_key])
+    region_agg_map = reverse_dict_of_lists(settings.get(settings_agg_key))
 
     # IPM regions to keep. Regions not in this list will be dropped from the
     # dataframe

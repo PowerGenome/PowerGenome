@@ -412,7 +412,15 @@ def overwrite_wind_pv_capacity(df, settings):
 def make_usr_demand_profiles(path, settings):
     idx = pd.IndexSlice
     year = settings["model_year"]
-    scenario = settings["electrification"]
+    scenario = settings.get("electrification")
+    if not scenario:
+        scenario_file = settings.get("scenario_definitions_fn")
+        load_file = settings.get("regional_load_fn")
+        raise KeyError(
+            f"The scenario definitions file {scenario_file} must have a column "
+            f"'electrification' with values that correspond to the second row of "
+            f"{load_file}"
+        )
 
     df = pd.read_csv(path, header=[0, 1, 2])
     scenario_df = df.loc[:, idx[str(year), scenario]]

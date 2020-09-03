@@ -4,3 +4,6 @@ coverage:
     range: 0..100
     round: nearest
     precision: 2
+
+ignore:
+- "powergenome/externals"

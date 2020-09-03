@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+requests = ">=2.20.0"
+twine = "*"
+"flake8" = "*"
+coverage = "*"
+python-coveralls = "*"
+click = "*"
+python-dateutil = "*"
+pandas = "*"
+jupyterlab = "*"
+altair = "*"
+
+[dev-packages]
+altair-latimes = "*"
+
+[requires]
+python_version = "3.6"
