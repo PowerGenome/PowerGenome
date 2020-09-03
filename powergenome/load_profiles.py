@@ -359,7 +359,19 @@ def calc_dg_frac_load_method(dg_profile, dg_requirement, regional_load, settings
     return hourly_gen
 
 
-def remove_feb_29(df):
+def remove_feb_29(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove Feb 29 from a wide format leap-year dataseries
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        A wide format dataframe with 8784 columns
+
+    Returns
+    -------
+    pd.DataFrame
+        The same dataframe but without the 24 hours in Feb 29 and only 8760 rows.
+    """    
     idx_start = df.index.min()
     idx_name = df.index.name
     df["datetime"] = pd.date_range(start="2012-01-01", freq="H", periods=8784)
