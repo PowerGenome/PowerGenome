@@ -75,9 +75,7 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
     hist_demand_start = {
         ipm_region: get_aeo_load(
-            region=hist_region_map[ipm_region],
-            aeo_year=2014,
-            scenario_series="REF2014",
+            region=hist_region_map[ipm_region], aeo_year=2014, scenario_series="REF2014"
         )
         .set_index("year")
         .loc[2012, "demand"]
@@ -85,9 +83,7 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
     }
     hist_demand_end = {
         ipm_region: get_aeo_load(
-            region=hist_region_map[ipm_region],
-            aeo_year=2019,
-            scenario_series="REF2019",
+            region=hist_region_map[ipm_region], aeo_year=2019, scenario_series="REF2019"
         )
         .set_index("year")
         .loc[2018, "demand"]

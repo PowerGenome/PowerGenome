@@ -325,7 +325,7 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
     model_hydro_gdf = gpd.GeoDataFrame(
         model_hydro,
         geometry=gpd.points_from_xy(model_hydro.longitude, model_hydro.latitude),
-        crs={"init": "epsg:4326"},
+        crs="EPSG:4326",
     )
 
     if model_hydro_gdf.crs != model_regions_gdf.crs:
@@ -565,7 +565,6 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
         df.loc[
             (df["technology_description"] == "Conventional Hydroelectric")
             & (df["model_region"].isin(keep_regions))
-
         ]
         .groupby(by, as_index=False)[cap_col]
         .sum()
@@ -1455,9 +1454,8 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
     planned_gdf = gpd.GeoDataFrame(
         planned.copy(),
         geometry=gpd.points_from_xy(planned.longitude.copy(), planned.latitude.copy()),
-        crs={"init": "epsg:4326"},
+        crs="EPSG:4326",
     )
-    # planned_gdf.crs = {"init": "epsg:4326"}
     if planned_gdf.crs != model_regions_gdf.crs:
         planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
 

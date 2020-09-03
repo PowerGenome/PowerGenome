@@ -5,6 +5,8 @@
 [![codecov](https://codecov.io/gh/gschivley/PowerGenome/branch/master/graph/badge.svg?token=7KJYLE3jOW)](https://codecov.io/gh/gschivley/PowerGenome)
 [![code style black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
+**Note:** The code and data for PowerGenome are under active development and some changes may break existing functions. Keep up to date with major code and data releases by joining [PowerGenome on groups.io](https://groups.io/g/powergenome).
+
 Power system optimization models can be used to explore the cost and emission implications of different regulations in future energy systems. One of the most difficult parts of running these models is assembling all the data. A typical model will define several regions, each of which need data such as:
 
 - All existing generating units (perhaps grouped into a few discrete clusters within each region)
@@ -61,23 +63,37 @@ pip install -e .
 
 8. Create the file `PowerGenome/powergenome/.env`. To this file, add `PUDL_DB=YOUR_PATH_HERE` (your path to the PUDL database), `EIA_API_KEY=YOUR_KEY_HERE` (your EIA API key) and `RESOURCE_GROUPS=YOUR_PATH_HERE` (your path to where the resource groups data from Step 6 are saved). Quotation marks are only needed if your values contain spaces. The `.env` file is included in `.gitignore` and will not be synced with the repository. See the [SQLAlchemy documentation](https://docs.sqlalchemy.org/en/13/dialects/sqlite.html#connect-strings) for examples of how to format the `PUDL_DB` path (e.g. `sqlite:////<entire path to the folder containing pudl file>/pudl_updated.sqlite`).
 
-9. Update the Consumer Price Index (CPI) data used to adjust U.S. dollars for inflation (see https://github.com/datadesk/cpi#updating-the-cpi) by starting a `python` session and running:
+9. Update the Consumer Price Index (CPI) data used to adjust U.S. dollars for inflation (see https://github.com/datadesk/cpi#updating-the-cpi). Because the orignial [cpi](https://github.com/datadesk/cpi) package takes ~30 seconds to load, PowerGenome includes a modified version that only stores a handfull of the BLS CPI tables. Update these tables by starting a `python` session and running:
 
 ```python
-import cpi
+from powergenome.externals.cpi import cpi as cpi
 cpi.update()
 ```
 
 ## Running code
 
-Settings are controlled in a YAML file. An example settings file (`test_settings.yml`) and folder with extra user inputs (`extra_inputs`), which set up a small 2-zone model of California, are included in the folder `example_system`.
+### Settings
 
-The code is currently structured in a series of modules - `load_data.py`, `generators.py`, `transmission.py`, `nrelatb.py`, `eia_opendata.py`, `load_profiles.py`, and a couple others. The code and architecture is under active development. While the outputs are all formatted for GenX we hope to make the data formatting code more module to allow users to easily switch between outputs for different power system models.
+Settings are controlled in a YAML file. An example settings file (`test_settings.yml`) and folder with extra user inputs (`extra_inputs`), which set up a small 3-zone model of California and Arizona, are included in the folder `example_system`.
+
+### Example notebooks
+
+A series of example notebooks are included in [`PowerGenome/notebooks`](/notebooks) describe how to access different functions within PowerGenome to create resource clusters, variable generation profiles, fuel costs, hourly demand, and transmission constraints. They include a description of how the data are compiled and the settings parameters that are required for each type of data.
+
+### Command line interface
+
+The outputs are all formatted for GenX we hope to make the data formatting code more module to allow users to easily switch between outputs for different power system models.
 
 Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). Examples of how to load data in this way are included in `PowerGenome/notebooks`. To run from the command line, navigate to a project folder that contains a settings file and extra inputs (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome_multiple` with flags for the settings file name and where the results should be saved:
 
 ```sh
 run_powergenome_multiple --settings_file test_settings.yml --results_folder test_system
+```
+
+The command line arguments `--settings_file` and `--results_folder` can be shortened to `-sf` and `-rf` respectively. For all options, run:
+
+```sh
+run_powergenome_multiple --help
 ```
 
 A folder with extra user inputs is required when using the `run_powergenome_multiple` command. The name of this folder is defined in the settings YAML file with the `input_folder` parameter. Look at the files in `PowerGenome/example_system` for a working test case to follow.

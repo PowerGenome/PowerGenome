@@ -830,6 +830,11 @@ renewables_clusters:
     max_lcoe: 75
     min_capacity: 100000
     cap_multiplier: 0.2
+  - region: WECC_AZ
+    technology: utilitypv
+    max_clusters: 3
+    min_capacity: 100000
+    cap_multiplier: 0.2
 
 # How much of the theoretical
 wind_pv_fraction_developable: 0.5
