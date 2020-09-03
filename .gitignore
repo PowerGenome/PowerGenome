@@ -120,9 +120,10 @@ data/transformed_data/*
 *.png
 *.pdf
 
-# Ignore notebooks
+# Ignore notebooks, but not examples
 *.ipynb
 .DS_Store
+!/notebooks/*
 
 # Results files
 /results
