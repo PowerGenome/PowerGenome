@@ -6,8 +6,8 @@ import pandas as pd
 from pathlib import Path
 from typing import Any
 
+from powergenome.util import snake_case_col, remove_feb_29
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.util import snake_case_col
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,9 @@ def make_demand_response_profiles(path, resource_name, settings):
 
     resource_df = resource_df.loc[:, scenario]
     resource_df = resource_df.reset_index(drop=True)
+
+    if len(resource_df) == 8784:
+        remove_feb_29(resource_df)
 
     return resource_df
 

@@ -6,7 +6,12 @@ import logging
 from pathlib import Path
 import pandas as pd
 
-from powergenome.util import regions_to_keep, reverse_dict_of_lists, shift_wrap_profiles
+from powergenome.util import (
+    regions_to_keep,
+    reverse_dict_of_lists,
+    shift_wrap_profiles,
+    remove_feb_29,
+)
 from powergenome.external_data import make_demand_response_profiles
 from powergenome.eia_opendata import get_aeo_load
 
@@ -16,7 +21,7 @@ logger = logging.getLogger(__name__)
 def make_load_curves(
     pudl_engine,
     settings,
-    pudl_table="load_curves_epaipm",
+    pudl_table="load_curves_ferc",
     settings_agg_key="region_aggregations",
 ):
     # IPM regions to keep. Regions not in this list will be dropped from the
@@ -53,12 +58,12 @@ def make_load_curves(
     lc_wide = load_curves_agg.unstack(level=0)
     lc_wide.columns = lc_wide.columns.droplevel()
 
-    pst_offset = settings["target_region_pst_offset"]
-
-    lc_wide = shift_wrap_profiles(lc_wide, pst_offset)
+    if len(lc_wide) == 8784:
+        lc_wide = remove_feb_29(lc_wide)
 
     lc_wide.index.name = "time_index"
-    lc_wide.index = lc_wide.index + 1
+    if lc_wide.index.min() == 0:
+        lc_wide.index = lc_wide.index + 1
 
     return lc_wide
 
@@ -73,7 +78,9 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
             region=hist_region_map[ipm_region],
             aeo_year=2014,
             scenario_series="REF2014",
-        ).set_index("year").loc[2012, "demand"]
+        )
+        .set_index("year")
+        .loc[2012, "demand"]
         for ipm_region in keep_regions
     }
     hist_demand_end = {
@@ -81,7 +88,9 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
             region=hist_region_map[ipm_region],
             aeo_year=2019,
             scenario_series="REF2019",
-        ).set_index("year").loc[2018, "demand"]
+        )
+        .set_index("year")
+        .loc[2018, "demand"]
         for ipm_region in keep_regions
     }
 
@@ -93,17 +102,19 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         ).set_index("year")
         for ipm_region in keep_regions
     }
-    
+
     load_growth_start_map = {
-        ipm_region: _df.loc[settings.get("regular_load_growth_start_year", 2019), "demand"]
+        ipm_region: _df.loc[
+            settings.get("regular_load_growth_start_year", 2019), "demand"
+        ]
         for ipm_region, _df in load_growth_dict.items()
     }
-    
+
     load_growth_end_map = {
         ipm_region: _df.loc[settings["model_year"], "demand"]
         for ipm_region, _df in load_growth_dict.items()
     }
-    
+
     future_growth_factor = {
         ipm_region: load_growth_end_map[ipm_region] / load_growth_start_map[ipm_region]
         for ipm_region in keep_regions
@@ -112,18 +123,16 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         ipm_region: hist_demand_end[ipm_region] / hist_demand_start[ipm_region]
         for ipm_region in keep_regions
     }
-    
-    years_growth = (
-            settings["model_year"] - settings["regular_load_growth_start_year"]
-        )
+
+    years_growth = settings["model_year"] - settings["regular_load_growth_start_year"]
 
     for region, rate in (settings.get("alt_growth_rate") or {}).items():
         future_growth_factor[region] = (1 + rate) ** years_growth
 
     for region in keep_regions:
-        load_curves.loc[
-            load_curves["region_id_epaipm"] == region, "load_mw"
-        ] *= (hist_growth_factor[region] * future_growth_factor[region])
+        load_curves.loc[load_curves["region_id_epaipm"] == region, "load_mw"] *= (
+            hist_growth_factor[region] * future_growth_factor[region]
+        )
 
     return load_curves
 
@@ -169,13 +178,16 @@ def load_usr_demand_profiles(settings):
     lp_path = settings["input_folder"] / settings["regional_load_fn"]
     hourly_load_profiles = make_usr_demand_profiles(lp_path, settings)
 
+    if len(hourly_load_profiles) == 8784:
+        remove_feb_29(hourly_load_profiles)
+
     return hourly_load_profiles
 
 
 def make_final_load_curves(
     pudl_engine,
     settings,
-    pudl_table="load_curves_epaipm",
+    pudl_table="load_curves_ferc",
     settings_agg_key="region_aggregations",
 ):
     # Check if regional loads are supplied by the user
@@ -290,6 +302,9 @@ def make_distributed_gen_profiles(pudl_engine, settings):
                 "values of 'capapacity' or 'fraction_load' for each region.\n"
                 f"The value in your settings file is {method}"
             )
+
+    if len(dg_hourly_gen) == 8784:
+        remove_feb_29(dg_hourly_gen)
 
     return dg_hourly_gen
 
