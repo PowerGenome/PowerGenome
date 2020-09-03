@@ -3,8 +3,7 @@
 import logging
 import pandas as pd
 
-from powergenome.util import snake_case_col
-from powergenome.load_profiles import remove_feb_29
+from powergenome.util import snake_case_col, remove_feb_29
 
 logger = logging.getLogger(__name__)
 
