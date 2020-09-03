@@ -98,7 +98,7 @@ def agg_transmission_constraints(
     reverse_tc.index = tc_joined.index
     tc_joined["Line_Min_Flow_MW"] = reverse_tc
 
-    for idx, row in tc_joined.iterrows():
+    for idx, _ in tc_joined.iterrows():
         tc_joined.loc[idx, idx[0]] = 1
         tc_joined.loc[idx, idx[-1]] = -1
 
@@ -176,7 +176,7 @@ def transmission_line_distance(
     logger.info("Calculating transmission line distance")
     ipm_shapefile["geometry"] = ipm_shapefile.buffer(0.01)
     model_polygons = ipm_shapefile.dissolve(by="model_region")
-    model_polygons = model_polygons.to_crs({"init": "epsg:4326"})
+    model_polygons = model_polygons.to_crs(epsg=4326)
     region_centroids = find_centroid(model_polygons)
 
     distances = [

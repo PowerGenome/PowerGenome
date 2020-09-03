@@ -7,12 +7,13 @@ from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
 from powergenome import __file__
-
-load_dotenv(find_dotenv(usecwd=True))
+from powergenome.resource_clusters import ClusterBuilder
 
 # Not convinced this is the best way to set folder paths but it works!
 powergenome_path = Path(__file__).parent
 project_path = powergenome_path.parent
+
+load_dotenv(dotenv_path=powergenome_path / ".env")
 
 DATA_PATHS = {}
 DATA_PATHS["results"] = project_path / "results"
@@ -32,8 +33,15 @@ IPM_SHAPEFILE_PATH = DATA_PATHS["ipm_shapefiles"] / "IPM_Regions_201770405.shp"
 IPM_GEOJSON_PATH = DATA_PATHS["data"] / "ipm_regions_simple.geojson"
 
 SETTINGS = {}
-SETTINGS["pudl_db"] = "sqlite:////Users/greg/Downloads/pudl_updated.sqlite"
+SETTINGS["PUDL_DB"] = os.environ.get("PUDL_DB")
 SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
+SETTINGS["RESOURCE_GROUPS"] = os.environ.get("RESOURCE_GROUPS")
+if not SETTINGS["RESOURCE_GROUPS"]:
+    CLUSTER_BUILDER = ClusterBuilder([])
+else:
+    CLUSTER_BUILDER = ClusterBuilder.from_json(
+        Path(SETTINGS.get("RESOURCE_GROUPS"), ".").glob("**/*.json")
+)
 
 # "postgresql://catalyst@127.0.0.1/pudl"
 

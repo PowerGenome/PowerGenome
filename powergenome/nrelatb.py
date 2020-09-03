@@ -11,8 +11,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from powergenome.params import DATA_PATHS
+from powergenome.params import CLUSTER_BUILDER, DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
+from powergenome.resource_clusters import map_nrel_atb_technology
 from powergenome.util import reverse_dict_of_lists
 
 idx = pd.IndexSlice
@@ -87,8 +88,8 @@ def fetch_atb_costs(pudl_engine, settings, offshore_spur_costs=None):
         atb_costs = atb_costs.set_index(idx_cols)
 
         atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"] = (
-            atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"]
-            - offshore_spur_costs["capex"]
+            atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"].values
+            - offshore_spur_costs["capex"].values
         )
         atb_costs = atb_costs.reset_index()
 
@@ -195,8 +196,8 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
         existing_hr = _df["heat_rate_mmbtu_mwh"].mean()
         try:
             atb_tech, tech_detail = techs[eia_tech]
-        except KeyError as e:
-            if eia_tech in settings["tech_groups"].keys():
+        except KeyError:
+            if eia_tech in settings["tech_groups"]:
                 raise KeyError(
                     f"{eia_tech} is defined in 'tech_groups' but doesn't have a "
                     "corresponding ATB technology in 'eia_atb_tech_map'"
@@ -514,24 +515,7 @@ def single_generator_row(atb_costs_hr, new_gen_type, model_year_range):
         & (atb_costs_hr["basis_year"].isin(model_year_range)),
         numeric_cols,
     ].mean()
-    cols = [
-        "technology",
-        "cost_case",
-        "tech_detail",
-        "basis_year",
-        "o_m_fixed_mw",
-        "o_m_fixed_mwh",
-        "o_m_variable_mwh",
-        "capex",
-        "capex_mwh",
-        # "cf",
-        # "fuel",
-        # "lcoe",
-        # "o_m",
-        "waccnomtech",
-        "heat_rate",
-    ]
-
+    cols = ["technology", "cost_case", "tech_detail"] + numeric_cols
     row = pd.DataFrame([technology, cost_case, tech_detail] + s.to_list(), index=cols).T
 
     row["Cap_size"] = size_mw
@@ -540,14 +524,10 @@ def single_generator_row(atb_costs_hr, new_gen_type, model_year_range):
 
 
 def investment_cost_calculator(capex, wacc, cap_rec_years):
+    capex = np.asarray(capex, dtype=float)
+    wacc = np.asarray(wacc, dtype=float)
 
-    # wacc comes through as an object type series now that we're averaging across years
-    if not isinstance(wacc, float):
-        wacc = wacc.astype(float)
-    if not isinstance(capex, float):
-        capex = capex.astype(float)
-
-    for variable in [capex, wacc, cap_rec_years]:
+    for variable in capex, wacc, cap_rec_years:
         if np.isnan(variable).any():
             raise ValueError(f"Investment costs contains nan values")
 
@@ -717,8 +697,8 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     # Add user-defined technologies
     # This should probably be separate from ATB techs, and the regional cost multipliers
     # should be its own function.
-    if settings["additional_technologies_fn"] is not None:
-        if isinstance(settings["additional_new_gen"], list):
+    if settings.get("additional_technologies_fn"):
+        if isinstance(settings.get("additional_new_gen"), list):
             # user_costs, user_hr = load_user_defined_techs(settings)
             user_tech = load_user_defined_techs(settings)
             # new_gen_df = pd.concat([new_gen_df, user_costs], ignore_index=True, sort=False)
@@ -732,11 +712,13 @@ def atb_new_generators(atb_costs, atb_hr, settings):
                 " were specified in the settings file."
             )
 
-    if settings["modified_atb_new_gen"] is not None:
+    if settings.get("modified_atb_new_gen"):
         modified_gens = add_modified_atb_generators(
             settings, atb_costs_hr, model_year_range
         )
-        new_gen_df = pd.concat([new_gen_df, modified_gens], ignore_index=True)
+        new_gen_df = pd.concat(
+            [new_gen_df, modified_gens], ignore_index=True, sort=False
+        )
 
     new_gen_df = new_gen_df.rename(
         columns={
@@ -750,7 +732,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
     # ATB average of advanced and conventional.
     # This is now generalized for changes to ATB values for any technology type.
-    for tech, _tech_modifiers in settings["atb_modifiers"].items():
+    for tech, _tech_modifiers in (settings.get("atb_modifiers") or {}).items():
         tech_modifiers = copy.deepcopy(_tech_modifiers)
         assert isinstance(tech_modifiers, dict), (
             "The settings parameter 'atb_modifiers' must be a nested list.\n"
@@ -758,10 +740,10 @@ def atb_new_generators(atb_costs, atb_hr, settings):
             " dictionary of items below it."
         )
         assert (
-            "technology" in tech_modifiers.keys()
+            "technology" in tech_modifiers
         ), "Each nested dictionary in atb_modifiers must have a 'technology' key."
         assert (
-            "tech_detail" in tech_modifiers.keys()
+            "tech_detail" in tech_modifiers
         ), "Each nested dictionary in atb_modifiers must have a 'tech_detail' key."
 
         technology = tech_modifiers.pop("technology")
@@ -773,7 +755,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
             assert len(op_list) == 2, (
                 "Two values, an operator and a numeric value, are needed in the parameter\n"
-                f"'{parameter}' for technology '{tech}' in 'atb_modifiers'."
+                f"'{key}' for technology '{tech}' in 'atb_modifiers'."
             )
             op, op_value = op_list
 
@@ -798,21 +780,18 @@ def atb_new_generators(atb_costs, atb_hr, settings):
             )
 
     new_gen_df["technology"] = (
-        new_gen_df["technology"]
-        + "_"
-        + new_gen_df["tech_detail"].astype(str)
-        + "_"
-        + new_gen_df["cost_case"]
+        new_gen_df[["technology", "tech_detail", "cost_case"]]
+        .astype(str)
+        .agg("_".join, axis=1)
     )
 
     new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
 
-    if settings["alt_atb_cap_recovery_years"]:
-        for tech, years in settings["alt_atb_cap_recovery_years"].items():
-            new_gen_df.loc[
-                new_gen_df.technology.str.lower().str.contains(tech.lower()),
-                "cap_recovery_years",
-            ] = years
+    for tech, years in (settings.get("alt_atb_cap_recovery_years") or {}).items():
+        new_gen_df.loc[
+            new_gen_df["technology"].str.lower().str.contains(tech.lower()),
+            "cap_recovery_years",
+        ] = years
 
     new_gen_df["Inv_cost_per_MWyr"] = investment_cost_calculator(
         capex=new_gen_df["capex"],
@@ -825,29 +804,6 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         wacc=new_gen_df["waccnomtech"],
         cap_rec_years=new_gen_df["cap_recovery_years"],
     )
-
-    new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
-
-    # Some technologies might have a different capital recovery period
-    if settings["alt_atb_cap_recovery_years"] is not None:
-        for tech, years in settings["alt_atb_cap_recovery_years"].items():
-            tech_mask = new_gen_df["technology"].str.contains(tech)
-
-            new_gen_df.loc[tech_mask, "cap_recovery_years"] = years
-
-            new_gen_df.loc[tech_mask, "Inv_cost_per_MWyr"] = investment_cost_calculator(
-                capex=new_gen_df.loc[tech_mask, "capex"],
-                wacc=new_gen_df.loc[tech_mask, "waccnomtech"],
-                cap_rec_years=years,
-            )
-
-            new_gen_df.loc[
-                tech_mask, "Inv_cost_per_MWhyr"
-            ] = investment_cost_calculator(
-                capex=new_gen_df.loc[tech_mask, "capex_mwh"],
-                wacc=new_gen_df.loc[tech_mask, "waccnomtech"],
-                cap_rec_years=years,
-            )
 
     keep_cols = [
         "technology",
@@ -863,8 +819,10 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Cap_size",
         "cap_recovery_years",
         "waccnomtech",
-        "regional_cost_multiplier",
     ]
+    new_gen_df = new_gen_df[keep_cols]
+    # Set no capacity limit on new resources that aren't renewables.
+    new_gen_df["Max_Cap_MW"] = -1
 
     regional_cost_multipliers = pd.read_csv(
         DATA_PATHS["cost_multipliers"] / "AEO_2020_regional_cost_corrections.csv",
@@ -884,7 +842,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     )
     df_list = []
     for region in regions:
-        _df = new_gen_df.loc[:, keep_cols].copy()
+        _df = new_gen_df.copy()
         _df["region"] = region
         _df = regional_capex_multiplier(
             _df,
@@ -893,19 +851,16 @@ def atb_new_generators(atb_costs, atb_hr, settings):
             rev_mult_tech_map,
             regional_cost_multipliers,
         )
-        _df = add_extra_wind_solar_rows(_df, region, settings)
+        _df = add_renewables_clusters(_df, region, settings)
 
-        if (
-            settings["new_gen_not_available"] is not None
-            and region in settings["new_gen_not_available"].keys()
-        ):
+        if region in (settings.get("new_gen_not_available") or {}):
             techs = settings["new_gen_not_available"][region]
             for tech in techs:
                 _df = _df.loc[~_df["technology"].str.contains(tech), :]
 
         df_list.append(_df)
 
-    results = pd.concat(df_list, ignore_index=True)
+    results = pd.concat(df_list, ignore_index=True, sort=False)
 
     int_cols = [
         "Fixed_OM_cost_per_MWyr",
@@ -914,82 +869,107 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Inv_cost_per_MWhyr",
     ]
     results = results.fillna(0)
-    results.loc[:, int_cols] = results.loc[:, int_cols].astype(int)
-    results.loc[:, "Var_OM_cost_per_MWh"] = (
-        results.loc[:, "Var_OM_cost_per_MWh"].astype(float).round(1)
+    results[int_cols] = results[int_cols].astype(int)
+    results["Var_OM_cost_per_MWh"] = (
+        results["Var_OM_cost_per_MWh"].astype(float).round(1)
     )
 
     return results
 
 
-def add_extra_wind_solar_rows(df, region, settings):
-    """Add additional rows of wind and solar generation to the new generation options
-    in each region. Each row has a specific CF and available capacity.
+def add_renewables_clusters(
+    df: pd.DataFrame, region: str, settings: dict
+) -> pd.DataFrame:
+    """
+    Add renewables clusters
 
     Parameters
     ----------
-    df : DataFrame
-        New generation technologies for a single model region
-    region : str
-        Name of the model region. Used to look up how many total wind/solar rows are
-        needed from the settings file.
-    settings : dict
-        User-defined parameters from a settings file
+    df
+        New generation technologies.
+            - `technology`: NREL ATB technology in the format
+                <technology>_<tech_detail>_<cost_case>. Must be unique.
+            - `region`: Model region.
+    region
+        Model region.
+    settings
+        Dictionary with the following keys:
+            - `renewables_clusters`: Determines the clusters built for the region.
+            - `region_aggregations`: Maps the model region to IPM regions.
 
     Returns
     -------
-    DataFrame
-        A copy of the input dataframe with additional rows for UtilityPV, LandbasedWind,
-        and OffShoreWind as specified in the settings file.
+    pd.DataFrame
+        Copy of the input dataframe joined to rows for renewables clusters
+        on matching NREL ATB technology and model region.
+
+    Raises
+    ------
+    ValueError
+        NREL ATB technologies are not unique.
+    ValueError
+        Renewables clusters do not match NREL ATB technologies.
+    ValueError
+        Renewables clusters match multiple NREL ATB technologies.
     """
-
-    try:
-        wind_bins = settings["new_wind_solar_regional_bins"]["LandbasedWind"][region]
-        extra_wind_bins = wind_bins - 1
-
-        for i in range(extra_wind_bins):
-            row_iloc = np.argwhere(
-                df.technology.str.contains("LandbasedWind")
-            ).flatten()[-1]
-            df = pd.concat(
-                [df.iloc[:row_iloc], df.iloc[[row_iloc]], df.iloc[row_iloc:]]
+    if not df["technology"].is_unique:
+        raise ValueError(
+            f"NREL ATB technologies are not unique: {df['technology'].to_list()}"
+        )
+    atb_map = {
+        x: map_nrel_atb_technology(x.split("_")[0], x.split("_")[1])
+        for x in df["technology"]
+    }
+    mask = df["technology"].isin([tech for tech, match in atb_map.items() if match]) & (
+        df["region"] == region
+    )
+    cdfs = []
+    if region in settings["region_aggregations"]:
+        ipm_regions = settings["region_aggregations"][region]
+    else:
+        ipm_regions = [region]
+    for scenario in settings.get("renewables_clusters", []):
+        if scenario["region"] != region:
+            continue
+        # Match cluster technology to NREL ATB technologies
+        technologies = [
+            k
+            for k, v in atb_map.items()
+            if v and all([scenario.get(ki) == vi for ki, vi in v.items()])
+        ]
+        if not technologies:
+            raise ValueError(
+                f"Renewables clusters do not match NREL ATB technologies: {scenario}"
             )
-
-    except (KeyError, TypeError):
-        logger.info(f"Not adding any extra onshore wind rows to {region}")
-
-    try:
-        solar_bins = settings["new_wind_solar_regional_bins"]["UtilityPV"][region]
-        extra_solar_bins = solar_bins - 1
-
-        for i in range(extra_solar_bins):
-            row_iloc = np.argwhere(df.technology.str.contains("UtilityPV")).flatten()[
-                -1
-            ]
-            df = pd.concat(
-                [df.iloc[:row_iloc], df.iloc[[row_iloc]], df.iloc[row_iloc:]]
+        if len(technologies) > 1:
+            raise ValueError(
+                f"Renewables clusters match multiple NREL ATB technologies: {scenario}"
             )
-    except (KeyError, TypeError):
-        logger.info(f"Not adding any extra utility PV rows to {region}")
-
-    try:
-        solar_bins = settings["new_wind_solar_regional_bins"]["OffShoreWind"][region]
-        extra_solar_bins = solar_bins - 1
-
-        for i in range(extra_solar_bins):
-            row_iloc = np.argwhere(
-                df.technology.str.contains("OffShoreWind")
-            ).flatten()[-1]
-            df = pd.concat(
-                [df.iloc[:row_iloc], df.iloc[[row_iloc]], df.iloc[row_iloc:]]
+        technology = technologies[0]
+        # region not an argument to ClusterBuilder.get_clusters()
+        scenario = scenario.copy()
+        scenario.pop("region")
+        clusters = (
+            CLUSTER_BUILDER.get_clusters(
+                **scenario, ipm_regions=ipm_regions, existing=False
             )
-
-    except (KeyError, TypeError):
-        logger.info(f"Not adding any extra offshore wind rows to {region}")
-
-    df = df.reset_index(drop=True)
-
-    return df
+            .rename(columns={"mw": "Max_Cap_MW"})
+            .assign(technology=technology, region=region)
+        )
+        clusters["cluster"] = range(1, 1 + len(clusters))
+        if scenario.get("min_capacity"):
+            # Warn if total capacity less than expected
+            capacity = clusters["Max_Cap_MW"].sum()
+            if capacity < scenario["min_capacity"]:
+                logger.warning(
+                    f"Selected technology {scenario['technology']} capacity"
+                    + f" in region {region}"
+                    + f" less than minimum ({capacity} < {scenario['min_capacity']} MW)"
+                )
+        row = df[df["technology"] == technology].to_dict("records")[0]
+        kwargs = {k: v for k, v in row.items() if k not in clusters}
+        cdfs.append(clusters.assign(**kwargs))
+    return pd.concat([df[~mask]] + cdfs, sort=False)
 
 
 def load_user_defined_techs(settings):
