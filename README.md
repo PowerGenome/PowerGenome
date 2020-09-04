@@ -74,7 +74,7 @@ cpi.update()
 
 ### Settings
 
-Settings are controlled in a YAML file. An example settings file (`test_settings.yml`) and folder with extra user inputs (`extra_inputs`), which set up a small 3-zone model of California and Arizona, are included in the folder `example_system`.
+Settings are controlled in a YAML file. An example settings file (`test_settings.yml`) and folder with extra user inputs (`extra_inputs`), which set up a small 3-zone model of California and Arizona, are included in the folder `example_system`. Scenario options across different planning years are defined in the files `test_scenario_inputs_short.csv` and `test_scenario_inputs.csv` - the "short" version only includes a subset of the full scenario list covered in the settings file and takes much less time to run.
 
 ### Example notebooks
 

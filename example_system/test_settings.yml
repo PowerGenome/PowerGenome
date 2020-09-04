@@ -17,7 +17,8 @@ model_first_planning_year: [2020, 2031]
 # The location and name of additional input files needed to create outputs
 input_folder: extra_inputs # Subfolder directly below the location of this settings file
 case_id_description_fn: test_case_id_description.csv # Match the case_id with longer case_name
-scenario_definitions_fn: test_scenario_inputs.csv # Define policy/cost scenarios for each case
+scenario_definitions_fn: test_scenario_inputs_short.csv # Define policy/cost scenarios for each case
+# scenario_definitions_fn: test_scenario_inputs.csv # Define policy/cost scenarios for each case
 distributed_gen_profiles_fn: test_dg_profiles.csv # Hourly profiles of distributed gen by region
 demand_response_fn: test_ev_load_shifting.csv # Load profiles of DR resources by model_year and scenario
 emission_policies_fn: test_rps_ces_emission_limits.csv # Emission policies for each model_year/region/case_id
