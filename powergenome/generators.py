@@ -2070,7 +2070,13 @@ class GeneratorClusters:
             dr_capacity = demand_response_resource_capacity(
                 dr_profile, resource, self.settings
             )
-            dr_capacity_scenario = dr_capacity.squeeze()
+
+            # This is to solve a bug with only one region. Need to come back and solve
+            # in a better fashion.
+            if len(dr_capacity) > 1:
+                dr_capacity_scenario = dr_capacity.squeeze()
+            else:
+                dr_capacity_scenario = dr_capacity
             _df["Existing_Cap_MW"] = _df["region"].map(dr_capacity_scenario)
 
             if not parameters.get("parameter_values"):
