@@ -545,7 +545,7 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
     if "report_date" not in by and "report_date" in df.columns:
         # by.append("report_date")
         logger.warning("'report_date' is in the df but not used in the groupby")
-    region_agg_map = reverse_dict_of_lists(settings["region_aggregations"])
+    region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations", {}))
     keep_regions = [
         x
         for x in settings["model_regions"] + list(region_agg_map)
@@ -2473,8 +2473,8 @@ class GeneratorClusters:
             if group.profiles is None:
                 # Resource group has no profiles
                 continue
-            if row.region in self.settings["region_aggregations"]:
-                ipm_regions = self.settings["region_aggregations"][row.region]
+            if row.region in self.settings.get("region_aggregations", {}):
+                ipm_regions = self.settings.get("region_aggregations", {})[row.region]
             else:
                 ipm_regions = [row.region]
             metadata = group.metadata.read()
