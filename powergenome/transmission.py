@@ -89,6 +89,12 @@ def agg_transmission_constraints(
         index=transmission_constraints_table.reindex(combos).dropna().index,
         data=0,
     )
+
+    if tc_joined.empty:
+        logger.info(f"No transmission lines exist between model regions {combos}")
+        tc_joined["Transmission Path Name"] = None
+        return tc_joined.reset_index(drop=True)
+
     tc_joined["Network_lines"] = range(1, len(tc_joined) + 1)
     tc_joined["Line_Max_Flow_MW"] = transmission_constraints_table.reindex(
         combos
