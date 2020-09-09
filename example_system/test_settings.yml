@@ -390,6 +390,7 @@ model_regions:
   - CA_S
   - WECC_AZ
 
+# Comment out this setting if no aggregated regions are included in the study.
 region_aggregations:
   CA_N: [WEC_CALN, WEC_BANC]
   CA_S: [WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
@@ -877,8 +878,8 @@ cost_multiplier_region_map:
   RMRG: [WECC_CO]
   BASN: [WECC_ID, WECC_WY, WECC_UT, WECC_NNV]
   NWPP: [WECC_PNW, WECC_MT]
-  CANO: [WEC_CALN, WEC_BANC, CA_N, CA_S]
-  CASO: [WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE]
+  CANO: [WEC_CALN, WEC_BANC, CA_N]
+  CASO: [WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE, CA_S]
   SRSG: [WECC_AZ, WECC_NM, WECC_SNV]
 
 # The keys are technologies listed in EIA's 2016 capital cost assumptions document
