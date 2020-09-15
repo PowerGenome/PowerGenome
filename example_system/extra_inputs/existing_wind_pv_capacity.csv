@@ -1,4 +1,4 @@
-﻿IPM_Region,nameplate_capacity_mw,plant_count,technology
+IPM_Region,nameplate_capacity_mw,plant_count,technology
 ERC_PHDL,4,1,Solar Photovoltaic
 ERC_REST,454.5,42,Solar Photovoltaic
 ERC_WEST,137.5,3,Solar Photovoltaic
