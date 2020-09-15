@@ -389,10 +389,12 @@ model_regions:
   # - CA_N
   - WEC_SDGE
   # - WECC_AZ
+  #- USA_Single
 
-# region_aggregations:
+#region_aggregations:
   # CA_N: [WEC_CALN, WEC_BANC]
   # CA_S: [WEC_SDGE] #[WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
+  #USA_Single: [WEC_CALN, WEC_BANC, WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID, ERC_PHDL, ERC_REST, ERC_WEST]
 
 
 # CLUSTERING
@@ -415,18 +417,18 @@ num_clusters:
   Natural Gas Internal Combustion Engine: 1
   Natural Gas Steam Turbine: 1
   Geothermal: 1
-  Solar Photovoltaic: 20
-  Onshore Wind Turbine: 3
+  Solar Photovoltaic: 1
+  Onshore Wind Turbine: 1
   Offshore Wind Turbine: 1
   # Solar Thermal with Energy Storage: 1
   # Solar Thermal without Energy Storage: 1
-  Small Hydroelectric: 6
+  Small Hydroelectric: 1
   Petroleum Liquids: 1
   Landfill Gas: 1
   Municipal Solid Waste: 1
   Other Waste Biomass: 1
   Hydroelectric Pumped Storage: 2
-  Biomass: 20
+  Biomass: 1
   Peaker: 1
 
 alt_cluster_method: ~
