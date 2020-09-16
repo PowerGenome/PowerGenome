@@ -20,7 +20,7 @@ case_id_description_fn: test_case_id_description.csv # Match the case_id with lo
 # scenario_definitions_fn: test_scenario_inputs_short.csv # Define policy/cost scenarios for each case
 scenario_definitions_fn: test_scenario_inputs.csv # Define policy/cost scenarios for each case
 distributed_gen_profiles_fn: test_dg_profiles.csv # Hourly profiles of distributed gen by region
-demand_response_fn: test_ev_load_shifting.csv # Load profiles of DR resources by model_year and scenario
+demand_response_fn: test_ev_load_shifting_new.csv # Load profiles of DR resources by model_year and scenario
 emission_policies_fn: test_rps_ces_emission_limits.csv # Emission policies for each model_year/region/case_id
 capacity_limit_spur_fn: test_resource_capacity_spur.csv # Max capacity and spur line distance for each renewable resource
 region_wind_pv_cap_fn: existing_wind_pv_capacity.csv
@@ -37,9 +37,9 @@ regional_load_includes_demand_response: true
 
 
 # Time clustering/reduction parameters
-reduce_time_domain: true # If the generator and load profiles should be clustered
-time_domain_periods: 365 # The number of periods/clusters
-time_domain_days_per_period: 1 # The number of 24 hour days in each period/cluster
+reduce_time_domain: false # If the generator and load profiles should be clustered
+time_domain_periods: 1 # The number of periods/clusters
+time_domain_days_per_period: 365 # The number of 24 hour days in each period/cluster
 include_peak_day: true # If the system-wide peak load days should always be included
 demand_weight_factor: 1 # Demand profiles are scaled from 0-1, then scaled up using this value.
 
@@ -60,7 +60,7 @@ distributed_gen_method:
 distributed_gen_values:
   2020:
     # CA_N: 6699
-    WEC_SDGE: 8636
+    WEC_SDGE: 600
   #2045:
     # CA_N: 9788
     #WEC_SDGE: 12618
@@ -74,7 +74,7 @@ avg_distribution_loss: 0.0453
 demand_response_resources:
   2020:
     ev_load_shifting:
-      fraction_shiftable: 0.8
+      fraction_shiftable: 0
       parameter_values:
         Max_DSM_delay: 5
         DR: 2
@@ -84,7 +84,7 @@ demand_response_resources:
       #parameter_values:
         #Max_DSM_delay: 5
         #DR: 2
-demand_response: 'moderate'
+demand_response: 'none'
 
 # Transmission financial information to calculate annual investment costs
 # capex_mw_mile: Capital cost per MW-mile for all (numeric) or each model region (dict).
@@ -366,7 +366,7 @@ data_years:
 target_usd_year: 2017
 
 # used for shifting IPM demand profiles, which are in PST
-target_region_pst_offset: -1
+target_region_pst_offset: 0
 
 # CAPACITY TYPE
 capacity_col: winter_capacity_mw
