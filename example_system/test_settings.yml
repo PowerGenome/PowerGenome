@@ -365,9 +365,6 @@ data_years:
 
 target_usd_year: 2017
 
-# used for shifting IPM demand profiles, which are in PST
-target_region_pst_offset: -1
-
 # CAPACITY TYPE
 capacity_col: winter_capacity_mw
 
