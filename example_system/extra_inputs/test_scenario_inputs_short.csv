@@ -1,5 +1,2 @@
-﻿case_id,year,growth,tx_expansion,ng_price,ccs_capex,renewable_capex,nuclear_capex,conv_hydro_rps_eligible,ca_nuclear_allowed,electrification
-p1,2030,normal,high,reference,mid,mid,mid,no,no,reference
-s1,2030,normal,high,low,low,mid,mid,no,no,high_electrification
-p1,2045,normal,high,reference,mid,mid,mid,no,yes,reference
-s1,2045,half,high,low,low,mid,mid,no,yes,high_electrification
+case_id,year,demand_response,growth,tx_expansion,ng_price,ccs_capex,renewable_capex,nuclear_capex,conv_hydro_rps_eligible,ca_nuclear_allowed,electrification
+p1,2030,moderate,normal,high,reference,mid,mid,mid,no,no,reference
