@@ -43,6 +43,12 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
 
     policies = load_policy_scenarios(settings)
     year_case_policy = policies.loc[(case_id, model_year), :]
+    
+    # Bug where multiple regions for a case will return this as a df, even if the policy
+    # for this case applies to all regions (code below expects a Series)
+    ycp_shape = year_case_policy.shape
+    if ycp_shape[0] == 1 and len(ycp_shape) > 1:
+        year_case_policy = year_case_policy.squeeze()  # convert to series
 
     zones = settings["model_regions"]
     zone_num_map = {
