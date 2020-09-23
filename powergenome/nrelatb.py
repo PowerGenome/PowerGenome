@@ -7,7 +7,7 @@ import collections
 import logging
 import operator
 from pathlib import Path
-
+from IPython import embed as bp
 import numpy as np
 import pandas as pd
 
@@ -299,7 +299,9 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             if "Combined Cycle" in eia_tech:
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
                 plant_capacity = _df[settings["capacity_col"]].sum()
-                assert plant_capacity > 0
+                #bp()
+                #print()
+                #assert plant_capacity > 0
                 if plant_capacity < 500:
                     fixed = 15.62 * 1000
                     variable = 4.31
@@ -369,7 +371,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             if "Natural Gas Steam Turbine" in eia_tech:
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
                 plant_capacity = _df[settings["capacity_col"]].sum()
-                assert plant_capacity > 0
+                #assert plant_capacity > 0
                 if plant_capacity < 500:
                     annual_capex = 18.86 * 1000
                     fixed = annual_capex + 29.73 * 1000
@@ -390,7 +392,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             if "Coal" in eia_tech:
 
                 plant_capacity = _df[settings["capacity_col"]].sum()
-                assert plant_capacity > 0
+                #assert plant_capacity > 0
 
                 atb_var_om_mwh = (
                     atb_costs_df.query(
@@ -464,6 +466,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
 
     mod_results = pd.concat(df_list, ignore_index=True)
     # mod_results = mod_results.sort_values(["model_region", "technology", "cluster"])
+    mod_results['Fixed_OM_cost_per_MWyr']=mod_results['Fixed_OM_cost_per_MWyr'].fillna(0)
     mod_results.loc[:, "Fixed_OM_cost_per_MWyr"] = mod_results.loc[
         :, "Fixed_OM_cost_per_MWyr"
     ].astype(int)

@@ -20,7 +20,7 @@ case_id_description_fn: test_case_id_description.csv # Match the case_id with lo
 # scenario_definitions_fn: test_scenario_inputs_short.csv # Define policy/cost scenarios for each case
 scenario_definitions_fn: test_scenario_inputs.csv # Define policy/cost scenarios for each case
 distributed_gen_profiles_fn: test_dg_profiles.csv # Hourly profiles of distributed gen by region
-demand_response_fn: test_ev_load_shifting.csv # Load profiles of DR resources by model_year and scenario
+#demand_response_fn: ~ #test_ev_load_shifting.csv # Load profiles of DR resources by model_year and scenario
 emission_policies_fn: test_rps_ces_emission_limits.csv # Emission policies for each model_year/region/case_id
 capacity_limit_spur_fn: test_resource_capacity_spur.csv # Max capacity and spur line distance for each renewable resource
 region_wind_pv_cap_fn: existing_wind_pv_capacity.csv
@@ -395,11 +395,8 @@ model_regions:
   # - WECC_AZ
   - USA_Single
 
- region_aggregations:
-  # CA_N: [WEC_CALN, WEC_BANC]
-  # CA_S: [WEC_SDGE] #[WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
-  USA_Single: [WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID, WEC_CALN, WEC_BANC, ERC_PHDL, ERC_REST, ERC_WEST, FRCC, MIS_WUMS, MIS_MNWI, MIS_IA, MIS_LMI, PJM_COMD, MIS_IL, MIS_MO, S_D_AECI, MIS_INKY, MIS_MAPP, SPP_WAUE, SPP_NEBR, MIS_MIDA, SPP_N, SPP_WEST, SPP_SPS, MIS_AMSO, MIS_WOTA, MIS_LA, MIS_AR, MIS_D_MS, S_SOU, S_VACA, PJM_Dom, PJM_West, PJM_AP, PJM_ATSI, PJM_WMAC, PJM_EMAC, PJM_SMAC, PJM_PENE, S_C_TVA, S_C_KY, NY_Z_A, NY_Z_B, NY_Z_C&E, NY_Z_D, NY_Z_F, NY_Z_G-I, NY_Z_J, NY_Z_K, NENG_ME, NENGREST, NENG_CT, NENG_ME, NENGREST, NENG_CT, WECC_CO, WECC_ID, WECC_WY, WECC_UT, WECC_NNV, WECC_PNW, WECC_MT, WEC_CALN, WEC_BANC, CA_N, WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE, CA_S, WECC_AZ, WECC_NM, WECC_SNV]
-
+region_aggregations:
+  USA_Single: ['WEC_BANC', 'WEC_CALN', 'WEC_LADW', 'WEC_SDGE', 'WECC_IID', 'WECC_SCE', 'WECC_ID', 'WECC_MT', 'WECC_PNW', 'WECC_WY', 'WECC_AZ', 'WECC_CO', 'WECC_NM', 'WECC_NNV', 'WECC_SNV', 'WECC_UT', 'ERC_PHDL', 'ERC_REST', 'ERC_WEST', 'MIS_AMSO', 'MIS_AR', 'MIS_LA', 'MIS_MO', 'MIS_WOTA', 'S_D_AECI', 'SPP_N', 'SPP_NEBR', 'SPP_SPS', 'SPP_WAUE', 'SPP_WEST', 'MIS_IA', 'MIS_IL', 'MIS_INKY', 'MIS_LMI', 'MIS_MAPP', 'MIS_MIDA', 'MIS_MNWI', 'MIS_WUMS', 'PJM_COMD', 'FRCC', 'MIS_D_MS', 'S_C_KY', 'S_C_TVA', 'S_SOU', 'S_VACA', 'PJM_AP', 'PJM_ATSI', 'PJM_Dom', 'PJM_EMAC', 'PJM_PENE', 'PJM_SMAC', 'PJM_West', 'PJM_WMAC', 'NENG_CT', 'NENG_ME', 'NENGREST', 'NY_Z_A', 'NY_Z_B', 'NY_Z_C&E', 'NY_Z_D', 'NY_Z_F', 'NY_Z_G-I', 'NY_Z_J', 'NY_Z_K']
 
 # CLUSTERING
 # Existing thermal power plants are clusted to reduce the number of distinct plants.
@@ -932,7 +929,10 @@ proposed_min_load:
 # Use this section to hard-code retirements that are not included in the most recent
 # annual verion of EIA 860. The format is
 # [plant_id_eia, generator_id, planned_retirement_date]
-additional_retirements: ~
+additional_retirements: 
+    - [136, ST, 2020]
+    - [2240, ST, 2020]
+    - [56675, ST, 2020]
   # - [55853, 1, 2020]
   # - [55853, 2, 2020]
   # - [2442, 1, 2029] # Retire Four Corners before 2030
@@ -965,7 +965,7 @@ historical_load_region_maps:
   MWRCW: [MIS_MAPP, SPP_WAUE, SPP_NEBR, MIS_MIDA, MIS_IA, MIS_MNWI]
   NPCCNE: [NENG_ME, NENG_CT, NENGREST]
   NPCCNYWE: [NY_Z_J]
-  NPCCL: [NY_Z_K]
+  NPCCLI: [NY_Z_K]
   NPCCUPNY: [
     NY_Z_A,
     NY_Z_B,
@@ -974,11 +974,11 @@ historical_load_region_maps:
     NY_Z_F,
     NY_Z_G-I,
   ]
-  RFCET: [PJM_WMAC, PJM_EMAC, PJM_SMAC, PJM_PENE]
+  RFCET: [PJM_WMAC, PJM_EMAC, PJM_SMAC, PJM_PENE, PJM_Dom]
   RFCMI: [MIS_LMI]
   RFCWT: [PJM_West, PJM_AP, PJM_ATSI, PJM_COMD]
-  SERCDLT: [MIS_WOTA, MIS_LA, MIS_AMSO, MIS_AR]
-  SERCGW: [MIS_MO, S_D_AECI, MIS_IL]
+  SERCDLT: [MIS_WOTA, MIS_LA, MIS_AMSO, MIS_AR, MIS_D_MS]
+  SERCGW: [MIS_MO, S_D_AECI, MIS_IL, MIS_INKY]
   SERCSOES: [S_SOU]
   SERCCNT: [S_C_TVA, S_C_KY]
   SERCVC: [S_VACA]
@@ -1004,7 +1004,7 @@ future_load_region_map:
   SERCE: [SC_VACA,S_VACA] #SRCA
   PJMD: [PJM_Dom]
   PJMW: [PJM_WEST, PJM_West, PJM_AP, PJM_ATSI]
-  PJME: [PJM_WestMAC, PJM_WMAC, PJM_Delaware, PJM_NJCoast, PJM_NJLand, PJM_PECO, PJM_SMAC, PJM_PENE]
+  PJME: [PJM_WestMAC, PJM_WMAC, PJM_Delaware, PJM_NJCoast, PJM_NJLand, PJM_PECO, PJM_SMAC, PJM_PENE, PJM_EMAC]
   SERCCNT: [SC_TVA, S_C_TVA, S_C_KY] #SRCE
   NPCCUPNY: [
       NY_West,

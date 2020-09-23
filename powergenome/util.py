@@ -6,7 +6,7 @@ import pandas as pd
 import pudl
 import requests
 import sqlalchemy as sa
-
+from IPython import embed as bp
 import yaml
 from ruamel.yaml import YAML
 from pathlib import Path
@@ -19,6 +19,7 @@ def load_settings(path):
     with open(path, "r") as f:
         #     settings = yaml.safe_load(f)
         yaml = YAML(typ="safe")
+        #bp()
         settings = yaml.load(f)
 
     return settings

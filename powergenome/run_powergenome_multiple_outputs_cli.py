@@ -5,6 +5,7 @@ import shutil
 import sys
 from datetime import datetime as dt
 from pathlib import Path
+from IPython import embed as bp
 
 import pandas as pd
 
@@ -148,6 +149,7 @@ def main():
     logger.addHandler(filehandler)
 
     logger.info("Reading settings file")
+    #bp()
     settings = load_settings(path=args.settings_file)
 
     # Copy the settings file to results folder
@@ -215,6 +217,7 @@ def main():
                         current_gens=args.current_gens,
                         sort_gens=args.sort_gens,
                     )
+                    #bp()
                     gen_clusters = gc.create_all_generators()
                     if args.fuel and args.gens:
                         fuels = fuel_cost_table(
