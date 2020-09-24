@@ -365,6 +365,8 @@ def main():
                         + gen_clusters["Resource"]
                         + "_"
                         + gen_clusters["cluster"].astype(str)
+                        + "_"
+                        + gen_clusters["R_ID"].astype(str)
                     )
                     # write_results_file(
                     #     df=gen_variability,
