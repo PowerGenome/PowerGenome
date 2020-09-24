@@ -1210,7 +1210,7 @@ def add_genx_model_tags(df, settings):
     dataframe
         The original generator cluster results with new columns for each model tag.
     """
-    ignored = r"\s+|_"
+    ignored = r"_"
     technology = df["technology"].str.replace(ignored, "")
     # Create a new dataframe with the same index
     default = settings.get("default_model_tag", 0)
