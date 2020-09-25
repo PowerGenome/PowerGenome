@@ -17,6 +17,19 @@ from powergenome.nrelatb import investment_cost_calculator
 
 logger = logging.getLogger(__name__)
 
+INT_COLS = [
+    "Inv_cost_per_MWyr",
+    "Fixed_OM_cost_per_MWyr",
+    "Inv_cost_per_MWhyr",
+    "Fixed_OM_cost_per_MWhyr",
+    "Var_OM_cost_per_MWh",
+    "Var_OM_cost_per_MWh_in",
+    "Start_cost_per_MW",
+    "Up_time",
+    "Down_time",
+    "Max_DSM_delay",
+]
+
 
 def add_emission_policies(transmission_df, settings, DistrZones=None):
     """Add emission policies to the transmission dataframe
@@ -43,7 +56,7 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
 
     policies = load_policy_scenarios(settings)
     year_case_policy = policies.loc[(case_id, model_year), :]
-    
+
     # Bug where multiple regions for a case will return this as a df, even if the policy
     # for this case applies to all regions (code below expects a Series)
     ycp_shape = year_case_policy.shape
@@ -433,12 +446,27 @@ def network_max_reinforcement(
     return transmission
 
 
-def set_int_cols(df):
+def set_int_cols(df: pd.DataFrame, cols: list = None) -> pd.DataFrame:
+    """Set values of some dataframe columns to integers.
 
-    df["Up_time"] = df["Up_time"].fillna(0).astype(int)
-    df["Down_time"] = df["Down_time"].fillna(0).astype(int)
-    df["Max_DSM_delay"] = df["Max_DSM_delay"].fillna(0).astype(int)
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe.
+    cols : list, optional
+        Columns to set as integer, by default None. If none, will use 
+        `powergenome.GenX.INT_COLS`.
 
+    Returns
+    -------
+    pd.DataFrame
+        Input dataframe with some columns set as integer.
+    """    
+    if not cols:
+        cols = INT_COLS
+    
+    for col in cols:
+        df[col] = df[col].fillna(0).astype(int)
     return df
 
 
