@@ -464,6 +464,8 @@ def set_int_cols(df: pd.DataFrame, cols: list = None) -> pd.DataFrame:
     """    
     if not cols:
         cols = INT_COLS
+
+    cols = [c for c in cols if c in df.columns]
     
     for col in cols:
         df[col] = df[col].fillna(0).astype(int)
