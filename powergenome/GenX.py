@@ -103,10 +103,12 @@ def add_misc_gen_values(gen_clusters, settings):
         # resource_misc_values = misc_values.loc[misc_values["Resource"] == resource, :].dropna()
 
         for col in misc_values.columns:
+            if col == "Resource":
+                continue
             value = misc_values.loc[misc_values["Resource"] == resource, col].values[0]
             if value != "skip":
                 gen_clusters.loc[
-                    gen_clusters["Resource"].str.contains(resource), col
+                    gen_clusters["Resource"].str.contains(resource, case=False), col
                 ] = value
 
     return gen_clusters
