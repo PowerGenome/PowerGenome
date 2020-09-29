@@ -160,6 +160,13 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     genx_settings = load_settings(settings["genx_settings_fn"])
     policies = load_policy_scenarios(settings)
     year_case_policy = policies.loc[(case_id, model_year), :]
+    
+    # Bug where multiple regions for a case will return this as a df, even if the policy
+    # for this case applies to all regions (code below expects a Series)
+    ycp_shape = year_case_policy.shape
+    if ycp_shape[0] == 1 and len(ycp_shape) > 1:
+        year_case_policy = year_case_policy.squeeze()  # convert to series
+
     if settings.get("distributed_gen_profiles_fn"):
         dg_generation = make_distributed_gen_profiles(pudl_engine, settings)
         total_dg_gen = dg_generation.sum().sum()
