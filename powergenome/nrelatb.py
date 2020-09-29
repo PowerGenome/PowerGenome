@@ -967,6 +967,14 @@ def add_renewables_clusters(
                     + f" less than minimum ({capacity} < {scenario['min_capacity']} MW)"
                 )
         row = df[df["technology"] == technology].to_dict("records")[0]
+        new_tech_name = "_".join(
+            [
+                str(v)
+                for k, v in scenario.items()
+                if k not in ["region", "technology", "max_clusters", "min_capacity"]
+            ]
+        )
+        clusters["technology"] = clusters["technology"] + "_" + new_tech_name
         kwargs = {k: v for k, v in row.items() if k not in clusters}
         cdfs.append(clusters.assign(**kwargs))
     return pd.concat([df[~mask]] + cdfs, sort=False)
