@@ -293,7 +293,9 @@ def build_case_id_name_map(settings: dict) -> dict:
     return case_id_name_map
 
 
-def build_scenario_settings(settings: dict, scenario_definitions: pd.DataFrame) -> dict:
+def build_scenario_settings(
+    settings: dict, scenario_definitions: pd.DataFrame
+) -> Dict[int, Dict[Union[int, str], dict]]:
     """Build a nested dictionary of settings for each planning year/scenario
 
     Parameters
