@@ -1,6 +1,7 @@
 import collections
 from copy import deepcopy
 import subprocess
+from typing import Dict, Tuple, Union
 
 import pandas as pd
 import pudl
@@ -35,7 +36,7 @@ def init_pudl_connection(freq="YS"):
     return pudl_engine, pudl_out
 
 
-def reverse_dict_of_lists(d):
+def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, str]:
     if isinstance(d, collections.abc.Mapping):
         rev = {v: k for k in d for v in d[k]}
     else:
@@ -54,7 +55,7 @@ def map_agg_region_names(df, region_agg_map, original_col_name, new_col_name):
     return df
 
 
-def snake_case_col(col):
+def snake_case_col(col: pd.Series) -> pd.Series:
     "Remove special characters and convert to snake case"
     clean = (
         col.str.lower()
@@ -66,7 +67,7 @@ def snake_case_col(col):
     return clean
 
 
-def snake_case_str(s):
+def snake_case_str(s: str) -> str:
     "Remove special characters and convert to snake case"
     clean = (
         s.lower()
@@ -92,7 +93,7 @@ def get_git_hash():
     return git_head_hash
 
 
-def download_save(url, save_path):
+def download_save(url: str, save_path: Union[str, Path]):
     """
     Download a file that isn't zipped and save it to a given path
 
@@ -119,7 +120,7 @@ def shift_wrap_profiles(df, offset):
     return shifted_wrapped_df
 
 
-def update_dictionary(d, u):
+def update_dictionary(d: dict, u: dict) -> dict:
     """
     Update keys in an existing dictionary (d) with values from u
 
@@ -240,7 +241,7 @@ def find_centroid(gdf):
     return centroid
 
 
-def regions_to_keep(settings):
+def regions_to_keep(settings: dict) -> Tuple[list, dict]:
     """Create a list of all IPM regions that are used in the model, either as single
     regions or as part of a user-defined model region. Also includes the aggregate
     regions defined by user.
@@ -280,7 +281,7 @@ def build_case_id_name_map(settings: dict) -> dict:
     -------
     dict
         Mapping of case id to case name
-    """    
+    """
     case_id_name_df = pd.read_csv(
         Path(settings["input_folder"]) / settings["case_id_description_fn"],
         index_col=0,
@@ -406,7 +407,7 @@ def remove_feb_29(df: pd.DataFrame) -> pd.DataFrame:
     -------
     pd.DataFrame
         The same dataframe but without the 24 hours in Feb 29 and only 8760 rows.
-    """    
+    """
     idx_start = df.index.min()
     idx_name = df.index.name
     df["datetime"] = pd.date_range(start="2012-01-01", freq="H", periods=8784)
