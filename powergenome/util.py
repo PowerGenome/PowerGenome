@@ -7,6 +7,7 @@ import pudl
 import requests
 import sqlalchemy as sa
 
+from flatten_dict import flatten
 import yaml
 from ruamel.yaml import YAML
 from pathlib import Path
@@ -367,7 +368,7 @@ def build_scenario_settings(settings: dict, scenario_definitions: pd.DataFrame) 
                     ]
                     # print(new_parameter)
                     try:
-                        settings_keys = list(new_parameter.keys())
+                        settings_keys = list(flatten(new_parameter).keys())
                     except AttributeError:
                         settings_keys = {}
 
