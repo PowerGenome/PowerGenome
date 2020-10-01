@@ -47,7 +47,7 @@ description: Pointer to a csv file with normalized hourly generation profiles fo
 
 type: str
 
-description: Pointer to a csv file with hourly (not normalized) profiles for demand response resources in each region/year/scenario. The top four rows are 1) the name of the DR resource (matching key values in the settings parameter `demand_response_resources`), 2) the model year, 3) the scenario name (matching names from the "demand_response" column of `scenario_definitions_fn`), and 4) the model region from `model_regions`.
+description: Pointer to a csv file with hourly (not normalized) profiles for demand response resources in each region/year/scenario. The top four rows are 1) the name of the DR resource (matching key values in the settings parameter `demand_response_resources`), 2) the model year, 3) the scenario name (scenarios are selected using the `demand_response` settings parameter), and 4) the model region from `model_regions`.
 
 ### emission_policies_fn
 
@@ -55,7 +55,45 @@ type: str
 
 description: Pointer to a csv file that describes the emission policies in each case. The first two columns are `case_id` and `year`. Next, the `region` column can either contain the name of a model region or the string "all" (when identical policies are applied to all regions). The column `copy_case_id` indicates if policies from another case should be used (slightly more clear and hopefully fewer errors than just using copy/paste across multiple rows). Other column names should match the columns used in output policy files (e.g. `RPS`, `CES`, etc) and contain numeric values or the string `None`.
 
-**Come back to other external data files**
+### capacity_limit_spur_fn
+
+type: str
+
+description: Provides the maximum capacity and spur-line construction distance for new (non-renewable) resources. Starts with the required columns `region` and `technology`. `cluster` can be omitted, but is required when more than one resource of the same name is used within a region.
+
+The data columns in this file are `spur_miles` and `max_capacity`.
+
+### demand_segments_fn
+
+type: str
+
+description: Describes segments of demand, and the cost for not meeting demand within that segment.
+
+**expand**
+
+### misc_gen_inputs_fn
+
+type: str
+
+description: This file is where users can add extra or miscellaneous inputs for generators. These inputs can include operating constraints like startup/shutdown times, power-to-energy ratios, and any other inputs that are not covered by PowerGenome.
+
+### genx_settings_fn
+
+type: str
+
+description: This is a YAML file used to record input parameters for GenX model runs. A version is copied into each of the final case folders. Some parameter values - such as RPS and CES - will be changed on a case-by-case basis depending on inputs in other files.
+
+### regional_load_fn
+
+type: str
+
+description: An optional input file with hourly demand for each region. This file is only required if you don't want to use the data included with PowerGenome.
+
+### regional_load_includes_demand_response
+
+type: bool
+
+description: Optional input, only required if using `regional_load_fn`. Do the user-supplied demand values already include flexible loads?
 
 ### reduce_time_domain
 
@@ -114,11 +152,45 @@ description: This nested dictionary has top-level keys of model years from `mode
 - `fraction_shiftable` (float)
 - `parameter_values` (dict) with key: value pairs for specific columns in the GenX file `Generators_data.csv`.
 
-.
-.
-.
-.
-.
+### demand_response
+
+type: str
+
+description: The scenario name associated with columns in the `demand_response_fn` parameter. This value determines which scenario in the `demand_response_fn` file is used to modify demand curves and create flexible resources in the generators data.
+
+### transmission_investment_cost
+
+type: dict
+
+#### transmission_investment_cost.use_total
+
+type: bool
+
+description: If true, use precalculated interconnection_annuity from resource clusters. If false, calculate interconnection costs using the distances instead and capex provided in `transmission_investment_cost.spur`, `transmission_investment_cost.offshore_spur`, and `transmission_investment_cost.tx`.
+
+#### transmission_investment_cost.[spur, offshore_spur, tx]
+
+type: dict
+
+description: These three dictionaries have keys `capex_mw_mile`, `wacc`, and `investment_years`. Capex values are provided for each model region, and used in conjuction with the weighted average cost of capital (`wacc`) and investment years to calculate annuities for transmission expansion/reinforcement. All three types can be used when calculating interconnection costs for new power plants. `tx` is used to calculate the cost of inter-regional transmission expansion.
+
+### tx_expansion_per_period
+
+type: float, int
+
+description: How much inter-regional transmission can be expanded/increased within a model period. A value of 1.0 allows transmission to double; 0.5 allows for a 50% increase.
+
+### tx_line_loss_100_miles
+
+type: float, int
+
+description: The fraction of electricity lost during each 100 miles of transmission between regions due to line loss. The default value of 0.01 represents a 1% loss per 100 miles.
+
+### partial_ces
+
+type: bool
+
+description: If true, resources are assigned a clean energy standard (CES) credit equal to the difference between their emission rate (in tons/MWh) and a coal plant (assumed to be 1 ton/MWh). Coal plants are not eligible for this credit even if they have emission rates below 1 ton/MWh. Note that units are imperial, not metric tonnes.
 
 ### data_years
 
