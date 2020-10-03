@@ -601,3 +601,55 @@ description: This parameter adds a carbon tax cost to fuel costs.
 type: Dict[str, float]
 
 description: Emission factors provided in the example settings file are from EIA. Coal emission factors are average for the electric power sector.
+
+## Generator startup costs
+
+### startup_vom_costs_mw
+
+type: Dict[str, float]
+
+description: Variable O&M startup costs for different power plant types. The values provided are from the NREL Western wind/solar integration study. Plant types should match the values in `existing_startup_costs_tech_map`, and `new_build_startup_costs`.
+
+### startup_vom_costs_usd_year
+
+type: int
+
+description: Dollar year of costs in `startup_vom_costs_mw` parameter.
+
+### startup_costs_type
+
+type: str
+
+description: Name of the paramter to use for startup costs. The default value in the example documenation is `startup_costs_per_cold_start_mw`, but users can change this parameter (and add other cost sources) if you want.
+
+### startup_costs_per_cold_start_mw
+
+type: Dict[str, Union[int, float]]
+
+description: Costs per cold start for different power plant types. The values provided in the example file are median cold start costs from NREL 2012.
+
+### startup_costs_per_cold_start_usd_year
+
+type: int
+
+description: Dollar year of costs in the dictionary specified by `startup_costs_type`.
+
+**Need to rename the startup costs - maybe remove the "cold" descriptor and just keep as a single dictionary**
+
+### existing_startup_costs_tech_map
+
+type: Dict[str, str]
+
+description: Mapping of EIA technology names (existing generators) to plant types from `startup_vom_costs_mw` and `startup_costs_per_cold_start_mw`.
+
+### new_build_startup_costs
+
+type: Dict[str, str]
+
+description: Mapping of NREL ATB and user-defined technology names (new-build generators) to plant types from `startup_vom_costs_mw` and `startup_costs_per_cold_start_mw`.
+
+### generator_columns
+
+type: List[str]
+
+description: Column names from the new and existing generators dataframes to keep.
