@@ -160,7 +160,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     genx_settings = load_settings(settings["genx_settings_fn"])
     policies = load_policy_scenarios(settings)
     year_case_policy = policies.loc[(case_id, model_year), :]
-    
+
     # Bug where multiple regions for a case will return this as a df, even if the policy
     # for this case applies to all regions (code below expects a Series)
     ycp_shape = year_case_policy.shape
@@ -461,19 +461,19 @@ def set_int_cols(df: pd.DataFrame, cols: list = None) -> pd.DataFrame:
     df : pd.DataFrame
         Input dataframe.
     cols : list, optional
-        Columns to set as integer, by default None. If none, will use 
+        Columns to set as integer, by default None. If none, will use
         `powergenome.GenX.INT_COLS`.
 
     Returns
     -------
     pd.DataFrame
         Input dataframe with some columns set as integer.
-    """    
+    """
     if not cols:
         cols = INT_COLS
 
     cols = [c for c in cols if c in df.columns]
-    
+
     for col in cols:
         df[col] = df[col].fillna(0).astype(int)
     return df
@@ -556,3 +556,60 @@ def calc_emissions_ces_level(network_df, load_df, settings):
         return network_df
     else:
         return network_df
+
+
+def fix_min_power_values(
+    resource_df: pd.DataFrame,
+    gen_profile_df: pd.DataFrame,
+    min_power_col: str = "Min_power",
+) -> pd.DataFrame:
+    """Fix potentially erroneous min power values for resources with variable generation
+    profiles. Any min power values that are higher than the lowest hourly generation
+    will be adjusted down to match the lowest hourly generation.
+
+
+    Parameters
+    ----------
+    resource_df : pd.DataFrame
+        Records of generators/resources. Row order should match column order of
+        `gen_profile_df`.
+    gen_profile_df : pd.DataFrame
+        Hourly generation values for all generators/resources. Column order should match
+        row order in `resource_df`.
+    min_power_col : str
+        Column in `resource_df` that stores the minimum generation power of each
+        resource. Default value is "Min_power".
+
+    Returns
+    -------
+    pd.DataFrame
+        A modified version of `resource_df`. Any rows with minimum power larger than
+        hourly generation are adjusted down to match the smallest hourly generation.
+    """
+    if min_power_col not in resource_df.columns:
+        raise ValueError(
+            f"When variable generation values against resource min power, the column "
+            f"{min_power_col} was not found in the resource dataframe."
+        )
+
+    if resource_df.shape[0] != gen_profile_df.shape[1]:
+        raise ValueError(
+            "When trying to fix min power values, the number of resource dataframe rows"
+            f" ({resource_df.shape[0]} rows) does not match the number of variable "
+            f"profiles columns ({gen_profile_df.shape[1]} columns)."
+        )
+
+    resource_df = resource_df.reset_index(drop=True)
+    resource_df.loc[:, "unadjusted_min_power"] = resource_df.loc[:, min_power_col]
+    _gen_profile = gen_profile_df.copy(deep=True)
+    _gen_profile
+    gen_profile_min = _gen_profile.min().reset_index(drop=True)
+    mask = (resource_df[min_power_col].fillna(0) > gen_profile_min).values
+
+    logger.info(
+        f"{sum(mask)} resources have {min_power_col} larger than hourly generation."
+    )
+
+    resource_df.loc[mask, min_power_col] = gen_profile_min[mask]
+
+    return resource_df
