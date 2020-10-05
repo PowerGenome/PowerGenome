@@ -610,6 +610,6 @@ def fix_min_power_values(
         f"{sum(mask)} resources have {min_power_col} larger than hourly generation."
     )
 
-    resource_df.loc[mask, min_power_col] = gen_profile_min[mask]
+    resource_df.loc[mask, min_power_col] = gen_profile_min[mask].round(3)
 
     return resource_df
