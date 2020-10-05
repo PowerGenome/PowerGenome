@@ -693,10 +693,6 @@ alt_atb_cap_recovery_years:
 atb_existing_year: 2018
 atb_usd_year: 2017 # From Capex figure in atb documentation https://atb.nrel.gov/electricity/2019/summary.html
 
-# Assume that O&M for existing plants is higher than for new builds by both the ratio
-# of heat rates and a multiplier
-existing_om_multiplier: 1.0
-
 # ATB uses an average of conventional and advanced techs. We only want advanced. To use
 # standard ATB values set multipliers to 1.
 # Heat rate multipliers are an average of "heat rate" and "final heat rate" multipliers.
@@ -765,10 +761,6 @@ eia_atb_tech_map:
   Natural Gas Steam Turbine: Coal_newAvgCF # No gas steam turbines in ATB, using coal instead
   Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
 
-# NEMS has O&M (including capex) for existing generators. Boolean, true or false.
-use_nems_coal_ng_om: true
-
-
 # Offshore wind in the west will be floating - OTRG10 maybe.
 # Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
 atb_new_gen:
@@ -834,10 +826,6 @@ renewables_clusters:
     max_clusters: 3
     min_capacity: 100000
     cap_multiplier: 0.2
-
-# How much of the theoretical
-wind_pv_fraction_developable: 0.5
-
 
 # Fuel consumption for start-up events (mmbtu/MW) from Lew et al 2013,
 # Finding Flexibility: Cycling the Conventional Fleet
