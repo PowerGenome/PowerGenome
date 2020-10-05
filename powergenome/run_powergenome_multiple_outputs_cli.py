@@ -18,6 +18,7 @@ from powergenome.generators import (
 )
 from powergenome.GenX import (
     add_emission_policies,
+    fix_min_power_values,
     make_genx_settings_file,
     reduce_time_domain,
     add_misc_gen_values,
@@ -248,8 +249,19 @@ def main():
                         f"Finished first round with year {year} scenario {case_id}"
                     )
                     # if settings.get("partial_ces"):
-                    gens = calculate_partial_CES_values(gen_clusters, fuels, _settings)
+                    gen_variability = make_generator_variability(gen_clusters)
+                    gen_variability.columns = (
+                        gen_clusters["region"]
+                        + "_"
+                        + gen_clusters["Resource"]
+                        + "_"
+                        + gen_clusters["cluster"].astype(str)
+                    )
+                    gens = calculate_partial_CES_values(
+                        gen_clusters, fuels, _settings
+                    ).pipe(fix_min_power_values, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
+
                     write_results_file(
                         df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings),
                         folder=case_folder,
@@ -264,14 +276,6 @@ def main():
                     #         include_index=False,
                     #     )
 
-                    gen_variability = make_generator_variability(gen_clusters)
-                    gen_variability.columns = (
-                        gen_clusters["region"]
-                        + "_"
-                        + gen_clusters["Resource"]
-                        + "_"
-                        + gen_clusters["cluster"].astype(str)
-                    )
                     # write_results_file(
                     #     df=gen_variability,
                     #     folder=case_folder,
@@ -344,7 +348,19 @@ def main():
                         generators=gc.all_resources,
                         settings=_settings,
                     )
-                    gens = calculate_partial_CES_values(gen_clusters, fuels, _settings)
+                    gen_variability = make_generator_variability(gen_clusters)
+                    gen_variability.columns = (
+                        gen_clusters["region"]
+                        + "_"
+                        + gen_clusters["Resource"]
+                        + "_"
+                        + gen_clusters["cluster"].astype(str)
+                        + "_"
+                        + gen_clusters["R_ID"].astype(str)
+                    )
+                    gens = calculate_partial_CES_values(
+                        gen_clusters, fuels, _settings
+                    ).pipe(fix_min_power_values, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
                         df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings),
@@ -358,16 +374,6 @@ def main():
                     #     file_name="Generators_data.csv",
                     # )
 
-                    gen_variability = make_generator_variability(gen_clusters)
-                    gen_variability.columns = (
-                        gen_clusters["region"]
-                        + "_"
-                        + gen_clusters["Resource"]
-                        + "_"
-                        + gen_clusters["cluster"].astype(str)
-                        + "_"
-                        + gen_clusters["R_ID"].astype(str)
-                    )
                     # write_results_file(
                     #     df=gen_variability,
                     #     folder=case_folder,
