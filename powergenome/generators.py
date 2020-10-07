@@ -174,7 +174,7 @@ def startup_fuel(df, settings):
     """
     df["Start_fuel_MMBTU_per_MW"] = 0
     for eia_tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
-        atb_tech = settings["eia_atb_tech_map"][eia_tech].split("_")[0]
+        atb_tech = settings["eia_atb_tech_map"][eia_tech]
 
         df.loc[df["technology"] == eia_tech, "Start_fuel_MMBTU_per_MW"] = fuel_use
         df.loc[
