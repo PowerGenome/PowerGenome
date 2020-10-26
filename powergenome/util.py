@@ -368,8 +368,8 @@ def build_scenario_settings(
                     case_value = case_value_dict[case_id]
                     new_parameter = planning_year_settings_management[category][
                         case_value
-                    ]
-                    # print(new_parameter)
+                    ] or {}
+
                     try:
                         settings_keys = list(flatten(new_parameter).keys())
                     except AttributeError:
