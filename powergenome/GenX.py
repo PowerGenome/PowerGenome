@@ -192,7 +192,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     if float(year_case_policy["RPS"]) > 0:
         # print(total_dg_gen)
         # print(year_case_policy["RPS"])
-        if policies.loc[(case_id, model_year), "region"] == "all":
+        if policies.loc[(case_id, model_year), "region"].all() == "all":
             genx_settings["RPS"] = 3
             genx_settings["RPS_Adjustment"] = float((1 - RPS) * total_dg_gen)
         else:
@@ -203,7 +203,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
         genx_settings["RPS_Adjustment"] = 0
 
     if float(year_case_policy["CES"]) > 0:
-        if policies.loc[(case_id, model_year), "region"] == "all":
+        if policies.loc[(case_id, model_year), "region"].all() == "all":
             genx_settings["CES"] = 3
 
             # This is a little confusing but for partial CES
