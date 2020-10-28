@@ -38,10 +38,8 @@ def fuel_cost_table(fuel_costs, generators, settings):
     # Slow to loop through all of the rows this way but the df shouldn't be too long
     fuel_df = fuel_df.apply(adjust_ccs_fuels, axis=1, settings=settings)
     fuel_df = add_carbon_tax(fuel_df, settings)
-    fuel_df["Cost_per_MMBtu"] = fuel_df["Cost_per_MMBtu"].round(2)
-    fuel_df["CO2_content_tons_per_MMBtu"] = fuel_df["CO2_content_tons_per_MMBtu"].round(
-        5
-    )
+    fuel_df["Cost_per_MMBtu"] = fuel_df["Cost_per_MMBtu"]
+    fuel_df["CO2_content_tons_per_MMBtu"] = fuel_df["CO2_content_tons_per_MMBtu"]
     fuel_df.fillna(0, inplace=True)
 
     return fuel_df

@@ -25,6 +25,7 @@ from powergenome.GenX import (
     network_line_loss,
     network_max_reinforcement,
     network_reinforcement_cost,
+    round_col_values,
     set_int_cols,
     calculate_partial_CES_values,
     calc_emissions_ces_level,
@@ -234,7 +235,7 @@ def main():
                     # gen_clusters = remove_fuel_scenario_name(gen_clusters, _settings)
                     gen_clusters["zone"] = gen_clusters["region"].map(zone_num_map)
                     gen_clusters = add_misc_gen_values(gen_clusters, _settings)
-                    gen_clusters = set_int_cols(gen_clusters)
+                    # gen_clusters = set_int_cols(gen_clusters)
                     # gen_clusters = gen_clusters.fillna(value=0)
 
                     # Save existing resources that aren't demand response for use in
@@ -263,7 +264,9 @@ def main():
                     cols = [c for c in _settings["generator_columns"] if c in gens]
 
                     write_results_file(
-                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings),
+                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings)
+                        .pipe(set_int_cols)
+                        .pipe(round_col_values),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,
@@ -363,7 +366,9 @@ def main():
                     ).pipe(fix_min_power_values, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
-                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings),
+                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings)
+                        .pipe(set_int_cols)
+                        .pipe(round_col_values),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,
@@ -440,7 +445,7 @@ def main():
                     ces = None
 
                 write_results_file(
-                    df=network,
+                    df=network.pipe(set_int_cols).pipe(round_col_values),
                     folder=case_folder,
                     file_name="Network.csv",
                     include_index=False,
@@ -459,7 +464,9 @@ def main():
                 fuels = fuels.drop_duplicates(subset=["Fuel"], keep="last")
                 fuels["fuel_indices"] = range(1, len(fuels) + 1)
                 write_results_file(
-                    df=remove_fuel_scenario_name(fuels, _settings),
+                    df=remove_fuel_scenario_name(fuels, _settings)
+                    .pipe(set_int_cols)
+                    .pipe(round_col_values),
                     folder=case_folder,
                     file_name="Fuels_data.csv",
                 )

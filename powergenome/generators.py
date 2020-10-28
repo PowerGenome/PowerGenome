@@ -240,7 +240,7 @@ def startup_nonfuel_costs(df, settings):
         df.loc[
             df["technology"].str.contains(new_tech), "Start_cost_per_MW"
         ] = total_startup_costs
-    df.loc[:, "Start_cost_per_MW"] = df.loc[:, "Start_cost_per_MW"].round(0)
+    df.loc[:, "Start_cost_per_MW"] = df.loc[:, "Start_cost_per_MW"]
 
     # df.loc[df["technology"].str.contains("Nuclear"), "Start_cost_per_MW"] = "FILL VALUE"
 
@@ -2427,7 +2427,7 @@ class GeneratorClusters:
 
         # Round Cap_size to prevent GenX error.
         self.results = self.results.round(3)
-        self.results["Cap_size"] = self.results["Cap_size"].round(2)
+        self.results["Cap_size"] = self.results["Cap_size"]
         self.results["Existing_Cap_MW"] = self.results.Cap_size * self.results.num_units
         self.results["unmodified_existing_cap_mw"] = (
             self.results["unmodified_cap_size"] * self.results["num_units"]
@@ -2546,10 +2546,10 @@ class GeneratorClusters:
         )
 
         self.all_resources = self.all_resources.round(3)
-        self.all_resources["Cap_size"] = self.all_resources["Cap_size"].round(2)
+        self.all_resources["Cap_size"] = self.all_resources["Cap_size"]
         self.all_resources["Heat_rate_MMBTU_per_MWh"] = self.all_resources[
             "Heat_rate_MMBTU_per_MWh"
-        ].round(2)
+        ]
 
         # Set Min_power of wind/solar to 0
         self.all_resources.loc[self.all_resources["DISP"] == 1, "Min_power"] = 0
