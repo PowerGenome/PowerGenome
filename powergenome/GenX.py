@@ -345,10 +345,18 @@ def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFram
         raise KeyError(
             "The parameter 'tx_line_loss_100_miles' is required in your settings file."
         )
+    if "distance_mile" in transmission.columns:
+        distance_col = "distance_mile"
+    elif "distance_km" in transmission.columns:
+        distance_col = "distance_km"
+        loss_per_100_miles *= 0.62137
+        logger.info("Line loss per 100 miles was converted to km.")
+    else:
+        raise KeyError("No distance column is available in the transmission dataframe")
     loss_per_100_miles = settings["tx_line_loss_100_miles"]
     transmission["Line_Loss_Percentage"] = (
-        transmission["distance_mile"] / 100 * loss_per_100_miles
-    ).round(4)
+        transmission[distance_col] / 100 * loss_per_100_miles
+    )
 
     return transmission
 
