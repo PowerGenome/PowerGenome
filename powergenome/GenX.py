@@ -3,6 +3,7 @@
 from itertools import product
 import logging
 from pathlib import Path
+from typing import Dict
 import pandas as pd
 
 from powergenome.external_data import (
@@ -22,13 +23,25 @@ INT_COLS = [
     "Fixed_OM_cost_per_MWyr",
     "Inv_cost_per_MWhyr",
     "Fixed_OM_cost_per_MWhyr",
-    "Var_OM_cost_per_MWh",
-    "Var_OM_cost_per_MWh_in",
-    "Start_cost_per_MW",
-    "Up_time",
-    "Down_time",
-    "Max_DSM_delay",
+    "Line_Reinforcement_Cost_per_MW_yr",
 ]
+
+COL_ROUND_VALUES = {
+    "Var_OM_cost_per_MWh": 2,
+    "Var_OM_cost_per_MWh_in": 2,
+    "Up_time": 0,
+    "Down_time": 0,
+    "Max_DSM_delay": 0,
+    "Start_cost_per_MW": 0,
+    "Cost_per_MMBtu": 2,
+    "CO2_content_tons_per_MMBtu": 5,
+    "Cap_size": 2,
+    "Heat_rate_MMBTU_per_MWh": 2,
+    "distance_mile": 4,
+    "Line_Max_Reinforcement_MW": 0,
+    "distance_miles": 1,
+    "distance_km": 1,
+}
 
 
 def add_emission_policies(transmission_df, settings, DistrZones=None):
@@ -476,6 +489,34 @@ def set_int_cols(df: pd.DataFrame, cols: list = None) -> pd.DataFrame:
 
     for col in cols:
         df[col] = df[col].fillna(0).astype(int)
+    return df
+
+
+def round_col_values(
+    df: pd.DataFrame, col_round_val: Dict[str, int] = None
+) -> pd.DataFrame:
+    """Round values in columns to a specific sigfig.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe.
+    col_round_val : Dict, optional
+        Dictionary with key values of column labels and integer values of the number of
+        sigfigs, by default None.
+
+    Returns
+    -------
+    pd.DataFrame
+        Same dataframe as input but with rounded values in specified columns.
+    """
+    if not col_round_val:
+        col_round_val = COL_ROUND_VALUES
+
+    col_round_val = {k: v for k, v in col_round_val.items() if k in df.columns}
+
+    for col, value in col_round_val.items():
+        df[col] = df[col].fillna(0).round(value)
     return df
 
 
