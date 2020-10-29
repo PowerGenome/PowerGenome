@@ -18,12 +18,14 @@ from powergenome.generators import (
 )
 from powergenome.GenX import (
     add_emission_policies,
+    fix_min_power_values,
     make_genx_settings_file,
     reduce_time_domain,
     add_misc_gen_values,
     network_line_loss,
     network_max_reinforcement,
     network_reinforcement_cost,
+    round_col_values,
     set_int_cols,
     calculate_partial_CES_values,
     calc_emissions_ces_level,
@@ -162,7 +164,9 @@ def main():
     ipm_regions = pd.read_sql_table("regions_entity_epaipm", pudl_engine)[
         "region_id_epaipm"
     ]
-    all_valid_regions = ipm_regions.tolist() + list(settings["region_aggregations"])
+    all_valid_regions = ipm_regions.tolist() + list(
+        settings.get("region_aggregations", {})
+    )
     good_regions = [region in all_valid_regions for region in settings["model_regions"]]
 
     if not all(good_regions):
@@ -231,7 +235,7 @@ def main():
                     # gen_clusters = remove_fuel_scenario_name(gen_clusters, _settings)
                     gen_clusters["zone"] = gen_clusters["region"].map(zone_num_map)
                     gen_clusters = add_misc_gen_values(gen_clusters, _settings)
-                    gen_clusters = set_int_cols(gen_clusters)
+                    # gen_clusters = set_int_cols(gen_clusters)
                     # gen_clusters = gen_clusters.fillna(value=0)
 
                     # Save existing resources that aren't demand response for use in
@@ -246,10 +250,23 @@ def main():
                         f"Finished first round with year {year} scenario {case_id}"
                     )
                     # if settings.get("partial_ces"):
-                    gens = calculate_partial_CES_values(gen_clusters, fuels, _settings)
+                    gen_variability = make_generator_variability(gen_clusters)
+                    gen_variability.columns = (
+                        gen_clusters["region"]
+                        + "_"
+                        + gen_clusters["Resource"]
+                        + "_"
+                        + gen_clusters["cluster"].astype(str)
+                    )
+                    gens = calculate_partial_CES_values(
+                        gen_clusters, fuels, _settings
+                    ).pipe(fix_min_power_values, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
+
                     write_results_file(
-                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings),
+                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings)
+                        .pipe(set_int_cols)
+                        .pipe(round_col_values),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,
@@ -262,14 +279,6 @@ def main():
                     #         include_index=False,
                     #     )
 
-                    gen_variability = make_generator_variability(gen_clusters)
-                    gen_variability.columns = (
-                        gen_clusters["region"]
-                        + "_"
-                        + gen_clusters["Resource"]
-                        + "_"
-                        + gen_clusters["cluster"].astype(str)
-                    )
                     # write_results_file(
                     #     df=gen_variability,
                     #     folder=case_folder,
@@ -342,10 +351,24 @@ def main():
                         generators=gc.all_resources,
                         settings=_settings,
                     )
-                    gens = calculate_partial_CES_values(gen_clusters, fuels, _settings)
+                    gen_variability = make_generator_variability(gen_clusters)
+                    gen_variability.columns = (
+                        gen_clusters["region"]
+                        + "_"
+                        + gen_clusters["Resource"]
+                        + "_"
+                        + gen_clusters["cluster"].astype(str)
+                        + "_"
+                        + gen_clusters["R_ID"].astype(str)
+                    )
+                    gens = calculate_partial_CES_values(
+                        gen_clusters, fuels, _settings
+                    ).pipe(fix_min_power_values, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
-                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings),
+                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings)
+                        .pipe(set_int_cols)
+                        .pipe(round_col_values),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,
@@ -356,14 +379,6 @@ def main():
                     #     file_name="Generators_data.csv",
                     # )
 
-                    gen_variability = make_generator_variability(gen_clusters)
-                    gen_variability.columns = (
-                        gen_clusters["region"]
-                        + "_"
-                        + gen_clusters["Resource"]
-                        + "_"
-                        + gen_clusters["cluster"].astype(str)
-                    )
                     # write_results_file(
                     #     df=gen_variability,
                     #     folder=case_folder,
@@ -430,7 +445,7 @@ def main():
                     ces = None
 
                 write_results_file(
-                    df=network,
+                    df=network.pipe(set_int_cols).pipe(round_col_values),
                     folder=case_folder,
                     file_name="Network.csv",
                     include_index=False,
@@ -449,7 +464,9 @@ def main():
                 fuels = fuels.drop_duplicates(subset=["Fuel"], keep="last")
                 fuels["fuel_indices"] = range(1, len(fuels) + 1)
                 write_results_file(
-                    df=remove_fuel_scenario_name(fuels, _settings),
+                    df=remove_fuel_scenario_name(fuels, _settings)
+                    .pipe(set_int_cols)
+                    .pipe(round_col_values),
                     folder=case_folder,
                     file_name="Fuels_data.csv",
                 )

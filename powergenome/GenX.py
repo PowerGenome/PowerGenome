@@ -3,6 +3,7 @@
 from itertools import product
 import logging
 from pathlib import Path
+from typing import Dict
 import pandas as pd
 
 from powergenome.external_data import (
@@ -16,6 +17,31 @@ from powergenome.util import load_settings
 from powergenome.nrelatb import investment_cost_calculator
 
 logger = logging.getLogger(__name__)
+
+INT_COLS = [
+    "Inv_cost_per_MWyr",
+    "Fixed_OM_cost_per_MWyr",
+    "Inv_cost_per_MWhyr",
+    "Fixed_OM_cost_per_MWhyr",
+    "Line_Reinforcement_Cost_per_MW_yr",
+]
+
+COL_ROUND_VALUES = {
+    "Var_OM_cost_per_MWh": 2,
+    "Var_OM_cost_per_MWh_in": 2,
+    "Up_time": 0,
+    "Down_time": 0,
+    "Max_DSM_delay": 0,
+    "Start_cost_per_MW": 0,
+    "Cost_per_MMBtu": 2,
+    "CO2_content_tons_per_MMBtu": 5,
+    "Cap_size": 2,
+    "Heat_rate_MMBTU_per_MWh": 2,
+    "distance_mile": 4,
+    "Line_Max_Reinforcement_MW": 0,
+    "distance_miles": 1,
+    "distance_km": 1,
+}
 
 
 def add_emission_policies(transmission_df, settings, DistrZones=None):
@@ -43,6 +69,12 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
 
     policies = load_policy_scenarios(settings)
     year_case_policy = policies.loc[(case_id, model_year), :]
+
+    # Bug where multiple regions for a case will return this as a df, even if the policy
+    # for this case applies to all regions (code below expects a Series)
+    ycp_shape = year_case_policy.shape
+    if ycp_shape[0] == 1 and len(ycp_shape) > 1:
+        year_case_policy = year_case_policy.squeeze()  # convert to series
 
     zones = settings["model_regions"]
     zone_num_map = {
@@ -97,10 +129,12 @@ def add_misc_gen_values(gen_clusters, settings):
         # resource_misc_values = misc_values.loc[misc_values["Resource"] == resource, :].dropna()
 
         for col in misc_values.columns:
+            if col == "Resource":
+                continue
             value = misc_values.loc[misc_values["Resource"] == resource, col].values[0]
             if value != "skip":
                 gen_clusters.loc[
-                    gen_clusters["Resource"].str.contains(resource), col
+                    gen_clusters["Resource"].str.contains(resource, case=False), col
                 ] = value
 
     return gen_clusters
@@ -139,6 +173,13 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     genx_settings = load_settings(settings["genx_settings_fn"])
     policies = load_policy_scenarios(settings)
     year_case_policy = policies.loc[(case_id, model_year), :]
+
+    # Bug where multiple regions for a case will return this as a df, even if the policy
+    # for this case applies to all regions (code below expects a Series)
+    ycp_shape = year_case_policy.shape
+    if ycp_shape[0] == 1 and len(ycp_shape) > 1:
+        year_case_policy = year_case_policy.squeeze()  # convert to series
+
     if settings.get("distributed_gen_profiles_fn"):
         dg_generation = make_distributed_gen_profiles(pudl_engine, settings)
         total_dg_gen = dg_generation.sum().sum()
@@ -164,7 +205,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     if float(year_case_policy["RPS"]) > 0:
         # print(total_dg_gen)
         # print(year_case_policy["RPS"])
-        if policies.loc[(case_id, model_year), "region"] == "all":
+        if policies.loc[(case_id, model_year), "region"].all() == "all":
             genx_settings["RPS"] = 3
             genx_settings["RPS_Adjustment"] = float((1 - RPS) * total_dg_gen)
         else:
@@ -175,7 +216,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
         genx_settings["RPS_Adjustment"] = 0
 
     if float(year_case_policy["CES"]) > 0:
-        if policies.loc[(case_id, model_year), "region"] == "all":
+        if policies.loc[(case_id, model_year), "region"].all() == "all":
             genx_settings["CES"] = 3
 
             # This is a little confusing but for partial CES
@@ -304,10 +345,18 @@ def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFram
         raise KeyError(
             "The parameter 'tx_line_loss_100_miles' is required in your settings file."
         )
+    if "distance_mile" in transmission.columns:
+        distance_col = "distance_mile"
+    elif "distance_km" in transmission.columns:
+        distance_col = "distance_km"
+        loss_per_100_miles *= 0.62137
+        logger.info("Line loss per 100 miles was converted to km.")
+    else:
+        raise KeyError("No distance column is available in the transmission dataframe")
     loss_per_100_miles = settings["tx_line_loss_100_miles"]
     transmission["Line_Loss_Percentage"] = (
-        transmission["distance_mile"] / 100 * loss_per_100_miles
-    ).round(4)
+        transmission[distance_col] / 100 * loss_per_100_miles
+    )
 
     return transmission
 
@@ -425,12 +474,57 @@ def network_max_reinforcement(
     return transmission
 
 
-def set_int_cols(df):
+def set_int_cols(df: pd.DataFrame, cols: list = None) -> pd.DataFrame:
+    """Set values of some dataframe columns to integers.
 
-    df["Up_time"] = df["Up_time"].fillna(0).astype(int)
-    df["Down_time"] = df["Down_time"].fillna(0).astype(int)
-    df["Max_DSM_delay"] = df["Max_DSM_delay"].fillna(0).astype(int)
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe.
+    cols : list, optional
+        Columns to set as integer, by default None. If none, will use
+        `powergenome.GenX.INT_COLS`.
 
+    Returns
+    -------
+    pd.DataFrame
+        Input dataframe with some columns set as integer.
+    """
+    if not cols:
+        cols = INT_COLS
+
+    cols = [c for c in cols if c in df.columns]
+
+    for col in cols:
+        df[col] = df[col].fillna(0).astype(int)
+    return df
+
+
+def round_col_values(
+    df: pd.DataFrame, col_round_val: Dict[str, int] = None
+) -> pd.DataFrame:
+    """Round values in columns to a specific sigfig.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe.
+    col_round_val : Dict, optional
+        Dictionary with key values of column labels and integer values of the number of
+        sigfigs, by default None.
+
+    Returns
+    -------
+    pd.DataFrame
+        Same dataframe as input but with rounded values in specified columns.
+    """
+    if not col_round_val:
+        col_round_val = COL_ROUND_VALUES
+
+    col_round_val = {k: v for k, v in col_round_val.items() if k in df.columns}
+
+    for col, value in col_round_val.items():
+        df[col] = df[col].fillna(0).round(value)
     return df
 
 
@@ -511,3 +605,60 @@ def calc_emissions_ces_level(network_df, load_df, settings):
         return network_df
     else:
         return network_df
+
+
+def fix_min_power_values(
+    resource_df: pd.DataFrame,
+    gen_profile_df: pd.DataFrame,
+    min_power_col: str = "Min_power",
+) -> pd.DataFrame:
+    """Fix potentially erroneous min power values for resources with variable generation
+    profiles. Any min power values that are higher than the lowest hourly generation
+    will be adjusted down to match the lowest hourly generation.
+
+
+    Parameters
+    ----------
+    resource_df : pd.DataFrame
+        Records of generators/resources. Row order should match column order of
+        `gen_profile_df`.
+    gen_profile_df : pd.DataFrame
+        Hourly generation values for all generators/resources. Column order should match
+        row order in `resource_df`.
+    min_power_col : str
+        Column in `resource_df` that stores the minimum generation power of each
+        resource. Default value is "Min_power".
+
+    Returns
+    -------
+    pd.DataFrame
+        A modified version of `resource_df`. Any rows with minimum power larger than
+        hourly generation are adjusted down to match the smallest hourly generation.
+    """
+    if min_power_col not in resource_df.columns:
+        raise ValueError(
+            f"When variable generation values against resource min power, the column "
+            f"{min_power_col} was not found in the resource dataframe."
+        )
+
+    if resource_df.shape[0] != gen_profile_df.shape[1]:
+        raise ValueError(
+            "When trying to fix min power values, the number of resource dataframe rows"
+            f" ({resource_df.shape[0]} rows) does not match the number of variable "
+            f"profiles columns ({gen_profile_df.shape[1]} columns)."
+        )
+
+    resource_df = resource_df.reset_index(drop=True)
+    resource_df.loc[:, "unadjusted_min_power"] = resource_df.loc[:, min_power_col]
+    _gen_profile = gen_profile_df.copy(deep=True)
+    _gen_profile
+    gen_profile_min = _gen_profile.min().reset_index(drop=True)
+    mask = (resource_df[min_power_col].fillna(0) > gen_profile_min).values
+
+    logger.info(
+        f"{sum(mask)} resources have {min_power_col} larger than hourly generation."
+    )
+
+    resource_df.loc[mask, min_power_col] = gen_profile_min[mask].round(3)
+
+    return resource_df

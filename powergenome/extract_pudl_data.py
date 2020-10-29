@@ -154,7 +154,9 @@ def main():
     ipm_regions = pd.read_sql_table("regions_entity_epaipm", pudl_engine)[
         "region_id_epaipm"
     ]
-    all_valid_regions = ipm_regions.tolist() + list(settings["region_aggregations"])
+    all_valid_regions = ipm_regions.tolist() + list(
+        settings.get("region_aggregations", {})
+    )
     good_regions = [region in all_valid_regions for region in settings["model_regions"]]
 
     # assert all(good_regions), logger.warning(

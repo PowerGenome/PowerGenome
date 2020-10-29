@@ -365,9 +365,6 @@ data_years:
 
 target_usd_year: 2017
 
-# used for shifting IPM demand profiles, which are in PST
-target_region_pst_offset: -1
-
 # CAPACITY TYPE
 capacity_col: winter_capacity_mw
 
@@ -390,6 +387,7 @@ model_regions:
   - CA_S
   - WECC_AZ
 
+# Comment out this setting if no aggregated regions are included in the study.
 region_aggregations:
   CA_N: [WEC_CALN, WEC_BANC]
   CA_S: [WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
@@ -695,10 +693,6 @@ alt_atb_cap_recovery_years:
 atb_existing_year: 2018
 atb_usd_year: 2017 # From Capex figure in atb documentation https://atb.nrel.gov/electricity/2019/summary.html
 
-# Assume that O&M for existing plants is higher than for new builds by both the ratio
-# of heat rates and a multiplier
-existing_om_multiplier: 1.0
-
 # ATB uses an average of conventional and advanced techs. We only want advanced. To use
 # standard ATB values set multipliers to 1.
 # Heat rate multipliers are an average of "heat rate" and "final heat rate" multipliers.
@@ -767,10 +761,6 @@ eia_atb_tech_map:
   Natural Gas Steam Turbine: Coal_newAvgCF # No gas steam turbines in ATB, using coal instead
   Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
 
-# NEMS has O&M (including capex) for existing generators. Boolean, true or false.
-use_nems_coal_ng_om: true
-
-
 # Offshore wind in the west will be floating - OTRG10 maybe.
 # Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
 atb_new_gen:
@@ -837,10 +827,6 @@ renewables_clusters:
     min_capacity: 100000
     cap_multiplier: 0.2
 
-# How much of the theoretical
-wind_pv_fraction_developable: 0.5
-
-
 # Fuel consumption for start-up events (mmbtu/MW) from Lew et al 2013,
 # Finding Flexibility: Cycling the Conventional Fleet
 startup_fuel_use:
@@ -877,8 +863,8 @@ cost_multiplier_region_map:
   RMRG: [WECC_CO]
   BASN: [WECC_ID, WECC_WY, WECC_UT, WECC_NNV]
   NWPP: [WECC_PNW, WECC_MT]
-  CANO: [WEC_CALN, WEC_BANC, CA_N, CA_S]
-  CASO: [WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE]
+  CANO: [WEC_CALN, WEC_BANC, CA_N]
+  CASO: [WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE, CA_S]
   SRSG: [WECC_AZ, WECC_NM, WECC_SNV]
 
 # The keys are technologies listed in EIA's 2016 capital cost assumptions document
@@ -971,7 +957,7 @@ historical_load_region_maps:
   MWRCW: [MIS_MAPP, SPP_WAUE, SPP_NEBR, MIS_MIDA, MIS_IA, MIS_MNWI]
   NPCCNE: [NENG_ME, NENG_CT, NENGREST]
   NPCCNYWE: [NY_Z_J]
-  NPCCL: [NY_Z_K]
+  NPCCLI: [NY_Z_K]
   NPCCUPNY: [
     NY_Z_A,
     NY_Z_B,
@@ -980,11 +966,11 @@ historical_load_region_maps:
     NY_Z_F,
     NY_Z_G-I,
   ]
-  RFCET: [PJM_WMAC, PJM_EMAC, PJM_SMAC, PJM_PENE]
+  RFCET: [PJM_WMAC, PJM_EMAC, PJM_SMAC, PJM_PENE, PJM_Dom]
   RFCMI: [MIS_LMI]
   RFCWT: [PJM_West, PJM_AP, PJM_ATSI, PJM_COMD]
   SERCDLT: [MIS_WOTA, MIS_LA, MIS_AMSO, MIS_AR]
-  SERCGW: [MIS_MO, S_D_AECI, MIS_IL]
+  SERCGW: [MIS_MO, S_D_AECI, MIS_IL, MIS_INKY]
   SERCSOES: [S_SOU]
   SERCCNT: [S_C_TVA, S_C_KY]
   SERCVC: [S_VACA]

@@ -469,7 +469,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
     ].astype(int)
     mod_results.loc[:, "Var_OM_cost_per_MWh"] = mod_results.loc[
         :, "Var_OM_cost_per_MWh"
-    ].round(1)
+    ]
 
     return mod_results
 
@@ -871,7 +871,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     results = results.fillna(0)
     results[int_cols] = results[int_cols].astype(int)
     results["Var_OM_cost_per_MWh"] = (
-        results["Var_OM_cost_per_MWh"].astype(float).round(1)
+        results["Var_OM_cost_per_MWh"].astype(float)
     )
 
     return results
@@ -924,8 +924,8 @@ def add_renewables_clusters(
         df["region"] == region
     )
     cdfs = []
-    if region in settings["region_aggregations"]:
-        ipm_regions = settings["region_aggregations"][region]
+    if region in settings.get("region_aggregations", {}):
+        ipm_regions = settings.get("region_aggregations", {})[region]
     else:
         ipm_regions = [region]
     for scenario in settings.get("renewables_clusters", []):
@@ -967,6 +967,14 @@ def add_renewables_clusters(
                     + f" less than minimum ({capacity} < {scenario['min_capacity']} MW)"
                 )
         row = df[df["technology"] == technology].to_dict("records")[0]
+        new_tech_name = "_".join(
+            [
+                str(v)
+                for k, v in scenario.items()
+                if k not in ["region", "technology", "max_clusters", "min_capacity"]
+            ]
+        )
+        clusters["technology"] = clusters["technology"] + "_" + new_tech_name
         kwargs = {k: v for k, v in row.items() if k not in clusters}
         cdfs.append(clusters.assign(**kwargs))
     return pd.concat([df[~mask]] + cdfs, sort=False)

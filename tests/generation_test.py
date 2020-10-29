@@ -126,7 +126,7 @@ def test_fill_missing_tech_descriptions(generators_eia860_data):
 def test_label_small_hyro(
     generators_eia860_data, test_settings, plant_region_map_ipm_data
 ):
-    region_agg_map = reverse_dict_of_lists(test_settings["region_aggregations"])
+    region_agg_map = reverse_dict_of_lists(test_settings.get("region_aggregations", {}))
     model_region_map_df = map_agg_region_names(
         df=plant_region_map_ipm_data,
         region_agg_map=region_agg_map,
