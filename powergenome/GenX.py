@@ -2,6 +2,8 @@
 
 from itertools import product
 import logging
+from pathlib import Path
+from typing import Dict
 import pandas as pd
 
 from powergenome.external_data import (
@@ -15,6 +17,31 @@ from powergenome.util import load_settings
 from powergenome.nrelatb import investment_cost_calculator
 
 logger = logging.getLogger(__name__)
+
+INT_COLS = [
+    "Inv_cost_per_MWyr",
+    "Fixed_OM_cost_per_MWyr",
+    "Inv_cost_per_MWhyr",
+    "Fixed_OM_cost_per_MWhyr",
+    "Line_Reinforcement_Cost_per_MW_yr",
+]
+
+COL_ROUND_VALUES = {
+    "Var_OM_cost_per_MWh": 2,
+    "Var_OM_cost_per_MWh_in": 2,
+    "Up_time": 0,
+    "Down_time": 0,
+    "Max_DSM_delay": 0,
+    "Start_cost_per_MW": 0,
+    "Cost_per_MMBtu": 2,
+    "CO2_content_tons_per_MMBtu": 5,
+    "Cap_size": 2,
+    "Heat_rate_MMBTU_per_MWh": 2,
+    "distance_mile": 4,
+    "Line_Max_Reinforcement_MW": 0,
+    "distance_miles": 1,
+    "distance_km": 1,
+}
 
 
 def add_emission_policies(transmission_df, settings, DistrZones=None):
@@ -42,6 +69,12 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
 
     policies = load_policy_scenarios(settings)
     year_case_policy = policies.loc[(case_id, model_year), :]
+
+    # Bug where multiple regions for a case will return this as a df, even if the policy
+    # for this case applies to all regions (code below expects a Series)
+    ycp_shape = year_case_policy.shape
+    if ycp_shape[0] == 1 and len(ycp_shape) > 1:
+        year_case_policy = year_case_policy.squeeze()  # convert to series
 
     zones = settings["model_regions"]
     zone_num_map = {
@@ -88,7 +121,7 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
 
 
 def add_misc_gen_values(gen_clusters, settings):
-    path = settings["input_folder"] / settings["misc_gen_inputs_fn"]
+    path = Path(settings["input_folder"]) / settings["misc_gen_inputs_fn"]
     misc_values = pd.read_csv(path)
     misc_values = misc_values.fillna("skip")
 
@@ -96,10 +129,12 @@ def add_misc_gen_values(gen_clusters, settings):
         # resource_misc_values = misc_values.loc[misc_values["Resource"] == resource, :].dropna()
 
         for col in misc_values.columns:
+            if col == "Resource":
+                continue
             value = misc_values.loc[misc_values["Resource"] == resource, col].values[0]
             if value != "skip":
                 gen_clusters.loc[
-                    gen_clusters["Resource"].str.contains(resource), col
+                    gen_clusters["Resource"].str.contains(resource, case=False), col
                 ] = value
 
     return gen_clusters
@@ -138,10 +173,14 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     genx_settings = load_settings(settings["genx_settings_fn"])
     policies = load_policy_scenarios(settings)
     year_case_policy = policies.loc[(case_id, model_year), :]
-    if (
-        "distributed_gen_profiles_fn" in settings
-        and settings["distributed_gen_profiles_fn"] is not None
-    ):
+
+    # Bug where multiple regions for a case will return this as a df, even if the policy
+    # for this case applies to all regions (code below expects a Series)
+    ycp_shape = year_case_policy.shape
+    if ycp_shape[0] == 1 and len(ycp_shape) > 1:
+        year_case_policy = year_case_policy.squeeze()  # convert to series
+
+    if settings.get("distributed_gen_profiles_fn"):
         dg_generation = make_distributed_gen_profiles(pudl_engine, settings)
         total_dg_gen = dg_generation.sum().sum()
     else:
@@ -166,7 +205,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     if float(year_case_policy["RPS"]) > 0:
         # print(total_dg_gen)
         # print(year_case_policy["RPS"])
-        if policies.loc[(case_id, model_year), "region"] == "all":
+        if policies.loc[(case_id, model_year), "region"].all() == "all":
             genx_settings["RPS"] = 3
             genx_settings["RPS_Adjustment"] = float((1 - RPS) * total_dg_gen)
         else:
@@ -177,11 +216,11 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
         genx_settings["RPS_Adjustment"] = 0
 
     if float(year_case_policy["CES"]) > 0:
-        if policies.loc[(case_id, model_year), "region"] == "all":
+        if policies.loc[(case_id, model_year), "region"].all() == "all":
             genx_settings["CES"] = 3
 
             # This is a little confusing but for partial CES
-            if settings["partial_ces"] is True:
+            if settings.get("partial_ces"):
                 genx_settings["CES_Adjustment"] = 0
             else:
                 genx_settings["CES_Adjustment"] = float((1 - CES) * total_dg_gen)
@@ -193,7 +232,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
         genx_settings["CES_Adjustment"] = 0
 
     # Don't wrap when time domain isn't reduced
-    if settings["reduce_time_domain"] is False:
+    if not settings.get("reduce_time_domain"):
         genx_settings["OperationWrapping"] = 0
 
     genx_settings["case_id"] = case_id
@@ -206,7 +245,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
 
     # Load user defined values for the genx settigns file. This overrides the
     # complicated logic above.
-    if "case_genx_settings_fn" in settings:
+    if settings.get("case_genx_settings_fn"):
         user_genx_settings = load_user_genx_settings(settings)
         user_case_settings = user_genx_settings.loc[(case_id, model_year), :]
         for key, value in user_case_settings.items():
@@ -222,13 +261,13 @@ def reduce_time_domain(
 
     demand_segments = load_demand_segments(settings)
 
-    if settings["reduce_time_domain"]:
+    if settings.get("reduce_time_domain"):
         days = settings["time_domain_days_per_period"]
         time_periods = settings["time_domain_periods"]
         include_peak_day = settings["include_peak_day"]
         load_weight = settings["demand_weight_factor"]
 
-        results, rep_point, cluster_weight = kmeans_time_clustering(
+        results, _, _ = kmeans_time_clustering(
             resource_profiles=resource_profiles,
             load_profiles=load_profiles,
             days_in_group=days,
@@ -242,6 +281,7 @@ def reduce_time_domain(
         reduced_resource_profile.index.name = "Resource"
         reduced_resource_profile.index = range(1, len(reduced_resource_profile) + 1)
         reduced_load_profile = results["load_profiles"]
+        long_duration_storage = results["long_duration_storage"]
 
         time_index = pd.Series(data=reduced_load_profile.index + 1, name="Time_index")
         sub_weights = pd.Series(
@@ -262,7 +302,7 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return reduced_resource_profile, reduced_load_output
+        return reduced_resource_profile, reduced_load_output, long_duration_storage
 
     else:
         time_index = pd.Series(data=range(1, 8761), name="Time_index")
@@ -283,55 +323,76 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return resource_profiles, load_output
+        return resource_profiles, load_output, None
 
 
-def network_line_loss(transmission, settings):
+def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFrame:
     """Add line loss percentage for each network line between regions.
 
     Parameters
     ----------
-    transmission : DataFrame
+    transmission : pd.DataFrame
         One network line per row with a column "distance_mile"
     settings : dict
         User-defined settings with a parameter "tx_line_loss_100_miles"
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         Same as input but with the new column 'Line_Loss_Percentage'
     """
     if "tx_line_loss_100_miles" not in settings:
         raise KeyError(
             "The parameter 'tx_line_loss_100_miles' is required in your settings file."
         )
+    if "distance_mile" in transmission.columns:
+        distance_col = "distance_mile"
+    elif "distance_km" in transmission.columns:
+        distance_col = "distance_km"
+        loss_per_100_miles *= 0.62137
+        logger.info("Line loss per 100 miles was converted to km.")
+    else:
+        raise KeyError("No distance column is available in the transmission dataframe")
     loss_per_100_miles = settings["tx_line_loss_100_miles"]
     transmission["Line_Loss_Percentage"] = (
-        transmission["distance_mile"] / 100 * loss_per_100_miles
-    ).round(4)
+        transmission[distance_col] / 100 * loss_per_100_miles
+    )
 
     return transmission
 
 
-def network_reinforcement_cost(transmission, settings):
+def network_reinforcement_cost(
+    transmission: pd.DataFrame, settings: dict
+) -> pd.DataFrame:
     """Add transmission line reinforcement investment costs (per MW-mile-year)
 
     Parameters
     ----------
-    transmission : DataFrame
+    transmission : pd.DataFrame
         One network line per row with columns "Transmission Path Name" and
-        "distance_mile"
+        "distance_mile".
     settings : dict
-        User-defined settings with parameters "tx_reinforcement_cost_mw_mile",
-        "tx_reinforcement_wacc", and "tx_reinforcement_investment_years"
+        User-defined settings with dictionary "transmission_investment_cost.tx" with
+        keys "capex_mw_mile", "wacc", and "investment_years".
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         Same as input but with the new column 'Line_Reinforcement_Cost_per_MW_yr'
     """
 
-    cost_dict = settings["tx_reinforcement_cost_mw_mile"]
+    cost_dict = (
+        settings.get("transmission_investment_cost", {})
+        .get("tx", {})
+        .get("capex_mw_mile")
+    )
+    if not cost_dict:
+        raise KeyError(
+            "No value for transmission reinforcement costs is included in the settings."
+            " These costs are included under transmission_investment_costs.tx."
+            "capex_mw_mile.<model_region>. See the `test_settings.yml` file for an "
+            "example."
+        )
     origin_region_cost = (
         transmission["Transmission Path Name"].str.split("_to_").str[0].map(cost_dict)
     )
@@ -341,9 +402,28 @@ def network_reinforcement_cost(transmission, settings):
 
     # Average the costs per mile between origin and destination regions
     line_capex = (origin_region_cost + dest_region_cost) / 2
-    line_wacc = settings["tx_reinforcement_wacc"]
-    line_inv_period = settings["tx_reinforcement_investment_years"]
-
+    line_wacc = (
+        settings.get("transmission_investment_cost", {}).get("tx", {}).get("wacc")
+    )
+    if not line_wacc:
+        raise KeyError(
+            "No value for the transmission weighted average cost of capital (wacc) is "
+            "included in the settings."
+            "This numeric value is included under transmission_investment_costs.tx."
+            "wacc. See the `test_settings.yml` file for an "
+            "example."
+        )
+    line_inv_period = (
+        settings.get("transmission_investment_cost", {})
+        .get("tx", {})
+        .get("investment_years")
+    )
+    if not line_inv_period:
+        raise KeyError(
+            "No value for the transmission investment period is included in the settings."
+            "This numeric value is included under transmission_investment_costs.tx."
+            "investment_years. See the `test_settings.yml` file for an example."
+        )
     line_inv_cost = (
         investment_cost_calculator(line_capex, line_wacc, line_inv_period)
         * transmission["distance_mile"]
@@ -354,24 +434,35 @@ def network_reinforcement_cost(transmission, settings):
     return transmission
 
 
-def network_max_reinforcement(transmission, settings):
+def network_max_reinforcement(
+    transmission: pd.DataFrame, settings: dict
+) -> pd.DataFrame:
     """Add the maximum amount that transmission lines between regions can be reinforced
     in a planning period.
 
     Parameters
     ----------
-    transmission : DataFrame
+    transmission : pd.DataFrame
         One network line per row with the column "Line_Max_Flow_MW"
     settings : dict
         User-defined settings with the parameter "Line_Max_Reinforcement_MW"
 
     Returns
     -------
-    [type]
-        [description]
+    pd.DataFrame
+        A copy of the input transmission constraint dataframe with a new column
+        `Line_Max_Reinforcement_MW`.
     """
 
-    max_expansion = settings["tx_expansion_per_period"]
+    max_expansion = settings.get("tx_expansion_per_period")
+
+    if not max_expansion:
+        raise KeyError(
+            "No value for the transmission expansion allowed in this model period is "
+            "included in the settings."
+            "This numeric value is included under tx_expansion_per_period. See the "
+            "`test_settings.yml` file for an example."
+        )
 
     transmission.loc[:, "Line_Max_Reinforcement_MW"] = (
         transmission.loc[:, "Line_Max_Flow_MW"] * max_expansion
@@ -383,40 +474,84 @@ def network_max_reinforcement(transmission, settings):
     return transmission
 
 
-def set_int_cols(df):
+def set_int_cols(df: pd.DataFrame, cols: list = None) -> pd.DataFrame:
+    """Set values of some dataframe columns to integers.
 
-    df["Up_time"] = df["Up_time"].astype(int)
-    df["Down_time"] = df["Down_time"].astype(int)
-    df["Max_DSM_delay"] = df["Max_DSM_delay"].astype(int)
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe.
+    cols : list, optional
+        Columns to set as integer, by default None. If none, will use
+        `powergenome.GenX.INT_COLS`.
 
+    Returns
+    -------
+    pd.DataFrame
+        Input dataframe with some columns set as integer.
+    """
+    if not cols:
+        cols = INT_COLS
+
+    cols = [c for c in cols if c in df.columns]
+
+    for col in cols:
+        df[col] = df[col].fillna(0).astype(int)
+    return df
+
+
+def round_col_values(
+    df: pd.DataFrame, col_round_val: Dict[str, int] = None
+) -> pd.DataFrame:
+    """Round values in columns to a specific sigfig.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe.
+    col_round_val : Dict, optional
+        Dictionary with key values of column labels and integer values of the number of
+        sigfigs, by default None.
+
+    Returns
+    -------
+    pd.DataFrame
+        Same dataframe as input but with rounded values in specified columns.
+    """
+    if not col_round_val:
+        col_round_val = COL_ROUND_VALUES
+
+    col_round_val = {k: v for k, v in col_round_val.items() if k in df.columns}
+
+    for col, value in col_round_val.items():
+        df[col] = df[col].fillna(0).round(value)
     return df
 
 
 def calculate_partial_CES_values(gen_clusters, fuels, settings):
     gens = gen_clusters.copy()
-    if "partial_ces" in settings:
-        if settings["partial_ces"] is True:
-            assert set(fuels["Fuel"]) == set(gens["Fuel"])
-            fuel_emission_map = fuels.copy()
-            fuel_emission_map = fuel_emission_map.set_index("Fuel")
+    if settings.get("partial_ces"):
+        assert set(fuels["Fuel"]) == set(gens["Fuel"])
+        fuel_emission_map = fuels.copy()
+        fuel_emission_map = fuel_emission_map.set_index("Fuel")
 
-            gens["co2_emission_rate"] = gens["Heat_rate_MMBTU_per_MWh"] * gens[
-                "Fuel"
-            ].map(fuel_emission_map["CO2_content_tons_per_MMBtu"])
+        gens["co2_emission_rate"] = gens["Heat_rate_MMBTU_per_MWh"] * gens["Fuel"].map(
+            fuel_emission_map["CO2_content_tons_per_MMBtu"]
+        )
 
-            # Make the partial CES credit equal to 1 ton minus the emissions rate, but
-            # don't include coal plants
+        # Make the partial CES credit equal to 1 ton minus the emissions rate, but
+        # don't include coal plants
 
-            partial_ces = 1 - gens["co2_emission_rate"]
+        partial_ces = 1 - gens["co2_emission_rate"]
 
-            gens.loc[
-                ~(gens["Resource"].str.contains("coal"))
-                & (gens["STOR"] == 0)
-                & (gens["DR"] == 0),
-                # & ~(gens["Resource"].str.contains("battery"))
-                # & ~(gens["Resource"].str.contains("load_shifting")),
-                "CES",
-            ] = partial_ces.round(3)
+        gens.loc[
+            ~(gens["Resource"].str.contains("coal"))
+            & (gens["STOR"] == 0)
+            & (gens["DR"] == 0),
+            # & ~(gens["Resource"].str.contains("battery"))
+            # & ~(gens["Resource"].str.contains("load_shifting")),
+            "CES",
+        ] = partial_ces.round(3)
     # else:
     #     gen_clusters = add_genx_model_tags(gen_clusters, settings)
 
@@ -426,7 +561,6 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
 def check_min_power_against_variability(gen_clusters, resource_profile):
 
     min_gen_levels = resource_profile.min()
-    original_min_power = gen_clusters["Min_power"].copy()
 
     assert len(min_gen_levels) == len(
         gen_clusters
@@ -471,3 +605,60 @@ def calc_emissions_ces_level(network_df, load_df, settings):
         return network_df
     else:
         return network_df
+
+
+def fix_min_power_values(
+    resource_df: pd.DataFrame,
+    gen_profile_df: pd.DataFrame,
+    min_power_col: str = "Min_power",
+) -> pd.DataFrame:
+    """Fix potentially erroneous min power values for resources with variable generation
+    profiles. Any min power values that are higher than the lowest hourly generation
+    will be adjusted down to match the lowest hourly generation.
+
+
+    Parameters
+    ----------
+    resource_df : pd.DataFrame
+        Records of generators/resources. Row order should match column order of
+        `gen_profile_df`.
+    gen_profile_df : pd.DataFrame
+        Hourly generation values for all generators/resources. Column order should match
+        row order in `resource_df`.
+    min_power_col : str
+        Column in `resource_df` that stores the minimum generation power of each
+        resource. Default value is "Min_power".
+
+    Returns
+    -------
+    pd.DataFrame
+        A modified version of `resource_df`. Any rows with minimum power larger than
+        hourly generation are adjusted down to match the smallest hourly generation.
+    """
+    if min_power_col not in resource_df.columns:
+        raise ValueError(
+            f"When variable generation values against resource min power, the column "
+            f"{min_power_col} was not found in the resource dataframe."
+        )
+
+    if resource_df.shape[0] != gen_profile_df.shape[1]:
+        raise ValueError(
+            "When trying to fix min power values, the number of resource dataframe rows"
+            f" ({resource_df.shape[0]} rows) does not match the number of variable "
+            f"profiles columns ({gen_profile_df.shape[1]} columns)."
+        )
+
+    resource_df = resource_df.reset_index(drop=True)
+    resource_df.loc[:, "unadjusted_min_power"] = resource_df.loc[:, min_power_col]
+    _gen_profile = gen_profile_df.copy(deep=True)
+    _gen_profile
+    gen_profile_min = _gen_profile.min().reset_index(drop=True)
+    mask = (resource_df[min_power_col].fillna(0) > gen_profile_min).values
+
+    logger.info(
+        f"{sum(mask)} resources have {min_power_col} larger than hourly generation."
+    )
+
+    resource_df.loc[mask, min_power_col] = gen_profile_min[mask].round(3)
+
+    return resource_df

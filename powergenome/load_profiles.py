@@ -3,11 +3,17 @@ Hourly demand profiles
 """
 
 import logging
-
+from pathlib import Path
 import pandas as pd
 
-from powergenome.util import reverse_dict_of_lists, shift_wrap_profiles
+from powergenome.util import (
+    regions_to_keep,
+    reverse_dict_of_lists,
+    shift_wrap_profiles,
+    remove_feb_29,
+)
 from powergenome.external_data import make_demand_response_profiles
+from powergenome.eia_opendata import get_aeo_load
 
 logger = logging.getLogger(__name__)
 
@@ -15,21 +21,12 @@ logger = logging.getLogger(__name__)
 def make_load_curves(
     pudl_engine,
     settings,
-    pudl_table="load_curves_epaipm",
+    pudl_table="load_curves_ferc",
     settings_agg_key="region_aggregations",
 ):
-
-    # Settings has a dictionary of lists for regional aggregations. Need
-    # to reverse this to use in a map method.
-    region_agg_map = reverse_dict_of_lists(settings[settings_agg_key])
-
     # IPM regions to keep. Regions not in this list will be dropped from the
     # dataframe
-    keep_regions = [
-        x
-        for x in settings["model_regions"] + list(region_agg_map)
-        if x not in region_agg_map.values()
-    ]
+    keep_regions, region_agg_map = regions_to_keep(settings)
 
     # I'd rather use a sql query and only pull the regions of interest but
     # sqlalchemy doesn't allow table names to be parameterized.
@@ -61,80 +58,84 @@ def make_load_curves(
     lc_wide = load_curves_agg.unstack(level=0)
     lc_wide.columns = lc_wide.columns.droplevel()
 
-    pst_offset = settings["target_region_pst_offset"]
-
-    lc_wide = shift_wrap_profiles(lc_wide, pst_offset)
+    if len(lc_wide) == 8784:
+        lc_wide = remove_feb_29(lc_wide)
 
     lc_wide.index.name = "time_index"
-    lc_wide.index = lc_wide.index + 1
+    if lc_wide.index.min() == 0:
+        lc_wide.index = lc_wide.index + 1
 
     return lc_wide
 
 
-def add_load_growth(load_curves, settings):
+def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
+    keep_regions, region_agg_map = regions_to_keep(settings)
+    hist_region_map = reverse_dict_of_lists(settings["historical_load_region_maps"])
+    future_region_map = reverse_dict_of_lists(settings["future_load_region_map"])
 
-    load_map = reverse_dict_of_lists(settings["load_region_map"])
-
-    load_growth_map = {
-        ipm_region: settings["default_growth_rates"][load_region]
-        for ipm_region, load_region in load_map.items()
-    }
-
-    if settings["alt_growth_rate"] is not None:
-        for region, rate in settings["alt_growth_rate"].items():
-            load_growth_map[region] = rate
-
-    if "regular_load_growth_start_year" in settings.keys():
-        # historical load growth
-
-        demand_start = settings["aeo_hist_start_elec_demand"]
-        demand_end = settings["aeo_hist_end_elec_demand"]
-
-        if not all([key in demand_end.keys() for key in demand_start.keys()]):
-            raise KeyError(
-                "Error in keys for historical electricity demand. /n"
-                "Not all keys in 'aeo_hist_start_elec_demand' are also in "
-                "'aeo_hist_end_elec_demand'"
-            )
-
-        historic_growth_ratio = {
-            region: demand_end[region] / demand_start[region] for region in demand_start
-        }
-        historic_growth_map = {
-            ipm_region: historic_growth_ratio[load_region]
-            for ipm_region, load_region in load_map.items()
-        }
-
-        for region in load_curves["region_id_epaipm"].unique():
-            hist_growth_factor = historic_growth_map[region]
-            load_curves.loc[
-                load_curves["region_id_epaipm"] == region, "load_mw"
-            ] *= hist_growth_factor
-
-        # Don't grow load over years where we already have historical data
-        years_growth = (
-            settings["model_year"] - settings["regular_load_growth_start_year"]
+    hist_demand_start = {
+        ipm_region: get_aeo_load(
+            region=hist_region_map[ipm_region], aeo_year=2014, scenario_series="REF2014"
         )
-
-    else:
-        years_growth = settings["model_year"] - settings["default_load_year"]
-
-    load_growth_factor = {
-        region: (1 + rate) ** years_growth for region, rate in load_growth_map.items()
+        .set_index("year")
+        .loc[2012, "demand"]
+        for ipm_region in keep_regions
+    }
+    hist_demand_end = {
+        ipm_region: get_aeo_load(
+            region=hist_region_map[ipm_region], aeo_year=2019, scenario_series="REF2019"
+        )
+        .set_index("year")
+        .loc[2018, "demand"]
+        for ipm_region in keep_regions
     }
 
-    for region in load_curves["region_id_epaipm"].unique():
-        growth_factor = load_growth_factor[region]
-        load_curves.loc[
-            load_curves["region_id_epaipm"] == region, "load_mw"
-        ] *= growth_factor
+    load_growth_dict = {
+        ipm_region: get_aeo_load(
+            region=future_region_map[ipm_region],
+            aeo_year=settings.get("eia_aeo_year", 2020),
+            scenario_series="REF2020",
+        ).set_index("year")
+        for ipm_region in keep_regions
+    }
+
+    load_growth_start_map = {
+        ipm_region: _df.loc[
+            settings.get("regular_load_growth_start_year", 2019), "demand"
+        ]
+        for ipm_region, _df in load_growth_dict.items()
+    }
+
+    load_growth_end_map = {
+        ipm_region: _df.loc[settings["model_year"], "demand"]
+        for ipm_region, _df in load_growth_dict.items()
+    }
+
+    future_growth_factor = {
+        ipm_region: load_growth_end_map[ipm_region] / load_growth_start_map[ipm_region]
+        for ipm_region in keep_regions
+    }
+    hist_growth_factor = {
+        ipm_region: hist_demand_end[ipm_region] / hist_demand_start[ipm_region]
+        for ipm_region in keep_regions
+    }
+
+    years_growth = settings["model_year"] - settings["regular_load_growth_start_year"]
+
+    for region, rate in (settings.get("alt_growth_rate") or {}).items():
+        future_growth_factor[region] = (1 + rate) ** years_growth
+
+    for region in keep_regions:
+        load_curves.loc[load_curves["region_id_epaipm"] == region, "load_mw"] *= (
+            hist_growth_factor[region] * future_growth_factor[region]
+        )
 
     return load_curves
 
 
 def add_demand_response_resource_load(load_curves, settings):
 
-    dr_path = settings["input_folder"] / settings["demand_response_fn"]
+    dr_path = Path(settings["input_folder"]) / settings["demand_response_fn"]
     dr_types = settings["demand_response_resources"][settings["model_year"]].keys()
 
     dr_curves = make_demand_response_profiles(dr_path, list(dr_types)[0], settings)
@@ -166,24 +167,55 @@ def subtract_distributed_generation(load_curves, pudl_engine, settings):
     return load_curves
 
 
+def load_usr_demand_profiles(settings):
+    "Temp function to load user-generated demand profiles"
+    from powergenome.external_data import make_usr_demand_profiles
+
+    lp_path = settings["input_folder"] / settings["regional_load_fn"]
+    hourly_load_profiles = make_usr_demand_profiles(lp_path, settings)
+
+    if len(hourly_load_profiles) == 8784:
+        remove_feb_29(hourly_load_profiles)
+
+    return hourly_load_profiles
+
+
 def make_final_load_curves(
     pudl_engine,
     settings,
-    pudl_table="load_curves_epaipm",
+    pudl_table="load_curves_ferc",
     settings_agg_key="region_aggregations",
 ):
-    load_curves_before_dg = make_load_curves(
-        pudl_engine, settings, pudl_table, settings_agg_key
-    )
-
-    if "demand_response_fn" in settings.keys():
-        load_curves_dr = add_demand_response_resource_load(
-            load_curves_before_dg, settings
-        )
+    # Check if regional loads are supplied by the user
+    if settings.get("regional_load_fn"):
+        logger.info("Loading regional demand profiles from user")
+        load_curves_dr = load_usr_demand_profiles(settings)
+        if not settings.get("regional_load_includes_demand_response"):
+            if settings.get("demand_response_fn"):
+                logger.info("Adding DR profiles to user regional demand")
+                load_curves_dr = add_demand_response_resource_load(
+                    load_curves_dr, settings
+                )
+            else:
+                logger.warning(
+                    "The settings parameter 'regional_load_includes_demand_response' "
+                    f"is {settings.get('regional_load_includes_demand_response')}, so "
+                    "a filename is expected for 'demand_response_fn' in the settings "
+                    "file. No filename has been provided."
+                )
     else:
-        load_curves_dr = load_curves_before_dg
+        load_curves_before_dg = make_load_curves(
+            pudl_engine, settings, pudl_table, settings_agg_key
+        )
 
-    if "distributed_gen_profiles_fn" in settings.keys():
+        if settings.get("demand_response_fn"):
+            load_curves_dr = add_demand_response_resource_load(
+                load_curves_before_dg, settings
+            )
+        else:
+            load_curves_dr = load_curves_before_dg
+
+    if settings.get("distributed_gen_profiles_fn"):
         final_load_curves = subtract_distributed_generation(
             load_curves_dr, pudl_engine, settings
         )
@@ -223,7 +255,7 @@ def make_distributed_gen_profiles(pudl_engine, settings):
 
     year = settings["model_year"]
     dg_profiles_path = (
-        settings["input_folder"] / settings["distributed_gen_profiles_fn"]
+        Path(settings["input_folder"]) / settings["distributed_gen_profiles_fn"]
     )
 
     hourly_norm_profiles = pd.read_csv(dg_profiles_path)
@@ -233,10 +265,10 @@ def make_distributed_gen_profiles(pudl_engine, settings):
     dg_calc_values = settings["distributed_gen_values"]
 
     assert (
-        year in dg_calc_values.keys()
+        year in dg_calc_values
     ), f"The years in settings parameter 'distributed_gen_values' do not match the model years."
 
-    for region, values in dg_calc_values[year].items():
+    for region in dg_calc_values[year]:
         assert region in set(profile_regions), (
             "The profile regions in settings parameter 'distributed_gen_values' do not\n"
             f"match the regions in {settings['distributed_gen_profiles_fn']} for year {year}"
@@ -266,6 +298,9 @@ def make_distributed_gen_profiles(pudl_engine, settings):
                 "values of 'capapacity' or 'fraction_load' for each region.\n"
                 f"The value in your settings file is {method}"
             )
+
+    if len(dg_hourly_gen) == 8784:
+        remove_feb_29(dg_hourly_gen)
 
     return dg_hourly_gen
 

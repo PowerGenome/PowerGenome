@@ -5,10 +5,11 @@ Transmission constraints between regions and line distance
 import itertools
 import logging
 from math import asin, cos, radians, sin, sqrt
+from pathlib import Path
 
 import pandas as pd
 
-from powergenome.util import map_agg_region_names, reverse_dict_of_lists
+from powergenome.util import map_agg_region_names, reverse_dict_of_lists, find_centroid
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +31,19 @@ def agg_transmission_constraints(
 
     logger.info("Loading transmission constraints from PUDL")
     transmission_constraints_table = pd.read_sql_table(pudl_table, con=pudl_engine)
+
+    if settings.get("user_transmission_constraints_fn"):
+        user_tx_constraints = pd.read_csv(
+            Path(settings["input_folder"])
+            / settings["user_transmission_constraints_fn"]
+        )
+
+        transmission_constraints_table = pd.concat(
+            [transmission_constraints_table, user_tx_constraints]
+        )
     # Settings has a dictionary of lists for regional aggregations. Need
     # to reverse this to use in a map method.
-    region_agg_map = reverse_dict_of_lists(settings[settings_agg_key])
+    region_agg_map = reverse_dict_of_lists(settings.get(settings_agg_key))
 
     # IPM regions to keep. Regions not in this list will be dropped from the
     # dataframe
@@ -78,6 +89,12 @@ def agg_transmission_constraints(
         index=transmission_constraints_table.reindex(combos).dropna().index,
         data=0,
     )
+
+    if tc_joined.empty:
+        logger.info(f"No transmission lines exist between model regions {combos}")
+        tc_joined["Transmission Path Name"] = None
+        return tc_joined.reset_index(drop=True)
+
     tc_joined["Network_lines"] = range(1, len(tc_joined) + 1)
     tc_joined["Line_Max_Flow_MW"] = transmission_constraints_table.reindex(
         combos
@@ -87,7 +104,7 @@ def agg_transmission_constraints(
     reverse_tc.index = tc_joined.index
     tc_joined["Line_Min_Flow_MW"] = reverse_tc
 
-    for idx, row in tc_joined.iterrows():
+    for idx, _ in tc_joined.iterrows():
         tc_joined.loc[idx, idx[0]] = 1
         tc_joined.loc[idx, idx[-1]] = -1
 
@@ -152,8 +169,8 @@ def single_line_distance(line_name, region_centroids, units):
     """
 
     start, end = line_name.split("_to_")
-    start_lat, start_lon = getXY(region_centroids[start])
-    end_lat, end_lon = getXY(region_centroids[end])
+    start_lon, start_lat = getXY(region_centroids[start])
+    end_lon, end_lat = getXY(region_centroids[end])
     distance = haversine(start_lon, start_lat, end_lon, end_lat, units=units)
 
     return distance
@@ -165,8 +182,8 @@ def transmission_line_distance(
     logger.info("Calculating transmission line distance")
     ipm_shapefile["geometry"] = ipm_shapefile.buffer(0.01)
     model_polygons = ipm_shapefile.dissolve(by="model_region")
-    model_polygons = model_polygons.to_crs({"init": "epsg:4326"})
-    region_centroids = model_polygons.centroid
+    model_polygons = model_polygons.to_crs(epsg=4326)
+    region_centroids = find_centroid(model_polygons)
 
     distances = [
         single_line_distance(line_name, region_centroids, units=units)
@@ -175,6 +192,6 @@ def transmission_line_distance(
     trans_constraints_df[f"distance_{units}"] = distances
     trans_constraints_df[f"distance_{units}"] = trans_constraints_df[
         f"distance_{units}"
-    ].round(1)
+    ]
 
     return trans_constraints_df

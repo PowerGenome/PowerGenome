@@ -18,9 +18,9 @@ def fuel_cost_table(fuel_costs, generators, settings):
 
     emission_dict = settings["fuel_emission_factors"]
     fuel_emission_map = {}
-    for full_fuel_name in fuel_price_map.keys():
+    for full_fuel_name in fuel_price_map:
         base_fuel_name = full_fuel_name.split("_")[-1]
-        if base_fuel_name in emission_dict.keys():
+        if base_fuel_name in emission_dict:
             fuel_emission_map[full_fuel_name] = emission_dict[base_fuel_name]
         else:
             fuel_emission_map[full_fuel_name] = 0
@@ -38,10 +38,8 @@ def fuel_cost_table(fuel_costs, generators, settings):
     # Slow to loop through all of the rows this way but the df shouldn't be too long
     fuel_df = fuel_df.apply(adjust_ccs_fuels, axis=1, settings=settings)
     fuel_df = add_carbon_tax(fuel_df, settings)
-    fuel_df["Cost_per_MMBtu"] = fuel_df["Cost_per_MMBtu"].round(2)
-    fuel_df["CO2_content_tons_per_MMBtu"] = fuel_df["CO2_content_tons_per_MMBtu"].round(
-        5
-    )
+    fuel_df["Cost_per_MMBtu"] = fuel_df["Cost_per_MMBtu"]
+    fuel_df["CO2_content_tons_per_MMBtu"] = fuel_df["CO2_content_tons_per_MMBtu"]
     fuel_df.fillna(0, inplace=True)
 
     return fuel_df
@@ -70,10 +68,7 @@ def adjust_ccs_fuels(ccs_fuel_row, settings):
 
 def add_carbon_tax(fuel_df, settings):
 
-    if "carbon_tax" not in settings.keys():
-        ctax = 0
-    else:
-        ctax = settings["carbon_tax"]
+    ctax = settings.get("carbon_tax") or 0
 
     fuel_df.loc[:, "Cost_per_MMBtu"] = fuel_df.loc[:, "Cost_per_MMBtu"] + (
         fuel_df.loc[:, "CO2_content_tons_per_MMBtu"] * ctax

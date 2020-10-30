@@ -113,21 +113,24 @@ data/transformed_data/*
 *.zip
 
 # Ignore all vscode settings
-**/.vscode/settings.json
+**/.vscode
 *.code-workspace
 
 # Ignore figures
 *.png
 *.pdf
 
-# Ignore notebooks
+# Ignore notebooks, but not examples
 *.ipynb
 .DS_Store
+!/notebooks/*
 
 # Results files
 /results
+/example_system/test_system
 
 # Data files
 /data/eia/*
 /data/IPM Regions v617 04-05-17/*
 /data/random/*
+/data/resource_groups/*
