@@ -29,9 +29,6 @@ INT_COLS = [
 COL_ROUND_VALUES = {
     "Var_OM_cost_per_MWh": 2,
     "Var_OM_cost_per_MWh_in": 2,
-    "Up_time": 0,
-    "Down_time": 0,
-    "Max_DSM_delay": 0,
     "Start_cost_per_MW": 0,
     "Cost_per_MMBtu": 2,
     "CO2_content_tons_per_MMBtu": 5,
