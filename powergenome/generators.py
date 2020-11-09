@@ -2187,16 +2187,15 @@ class GeneratorClusters:
 
         self.units_model.loc[
             self.units_model.heat_rate_mmbtu_mwh > 35, "heat_rate_mmbtu_mwh"
-            ] = self.units_model.loc[
-            self.units_model.heat_rate_mmbtu_mwh > 35
-            ].index.map(
+        ] = self.units_model.loc[self.units_model.heat_rate_mmbtu_mwh > 35].index.map(
             self.prime_mover_hr_map
         )
 
         # Set negative heat rates to nan
         self.units_model.loc[
             (self.units_model.heat_rate_mmbtu_mwh < 0)
-            | (self.units_model.heat_rate_mmbtu_mwh > 35), "heat_rate_mmbtu_mwh"
+            | (self.units_model.heat_rate_mmbtu_mwh > 35),
+            "heat_rate_mmbtu_mwh",
         ] = np.nan
 
         # Fill any null heat rate values for each tech
@@ -2357,12 +2356,16 @@ class GeneratorClusters:
             if num_clusters[region][tech] != 0:
                 _df = calc_unit_cluster_values(grouped, self.settings, tech)
                 _df["region"] = region
-                _df['unit_id_pudl'] = '0'
+                _df["unit_id_pudl"] = "0"
                 df_1 = df.reset_index(drop=True)
                 EachClusterWeight = [None] * num_clusters[region][tech]
                 for k in range(num_clusters[region][tech]):
                     EachClusterWeight[k] = len(clusters.labels_[clusters.labels_ == k])
-                    _df['unit_id_pudl'][k+1] = list(df_1.loc[list(np.where(clusters.labels_==k)[0])]['unit_id_pudl'])
+                    _df["unit_id_pudl"][k + 1] = list(
+                        df_1.loc[list(np.where(clusters.labels_ == k)[0])][
+                            "unit_id_pudl"
+                        ]
+                    )
                 self.cluster_list.append(_df)
 
         # Save some data about individual units for easy access
@@ -2557,10 +2560,14 @@ class GeneratorClusters:
             "Heat_rate_MMBTU_per_MWh"
         ]
 
-        self.all_resources['CF']=0.0
-        for i in range(len(self.all_resources['R_ID'])):
-            if isinstance(self.all_resources['profile'][i], (collections.Sequence, np.ndarray)):
-                self.all_resources['CF'][i] = np.mean(self.all_resources['profile'][i].tolist())
+        self.all_resources["CF"] = 0.0
+        for p in range(len(self.all_resources["R_ID"])):
+            if isinstance(
+                self.all_resources["profile"][i], (collections.Sequence, np.ndarray)
+            ):
+                self.all_resources["CF"][i] = np.mean(
+                    self.all_resources["profile"][i].tolist()
+                )
 
         # Set Min_power of wind/solar to 0
         self.all_resources.loc[self.all_resources["DISP"] == 1, "Min_power"] = 0
