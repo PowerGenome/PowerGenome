@@ -2557,6 +2557,11 @@ class GeneratorClusters:
             "Heat_rate_MMBTU_per_MWh"
         ]
 
+        self.all_resources['CF']=0.0
+        for i in range(len(self.all_resources['R_ID'])):
+            if isinstance(self.all_resources['profile'][i], (collections.Sequence, np.ndarray)):
+                self.all_resources['CF'][i] = np.mean(self.all_resources['profile'][i].tolist())
+
         # Set Min_power of wind/solar to 0
         self.all_resources.loc[self.all_resources["DISP"] == 1, "Min_power"] = 0
 
