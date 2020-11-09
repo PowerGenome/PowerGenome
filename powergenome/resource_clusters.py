@@ -569,8 +569,17 @@ class ResourceGroup:
             mask[mask] = df.loc[mask, "lcoe"] <= max_lcoe
         if not mask.any():
             raise ValueError(f"No resources found or selected")
+        if tree:
+            # Only keep trees with one ore more base resources
+            selected = (
+                pd.Series(mask, index=df.index)
+                .groupby(df[tree])
+                .transform(lambda x: x.sum() > 0)
+            )
+            # Add non-base resources to selected trees
+            mask |= selected & ~base
         # Apply mask
-        df = df[mask | ~base] if tree else df[mask]
+        df = df[mask]
         # Prepare merge
         merge = copy.deepcopy(MERGE)
         # Prepare profiles
