@@ -1,5 +1,6 @@
 import collections
 from copy import deepcopy
+import logging
 import subprocess
 from typing import Dict, Tuple, Union
 
@@ -15,8 +16,10 @@ from pathlib import Path
 
 from powergenome.params import SETTINGS
 
+logger = logging.getLogger(__name__)
 
-def load_settings(path):
+
+def load_settings(path: Union[str, Path]) -> dict:
 
     with open(path, "r") as f:
         #     settings = yaml.safe_load(f)
@@ -24,6 +27,23 @@ def load_settings(path):
         settings = yaml.load(f)
 
     return settings
+
+
+def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
+
+    ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pudl_engine)[
+        "region_id_epaipm"
+    ].to_list()
+
+    for model_region, ipm_regions in settings["region_aggregations"].items():
+        for ipm_region in ipm_regions:
+            if ipm_region not in ipm_region_list:
+                s = f"""
+                *****************************
+                There is no IPM region {ipm_region}, which is listed in {model_region}"
+                *****************************
+                """
+                logger.warning(s)
 
 
 def init_pudl_connection(freq="YS"):
@@ -366,9 +386,9 @@ def build_scenario_settings(
                 # key is the category e.g. ccs_capex, case_value_dict is p1: mid
                 try:
                     case_value = case_value_dict[case_id]
-                    new_parameter = planning_year_settings_management[category][
-                        case_value
-                    ] or {}
+                    new_parameter = (
+                        planning_year_settings_management[category][case_value] or {}
+                    )
 
                     try:
                         settings_keys = list(flatten(new_parameter).keys())
