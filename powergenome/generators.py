@@ -2561,7 +2561,7 @@ class GeneratorClusters:
         ]
 
         self.all_resources["CF"] = 0.0
-        for p in range(len(self.all_resources["R_ID"])):
+        for i in range(len(self.all_resources["R_ID"])):
             if isinstance(
                 self.all_resources["profile"][i], (collections.Sequence, np.ndarray)
             ):
