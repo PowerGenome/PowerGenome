@@ -1,5 +1,6 @@
 import collections
 from copy import deepcopy
+import itertools
 import logging
 import subprocess
 from typing import Dict, Tuple, Union
@@ -35,16 +36,40 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
         "region_id_epaipm"
     ].to_list()
 
-    for model_region, ipm_regions in settings["region_aggregations"].items():
+    cost_mult_regions = list(
+        itertools.chain.from_iterable(settings["cost_multiplier_region_map"].values())
+    ) 
+
+    aeo_fuel_regions = list(
+        itertools.chain.from_iterable(settings["aeo_fuel_region_map"].values())
+    )
+
+    for agg_region, ipm_regions in settings["region_aggregations"].items():
         for ipm_region in ipm_regions:
             if ipm_region not in ipm_region_list:
                 s = f"""
-                *****************************
-                There is no IPM region {ipm_region}, which is listed in {model_region}"
-                *****************************
-                """
+    *****************************
+    There is no IPM region {ipm_region}, which is listed in {agg_region}"
+    *****************************
+    """
                 logger.warning(s)
 
+    for model_region in settings["model_regions"]:
+        if model_region not in cost_mult_regions:
+            s = f"""
+    *****************************
+    The model region {model_region} is not included in the settings parameter `cost_multiplier_region_map`"
+    *****************************
+            """
+            logger.warning(s)
+
+        if model_region not in aeo_fuel_regions:
+            s = f"""
+    *****************************
+    The model region {model_region} is not included in the settings parameter `aeo_fuel_region_map`"
+    *****************************
+            """
+            logger.warning(s)
 
 def init_pudl_connection(freq="YS"):
 
