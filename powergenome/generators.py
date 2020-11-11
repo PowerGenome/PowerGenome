@@ -2357,11 +2357,17 @@ class GeneratorClusters:
                 _df = calc_unit_cluster_values(grouped, self.settings, tech)
                 _df["region"] = region
                 _df["unit_id_pudl"] = "0"
+                _df["plant_id_eia"] = "0"
                 df_1 = df.reset_index(drop=True)
                 for k in range(num_clusters[region][tech]):
                     _df["unit_id_pudl"][k + 1] = list(
                         df_1.loc[list(np.where(clusters.labels_ == k)[0])][
                             "unit_id_pudl"
+                        ]
+                    )
+                    _df["plant_id_eia"][k + 1] = list(
+                        df_1.loc[list(np.where(clusters.labels_ == k)[0])][
+                            "plant_id_eia"
                         ]
                     )
                 self.cluster_list.append(_df)
