@@ -2187,16 +2187,15 @@ class GeneratorClusters:
 
         self.units_model.loc[
             self.units_model.heat_rate_mmbtu_mwh > 35, "heat_rate_mmbtu_mwh"
-            ] = self.units_model.loc[
-            self.units_model.heat_rate_mmbtu_mwh > 35
-            ].index.map(
+        ] = self.units_model.loc[self.units_model.heat_rate_mmbtu_mwh > 35].index.map(
             self.prime_mover_hr_map
         )
 
         # Set negative heat rates to nan
         self.units_model.loc[
             (self.units_model.heat_rate_mmbtu_mwh < 0)
-            | (self.units_model.heat_rate_mmbtu_mwh > 35), "heat_rate_mmbtu_mwh"
+            | (self.units_model.heat_rate_mmbtu_mwh > 35),
+            "heat_rate_mmbtu_mwh",
         ] = np.nan
 
         # Fill any null heat rate values for each tech
@@ -2357,6 +2356,13 @@ class GeneratorClusters:
             if num_clusters[region][tech] != 0:
                 _df = calc_unit_cluster_values(grouped, self.settings, tech)
                 _df["region"] = region
+                _df["plant_id_eia"] = (
+                    grouped.reset_index().groupby("cluster")["plant_id_eia"].apply(list)
+                )
+                _df["unit_id_pudl"] = (
+                    grouped.reset_index().groupby("cluster")["unit_id_pudl"].apply(list)
+                )
+
                 self.cluster_list.append(_df)
 
         # Save some data about individual units for easy access
@@ -2550,6 +2556,14 @@ class GeneratorClusters:
         self.all_resources["Heat_rate_MMBTU_per_MWh"] = self.all_resources[
             "Heat_rate_MMBTU_per_MWh"
         ]
+
+        self.all_resources = self.all_resources.reset_index(drop=True)
+        self.all_resources["variable_CF"] = 0.0
+        for i, p in enumerate(self.all_resources["profile"]):
+            if isinstance(
+                p, (collections.Sequence, np.ndarray)
+            ):
+                self.all_resources.loc[i, "variable_CF"] = np.mean(p)
 
         # Set Min_power of wind/solar to 0
         self.all_resources.loc[self.all_resources["DISP"] == 1, "Min_power"] = 0
