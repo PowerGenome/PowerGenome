@@ -2564,7 +2564,7 @@ class GeneratorClusters:
             "Heat_rate_MMBTU_per_MWh"
         ]
 
-        self.all_resources["CF"] = 0.0
+        self.all_resources["variable_CF"] = 0.0
         for i in range(len(self.all_resources["R_ID"])):
             if isinstance(
                 self.all_resources["profile"][i], (collections.Sequence, np.ndarray)
