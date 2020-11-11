@@ -31,6 +31,19 @@ def load_settings(path: Union[str, Path]) -> dict:
 
 
 def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
+    """Check for user errors in the settings file.
+
+    The YAML settings file is loaded as a dictionary object. It has many different parts
+    that need to have consistent values. This function checks a few (but not all!) of
+    the parameters for common errors or misspelled words.
+
+    Parameters
+    ----------
+    settings : dict
+        Parameters and values from the YAML settings file.
+    pudl_engine : sa.engine
+        Connection to the PUDL sqlite database.
+    """    
 
     ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pudl_engine)[
         "region_id_epaipm"
