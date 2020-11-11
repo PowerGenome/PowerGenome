@@ -2356,20 +2356,13 @@ class GeneratorClusters:
             if num_clusters[region][tech] != 0:
                 _df = calc_unit_cluster_values(grouped, self.settings, tech)
                 _df["region"] = region
-                _df["unit_id_pudl"] = "0"
-                _df["plant_id_eia"] = "0"
-                df_1 = df.reset_index(drop=True)
-                for k in range(num_clusters[region][tech]):
-                    _df["unit_id_pudl"][k + 1] = list(
-                        df_1.loc[list(np.where(clusters.labels_ == k)[0])][
-                            "unit_id_pudl"
-                        ]
-                    )
-                    _df["plant_id_eia"][k + 1] = list(
-                        df_1.loc[list(np.where(clusters.labels_ == k)[0])][
-                            "plant_id_eia"
-                        ]
-                    )
+                _df["plant_id_eia"] = (
+                    grouped.reset_index().groupby("cluster")["plant_id_eia"].apply(list)
+                )
+                _df["unit_id_pudl"] = (
+                    grouped.reset_index().groupby("cluster")["unit_id_pudl"].apply(list)
+                )
+
                 self.cluster_list.append(_df)
 
         # Save some data about individual units for easy access
@@ -2564,14 +2557,13 @@ class GeneratorClusters:
             "Heat_rate_MMBTU_per_MWh"
         ]
 
+        self.all_resources = self.all_resources.reset_index(drop=True)
         self.all_resources["variable_CF"] = 0.0
-        for i in range(len(self.all_resources["R_ID"])):
+        for i, p in enumerate(self.all_resources["profile"]):
             if isinstance(
-                self.all_resources["profile"][i], (collections.Sequence, np.ndarray)
+                p, (collections.Sequence, np.ndarray)
             ):
-                self.all_resources["CF"][i] = np.mean(
-                    self.all_resources["profile"][i].tolist()
-                )
+                self.all_resources.loc[i, "variable_CF"] = np.mean(p)
 
         # Set Min_power of wind/solar to 0
         self.all_resources.loc[self.all_resources["DISP"] == 1, "Min_power"] = 0
