@@ -158,8 +158,8 @@ def kmeans_time_clustering(
     # Create an empty list storing name of each data point
     EachClusterRepPoint = [None] * num_clusters
 
-    # creating a dataframe for storing long duration storage related data
-    long_duration_storage = pd.DataFrame(columns=["slot", "cluster"])
+    # creating a dataframe for storing the mapping between representative time period and the entire year
+    time_series_mapping = pd.DataFrame(columns=["slot", "cluster"])
 
     for k in range(num_clusters):
         # Number of points in kth cluster (i.e. label=0)
@@ -179,7 +179,7 @@ def kmeans_time_clustering(
 
         # Creating a list that matches each week to a representative week
         for j in range(EachClusterWeight[k]):
-            long_duration_storage = long_duration_storage.append(
+            time_series_mapping = time_series_mapping.append(
                 pd.DataFrame(
                     {
                         "slot": int(
@@ -193,7 +193,7 @@ def kmeans_time_clustering(
             )
 
     # appending the week representing peak load
-    long_duration_storage = long_duration_storage.append(
+    time_series_mapping = time_series_mapping.append(
         pd.DataFrame(
             {"slot": int(GroupingwithPeakLoad[0][1:]), "cluster": k + 2}, index=[0]
         ),
@@ -201,15 +201,15 @@ def kmeans_time_clustering(
     )
 
     # same CSV file that will be used in GenX
-    long_duration_storage = long_duration_storage.sort_values(by=["slot"])
-    long_duration_storage = long_duration_storage.reset_index(drop=True)
+    time_series_mapping = time_series_mapping.sort_values(by=["slot"])
+    time_series_mapping = time_series_mapping.reset_index(drop=True)
 
     #extract month corresponding to each time slot
-    long_duration_storage['Month']=0
-    for slot in long_duration_storage['slot']:
+    time_series_mapping['Month']=0
+    for slot in time_series_mapping['slot']:
         dayOfYear = days_in_group * slot
         d = datetime.datetime.strptime('{} {}'.format(dayOfYear, 2011),'%j %Y')
-        long_duration_storage['Month'][slot-1] = d.month
+        time_series_mapping['Month'][slot-1] = d.month
 
     # Storing selected groupings in a new data frame with appropriate dimensions
     # (E.g. load in GW)
@@ -335,7 +335,7 @@ def kmeans_time_clustering(
             "AnnualGenScaleFactor": ScaleFactor,  # Scale factor used to adjust load output to match annual generation of original data
             "RMSE": RMSE,  # Root mean square error between full year data and modeled full year data (duration curves)
             "AnnualProfile": FullLengthOutputs,
-            "long_duration_storage": long_duration_storage,
+            "time_series_mapping": time_series_mapping,
         },
         EachClusterRepPoint,
         EachClusterWeight,

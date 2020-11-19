@@ -397,7 +397,7 @@ def main():
                 (
                     reduced_resource_profile,
                     reduced_load_profile,
-                    long_duration_storage,
+                    time_series_mapping,
                 ) = reduce_time_domain(gen_variability, load, _settings)
                 write_results_file(
                     df=reduced_load_profile,
@@ -411,11 +411,11 @@ def main():
                     file_name="Generators_variability.csv",
                     include_index=True,
                 )
-                if long_duration_storage is not None:
+                if time_series_mapping is not None:
                     write_results_file(
-                        df=long_duration_storage,
+                        df=time_series_mapping,
                         folder=case_folder,
-                        file_name="Long_Duration_Storage.csv",
+                        file_name="time_series_mapping.csv",
                         include_index=False,
                     )
 
