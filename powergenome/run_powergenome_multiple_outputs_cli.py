@@ -39,6 +39,7 @@ from powergenome.nrelatb import atb_fixed_var_om_existing
 from powergenome.external_data import make_generator_variability
 from powergenome.util import (
     build_scenario_settings,
+    check_settings,
     init_pudl_connection,
     load_settings,
     remove_fuel_scenario_name,
@@ -157,6 +158,7 @@ def main():
 
     logger.info("Initiating PUDL connections")
     pudl_engine, pudl_out = init_pudl_connection(freq="YS")
+    check_settings(settings, pudl_engine)
 
     # Make sure everything in model_regions is either an aggregate region
     # or an IPM region. Will need to change this once we start using non-IPM
