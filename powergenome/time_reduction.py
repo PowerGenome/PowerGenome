@@ -3,6 +3,7 @@
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import minmax_scale
 import numpy as np
+import datetime
 import pandas as pd
 
 
@@ -201,6 +202,14 @@ def kmeans_time_clustering(
 
     # same CSV file that will be used in GenX
     long_duration_storage = long_duration_storage.sort_values(by=["slot"])
+    long_duration_storage = long_duration_storage.reset_index(drop=True)
+
+    #extract month corresponding to each time slot
+    long_duration_storage['Month']=0
+    for slot in long_duration_storage['slot']:
+        dayOfYear = days_in_group * slot
+        d = datetime.datetime.strptime('{} {}'.format(dayOfYear, 2011),'%j %Y')
+        long_duration_storage['Month'][slot-1] = d.month
 
     # Storing selected groupings in a new data frame with appropriate dimensions
     # (E.g. load in GW)
