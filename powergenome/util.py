@@ -43,7 +43,7 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
         Parameters and values from the YAML settings file.
     pudl_engine : sa.engine
         Connection to the PUDL sqlite database.
-    """    
+    """
 
     ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pudl_engine)[
         "region_id_epaipm"
@@ -51,7 +51,7 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
 
     cost_mult_regions = list(
         itertools.chain.from_iterable(settings["cost_multiplier_region_map"].values())
-    ) 
+    )
 
     aeo_fuel_regions = list(
         itertools.chain.from_iterable(settings["aeo_fuel_region_map"].values())
@@ -84,8 +84,26 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
             """
             logger.warning(s)
 
-def init_pudl_connection(freq="YS"):
 
+def init_pudl_connection(
+    freq: str = "YS",
+) -> Tuple[sa.engine.base.Engine, pudl.output.pudltabl.PudlTabl]:
+    """Initiate a connection object to the sqlite PUDL database and create a pudl
+    object that can quickly access parts of the database.
+
+    Parameters
+    ----------
+    freq : str, optional
+        The time frequency that data should be averaged over in the `pudl_out` object,
+        by default "YS" (annual data).
+
+    Returns
+    -------
+    sa.Engine, pudl.pudltabl
+        A sqlalchemy engine for connecting to the PUDL database, and a pudl PudlTabl
+        object for quickly accessing parts of the database. `pudl_out` is used
+        to access unit heat rates.
+    """
     pudl_engine = sa.create_engine(
         SETTINGS["PUDL_DB"]
     )  # pudl.init.connect_db(SETTINGS)

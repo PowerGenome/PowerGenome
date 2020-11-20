@@ -1990,16 +1990,8 @@ class GeneratorClusters:
             # self.utilities_eia = load_utilities_eia(self.pudl_engine)
         else:
             self.existing_resources = pd.DataFrame()
-
-        self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
-            self.pudl_engine, self.settings
-        )
-        self.atb_costs = fetch_atb_costs(
-            self.pudl_engine, self.settings, self.offshore_spur_costs
-        )
-        self.atb_hr = fetch_atb_heat_rates(self.pudl_engine)
-
         self.fuel_prices = fetch_fuel_prices(self.settings)
+        self.atb_hr = fetch_atb_heat_rates(self.pudl_engine, self.settings)
 
     def fill_na_heat_rates(self, df):
         """Fill null heat rate values with the median of the series. Not many null
@@ -2248,7 +2240,12 @@ class GeneratorClusters:
         self.units_model = (
             self.units_model.rename(columns={"technology_description": "technology"})
             .query("technology.isin(@techs).values")
-            .pipe(atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings)
+            .pipe(
+                atb_fixed_var_om_existing,
+                self.atb_hr,
+                self.settings,
+                self.pudl_engine,
+            )
         )
 
         # logger.info(
@@ -2502,6 +2499,13 @@ class GeneratorClusters:
         return self.results
 
     def create_new_generators(self):
+        self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
+            self.pudl_engine, self.settings
+        )
+        self.atb_costs = fetch_atb_costs(
+            self.pudl_engine, self.settings, self.offshore_spur_costs
+        )
+        
 
         self.new_generators = atb_new_generators(
             self.atb_costs, self.atb_hr, self.settings
@@ -2560,9 +2564,7 @@ class GeneratorClusters:
         self.all_resources = self.all_resources.reset_index(drop=True)
         self.all_resources["variable_CF"] = 0.0
         for i, p in enumerate(self.all_resources["profile"]):
-            if isinstance(
-                p, (collections.Sequence, np.ndarray)
-            ):
+            if isinstance(p, (collections.Sequence, np.ndarray)):
                 self.all_resources.loc[i, "variable_CF"] = np.mean(p)
 
         # Set Min_power of wind/solar to 0
