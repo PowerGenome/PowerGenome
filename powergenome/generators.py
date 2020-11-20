@@ -2250,7 +2250,6 @@ class GeneratorClusters:
             .query("technology.isin(@techs).values")
             .pipe(
                 atb_fixed_var_om_existing,
-                self.atb_costs,
                 self.atb_hr,
                 self.settings,
                 self.pudl_engine,
