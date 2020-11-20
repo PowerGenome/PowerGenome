@@ -2248,7 +2248,13 @@ class GeneratorClusters:
         self.units_model = (
             self.units_model.rename(columns={"technology_description": "technology"})
             .query("technology.isin(@techs).values")
-            .pipe(atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings)
+            .pipe(
+                atb_fixed_var_om_existing,
+                self.atb_costs,
+                self.atb_hr,
+                self.settings,
+                self.pudl_engine,
+            )
         )
 
         # logger.info(
