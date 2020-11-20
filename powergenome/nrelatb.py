@@ -79,7 +79,7 @@ def fetch_atb_costs(pudl_engine, settings, offshore_spur_costs=None):
     logger.info("Inflating PV costs for DC to AC")
 
     atb_costs.loc[
-        atb_costs["technology"].str.contains("PV"), ["o_m_fixed_mw", "o_m_variable_mwh"]
+        atb_costs["technology"].str.contains("PV"), ["capex","o_m_fixed_mw", "o_m_variable_mwh"]
     ] *= settings["pv_ac_dc_ratio"]
 
     if offshore_spur_costs is not None:
