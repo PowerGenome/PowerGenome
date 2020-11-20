@@ -1991,6 +1991,7 @@ class GeneratorClusters:
         else:
             self.existing_resources = pd.DataFrame()
         self.fuel_prices = fetch_fuel_prices(self.settings)
+        self.atb_hr = fetch_atb_heat_rates(self.pudl_engine, self.settings)
 
     def fill_na_heat_rates(self, df):
         """Fill null heat rate values with the median of the series. Not many null
@@ -2504,7 +2505,7 @@ class GeneratorClusters:
         self.atb_costs = fetch_atb_costs(
             self.pudl_engine, self.settings, self.offshore_spur_costs
         )
-        self.atb_hr = fetch_atb_heat_rates(self.pudl_engine, self.settings)
+        
 
         self.new_generators = atb_new_generators(
             self.atb_costs, self.atb_hr, self.settings
