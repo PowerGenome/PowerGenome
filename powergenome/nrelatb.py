@@ -417,6 +417,7 @@ def atb_fixed_var_om_existing(
             "Steam Turbine",
             "Hydroelectric",
             "Geothermal",
+            "Nuclear",
         ]
         if any(t in eia_tech for t in nems_o_m_techs):
             # Change CC and CT O&M to EIA NEMS values, which are much higher for CCs and
@@ -606,6 +607,22 @@ def atb_fixed_var_om_existing(
                 _df["Var_OM_cost_per_MWh"] = simple_o_m["Pumped Hydro"][
                     "variable_o_m_mwh"
                 ]
+            if "Nuclear" in eia_tech:
+                age = (settings["model_year"] - _df.operating_date.dt.year).values
+                # EIA, 2020, "Assumptions to Annual Energy Outlook, Electricity Market Module,"
+                # Available: https://www.eia.gov/outlooks/aeo/assumptions/pdf/electricity.pdf
+                fixed = np.ones_like(age)
+                fixed[age < 30] *= 27 * 1000
+                fixed[age >= 30] *= (27+37) * 1000
+
+                _df[
+                    "Fixed_OM_cost_per_MWyr"
+                ] = atb_fixed_om_mw_yr + inflation_price_adjustment(
+                    fixed, 2019, target_usd_year
+                )
+                _df["Var_OM_cost_per_MWh"] = atb_var_om_mwh * (
+                    existing_hr / new_build_hr
+                )
 
         else:
             _df["Fixed_OM_cost_per_MWyr"] = atb_fixed_om_mw_yr
