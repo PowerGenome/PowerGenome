@@ -1,2 +1,13 @@
-case_id,year,demand_response,growth,tx_expansion,ng_price,ccs_capex,renewable_capex,nuclear_capex,conv_hydro_rps_eligible,ca_nuclear_allowed,electrification
-p6,2030,moderate,normal,high,reference,mid,mid,mid,no,no,reference
+case_id,year,demand_response,growth,tx_expansion,ng_price,ccs_capex,renewable_capex,nuclear_capex,conv_hydro_rps_eligible,ca_nuclear_allowed,electrification,tax
+p1,2030,moderate,normal,high,reference,mid,mid,mid,no,no,reference,no
+p2,2030,moderate,normal,high,reference,mid,mid,mid,no,no,reference,yes
+p6,2030,moderate,normal,high,reference,mid,low,mid,no,no,reference,no
+p7,2030,moderate,normal,high,reference,mid,low,mid,no,no,reference,yes
+p11,2030,moderate,normal,high,low,mid,mid,mid,no,no,reference,no
+p12,2030,moderate,normal,high,low,mid,mid,mid,no,no,reference,yes
+p16,2030,moderate,normal,high,low,mid,low,mid,no,no,reference,no
+p17,2030,moderate,normal,high,low,mid,low,mid,no,no,reference,yes
+p21,2030,moderate,normal,high,high,mid,mid,mid,no,no,reference,no
+p22,2030,moderate,normal,high,high,mid,mid,mid,no,no,reference,yes
+p26,2030,moderate,normal,high,high,mid,low,mid,no,no,reference,no
+p27,2030,moderate,normal,high,high,mid,low,mid,no,no,reference,yes

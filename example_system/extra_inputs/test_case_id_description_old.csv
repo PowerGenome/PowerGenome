@@ -1,0 +1,31 @@
+case_id,case_description
+p1,No Policy
+p2,tax
+p3,CA_Norm
+p4,NY_Norm
+p5,TX_Norm
+p6,No Policy_lowRen
+p7,tax_lowRen
+p8,CA_Norm_lowRen
+p9,NY_Norm_lowRen
+p10,TX_Norm_lowRen
+p11,No Policy_low_NG
+p12,tax_low_NG
+p13,CA_Norm_low_NG
+p14,NY_Norm_low_NG
+p15,TX_Norm_low_NG
+p16,No Policy_lowRen_low_NG
+p17,tax_lowRen_low_NG
+p18,CA_Norm_lowRen_low_NG
+p19,NY_Norm_lowRen_low_NG
+p20,TX_Norm_lowRen_low_NG
+p21,No Policy_high_NG
+p22,tax_high_NG
+p23,CA_Norm_high_NG
+p24,NY_Norm_high_NG
+p25,TX_Norm_high_NG
+p26,No Policy_lowRen_high_NG
+p27,tax_lowRen_high_NG
+p28,CA_Norm_lowRen_high_NG
+p29,NY_Norm_lowRen_high_NG
+p30,TX_Norm_lowRen_high_NG

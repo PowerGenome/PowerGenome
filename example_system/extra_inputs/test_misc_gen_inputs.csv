@@ -1,8 +1,8 @@
-﻿Resource,voltage_level,Min_power,Self_disch,Eff_up,Eff_down,Ratio_power_to_energy,Min_Duration,Max_Duration,Max_DSM_delay,Ramp_Up_percentage,Ramp_Dn_percentage,Up_time,Down_time,Min_Share_percent,Max_Share_percent,Power_uprate_cost_per_MWyr,Max_Uprate_MW,Externality_cost_MWh,Hydro_level,Existing_Charge_Cap_MW,Existing_cap_MWh
+Resource,voltage_level,Min_power,Self_disch,Eff_up,Eff_down,Ratio_power_to_energy,Min_Duration,Max_Duration,Max_DSM_delay,Ramp_Up_percentage,Ramp_Dn_percentage,Up_time,Down_time,Min_Share_percent,Max_Share_percent,Power_uprate_cost_per_MWyr,Max_Uprate_MW,Externality_cost_MWh,Hydro_level,Existing_Charge_Cap_MW,Existing_cap_MWh
 biomass,trans,,0,1,1,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0
 conventional_hydroelectric,trans,,0,1,1,1,0,0,0,0.083,0.083,0,0,0,0,0,0,0,0.5,0,0
 geothermal,trans,,0,1,1,1.58,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0
-hydroelectric_pumped_storage,trans,,0,0.866,0.866,0.0063,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0
+hydroelectric_pumped_storage,trans,,0,0.866,0.866,0.083,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0
 natural_gas_fired_combined_cycle,trans,,0,1,1,1,0,0,0,0.64,0.64,6,6,0,0,0,0,0,0,0,0
 natural_gas_fired_combustion_turbine,trans,,0,1,1,1,0,0,0,3.78,3.78,1,1,0,0,0,0,0,0,0,0
 onshore_wind_turbine,trans,,0,1,1,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0
