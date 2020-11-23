@@ -614,8 +614,8 @@ def atb_fixed_var_om_existing(
                 ]
             if "Nuclear" in eia_tech:
                 age = (settings["model_year"] - _df.operating_date.dt.year).values
-                age = age.fillna(age.mean())
-                age = age.fillna(40)
+                # age = age.fillna(age.mean())
+                # age = age.fillna(40)
                 # EIA, 2020, "Assumptions to Annual Energy Outlook, Electricity Market Module,"
                 # Available: https://www.eia.gov/outlooks/aeo/assumptions/pdf/electricity.pdf
                 fixed = np.ones_like(age)
