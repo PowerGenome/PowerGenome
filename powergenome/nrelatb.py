@@ -117,58 +117,61 @@ def fetch_atb_costs(
 
         tech_list.append(tech)
 
-    if "Battery" in tech_list:
+    if "Battery" not in tech_list:
+        df = pd.DataFrame(all_rows, columns=col_names)
+        wacc_df = pd.DataFrame(
+            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_nominal"]
+        )
+    else:
         # ATB doesn't have a WACC for battery storage. We use UtilityPV WACC as a default
         # stand-in -- make sure we have it in case.
         s = 'SELECT DISTINCT("technology") from technology_costs_nrelatb WHERE parameter == "wacc_nominal"'
         atb_techs = [x[0] for x in pudl_engine.execute(s).fetchall()]
         battery_wacc_standin = settings.get("atb_battery_wacc")
+        battery_tech = [x for x in techs if x[0] == "Battery"][0]
         if isinstance(battery_wacc_standin, float):
             if battery_wacc_standin > 0.1:
                 logger.warning(
                     f"You defined a battery WACC of {battery_wacc_standin}, which seems"
                     " very high. Check settings parameter `atb_battery_wacc`."
                 )
-            battery_tech = [x for x in techs if x[0] == "Battery"][0]
             battery_wacc_rows = [
                 (battery_tech[0], battery_tech[2], year, battery_wacc_standin)
                 for year in range(2017, 2051)
             ]
             wacc_rows.extend(battery_wacc_rows)
         elif battery_wacc_standin in atb_techs:
-            if battery_wacc_standin in tech_list:
-                pass
-            else:
-                logger.info(f"Using UtilityPV {fin_case} WACC for Battery storage.")
-                wacc_s = f"""
-                select technology, cost_case, basis_year, parameter_value
-                from technology_costs_nrelatb
-                where
-                    technology == "UtilityPV"
-                    AND financial_case == "{fin_case}"
-                    AND cost_case == "Mid"
-                    AND atb_year == {atb_year}
-                    AND parameter == "wacc_nominal"
-                
-                """
-                wacc_rows.extend(pudl_engine.execute(wacc_s).fetchall())
-                s = f"""
-                SELECT technology, tech_detail, cost_case, parameter, basis_year, parameter_value, dollar_year
-                from technology_costs_nrelatb
-                where
-                    technology == "UtilityPV"
-                    AND tech_detail == "LosAngeles"
-                    AND financial_case == "Market"
-                    AND cost_case == "Mid"
-                    AND atb_year == 2020
-                    AND parameter IN ({','.join('?'*len(cost_params))})
-                """
-                all_rows.extend(pudl_engine.execute(s, cost_params).fetchall())
+            # if battery_wacc_standin in tech_list:
+            #     pass
+            # else:
+            logger.info(f"Using {battery_wacc_standin} {fin_case} WACC for Battery storage.")
+            wacc_s = f"""
+            select technology, cost_case, basis_year, parameter_value
+            from technology_costs_nrelatb
+            where
+                technology == "{battery_wacc_standin}"
+                AND financial_case == "{fin_case}"
+                AND cost_case == "Mid"
+                AND atb_year == {atb_year}
+                AND parameter == "wacc_nominal"
+            
+            """
+            b_rows = pudl_engine.execute(wacc_s).fetchall()
+            battery_wacc_rows = [
+                (battery_tech[0], battery_tech[2], b_row[2], b_row[3])
+                for b_row in b_rows
+            ]
+            wacc_rows.extend(battery_wacc_rows)
+        else:
+            raise ValueError(
+            f"The settings key `atb_battery_wacc` value is {battery_wacc_standin}. It "
+            f"should either be a float or a string from the list {atb_techs}."
+        )
 
-    df = pd.DataFrame(all_rows, columns=col_names)
-    wacc_df = pd.DataFrame(
-        wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_nominal"]
-    )
+        df = pd.DataFrame(all_rows, columns=col_names)
+        wacc_df = pd.DataFrame(
+            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_nominal"]
+        )
 
     # Transform from tidy to wide dataframe, which makes it easier to fill generator
     # rows with the correct values.
