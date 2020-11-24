@@ -73,6 +73,13 @@ def fetch_atb_costs(
     wacc_rows = []
     tech_list = []
     techs = settings["atb_new_gen"]
+    mod_techs = []
+    if settings.get("modified_atb_new_gen"):
+        for _, m in settings.get("modified_atb_new_gen").items():
+            mod_techs.append(
+                [m["atb_technology"], m["atb_tech_detail"], m["atb_cost_case"], None]
+            )
+
     cost_params = (
         "capex_mw",
         "fixed_o_m_mw",
@@ -81,7 +88,7 @@ def fetch_atb_costs(
         "fixed_o_m_mwh",
     )
     # add_pv_wacc = True
-    for tech in techs:
+    for tech in techs + mod_techs:
         tech, tech_detail, cost_case, _ = tech
         # if tech == "UtilityPV":
         #     add_pv_wacc = False
@@ -144,7 +151,9 @@ def fetch_atb_costs(
             # if battery_wacc_standin in tech_list:
             #     pass
             # else:
-            logger.info(f"Using {battery_wacc_standin} {fin_case} WACC for Battery storage.")
+            logger.info(
+                f"Using {battery_wacc_standin} {fin_case} WACC for Battery storage."
+            )
             wacc_s = f"""
             select technology, cost_case, basis_year, parameter_value
             from technology_costs_nrelatb
@@ -164,9 +173,9 @@ def fetch_atb_costs(
             wacc_rows.extend(battery_wacc_rows)
         else:
             raise ValueError(
-            f"The settings key `atb_battery_wacc` value is {battery_wacc_standin}. It "
-            f"should either be a float or a string from the list {atb_techs}."
-        )
+                f"The settings key `atb_battery_wacc` value is {battery_wacc_standin}. It "
+                f"should either be a float or a string from the list {atb_techs}."
+            )
 
         df = pd.DataFrame(all_rows, columns=col_names)
         wacc_df = pd.DataFrame(
@@ -221,7 +230,7 @@ def fetch_atb_costs(
     elif atb_year > 2019:
         logger.info("PV costs are already in AC units, not inflating the cost.")
 
-    if offshore_spur_costs is not None:
+    if offshore_spur_costs is not None and "OffShoreWind" in atb_costs["technology"]:
         idx_cols = ["technology", "tech_detail", "cost_case", "basis_year"]
         offshore_spur_costs = offshore_spur_costs.set_index(idx_cols)
         atb_costs = atb_costs.set_index(idx_cols)
