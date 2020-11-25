@@ -622,19 +622,35 @@ def atb_fixed_var_om_existing(
                     "variable_o_m_mwh"
                 ]
             if "Nuclear" in eia_tech:
-                age = (settings["model_year"] - _df.operating_date.dt.year).values
+                num_units = len(_df)
+                plant_capacity = _df[settings["capacity_col"]].sum()
+
+                # Operating costs for different size/num units in 2016 INL report
+                # "Economic and Market Challenges Facing the U.S. Nuclear Fleet"
+                # https://gain.inl.gov/Shared%20Documents/Economics-Nuclear-Fleet.pdf, 
+                # table 1. Average of the two costs are used in each case.
+                # The costs in that report include fuel and VOM. Assume $0.66/mmbtu
+                # and $2.32/MWh plus 90% CF (ATB 2020) to get the costs below.
+                # The INL report doesn't give a dollar year for costs, assume 2015.
+                if num_units == 1 and plant_capacity < 900:
+                    fixed = 315000
+                elif num_units == 1 and plant_capacity >= 900:
+                    fixed = 252000
+                else:
+                    fixed = 177000
+                # age = (settings["model_year"] - _df.operating_date.dt.year).values
                 # age = age.fillna(age.mean())
                 # age = age.fillna(40)
                 # EIA, 2020, "Assumptions to Annual Energy Outlook, Electricity Market Module,"
                 # Available: https://www.eia.gov/outlooks/aeo/assumptions/pdf/electricity.pdf
-                fixed = np.ones_like(age)
-                fixed[age < 30] *= 27 * 1000
-                fixed[age >= 30] *= (27+37) * 1000
+                # fixed = np.ones_like(age)
+                # fixed[age < 30] *= 27 * 1000
+                # fixed[age >= 30] *= (27+37) * 1000
 
                 _df[
                     "Fixed_OM_cost_per_MWyr"
-                ] = atb_fixed_om_mw_yr + inflation_price_adjustment(
-                    fixed, 2019, target_usd_year
+                ] = inflation_price_adjustment(
+                    fixed, 2015, target_usd_year
                 )
                 _df["Var_OM_cost_per_MWh"] = atb_var_om_mwh * (
                     existing_hr / new_build_hr

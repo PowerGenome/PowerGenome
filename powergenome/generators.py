@@ -1177,6 +1177,9 @@ def calc_unit_cluster_values(df, settings, technology=None):
     df_values["heat_rate_mmbtu_mwh_std"] = df.groupby("cluster").agg(
         {"heat_rate_mmbtu_mwh": "std"}
     )
+    df_values["fixed_o_m_mw_std"] = df.groupby("cluster").agg(
+        {"Fixed_OM_cost_per_MWyr": "std"}
+    )
 
     df_values["Min_power"] = (
         df_values["minimum_load_mw"] / df_values[settings["capacity_col"]]
