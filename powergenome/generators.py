@@ -1177,6 +1177,9 @@ def calc_unit_cluster_values(df, settings, technology=None):
     df_values["heat_rate_mmbtu_mwh_std"] = df.groupby("cluster").agg(
         {"heat_rate_mmbtu_mwh": "std"}
     )
+    df_values["fixed_o_m_mw_std"] = df.groupby("cluster").agg(
+        {"Fixed_OM_cost_per_MWyr": "std"}
+    )
 
     df_values["Min_power"] = (
         df_values["minimum_load_mw"] / df_values[settings["capacity_col"]]
@@ -1993,7 +1996,7 @@ class GeneratorClusters:
         self.fuel_prices = fetch_fuel_prices(self.settings)
         self.atb_hr = fetch_atb_heat_rates(self.pudl_engine, self.settings)
 
-    def fill_na_heat_rates(self, df):
+    def fill_na_heat_rates(self, s):
         """Fill null heat rate values with the median of the series. Not many null
         values are expected.
 
@@ -2007,11 +2010,15 @@ class GeneratorClusters:
         Dataframe
             Same as input but with any null values replaced by the median.
         """
+        if s.isnull().any():
+            median_hr = s.median()
+            return s.fillna(median_hr)
+        else:
+            return s
+        # median_hr = df["heat_rate_mmbtu_mwh"].median()
+        # df["heat_rate_mmbtu_mwh"].fillna(median_hr, inplace=True)
 
-        median_hr = df["heat_rate_mmbtu_mwh"].median()
-        df["heat_rate_mmbtu_mwh"].fillna(median_hr, inplace=True)
-
-        return df
+        # return df
 
     def create_demand_response_gen_rows(self):
         """Create rows for demand response/management resources to include in the
@@ -2193,9 +2200,12 @@ class GeneratorClusters:
         # Fill any null heat rate values for each tech
         for tech in self.units_model["technology_description"]:
             self.units_model.loc[
-                self.units_model.technology_description == tech, :
+                self.units_model.technology_description == tech, "heat_rate_mmbtu_mwh"
             ] = self.fill_na_heat_rates(
-                self.units_model.loc[self.units_model.technology_description == tech, :]
+                self.units_model.loc[
+                    self.units_model.technology_description == tech, 
+                    "heat_rate_mmbtu_mwh",
+                ]
             )
         # assert (
         #     self.units_model["heat_rate_mmbtu_mwh"].isnull().any() is False

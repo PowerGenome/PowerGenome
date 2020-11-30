@@ -73,6 +73,13 @@ def fetch_atb_costs(
     wacc_rows = []
     tech_list = []
     techs = settings["atb_new_gen"]
+    mod_techs = []
+    if settings.get("modified_atb_new_gen"):
+        for _, m in settings.get("modified_atb_new_gen").items():
+            mod_techs.append(
+                [m["atb_technology"], m["atb_tech_detail"], m["atb_cost_case"], None]
+            )
+
     cost_params = (
         "capex_mw",
         "fixed_o_m_mw",
@@ -81,7 +88,7 @@ def fetch_atb_costs(
         "fixed_o_m_mwh",
     )
     # add_pv_wacc = True
-    for tech in techs:
+    for tech in techs + mod_techs:
         tech, tech_detail, cost_case, _ = tech
         # if tech == "UtilityPV":
         #     add_pv_wacc = False
@@ -144,7 +151,9 @@ def fetch_atb_costs(
             # if battery_wacc_standin in tech_list:
             #     pass
             # else:
-            logger.info(f"Using {battery_wacc_standin} {fin_case} WACC for Battery storage.")
+            logger.info(
+                f"Using {battery_wacc_standin} {fin_case} WACC for Battery storage."
+            )
             wacc_s = f"""
             select technology, cost_case, basis_year, parameter_value
             from technology_costs_nrelatb
@@ -164,9 +173,9 @@ def fetch_atb_costs(
             wacc_rows.extend(battery_wacc_rows)
         else:
             raise ValueError(
-            f"The settings key `atb_battery_wacc` value is {battery_wacc_standin}. It "
-            f"should either be a float or a string from the list {atb_techs}."
-        )
+                f"The settings key `atb_battery_wacc` value is {battery_wacc_standin}. It "
+                f"should either be a float or a string from the list {atb_techs}."
+            )
 
         df = pd.DataFrame(all_rows, columns=col_names)
         wacc_df = pd.DataFrame(
@@ -175,7 +184,7 @@ def fetch_atb_costs(
 
     # Transform from tidy to wide dataframe, which makes it easier to fill generator
     # rows with the correct values.
-    atb_costs = df.set_index(
+    atb_costs = df.drop_duplicates().set_index(
         [
             "technology",
             "tech_detail",
@@ -221,7 +230,7 @@ def fetch_atb_costs(
     elif atb_year > 2019:
         logger.info("PV costs are already in AC units, not inflating the cost.")
 
-    if offshore_spur_costs is not None:
+    if offshore_spur_costs is not None and "OffShoreWind" in atb_costs["technology"]:
         idx_cols = ["technology", "tech_detail", "cost_case", "basis_year"]
         offshore_spur_costs = offshore_spur_costs.set_index(idx_cols)
         atb_costs = atb_costs.set_index(idx_cols)
@@ -574,6 +583,8 @@ def atb_fixed_var_om_existing(
                 assert plant_capacity > 0
 
                 age = settings["model_year"] - _df.operating_date.dt.year
+                age = age.fillna(age.mean())
+                age = age.fillna(40)
 
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
                 annual_capex = (16.53 + (0.126 * age) + (5.68 * 0.5)) * 1000
@@ -611,17 +622,35 @@ def atb_fixed_var_om_existing(
                     "variable_o_m_mwh"
                 ]
             if "Nuclear" in eia_tech:
-                age = (settings["model_year"] - _df.operating_date.dt.year).values
+                num_units = len(_df)
+                plant_capacity = _df[settings["capacity_col"]].sum()
+
+                # Operating costs for different size/num units in 2016 INL report
+                # "Economic and Market Challenges Facing the U.S. Nuclear Fleet"
+                # https://gain.inl.gov/Shared%20Documents/Economics-Nuclear-Fleet.pdf, 
+                # table 1. Average of the two costs are used in each case.
+                # The costs in that report include fuel and VOM. Assume $0.66/mmbtu
+                # and $2.32/MWh plus 90% CF (ATB 2020) to get the costs below.
+                # The INL report doesn't give a dollar year for costs, assume 2015.
+                if num_units == 1 and plant_capacity < 900:
+                    fixed = 315000
+                elif num_units == 1 and plant_capacity >= 900:
+                    fixed = 252000
+                else:
+                    fixed = 177000
+                # age = (settings["model_year"] - _df.operating_date.dt.year).values
+                # age = age.fillna(age.mean())
+                # age = age.fillna(40)
                 # EIA, 2020, "Assumptions to Annual Energy Outlook, Electricity Market Module,"
                 # Available: https://www.eia.gov/outlooks/aeo/assumptions/pdf/electricity.pdf
-                fixed = np.ones_like(age)
-                fixed[age < 30] *= 27 * 1000
-                fixed[age >= 30] *= (27+37) * 1000
+                # fixed = np.ones_like(age)
+                # fixed[age < 30] *= 27 * 1000
+                # fixed[age >= 30] *= (27+37) * 1000
 
                 _df[
                     "Fixed_OM_cost_per_MWyr"
-                ] = atb_fixed_om_mw_yr + inflation_price_adjustment(
-                    fixed, 2019, target_usd_year
+                ] = inflation_price_adjustment(
+                    fixed, 2015, target_usd_year
                 )
                 _df["Var_OM_cost_per_MWh"] = atb_var_om_mwh * (
                     existing_hr / new_build_hr
