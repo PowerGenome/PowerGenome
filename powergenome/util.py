@@ -57,7 +57,7 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
         itertools.chain.from_iterable(settings["aeo_fuel_region_map"].values())
     )
 
-    for agg_region, ipm_regions in settings["region_aggregations"].items():
+    for agg_region, ipm_regions in (settings.get("region_aggregations") or {}).items():
         for ipm_region in ipm_regions:
             if ipm_region not in ipm_region_list:
                 s = f"""
