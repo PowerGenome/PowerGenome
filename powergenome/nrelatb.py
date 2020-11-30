@@ -184,7 +184,7 @@ def fetch_atb_costs(
 
     # Transform from tidy to wide dataframe, which makes it easier to fill generator
     # rows with the correct values.
-    atb_costs = df.set_index(
+    atb_costs = df.drop_duplicates().set_index(
         [
             "technology",
             "tech_detail",
