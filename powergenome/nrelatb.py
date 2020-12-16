@@ -1052,6 +1052,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Fixed_OM_cost_per_MWhyr",
         "Inv_cost_per_MWyr",
         "Inv_cost_per_MWhyr",
+        "cluster"
     ]
     results = results.fillna(0)
     results[int_cols] = results[int_cols].astype(int)
