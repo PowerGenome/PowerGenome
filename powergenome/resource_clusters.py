@@ -588,7 +588,7 @@ class ResourceGroup:
             df["profile"] = list(
                 np.roll(
                     self.profiles.read(columns=df.index.astype(str)).values.T,
-                    -utc_offset,
+                    utc_offset,
                 )
             )
             merge["means"].append("profile")
