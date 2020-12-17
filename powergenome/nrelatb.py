@@ -1135,7 +1135,10 @@ def add_renewables_clusters(
         scenario.pop("region")
         clusters = (
             CLUSTER_BUILDER.get_clusters(
-                **scenario, ipm_regions=ipm_regions, existing=False
+                **scenario,
+                ipm_regions=ipm_regions,
+                existing=False,
+                utc_offset=settings.get("utc_offset", 0),
             )
             .rename(columns={"mw": "Max_Cap_MW"})
             .assign(technology=technology, region=region)

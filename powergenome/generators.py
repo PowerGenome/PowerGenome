@@ -2503,7 +2503,11 @@ class GeneratorClusters:
             if not metadata["ipm_region"].isin(ipm_regions).any():
                 # Resource group has no resources in selected IPM regions
                 continue
-            clusters = group.get_clusters(ipm_regions=ipm_regions, max_clusters=1)
+            clusters = group.get_clusters(
+                ipm_regions=ipm_regions,
+                max_clusters=1,
+                utc_offset=self.settings.get("utc_offset", 0),
+            )
             self.results["profile"][i] = clusters["profile"][0]
 
         return self.results

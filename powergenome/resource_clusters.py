@@ -504,6 +504,7 @@ class ResourceGroup:
         max_lcoe: float = None,
         cap_multiplier: float = None,
         profiles: bool = True,
+        utc_offset: int = 0,
     ) -> pd.DataFrame:
         """
         Compute resource clusters.
@@ -585,7 +586,10 @@ class ResourceGroup:
         # Prepare profiles
         if profiles and self.profiles is not None:
             df["profile"] = list(
-                self.profiles.read(columns=df.index.astype(str)).values.T
+                np.roll(
+                    self.profiles.read(columns=df.index.astype(str)).values.T,
+                    -utc_offset,
+                )
             )
             merge["means"].append("profile")
         # Compute clusters
@@ -690,6 +694,7 @@ class ClusterBuilder:
         max_clusters: int = None,
         max_lcoe: float = None,
         cap_multiplier: float = None,
+        utc_offset: int = 0,
         **kwargs: Any,
     ) -> pd.DataFrame:
         """
@@ -733,6 +738,7 @@ class ClusterBuilder:
                 max_clusters=max_clusters,
                 max_lcoe=max_lcoe,
                 cap_multiplier=cap_multiplier,
+                utc_offset=utc_offset,
             )
             .assign(**kwargs)
             .rename_axis("ids")
