@@ -60,6 +60,10 @@ def make_load_curves(
 
     if len(lc_wide) == 8784:
         lc_wide = remove_feb_29(lc_wide)
+    
+    # Shift load from UTC
+    for col in lc_wide:
+        lc_wide[col] = np.roll(lc_wide[col].values, settings.get("utc_offset", 0))
 
     lc_wide.index.name = "time_index"
     if lc_wide.index.min() == 0:
