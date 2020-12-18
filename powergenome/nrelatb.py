@@ -184,16 +184,20 @@ def fetch_atb_costs(
 
     # Transform from tidy to wide dataframe, which makes it easier to fill generator
     # rows with the correct values.
-    atb_costs = df.drop_duplicates().set_index(
-        [
-            "technology",
-            "tech_detail",
-            "cost_case",
-            "dollar_year",
-            "basis_year",
-            "parameter",
-        ]
-    ).unstack(level=-1)
+    atb_costs = (
+        df.drop_duplicates()
+        .set_index(
+            [
+                "technology",
+                "tech_detail",
+                "cost_case",
+                "dollar_year",
+                "basis_year",
+                "parameter",
+            ]
+        )
+        .unstack(level=-1)
+    )
     atb_costs.columns = atb_costs.columns.droplevel(0)
     atb_costs = (
         atb_costs.reset_index()
@@ -627,7 +631,7 @@ def atb_fixed_var_om_existing(
 
                 # Operating costs for different size/num units in 2016 INL report
                 # "Economic and Market Challenges Facing the U.S. Nuclear Fleet"
-                # https://gain.inl.gov/Shared%20Documents/Economics-Nuclear-Fleet.pdf, 
+                # https://gain.inl.gov/Shared%20Documents/Economics-Nuclear-Fleet.pdf,
                 # table 1. Average of the two costs are used in each case.
                 # The costs in that report include fuel and VOM. Assume $0.66/mmbtu
                 # and $2.32/MWh plus 90% CF (ATB 2020) to get the costs below.
@@ -647,9 +651,7 @@ def atb_fixed_var_om_existing(
                 # fixed[age < 30] *= 27 * 1000
                 # fixed[age >= 30] *= (27+37) * 1000
 
-                _df[
-                    "Fixed_OM_cost_per_MWyr"
-                ] = inflation_price_adjustment(
+                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
                     fixed, 2015, target_usd_year
                 )
                 _df["Var_OM_cost_per_MWh"] = atb_var_om_mwh * (
@@ -1052,7 +1054,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Fixed_OM_cost_per_MWhyr",
         "Inv_cost_per_MWyr",
         "Inv_cost_per_MWhyr",
-        "cluster"
+        "cluster",
     ]
     results = results.fillna(0)
     results[int_cols] = results[int_cols].astype(int)

@@ -377,7 +377,7 @@ def overwrite_wind_pv_capacity(df, settings):
 
     wind_pv_ipm_region_capacity = pd.read_csv(path)
 
-    region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations"))
+    region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations", {}))
 
     # Set model_region as IPM_region to start
     wind_pv_ipm_region_capacity["model_region"] = wind_pv_ipm_region_capacity[

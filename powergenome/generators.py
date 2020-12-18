@@ -2203,7 +2203,7 @@ class GeneratorClusters:
                 self.units_model.technology_description == tech, "heat_rate_mmbtu_mwh"
             ] = self.fill_na_heat_rates(
                 self.units_model.loc[
-                    self.units_model.technology_description == tech, 
+                    self.units_model.technology_description == tech,
                     "heat_rate_mmbtu_mwh",
                 ]
             )
@@ -2519,7 +2519,6 @@ class GeneratorClusters:
         self.atb_costs = fetch_atb_costs(
             self.pudl_engine, self.settings, self.offshore_spur_costs
         )
-        
 
         self.new_generators = atb_new_generators(
             self.atb_costs, self.atb_hr, self.settings
