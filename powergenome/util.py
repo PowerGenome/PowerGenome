@@ -187,15 +187,6 @@ def download_save(url: str, save_path: Union[str, Path]):
     save_path.write_bytes(r.content)
 
 
-def shift_wrap_profiles(df, offset):
-    "Shift hours to a local offset and append first rows to end"
-
-    wrap_rows = df.iloc[:offset, :]
-
-    shifted_wrapped_df = pd.concat([df.iloc[offset:, :], wrap_rows], ignore_index=True)
-    return shifted_wrapped_df
-
-
 def update_dictionary(d: dict, u: dict) -> dict:
     """
     Update keys in an existing dictionary (d) with values from u

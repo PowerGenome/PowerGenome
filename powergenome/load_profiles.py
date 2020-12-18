@@ -9,7 +9,6 @@ import pandas as pd
 from powergenome.util import (
     regions_to_keep,
     reverse_dict_of_lists,
-    shift_wrap_profiles,
     remove_feb_29,
 )
 from powergenome.external_data import make_demand_response_profiles
