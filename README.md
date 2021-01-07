@@ -55,7 +55,7 @@ conda activate powergenome
 pip install -e .
 ```
 
-5. Download a [modifed version of the PUDL database](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5) that includes NREL ATB cost data and is not yet included in PUDL.
+5. Download a [modifed version of the PUDL database](https://drive.google.com/file/d/1DamR83bR9DyY-gdXac6xYnp5iFhhzgO4/view?usp=sharing) that includes NREL ATB cost data and is not yet included in PUDL. **NOTE: this database was updated for PowerGenome v0.4.0 and is not compatable with earlier versions.** 
 
 6. Download the [renewable resource data](https://drive.google.com/file/d/1g0Q6TdNp4C12HQJy6pAURzp_oVg0Q7ly/view?usp=sharing) containing generation profiles and capacity for existing and new-build renewable resources. Save and unzip this file. The suggested location for all of the unzipped files is `PowerGenome/data/resource_groups/`. These files will eventually be provided through a data repository with citation information.
 
