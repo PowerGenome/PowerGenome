@@ -93,6 +93,7 @@ def agg_transmission_constraints(
     if tc_joined.empty:
         logger.info(f"No transmission lines exist between model regions {combos}")
         tc_joined["Transmission Path Name"] = None
+        tc_joined.rename(columns=zone_num_map, inplace=True)
         return tc_joined.reset_index(drop=True)
 
     tc_joined["Network_lines"] = range(1, len(tc_joined) + 1)

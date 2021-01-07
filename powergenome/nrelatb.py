@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import sqlalchemy
 
 from powergenome.params import CLUSTER_BUILDER, DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
@@ -20,83 +21,238 @@ idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
 
-def fetch_atb_costs(pudl_engine, settings, offshore_spur_costs=None):
-    """Get NREL ATB power plant cost data from database, filter where applicable
+def fetch_atb_costs(
+    pudl_engine: sqlalchemy.engine.base.Engine,
+    settings: dict,
+    offshore_spur_costs: pd.DataFrame = None,
+) -> pd.DataFrame:
+    """Get NREL ATB power plant cost data from database, filter where applicable.
+
+    This function can also remove NREL ATB offshore spur costs if more accurate costs
+    will be included elsewhere (e.g. as part of total interconnection costs).
 
     Parameters
     ----------
     pudl_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas
     settings : dict
-        User-defined parameters from a settings file
+        User-defined parameters from a settings file. Needs to have keys
+        `atb_data_year`, `atb_new_gen`, and `target_usd_year`. If the key
+        `atb_financial_case` is not included, the default value will be "Market".
+    offshore_spur_costs : pd.DataFrame
+        An optional dataframe with spur costs for offshore wind resources. These costs
+        are included in ATB for a fixed distance (same for all sites). PowerGenome
+        interconnection costs for offshore sites include a spur cost calculated
+        using actual distance from shore.
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         Power plant cost data with columns:
         ['technology', 'cap_recovery_years', 'cost_case', 'financial_case',
-       'basis_year', 'tech_detail', 'o_m_fixed_mw', 'o_m_variable_mwh', 'capex', 'cf',
-       'fuel', 'lcoe', 'o_m', 'waccnomtech']
+       'basis_year', 'tech_detail', 'fixed_o_m_mw', 'variable_o_m_mwh', 'capex', 'cf',
+       'fuel', 'lcoe', 'wacc_nominal']
     """
     logger.info("Loading NREL ATB data")
-    atb_costs = pd.read_sql_table("technology_costs_nrelatb", pudl_engine)
 
-    index_cols = [
+    col_names = [
         "technology",
-        "cap_recovery_years",
-        "cost_case",
-        "financial_case",
-        "basis_year",
         "tech_detail",
+        "cost_case",
+        "parameter",
+        "basis_year",
+        "parameter_value",
+        "dollar_year",
     ]
-    atb_costs.set_index(index_cols, inplace=True)
-    atb_costs.drop(columns=["key", "id"], inplace=True)
+    atb_year = settings["atb_data_year"]
+    fin_case = settings.get("atb_financial_case", "Market")
 
-    cap_recovery = str(settings["atb_cap_recovery_years"])
-    financial = settings["atb_financial_case"]
+    # Fetch cost data from sqlite and create dataframe. Only get values for techs/cases
+    # listed in the settings file.
+    all_rows = []
+    wacc_rows = []
+    tech_list = []
+    techs = settings["atb_new_gen"]
+    mod_techs = []
+    if settings.get("modified_atb_new_gen"):
+        for _, m in settings.get("modified_atb_new_gen").items():
+            mod_techs.append(
+                [m["atb_technology"], m["atb_tech_detail"], m["atb_cost_case"], None]
+            )
 
-    atb_costs = atb_costs.loc[idx[:, cap_recovery, :, financial, :, :], :]
-    atb_costs = atb_costs.reset_index().fillna(0)
+    cost_params = (
+        "capex_mw",
+        "fixed_o_m_mw",
+        "variable_o_m_mwh",
+        "capex_mwh",
+        "fixed_o_m_mwh",
+    )
+    # add_pv_wacc = True
+    for tech in techs + mod_techs:
+        tech, tech_detail, cost_case, _ = tech
+        # if tech == "UtilityPV":
+        #     add_pv_wacc = False
 
-    atb_base_year = settings["atb_usd_year"]
-    atb_target_year = settings["target_usd_year"]
+        s = f"""
+        SELECT technology, tech_detail, cost_case, parameter, basis_year, parameter_value, dollar_year
+        from technology_costs_nrelatb
+        where
+            technology == "{tech}"
+            AND tech_detail == "{tech_detail}"
+            AND financial_case == "{fin_case}"
+            AND cost_case == "{cost_case}"
+            AND atb_year == {atb_year}
+            AND parameter IN ({','.join('?'*len(cost_params))})
+        """
+        all_rows.extend(pudl_engine.execute(s, cost_params).fetchall())
+
+        if tech not in tech_list:
+            # ATB2020 summary file provides a single WACC for each technology and a single
+            # tech detail of "*", so need to fetch this separately from other cost params.
+            # Only need to fetch once per technology.
+            wacc_s = f"""
+            select technology, cost_case, basis_year, parameter_value
+            from technology_costs_nrelatb
+            where
+                technology == "{tech}"
+                AND financial_case == "{fin_case}"
+                AND cost_case == "{cost_case}"
+                AND atb_year == {atb_year}
+                AND parameter == "wacc_nominal"
+            """
+            wacc_rows.extend(pudl_engine.execute(wacc_s).fetchall())
+
+        tech_list.append(tech)
+
+    if "Battery" not in tech_list:
+        df = pd.DataFrame(all_rows, columns=col_names)
+        wacc_df = pd.DataFrame(
+            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_nominal"]
+        )
+    else:
+        # ATB doesn't have a WACC for battery storage. We use UtilityPV WACC as a default
+        # stand-in -- make sure we have it in case.
+        s = 'SELECT DISTINCT("technology") from technology_costs_nrelatb WHERE parameter == "wacc_nominal"'
+        atb_techs = [x[0] for x in pudl_engine.execute(s).fetchall()]
+        battery_wacc_standin = settings.get("atb_battery_wacc")
+        battery_tech = [x for x in techs if x[0] == "Battery"][0]
+        if isinstance(battery_wacc_standin, float):
+            if battery_wacc_standin > 0.1:
+                logger.warning(
+                    f"You defined a battery WACC of {battery_wacc_standin}, which seems"
+                    " very high. Check settings parameter `atb_battery_wacc`."
+                )
+            battery_wacc_rows = [
+                (battery_tech[0], battery_tech[2], year, battery_wacc_standin)
+                for year in range(2017, 2051)
+            ]
+            wacc_rows.extend(battery_wacc_rows)
+        elif battery_wacc_standin in atb_techs:
+            # if battery_wacc_standin in tech_list:
+            #     pass
+            # else:
+            logger.info(
+                f"Using {battery_wacc_standin} {fin_case} WACC for Battery storage."
+            )
+            wacc_s = f"""
+            select technology, cost_case, basis_year, parameter_value
+            from technology_costs_nrelatb
+            where
+                technology == "{battery_wacc_standin}"
+                AND financial_case == "{fin_case}"
+                AND cost_case == "Mid"
+                AND atb_year == {atb_year}
+                AND parameter == "wacc_nominal"
+            
+            """
+            b_rows = pudl_engine.execute(wacc_s).fetchall()
+            battery_wacc_rows = [
+                (battery_tech[0], battery_tech[2], b_row[2], b_row[3])
+                for b_row in b_rows
+            ]
+            wacc_rows.extend(battery_wacc_rows)
+        else:
+            raise ValueError(
+                f"The settings key `atb_battery_wacc` value is {battery_wacc_standin}. It "
+                f"should either be a float or a string from the list {atb_techs}."
+            )
+
+        df = pd.DataFrame(all_rows, columns=col_names)
+        wacc_df = pd.DataFrame(
+            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_nominal"]
+        )
+
+    # Transform from tidy to wide dataframe, which makes it easier to fill generator
+    # rows with the correct values.
+    atb_costs = (
+        df.drop_duplicates()
+        .set_index(
+            [
+                "technology",
+                "tech_detail",
+                "cost_case",
+                "dollar_year",
+                "basis_year",
+                "parameter",
+            ]
+        )
+        .unstack(level=-1)
+    )
+    atb_costs.columns = atb_costs.columns.droplevel(0)
+    atb_costs = (
+        atb_costs.reset_index()
+        .merge(wacc_df, on=["technology", "cost_case", "basis_year"], how="left")
+        .drop_duplicates()
+    )
+    atb_costs = atb_costs.fillna(0)
+
     usd_columns = [
-        "o_m_fixed_mw",
-        "o_m_fixed_mwh",
-        "o_m_variable_mwh",
-        "capex",
+        "fixed_o_m_mw",
+        "fixed_o_m_mwh",
+        "variable_o_m_mwh",
+        "capex_mw",
         "capex_mwh",
     ]
-    logger.info(
-        f"Changing NREL ATB costs from {atb_base_year} to {atb_target_year} USD"
+    for col in usd_columns:
+        if col not in atb_costs.columns:
+            atb_costs[col] = 0
+
+    atb_target_year = settings["target_usd_year"]
+    atb_costs[usd_columns] = atb_costs.apply(
+        lambda row: inflation_price_adjustment(
+            row[usd_columns], base_year=row["dollar_year"], target_year=atb_target_year
+        ),
+        axis=1,
     )
-    atb_costs.loc[:, usd_columns] = inflation_price_adjustment(
-        price=atb_costs.loc[:, usd_columns],
-        base_year=atb_base_year,
-        target_year=atb_target_year,
-    )
 
-    logger.info("Inflating PV costs for DC to AC")
+    if any("PV" in tech for tech in tech_list) and atb_year == 2019:
+        print("Inflating ATB 2019 PV costs from DC to AC")
+        atb_costs.loc[
+            atb_costs["technology"].str.contains("PV"),
+            ["capex_mw", "fixed_o_m_mw", "variable_o_m_mwh"],
+        ] *= settings.get("pv_ac_dc_ratio", 1.3)
+    elif atb_year > 2019:
+        logger.info("PV costs are already in AC units, not inflating the cost.")
 
-    atb_costs.loc[
-        atb_costs["technology"].str.contains("PV"), ["o_m_fixed_mw", "o_m_variable_mwh"]
-    ] *= settings["pv_ac_dc_ratio"]
-
-    if offshore_spur_costs is not None:
+    if offshore_spur_costs is not None and "OffShoreWind" in atb_costs["technology"]:
         idx_cols = ["technology", "tech_detail", "cost_case", "basis_year"]
         offshore_spur_costs = offshore_spur_costs.set_index(idx_cols)
         atb_costs = atb_costs.set_index(idx_cols)
 
-        atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"] = (
-            atb_costs.loc[idx["OffShoreWind", :, :, :], "capex"].values
-            - offshore_spur_costs["capex"].values
+        atb_costs.loc[idx["OffShoreWind", :, :, :], "capex_mw"] = (
+            atb_costs.loc[idx["OffShoreWind", :, :, :], "capex_mw"]  # .values
+            - offshore_spur_costs.loc[
+                idx["OffShoreWind", :, :, :], "capex_mw"
+            ]  # .values
         )
         atb_costs = atb_costs.reset_index()
 
     return atb_costs
 
 
-def fetch_atb_offshore_spur_costs(pudl_engine, settings):
+def fetch_atb_offshore_spur_costs(
+    pudl_engine: sqlalchemy.engine.base.Engine, settings: dict
+) -> pd.DataFrame:
     """Load offshore spur-line costs and convert to desired dollar-year.
 
     Parameters
@@ -104,32 +260,36 @@ def fetch_atb_offshore_spur_costs(pudl_engine, settings):
     pudl_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas
     settings : dict
-        User-defined parameters from a settings file
+        User-defined parameters from a settings file. Needs to have keys `atb_data_year`
+        and `target_usd_year`.
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         Total offshore spur line capex from ATB for each technology/tech_detail/
         basis_year/cost_case combination.
     """
     spur_costs = pd.read_sql_table("offshore_spur_costs_nrelatb", pudl_engine)
+    spur_costs = spur_costs.loc[spur_costs["atb_year"] == settings["atb_data_year"], :]
 
-    atb_base_year = settings["atb_usd_year"]
     atb_target_year = settings["target_usd_year"]
 
-    spur_costs.loc[:, "capex"] = inflation_price_adjustment(
-        price=spur_costs.loc[:, "capex"],
-        base_year=atb_base_year,
-        target_year=atb_target_year,
+    spur_costs["capex_mw"] = spur_costs.apply(
+        lambda row: inflation_price_adjustment(
+            row["capex_mw"], base_year=row["dollar_year"], target_year=atb_target_year
+        ),
+        axis=1,
     )
 
     # ATB assumes a 30km distance for offshore spur. Normalize to per mile
-    spur_costs["capex_mw_mile"] = spur_costs["capex"] / 30 * 1.60934
+    spur_costs["capex_mw_mile"] = spur_costs["capex_mw"] / 30 * 1.60934
 
     return spur_costs
 
 
-def fetch_atb_heat_rates(pudl_engine):
+def fetch_atb_heat_rates(
+    pudl_engine: sqlalchemy.engine.base.Engine, settings: dict
+) -> pd.DataFrame:
     """Get heat rate projections for power plants
 
     Data is originally from AEO, NREL does a linear interpolation between current and
@@ -139,20 +299,28 @@ def fetch_atb_heat_rates(pudl_engine):
     ----------
     pudl_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas
+    settings : dict
+        User-defined parameters from a settings file. Needs to have key `atb_data_year`.
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         Power plant heat rate data by year with columns:
         ['technology', 'tech_detail', 'basis_year', 'heat_rate']
     """
 
     heat_rates = pd.read_sql_table("technology_heat_rates_nrelatb", pudl_engine)
+    heat_rates = heat_rates.loc[heat_rates["atb_year"] == settings["atb_data_year"], :]
 
     return heat_rates
 
 
-def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
+def atb_fixed_var_om_existing(
+    results: pd.DataFrame,
+    atb_hr_df: pd.DataFrame,
+    settings: dict,
+    pudl_engine: sqlalchemy.engine.base.Engine,
+) -> pd.DataFrame:
     """Add fixed and variable O&M for existing power plants
 
     ATB O&M data for new power plants are used as reference values. Fixed and variable
@@ -166,8 +334,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
         Compiled results of clustered power plants with weighted average heat rates.
         Note that column names should include "technology", "Heat_rate_MMBTU_per_MWh",
         and "region". Technology names should not yet be converted to snake case.
-    atb_costs_df : DataFrame
-        Cost data from NREL ATB
     atb_hr_df : DataFrame
         Heat rate data from NREL ATB
     settings : dict
@@ -184,8 +350,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
     existing_year = settings["atb_existing_year"]
 
     # ATB string is <technology>_<tech_detail>
-    techs = {eia: atb_costs_df.split("_") for eia, atb_costs_df in techs.items()}
-
+    techs = {eia: atb.split("_") for eia, atb in techs.items()}
     df_list = []
     grouped_results = results.reset_index().groupby(
         ["plant_id_eia", "technology"], as_index=False
@@ -223,6 +388,43 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             # to 1
             existing_hr = 1
             new_build_hr = 1
+        try:
+            s = f"""
+                select parameter_value
+                from technology_costs_nrelatb
+                where
+                    technology == "{atb_tech}"
+                    AND tech_detail == "{tech_detail}"
+                    AND basis_year == "{existing_year}"
+                    AND financial_case == "Market"
+                    AND cost_case == "Mid"
+                    AND atb_year == "{settings['atb_data_year']}"
+                    AND parameter == "variable_o_m_mwh"
+                
+                """
+            atb_var_om_mwh = pudl_engine.execute(s).fetchall()[0][0]
+        except IndexError:
+            # logger.warning(f"No variable O&M for {atb_tech}")
+            atb_var_om_mwh = 0
+
+        try:
+            s = f"""
+                select parameter_value
+                from technology_costs_nrelatb
+                where
+                    technology == "{atb_tech}"
+                    AND tech_detail == "{tech_detail}"
+                    AND basis_year == "{existing_year}"
+                    AND financial_case == "Market"
+                    AND cost_case == "Mid"
+                    AND atb_year == "{settings['atb_data_year']}"
+                    AND parameter == "fixed_o_m_mw"
+                
+                """
+            atb_fixed_om_mw_yr = pudl_engine.execute(s).fetchall()[0][0]
+        except IndexError:
+            # logger.warning(f"No fixed O&M for {atb_tech}")
+            atb_fixed_om_mw_yr = 0
 
         nems_o_m_techs = [
             "Combined Cycle",
@@ -231,6 +433,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             "Steam Turbine",
             "Hydroelectric",
             "Geothermal",
+            "Nuclear",
         ]
         if any(t in eia_tech for t in nems_o_m_techs):
             # Change CC and CT O&M to EIA NEMS values, which are much higher for CCs and
@@ -244,55 +447,55 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
             target_usd_year = settings["target_usd_year"]
             simple_o_m = {
                 "Combined Cycle": {
-                    # "o_m_fixed_mw": inflation_price_adjustment(
+                    # "fixed_o_m_mw": inflation_price_adjustment(
                     #     13.08 * 1000, 2017, target_usd_year
                     # ),
-                    # "o_m_variable_mwh": inflation_price_adjustment(
+                    # "variable_o_m_mwh": inflation_price_adjustment(
                     #     3.91, 2017, target_usd_year
                     # )
                 },
                 # "Combustion Turbine": {
                 #     # This includes both the Fixed O&M and Capex. Capex includes
                 #     # variable O&M, which is split out in the calculations below.
-                #     "o_m_fixed_mw": inflation_price_adjustment(
+                #     "fixed_o_m_mw": inflation_price_adjustment(
                 #         (5.33 + 6.90) * 1000, 2017, target_usd_year
                 #     ),
-                #     "o_m_variable_mwh": 0,
+                #     "variable_o_m_mwh": 0,
                 # },
                 "Natural Gas Steam Turbine": {
                     # NEMS documenation splits capex and fixed O&M across 2 tables
-                    # "o_m_fixed_mw": inflation_price_adjustment(
+                    # "fixed_o_m_mw": inflation_price_adjustment(
                     #     (15.96 + 24.68) * 1000, 2017, target_usd_year
                     # ),
-                    "o_m_variable_mwh": inflation_price_adjustment(
+                    "variable_o_m_mwh": inflation_price_adjustment(
                         1.0, 2017, target_usd_year
                     )
                 },
                 "Coal": {
-                    # "o_m_fixed_mw": inflation_price_adjustment(
+                    # "fixed_o_m_mw": inflation_price_adjustment(
                     #     ((22.2 + 27.88) / 2 + 46.01) * 1000, 2017, target_usd_year
                     # ),
-                    "o_m_variable_mwh": inflation_price_adjustment(
+                    "variable_o_m_mwh": inflation_price_adjustment(
                         1.78, 2017, target_usd_year
                     )
                 },
                 "Conventional Hydroelectric": {
-                    "o_m_fixed_mw": inflation_price_adjustment(
+                    "fixed_o_m_mw": inflation_price_adjustment(
                         44.56 * 1000, 2017, target_usd_year
                     ),
-                    "o_m_variable_mwh": 0,
+                    "variable_o_m_mwh": 0,
                 },
                 "Geothermal": {
-                    "o_m_fixed_mw": inflation_price_adjustment(
+                    "fixed_o_m_mw": inflation_price_adjustment(
                         198.04 * 1000, 2017, target_usd_year
                     ),
-                    "o_m_variable_mwh": 0,
+                    "variable_o_m_mwh": 0,
                 },
                 "Pumped Hydro": {
-                    "o_m_fixed_mw": inflation_price_adjustment(
+                    "fixed_o_m_mw": inflation_price_adjustment(
                         (23.63 + 14.83) * 1000, 2017, target_usd_year
                     ),
-                    "o_m_variable_mwh": 0,
+                    "variable_o_m_mwh": 0,
                 },
             }
 
@@ -332,15 +535,6 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     .get("Var_OM_cost_per_MWh", (None, None))
                 )
 
-                # Variable O&M for new-build
-                atb_var_om_mwh = (
-                    atb_costs_df.query(
-                        "technology==@atb_tech & cost_case=='Mid' "
-                        "& tech_detail==@tech_detail & basis_year==@existing_year"
-                    )
-                    .squeeze()
-                    .at["o_m_variable_mwh"]
-                )
                 if op:
                     f = operator.attrgetter(op)
                     atb_var_om_mwh = f(operator)(atb_var_om_mwh, op_value)
@@ -384,7 +578,7 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                     fixed, 2017, target_usd_year
                 )
                 _df["Var_OM_cost_per_MWh"] = simple_o_m["Natural Gas Steam Turbine"][
-                    "o_m_variable_mwh"
+                    "variable_o_m_mwh"
                 ]
 
             if "Coal" in eia_tech:
@@ -392,16 +586,9 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 plant_capacity = _df[settings["capacity_col"]].sum()
                 assert plant_capacity > 0
 
-                atb_var_om_mwh = (
-                    atb_costs_df.query(
-                        "technology==@atb_tech & cost_case=='Mid' "
-                        "& tech_detail==@tech_detail & basis_year==@existing_year"
-                    )
-                    .squeeze()
-                    .at["o_m_variable_mwh"]
-                )
-
                 age = settings["model_year"] - _df.operating_date.dt.year
+                age = age.fillna(age.mean())
+                age = age.fillna(40)
 
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
                 annual_capex = (16.53 + (0.126 * age) + (5.68 * 0.5)) * 1000
@@ -418,45 +605,60 @@ def atb_fixed_var_om_existing(results, atb_costs_df, atb_hr_df, settings):
                 _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
                     fixed + annual_capex, 2017, target_usd_year
                 )
-                _df["Var_OM_cost_per_MWh"] = simple_o_m["Coal"]["o_m_variable_mwh"]
+                _df["Var_OM_cost_per_MWh"] = simple_o_m["Coal"]["variable_o_m_mwh"]
             if "Hydroelectric" in eia_tech:
                 _df["Fixed_OM_cost_per_MWyr"] = simple_o_m[
                     "Conventional Hydroelectric"
-                ]["o_m_fixed_mw"]
+                ]["fixed_o_m_mw"]
                 _df["Var_OM_cost_per_MWh"] = simple_o_m["Conventional Hydroelectric"][
-                    "o_m_variable_mwh"
+                    "variable_o_m_mwh"
                 ]
             if "Geothermal" in eia_tech:
-                _df["Fixed_OM_cost_per_MWyr"] = simple_o_m["Geothermal"]["o_m_fixed_mw"]
+                _df["Fixed_OM_cost_per_MWyr"] = simple_o_m["Geothermal"]["fixed_o_m_mw"]
                 _df["Var_OM_cost_per_MWh"] = simple_o_m["Geothermal"][
-                    "o_m_variable_mwh"
+                    "variable_o_m_mwh"
                 ]
             if "Pumped" in eia_tech:
                 _df["Fixed_OM_cost_per_MWyr"] = simple_o_m["Pumped Hydro"][
-                    "o_m_fixed_mw"
+                    "fixed_o_m_mw"
                 ]
                 _df["Var_OM_cost_per_MWh"] = simple_o_m["Pumped Hydro"][
-                    "o_m_variable_mwh"
+                    "variable_o_m_mwh"
                 ]
+            if "Nuclear" in eia_tech:
+                num_units = len(_df)
+                plant_capacity = _df[settings["capacity_col"]].sum()
+
+                # Operating costs for different size/num units in 2016 INL report
+                # "Economic and Market Challenges Facing the U.S. Nuclear Fleet"
+                # https://gain.inl.gov/Shared%20Documents/Economics-Nuclear-Fleet.pdf,
+                # table 1. Average of the two costs are used in each case.
+                # The costs in that report include fuel and VOM. Assume $0.66/mmbtu
+                # and $2.32/MWh plus 90% CF (ATB 2020) to get the costs below.
+                # The INL report doesn't give a dollar year for costs, assume 2015.
+                if num_units == 1 and plant_capacity < 900:
+                    fixed = 315000
+                elif num_units == 1 and plant_capacity >= 900:
+                    fixed = 252000
+                else:
+                    fixed = 177000
+                # age = (settings["model_year"] - _df.operating_date.dt.year).values
+                # age = age.fillna(age.mean())
+                # age = age.fillna(40)
+                # EIA, 2020, "Assumptions to Annual Energy Outlook, Electricity Market Module,"
+                # Available: https://www.eia.gov/outlooks/aeo/assumptions/pdf/electricity.pdf
+                # fixed = np.ones_like(age)
+                # fixed[age < 30] *= 27 * 1000
+                # fixed[age >= 30] *= (27+37) * 1000
+
+                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
+                    fixed, 2015, target_usd_year
+                )
+                _df["Var_OM_cost_per_MWh"] = atb_var_om_mwh * (
+                    existing_hr / new_build_hr
+                )
 
         else:
-
-            atb_fixed_om_mw_yr = (
-                atb_costs_df.query(
-                    "technology==@atb_tech & cost_case=='Mid' "
-                    "& tech_detail==@tech_detail & basis_year==@existing_year"
-                )
-                .squeeze()
-                .at["o_m_fixed_mw"]
-            )
-            atb_var_om_mwh = (
-                atb_costs_df.query(
-                    "technology==@atb_tech & cost_case=='Mid' "
-                    "& tech_detail==@tech_detail & basis_year==@existing_year"
-                )
-                .squeeze()
-                .at["o_m_variable_mwh"]
-            )
             _df["Fixed_OM_cost_per_MWyr"] = atb_fixed_om_mw_yr
             _df["Var_OM_cost_per_MWh"] = atb_var_om_mwh * (existing_hr / new_build_hr)
 
@@ -496,22 +698,21 @@ def single_generator_row(atb_costs_hr, new_gen_type, model_year_range):
     technology, tech_detail, cost_case, size_mw = new_gen_type
     numeric_cols = [
         "basis_year",
-        "o_m_fixed_mw",
-        "o_m_fixed_mwh",
-        "o_m_variable_mwh",
-        "capex",
+        "fixed_o_m_mw",
+        "fixed_o_m_mwh",
+        "variable_o_m_mwh",
+        "capex_mw",
         "capex_mwh",
         # "cf",
         # "fuel",
         # "lcoe",
         # "o_m",
-        "waccnomtech",
+        "wacc_nominal",
         "heat_rate",
     ]
     s = atb_costs_hr.loc[
         (atb_costs_hr["technology"] == technology)
         & (atb_costs_hr["tech_detail"] == tech_detail)
-        & (atb_costs_hr["cost_case"] == cost_case)
         & (atb_costs_hr["basis_year"].isin(model_year_range)),
         numeric_cols,
     ].mean()
@@ -583,9 +784,9 @@ def add_modified_atb_generators(settings, atb_costs_hr, model_year_range):
     -------
     DataFrame
         Row or rows of modified ATB resources. Each row includes the colums:
-        ['technology', 'cost_case', 'tech_detail', 'basis_year', 'o_m_fixed_mw',
-       'o_m_fixed_mwh', 'o_m_variable_mwh', 'capex', 'capex_mwh', 'cf', 'fuel',
-       'lcoe', 'o_m', 'waccnomtech', 'heat_rate', 'Cap_size'].
+        ['technology', 'cost_case', 'tech_detail', 'basis_year', 'fixed_o_m_mw',
+       'fixed_o_m_mwh', 'variable_o_m_mwh', 'capex', 'capex_mwh', 'cf', 'fuel',
+       'lcoe', 'o_m', 'wacc_nominal', 'heat_rate', 'Cap_size'].
     """
 
     # copy settings so popped keys aren't removed permenantly
@@ -642,8 +843,8 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     atb_costs : DataFrame
         All cost parameters from the SQL table for new generators. Should include:
         ['technology', 'cost_case', 'financial_case', 'basis_year', 'tech_detail',
-        'capex', 'capex_mwh', 'o_m_fixed_mw', 'o_m_fixed_mwh', 'o_m_variable_mwh',
-        'waccnomtech']
+        'capex', 'capex_mwh', 'fixed_o_m_mw', 'fixed_o_m_mwh', 'variable_o_m_mwh',
+        'wacc_nominal']
     atb_hr : DataFrame
         The technology, tech_detail, and heat_rate of new generators from ATB.
     settings : dict
@@ -680,20 +881,6 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         ],
         ignore_index=True,
     )
-
-    if isinstance(settings["atb_battery_wacc"], float):
-        new_gen_df.loc[new_gen_df["technology"] == "Battery", "waccnomtech"] = settings[
-            "atb_battery_wacc"
-        ]
-    elif isinstance(settings["atb_battery_wacc"], str):
-        solar_wacc = new_gen_df.loc[
-            new_gen_df["technology"].str.contains("UtilityPV"), "waccnomtech"
-        ].values[0]
-
-        new_gen_df.loc[
-            new_gen_df["technology"] == "Battery", "waccnomtech"
-        ] = solar_wacc
-
     # Add user-defined technologies
     # This should probably be separate from ATB techs, and the regional cost multipliers
     # should be its own function.
@@ -723,9 +910,9 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     new_gen_df = new_gen_df.rename(
         columns={
             "heat_rate": "Heat_rate_MMBTU_per_MWh",
-            "o_m_fixed_mw": "Fixed_OM_cost_per_MWyr",
-            "o_m_fixed_mwh": "Fixed_OM_cost_per_MWhyr",
-            "o_m_variable_mwh": "Var_OM_cost_per_MWh",
+            "fixed_o_m_mw": "Fixed_OM_cost_per_MWyr",
+            "fixed_o_m_mwh": "Fixed_OM_cost_per_MWhyr",
+            "variable_o_m_mwh": "Var_OM_cost_per_MWh",
         }
     )
 
@@ -794,14 +981,14 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         ] = years
 
     new_gen_df["Inv_cost_per_MWyr"] = investment_cost_calculator(
-        capex=new_gen_df["capex"],
-        wacc=new_gen_df["waccnomtech"],
+        capex=new_gen_df["capex_mw"],
+        wacc=new_gen_df["wacc_nominal"],
         cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
     new_gen_df["Inv_cost_per_MWhyr"] = investment_cost_calculator(
         capex=new_gen_df["capex_mwh"],
-        wacc=new_gen_df["waccnomtech"],
+        wacc=new_gen_df["wacc_nominal"],
         cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
@@ -811,14 +998,14 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Fixed_OM_cost_per_MWyr",
         "Fixed_OM_cost_per_MWhyr",
         "Var_OM_cost_per_MWh",
-        "capex",
+        "capex_mw",
         "capex_mwh",
         "Inv_cost_per_MWyr",
         "Inv_cost_per_MWhyr",
         "Heat_rate_MMBTU_per_MWh",
         "Cap_size",
         "cap_recovery_years",
-        "waccnomtech",
+        "wacc_nominal",
     ]
     new_gen_df = new_gen_df[keep_cols]
     # Set no capacity limit on new resources that aren't renewables.
@@ -867,12 +1054,11 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Fixed_OM_cost_per_MWhyr",
         "Inv_cost_per_MWyr",
         "Inv_cost_per_MWhyr",
+        "cluster",
     ]
     results = results.fillna(0)
     results[int_cols] = results[int_cols].astype(int)
-    results["Var_OM_cost_per_MWh"] = (
-        results["Var_OM_cost_per_MWh"].astype(float)
-    )
+    results["Var_OM_cost_per_MWh"] = results["Var_OM_cost_per_MWh"].astype(float)
 
     return results
 
@@ -951,7 +1137,10 @@ def add_renewables_clusters(
         scenario.pop("region")
         clusters = (
             CLUSTER_BUILDER.get_clusters(
-                **scenario, ipm_regions=ipm_regions, existing=False
+                **scenario,
+                ipm_regions=ipm_regions,
+                existing=False,
+                utc_offset=settings.get("utc_offset", 0),
             )
             .rename(columns={"mw": "Max_Cap_MW"})
             .assign(technology=technology, region=region)
@@ -1029,12 +1218,12 @@ def load_user_defined_techs(settings):
         "technology",
         "tech_detail",
         "cost_case",
-        "capex",
+        "capex_mw",
         "capex_mwh",
-        "o_m_fixed_mw",
-        "o_m_fixed_mwh",
-        "o_m_variable_mwh",
-        "waccnomtech",
+        "fixed_o_m_mw",
+        "fixed_o_m_mwh",
+        "variable_o_m_mwh",
+        "wacc_nominal",
         "heat_rate",
         "Cap_size",
         "dollar_year",

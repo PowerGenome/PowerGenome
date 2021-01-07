@@ -1177,6 +1177,9 @@ def calc_unit_cluster_values(df, settings, technology=None):
     df_values["heat_rate_mmbtu_mwh_std"] = df.groupby("cluster").agg(
         {"heat_rate_mmbtu_mwh": "std"}
     )
+    df_values["fixed_o_m_mw_std"] = df.groupby("cluster").agg(
+        {"Fixed_OM_cost_per_MWyr": "std"}
+    )
 
     df_values["Min_power"] = (
         df_values["minimum_load_mw"] / df_values[settings["capacity_col"]]
@@ -1990,18 +1993,10 @@ class GeneratorClusters:
             # self.utilities_eia = load_utilities_eia(self.pudl_engine)
         else:
             self.existing_resources = pd.DataFrame()
-
-        self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
-            self.pudl_engine, self.settings
-        )
-        self.atb_costs = fetch_atb_costs(
-            self.pudl_engine, self.settings, self.offshore_spur_costs
-        )
-        self.atb_hr = fetch_atb_heat_rates(self.pudl_engine)
-
         self.fuel_prices = fetch_fuel_prices(self.settings)
+        self.atb_hr = fetch_atb_heat_rates(self.pudl_engine, self.settings)
 
-    def fill_na_heat_rates(self, df):
+    def fill_na_heat_rates(self, s):
         """Fill null heat rate values with the median of the series. Not many null
         values are expected.
 
@@ -2015,11 +2010,15 @@ class GeneratorClusters:
         Dataframe
             Same as input but with any null values replaced by the median.
         """
+        if s.isnull().any():
+            median_hr = s.median()
+            return s.fillna(median_hr)
+        else:
+            return s
+        # median_hr = df["heat_rate_mmbtu_mwh"].median()
+        # df["heat_rate_mmbtu_mwh"].fillna(median_hr, inplace=True)
 
-        median_hr = df["heat_rate_mmbtu_mwh"].median()
-        df["heat_rate_mmbtu_mwh"].fillna(median_hr, inplace=True)
-
-        return df
+        # return df
 
     def create_demand_response_gen_rows(self):
         """Create rows for demand response/management resources to include in the
@@ -2201,9 +2200,12 @@ class GeneratorClusters:
         # Fill any null heat rate values for each tech
         for tech in self.units_model["technology_description"]:
             self.units_model.loc[
-                self.units_model.technology_description == tech, :
+                self.units_model.technology_description == tech, "heat_rate_mmbtu_mwh"
             ] = self.fill_na_heat_rates(
-                self.units_model.loc[self.units_model.technology_description == tech, :]
+                self.units_model.loc[
+                    self.units_model.technology_description == tech,
+                    "heat_rate_mmbtu_mwh",
+                ]
             )
         # assert (
         #     self.units_model["heat_rate_mmbtu_mwh"].isnull().any() is False
@@ -2248,7 +2250,12 @@ class GeneratorClusters:
         self.units_model = (
             self.units_model.rename(columns={"technology_description": "technology"})
             .query("technology.isin(@techs).values")
-            .pipe(atb_fixed_var_om_existing, self.atb_costs, self.atb_hr, self.settings)
+            .pipe(
+                atb_fixed_var_om_existing,
+                self.atb_hr,
+                self.settings,
+                self.pudl_engine,
+            )
         )
 
         # logger.info(
@@ -2496,12 +2503,22 @@ class GeneratorClusters:
             if not metadata["ipm_region"].isin(ipm_regions).any():
                 # Resource group has no resources in selected IPM regions
                 continue
-            clusters = group.get_clusters(ipm_regions=ipm_regions, max_clusters=1)
+            clusters = group.get_clusters(
+                ipm_regions=ipm_regions,
+                max_clusters=1,
+                utc_offset=self.settings.get("utc_offset", 0),
+            )
             self.results["profile"][i] = clusters["profile"][0]
 
         return self.results
 
     def create_new_generators(self):
+        self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
+            self.pudl_engine, self.settings
+        )
+        self.atb_costs = fetch_atb_costs(
+            self.pudl_engine, self.settings, self.offshore_spur_costs
+        )
 
         self.new_generators = atb_new_generators(
             self.atb_costs, self.atb_hr, self.settings
@@ -2560,9 +2577,7 @@ class GeneratorClusters:
         self.all_resources = self.all_resources.reset_index(drop=True)
         self.all_resources["variable_CF"] = 0.0
         for i, p in enumerate(self.all_resources["profile"]):
-            if isinstance(
-                p, (collections.Sequence, np.ndarray)
-            ):
+            if isinstance(p, (collections.Sequence, np.ndarray)):
                 self.all_resources.loc[i, "variable_CF"] = np.mean(p)
 
         # Set Min_power of wind/solar to 0

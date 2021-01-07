@@ -55,7 +55,7 @@ conda activate powergenome
 pip install -e .
 ```
 
-5. Download a [modifed version of the PUDL database](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5) that includes NREL ATB cost data and is not yet included in PUDL.
+5. Download a [modifed version of the PUDL database](https://drive.google.com/file/d/1DamR83bR9DyY-gdXac6xYnp5iFhhzgO4/view?usp=sharing) that includes NREL ATB cost data and is not yet included in PUDL. **NOTE: this database was updated for PowerGenome v0.4.0 and is not compatable with earlier versions.** 
 
 6. Download the [renewable resource data](https://drive.google.com/file/d/1g0Q6TdNp4C12HQJy6pAURzp_oVg0Q7ly/view?usp=sharing) containing generation profiles and capacity for existing and new-build renewable resources. Save and unzip this file. The suggested location for all of the unzipped files is `PowerGenome/data/resource_groups/`. These files will eventually be provided through a data repository with citation information.
 
@@ -102,7 +102,7 @@ If you have previously installed PowerGenome and the `run_powergenome_multiple` 
 
 ## Licensing
 
-PowerGenome is released under the [MIT License](https://opensource.org/licenses/MIT). Most data inputs are from US government sources (EIA, EPA, FERC, etc), which should not be [subject to copyright in the US](https://www.usa.gov/government-works). Hourly generation profiles for wind and solar resources were created by [Vibrant Clean Energy](https://www.vibrantcleanenergy.com/) and provided without usage restrictions. All PowerGenome data outputs are released under the [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/legalcode) license.
+PowerGenome is released under the [MIT License](https://opensource.org/licenses/MIT). Most data inputs are from US government sources (EIA, EPA, FERC, etc), which should not be [subject to copyright in the US](https://www.usa.gov/government-works). Hourly FERC demand data has been cleaned using [techniques](https://github.com/truggles/EIA_Cleaned_Hourly_Electricity_Demand_Code) developed by Tyler Ruggles and David Farnham, and allocated to IPM regions using [methods developed](https://github.com/catalyst-cooperative/electricity-demand-mapping) by Catalyst Cooperative. Hourly generation profiles for wind and solar resources were created by [Vibrant Clean Energy](https://www.vibrantcleanenergy.com/) and provided without usage restrictions. All PowerGenome data outputs are released under the [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/legalcode) license.
 
 ## Contributing
 

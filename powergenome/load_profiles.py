@@ -5,11 +5,11 @@ Hourly demand profiles
 import logging
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 from powergenome.util import (
     regions_to_keep,
     reverse_dict_of_lists,
-    shift_wrap_profiles,
     remove_feb_29,
 )
 from powergenome.external_data import make_demand_response_profiles
@@ -60,6 +60,10 @@ def make_load_curves(
 
     if len(lc_wide) == 8784:
         lc_wide = remove_feb_29(lc_wide)
+    
+    # Shift load from UTC
+    for col in lc_wide:
+        lc_wide[col] = np.roll(lc_wide[col].values, settings.get("utc_offset", 0))
 
     lc_wide.index.name = "time_index"
     if lc_wide.index.min() == 0:

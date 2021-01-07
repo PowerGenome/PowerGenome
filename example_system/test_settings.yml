@@ -172,31 +172,31 @@ settings_management:
           ngccccs:
             technology: NaturalGas
             tech_detail: CCCCSAvgCF
-            capex: [mul, 1]
+            capex_mw: [mul, 1]
           NGCCS100:
             technology: NaturalGas
             tech_detail: CCS100
-            capex: [mul, 1]
+            capex_mw: [mul, 1]
       low:
         atb_modifiers:
           ngccccs:
             technology: NaturalGas
             tech_detail: CCCCSAvgCF
-            capex: [mul, 0.85]
+            capex_mw: [mul, 0.85]
           NGCCS100:
             technology: NaturalGas
             tech_detail: CCS100
-            capex: [mul, 0.85]
+            capex_mw: [mul, 0.85]
       high:
         atb_modifiers:
           ngccccs:
             technology: NaturalGas
             tech_detail: CCCCSAvgCF
-            capex: [mul, 1.2]
+            capex_mw: [mul, 1.2]
           NGCCS100:
             technology: NaturalGas
             tech_detail: CCS100
-            capex: [mul, 1.2]
+            capex_mw: [mul, 1.2]
     renewable_capex:
       mid:
         atb_new_gen:
@@ -279,31 +279,31 @@ settings_management:
           ngccccs:
             technology: NaturalGas
             tech_detail: CCCCSAvgCF
-            capex: [mul, 1]
+            capex_mw: [mul, 1]
           NGCCS100:
             technology: NaturalGas
             tech_detail: CCS100
-            capex: [mul, 1]
+            capex_mw: [mul, 1]
       low:
         atb_modifiers:
           ngccccs:
             technology: NaturalGas
             tech_detail: CCCCSAvgCF
-            capex: [mul, 0.8]
+            capex_mw: [mul, 0.8]
           NGCCS100:
             technology: NaturalGas
             tech_detail: CCS100
-            capex: [mul, 0.8]
+            capex_mw: [mul, 0.8]
       high:
         atb_modifiers:
           ngccccs:
             technology: NaturalGas
             tech_detail: CCCCSAvgCF
-            capex: [mul, 1.15]
+            capex_mw: [mul, 1.15]
           NGCCS100:
             technology: NaturalGas
             tech_detail: CCS100
-            capex: [mul, 1.15]
+            capex_mw: [mul, 1.15]
     renewable_capex:
       mid:
         atb_new_gen:
@@ -364,6 +364,10 @@ data_years:
   - 2018
 
 target_usd_year: 2017
+
+# HOURS OFFSET FROM UTC
+# All time profile data are stored in UTC. Provide an offset for the model timezone.
+utc_offset: -5
 
 # CAPACITY TYPE
 capacity_col: winter_capacity_mw
@@ -676,6 +680,7 @@ regional_tag_values:
 
 # Generator cost data from NREL ATB
 
+atb_data_year: 2020
 atb_cost_case: Mid
 atb_financial_case: Market
 atb_cap_recovery_years: 20
@@ -703,16 +708,14 @@ atb_modifiers:
   ngct:
     technology: NaturalGas
     tech_detail: CTAvgCF
-    capex: [mul, 0.76]
-    # Inv_cost_per_MWyr: 0.76
-    Var_OM_cost_per_MWh: [mul, 1.51]
-    Fixed_OM_cost_per_MWyr: [mul, 0.56]
-    Heat_rate_MMBTU_per_MWh: [mul, 0.97]
+    capex_mw: [mul, 0.76]
+    Var_OM_cost_per_MWh: [mul, 0.98]
+    Fixed_OM_cost_per_MWyr: [mul, 0.6]
+    Heat_rate_MMBTU_per_MWh: [mul, 1.04]
   ngcc:
     technology: NaturalGas
     tech_detail: CCAvgCF
-    capex: [mul, 0.89]
-    # Inv_cost_per_MWyr: 0.89
+    capex_mw: [mul, 0.89]
     Var_OM_cost_per_MWh: [mul, 0.73]
     Fixed_OM_cost_per_MWyr: [mul, 0.95]
     Heat_rate_MMBTU_per_MWh: [mul, 0.98]
@@ -730,10 +733,10 @@ modified_atb_new_gen:
     atb_tech_detail: CCCCSAvgCF
     atb_cost_case: Mid
     size_mw: 500
-    capex: [add, 116000]
+    capex_mw: [add, 116000]
     heat_rate: [add, 0.365]
-    o_m_fixed_mw: [add, 9670]
-    o_m_variable_mwh: [mul, 1.076]
+    fixed_o_m_mw: [add, 9670]
+    variable_o_m_mwh: [mul, 1.076]
 
 # ATB doesn't have a WACC for battery tech. Need to provide a value here.
 atb_battery_wacc: UtilityPV
@@ -1187,7 +1190,7 @@ generator_columns: [
             "Max_Cap_MW",
             "Min_Share_percent",
             "Max_Share_percent",
-            "capex",
+            "capex_mw",
             "Inv_cost_per_MWyr",
             "Fixed_OM_cost_per_MWyr",
             "capex_mwh",
