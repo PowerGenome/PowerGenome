@@ -4,6 +4,7 @@
 [![Build Status](https://travis-ci.com/gschivley/PowerGenome.svg?token=yTGQ4JcCGLW2GZpmvXHw&branch=master)](https://travis-ci.com/gschivley/PowerGenome)
 [![codecov](https://codecov.io/gh/gschivley/PowerGenome/branch/master/graph/badge.svg?token=7KJYLE3jOW)](https://codecov.io/gh/gschivley/PowerGenome)
 [![code style black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![DOI](https://zenodo.org/badge/197630673.svg)](https://zenodo.org/badge/latestdoi/197630673)
 
 **Note:** The code and data for PowerGenome are under active development and some changes may break existing functions. Keep up to date with major code and data releases by joining [PowerGenome on groups.io](https://groups.io/g/powergenome).
 
@@ -31,7 +32,7 @@ PowerGenome uses data from a number of different sources, including EIA, NREL, a
 
 This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl). As such, it requires installation of PUDL to access a normalized sqlite database and some of the convienience PUDL functions.
 
-`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). The data used by PowerGenome have outstripped what is available in the public version of PUDL, so download a modifed version of the [PUDL sqlite database here](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5). The package `catalystcoop.pudl` must be version 0.3.0 or above to work with this version of the database.
+`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). The data used by PowerGenome have outstripped what is available in the public version of PUDL, so download a modifed version of the [PUDL sqlite database here](https://drive.google.com/file/d/1DamR83bR9DyY-gdXac6xYnp5iFhhzgO4/view?usp=sharing). The package `catalystcoop.pudl` must be version 0.3.0 or above to work with this version of the database.
 
 ## Installation
 
