@@ -16,6 +16,7 @@ dependencies:
   - isort
   - pre-commit
   - conda-forge::nb_conda_kernels
+  - xlrd=1.2
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona
