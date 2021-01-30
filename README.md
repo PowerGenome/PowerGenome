@@ -22,7 +22,7 @@ The goal of PowerGenome is to let a user make all of these choices in a settings
 
 ## Data
 
-PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. Most of the data are already compiled into a [single sqlite database](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5) (see instructions for using it below). There are also a few data files stored in this repository:
+PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. Most of the data are already compiled into a [single sqlite database](https://drive.google.com/file/d/1DamR83bR9DyY-gdXac6xYnp5iFhhzgO4/view?usp=sharing) (see instructions for using it below). There are also a few data files stored in this repository:
 
 - Regional cost multipliers for individual technologies developed by EIA (`data/cost_multipliers/AEO_2020_regional_cost_corrections.csv`).
 - A simplified geojson version of EPA's shapefile for IPM regions (`data/ipm_regions_simple.geojson`).
