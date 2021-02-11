@@ -1358,7 +1358,19 @@ def clean_860m_sheet(
     """
 
     df = eia_860m.parse(
-        sheet_name=sheet_name, skiprows=1, skipfooter=1, na_values=[" "]
+        sheet_name=sheet_name, na_values=[" "]
+    )
+    for idx, row in df.iterrows():
+        if row.iloc[0] == "Entity ID":
+            sr = idx + 1
+            break
+    
+    for idx in list(range(-10, 0)):
+        if isinstance(df.iloc[idx, 0], str):
+            sf = -idx
+            break
+    df = eia_860m.parse(
+        sheet_name=sheet_name, skiprows=sr, skipfooter=sf, na_values=[" "]
     )
     df = df.rename(columns=planned_col_map)
 
