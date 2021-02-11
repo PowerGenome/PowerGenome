@@ -282,7 +282,7 @@ def fetch_atb_offshore_spur_costs(
     )
 
     # ATB assumes a 30km distance for offshore spur. Normalize to per mile
-    spur_costs["capex_mw_mile"] = spur_costs["capex_mw"] / 30 * 1.60934
+    spur_costs["capex_mw_mile"] = spur_costs["capex_mw"] / 30 / 1.60934
 
     return spur_costs
 
