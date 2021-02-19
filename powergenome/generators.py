@@ -471,7 +471,7 @@ def label_retirement_year(
         logger.info("Changing retirement dates based on settings file")
         model_year = settings["model_year"]
         start_ret_cap = df.loc[
-            df["retirement_year"] < model_year, settings["capacity_col"]
+            df["retirement_year"] <= model_year, settings["capacity_col"]
         ].sum()
         logger.info(f"Starting retirement capacity is {start_ret_cap} MW")
         i = 0
@@ -493,7 +493,7 @@ def label_retirement_year(
             ].sum()
 
         end_ret_cap = df.loc[
-            df["retirement_year"] < model_year, settings["capacity_col"]
+            df["retirement_year"] <= model_year, settings["capacity_col"]
         ].sum()
         logger.info(f"Ending retirement capacity is {end_ret_cap} MW")
         if not end_ret_cap > start_ret_cap:
@@ -2294,12 +2294,12 @@ class GeneratorClusters:
 
         region_tech_grouped = self.units_model.loc[
             (self.units_model.technology.isin(techs))
-            & (self.units_model.retirement_year >= self.settings["model_year"]),
+            & (self.units_model.retirement_year > self.settings["model_year"]),
             :,
         ].groupby(["model_region", "technology"])
 
         self.retired = self.units_model.loc[
-            self.units_model.retirement_year < self.settings["model_year"], :
+            self.units_model.retirement_year <= self.settings["model_year"], :
         ]
 
         # gens_860 lost the ownership code... refactor this!
