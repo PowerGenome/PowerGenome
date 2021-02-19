@@ -952,6 +952,7 @@ additional_planned: ~
 # historical data
 default_load_year: 2012
 regular_load_growth_start_year: 2019
+growth_scenario: REF2020
 
 historical_load_region_maps:
   TRE: [ERC_PHDL, ERC_REST, ERC_WEST]
