@@ -1017,11 +1017,12 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     )
     if settings.get("user_regional_cost_multiplier_fn"):
         user_cost_multipliers = pd.read_csv(
-            Path(settings["extra_inputs"])
-            / settings["user_regional_cost_multiplier_fn"]
+            Path(settings["input_folder"])
+            / settings["user_regional_cost_multiplier_fn"],
+            index_col=0
         )
         regional_cost_multipliers = pd.concat(
-            [regional_cost_multipliers, user_cost_multipliers]
+            [regional_cost_multipliers, user_cost_multipliers], axis=1
         )
     rev_mult_region_map = reverse_dict_of_lists(settings["cost_multiplier_region_map"])
     rev_mult_tech_map = reverse_dict_of_lists(
