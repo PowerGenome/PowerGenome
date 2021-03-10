@@ -1246,7 +1246,7 @@ def add_genx_model_tags(df, settings):
             logger.warning(f"No model tag values found for {tag_col} ({e})")
 
     # Change tags with specific regional values for a technology
-    flat_regional_tags = flatten(settings.get("regional_tag_values", {}))
+    flat_regional_tags = flatten(settings.get("regional_tag_values", {}) or {})
 
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
@@ -2347,6 +2347,15 @@ class GeneratorClusters:
                         # "minimum_load_mw",
                         "heat_rate_mmbtu_mwh",
                     ]
+                    
+                    if len(grouped) < num_clusters[region][tech]:
+                        logger.warning(
+                            f"\nThere are fewer {tech} units in {region} ({len(grouped)} "
+                            f"than clusters specified in the settings "
+                            f"({num_clusters[region][tech]}). The number of clusters "
+                            "has been reduced to the number of units.\n"
+                        )
+                        num_clusters[region][tech] = len(grouped)
                     clusters = cluster.KMeans(
                         n_clusters=num_clusters[region][tech], random_state=6
                     ).fit(
