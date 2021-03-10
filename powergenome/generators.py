@@ -1,7 +1,7 @@
 import collections
 import logging
 from numbers import Number
-from typing import Dict
+from typing import Dict, Tuple
 import re
 
 import requests
@@ -1928,6 +1928,47 @@ def save_weighted_hr(weighted_unit_hr, pudl_engine):
     pass
 
 
+def change_cogen_tech_names(df: pd.DataFrame, settings: dict) -> Tuple[pd.DataFrame, dict]:
+    """Change the technology names of generators that are cogeneration. Also modify the
+    settings file so that it now includes the cogen units in clusters and
+    eia_atb_tech_map.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        All existing generation units
+    settings : dict
+        Model settings
+
+    Returns
+    -------
+    Tuple[pd.DataFrame, dict]
+        The modified generation units and settings
+    """
+
+    # Need a way to use PUDL to determine cogen units, just using an internal file for now
+    if settings.get("cogen_units_fn"):
+        cogen_units = pd.read_csv(
+            Path(settings["input_folder"]) / settings["cogen_units_fn"]
+        )
+    if settings.get("cogen_clusters"):
+        cogen_ids = list(zip(cogen_units["plant_id_eia"], cogen_units["generator_id"]))
+        df_ids = zip(df["plant_id_eia"], df["generator_id"])
+        cogen_mask = [g in cogen_ids for g in df_ids]
+        df.loc[cogen_mask, "technology_description"] = df.loc[cogen_units.index, "technology_description"] + "_cogen"
+
+        cogen_techs = df.query("technology_description.str.contains('cogen')")["technology_description"].unique()
+
+        if settings.get("num_clusters"):
+            for tech in cogen_techs:
+                settings["num_clusters"][tech] = 1
+        if settings.get("eia_atb_tech_map"):
+            for tech in cogen_techs:
+                settings["eia_atb_tech_map"][tech] = settings["eia_atb_tech_map"][tech.replace("_cogen", "")]
+
+    return df, settings
+
+
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -2147,6 +2188,7 @@ class GeneratorClusters:
             .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
             .pipe(group_technologies, self.settings)
         )
+        self.gens_860_model, self.settings = change_cogen_tech_names(self.gens_860_model, self.settings)
         self.gens_860_model = self.gens_860_model.pipe(
             modify_cc_prime_mover_code, self.gens_860_model
         )
