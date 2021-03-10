@@ -625,6 +625,15 @@ def load_generator_860_data(pudl_engine, data_years=[2017]):
     return gens_860
 
 
+def fill_missing_capacity(df, settings):
+
+    df.loc[df[settings["capacity_col"]].isna(), settings["capacity_col"]] = df[
+        "capacity_mw"
+    ]
+
+    return df
+
+
 def supplement_generator_860_data(
     gens_860, gens_entity, bga, model_region_map, settings
 ):
@@ -689,8 +698,16 @@ def supplement_generator_860_data(
         "time_cold_shutdown_full_load_code",
         "planned_retirement_date",
     ]
+    if settings["capacity_col"] != "capacity_mw":
+        gen_cols.append("capacity_mw")
 
-    entity_cols = ["plant_id_eia", "generator_id", "prime_mover_code", "operating_date"]
+    entity_cols = [
+        "plant_id_eia",
+        "generator_id",
+        "prime_mover_code",
+        "operating_date",
+        "associated_combined_heat_power",
+    ]
 
     bga_cols = [
         "plant_id_eia",
@@ -1229,7 +1246,7 @@ def add_genx_model_tags(df, settings):
             logger.warning(f"No model tag values found for {tag_col} ({e})")
 
     # Change tags with specific regional values for a technology
-    flat_regional_tags = flatten(settings.get("regional_tag_values", {}))
+    flat_regional_tags = flatten(settings.get("regional_tag_values", {}) or {})
 
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
@@ -1357,14 +1374,12 @@ def clean_860m_sheet(
         One of the sheets from 860m
     """
 
-    df = eia_860m.parse(
-        sheet_name=sheet_name, na_values=[" "]
-    )
+    df = eia_860m.parse(sheet_name=sheet_name, na_values=[" "])
     for idx, row in df.iterrows():
         if row.iloc[0] == "Entity ID":
             sr = idx + 1
             break
-    
+
     for idx in list(range(-10, 0)):
         if isinstance(df.iloc[idx, 0], str):
             sf = -idx
@@ -2187,6 +2202,7 @@ class GeneratorClusters:
             .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
             .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
             .pipe(group_technologies, self.settings)
+            .pipe(fill_missing_capacity, self.settings)
         )
         self.gens_860_model, self.settings = change_cogen_tech_names(self.gens_860_model, self.settings)
         self.gens_860_model = self.gens_860_model.pipe(
@@ -2373,6 +2389,15 @@ class GeneratorClusters:
                         # "minimum_load_mw",
                         "heat_rate_mmbtu_mwh",
                     ]
+                    
+                    if len(grouped) < num_clusters[region][tech]:
+                        logger.warning(
+                            f"\nThere are fewer {tech} units in {region} ({len(grouped)} "
+                            f"than clusters specified in the settings "
+                            f"({num_clusters[region][tech]}). The number of clusters "
+                            "has been reduced to the number of units.\n"
+                        )
+                        num_clusters[region][tech] = len(grouped)
                     clusters = cluster.KMeans(
                         n_clusters=num_clusters[region][tech], random_state=6
                     ).fit(
