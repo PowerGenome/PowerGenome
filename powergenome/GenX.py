@@ -78,15 +78,15 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
         zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
 
-    zone_cols = ["Region description", "Network_zones", "DistrZones"] + list(
+    zone_cols = ["Region_description", "Network_zones", "Distr_Zones"] + list(
         policies.columns
     )
     zone_df = pd.DataFrame(columns=zone_cols)
-    zone_df["Region description"] = zones
-    zone_df["Network_zones"] = zone_df["Region description"].map(zone_num_map)
+    zone_df["Region_description"] = zones
+    zone_df["Network_zones"] = zone_df["Region_description"].map(zone_num_map)
 
     if DistrZones is None:
-        zone_df["DistrZones"] = 0
+        zone_df["Distr_Zones"] = 0
 
     # Add code here to make DistrZones something else!
     # If there is only one region, assume that the policy is applied across all regions.
@@ -107,7 +107,7 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
             year_case_policy["region"].unique(), year_case_policy.columns
         ):
             zone_df.loc[
-                zone_df["Region description"] == region, col
+                zone_df["Region_description"] == region, col
             ] = year_case_policy.loc[year_case_policy.region == region, col].values[0]
 
     zone_df = zone_df.drop(columns="region")
