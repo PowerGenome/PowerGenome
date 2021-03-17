@@ -1960,7 +1960,7 @@ def change_cogen_tech_names(df: pd.DataFrame, settings: dict) -> Tuple[pd.DataFr
     Tuple[pd.DataFrame, dict]
         The modified generation units and settings
     """
-
+    start_capacity = df[settings["capacity_col"]].sum()
     # Need a way to use PUDL to determine cogen units, just using an internal file for now
     if settings.get("cogen_units_fn"):
         cogen_units = pd.read_csv(
@@ -1970,7 +1970,7 @@ def change_cogen_tech_names(df: pd.DataFrame, settings: dict) -> Tuple[pd.DataFr
         cogen_ids = list(zip(cogen_units["plant_id_eia"], cogen_units["generator_id"]))
         df_ids = zip(df["plant_id_eia"], df["generator_id"])
         cogen_mask = [g in cogen_ids for g in df_ids]
-        df.loc[cogen_mask, "technology_description"] = df.loc[cogen_units.index, "technology_description"] + "_cogen"
+        df.loc[cogen_mask, "technology_description"] = df.loc[cogen_mask, "technology_description"] + "_cogen"
 
         cogen_techs = df.query("technology_description.str.contains('cogen')")["technology_description"].unique()
 
@@ -1981,6 +1981,8 @@ def change_cogen_tech_names(df: pd.DataFrame, settings: dict) -> Tuple[pd.DataFr
             for tech in cogen_techs:
                 settings["eia_atb_tech_map"][tech] = settings["eia_atb_tech_map"][tech.replace("_cogen", "")]
 
+    end_capacity = df[settings["capacity_col"]].sum()
+    assert start_capacity == end_capacity
     return df, settings
 
 
