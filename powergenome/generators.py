@@ -1,7 +1,7 @@
 import collections
 import logging
 from numbers import Number
-from typing import Dict
+from typing import Dict, Tuple
 import re
 
 import requests
@@ -364,7 +364,8 @@ def load_plant_region_map(
 
     if settings.get("plant_region_map_fn"):
         user_region_map_df = pd.read_csv(
-            Path(settings["input_folder"]) / settings["plant_region_map_fn"]
+            Path(settings["input_folder"]) / settings["plant_region_map_fn"],
+            dtype={"plant_id_eia": int}
         )
         assert (
             "region" in user_region_map_df.columns
@@ -625,6 +626,15 @@ def load_generator_860_data(pudl_engine, data_years=[2017]):
     return gens_860
 
 
+def fill_missing_capacity(df, settings):
+
+    df.loc[df[settings["capacity_col"]].isna(), settings["capacity_col"]] = df[
+        "capacity_mw"
+    ]
+
+    return df
+
+
 def supplement_generator_860_data(
     gens_860, gens_entity, bga, model_region_map, settings
 ):
@@ -689,8 +699,16 @@ def supplement_generator_860_data(
         "time_cold_shutdown_full_load_code",
         "planned_retirement_date",
     ]
+    if settings["capacity_col"] != "capacity_mw":
+        gen_cols.append("capacity_mw")
 
-    entity_cols = ["plant_id_eia", "generator_id", "prime_mover_code", "operating_date"]
+    entity_cols = [
+        "plant_id_eia",
+        "generator_id",
+        "prime_mover_code",
+        "operating_date",
+        "associated_combined_heat_power",
+    ]
 
     bga_cols = [
         "plant_id_eia",
@@ -1229,7 +1247,7 @@ def add_genx_model_tags(df, settings):
             logger.warning(f"No model tag values found for {tag_col} ({e})")
 
     # Change tags with specific regional values for a technology
-    flat_regional_tags = flatten(settings.get("regional_tag_values", {}))
+    flat_regional_tags = flatten(settings.get("regional_tag_values", {}) or {})
 
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
@@ -1357,14 +1375,12 @@ def clean_860m_sheet(
         One of the sheets from 860m
     """
 
-    df = eia_860m.parse(
-        sheet_name=sheet_name, na_values=[" "]
-    )
+    df = eia_860m.parse(sheet_name=sheet_name, na_values=[" "])
     for idx, row in df.iterrows():
         if row.iloc[0] == "Entity ID":
             sr = idx + 1
             break
-    
+
     for idx in list(range(-10, 0)):
         if isinstance(df.iloc[idx, 0], str):
             sf = -idx
@@ -1928,6 +1944,49 @@ def save_weighted_hr(weighted_unit_hr, pudl_engine):
     pass
 
 
+def change_cogen_tech_names(df: pd.DataFrame, settings: dict) -> Tuple[pd.DataFrame, dict]:
+    """Change the technology names of generators that are cogeneration. Also modify the
+    settings file so that it now includes the cogen units in clusters and
+    eia_atb_tech_map.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        All existing generation units
+    settings : dict
+        Model settings
+
+    Returns
+    -------
+    Tuple[pd.DataFrame, dict]
+        The modified generation units and settings
+    """
+    start_capacity = df[settings["capacity_col"]].sum()
+    # Need a way to use PUDL to determine cogen units, just using an internal file for now
+    if settings.get("cogen_units_fn"):
+        cogen_units = pd.read_csv(
+            Path(settings["input_folder"]) / settings["cogen_units_fn"]
+        )
+    if settings.get("cogen_clusters"):
+        cogen_ids = list(zip(cogen_units["plant_id_eia"], cogen_units["generator_id"]))
+        df_ids = zip(df["plant_id_eia"], df["generator_id"])
+        cogen_mask = [g in cogen_ids for g in df_ids]
+        df.loc[cogen_mask, "technology_description"] = df.loc[cogen_mask, "technology_description"] + "_cogen"
+
+        cogen_techs = df.query("technology_description.str.contains('cogen')")["technology_description"].unique()
+
+        if settings.get("num_clusters"):
+            for tech in cogen_techs:
+                settings["num_clusters"][tech] = 1
+        if settings.get("eia_atb_tech_map"):
+            for tech in cogen_techs:
+                settings["eia_atb_tech_map"][tech] = settings["eia_atb_tech_map"][tech.replace("_cogen", "")]
+
+    end_capacity = df[settings["capacity_col"]].sum()
+    assert start_capacity == end_capacity
+    return df, settings
+
+
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -2146,7 +2205,9 @@ class GeneratorClusters:
             .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
             .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
             .pipe(group_technologies, self.settings)
+            .pipe(fill_missing_capacity, self.settings)
         )
+        self.gens_860_model, self.settings = change_cogen_tech_names(self.gens_860_model, self.settings)
         self.gens_860_model = self.gens_860_model.pipe(
             modify_cc_prime_mover_code, self.gens_860_model
         )
@@ -2331,6 +2392,15 @@ class GeneratorClusters:
                         # "minimum_load_mw",
                         "heat_rate_mmbtu_mwh",
                     ]
+                    
+                    if len(grouped) < num_clusters[region][tech]:
+                        logger.warning(
+                            f"\nThere are fewer {tech} units in {region} ({len(grouped)} "
+                            f"than clusters specified in the settings "
+                            f"({num_clusters[region][tech]}). The number of clusters "
+                            "has been reduced to the number of units.\n"
+                        )
+                        num_clusters[region][tech] = len(grouped)
                     clusters = cluster.KMeans(
                         n_clusters=num_clusters[region][tech], random_state=6
                     ).fit(
