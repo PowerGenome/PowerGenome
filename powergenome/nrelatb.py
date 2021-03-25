@@ -163,7 +163,7 @@ def fetch_atb_costs(
                 AND cost_case == "Mid"
                 AND atb_year == {atb_year}
                 AND parameter == "wacc_nominal"
-            
+
             """
             b_rows = pudl_engine.execute(wacc_s).fetchall()
             battery_wacc_rows = [
@@ -400,7 +400,7 @@ def atb_fixed_var_om_existing(
                     AND cost_case == "Mid"
                     AND atb_year == "{settings['atb_data_year']}"
                     AND parameter == "variable_o_m_mwh"
-                
+
                 """
             atb_var_om_mwh = pudl_engine.execute(s).fetchall()[0][0]
         except IndexError:
@@ -419,7 +419,7 @@ def atb_fixed_var_om_existing(
                     AND cost_case == "Mid"
                     AND atb_year == "{settings['atb_data_year']}"
                     AND parameter == "fixed_o_m_mw"
-                
+
                 """
             atb_fixed_om_mw_yr = pudl_engine.execute(s).fetchall()[0][0]
         except IndexError:
@@ -1019,7 +1019,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         user_cost_multipliers = pd.read_csv(
             Path(settings["input_folder"])
             / settings["user_regional_cost_multiplier_fn"],
-            index_col=0
+            index_col=0,
         )
         regional_cost_multipliers = pd.concat(
             [regional_cost_multipliers, user_cost_multipliers], axis=1
@@ -1170,7 +1170,7 @@ def add_renewables_clusters(
     return pd.concat([df[~mask]] + cdfs, sort=False)
 
 
-def load_user_defined_techs(settings):
+def load_user_defined_techs(settings: dict) -> pd.DataFrame:
     """Load user-defined technologies from a CSV file. Returns cost columns and heat
     rate.
 
@@ -1191,14 +1191,26 @@ def load_user_defined_techs(settings):
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         A dataframe of user-defined resources with cost and heat rate columns.
     """
     if isinstance(settings["additional_technologies_fn"], collections.abc.Mapping):
         fn = settings["additional_technologies_fn"][settings["model_year"]]
     else:
         fn = settings["additional_technologies_fn"]
-    user_techs = pd.read_csv(DATA_PATHS["additional_techs"] / fn)
+
+    # Search the extra inputs folder first, then the legacy additional_techs folder
+    # in repo
+    if (Path(settings["input_folder"]) / fn).exists():
+        user_techs = pd.read_csv(Path(settings["input_folder"]) / fn)
+    else:
+        logger.warning(
+            "The file with your user defined technologies is not in the user input "
+            "folder. Reading the file from PowerGenome/data/additional_technolgies "
+            "instead. This may be depreciated in a future version, please move "
+            f"{fn} to the folder {settings['input_folder']}."
+        )
+        user_techs = pd.read_csv(DATA_PATHS["additional_techs"] / fn)
 
     user_techs = user_techs.loc[
         (user_techs["technology"].isin(settings["additional_new_gen"]))
@@ -1214,6 +1226,19 @@ def load_user_defined_techs(settings):
         user_techs["cost_case"] = ""
     if "Cap_size" not in user_techs.columns:
         user_techs["Cap_size"] = 1
+
+    if "dollar_year" in user_techs.columns:
+        for idx, row in user_techs.iterrows():
+            for col in [
+                "capex_mw",
+                "capex_mwh",
+                "fixed_o_m_mw",
+                "fixed_o_m_mwh",
+                "variable_o_m_mwh",
+            ]:
+                user_techs.loc[idx, col] = inflation_price_adjustment(
+                    row[col], row["dollar_year"], settings["target_usd_year"]
+                )
 
     cols = [
         "technology",
