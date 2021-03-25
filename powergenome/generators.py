@@ -1229,7 +1229,7 @@ def add_genx_model_tags(df, settings):
             logger.warning(f"No model tag values found for {tag_col} ({e})")
 
     # Change tags with specific regional values for a technology
-    flat_regional_tags = flatten(settings.get("regional_tag_values", {}))
+    flat_regional_tags = flatten(settings.get("regional_tag_values", {}) or {})
 
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
@@ -1357,14 +1357,12 @@ def clean_860m_sheet(
         One of the sheets from 860m
     """
 
-    df = eia_860m.parse(
-        sheet_name=sheet_name, na_values=[" "]
-    )
+    df = eia_860m.parse(sheet_name=sheet_name, na_values=[" "])
     for idx, row in df.iterrows():
         if row.iloc[0] == "Entity ID":
             sr = idx + 1
             break
-    
+
     for idx in list(range(-10, 0)):
         if isinstance(df.iloc[idx, 0], str):
             sf = -idx
@@ -2263,10 +2261,7 @@ class GeneratorClusters:
             self.units_model.rename(columns={"technology_description": "technology"})
             .query("technology.isin(@techs).values")
             .pipe(
-                atb_fixed_var_om_existing,
-                self.atb_hr,
-                self.settings,
-                self.pudl_engine,
+                atb_fixed_var_om_existing, self.atb_hr, self.settings, self.pudl_engine
             )
         )
 
