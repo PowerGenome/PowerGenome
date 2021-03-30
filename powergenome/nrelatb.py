@@ -7,6 +7,7 @@ import collections
 import logging
 import operator
 from pathlib import Path
+from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -676,21 +677,25 @@ def atb_fixed_var_om_existing(
     return mod_results
 
 
-def single_generator_row(atb_costs_hr, new_gen_type, model_year_range):
+def single_generator_row(
+    atb_costs_hr: pd.DataFrame,
+    new_gen_type: str,
+    model_year_range: Union[Tuple[int], List[int]],
+) -> pd.DataFrame:
     """Create a data row with NREL ATB costs and performace for a single technology
 
     Parameters
     ----------
-    atb_costs : dataframe
+    atb_costs : pd.DataFrame
         Data from the sqlite tables of both resources costs and heat rates
     new_gen_type : str
         type of generating resource
-    model_year_range : list
+    model_year_range : Union[Tuple[int], List[int]]
         All of the years that should be averaged over
 
     Returns
     -------
-    dataframe
+    pd.DataFrame
         A single row dataframe with average cost and performence values over the study
         period.
     """
@@ -764,7 +769,11 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
     return df
 
 
-def add_modified_atb_generators(settings, atb_costs_hr, model_year_range):
+def add_modified_atb_generators(
+    settings: dict,
+    atb_costs_hr: pd.DataFrame,
+    model_year_range: Union[Tuple[int], List[int]],
+) -> pd.DataFrame:
     """Create a modified version of an ATB generator.
 
     For each parameter (capex, heat_rate, etc) that users want modified they should
@@ -775,14 +784,14 @@ def add_modified_atb_generators(settings, atb_costs_hr, model_year_range):
     ----------
     settings : dict
         User-defined parameters from a settings file
-    atb_costs_hr : DataFrame
+    atb_costs_hr : pd.DataFrame
         Cost and heat rate data for ATB resources
-    model_year_range : list-like
+    model_year_range : Union[Tuple[int], List[int]]
         A list or range of years to average ATB values from.
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         Row or rows of modified ATB resources. Each row includes the colums:
         ['technology', 'cost_case', 'tech_detail', 'basis_year', 'fixed_o_m_mw',
        'fixed_o_m_mwh', 'variable_o_m_mwh', 'capex', 'capex_mwh', 'cf', 'fuel',
