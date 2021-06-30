@@ -52,7 +52,7 @@ def fetch_atb_costs(
         Power plant cost data with columns:
         ['technology', 'cap_recovery_years', 'cost_case', 'financial_case',
        'basis_year', 'tech_detail', 'fixed_o_m_mw', 'variable_o_m_mwh', 'capex', 'cf',
-       'fuel', 'lcoe', 'wacc_nominal']
+       'fuel', 'lcoe', 'wacc_real']
     """
     logger.info("Loading NREL ATB data")
 
@@ -119,7 +119,7 @@ def fetch_atb_costs(
                 AND financial_case == "{fin_case}"
                 AND cost_case == "{cost_case}"
                 AND atb_year == {atb_year}
-                AND parameter == "wacc_nominal"
+                AND parameter == "wacc_real"
             """
             wacc_rows.extend(pudl_engine.execute(wacc_s).fetchall())
 
@@ -128,12 +128,12 @@ def fetch_atb_costs(
     if "Battery" not in tech_list:
         df = pd.DataFrame(all_rows, columns=col_names)
         wacc_df = pd.DataFrame(
-            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_nominal"]
+            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_real"]
         )
     else:
         # ATB doesn't have a WACC for battery storage. We use UtilityPV WACC as a default
         # stand-in -- make sure we have it in case.
-        s = 'SELECT DISTINCT("technology") from technology_costs_nrelatb WHERE parameter == "wacc_nominal"'
+        s = 'SELECT DISTINCT("technology") from technology_costs_nrelatb WHERE parameter == "wacc_real"'
         atb_techs = [x[0] for x in pudl_engine.execute(s).fetchall()]
         battery_wacc_standin = settings.get("atb_battery_wacc")
         battery_tech = [x for x in techs if x[0] == "Battery"][0]
@@ -163,7 +163,7 @@ def fetch_atb_costs(
                 AND financial_case == "{fin_case}"
                 AND cost_case == "Mid"
                 AND atb_year == {atb_year}
-                AND parameter == "wacc_nominal"
+                AND parameter == "wacc_real"
 
             """
             b_rows = pudl_engine.execute(wacc_s).fetchall()
@@ -180,7 +180,7 @@ def fetch_atb_costs(
 
         df = pd.DataFrame(all_rows, columns=col_names)
         wacc_df = pd.DataFrame(
-            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_nominal"]
+            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_real"]
         )
 
     # Transform from tidy to wide dataframe, which makes it easier to fill generator
@@ -347,11 +347,17 @@ def atb_fixed_var_om_existing(
         "Fixed_OM_cost_per_MWyr" and "Var_OM_cost_per_MWh"
     """
     logger.info("Adding fixed and variable O&M for existing plants")
-    techs = settings["eia_atb_tech_map"]
+
     existing_year = settings["atb_existing_year"]
 
     # ATB string is <technology>_<tech_detail>
-    techs = {eia: atb.split("_") for eia, atb in techs.items()}
+    # techs = {eia: atb.split("_") for eia, atb in techs.items()}
+    techs = {}
+    for eia, atb in settings["eia_atb_tech_map"].items():
+        if not isinstance(atb, list):
+            atb = [atb]
+        techs[eia] = atb[0].split("_")
+
     df_list = []
     grouped_results = results.reset_index().groupby(
         ["plant_id_eia", "technology"], as_index=False
@@ -712,7 +718,7 @@ def single_generator_row(
         # "fuel",
         # "lcoe",
         # "o_m",
-        "wacc_nominal",
+        "wacc_real",
         "heat_rate",
     ]
     s = atb_costs_hr.loc[
@@ -795,7 +801,7 @@ def add_modified_atb_generators(
         Row or rows of modified ATB resources. Each row includes the colums:
         ['technology', 'cost_case', 'tech_detail', 'basis_year', 'fixed_o_m_mw',
        'fixed_o_m_mwh', 'variable_o_m_mwh', 'capex', 'capex_mwh', 'cf', 'fuel',
-       'lcoe', 'o_m', 'wacc_nominal', 'heat_rate', 'Cap_size'].
+       'lcoe', 'o_m', 'wacc_real', 'heat_rate', 'Cap_size'].
     """
 
     # copy settings so popped keys aren't removed permenantly
@@ -853,7 +859,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         All cost parameters from the SQL table for new generators. Should include:
         ['technology', 'cost_case', 'financial_case', 'basis_year', 'tech_detail',
         'capex', 'capex_mwh', 'fixed_o_m_mw', 'fixed_o_m_mwh', 'variable_o_m_mwh',
-        'wacc_nominal']
+        'wacc_real']
     atb_hr : DataFrame
         The technology, tech_detail, and heat_rate of new generators from ATB.
     settings : dict
@@ -991,13 +997,13 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
     new_gen_df["Inv_cost_per_MWyr"] = investment_cost_calculator(
         capex=new_gen_df["capex_mw"],
-        wacc=new_gen_df["wacc_nominal"],
+        wacc=new_gen_df["wacc_real"],
         cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
     new_gen_df["Inv_cost_per_MWhyr"] = investment_cost_calculator(
         capex=new_gen_df["capex_mwh"],
-        wacc=new_gen_df["wacc_nominal"],
+        wacc=new_gen_df["wacc_real"],
         cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
@@ -1014,7 +1020,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Heat_rate_MMBTU_per_MWh",
         "Cap_size",
         "cap_recovery_years",
-        "wacc_nominal",
+        "wacc_real",
     ]
     new_gen_df = new_gen_df[keep_cols]
     # Set no capacity limit on new resources that aren't renewables.
@@ -1258,7 +1264,7 @@ def load_user_defined_techs(settings: dict) -> pd.DataFrame:
         "fixed_o_m_mw",
         "fixed_o_m_mwh",
         "variable_o_m_mwh",
-        "wacc_nominal",
+        "wacc_real",
         "heat_rate",
         "Cap_size",
         "dollar_year",
