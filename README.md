@@ -4,6 +4,7 @@
 [![Build Status](https://travis-ci.com/gschivley/PowerGenome.svg?token=yTGQ4JcCGLW2GZpmvXHw&branch=master)](https://travis-ci.com/gschivley/PowerGenome)
 [![codecov](https://codecov.io/gh/gschivley/PowerGenome/branch/master/graph/badge.svg?token=7KJYLE3jOW)](https://codecov.io/gh/gschivley/PowerGenome)
 [![code style black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4426097.svg)](https://doi.org/10.5281/zenodo.4426097)
 
 **Note:** The code and data for PowerGenome are under active development and some changes may break existing functions. Keep up to date with major code and data releases by joining [PowerGenome on groups.io](https://groups.io/g/powergenome).
 
@@ -21,7 +22,7 @@ The goal of PowerGenome is to let a user make all of these choices in a settings
 
 ## Data
 
-PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. Most of the data are already compiled into a [single sqlite database](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5) (see instructions for using it below). There are also a few data files stored in this repository:
+PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. Most of the data are already compiled into a [single sqlite database](https://drive.google.com/file/d/1DamR83bR9DyY-gdXac6xYnp5iFhhzgO4/view?usp=sharing) (see instructions for using it below). There are also a few data files stored in this repository:
 
 - Regional cost multipliers for individual technologies developed by EIA (`data/cost_multipliers/AEO_2020_regional_cost_corrections.csv`).
 - A simplified geojson version of EPA's shapefile for IPM regions (`data/ipm_regions_simple.geojson`).
@@ -31,7 +32,7 @@ PowerGenome uses data from a number of different sources, including EIA, NREL, a
 
 This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl). As such, it requires installation of PUDL to access a normalized sqlite database and some of the convienience PUDL functions.
 
-`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). The data used by PowerGenome have outstripped what is available in the public version of PUDL, so download a modifed version of the [PUDL sqlite database here](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5). The package `catalystcoop.pudl` must be version 0.3.0 or above to work with this version of the database.
+`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). The data used by PowerGenome have outstripped what is available in the public version of PUDL, so download a modifed version of the [PUDL sqlite database here](https://drive.google.com/file/d/1DamR83bR9DyY-gdXac6xYnp5iFhhzgO4/view?usp=sharing). The package `catalystcoop.pudl` must be version 0.3.0 or above to work with this version of the database.
 
 ## Installation
 
@@ -55,7 +56,7 @@ conda activate powergenome
 pip install -e .
 ```
 
-5. Download a [modifed version of the PUDL database](https://drive.google.com/open?id=17hTZUKweDMqUi2wvBdubaqVhMRgnN5o5) that includes NREL ATB cost data and is not yet included in PUDL.
+5. Download a [modifed version of the PUDL database](https://drive.google.com/file/d/1DamR83bR9DyY-gdXac6xYnp5iFhhzgO4/view?usp=sharing) that includes NREL ATB cost data and is not yet included in PUDL. **NOTE: this database was updated for PowerGenome v0.4.0 and is not compatable with earlier versions.** 
 
 6. Download the [renewable resource data](https://drive.google.com/file/d/1g0Q6TdNp4C12HQJy6pAURzp_oVg0Q7ly/view?usp=sharing) containing generation profiles and capacity for existing and new-build renewable resources. Save and unzip this file. The suggested location for all of the unzipped files is `PowerGenome/data/resource_groups/`. These files will eventually be provided through a data repository with citation information.
 
@@ -102,7 +103,7 @@ If you have previously installed PowerGenome and the `run_powergenome_multiple` 
 
 ## Licensing
 
-PowerGenome is released under the [MIT License](https://opensource.org/licenses/MIT). Most data inputs are from US government sources (EIA, EPA, FERC, etc), which should not be [subject to copyright in the US](https://www.usa.gov/government-works). Hourly generation profiles for wind and solar resources were created by [Vibrant Clean Energy](https://www.vibrantcleanenergy.com/) and provided without usage restrictions. All PowerGenome data outputs are released under the [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/legalcode) license.
+PowerGenome is released under the [MIT License](https://opensource.org/licenses/MIT). Most data inputs are from US government sources (EIA, EPA, FERC, etc), which should not be [subject to copyright in the US](https://www.usa.gov/government-works). Hourly FERC demand data has been cleaned using [techniques](https://github.com/truggles/EIA_Cleaned_Hourly_Electricity_Demand_Code) developed by Tyler Ruggles and David Farnham, and allocated to IPM regions using [methods developed](https://github.com/catalyst-cooperative/electricity-demand-mapping) by Catalyst Cooperative. Hourly generation profiles for wind and solar resources were created by [Vibrant Clean Energy](https://www.vibrantcleanenergy.com/) and provided without usage restrictions. All PowerGenome data outputs are released under the [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/legalcode) license.
 
 ## Contributing
 

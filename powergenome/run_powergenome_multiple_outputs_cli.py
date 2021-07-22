@@ -360,8 +360,6 @@ def main():
                         + gen_clusters["Resource"]
                         + "_"
                         + gen_clusters["cluster"].astype(str)
-                        + "_"
-                        + gen_clusters["R_ID"].astype(str)
                     )
                     gens = calculate_partial_CES_values(
                         gen_clusters, fuels, _settings

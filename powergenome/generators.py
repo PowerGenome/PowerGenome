@@ -471,7 +471,7 @@ def label_retirement_year(
         logger.info("Changing retirement dates based on settings file")
         model_year = settings["model_year"]
         start_ret_cap = df.loc[
-            df["retirement_year"] < model_year, settings["capacity_col"]
+            df["retirement_year"] <= model_year, settings["capacity_col"]
         ].sum()
         logger.info(f"Starting retirement capacity is {start_ret_cap} MW")
         i = 0
@@ -493,7 +493,7 @@ def label_retirement_year(
             ].sum()
 
         end_ret_cap = df.loc[
-            df["retirement_year"] < model_year, settings["capacity_col"]
+            df["retirement_year"] <= model_year, settings["capacity_col"]
         ].sum()
         logger.info(f"Ending retirement capacity is {end_ret_cap} MW")
         if not end_ret_cap > start_ret_cap:
@@ -1358,7 +1358,19 @@ def clean_860m_sheet(
     """
 
     df = eia_860m.parse(
-        sheet_name=sheet_name, skiprows=1, skipfooter=1, na_values=[" "]
+        sheet_name=sheet_name, na_values=[" "]
+    )
+    for idx, row in df.iterrows():
+        if row.iloc[0] == "Entity ID":
+            sr = idx + 1
+            break
+    
+    for idx in list(range(-10, 0)):
+        if isinstance(df.iloc[idx, 0], str):
+            sf = -idx
+            break
+    df = eia_860m.parse(
+        sheet_name=sheet_name, skiprows=sr, skipfooter=sf, na_values=[" "]
     )
     df = df.rename(columns=planned_col_map)
 
@@ -2203,7 +2215,7 @@ class GeneratorClusters:
                 self.units_model.technology_description == tech, "heat_rate_mmbtu_mwh"
             ] = self.fill_na_heat_rates(
                 self.units_model.loc[
-                    self.units_model.technology_description == tech, 
+                    self.units_model.technology_description == tech,
                     "heat_rate_mmbtu_mwh",
                 ]
             )
@@ -2282,12 +2294,12 @@ class GeneratorClusters:
 
         region_tech_grouped = self.units_model.loc[
             (self.units_model.technology.isin(techs))
-            & (self.units_model.retirement_year >= self.settings["model_year"]),
+            & (self.units_model.retirement_year > self.settings["model_year"]),
             :,
         ].groupby(["model_region", "technology"])
 
         self.retired = self.units_model.loc[
-            self.units_model.retirement_year < self.settings["model_year"], :
+            self.units_model.retirement_year <= self.settings["model_year"], :
         ]
 
         # gens_860 lost the ownership code... refactor this!
@@ -2503,7 +2515,11 @@ class GeneratorClusters:
             if not metadata["ipm_region"].isin(ipm_regions).any():
                 # Resource group has no resources in selected IPM regions
                 continue
-            clusters = group.get_clusters(ipm_regions=ipm_regions, max_clusters=1)
+            clusters = group.get_clusters(
+                ipm_regions=ipm_regions,
+                max_clusters=1,
+                utc_offset=self.settings.get("utc_offset", 0),
+            )
             self.results["profile"][i] = clusters["profile"][0]
 
         return self.results
@@ -2515,7 +2531,6 @@ class GeneratorClusters:
         self.atb_costs = fetch_atb_costs(
             self.pudl_engine, self.settings, self.offshore_spur_costs
         )
-        
 
         self.new_generators = atb_new_generators(
             self.atb_costs, self.atb_hr, self.settings

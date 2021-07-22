@@ -57,7 +57,7 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
         itertools.chain.from_iterable(settings["aeo_fuel_region_map"].values())
     )
 
-    for agg_region, ipm_regions in settings["region_aggregations"].items():
+    for agg_region, ipm_regions in (settings.get("region_aggregations") or {}).items():
         for ipm_region in ipm_regions:
             if ipm_region not in ipm_region_list:
                 s = f"""
@@ -185,15 +185,6 @@ def download_save(url: str, save_path: Union[str, Path]):
     r = requests.get(url)
     save_path.parent.mkdir(parents=True, exist_ok=True)
     save_path.write_bytes(r.content)
-
-
-def shift_wrap_profiles(df, offset):
-    "Shift hours to a local offset and append first rows to end"
-
-    wrap_rows = df.iloc[:offset, :]
-
-    shifted_wrapped_df = pd.concat([df.iloc[offset:, :], wrap_rows], ignore_index=True)
-    return shifted_wrapped_df
 
 
 def update_dictionary(d: dict, u: dict) -> dict:

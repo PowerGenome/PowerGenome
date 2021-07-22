@@ -365,6 +365,10 @@ data_years:
 
 target_usd_year: 2017
 
+# HOURS OFFSET FROM UTC
+# All time profile data are stored in UTC. Provide an offset for the model timezone.
+utc_offset: -5
+
 # CAPACITY TYPE
 capacity_col: winter_capacity_mw
 
@@ -732,7 +736,7 @@ modified_atb_new_gen:
     capex_mw: [add, 116000]
     heat_rate: [add, 0.365]
     fixed_o_m_mw: [add, 9670]
-    o_m_variable_mwh: [mul, 1.076]
+    variable_o_m_mwh: [mul, 1.076]
 
 # ATB doesn't have a WACC for battery tech. Need to provide a value here.
 atb_battery_wacc: UtilityPV
@@ -948,6 +952,7 @@ additional_planned: ~
 # historical data
 default_load_year: 2012
 regular_load_growth_start_year: 2019
+growth_scenario: REF2020
 
 historical_load_region_maps:
   TRE: [ERC_PHDL, ERC_REST, ERC_WEST]

@@ -184,16 +184,20 @@ def fetch_atb_costs(
 
     # Transform from tidy to wide dataframe, which makes it easier to fill generator
     # rows with the correct values.
-    atb_costs = df.drop_duplicates().set_index(
-        [
-            "technology",
-            "tech_detail",
-            "cost_case",
-            "dollar_year",
-            "basis_year",
-            "parameter",
-        ]
-    ).unstack(level=-1)
+    atb_costs = (
+        df.drop_duplicates()
+        .set_index(
+            [
+                "technology",
+                "tech_detail",
+                "cost_case",
+                "dollar_year",
+                "basis_year",
+                "parameter",
+            ]
+        )
+        .unstack(level=-1)
+    )
     atb_costs.columns = atb_costs.columns.droplevel(0)
     atb_costs = (
         atb_costs.reset_index()
@@ -278,7 +282,7 @@ def fetch_atb_offshore_spur_costs(
     )
 
     # ATB assumes a 30km distance for offshore spur. Normalize to per mile
-    spur_costs["capex_mw_mile"] = spur_costs["capex_mw"] / 30 * 1.60934
+    spur_costs["capex_mw_mile"] = spur_costs["capex_mw"] / 30 / 1.60934
 
     return spur_costs
 
@@ -627,7 +631,7 @@ def atb_fixed_var_om_existing(
 
                 # Operating costs for different size/num units in 2016 INL report
                 # "Economic and Market Challenges Facing the U.S. Nuclear Fleet"
-                # https://gain.inl.gov/Shared%20Documents/Economics-Nuclear-Fleet.pdf, 
+                # https://gain.inl.gov/Shared%20Documents/Economics-Nuclear-Fleet.pdf,
                 # table 1. Average of the two costs are used in each case.
                 # The costs in that report include fuel and VOM. Assume $0.66/mmbtu
                 # and $2.32/MWh plus 90% CF (ATB 2020) to get the costs below.
@@ -647,9 +651,7 @@ def atb_fixed_var_om_existing(
                 # fixed[age < 30] *= 27 * 1000
                 # fixed[age >= 30] *= (27+37) * 1000
 
-                _df[
-                    "Fixed_OM_cost_per_MWyr"
-                ] = inflation_price_adjustment(
+                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
                     fixed, 2015, target_usd_year
                 )
                 _df["Var_OM_cost_per_MWh"] = atb_var_om_mwh * (
@@ -1015,11 +1017,12 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     )
     if settings.get("user_regional_cost_multiplier_fn"):
         user_cost_multipliers = pd.read_csv(
-            Path(settings["extra_inputs"])
-            / settings["user_regional_cost_multiplier_fn"]
+            Path(settings["input_folder"])
+            / settings["user_regional_cost_multiplier_fn"],
+            index_col=0
         )
         regional_cost_multipliers = pd.concat(
-            [regional_cost_multipliers, user_cost_multipliers]
+            [regional_cost_multipliers, user_cost_multipliers], axis=1
         )
     rev_mult_region_map = reverse_dict_of_lists(settings["cost_multiplier_region_map"])
     rev_mult_tech_map = reverse_dict_of_lists(
@@ -1052,6 +1055,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Fixed_OM_cost_per_MWhyr",
         "Inv_cost_per_MWyr",
         "Inv_cost_per_MWhyr",
+        "cluster",
     ]
     results = results.fillna(0)
     results[int_cols] = results[int_cols].astype(int)
@@ -1134,7 +1138,10 @@ def add_renewables_clusters(
         scenario.pop("region")
         clusters = (
             CLUSTER_BUILDER.get_clusters(
-                **scenario, ipm_regions=ipm_regions, existing=False
+                **scenario,
+                ipm_regions=ipm_regions,
+                existing=False,
+                utc_offset=settings.get("utc_offset", 0),
             )
             .rename(columns={"mw": "Max_Cap_MW"})
             .assign(technology=technology, region=region)
