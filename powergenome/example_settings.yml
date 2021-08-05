@@ -48,7 +48,8 @@ region_aggregations:
   WECC_NW: [WECC_UT, WECC_WY, WECC_PNW, WECC_ID, WECC_MT, WECC_NNV]
   WECC_SW: [WECC_AZ, WECC_SNV, WECC_NM, WECC_CO]
 
-
+# NZA electrifications scenarios: current_policy, deep_decarbonization, moderate_decarbonization, stated_policy
+NZA_electrification: current_policy
 ###########################################################
 # EXISTING GENERATORS
 

@@ -89,66 +89,22 @@ def CreateOutputFolder(case_folder):
 
 ######################################
 # CreatingBaseLoad.R
-def CreateBaseLoad(years, regions, output_folder):
+def CreateBaseLoad(years, regions, output_folder, path_growthrate):
     path_processed = path_in
     path_result = output_folder.__str__()
     years = years
     regions = regions
-
-    #Calculate how much the ratio is DC load of MD load for each sector, each year
-    EFS_Stock = pd.read_parquet(path_processed + "\EFS_STOCK_AGG.parquet")
-    EFS_Stock = EFS_Stock[EFS_Stock["SCENARIO"] == "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"].drop(columns="SCENARIO") ##Note that in the stock of heating include the air conditioners, chillers, etc.
-    EFS_Stock_MD = EFS_Stock[EFS_Stock["STATE"] == 'MD'].rename(columns = {"AGG_STOCK" : "MD_AGG_STOCK"}).drop(columns = ["AGG_STOCK_TYPE1", "AGG_STOCK_TYPE2", "STATE", "TYPE1-C", "NONELEC", "NONELEC-C"])
-    EFS_Stock_DC = EFS_Stock[EFS_Stock["STATE"] == 'DC'].rename(columns = {"AGG_STOCK" : "DC_AGG_STOCK"}).drop(columns = ["AGG_STOCK_TYPE1", "AGG_STOCK_TYPE2", "STATE", "TYPE1-C", "NONELEC", "NONELEC-C"])
-    EFS_Stock_MD_DC = pd.merge(EFS_Stock_MD, EFS_Stock_DC, on = ["SECTOR", "SUBSECTOR", "YEAR", "UNIT"])
-    EFS_Stock_MD_DC = EFS_Stock_MD_DC.assign(Ratio = EFS_Stock_MD_DC["DC_AGG_STOCK"]/EFS_Stock_MD_DC["MD_AGG_STOCK"])
-    EFS_Stock_MD_DC.columns = EFS_Stock_MD_DC.columns.str.title()
-    EFS_Stock_MD_DC["Ratio"].fillna(1)
-
-    #----Read in data
-    EFS_Reference_Load = pd.read_parquet(path_processed + "\EFS_REF_MOD_LOADPROF.parquet")
-    EFS_Reference_Load_Eastern = EFS_Reference_Load[EFS_Reference_Load["State"].isin(states_eastern_abbr)]
-    EFS_Reference_Load_Central = EFS_Reference_Load[EFS_Reference_Load["State"].isin(states_central_abbr)]
-    EFS_Reference_Load_Central = EFS_Reference_Load_Central.assign(LocalHourID = addhour(EFS_Reference_Load_Central["LocalHourID"]))
-    EFS_Reference_Load_Mountain = EFS_Reference_Load[EFS_Reference_Load["State"].isin(states_mountain_abbr)]
-    EFS_Reference_Load_Mountain = EFS_Reference_Load_Mountain.assign(LocalHourID = addhour(addhour(EFS_Reference_Load_Mountain["LocalHourID"])))
-    EFS_Reference_Load_Pacific = EFS_Reference_Load[EFS_Reference_Load["State"].isin(states_pacific_abbr)]
-    EFS_Reference_Load_Pacific = EFS_Reference_Load_Pacific.assign(LocalHourID = addhour(addhour(addhour(EFS_Reference_Load_Pacific["LocalHourID"]))))
-    EFS_Reference_Load_DC = pd.merge(EFS_Reference_Load[EFS_Reference_Load["State"] == "MD"], EFS_Stock_MD_DC, on = ["Sector", "Subsector", "Year"])
-    EFS_Reference_Load_DC = EFS_Reference_Load_DC.assign(LoadMW = EFS_Reference_Load_DC["LoadMW"] * EFS_Reference_Load_DC["Ratio"], State = "DC").drop(columns= ["Unit", "Dc_Agg_Stock", "Md_Agg_Stock", "Ratio"])
-    EFS_Reference_Load_Synced = EFS_Reference_Load_Eastern.append([EFS_Reference_Load_Central,EFS_Reference_Load_DC], ignore_index=True)
-    try:
-        EFS_Reference_Load_Synced = EFS_Reference_Load_Synced.append(EFS_Reference_Load_Mountain, ignore_index=True)
-    except AttributeError:
-        pass
-    except NameError:
-        pass
-    try:
-        EFS_Reference_Load_Synced = EFS_Reference_Load_Synced.append(EFS_Reference_Load_Pacific, ignore_index=True)
-    except AttributeError:
-        pass
-    except NameError:
-        pass
-    del EFS_Stock, EFS_Stock_MD, EFS_Stock_DC, EFS_Stock_MD_DC, EFS_Reference_Load, EFS_Reference_Load_Eastern, EFS_Reference_Load_DC, \
-        EFS_Reference_Load_Central, EFS_Reference_Load_Mountain, EFS_Reference_Load_Pacific
-
-    # Create Load to be removed from 2020 load profiles
-    EFS_Reference_2020 = EFS_Reference_Load_Synced[EFS_Reference_Load_Synced["Year"] == 2020].drop(columns = ["Electrification", "TechnologyAdvancement"]).drop_duplicates()
-    #EFS_Reference_2020 = EFS_Reference_2020.groupby(["Year", "LocalHourID", "State"], as_index=False).agg({"LoadMW" : "sum"})
-    EFS_Reference_2020 = pd.merge(EFS_Reference_2020, pop, on = ["State"])
-    EFS_Reference_2020 = EFS_Reference_2020.assign(weighted = EFS_Reference_2020["LoadMW"]*EFS_Reference_2020["State Prop"])
-    EFS_Reference_2020 = EFS_Reference_2020.groupby(["Year", "LocalHourID", "GenX.Region", "Sector", "Subsector"], as_index = False).agg({"weighted" : "sum"})
-
-    del EFS_Reference_Load_Synced
+    path_growthrate = path_growthrate
 
     ## Method 3: annually
-
     EFS_2020_LoadProf = pd.read_parquet(path_in + "\EFS_REF_load_2020.parquet")
     EFS_2020_LoadProf = pd.merge(EFS_2020_LoadProf, pop, on = ["State"])
     EFS_2020_LoadProf = EFS_2020_LoadProf.assign(weighted = EFS_2020_LoadProf["LoadMW"]*EFS_2020_LoadProf["State Prop"])
     EFS_2020_LoadProf = EFS_2020_LoadProf.groupby(["Year", "GenX.Region", "LocalHourID", "Sector", "Subsector"], as_index = False).agg({"weighted" : "sum"})
-
+    
+    # Read in 2019 Demand
     Original_Load_2019 = pd.read_parquet(path_in + "\ipm_load_curves_2019_EST.parquet")
+    # Reorganize Demand
     Original_Load_2019 = Original_Load_2019.melt(id_vars="LocalHourID").rename(columns={"variable" : "GenX.Region", "value": "LoadMW_original"})
     Original_Load_2019 = Original_Load_2019.groupby(["LocalHourID"], as_index = False).agg({"LoadMW_original" : "sum"})
 
@@ -156,20 +112,19 @@ def CreateBaseLoad(years, regions, output_folder):
     EFS_2020_LoadProf = EFS_2020_LoadProf.assign(weighted = EFS_2020_LoadProf["weighted"]*ratio_A)
 
     Base_Load_2019 = EFS_2020_LoadProf.rename(columns ={"weighted" : "LoadMW"})
-
-    # Read in 2019 Demand
-    Original_Load_2019 = pd.read_parquet(path_in + "\ipm_load_curves_2019_EST.parquet")
-    # Reorganize Demand
-    Original_Load_2019 = Original_Load_2019.melt(id_vars="LocalHourID").rename(columns={"variable" : "GenX.Region", "value": "LoadMW_original"})
-    # Merge 2020 Demand with EFS 2020 Load Demand, and take the difference
-    # We assume EFS's 2020 is almost the same as 2019
-    Base_Load_2019 = pd.merge(Original_Load_2019, EFS_Reference_2020, on = ["GenX.Region", "LocalHourID"])
-    Base_Load_2019 = Base_Load_2019.assign(LoadMW = Base_Load_2019["LoadMW_original"] - Base_Load_2019["weighted"], Year = 2019)\
-        .drop(columns = ["LoadMW_original", "weighted"])
-    Base_Load_2019 = Base_Load_2019[Base_Load_2019["GenX.Region"].isin(regions)]
+    breakpoint()
     # Read in the Growth Rate
     GrowthRate = pd.read_parquet(path_in + "\ipm_growthrate_2019.parquet")
+    try:
+        GrowthRate = pd.read_parquet(path_growthrate)
+    except:
+        pass
+
     # Create Base loads
+    Base_Load_2019 = Base_Load_2019[Base_Load_2019["GenX.Region"].isin(regions)]
+    Base_Load_2019.loc[(Base_Load_2019["Sector"] == "Industrial") & (Base_Load_2019["Subsector"].isin(["process heat", "machine drives"])), "Subsector"] = "other"
+    Base_Load_2019 = Base_Load_2019[Base_Load_2019["Subsector"] == "other"]
+    Base_Load_2019 = Base_Load_2019.groupby(["Year", "LocalHourID", "GenX.Region", "Sector"], as_index= False).agg({'LoadMW' : 'sum'})
     Base_Load = Base_Load_2019
     for y in years:
         ScaleFactor = GrowthRate.assign(ScaleFactor = (1+GrowthRate["growth_rate"])**(int(y) - 2019)) \
@@ -179,7 +134,6 @@ def CreateBaseLoad(years, regions, output_folder):
                 .drop(columns = "ScaleFactor")
         Base_Load = Base_Load.append(Base_Load_temp, ignore_index=True)
     Base_Load.to_parquet(path_result + "\Base_Load.parquet", index = False)
-
     del Base_Load, Base_Load_2019, Base_Load_temp, ScaleFactor,GrowthRate, Original_Load_2019
 
 #####################################
@@ -195,7 +149,12 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
 
     SCENARIO_STOCK = pd.read_parquet(path_processed + "\SCENARIO_STOCK.parquet")
     SCENARIO_STOCK = SCENARIO_STOCK[(SCENARIO_STOCK["YEAR"].isin(years)) & (SCENARIO_STOCK["SCENARIO"].isin(electrification))]
-    
+    SCENARIO_STOCK_temp = pd.DataFrame()
+    for year, case in zip(years, electrification):
+        SCENARIO_STOCK_temp = SCENARIO_STOCK_temp.append(SCENARIO_STOCK[(SCENARIO_STOCK["YEAR"] == year) & (SCENARIO_STOCK["SCENARIO"] == case)])
+    SCENARIO_STOCK = SCENARIO_STOCK_temp
+    del SCENARIO_STOCK_temp
+
     try:
         CUSTOM_STOCK = pd.read_parquet(path_stock)
         CUSTOM_STOCK = CUSTOM_STOCK[(CUSTOM_STOCK["YEAR"].isin(years)) & (CUSTOM_STOCK["SCENARIO"].isin(electrification))]
@@ -220,7 +179,7 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
                 timeseries_temp = timeseries[timeseries["Year"] == year_approx]
                 timeseries_temp["Year"] = year
                 logger.warning("No incremental factor available for year " + str(year) + ": using factors from year " + str(year_approx) + ".")
-            timeseries = timeseries.append(timeseries_temp)
+                timeseries = timeseries.append(timeseries_temp)
  
         timeseries = pd.merge(timeseries, stock_temp, on = ["State", "Year"])
         timeseries = timeseries.assign(LoadMW = timeseries["AGG_STOCK_TYPE1"]*timeseries["Factor_Type1"] + timeseries["AGG_STOCK_TYPE2"]*timeseries["Factor_Type2"])
@@ -364,21 +323,18 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
 
     Base_Load = pd.read_parquet(path_result + "\Base_Load.parquet")
     Base_Load = Base_Load.rename(columns= {"LoadMW" : "Base_MW"})
-    Base_Load.loc[(Base_Load["Sector"] == "Commercial") & (Base_Load["Subsector"] == "space heating and cooling"), "Subsector"] = "Base_Com_SPH"
-    Base_Load.loc[(Base_Load["Sector"] == "Commercial") & (Base_Load["Subsector"] == "water heating"), "Subsector"] = "Base_Com_WH"
-    Base_Load.loc[(Base_Load["Sector"] == "Residential") & (Base_Load["Subsector"] == "space heating and cooling"), "Subsector"] = "Base_Res_SPH"
-    Base_Load.loc[(Base_Load["Sector"] == "Residential") & (Base_Load["Subsector"] == "water heating"), "Subsector"] = "Base_Res_WH"
-    Base_Load.loc[(Base_Load["Sector"] == "Transportation") & (Base_Load["Subsector"] == "light-duty vehicles"), "Subsector"] = "Base_Trans_LDV"
-    Base_Load.loc[(Base_Load["Sector"] == "Transportation") & (Base_Load["Subsector"] == "medium-duty trucks"), "Subsector"] = "Base_Trans_MDV"
-    Base_Load.loc[(Base_Load["Sector"] == "Transportation") & (Base_Load["Subsector"] == "heavy-duty trucks"), "Subsector"] = "Base_Trans_HDV"
-    Base_Load.loc[(Base_Load["Sector"] == "Transportation") & (Base_Load["Subsector"] == "transit buses"), "Subsector"] = "Base_Trans_BUS"
+    
+    Base_Load.loc[(Base_Load["Sector"] == "Commercial"), "Subsector"] = "Base_Com_other"
+    Base_Load.loc[(Base_Load["Sector"] == "Residential"), "Subsector"] = "Base_Res_other"
+    Base_Load.loc[(Base_Load["Sector"] == "Transportation"), "Subsector"] = "Base_Trans_other"
+    Base_Load.loc[(Base_Load["Sector"] == "Industrial"), "Subsector"] = "Base_Ind"
 
     Base_Load = Base_Load.drop(columns = ["Sector"])
     Base_Load = Base_Load.pivot_table(index = [Base_Load.index.values, 'LocalHourID', "GenX.Region", "Year"], columns = 'Subsector', values = 'Base_MW')\
         .reset_index(['LocalHourID', "GenX.Region", "Year"]).fillna(0)
-    Base_Load = Base_Load.groupby(['LocalHourID', 'GenX.Region', 'Year'], as_index=False).agg({'Base_Com_SPH' : 'sum', 'Base_Com_WH' : 'sum', 'Base_Res_SPH' : 'sum', 'Base_Res_WH' : 'sum',\
-    'Base_Trans_HDV' : 'sum','Base_Trans_LDV' : 'sum', 'Base_Trans_MDV' : 'sum'})
-        
+    Base_Load = Base_Load.groupby(['LocalHourID', 'GenX.Region', 'Year'], as_index=False).agg({'Base_Com_other' : 'sum', 'Base_Res_other' : 'sum', \
+        'Base_Trans_other' : 'sum', 'Base_Ind' : 'sum'})
+    
     Res_WH = pd.read_parquet(path_result + "\Res_WH_By_region.parquet")
     Com_WH = pd.read_parquet(path_result + "\Com_WH_By_region.parquet")
     Res_SPH = pd.read_parquet(path_result + "\Res_SPH_By_region.parquet")
@@ -402,20 +358,20 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
     Total_Load = Total_Load[(Total_Load["Year"].isin(years)) & (Total_Load["GenX.Region"].isin(regions))]
     Total_Load.to_parquet(path_result + "\Total_load_by_region_full.parquet", index = False)
 
-    Total_Load_plot = Total_Load.assign(Total = Total_Load["Base_Com_SPH"] + Total_Load["Base_Res_SPH"] + Total_Load["Base_Res_WH"] + Total_Load["Base_Com_WH"] \
-        + Total_Load["Base_Trans_LDV"] + Total_Load["Base_Trans_MDV"] + Total_Load["Base_Trans_HDV"] + Total_Load["Res_SPH_MW"] + Total_Load['Res_WH_MW']\
-        + Total_Load['LDV_MW'] + Total_Load["MDV_MW"] + Total_Load["HDV_MW"] + Total_Load["Com_WH_MW"] + Total_Load["Com_SPH_MW"])\
-            .melt(id_vars=["SCENARIO", "Year","LocalHourID","GenX.Region"])
+    #Total_Load_plot = Total_Load.assign(Total = Total_Load["Base_Com_SPH"] + Total_Load["Base_Res_SPH"] + Total_Load["Base_Res_WH"] + Total_Load["Base_Com_WH"] \
+    #    + Total_Load["Base_Trans_LDV"] + Total_Load["Base_Trans_MDV"] + Total_Load["Base_Trans_HDV"] + Total_Load["Res_SPH_MW"] + Total_Load['Res_WH_MW']\
+    #    + Total_Load['LDV_MW'] + Total_Load["MDV_MW"] + Total_Load["HDV_MW"] + Total_Load["Com_WH_MW"] + Total_Load["Com_SPH_MW"])\
+    #        .melt(id_vars=["SCENARIO", "Year","LocalHourID","GenX.Region"])
 
-    Total_Load_sum = Total_Load_plot.groupby(["SCENARIO", "Year", "GenX.Region", "variable"], as_index = False)["value"].sum()
-    Total_Load_sum = Total_Load_sum.rename(columns={"value" : "AnnualTWh"})
-    Total_Load_sum["AnnualTWh"] = round(10**-6*Total_Load_sum["AnnualTWh"], 2)
-    del Total_Load_plot
+    #Total_Load_sum = Total_Load_plot.groupby(["SCENARIO", "Year", "GenX.Region", "variable"], as_index = False)["value"].sum()
+    #Total_Load_sum = Total_Load_sum.rename(columns={"value" : "AnnualTWh"})
+    #Total_Load_sum["AnnualTWh"] = round(10**-6*Total_Load_sum["AnnualTWh"], 2)
+    #del Total_Load_plot
     #Total_Load_sum_by_state = pd.merge(Total_Load_sum, pop, on = ["GenX.Region"], how = 'left')
     #Total_Load_sum_by_state = Total_Load_sum_by_state.assign(weighted = Total_Load_sum_by_state["AnnualTWh"] * Total_Load_sum_by_state["Zone Prop"])\
     #    .groupby(["SCENARIO", "State", "Year", "variable"])["weighted"].sum().rename(columns={"weighted" : "AnnualTWh"})
     #Total_Load_sum_by_state.to_parquet(path_result + "\Total_MWh_by_state.parquet", index = False)
-    del Total_Load_sum
+    #del Total_Load_sum
 
     
     #Total_Load = Total_Load.assign(Total_MW = Total_Load["water_heat_MW"] + Total_Load["space_heat_MW"] + Total_Load["LDEV_MW"] + Total_Load["MHBEV_MW"] + Total_Load["Base_MW"])\
@@ -443,13 +399,15 @@ def MakeLoadProfiles(settings, case_folder):
             electrification.append(_settings["NZA_electrification"])
             try:
                 path_stock = str(_settings["input_folder"]) + "\\" + _settings["custom_stock"]
-            except TypeError:
+                path_growthrate = str(_settings["input_folder"]) + "\\" + _settings["custom_growthrate"]
+            except:
                 path_stock = ""
+                path_growthrate = ""
             # scenarios
-    years = list(set(years))
+    #years = list(set(years))
     regions = list(set(regions))
-    electrification = list(set(electrification))
-    CreateBaseLoad(years, regions, output_folder)
+    #electrification = list(set(electrification))
+    CreateBaseLoad(years, regions, output_folder, path_growthrate)
     return AddElectrification(years, regions, electrification, output_folder, path_stock)
 
 def FilterTotalProfile(settings, total_load):
@@ -457,10 +415,9 @@ def FilterTotalProfile(settings, total_load):
     settings = settings
     TotalLoad = TotalLoad[TotalLoad["Year"] == settings["model_year"]]
     TotalLoad = TotalLoad.assign(TotalMW = TotalLoad['Res_WH_MW'] + TotalLoad['Com_WH_MW'] + TotalLoad['Res_SPH_MW'] + TotalLoad['Com_SPH_MW']\
-        + TotalLoad['LDV_MW'] + TotalLoad['MDV_MW'] + TotalLoad['HDV_MW'] + TotalLoad['Base_Com_SPH'] + TotalLoad['Base_Com_WH']\
-             + TotalLoad['Base_Res_SPH'] + TotalLoad['Base_Res_WH'] + TotalLoad['Base_Trans_HDV'] + TotalLoad['Base_Trans_LDV']\
-                 + TotalLoad['Base_Trans_MDV']).drop(columns = ['Res_WH_MW', 'Com_WH_MW', 'Res_SPH_MW', 'Com_SPH_MW', 'LDV_MW', 'MDV_MW', 'HDV_MW',\
-                    'Base_Com_SPH', 'Base_Com_WH', 'Base_Res_SPH', 'Base_Res_WH', 'Base_Trans_HDV', 'Base_Trans_LDV', 'Base_Trans_MDV'])
+        + TotalLoad['LDV_MW'] + TotalLoad['MDV_MW'] + TotalLoad['HDV_MW'] + TotalLoad['Base_Com_other']\
+             + TotalLoad['Base_Res_other'] + TotalLoad['Base_Trans_other'] + TotalLoad['Base_Ind']).drop(columns = ['Res_WH_MW', 'Com_WH_MW', 'Res_SPH_MW', 'Com_SPH_MW', 'LDV_MW', 'MDV_MW', 'HDV_MW',\
+                    'Base_Com_other', 'Base_Res_other', 'Base_Trans_other', 'Base_Ind'])
     TotalLoad = TotalLoad[TotalLoad["SCENARIO"] == settings["NZA_electrification"]]
     TotalLoad = TotalLoad.drop(columns = ["SCENARIO", "Year"]).rename(columns = {"LocalHourID" : "time_index", "GenX.Region" : "region"})
 
