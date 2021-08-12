@@ -174,12 +174,18 @@ def startup_fuel(df, settings):
     """
     df["Start_fuel_MMBTU_per_MW"] = 0
     for eia_tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
-        atb_tech = settings["eia_atb_tech_map"][eia_tech]
+        if not isinstance(settings["eia_atb_tech_map"][eia_tech], list):
+            settings["eia_atb_tech_map"][eia_tech] = [
+                settings["eia_atb_tech_map"][eia_tech]
+            ]
 
-        df.loc[df["technology"] == eia_tech, "Start_fuel_MMBTU_per_MW"] = fuel_use
-        df.loc[
-            df["technology"].str.contains(atb_tech), "Start_fuel_MMBTU_per_MW"
-        ] = fuel_use
+        atb_tech = settings["eia_atb_tech_map"][eia_tech]
+        for tech in atb_tech:
+            df.loc[df["technology"] == tech, "Start_fuel_MMBTU_per_MW"] = fuel_use
+            df.loc[
+                df["technology"].str.contains(tech, case=False),
+                "Start_fuel_MMBTU_per_MW",
+            ] = fuel_use
 
     return df
 
@@ -1229,7 +1235,7 @@ def add_genx_model_tags(df, settings):
             logger.warning(f"No model tag values found for {tag_col} ({e})")
 
     # Change tags with specific regional values for a technology
-    flat_regional_tags = flatten(settings.get("regional_tag_values", {}))
+    flat_regional_tags = flatten(settings.get("regional_tag_values", {}) or {})
 
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
@@ -1357,14 +1363,12 @@ def clean_860m_sheet(
         One of the sheets from 860m
     """
 
-    df = eia_860m.parse(
-        sheet_name=sheet_name, na_values=[" "]
-    )
+    df = eia_860m.parse(sheet_name=sheet_name, na_values=[" "])
     for idx, row in df.iterrows():
         if row.iloc[0] == "Entity ID":
             sr = idx + 1
             break
-    
+
     for idx in list(range(-10, 0)):
         if isinstance(df.iloc[idx, 0], str):
             sf = -idx
@@ -1732,7 +1736,14 @@ def add_fuel_labels(df, fuel_prices, settings):
                 # coal plants
                 atb_tech = None
             else:
-                atb_tech = settings["eia_atb_tech_map"][eia_tech].split("_")[0]
+                if not isinstance(settings["eia_atb_tech_map"][eia_tech], list):
+                    settings["eia_atb_tech_map"][eia_tech] = [
+                        settings["eia_atb_tech_map"][eia_tech]
+                    ]
+                atb_tech = [
+                    tech.split("_")[0]
+                    for tech in settings["eia_atb_tech_map"][eia_tech]
+                ]
         except KeyError:
             # No corresponding ATB technology
             atb_tech = None
@@ -1754,11 +1765,12 @@ def add_fuel_labels(df, fuel_prices, settings):
             ] = fuel_name
 
             if atb_tech is not None:
-                df.loc[
-                    (df["technology"].str.contains(atb_tech))
-                    & df["region"].isin(model_regions),
-                    "Fuel",
-                ] = fuel_name
+                for tech in atb_tech:
+                    df.loc[
+                        (df["technology"].str.contains(tech, case=False))
+                        & df["region"].isin(model_regions),
+                        "Fuel",
+                    ] = fuel_name
 
     for ccs_tech, ccs_fuel in (settings.get("ccs_fuel_map") or {}).items():
         scenario = settings["aeo_fuel_scenarios"][ccs_fuel.split("_")[0]]
@@ -2263,10 +2275,7 @@ class GeneratorClusters:
             self.units_model.rename(columns={"technology_description": "technology"})
             .query("technology.isin(@techs).values")
             .pipe(
-                atb_fixed_var_om_existing,
-                self.atb_hr,
-                self.settings,
-                self.pudl_engine,
+                atb_fixed_var_om_existing, self.atb_hr, self.settings, self.pudl_engine
             )
         )
 

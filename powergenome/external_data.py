@@ -89,13 +89,15 @@ def demand_response_resource_capacity(df, resource_name, settings):
     return shiftable_capacity
 
 
-def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_MW"):
+def add_resource_max_cap_spur(
+    new_resource_df: pd.DataFrame, settings: dict, capacity_col: str = "Max_Cap_MW"
+) -> pd.DataFrame:
     """Load user supplied maximum capacity and spur line data for new resources. Add
     those values to the resources dataframe.
 
     Parameters
     ----------
-    new_resource_df : DataFrame
+    new_resource_df : pd.DataFrame
         New resources that can be built. Each row should be a single resource, with
         columns 'region' and 'technology'. The number of copies for a region/resource
         (e.g. more than one UtilityPV resource in a region) should match what is
@@ -109,7 +111,7 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         A modified version of new_resource_df with spur_miles and the maximum
         capacity for a resource. Copies of a resource within a region should have a
         cluster name to uniquely identify them.
@@ -136,12 +138,17 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
     grouped_df = df.groupby(["region", "technology"])
     for (region, tech), _df in grouped_df:
         mask = (new_resource_df["region"] == region) & (
-            new_resource_df["technology"].str.lower().str.contains(tech.lower())
+            new_resource_df["technology"]
+            .str.lower()
+            .str.replace("_*", "_all")
+            .str.contains(tech.lower().replace("_*", "_all"))
         )
         if mask.sum() > 1:
+            resources = new_resource_df.loc[mask, "technology"].to_list()
             raise ValueError(
                 f"Resource {tech} in region {region} from file "
-                f"{settings['capacity_limit_spur_fn']} matches multiple resources"
+                f"{settings['capacity_limit_spur_fn']} matches multiple resources:"
+                f"\n{resources}"
             )
         for key, value in defaults.items():
             _key = "max_capacity" if key == capacity_col else key
@@ -153,15 +160,17 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
         f"{settings['target_usd_year']}"
     )
     new_resource_df["interconnect_annuity"] = inflation_price_adjustment(
-        new_resource_df["interconnect_annuity"], 2017, settings["target_usd_year"],
+        new_resource_df["interconnect_annuity"], 2017, settings["target_usd_year"]
     )
     return new_resource_df
 
 
-def make_generator_variability(df: pd.DataFrame) -> pd.DataFrame:
+def make_generator_variability(
+    df: pd.DataFrame, remove_feb_29: bool = True
+) -> pd.DataFrame:
     """Make a generator variability dataframe with normalized (0-1) hourly profiles
     for each resource in resource_df.
-    
+
     Any resources that do not have a profile in column
     `profile` are assumed to have constant hourly profiles with a value of 1.
     February 29 is removed from any profiles of length 8784 (leap year).
@@ -197,17 +206,31 @@ def make_generator_variability(df: pd.DataFrame) -> pd.DataFrame:
     [8760 rows x 3 columns]
     """
 
-    def format_profile(x: Any) -> np.ndarray:
+    def profile_len(x: Any) -> int:
+        if isinstance(x, np.ndarray):
+            return len(x)
+        return 1
+
+    def format_profile(
+        x: Any, remove_feb_29: bool = True, hours: int = 8760
+    ) -> np.ndarray:
+        # from IPython import embed
+        # embed()
         if isinstance(x, np.ndarray):
             if len(x) == 8784:
                 # Remove February 29 from leap year
-                return np.delete(x, slice(1416, 1440))
+                if remove_feb_29:
+                    return np.delete(x, slice(1416, 1440))
             return x
         # Fill missing with default [1, ...]
-        return np.ones(8760, dtype=float)
+        return np.ones(hours, dtype=float)
 
     if "profile" in df:
-        profiles = np.column_stack(df["profile"].map(format_profile).values)
+        hours = df["profile"].apply(profile_len).max()
+        kwargs = {"remove_feb_29": remove_feb_29, "hours": hours}
+        profiles = np.column_stack(df["profile"].apply(format_profile, **kwargs).values)
+    # elif not remove_feb_29:
+    #     profiles = np.ones((8760, len(df)), dtype=float)
     else:
         profiles = np.ones((8760, len(df)), dtype=float)
     return pd.DataFrame(profiles, columns=np.arange(len(df)).astype(str))
