@@ -85,7 +85,7 @@ def agg_transmission_constraints(
         "regions"
     )
     tc_joined = pd.DataFrame(
-        columns=["Network_lines"] + zones + ["Line_Max_Flow_MW", "Line_Min_Flow_MW"],
+        columns=["Network_Lines"] + zones + ["Line_Max_Flow_MW", "Line_Min_Flow_MW"],
         index=transmission_constraints_table.reindex(combos).dropna().index,
         data=0,
     )
@@ -96,7 +96,7 @@ def agg_transmission_constraints(
         tc_joined.rename(columns=zone_num_map, inplace=True)
         return tc_joined.reset_index(drop=True)
 
-    tc_joined["Network_lines"] = range(1, len(tc_joined) + 1)
+    tc_joined["Network_Lines"] = range(1, len(tc_joined) + 1)
     tc_joined["Line_Max_Flow_MW"] = transmission_constraints_table.reindex(
         combos
     ).dropna()

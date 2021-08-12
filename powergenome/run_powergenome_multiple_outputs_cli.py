@@ -226,7 +226,7 @@ def main():
                             generators=gc.all_resources,
                             settings=_settings,
                         )
-                        fuels["fuel_indices"] = range(1, len(fuels) + 1)
+                        # fuels["fuel_indices"] = range(1, len(fuels) + 1)
                         # fuels = remove_fuel_scenario_name(fuels, _settings)
                         write_results_file(
                             df=remove_fuel_scenario_name(fuels, _settings),
@@ -253,6 +253,7 @@ def main():
                     )
                     # if settings.get("partial_ces"):
                     gen_variability = make_generator_variability(gen_clusters)
+                    gen_variability.index.names = ["Time_Index"]
                     gen_variability.columns = (
                         gen_clusters["region"]
                         + "_"
@@ -354,6 +355,7 @@ def main():
                         settings=_settings,
                     )
                     gen_variability = make_generator_variability(gen_clusters)
+                    gen_variability.index.names = ["Time_Index"]
                     gen_variability.columns = (
                         gen_clusters["region"]
                         + "_"
@@ -442,10 +444,10 @@ def main():
                 # If single-value for CES, use that value for input to GenX
                 # settings creation. This way values that are calculated internally
                 # get used.
-                if "CES" in network.columns and network["CES"].std() == 0:
-                    ces = network["CES"].mean()
-                else:
-                    ces = None
+                #if "CES" in network.columns and network["CES"].std() == 0:
+                #    ces = network["CES"].mean()
+                #else:
+                #    ces = None
 
                 write_results_file(
                     df=network.pipe(set_int_cols).pipe(round_col_values),
@@ -465,7 +467,7 @@ def main():
                 # Hack to get around the fact that fuels with different cost names
                 # get added and end up as duplicates.
                 fuels = fuels.drop_duplicates(subset=["Fuel"], keep="last")
-                fuels["fuel_indices"] = range(1, len(fuels) + 1)
+                #fuels["fuel_indices"] = range(1, len(fuels) + 1)
                 write_results_file(
                     df=remove_fuel_scenario_name(fuels, _settings)
                     .pipe(set_int_cols)

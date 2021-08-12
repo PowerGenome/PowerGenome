@@ -78,15 +78,15 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
         zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
 
-    zone_cols = ["Region description", "Network_zones", "DistrZones"] + list(
+    zone_cols = ["Region description", "Network_zones"] + list(
         policies.columns
     )
     zone_df = pd.DataFrame(columns=zone_cols)
     zone_df["Region description"] = zones
     zone_df["Network_zones"] = zone_df["Region description"].map(zone_num_map)
 
-    if DistrZones is None:
-        zone_df["DistrZones"] = 0
+    #if DistrZones is None:
+    #    zone_df["DistrZones"] = 0
 
     # Add code here to make DistrZones something else!
     # If there is only one region, assume that the policy is applied across all regions.
@@ -137,7 +137,7 @@ def add_misc_gen_values(gen_clusters, settings):
     return gen_clusters
 
 
-def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
+def make_genx_settings_file(pudl_engine, settings):
     """Make a copy of the GenX settings file for a specific case.
 
     This function tries to make some intellegent choices about parameter values like
@@ -187,46 +187,46 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
         year_case_policy = year_case_policy.sum()
 
     # If a value isn't supplied to the function use value from file
-    if calculated_ces is None:
-        CES = year_case_policy["CES"]
-    else:
-        CES = calculated_ces
-    RPS = year_case_policy["RPS"]
+    #if calculated_ces is None:
+    #    CES = year_case_policy["CES"]
+    #else:
+    #    CES = calculated_ces
+    #RPS = year_case_policy["RPS"]
 
     # THIS WILL NEED TO BE MORE FLEXIBLE FOR OTHER SCENARIOS
-    if float(year_case_policy["CO_2_Max_Mtons"]) >= 0:
-        genx_settings["CO2Cap"] = 2
-    else:
-        genx_settings["CO2Cap"] = 0
+    #if float(year_case_policy["CO_2_Max_Mtons"]) >= 0:
+    #    genx_settings["CO2Cap"] = 2
+    #else:
+    #    genx_settings["CO2Cap"] = 0
 
-    if float(year_case_policy["RPS"]) > 0:
+    #if float(year_case_policy["RPS"]) > 0:
         # print(total_dg_gen)
         # print(year_case_policy["RPS"])
-        if policies.loc[(case_id, model_year), "region"].all() == "all":
-            genx_settings["RPS"] = 3
-            genx_settings["RPS_Adjustment"] = float((1 - RPS) * total_dg_gen)
-        else:
-            genx_settings["RPS"] = 2
-            genx_settings["RPS_Adjustment"] = 0
-    else:
-        genx_settings["RPS"] = 0
-        genx_settings["RPS_Adjustment"] = 0
+    #    if policies.loc[(case_id, model_year), "region"].all() == "all":
+    #        genx_settings["RPS"] = 3
+    #        genx_settings["RPS_Adjustment"] = float((1 - RPS) * total_dg_gen)
+    #    else:
+    #        genx_settings["RPS"] = 2
+    #        genx_settings["RPS_Adjustment"] = 0
+    #else:
+    #    genx_settings["RPS"] = 0
+    #    genx_settings["RPS_Adjustment"] = 0
 
-    if float(year_case_policy["CES"]) > 0:
-        if policies.loc[(case_id, model_year), "region"].all() == "all":
-            genx_settings["CES"] = 3
+    #if float(year_case_policy["CES"]) > 0:
+    #    if policies.loc[(case_id, model_year), "region"].all() == "all":
+    #        genx_settings["CES"] = 3
 
             # This is a little confusing but for partial CES
-            if settings.get("partial_ces"):
-                genx_settings["CES_Adjustment"] = 0
-            else:
-                genx_settings["CES_Adjustment"] = float((1 - CES) * total_dg_gen)
-        else:
-            genx_settings["CES"] = 2
-            genx_settings["CES_Adjustment"] = 0
-    else:
-        genx_settings["CES"] = 0
-        genx_settings["CES_Adjustment"] = 0
+    #        if settings.get("partial_ces"):
+    #            genx_settings["CES_Adjustment"] = 0
+    #        else:
+    #            genx_settings["CES_Adjustment"] = float((1 - CES) * total_dg_gen)
+    #    else:
+    #        genx_settings["CES"] = 2
+    #        genx_settings["CES_Adjustment"] = 0
+    #else:
+    #    genx_settings["CES"] = 0
+    #    genx_settings["CES_Adjustment"] = 0
 
     # Don't wrap when time domain isn't reduced
     if not settings.get("reduce_time_domain"):
@@ -280,13 +280,13 @@ def reduce_time_domain(
         reduced_load_profile = results["load_profiles"]
         time_series_mapping = results["time_series_mapping"]
 
-        time_index = pd.Series(data=reduced_load_profile.index + 1, name="Time_index")
+        time_index = pd.Series(data=reduced_load_profile.index + 1, name="Time_Index")
         sub_weights = pd.Series(
             data=[x * (days * 24) for x in results["ClusterWeights"]],
             name="Sub_Weights",
         )
-        hours_per_period = pd.Series(data=[days * 24], name="Hours_per_period")
-        subperiods = pd.Series(data=[time_periods], name="Subperiods")
+        hours_per_period = pd.Series(data=[days * 24], name="Timesteps_per_Rep_Period")
+        subperiods = pd.Series(data=[time_periods], name="Rep_Periods")
         reduced_load_output = pd.concat(
             [
                 demand_segments,
@@ -302,10 +302,10 @@ def reduce_time_domain(
         return reduced_resource_profile, reduced_load_output, time_series_mapping
 
     else:
-        time_index = pd.Series(data=range(1, 8761), name="Time_index")
+        time_index = pd.Series(data=range(1, 8761), name="Time_Index")
         sub_weights = pd.Series(data=[1], name="Sub_Weights")
-        hours_per_period = pd.Series(data=[168], name="Hours_per_period")
-        subperiods = pd.Series(data=[1], name="Subperiods")
+        hours_per_period = pd.Series(data=[168], name="Timesteps_per_Rep_Period")
+        subperiods = pd.Series(data=[1], name="Rep_Periods")
 
         # Not actually reduced
         load_output = pd.concat(
@@ -426,7 +426,7 @@ def network_reinforcement_cost(
         * transmission["distance_mile"]
     )
 
-    transmission["Line_Reinforcement_Cost_per_MW_yr"] = line_inv_cost.round(0)
+    transmission["Line_Reinforcement_Cost_per_MWyr"] = line_inv_cost.round(0)
 
     return transmission
 
@@ -544,7 +544,7 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
         gens.loc[
             ~(gens["Resource"].str.contains("coal"))
             & (gens["STOR"] == 0)
-            & (gens["DR"] == 0),
+            & (gens["FLEX"] == 0),
             # & ~(gens["Resource"].str.contains("battery"))
             # & ~(gens["Resource"].str.contains("load_shifting")),
             "CES",
@@ -552,6 +552,27 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
     # else:
     #     gen_clusters = add_genx_model_tags(gen_clusters, settings)
 
+    gens["Zone"] = gens["zone"]
+    gens["Cap_Size"] = gens["Cap_size"]
+    gens["Fixed_OM_Cost_per_MWyr"] = gens["Fixed_OM_cost_per_MWyr"]
+    gens["Fixed_OM_Cost_per_MWhyr"] = gens["Fixed_OM_cost_per_MWhyr"]
+    gens["Inv_Cost_per_MWyr"] = gens["Inv_cost_per_MWyr"]
+    gens["Inv_Cost_per_MWhyr"] = gens["Inv_cost_per_MWhyr"]
+    gens["Var_OM_Cost_per_MWh"] = gens["Var_OM_cost_per_MWh"]
+    #gens["Var_OM_Cost_per_MWh_In"] = gens["Var_OM_cost_per_MWh_in"]
+    gens["Start_Cost_per_MW"] = gens["Start_cost_per_MW"]
+    gens["Start_Fuel_MMBTU_per_MW"] = gens["Start_fuel_MMBTU_per_MW"]
+    gens["Heat_Rate_MMBTU_per_MWh"] = gens["Heat_rate_MMBTU_per_MWh"]
+    gens["Min_Power"] = gens["Min_power"]
+    gens["Self_Disch"] = gens["Self_disch"]
+    gens["Eff_Up"] = gens["Eff_up"]
+    gens["Eff_Down"] = gens["Eff_down"]
+    gens["Ramp_Up_Percentage"] = gens["Ramp_Up_percentage"]
+    gens["Ramp_Dn_Percentage"] = gens["Ramp_Dn_percentage"]
+    gens["Up_Time"] = gens["Up_time"]
+    gens["Down_Time"] = gens["Down_time"]
+    gens["Max_Flexible_Demand_Delay"] = gens["Max_DSM_delay"]
+    
     return gens
 
 
