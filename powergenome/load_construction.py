@@ -238,33 +238,6 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
     Trans_BUS_sum = Trans_BUS.groupby(["SCENARIO", "State", "Year"], as_index = False)["BUS_LoadMW"].agg({"Total_Trans_BUS_TWh" : "sum"})
     Trans_BUS_sum["Total_Trans_BUS_TWh"] = 10**-6*Trans_BUS_sum["Total_Trans_BUS_TWh"]
 
-    # Total_SPH = pd.merge(Res_SPH, Com_SPH, on = ["SCENARIO","State","Year","LocalHourID"])
-    # Total_SPH = Total_SPH.assign(LoadMW = Total_SPH['Res_SPH_LoadMW'] + Total_SPH["Com_SPH_LoadMW"]).drop(columns = ["Res_SPH_LoadMW", "Com_SPH_LoadMW"])
-    # Total_WH = pd.merge(Res_WH, Com_WH, on = ["SCENARIO","State","Year","LocalHourID"])
-    # Total_WH = Total_WH.assign(LoadMW = Total_WH['Res_WH_LoadMW'] + Total_WH["Com_WH_LoadMW"]).drop(columns = ["Res_WH_LoadMW", "Com_WH_LoadMW"])
-    # Total_MHDV = pd.merge(Trans_MDV, Trans_HDV, on = ["SCENARIO", "State", "Year", "LocalHourID"])
-    # Total_MHDV = pd.merge(Total_MHDV, Trans_BUS, on = ["SCENARIO", "State", "Year", "LocalHourID"])
-    # Total_MHDV = Total_MHDV.assign(LoadMW = Total_MHDV["MDV_LoadMW"] + Total_MHDV["HDV_LoadMW"] + Total_MHDV["BUS_LoadMW"]).drop(columns=["MDV_LoadMW", "HDV_LoadMW", "BUS_LoadMW"])
-
-    #Total_SPH.to_parquet(path_or_buf = path_result + "\Total_SPH_" + Method + ".parquet", index=False)
-    #Total_WH.to_parquet(path_or_buf = path_result + "\Total_WH_" + Method + ".parquet", index = False)
-    #Trans_LDV.to_parquet(path_or_buf = path_result + "\Trans_LDV_" + Method + ".parquet", index = False)
-    #Total_MHDV.to_parquet(path_or_buf = path_result + "\Total_MHDV_" + Method + ".parquet", index = False)
-
-    # Total_SPH_Sum = Total_SPH.groupby(["SCENARIO", "State", "Year"], as_index=False)["LoadMW"].sum()
-    # Total_SPH_Sum = Total_SPH_Sum.rename(columns = {"LoadMW" : "TotalMW"})
-    # Total_WH_Sum = Total_WH.groupby(["SCENARIO", "State", "Year"], as_index=False)["LoadMW"].sum()
-    # Total_WH_Sum = Total_WH_Sum.rename(columns = {"LoadMW" : "TotalMW"})
-    # Trans_LDV_Sum = Trans_LDV.groupby(["SCENARIO", "State", "Year"], as_index=False)["LDV_LoadMW"].sum()
-    # Trans_LDV_Sum = Trans_LDV_Sum.rename(columns = {"LDV_LoadMW" : "TotalMW"})
-    # Total_MHDV_Sum = Total_MHDV.groupby(["SCENARIO", "State", "Year"], as_index=False)["LoadMW"].sum()
-    # Total_MHDV_Sum = Total_MHDV_Sum.rename(columns = {"LoadMW" : "TotalMW"})
-
-    #Total_SPH_Sum.to_parquet(path_or_buf= path_result + "\Total_SPH_sum_" + Method + ".parquet", index = False)
-    #Total_WH_Sum.to_parquet(path_or_buf= path_result + "\Total_WH_sum_" + Method + ".parquet", index = False)
-    #Trans_LDV_Sum.to_parquet(path_or_buf= path_result + "\Trans_LDV_sum_" + Method + ".parquet", index = False)
-    #Total_MHDV_Sum.to_parquet(path_or_buf= path_result + "\Total_MHDV_sum_" + Method + ".parquet", index = False)
-
     del  \
         Res_SPH_sum, Res_WH_sum, Com_SPH_sum, Trans_LDV_sum, \
              Trans_MDV_sum, Trans_HDV_sum, Trans_BUS_sum
@@ -285,39 +258,6 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
         j = j + 1
     del temp, subsectors, Res_SPH, Res_WH, Com_SPH, Com_WH, Trans_LDV, Trans_MDV, Trans_HDV, Trans_BUS
     
-    #Total_WH = pd.read_parquet(path_result + "\Total_WH_" + Method + ".parquet")
-    # Total_WH = pd.merge(Total_WH, pop, on = ["State"], how = 'left')
-    # Total_WH = Total_WH.assign(weighted = Total_WH["LoadMW"] * Total_WH["State Prop"]).groupby(["SCENARIO", "Year", "LocalHourID", "GenX.Region"], as_index=False)["weighted"].sum()\
-    #     .rename(columns={"weighted" : "water_heat_MW"})
-    # Total_WH = Total_WH[Total_WH["GenX.Region"].isin(regions)]
-    # Total_WH.to_parquet(path_result + "\Total_WH_By_region.parquet", index = False)
-    # del Total_WH
-
-    # #Total_SPH = pd.read_parquet(path_result + "\Total_SPH_" + Method + ".parquet")
-    # Total_SPH = pd.merge(Total_SPH, pop, on = ["State"], how = 'left')
-    # Total_SPH = Total_SPH.assign(weighted = Total_SPH["LoadMW"] * Total_SPH["State Prop"]).groupby(["SCENARIO", "Year", "LocalHourID", "GenX.Region"], as_index=False)["weighted"].sum()\
-    #     .rename(columns={"weighted" : "space_heat_MW"})
-    
-    # Total_SPH.to_parquet(path_result + "\Total_SPH_By_region.parquet", index = False)
-    # del Total_SPH
-
-
-    # #Total_LDEV = pd.read_parquet(path_result + "\Trans_LDV_" + Method + ".parquet")
-    # Total_LDEV = Trans_LDV
-    # Total_LDEV = pd.merge(Total_LDEV, pop, on = ["State"], how = 'left')
-    # Total_LDEV = Total_LDEV.assign(weighted = Total_LDEV["LDV_LoadMW"] * Total_LDEV["State Prop"]).groupby(["SCENARIO", "Year", "LocalHourID", "GenX.Region"], as_index=False)["weighted"].sum()\
-    #     .rename(columns={"weighted" : "LDEV_MW"})
-    # Total_LDEV.to_parquet(path_result + "\Total_LDEV_By_region.parquet", index = False)
-    # del Total_LDEV
-
-
-    # #Total_MHDV = pd.read_parquet(path_result + "\Total_MHDV_" + Method + ".parquet")
-    # Total_MHDV = pd.merge(Total_MHDV, pop, on = ["State"], how = 'left')
-    # Total_MHDV = Total_MHDV.assign(weighted = Total_MHDV["LoadMW"] * Total_MHDV["State Prop"]).groupby(["SCENARIO", "Year", "LocalHourID", "GenX.Region"], as_index=False)["weighted"].sum()\
-    #     .rename(columns={"weighted" : "MHBEV_MW"})
-    # Total_MHDV.to_parquet(path_result + "\Total_MHDV_By_region.parquet", index = False)
-    # del Total_MHDV
-
     ######
     #Construct Total Load
 
@@ -357,26 +297,6 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
 
     Total_Load = Total_Load[(Total_Load["Year"].isin(years)) & (Total_Load["GenX.Region"].isin(regions))]
     Total_Load.to_parquet(path_result + "\Total_load_by_region_full.parquet", index = False)
-
-    #Total_Load_plot = Total_Load.assign(Total = Total_Load["Base_Com_SPH"] + Total_Load["Base_Res_SPH"] + Total_Load["Base_Res_WH"] + Total_Load["Base_Com_WH"] \
-    #    + Total_Load["Base_Trans_LDV"] + Total_Load["Base_Trans_MDV"] + Total_Load["Base_Trans_HDV"] + Total_Load["Res_SPH_MW"] + Total_Load['Res_WH_MW']\
-    #    + Total_Load['LDV_MW'] + Total_Load["MDV_MW"] + Total_Load["HDV_MW"] + Total_Load["Com_WH_MW"] + Total_Load["Com_SPH_MW"])\
-    #        .melt(id_vars=["SCENARIO", "Year","LocalHourID","GenX.Region"])
-
-    #Total_Load_sum = Total_Load_plot.groupby(["SCENARIO", "Year", "GenX.Region", "variable"], as_index = False)["value"].sum()
-    #Total_Load_sum = Total_Load_sum.rename(columns={"value" : "AnnualTWh"})
-    #Total_Load_sum["AnnualTWh"] = round(10**-6*Total_Load_sum["AnnualTWh"], 2)
-    #del Total_Load_plot
-    #Total_Load_sum_by_state = pd.merge(Total_Load_sum, pop, on = ["GenX.Region"], how = 'left')
-    #Total_Load_sum_by_state = Total_Load_sum_by_state.assign(weighted = Total_Load_sum_by_state["AnnualTWh"] * Total_Load_sum_by_state["Zone Prop"])\
-    #    .groupby(["SCENARIO", "State", "Year", "variable"])["weighted"].sum().rename(columns={"weighted" : "AnnualTWh"})
-    #Total_Load_sum_by_state.to_parquet(path_result + "\Total_MWh_by_state.parquet", index = False)
-    #del Total_Load_sum
-
-    
-    #Total_Load = Total_Load.assign(Total_MW = Total_Load["water_heat_MW"] + Total_Load["space_heat_MW"] + Total_Load["LDEV_MW"] + Total_Load["MHBEV_MW"] + Total_Load["Base_MW"])\
-    #        .drop(columns = ["water_heat_MW", "space_heat_MW", "LDEV_MW", "MHBEV_MW", "Base_MW", "SCENARIO", "Year"]) \
-    #        .pivot_table(index = 'time_index', columns = 'region', values = 'Total_MW')
 
     return Total_Load
 
