@@ -120,7 +120,9 @@ def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, str]:
     return rev
 
 
-def map_agg_region_names(df, region_agg_map, original_col_name, new_col_name):
+def map_agg_region_names(
+    df: pd.DataFrame, region_agg_map: dict, original_col_name: str, new_col_name: str
+) -> pd.DataFrame:
 
     df[new_col_name] = df.loc[:, original_col_name]
 
