@@ -49,9 +49,11 @@ def fuel_cost_table(fuel_costs, generators, settings):
         num_hours = 8760
 
     fuel_df_prices = pd.DataFrame([fuel_df["Cost_per_MMBtu"]], index=range(1, num_hours+1))
+    fuel_df_prices = fuel_df_prices.round(2)
     fuel_df_prices.columns = unique_fuels
 
     fuel_df_top = pd.DataFrame([fuel_df["CO2_content_tons_per_MMBtu"]])
+    fuel_df_top = fuel_df_top.round(5)
     fuel_df_top.columns = unique_fuels
     fuel_df_top.index = [0]
     
