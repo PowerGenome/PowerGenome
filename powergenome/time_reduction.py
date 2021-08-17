@@ -159,7 +159,7 @@ def kmeans_time_clustering(
     EachClusterRepPoint = [None] * num_clusters
 
     # creating a dataframe for storing the mapping between representative time period and the entire year
-    time_series_mapping = pd.DataFrame(columns=["slot", "cluster"])
+    time_series_mapping = pd.DataFrame(columns=["Period_Index", "Rep_Period"])
 
     for k in range(num_clusters):
         # Number of points in kth cluster (i.e. label=0)
@@ -182,10 +182,10 @@ def kmeans_time_clustering(
             time_series_mapping = time_series_mapping.append(
                 pd.DataFrame(
                     {
-                        "slot": int(
+                        "Period_Index": int(
                             ClusteringInputDF.loc[:, model.labels_ == k].columns[j][1:]
                         ),
-                        "cluster": k + 1,
+                        "Rep_Period": k + 1,
                     },
                     index=[0],
                 ),
@@ -195,21 +195,21 @@ def kmeans_time_clustering(
     # appending the week representing peak load
     time_series_mapping = time_series_mapping.append(
         pd.DataFrame(
-            {"slot": int(GroupingwithPeakLoad[0][1:]), "cluster": k + 2}, index=[0]
+            {"Period_Index": int(GroupingwithPeakLoad[0][1:]), "Rep_Period": k + 2}, index=[0]
         ),
         ignore_index=True,
     )
 
     # same CSV file that will be used in GenX
-    time_series_mapping = time_series_mapping.sort_values(by=["slot"])
+    time_series_mapping = time_series_mapping.sort_values(by=["Period_Index"])
     time_series_mapping = time_series_mapping.reset_index(drop=True)
 
     #extract month corresponding to each time slot
-    time_series_mapping['Month']=0
-    for slot in time_series_mapping['slot']:
-        dayOfYear = days_in_group * slot
+    time_series_mapping['Rep_Period_Index']=0
+    for Period_Index in time_series_mapping['Period_Index']:
+        dayOfYear = days_in_group * Period_Index
         d = datetime.datetime.strptime('{} {}'.format(dayOfYear, 2011),'%j %Y')
-        time_series_mapping['Month'][slot-1] = d.month
+        time_series_mapping['Rep_Period_Index'][Period_Index-1] = d.month
 
     # Storing selected groupings in a new data frame with appropriate dimensions
     # (E.g. load in GW)

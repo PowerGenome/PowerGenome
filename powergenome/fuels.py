@@ -4,7 +4,6 @@ Load fuel prices needed for the model
 
 import pandas as pd
 
-
 def fuel_cost_table(fuel_costs, generators, settings):
 
     unique_fuels = generators["Fuel"].drop_duplicates()
@@ -42,7 +41,27 @@ def fuel_cost_table(fuel_costs, generators, settings):
     fuel_df["CO2_content_tons_per_MMBtu"] = fuel_df["CO2_content_tons_per_MMBtu"]
     fuel_df.fillna(0, inplace=True)
 
-    return fuel_df
+    if settings.get("reduce_time_domain"):
+        days = settings["time_domain_days_per_period"]
+        time_periods = settings["time_domain_periods"]
+        num_hours = days * time_periods * 24
+    else:
+        num_hours = 8760
+
+    fuel_df_prices = pd.DataFrame([fuel_df["Cost_per_MMBtu"]], index=range(1, num_hours+1))
+    fuel_df_prices.columns = unique_fuels
+
+    fuel_df_top = pd.DataFrame([fuel_df["CO2_content_tons_per_MMBtu"]])
+    fuel_df_top.columns = unique_fuels
+    fuel_df_top.index = [0]
+    
+    fuel_frames = [fuel_df_top, fuel_df_prices]
+    fuel_df_new = pd.concat(fuel_frames)
+    fuel_df_new.index.name = "Time_Index"
+    return fuel_df_new
+
+#def modify_fuel_new_genx():
+
 
 
 def adjust_ccs_fuels(ccs_fuel_row, settings):

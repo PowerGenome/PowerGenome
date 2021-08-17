@@ -572,6 +572,14 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
     gens["Up_Time"] = gens["Up_time"]
     gens["Down_Time"] = gens["Down_time"]
     gens["Max_Flexible_Demand_Delay"] = gens["Max_DSM_delay"]
+    gens["technology"] = gens["Resource"]
+    gens["Resource"] = (
+                        gens["region"]
+                        + "_"
+                        + gens["technology"]
+                        + "_"
+                        + gens["cluster"].astype(str)
+                    )
     
     return gens
 

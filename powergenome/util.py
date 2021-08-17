@@ -209,10 +209,17 @@ def remove_fuel_scenario_name(df, settings):
     _df = df.copy()
     scenarios = settings["eia_series_scenario_names"].keys()
     for s in scenarios:
-        _df["Fuel"] = _df["Fuel"].str.replace(f"_{s}", "")
+        _df.columns = _df.columns.str.replace(f"_{s}", "")
 
     return _df
 
+def remove_fuel_gen_scenario_name(df, settings):
+    _df = df.copy()
+    scenarios = settings["eia_series_scenario_names"].keys()
+    for s in scenarios:
+        _df["Fuel"] = _df["Fuel"].str.replace(f"_{s}", "")
+
+    return _df
 
 def write_results_file(df, folder, file_name, include_index=False):
     """Write a finalized dataframe to one of the results csv files.

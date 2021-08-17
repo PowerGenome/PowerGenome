@@ -43,6 +43,7 @@ from powergenome.util import (
     init_pudl_connection,
     load_settings,
     remove_fuel_scenario_name,
+    remove_fuel_gen_scenario_name,
     update_dictionary,
     write_case_settings_file,
     write_results_file,
@@ -52,7 +53,6 @@ if not sys.warnoptions:
     import warnings
 
     warnings.simplefilter("ignore")
-
 
 def parse_command_line(argv):
     """
@@ -228,10 +228,12 @@ def main():
                         )
                         # fuels["fuel_indices"] = range(1, len(fuels) + 1)
                         # fuels = remove_fuel_scenario_name(fuels, _settings)
+                        fuels.index.name = "Time_Index"
                         write_results_file(
                             df=remove_fuel_scenario_name(fuels, _settings),
                             folder=case_folder,
                             file_name="Fuels_data.csv",
+                            include_index=True,
                         )
 
                     # gen_clusters = remove_fuel_scenario_name(gen_clusters, _settings)
@@ -267,7 +269,7 @@ def main():
                     cols = [c for c in _settings["generator_columns"] if c in gens]
 
                     write_results_file(
-                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings)
+                        df=remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings)
                         .pipe(set_int_cols)
                         .pipe(round_col_values),
                         folder=case_folder,
@@ -368,7 +370,7 @@ def main():
                     ).pipe(fix_min_power_values, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
-                        df=remove_fuel_scenario_name(gens[cols].fillna(0), _settings)
+                        df=remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings)
                         .pipe(set_int_cols)
                         .pipe(round_col_values),
                         folder=case_folder,
@@ -415,7 +417,7 @@ def main():
                     write_results_file(
                         df=time_series_mapping,
                         folder=case_folder,
-                        file_name="time_series_mapping.csv",
+                        file_name="Period_map.csv",
                         include_index=False,
                     )
 
@@ -466,19 +468,21 @@ def main():
 
                 # Hack to get around the fact that fuels with different cost names
                 # get added and end up as duplicates.
-                fuels = fuels.drop_duplicates(subset=["Fuel"], keep="last")
+                #fuels = fuels.drop_duplicates(subset=["Fuel"], keep="last")
                 #fuels["fuel_indices"] = range(1, len(fuels) + 1)
+                fuels.index.name = "Time_Index"
                 write_results_file(
                     df=remove_fuel_scenario_name(fuels, _settings)
                     .pipe(set_int_cols)
                     .pipe(round_col_values),
                     folder=case_folder,
                     file_name="Fuels_data.csv",
+                    include_index=True,
                 )
 
             if _settings.get("genx_settings_fn"):
                 genx_settings = make_genx_settings_file(
-                    pudl_engine, _settings, calculated_ces=ces
+                    pudl_engine, _settings
                 )
                 write_case_settings_file(
                     settings=genx_settings,

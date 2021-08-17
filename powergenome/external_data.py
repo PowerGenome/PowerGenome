@@ -223,7 +223,7 @@ def make_generator_variability(
                     return np.delete(x, slice(1416, 1440))
             return x
         # Fill missing with default [1, ...]
-        return np.ones(hours, dtype=float)
+        return np.ones(8760, dtype=float)
 
     if "profile" in df:
         hours = df["profile"].apply(profile_len).max()
