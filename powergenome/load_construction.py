@@ -15,7 +15,9 @@ from pandas.core.reshape.merge import merge
 from powergenome.util import regions_to_keep
 from powergenome.us_state_abbrev import state2abbr, abbr2state
 
-path_in = r"..\data\load_profiles_data\input"  # fix
+path_in = Path(
+    "/Volumes/Extreme SSD/load_profiles_data/input"
+)  # r"..\data\load_profiles_data\input"  # fix
 
 # read in state proportions
 # how much state load should be distributed to GenXRegion
@@ -178,15 +180,17 @@ def CreateOutputFolder(case_folder):
 
 ######################################
 # CreatingBaseLoad.R
-def CreateBaseLoad(years, regions, output_folder, path_growthrate):
+def CreateBaseLoad(
+    years: List[int],
+    regions: List[str],
+    output_folder: Path,
+    path_growthrate: Path = None,
+) -> None:
     path_processed = path_in
-    path_result = output_folder.__str__()
-    years = years
-    regions = regions
-    path_growthrate = path_growthrate
+    path_result = output_folder
 
     ## Method 3: annually
-    EFS_2020_LoadProf = pd.read_parquet(path_in + "\EFS_REF_load_2020.parquet")
+    EFS_2020_LoadProf = pd.read_parquet(path_in / "EFS_REF_load_2020.parquet")
     EFS_2020_LoadProf = pd.merge(EFS_2020_LoadProf, pop, on=["State"])
     EFS_2020_LoadProf = EFS_2020_LoadProf.assign(
         weighted=EFS_2020_LoadProf["LoadMW"] * EFS_2020_LoadProf["State Prop"]
@@ -196,7 +200,7 @@ def CreateBaseLoad(years, regions, output_folder, path_growthrate):
     ).agg({"weighted": "sum"})
 
     # Read in 2019 Demand
-    Original_Load_2019 = pd.read_parquet(path_in + "\ipm_load_curves_2019_EST.parquet")
+    Original_Load_2019 = pd.read_parquet(path_in / "ipm_load_curves_2019_EST.parquet")
     # Reorganize Demand
     Original_Load_2019 = Original_Load_2019.melt(id_vars="LocalHourID").rename(
         columns={"variable": "GenX.Region", "value": "LoadMW_original"}
@@ -214,13 +218,12 @@ def CreateBaseLoad(years, regions, output_folder, path_growthrate):
     )
 
     Base_Load_2019 = EFS_2020_LoadProf.rename(columns={"weighted": "LoadMW"})
-    breakpoint()
+    # breakpoint()
     # Read in the Growth Rate
-    GrowthRate = pd.read_parquet(path_in + "\ipm_growthrate_2019.parquet")
-    try:
+    if path_growthrate:
         GrowthRate = pd.read_parquet(path_growthrate)
-    except:
-        pass
+    else:
+        GrowthRate = pd.read_parquet(path_in / "ipm_growthrate_2019.parquet")
 
     # Create Base loads
     Base_Load_2019 = Base_Load_2019[Base_Load_2019["GenX.Region"].isin(regions)]
@@ -256,16 +259,18 @@ def CreateBaseLoad(years, regions, output_folder, path_growthrate):
 
 #####################################
 # Add_Electrification.R
-def AddElectrification(years, regions, electrification, output_folder, path_stock):
+def AddElectrification(
+    years: List[int],
+    regions: List[str],
+    electrification: List[str],
+    output_folder: Path,
+    path_stock: Path = None,
+) -> pd.DataFrame:
     path_processed = path_in
-    path_result = output_folder.__str__()
-    path_stock = path_stock
-    years = years
-    electrification = electrification
-    regions = regions
+    path_result = output_folder
     # Creating Time-series
 
-    SCENARIO_STOCK = pd.read_parquet(path_processed + "\SCENARIO_STOCK.parquet")
+    SCENARIO_STOCK = pd.read_parquet(path_processed / "SCENARIO_STOCK.parquet")
     SCENARIO_STOCK = SCENARIO_STOCK[
         (SCENARIO_STOCK["YEAR"].isin(years))
         & (SCENARIO_STOCK["SCENARIO"].isin(electrification))
@@ -280,25 +285,19 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
     SCENARIO_STOCK = SCENARIO_STOCK_temp
     del SCENARIO_STOCK_temp
 
-    try:
+    if path_stock:
         CUSTOM_STOCK = pd.read_parquet(path_stock)
         CUSTOM_STOCK = CUSTOM_STOCK[
             (CUSTOM_STOCK["YEAR"].isin(years))
             & (CUSTOM_STOCK["SCENARIO"].isin(electrification))
         ]
         SCENARIO_STOCK = SCENARIO_STOCK.append(CUSTOM_STOCK)
-    except:
-        pass
 
     # Method 1 Calculate from Type1 and Type 2
     for i in range(0, Nsubsector):
         timeseries = pd.read_parquet(
             path_processed
-            + "\\"
-            + running_sector[i]
-            + "_"
-            + running_subsector[i]
-            + "_Incremental_Factor.parquet"
+            / f"{running_sector[i]}_{running_subsector[i]}_Incremental_Factor.parquet"
         )
         timeseries = timeseries[
             ["State", "Year", "LocalHourID", "Unit", "Factor_Type1", "Factor_Type2"]
@@ -339,23 +338,17 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
         ].dropna()
         timeseries.to_parquet(
             path_result
-            + "\\"
-            + running_sector[i]
-            + "_"
-            + running_subsector[i]
-            + "_Scenario_Timeseries_Method1.parquet",
+            / f"{running_sector[i]}_{running_subsector[i]}_Scenario_Timeseries_Method1.parquet",
             index=False,
         )
-    del timeseries, stock_temp
+    # del timeseries, stock_temp
 
     ##########################
     # Read in time series and combine them
     Method = "Method1"
     Res_SPH = pd.read_parquet(
         path_result
-        + "\Residential_space heating and cooling_Scenario_Timeseries_"
-        + Method
-        + ".parquet"
+        / f"Residential_space heating and cooling_Scenario_Timeseries_{Method}.parquet"
     )
     Res_SPH = Res_SPH.rename(columns={"LoadMW": "Res_SPH_LoadMW"})
     Res_SPH_sum = Res_SPH
@@ -365,10 +358,7 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
     Res_SPH_sum["Total_Res_SPH_TWh"] = 10 ** -6 * Res_SPH_sum["Total_Res_SPH_TWh"]
 
     Res_WH = pd.read_parquet(
-        path_result
-        + "\Residential_water heating_Scenario_Timeseries_"
-        + Method
-        + ".parquet"
+        path_result / f"Residential_water heating_Scenario_Timeseries_{Method}.parquet"
     )
     Res_WH = Res_WH.rename(columns={"LoadMW": "Res_WH_LoadMW"})
     Res_WH_sum = Res_WH
@@ -379,9 +369,7 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
 
     Com_SPH = pd.read_parquet(
         path_result
-        + "\Commercial_space heating and cooling_Scenario_Timeseries_"
-        + Method
-        + ".parquet"
+        / f"Commercial_space heating and cooling_Scenario_Timeseries_{Method}.parquet"
     )
     Com_SPH = Com_SPH.rename(columns={"LoadMW": "Com_SPH_LoadMW"})
     Com_SPH_sum = Com_SPH
@@ -391,10 +379,7 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
     Com_SPH_sum["Total_Com_SPH_TWh"] = 10 ** -6 * Com_SPH_sum["Total_Com_SPH_TWh"]
 
     Com_WH = pd.read_parquet(
-        path_result
-        + "\Commercial_water heating_Scenario_Timeseries_"
-        + Method
-        + ".parquet"
+        path_result / f"Commercial_water heating_Scenario_Timeseries_{Method}.parquet"
     )
     Com_WH = Com_WH.rename(columns={"LoadMW": "Com_WH_LoadMW"})
     Com_WH_sum = Com_WH
@@ -405,9 +390,7 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
 
     Trans_LDV = pd.read_parquet(
         path_result
-        + "\Transportation_light-duty vehicles_Scenario_Timeseries_"
-        + Method
-        + ".parquet"
+        / f"Transportation_light-duty vehicles_Scenario_Timeseries_{Method}.parquet"
     )
     Trans_LDV = Trans_LDV.rename(columns={"LoadMW": "LDV_LoadMW"})
     Trans_LDV_sum = Trans_LDV
@@ -420,9 +403,7 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
 
     Trans_MDV = pd.read_parquet(
         path_result
-        + "\Transportation_medium-duty trucks_Scenario_Timeseries_"
-        + Method
-        + ".parquet"
+        / f"Transportation_medium-duty trucks_Scenario_Timeseries_{Method}.parquet"
     )
     Trans_MDV = Trans_MDV.rename(columns={"LoadMW": "MDV_LoadMW"})
     Trans_MDV_sum = Trans_MDV
@@ -435,9 +416,7 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
 
     Trans_HDV = pd.read_parquet(
         path_result
-        + "\Transportation_heavy-duty trucks_Scenario_Timeseries_"
-        + Method
-        + ".parquet"
+        / f"Transportation_heavy-duty trucks_Scenario_Timeseries_{Method}.parquet"
     )
     Trans_HDV = Trans_HDV.rename(columns={"LoadMW": "HDV_LoadMW"})
     Trans_HDV_sum = Trans_HDV
@@ -450,9 +429,7 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
 
     Trans_BUS = pd.read_parquet(
         path_result
-        + "\Transportation_transit buses_Scenario_Timeseries_"
-        + Method
-        + ".parquet"
+        / f"Transportation_transit buses_Scenario_Timeseries_{Method}.parquet"
     )
     Trans_BUS = Trans_BUS.rename(columns={"LoadMW": "BUS_LoadMW"})
     Trans_BUS_sum = Trans_BUS
@@ -506,24 +483,22 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
         "HDV",
         "BUS",
     ]
-    j = 0
 
-    for i in subsectors:
-        temp = pd.merge(i, pop, on=["State"], how="left")
+    for i, sc in enumerate(subsectors):
+        temp = pd.merge(sc, pop, on=["State"], how="left")
         temp = (
             temp.assign(
-                weighted=temp[column_names[j] + "_" + "LoadMW"] * temp["State Prop"]
+                weighted=temp[column_names[i] + "_" + "LoadMW"] * temp["State Prop"]
             )
             .groupby(
                 ["SCENARIO", "Year", "LocalHourID", "GenX.Region"], as_index=False
             )["weighted"]
             .sum()
-            .rename(columns={"weighted": column_names[j] + "_MW"})
+            .rename(columns={"weighted": column_names[i] + "_MW"})
         )
         temp.to_parquet(
-            path_result + "\\" + subsector_names[j] + "_By_region.parquet", index=False
+            path_result / f"{subsector_names[i]}_By_region.parquet", index=False
         )
-        j = j + 1
     del (
         temp,
         subsectors,
@@ -540,7 +515,7 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
     ######
     # Construct Total Load
 
-    Base_Load = pd.read_parquet(path_result + "\Base_Load.parquet")
+    Base_Load = pd.read_parquet(path_result / "Base_Load.parquet")
     Base_Load = Base_Load.rename(columns={"LoadMW": "Base_MW"})
 
     Base_Load.loc[(Base_Load["Sector"] == "Commercial"), "Subsector"] = "Base_Com_other"
@@ -573,13 +548,13 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
         }
     )
 
-    Res_WH = pd.read_parquet(path_result + "\Res_WH_By_region.parquet")
-    Com_WH = pd.read_parquet(path_result + "\Com_WH_By_region.parquet")
-    Res_SPH = pd.read_parquet(path_result + "\Res_SPH_By_region.parquet")
-    Com_SPH = pd.read_parquet(path_result + "\Com_SPH_By_region.parquet")
-    Trans_LDV = pd.read_parquet(path_result + "\Trans_LDV_By_region.parquet")
-    Trans_MDV = pd.read_parquet(path_result + "\Trans_MDV_By_region.parquet")
-    Trans_HDV = pd.read_parquet(path_result + "\Trans_HDV_By_region.parquet")
+    Res_WH = pd.read_parquet(path_result / "Res_WH_By_region.parquet")
+    Com_WH = pd.read_parquet(path_result / "Com_WH_By_region.parquet")
+    Res_SPH = pd.read_parquet(path_result / "Res_SPH_By_region.parquet")
+    Com_SPH = pd.read_parquet(path_result / "Com_SPH_By_region.parquet")
+    Trans_LDV = pd.read_parquet(path_result / "Trans_LDV_By_region.parquet")
+    Trans_MDV = pd.read_parquet(path_result / "Trans_MDV_By_region.parquet")
+    Trans_HDV = pd.read_parquet(path_result / "Trans_HDV_By_region.parquet")
     # Trans_BUS = pd.read_parquet(path_result + "\Trans_BUS_By_region.parquet")
 
     Total_Load = pd.merge(
@@ -617,12 +592,13 @@ def AddElectrification(years, regions, electrification, output_folder, path_stoc
     return Total_Load
 
 
-def MakeLoadProfiles(settings, case_folder):
+def MakeLoadProfiles(settings: dict, case_folder: Path) -> pd.DataFrame:
     # path_processed = r"C:\Users\ritib\Dropbox\Project_LoadConstruction\data\processed"
     # path_result = r"C:\Users\ritib\Dropbox\Project_LoadConstruction\data\result"
-    CreateOutputFolder(case_folder)
+    # CreateOutputFolder(case_folder)
 
     output_folder = case_folder / "extra_outputs"
+    output_folder.mkdir(exist_ok=True)
 
     years = []
     regions = []
@@ -633,18 +609,29 @@ def MakeLoadProfiles(settings, case_folder):
             years.append(_settings["model_year"])
             regions = regions + regions_to_keep(_settings)[0]
             electrification.append(_settings["NZA_electrification"])
-            try:
-                path_stock = (
-                    str(_settings["input_folder"]) + "\\" + _settings["custom_stock"]
-                )
+
+            if _settings.get("custom_stock"):
+                path_stock = _settings["input_folder"] / _settings["custom_stock"]
+            else:
+                path_stock = None
+            if _settings.get("custom_growthrate"):
                 path_growthrate = (
-                    str(_settings["input_folder"])
-                    + "\\"
-                    + _settings["custom_growthrate"]
+                    _settings["input_folder"] / _settings["custom_growthrate"]
                 )
-            except:
-                path_stock = ""
-                path_growthrate = ""
+            else:
+                path_growthrate = None
+            # try:
+            #     path_stock = (
+            #         str(_settings["input_folder"]) + "\\" + _settings["custom_stock"]
+            #     )
+            #     path_growthrate = (
+            #         str(_settings["input_folder"])
+            #         + "\\"
+            #         + _settings["custom_growthrate"]
+            #     )
+            # except:
+            #     path_stock = ""
+            #     path_growthrate = ""
             # scenarios
     # years = list(set(years))
     regions = list(set(regions))
