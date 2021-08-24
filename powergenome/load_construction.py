@@ -4,6 +4,7 @@
 from datetime import time
 from operator import index
 from os import path, times
+from typing import List
 import numpy as np
 import pandas as pd
 import os
@@ -22,7 +23,12 @@ path_in = Path(
 # read in state proportions
 # how much state load should be distributed to GenXRegion
 # pop = pd.read_parquet(path_in + "\GenX_State_Pop_Weight.parquet")
-pop = pd.read_parquet(path_in + "\ipm_state_pop_weight_20210517.parquet")
+pop_cols = ["GenX.Region", "State", "State Prop"]
+pop_dtypes = {"State Prop": np.float32}
+pop = pd.read_parquet(
+    path_in / "ipm_state_pop_weight_20210517.parquet", columns=pop_cols
+)
+pop = pop.astype(pop_dtypes)
 states = pop.drop_duplicates(subset=["State"])["State"]
 states_abb = list(map(state2abbr, states))
 pop["State"] = list(map(state2abbr, pop["State"]))
@@ -190,13 +196,27 @@ def CreateBaseLoad(
     path_result = output_folder
 
     ## Method 3: annually
+    load_dtypes = {
+        "Year": "category",
+        "LocalHourID": "category",
+        "Sector": "category",
+        "Subsector": "category",
+        "LoadMW": np.float32,
+    }
+    model_states = pop.loc[pop["GenX.Region"].isin(regions), "State"]
     EFS_2020_LoadProf = pd.read_parquet(path_in / "EFS_REF_load_2020.parquet")
+    EFS_2020_LoadProf = EFS_2020_LoadProf.loc[
+        EFS_2020_LoadProf["State"].isin(model_states), :
+    ]
+    EFS_2020_LoadProf = EFS_2020_LoadProf.astype(load_dtypes)
     EFS_2020_LoadProf = pd.merge(EFS_2020_LoadProf, pop, on=["State"])
     EFS_2020_LoadProf = EFS_2020_LoadProf.assign(
         weighted=EFS_2020_LoadProf["LoadMW"] * EFS_2020_LoadProf["State Prop"]
     )
     EFS_2020_LoadProf = EFS_2020_LoadProf.groupby(
-        ["Year", "GenX.Region", "LocalHourID", "Sector", "Subsector"], as_index=False
+        ["Year", "GenX.Region", "LocalHourID", "Sector", "Subsector"],
+        as_index=False,
+        observed=True,
     ).agg({"weighted": "sum"})
 
     # Read in 2019 Demand
@@ -205,17 +225,15 @@ def CreateBaseLoad(
     Original_Load_2019 = Original_Load_2019.melt(id_vars="LocalHourID").rename(
         columns={"variable": "GenX.Region", "value": "LoadMW_original"}
     )
-    Original_Load_2019 = Original_Load_2019.groupby(
-        ["LocalHourID"], as_index=False
-    ).agg({"LoadMW_original": "sum"})
+    # Original_Load_2019 = Original_Load_2019.groupby(
+    #     ["LocalHourID"], as_index=False
+    # ).agg({"LoadMW_original": "sum"})
 
     ratio_A = (
         Original_Load_2019["LoadMW_original"].sum()
         / EFS_2020_LoadProf["weighted"].sum()
     )
-    EFS_2020_LoadProf = EFS_2020_LoadProf.assign(
-        weighted=EFS_2020_LoadProf["weighted"] * ratio_A
-    )
+    EFS_2020_LoadProf["weighted"] *= ratio_A
 
     Base_Load_2019 = EFS_2020_LoadProf.rename(columns={"weighted": "LoadMW"})
     # breakpoint()
@@ -226,13 +244,13 @@ def CreateBaseLoad(
         GrowthRate = pd.read_parquet(path_in / "ipm_growthrate_2019.parquet")
 
     # Create Base loads
-    Base_Load_2019 = Base_Load_2019[Base_Load_2019["GenX.Region"].isin(regions)]
+    Base_Load_2019 = Base_Load_2019.loc[Base_Load_2019["GenX.Region"].isin(regions), :]
     Base_Load_2019.loc[
         (Base_Load_2019["Sector"] == "Industrial")
         & (Base_Load_2019["Subsector"].isin(["process heat", "machine drives"])),
         "Subsector",
     ] = "other"
-    Base_Load_2019 = Base_Load_2019[Base_Load_2019["Subsector"] == "other"]
+    Base_Load_2019 = Base_Load_2019.loc[Base_Load_2019["Subsector"] == "other", :]
     Base_Load_2019 = Base_Load_2019.groupby(
         ["Year", "LocalHourID", "GenX.Region", "Sector"], as_index=False
     ).agg({"LoadMW": "sum"})
@@ -246,15 +264,15 @@ def CreateBaseLoad(
             Year=y, LoadMW=Base_Load_temp["LoadMW"] * Base_Load_temp["ScaleFactor"]
         ).drop(columns="ScaleFactor")
         Base_Load = Base_Load.append(Base_Load_temp, ignore_index=True)
-    Base_Load.to_parquet(path_result + "\Base_Load.parquet", index=False)
-    del (
-        Base_Load,
-        Base_Load_2019,
-        Base_Load_temp,
-        ScaleFactor,
-        GrowthRate,
-        Original_Load_2019,
-    )
+    Base_Load.to_parquet(path_result / "Base_Load.parquet", index=False)
+    # del (
+    #     Base_Load,
+    #     Base_Load_2019,
+    #     Base_Load_temp,
+    #     ScaleFactor,
+    #     GrowthRate,
+    #     Original_Load_2019,
+    # )
 
 
 #####################################
@@ -270,10 +288,12 @@ def AddElectrification(
     path_result = output_folder
     # Creating Time-series
 
+    states = pop.loc[pop["GenX.Region"].isin(regions), "State"].unique()
     SCENARIO_STOCK = pd.read_parquet(path_processed / "SCENARIO_STOCK.parquet")
     SCENARIO_STOCK = SCENARIO_STOCK[
         (SCENARIO_STOCK["YEAR"].isin(years))
         & (SCENARIO_STOCK["SCENARIO"].isin(electrification))
+        & (SCENARIO_STOCK["STATE"].isin(states))
     ]
     SCENARIO_STOCK_temp = pd.DataFrame()
     for year, case in zip(years, electrification):
@@ -295,13 +315,22 @@ def AddElectrification(
 
     # Method 1 Calculate from Type1 and Type 2
     for i in range(0, Nsubsector):
+        ts_cols = [
+            "State",
+            "Year",
+            "LocalHourID",
+            "Unit",
+            "Factor_Type1",
+            "Factor_Type2",
+        ]
         timeseries = pd.read_parquet(
             path_processed
-            / f"{running_sector[i]}_{running_subsector[i]}_Incremental_Factor.parquet"
+            / f"{running_sector[i]}_{running_subsector[i]}_Incremental_Factor.parquet",
+            columns=ts_cols,
         )
-        timeseries = timeseries[
-            ["State", "Year", "LocalHourID", "Unit", "Factor_Type1", "Factor_Type2"]
-        ]
+        # timeseries = timeseries[
+        #     ["State", "Year", "LocalHourID", "Unit", "Factor_Type1", "Factor_Type2"]
+        # ]
         stock_temp = SCENARIO_STOCK[
             (SCENARIO_STOCK["SECTOR"] == running_sector[i])
             & (SCENARIO_STOCK["SUBSECTOR"] == running_subsector[i])
@@ -586,7 +615,7 @@ def AddElectrification(
         (Total_Load["Year"].isin(years)) & (Total_Load["GenX.Region"].isin(regions))
     ]
     Total_Load.to_parquet(
-        path_result + "\Total_load_by_region_full.parquet", index=False
+        path_result / "Total_load_by_region_full.parquet", index=False
     )
 
     return Total_Load
