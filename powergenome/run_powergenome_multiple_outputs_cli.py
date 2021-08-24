@@ -204,11 +204,11 @@ def main():
     # Build a dictionary of settings for every planning year and case_id
     scenario_settings = build_scenario_settings(settings, scenario_definitions)
 
-    if "NZA_electrification" in scenario_definitions.columns: 
+    if "NZA_electrification" in scenario_definitions.columns:
         alt_method = True
         Total_Load = MakeLoadProfiles(scenario_settings, out_folder)
-    
-    breakpoint()
+
+    # breakpoint()
     i = 0
     model_regions_gdf = None
     for year in scenario_settings:
@@ -412,7 +412,7 @@ def main():
                         include_index=False,
                     )
                 else:
-                    
+
                     load = FilterTotalProfile(_settings, Total_Load)
                     load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
 
