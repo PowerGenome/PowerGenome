@@ -84,6 +84,14 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
             """
             logger.warning(s)
 
+    gen_col_count = collections.Counter(settings["generator_columns"])
+    duplicate_cols = [c for c, num in gen_col_count.items() if num > 1]
+    if duplicate_cols:
+        raise KeyError(
+            f"The settings parameter 'generator_columns' has duplicates of {duplicate_cols}."
+            " Remove the duplicates and try again."
+        )
+
 
 def init_pudl_connection(
     freq: str = "YS",
