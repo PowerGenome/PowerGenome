@@ -18,6 +18,7 @@ from powergenome.generators import (
 )
 from powergenome.GenX import (
     add_emission_policies,
+    create_policy_req,
     fix_min_power_values,
     make_genx_settings_file,
     reduce_time_domain,
@@ -53,6 +54,7 @@ if not sys.warnoptions:
     import warnings
 
     warnings.simplefilter("ignore")
+
 
 def parse_command_line(argv):
     """
@@ -255,7 +257,7 @@ def main():
                     )
                     # if settings.get("partial_ces"):
                     gen_variability = make_generator_variability(gen_clusters)
-                    gen_variability.index.names = ["Time_Index"]
+                    gen_variability.index.name = "Time_Index"
                     gen_variability.columns = (
                         gen_clusters["region"]
                         + "_"
@@ -269,7 +271,9 @@ def main():
                     cols = [c for c in _settings["generator_columns"] if c in gens]
 
                     write_results_file(
-                        df=remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings)
+                        df=remove_fuel_gen_scenario_name(
+                            gens[cols].fillna(0), _settings
+                        )
                         .pipe(set_int_cols)
                         .pipe(round_col_values),
                         folder=case_folder,
@@ -357,7 +361,7 @@ def main():
                         settings=_settings,
                     )
                     gen_variability = make_generator_variability(gen_clusters)
-                    gen_variability.index.names = ["Time_Index"]
+                    gen_variability.index.name = "Time_Index"
                     gen_variability.columns = (
                         gen_clusters["region"]
                         + "_"
@@ -370,7 +374,9 @@ def main():
                     ).pipe(fix_min_power_values, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
-                        df=remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings)
+                        df=remove_fuel_gen_scenario_name(
+                            gens[cols].fillna(0), _settings
+                        )
                         .pipe(set_int_cols)
                         .pipe(round_col_values),
                         folder=case_folder,
@@ -401,6 +407,7 @@ def main():
                     reduced_load_profile,
                     time_series_mapping,
                 ) = reduce_time_domain(gen_variability, load, _settings)
+                reduced_resource_profile.index.name = "Time_Index"
                 write_results_file(
                     df=reduced_load_profile,
                     folder=case_folder,
@@ -433,22 +440,25 @@ def main():
                 transmission = transmission.pipe(
                     network_max_reinforcement, settings=_settings
                 ).pipe(network_reinforcement_cost, settings=_settings)
+                network = transmission
 
                 if _settings.get("emission_policies_fn"):
-                    network = add_emission_policies(transmission, _settings)
+                    # network = add_emission_policies(transmission, _settings)
+                    energy_share_req = create_policy_req(_settings, col_str_match="ESR")
+                    co2_cap = create_policy_req(_settings, col_str_match="CO_2")
                 else:
                     network = transmission
 
                 # Change the CES limit for cases where it's emissions based
-                if "emissions_ces_limit" in _settings:
-                    network = calc_emissions_ces_level(network, load, _settings)
+                # if "emissions_ces_limit" in _settings:
+                #     network = calc_emissions_ces_level(network, load, _settings)
 
                 # If single-value for CES, use that value for input to GenX
                 # settings creation. This way values that are calculated internally
                 # get used.
-                #if "CES" in network.columns and network["CES"].std() == 0:
+                # if "CES" in network.columns and network["CES"].std() == 0:
                 #    ces = network["CES"].mean()
-                #else:
+                # else:
                 #    ces = None
 
                 write_results_file(
@@ -457,6 +467,22 @@ def main():
                     file_name="Network.csv",
                     include_index=False,
                 )
+                if energy_share_req is not None:
+                    write_results_file(
+                        df=energy_share_req,
+                        folder=case_folder,
+                        file_name="Energy_share_requirement.csv",
+                        include_index=False,
+                    )
+                if co2_cap is not None:
+                    co2_cap = co2_cap.set_index("Region_description")
+                    co2_cap.index.name = None
+                    write_results_file(
+                        df=co2_cap,
+                        folder=case_folder,
+                        file_name="CO2_cap.csv",
+                        include_index=True,
+                    )
 
             if args.fuel and args.gens:
                 fuels = fuel_cost_table(
@@ -468,8 +494,8 @@ def main():
 
                 # Hack to get around the fact that fuels with different cost names
                 # get added and end up as duplicates.
-                #fuels = fuels.drop_duplicates(subset=["Fuel"], keep="last")
-                #fuels["fuel_indices"] = range(1, len(fuels) + 1)
+                # fuels = fuels.drop_duplicates(subset=["Fuel"], keep="last")
+                # fuels["fuel_indices"] = range(1, len(fuels) + 1)
                 fuels.index.name = "Time_Index"
                 write_results_file(
                     df=remove_fuel_scenario_name(fuels, _settings)
@@ -481,9 +507,7 @@ def main():
                 )
 
             if _settings.get("genx_settings_fn"):
-                genx_settings = make_genx_settings_file(
-                    pudl_engine, _settings
-                )
+                genx_settings = make_genx_settings_file(pudl_engine, _settings)
                 write_case_settings_file(
                     settings=genx_settings,
                     folder=case_folder,

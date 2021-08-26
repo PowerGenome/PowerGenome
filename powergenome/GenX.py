@@ -41,7 +41,58 @@ COL_ROUND_VALUES = {
 }
 
 
-def add_emission_policies(transmission_df, settings, DistrZones=None):
+def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
+    model_year = settings["model_year"]
+    case_id = settings["case_id"]
+
+    policies = load_policy_scenarios(settings)
+    policy_cols = [c for c in policies.columns if col_str_match in c]
+    if len(policy_cols) == 0:
+        return None
+
+    year_case_policy = policies.loc[(case_id, model_year), :]
+    # Bug where multiple regions for a case will return this as a df, even if the policy
+    # for this case applies to all regions (code below expects a Series)
+    ycp_shape = year_case_policy.shape
+    if ycp_shape[0] == 1 and len(ycp_shape) > 1:
+        year_case_policy = year_case_policy.squeeze()  # convert to series
+
+    zones = settings["model_regions"]
+    zone_num_map = {
+        zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
+    }
+
+    zone_cols = ["Region_description", "Network_zones"] + policy_cols
+    zone_df = pd.DataFrame(columns=zone_cols)
+    zone_df["Region_description"] = zones
+    zone_df["Network_zones"] = zone_df["Region_description"].map(zone_num_map)
+    # If there is only one region, assume that the policy is applied across all regions.
+    if isinstance(year_case_policy, pd.Series):
+        logger.info(
+            "Only one zone was found in the emissions policy file."
+            " The same emission policies are being applied to all zones."
+        )
+        for col, value in year_case_policy[policy_cols].iteritems():
+            if "CO_2_Max_Mtons" in col:
+                zone_df.loc[:, col] = 0
+                if value > 0:
+                    zone_df.loc[0, col] = value
+            else:
+                zone_df.loc[:, col] = value
+    else:
+        for region, col in product(
+            year_case_policy["region"].unique(), year_case_policy[policy_cols].columns
+        ):
+            zone_df.loc[
+                zone_df["Region_description"] == region, col
+            ] = year_case_policy.loc[year_case_policy.region == region, col].values[0]
+
+    # zone_df = zone_df.drop(columns="region")
+
+    return zone_df
+
+
+def add_emission_policies(transmission_df, settings):
     """Add emission policies to the transmission dataframe
 
     Parameters
@@ -78,15 +129,10 @@ def add_emission_policies(transmission_df, settings, DistrZones=None):
         zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
 
-    zone_cols = ["Region description", "Network_zones"] + list(
-        policies.columns
-    )
+    zone_cols = ["Region description", "Network_zones"] + list(policies.columns)
     zone_df = pd.DataFrame(columns=zone_cols)
     zone_df["Region description"] = zones
     zone_df["Network_zones"] = zone_df["Region description"].map(zone_num_map)
-
-    #if DistrZones is None:
-    #    zone_df["DistrZones"] = 0
 
     # Add code here to make DistrZones something else!
     # If there is only one region, assume that the policy is applied across all regions.
@@ -185,48 +231,6 @@ def make_genx_settings_file(pudl_engine, settings):
 
     if isinstance(year_case_policy, pd.DataFrame):
         year_case_policy = year_case_policy.sum()
-
-    # If a value isn't supplied to the function use value from file
-    #if calculated_ces is None:
-    #    CES = year_case_policy["CES"]
-    #else:
-    #    CES = calculated_ces
-    #RPS = year_case_policy["RPS"]
-
-    # THIS WILL NEED TO BE MORE FLEXIBLE FOR OTHER SCENARIOS
-    #if float(year_case_policy["CO_2_Max_Mtons"]) >= 0:
-    #    genx_settings["CO2Cap"] = 2
-    #else:
-    #    genx_settings["CO2Cap"] = 0
-
-    #if float(year_case_policy["RPS"]) > 0:
-        # print(total_dg_gen)
-        # print(year_case_policy["RPS"])
-    #    if policies.loc[(case_id, model_year), "region"].all() == "all":
-    #        genx_settings["RPS"] = 3
-    #        genx_settings["RPS_Adjustment"] = float((1 - RPS) * total_dg_gen)
-    #    else:
-    #        genx_settings["RPS"] = 2
-    #        genx_settings["RPS_Adjustment"] = 0
-    #else:
-    #    genx_settings["RPS"] = 0
-    #    genx_settings["RPS_Adjustment"] = 0
-
-    #if float(year_case_policy["CES"]) > 0:
-    #    if policies.loc[(case_id, model_year), "region"].all() == "all":
-    #        genx_settings["CES"] = 3
-
-            # This is a little confusing but for partial CES
-    #        if settings.get("partial_ces"):
-    #            genx_settings["CES_Adjustment"] = 0
-    #        else:
-    #            genx_settings["CES_Adjustment"] = float((1 - CES) * total_dg_gen)
-    #    else:
-    #        genx_settings["CES"] = 2
-    #        genx_settings["CES_Adjustment"] = 0
-    #else:
-    #    genx_settings["CES"] = 0
-    #    genx_settings["CES_Adjustment"] = 0
 
     # Don't wrap when time domain isn't reduced
     if not settings.get("reduce_time_domain"):
@@ -559,7 +563,7 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
     gens["Inv_Cost_per_MWyr"] = gens["Inv_cost_per_MWyr"]
     gens["Inv_Cost_per_MWhyr"] = gens["Inv_cost_per_MWhyr"]
     gens["Var_OM_Cost_per_MWh"] = gens["Var_OM_cost_per_MWh"]
-    #gens["Var_OM_Cost_per_MWh_In"] = gens["Var_OM_cost_per_MWh_in"]
+    # gens["Var_OM_Cost_per_MWh_In"] = gens["Var_OM_cost_per_MWh_in"]
     gens["Start_Cost_per_MW"] = gens["Start_cost_per_MW"]
     gens["Start_Fuel_MMBTU_per_MW"] = gens["Start_fuel_MMBTU_per_MW"]
     gens["Heat_Rate_MMBTU_per_MWh"] = gens["Heat_rate_MMBTU_per_MWh"]
@@ -574,13 +578,9 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
     gens["Max_Flexible_Demand_Delay"] = gens["Max_DSM_delay"]
     gens["technology"] = gens["Resource"]
     gens["Resource"] = (
-                        gens["region"]
-                        + "_"
-                        + gens["technology"]
-                        + "_"
-                        + gens["cluster"].astype(str)
-                    )
-    
+        gens["region"] + "_" + gens["technology"] + "_" + gens["cluster"].astype(str)
+    )
+
     return gens
 
 
