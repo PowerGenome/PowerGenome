@@ -440,7 +440,10 @@ def main():
                 transmission = transmission.pipe(
                     network_max_reinforcement, settings=_settings
                 ).pipe(network_reinforcement_cost, settings=_settings)
+                zones = settings["model_regions"]
+                network_zones = [f"z{n+1}" for n in range(len(zones))]
                 network = transmission
+                network["Network_zones"] = network_zones
 
                 if _settings.get("emission_policies_fn"):
                     # network = add_emission_policies(transmission, _settings)
