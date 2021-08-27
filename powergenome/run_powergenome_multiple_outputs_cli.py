@@ -268,6 +268,9 @@ def main():
                     gens = calculate_partial_CES_values(
                         gen_clusters, fuels, _settings
                     ).pipe(fix_min_power_values, gen_variability)
+                    for col in _settings["generator_columns"]:
+                        if col not in gens.columns:
+                            gens[col] = 0
                     cols = [c for c in _settings["generator_columns"] if c in gens]
 
                     write_results_file(
@@ -442,8 +445,9 @@ def main():
                 ).pipe(network_reinforcement_cost, settings=_settings)
                 zones = settings["model_regions"]
                 network_zones = [f"z{n+1}" for n in range(len(zones))]
-                network = transmission
-                network["Network_zones"] = network_zones
+                nz_df = pd.Series(data=network_zones, name="Network_zones")
+                network = pd.concat([pd.DataFrame(nz_df), transmission], axis=1)
+                # network["Network_zones"] = network_zones
 
                 if _settings.get("emission_policies_fn"):
                     # network = add_emission_policies(transmission, _settings)
