@@ -440,9 +440,12 @@ def main():
                 # transmission = agg_transmission_constraints(
                 #     pudl_engine=pudl_engine, settings=_settings
                 # )
-                transmission = transmission.pipe(
-                    network_max_reinforcement, settings=_settings
-                ).pipe(network_reinforcement_cost, settings=_settings)
+                transmission = (
+                    transmission.pipe(network_max_reinforcement, settings=_settings)
+                    .pipe(network_reinforcement_cost, settings=_settings)
+                    .pipe(set_int_cols)
+                    .pipe(round_col_values)
+                )
                 zones = settings["model_regions"]
                 network_zones = [f"z{n+1}" for n in range(len(zones))]
                 nz_df = pd.Series(data=network_zones, name="Network_zones")
@@ -453,8 +456,6 @@ def main():
                     # network = add_emission_policies(transmission, _settings)
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
-                else:
-                    network = transmission
 
                 # Change the CES limit for cases where it's emissions based
                 # if "emissions_ces_limit" in _settings:
@@ -469,7 +470,7 @@ def main():
                 #    ces = None
 
                 write_results_file(
-                    df=network.pipe(set_int_cols).pipe(round_col_values),
+                    df=network,
                     folder=case_folder,
                     file_name="Network.csv",
                     include_index=False,
