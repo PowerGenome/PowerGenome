@@ -636,7 +636,7 @@ def calc_emissions_ces_level(network_df, load_df, settings):
 def fix_min_power_values(
     resource_df: pd.DataFrame,
     gen_profile_df: pd.DataFrame,
-    min_power_col: str = "Min_power",
+    min_power_col: str = "Min_Power",
 ) -> pd.DataFrame:
     """Fix potentially erroneous min power values for resources with variable generation
     profiles. Any min power values that are higher than the lowest hourly generation
