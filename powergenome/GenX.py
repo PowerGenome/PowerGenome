@@ -19,21 +19,21 @@ from powergenome.nrelatb import investment_cost_calculator
 logger = logging.getLogger(__name__)
 
 INT_COLS = [
-    "Inv_cost_per_MWyr",
-    "Fixed_OM_cost_per_MWyr",
-    "Inv_cost_per_MWhyr",
-    "Fixed_OM_cost_per_MWhyr",
+    "Inv_Cost_per_MWyr",
+    "Fixed_OM_Cost_per_MWyr",
+    "Inv_Cost_per_MWhyr",
+    "Fixed_OM_Cost_per_MWhyr",
     "Line_Reinforcement_Cost_per_MW_yr",
 ]
 
 COL_ROUND_VALUES = {
-    "Var_OM_cost_per_MWh": 2,
-    "Var_OM_cost_per_MWh_in": 2,
-    "Start_cost_per_MW": 0,
+    "Var_OM_Cost_per_MWh": 2,
+    "Var_OM_Cost_per_MWh_in": 2,
+    "Start_Cost_per_MW": 0,
     "Cost_per_MMBtu": 2,
     "CO2_content_tons_per_MMBtu": 5,
     "Cap_size": 2,
-    "Heat_rate_MMBTU_per_MWh": 2,
+    "Heat_Rate_MMBTU_per_MWh": 2,
     "distance_mile": 4,
     "Line_Max_Reinforcement_MW": 0,
     "distance_miles": 1,
@@ -536,7 +536,7 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
         fuel_emission_map = fuels.copy()
         fuel_emission_map = fuel_emission_map.set_index("Fuel")
 
-        gens["co2_emission_rate"] = gens["Heat_rate_MMBTU_per_MWh"] * gens["Fuel"].map(
+        gens["co2_emission_rate"] = gens["Heat_Rate_MMBTU_per_MWh"] * gens["Fuel"].map(
             fuel_emission_map["CO2_content_tons_per_MMBtu"]
         )
 
@@ -556,26 +556,26 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
     # else:
     #     gen_clusters = add_genx_model_tags(gen_clusters, settings)
 
-    gens["Zone"] = gens["zone"]
+    gens["Zone"] = gens["Zone"]
     gens["Cap_Size"] = gens["Cap_size"]
-    gens["Fixed_OM_Cost_per_MWyr"] = gens["Fixed_OM_cost_per_MWyr"]
-    gens["Fixed_OM_Cost_per_MWhyr"] = gens["Fixed_OM_cost_per_MWhyr"]
-    gens["Inv_Cost_per_MWyr"] = gens["Inv_cost_per_MWyr"]
-    gens["Inv_Cost_per_MWhyr"] = gens["Inv_cost_per_MWhyr"]
-    gens["Var_OM_Cost_per_MWh"] = gens["Var_OM_cost_per_MWh"]
-    # gens["Var_OM_Cost_per_MWh_In"] = gens["Var_OM_cost_per_MWh_in"]
-    gens["Start_Cost_per_MW"] = gens["Start_cost_per_MW"]
+    gens["Fixed_OM_Cost_per_MWyr"] = gens["Fixed_OM_Cost_per_MWyr"]
+    gens["Fixed_OM_Cost_per_MWhyr"] = gens["Fixed_OM_Cost_per_MWhyr"]
+    gens["Inv_Cost_per_MWyr"] = gens["Inv_Cost_per_MWyr"]
+    gens["Inv_Cost_per_MWhyr"] = gens["Inv_Cost_per_MWhyr"]
+    gens["Var_OM_Cost_per_MWh"] = gens["Var_OM_Cost_per_MWh"]
+    # gens["Var_OM_Cost_per_MWh_In"] = gens["Var_OM_Cost_per_MWh_in"]
+    gens["Start_Cost_per_MW"] = gens["Start_Cost_per_MW"]
     gens["Start_Fuel_MMBTU_per_MW"] = gens["Start_fuel_MMBTU_per_MW"]
-    gens["Heat_Rate_MMBTU_per_MWh"] = gens["Heat_rate_MMBTU_per_MWh"]
-    gens["Min_Power"] = gens["Min_power"]
-    gens["Self_Disch"] = gens["Self_disch"]
-    gens["Eff_Up"] = gens["Eff_up"]
-    gens["Eff_Down"] = gens["Eff_down"]
-    gens["Ramp_Up_Percentage"] = gens["Ramp_Up_percentage"]
-    gens["Ramp_Dn_Percentage"] = gens["Ramp_Dn_percentage"]
-    gens["Up_Time"] = gens["Up_time"]
-    gens["Down_Time"] = gens["Down_time"]
-    gens["Max_Flexible_Demand_Delay"] = gens["Max_DSM_delay"]
+    gens["Heat_Rate_MMBTU_per_MWh"] = gens["Heat_Rate_MMBTU_per_MWh"]
+    gens["Min_Power"] = gens["Min_Power"]
+    # gens["Self_Disch"] = gens["Self_disch"]
+    # gens["Eff_Up"] = gens["Eff_up"]
+    # gens["Eff_Down"] = gens["Eff_down"]
+    # gens["Ramp_Up_Percentage"] = gens["Ramp_Up_percentage"]
+    # gens["Ramp_Dn_Percentage"] = gens["Ramp_Dn_percentage"]
+    # gens["Up_Time"] = gens["Up_time"]
+    # gens["Down_Time"] = gens["Down_time"]
+    # gens["Max_Flexible_Demand_Delay"] = gens["Max_DSM_delay"]
     gens["technology"] = gens["Resource"]
     gens["Resource"] = (
         gens["region"] + "_" + gens["technology"] + "_" + gens["cluster"].astype(str)
@@ -592,20 +592,20 @@ def check_min_power_against_variability(gen_clusters, resource_profile):
         gen_clusters
     ), "The number of hourly resource profiles does not match the number of resources"
     # assert (
-    #     gen_clusters["Min_power"].isna().any() is False
+    #     gen_clusters["Min_Power"].isna().any() is False
     # ), (
-    #     "At least one Min_power value in 'gen_clusters' is null before checking against"
+    #     "At least one Min_Power value in 'gen_clusters' is null before checking against"
     #     " resource variability"
     # )
 
     min_gen_levels.index = gen_clusters.index
 
-    gen_clusters["Min_power"] = gen_clusters["Min_power"].combine(min_gen_levels, min)
+    gen_clusters["Min_Power"] = gen_clusters["Min_Power"].combine(min_gen_levels, min)
 
     # assert (
-    #     gen_clusters["Min_power"].isna().any() is False
+    #     gen_clusters["Min_Power"].isna().any() is False
     # ), (
-    #     "At least one Min_power value in 'gen_clusters' is null. Values were fine "
+    #     "At least one Min_Power value in 'gen_clusters' is null. Values were fine "
     #     "before checking against resoruce variability"
     # )
 
@@ -653,7 +653,7 @@ def fix_min_power_values(
         row order in `resource_df`.
     min_power_col : str
         Column in `resource_df` that stores the minimum generation power of each
-        resource. Default value is "Min_power".
+        resource. Default value is "Min_Power".
 
     Returns
     -------

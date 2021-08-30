@@ -239,7 +239,7 @@ def main():
                         )
 
                     # gen_clusters = remove_fuel_scenario_name(gen_clusters, _settings)
-                    gen_clusters["zone"] = gen_clusters["region"].map(zone_num_map)
+                    gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
                     gen_clusters = add_misc_gen_values(gen_clusters, _settings)
                     # gen_clusters = set_int_cols(gen_clusters)
                     # gen_clusters = gen_clusters.fillna(value=0)
@@ -356,7 +356,7 @@ def main():
                     # gen_clusters = gen_clusters.fillna(value=0)
 
                     # gen_clusters = remove_fuel_scenario_name(gen_clusters, _settings)
-                    gen_clusters["zone"] = gen_clusters["region"].map(zone_num_map)
+                    gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
 
                     fuels = fuel_cost_table(
                         fuel_costs=gc.fuel_prices,
