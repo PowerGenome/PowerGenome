@@ -454,6 +454,8 @@ regional_no_grouping: ~
 alt_num_clusters:
   CA_S:
     Conventional Steam Coal: 0
+  WECC_AZ:
+    Natural Gas Fired Combined Cycle: 3
 
 # CAPACITY FACTOR
 # Calculate the capacity factor of technology types listed here. If derate_capacity is
@@ -584,6 +586,7 @@ model_tag_values:
   DR: ~
   HYDRO:
     Conventional Hydroelectric: 1
+    Hydropower: 1
   Commit:
     Biomass: 1
     Biopower: 1
@@ -638,6 +641,7 @@ model_tag_values:
     Offshore Wind: 1
     Small Hydroelectric: -1
     Utility PV: 1
+    Nuclear_*: 1
   Hydro_level:
     Conventional Hydroelectric: 0.5
   CapRes:
@@ -877,7 +881,7 @@ cost_multiplier_technology_map:
   Ultra-supercritical coal (USC): [Coal_newAvgCF, Coal_newHighCF]
   # IGCC: [Coal_IGCCAvgCF, Coal_IGCCAvgCF]
   USC with 30% CCS: [Coal_CCS30AvgCF, Coal_CCS30HighCF]
-  USC with 90% CCS: Coal_CCS90AvgCF, Coal_CCS90HighCF]
+  USC with 90% CCS: [Coal_CCS90AvgCF, Coal_CCS90HighCF]
   CT - aeroderivative: []
   CT - industrial frame: [NaturalGas_CTAvgCF, NaturalGas_CTHighCF]
   CC - single shaft: []
@@ -892,6 +896,8 @@ cost_multiplier_technology_map:
   Solar thermal: [CSP]
   Solar PV - tracking: [UtilityPV, CommPV, ResPV]
   Battery storage: [Battery_*]
+  Geothermal: [Geothermal]
+  Conventional hydropower: [Hydropower]
 
 
 # PROPOSED GENERATOR VARIABLES

@@ -367,7 +367,7 @@ atb_modifiers:
   ngct:
     technology: NaturalGas
     tech_detail: CTAvgCF
-    capex: [mul, 0.76]
+    capex_mw: [mul, 0.76]
     # Inv_cost_per_MWyr: 0.76
     Var_OM_cost_per_MWh: [mul, 1.51]
     Fixed_OM_cost_per_MWyr: [mul, 0.56]
@@ -375,7 +375,7 @@ atb_modifiers:
   ngcc:
     technology: NaturalGas
     tech_detail: CCAvgCF
-    capex: [mul, 0.89]
+    capex_mw: [mul, 0.89]
     # Inv_cost_per_MWyr: 0.89
     Var_OM_cost_per_MWh: [mul, 0.73]
     Fixed_OM_cost_per_MWyr: [mul, 0.95]
@@ -448,10 +448,10 @@ modified_atb_new_gen:
     atb_tech_detail: CCCCSAvgCF
     atb_cost_case: Mid
     size_mw: 500
-    capex: [add, 116000]
+    capex_mw: [add, 116000]
     heat_rate: [add, 0.365]
-    o_m_fixed_mw: [add, 9670]
-    o_m_variable_mwh: [mul, 1.076]
+    fixed_o_m_mw: [add, 9670]
+    variable_o_m_mwh: [mul, 1.076]
 
 
 # Dictionary of lists with model region as key and ATB tech (string matching) in list.
@@ -794,7 +794,7 @@ generator_columns: [
             "Max_Cap_MW",
             "Min_Share_percent",
             "Max_Share_percent",
-            "capex",
+            "capex_mw",
             "Inv_cost_per_MWyr",
             "Fixed_OM_cost_per_MWyr",
             "capex_mwh",
