@@ -2019,6 +2019,7 @@ class GeneratorClusters:
             self.existing_resources = pd.DataFrame()
         self.fuel_prices = fetch_fuel_prices(self.settings)
         self.atb_hr = fetch_atb_heat_rates(self.pudl_engine, self.settings)
+        self.coal_fgd = pd.read_csv(DATA_PATHS["coal_fgd"])
 
     def fill_na_heat_rates(self, s):
         """Fill null heat rate values with the median of the series. Not many null
@@ -2275,7 +2276,11 @@ class GeneratorClusters:
             self.units_model.rename(columns={"technology_description": "technology"})
             .query("technology.isin(@techs).values")
             .pipe(
-                atb_fixed_var_om_existing, self.atb_hr, self.settings, self.pudl_engine
+                atb_fixed_var_om_existing,
+                self.atb_hr,
+                self.settings,
+                self.pudl_engine,
+                self.coal_fgd,
             )
         )
 
