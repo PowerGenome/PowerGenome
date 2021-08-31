@@ -7,6 +7,7 @@ import collections
 import logging
 import operator
 from pathlib import Path
+from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -51,7 +52,7 @@ def fetch_atb_costs(
         Power plant cost data with columns:
         ['technology', 'cap_recovery_years', 'cost_case', 'financial_case',
        'basis_year', 'tech_detail', 'fixed_o_m_mw', 'variable_o_m_mwh', 'capex', 'cf',
-       'fuel', 'lcoe', 'wacc_nominal']
+       'fuel', 'lcoe', 'wacc_real']
     """
     logger.info("Loading NREL ATB data")
 
@@ -118,7 +119,7 @@ def fetch_atb_costs(
                 AND financial_case == "{fin_case}"
                 AND cost_case == "{cost_case}"
                 AND atb_year == {atb_year}
-                AND parameter == "wacc_nominal"
+                AND parameter == "wacc_real"
             """
             wacc_rows.extend(pudl_engine.execute(wacc_s).fetchall())
 
@@ -127,12 +128,12 @@ def fetch_atb_costs(
     if "Battery" not in tech_list:
         df = pd.DataFrame(all_rows, columns=col_names)
         wacc_df = pd.DataFrame(
-            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_nominal"]
+            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_real"]
         )
     else:
         # ATB doesn't have a WACC for battery storage. We use UtilityPV WACC as a default
         # stand-in -- make sure we have it in case.
-        s = 'SELECT DISTINCT("technology") from technology_costs_nrelatb WHERE parameter == "wacc_nominal"'
+        s = 'SELECT DISTINCT("technology") from technology_costs_nrelatb WHERE parameter == "wacc_real"'
         atb_techs = [x[0] for x in pudl_engine.execute(s).fetchall()]
         battery_wacc_standin = settings.get("atb_battery_wacc")
         battery_tech = [x for x in techs if x[0] == "Battery"][0]
@@ -162,8 +163,8 @@ def fetch_atb_costs(
                 AND financial_case == "{fin_case}"
                 AND cost_case == "Mid"
                 AND atb_year == {atb_year}
-                AND parameter == "wacc_nominal"
-            
+                AND parameter == "wacc_real"
+
             """
             b_rows = pudl_engine.execute(wacc_s).fetchall()
             battery_wacc_rows = [
@@ -179,7 +180,7 @@ def fetch_atb_costs(
 
         df = pd.DataFrame(all_rows, columns=col_names)
         wacc_df = pd.DataFrame(
-            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_nominal"]
+            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_real"]
         )
 
     # Transform from tidy to wide dataframe, which makes it easier to fill generator
@@ -320,6 +321,7 @@ def atb_fixed_var_om_existing(
     atb_hr_df: pd.DataFrame,
     settings: dict,
     pudl_engine: sqlalchemy.engine.base.Engine,
+    coal_fgd_df: pd.DataFrame
 ) -> pd.DataFrame:
     """Add fixed and variable O&M for existing power plants
 
@@ -346,11 +348,17 @@ def atb_fixed_var_om_existing(
         "Fixed_OM_cost_per_MWyr" and "Var_OM_cost_per_MWh"
     """
     logger.info("Adding fixed and variable O&M for existing plants")
-    techs = settings["eia_atb_tech_map"]
+
     existing_year = settings["atb_existing_year"]
 
     # ATB string is <technology>_<tech_detail>
-    techs = {eia: atb.split("_") for eia, atb in techs.items()}
+    # techs = {eia: atb.split("_") for eia, atb in techs.items()}
+    techs = {}
+    for eia, atb in settings["eia_atb_tech_map"].items():
+        if not isinstance(atb, list):
+            atb = [atb]
+        techs[eia] = atb[0].split("_")
+
     df_list = []
     grouped_results = results.reset_index().groupby(
         ["plant_id_eia", "technology"], as_index=False
@@ -400,7 +408,7 @@ def atb_fixed_var_om_existing(
                     AND cost_case == "Mid"
                     AND atb_year == "{settings['atb_data_year']}"
                     AND parameter == "variable_o_m_mwh"
-                
+
                 """
             atb_var_om_mwh = pudl_engine.execute(s).fetchall()[0][0]
         except IndexError:
@@ -419,7 +427,7 @@ def atb_fixed_var_om_existing(
                     AND cost_case == "Mid"
                     AND atb_year == "{settings['atb_data_year']}"
                     AND parameter == "fixed_o_m_mw"
-                
+
                 """
             atb_fixed_om_mw_yr = pudl_engine.execute(s).fetchall()[0][0]
         except IndexError:
@@ -589,9 +597,11 @@ def atb_fixed_var_om_existing(
                 age = settings["model_year"] - _df.operating_date.dt.year
                 age = age.fillna(age.mean())
                 age = age.fillna(40)
+                gen_ids = _df["generator_id"]
+                fgd = coal_fgd_df.query("plant_id_eia == @plant_id & generator_id in @gen_ids")["fgd"].values
 
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
-                annual_capex = (16.53 + (0.126 * age) + (5.68 * 0.5)) * 1000
+                annual_capex = (16.53 + (0.126 * age) + (5.68 * fgd)) * 1000
 
                 if plant_capacity < 500:
                     fixed = 44.21 * 1000
@@ -676,21 +686,25 @@ def atb_fixed_var_om_existing(
     return mod_results
 
 
-def single_generator_row(atb_costs_hr, new_gen_type, model_year_range):
+def single_generator_row(
+    atb_costs_hr: pd.DataFrame,
+    new_gen_type: str,
+    model_year_range: Union[Tuple[int], List[int]],
+) -> pd.DataFrame:
     """Create a data row with NREL ATB costs and performace for a single technology
 
     Parameters
     ----------
-    atb_costs : dataframe
+    atb_costs : pd.DataFrame
         Data from the sqlite tables of both resources costs and heat rates
     new_gen_type : str
         type of generating resource
-    model_year_range : list
+    model_year_range : Union[Tuple[int], List[int]]
         All of the years that should be averaged over
 
     Returns
     -------
-    dataframe
+    pd.DataFrame
         A single row dataframe with average cost and performence values over the study
         period.
     """
@@ -707,7 +721,7 @@ def single_generator_row(atb_costs_hr, new_gen_type, model_year_range):
         # "fuel",
         # "lcoe",
         # "o_m",
-        "wacc_nominal",
+        "wacc_real",
         "heat_rate",
     ]
     s = atb_costs_hr.loc[
@@ -764,7 +778,11 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
     return df
 
 
-def add_modified_atb_generators(settings, atb_costs_hr, model_year_range):
+def add_modified_atb_generators(
+    settings: dict,
+    atb_costs_hr: pd.DataFrame,
+    model_year_range: Union[Tuple[int], List[int]],
+) -> pd.DataFrame:
     """Create a modified version of an ATB generator.
 
     For each parameter (capex, heat_rate, etc) that users want modified they should
@@ -775,18 +793,18 @@ def add_modified_atb_generators(settings, atb_costs_hr, model_year_range):
     ----------
     settings : dict
         User-defined parameters from a settings file
-    atb_costs_hr : DataFrame
+    atb_costs_hr : pd.DataFrame
         Cost and heat rate data for ATB resources
-    model_year_range : list-like
+    model_year_range : Union[Tuple[int], List[int]]
         A list or range of years to average ATB values from.
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         Row or rows of modified ATB resources. Each row includes the colums:
         ['technology', 'cost_case', 'tech_detail', 'basis_year', 'fixed_o_m_mw',
        'fixed_o_m_mwh', 'variable_o_m_mwh', 'capex', 'capex_mwh', 'cf', 'fuel',
-       'lcoe', 'o_m', 'wacc_nominal', 'heat_rate', 'Cap_size'].
+       'lcoe', 'o_m', 'wacc_real', 'heat_rate', 'Cap_size'].
     """
 
     # copy settings so popped keys aren't removed permenantly
@@ -844,7 +862,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         All cost parameters from the SQL table for new generators. Should include:
         ['technology', 'cost_case', 'financial_case', 'basis_year', 'tech_detail',
         'capex', 'capex_mwh', 'fixed_o_m_mw', 'fixed_o_m_mwh', 'variable_o_m_mwh',
-        'wacc_nominal']
+        'wacc_real']
     atb_hr : DataFrame
         The technology, tech_detail, and heat_rate of new generators from ATB.
     settings : dict
@@ -982,13 +1000,13 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
     new_gen_df["Inv_cost_per_MWyr"] = investment_cost_calculator(
         capex=new_gen_df["capex_mw"],
-        wacc=new_gen_df["wacc_nominal"],
+        wacc=new_gen_df["wacc_real"],
         cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
     new_gen_df["Inv_cost_per_MWhyr"] = investment_cost_calculator(
         capex=new_gen_df["capex_mwh"],
-        wacc=new_gen_df["wacc_nominal"],
+        wacc=new_gen_df["wacc_real"],
         cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
@@ -1005,7 +1023,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Heat_rate_MMBTU_per_MWh",
         "Cap_size",
         "cap_recovery_years",
-        "wacc_nominal",
+        "wacc_real",
     ]
     new_gen_df = new_gen_df[keep_cols]
     # Set no capacity limit on new resources that aren't renewables.
@@ -1019,7 +1037,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         user_cost_multipliers = pd.read_csv(
             Path(settings["input_folder"])
             / settings["user_regional_cost_multiplier_fn"],
-            index_col=0
+            index_col=0,
         )
         regional_cost_multipliers = pd.concat(
             [regional_cost_multipliers, user_cost_multipliers], axis=1
@@ -1170,7 +1188,7 @@ def add_renewables_clusters(
     return pd.concat([df[~mask]] + cdfs, sort=False)
 
 
-def load_user_defined_techs(settings):
+def load_user_defined_techs(settings: dict) -> pd.DataFrame:
     """Load user-defined technologies from a CSV file. Returns cost columns and heat
     rate.
 
@@ -1191,14 +1209,26 @@ def load_user_defined_techs(settings):
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         A dataframe of user-defined resources with cost and heat rate columns.
     """
     if isinstance(settings["additional_technologies_fn"], collections.abc.Mapping):
         fn = settings["additional_technologies_fn"][settings["model_year"]]
     else:
         fn = settings["additional_technologies_fn"]
-    user_techs = pd.read_csv(DATA_PATHS["additional_techs"] / fn)
+
+    # Search the extra inputs folder first, then the legacy additional_techs folder
+    # in repo
+    if (Path(settings["input_folder"]) / fn).exists():
+        user_techs = pd.read_csv(Path(settings["input_folder"]) / fn)
+    else:
+        logger.warning(
+            "The file with your user defined technologies is not in the user input "
+            "folder. Reading the file from PowerGenome/data/additional_technolgies "
+            "instead. This may be depreciated in a future version, please move "
+            f"{fn} to the folder {settings['input_folder']}."
+        )
+        user_techs = pd.read_csv(DATA_PATHS["additional_techs"] / fn)
 
     user_techs = user_techs.loc[
         (user_techs["technology"].isin(settings["additional_new_gen"]))
@@ -1215,6 +1245,19 @@ def load_user_defined_techs(settings):
     if "Cap_size" not in user_techs.columns:
         user_techs["Cap_size"] = 1
 
+    if "dollar_year" in user_techs.columns:
+        for idx, row in user_techs.iterrows():
+            for col in [
+                "capex_mw",
+                "capex_mwh",
+                "fixed_o_m_mw",
+                "fixed_o_m_mwh",
+                "variable_o_m_mwh",
+            ]:
+                user_techs.loc[idx, col] = inflation_price_adjustment(
+                    row[col], row["dollar_year"], settings["target_usd_year"]
+                )
+
     cols = [
         "technology",
         "tech_detail",
@@ -1224,7 +1267,7 @@ def load_user_defined_techs(settings):
         "fixed_o_m_mw",
         "fixed_o_m_mwh",
         "variable_o_m_mwh",
-        "wacc_nominal",
+        "wacc_real",
         "heat_rate",
         "Cap_size",
         "dollar_year",

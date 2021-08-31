@@ -196,6 +196,8 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
     # THIS WILL NEED TO BE MORE FLEXIBLE FOR OTHER SCENARIOS
     if float(year_case_policy["CO_2_Max_Mtons"]) >= 0:
         genx_settings["CO2Cap"] = 2
+    elif float(year_case_policy["CO_2_Max_Mtons"]) == -1:
+        genx_settings["CO2Cap"] = 0
     else:
         genx_settings["CO2Cap"] = 0
 
@@ -460,7 +462,31 @@ def network_max_reinforcement(
             "This numeric value is included under tx_expansion_per_period. See the "
             "`test_settings.yml` file for an example."
         )
+    # if isinstance(max_expansion, dict):
+    #     expansion_method = settings.get("tx_expansion_method")
+    #     if not expansion_method:
+    #         raise KeyError(
+    #         "The transmission expansion parameter 'tx_expansion_per_period' is a "
+    #         "dictionary. There should also be a settings parameter 'tx_expansion_method' "
+    #         "with a dictionary of model region: <type> (either 'capacity' or 'fraction' "
+    #         "but it isn't in your settings file."
+    #     )
+    #     for region, value in max_expansion.items():
+    #         existing_tx = transmission.query("Region description == @region")["Line_Max_Flow_MW"]
+    #         if expansion_method[region].lower() == "capacity":
+    #             transmission.loc[transmission["Region description"] == region,
+    #             "Line_Max_Reinforcement_MW"] = value
+    #         elif expansion_method[region].lower() == "fraction":
+    #             transmission.loc[transmission["Region description"] == region,
+    #             "Line_Max_Reinforcement_MW"] = value * existing_tx
+    #         else:
+    #             raise KeyError(
+    #             "The transmission expansion method parameter (tx_expansion_method) "
+    #             "should have values of 'capacity' or 'fraction' for each model region. "
+    #             f"The value provided was '{expansion_method[region]}'."
+    #         )
 
+    # else:
     transmission.loc[:, "Line_Max_Reinforcement_MW"] = (
         transmission.loc[:, "Line_Max_Flow_MW"] * max_expansion
     )

@@ -430,7 +430,10 @@ def main():
                     network_max_reinforcement, settings=_settings
                 ).pipe(network_reinforcement_cost, settings=_settings)
 
-                network = add_emission_policies(transmission, _settings)
+                if _settings.get("emission_policies_fn"):
+                    network = add_emission_policies(transmission, _settings)
+                else:
+                    network = transmission
 
                 # Change the CES limit for cases where it's emissions based
                 if "emissions_ces_limit" in _settings:
@@ -439,7 +442,7 @@ def main():
                 # If single-value for CES, use that value for input to GenX
                 # settings creation. This way values that are calculated internally
                 # get used.
-                if network["CES"].std() == 0:
+                if "CES" in network.columns and network["CES"].std() == 0:
                     ces = network["CES"].mean()
                 else:
                     ces = None
