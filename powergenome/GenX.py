@@ -50,7 +50,9 @@ def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
     if len(policy_cols) == 0:
         return None
 
-    year_case_policy = policies.loc[(case_id, model_year), :]
+    year_case_policy = policies.loc[
+        (case_id, model_year), ["region"] + policy_cols
+    ].dropna(subset=policy_cols)
     # Bug where multiple regions for a case will return this as a df, even if the policy
     # for this case applies to all regions (code below expects a Series)
     ycp_shape = year_case_policy.shape
@@ -63,7 +65,7 @@ def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
     }
 
     zone_cols = ["Region_description", "Network_zones"] + policy_cols
-    zone_df = pd.DataFrame(columns=zone_cols)
+    zone_df = pd.DataFrame(columns=zone_cols, dtype=float)
     zone_df["Region_description"] = zones
     zone_df["Network_zones"] = zone_df["Region_description"].map(zone_num_map)
     # If there is only one region, assume that the policy is applied across all regions.

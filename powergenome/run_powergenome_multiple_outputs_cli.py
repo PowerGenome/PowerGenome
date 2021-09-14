@@ -456,6 +456,7 @@ def main():
                     # network = add_emission_policies(transmission, _settings)
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
+                    cap_res = create_policy_req(_settings, col_str_match="CapRes")
 
                 # Change the CES limit for cases where it's emissions based
                 # if "emissions_ces_limit" in _settings:
@@ -481,6 +482,15 @@ def main():
                         folder=case_folder,
                         file_name="Energy_share_requirement.csv",
                         include_index=False,
+                    )
+                if cap_res is not None:
+                    cap_res = cap_res.set_index("Region_description")
+                    cap_res.index.name = None
+                    write_results_file(
+                        df=cap_res,
+                        folder=case_folder,
+                        file_name="Capacity_reserve_margin.csv",
+                        include_index=True,
                     )
                 if co2_cap is not None:
                     co2_cap = co2_cap.set_index("Region_description")
