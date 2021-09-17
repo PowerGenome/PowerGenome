@@ -157,8 +157,11 @@ def main():
     shutil.copy(args.settings_file, out_folder)
 
     logger.info("Initiating PUDL connections")
-    pudl_engine, pudl_out = init_pudl_connection(freq="YS")
-    check_settings(settings, pudl_engine)
+    pudl_engine, pudl_out = init_pudl_connection(
+        freq="AS",
+        start_year=min(settings.get("data_years")),
+        end_year=max(settings.get("data_years")),
+    )
 
     # Make sure everything in model_regions is either an aggregate region
     # or an IPM region. Will need to change this once we start using non-IPM
