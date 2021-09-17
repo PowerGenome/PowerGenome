@@ -94,7 +94,7 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
 
 
 def init_pudl_connection(
-    freq: str = "YS",
+    freq: str = "AS", start_year: int = None, end_year: int = None
 ) -> Tuple[sa.engine.base.Engine, pudl.output.pudltabl.PudlTabl]:
     """Initiate a connection object to the sqlite PUDL database and create a pudl
     object that can quickly access parts of the database.
@@ -112,10 +112,14 @@ def init_pudl_connection(
         object for quickly accessing parts of the database. `pudl_out` is used
         to access unit heat rates.
     """
-    pudl_engine = sa.create_engine(
-        SETTINGS["PUDL_DB"]
-    )  # pudl.init.connect_db(SETTINGS)
-    pudl_out = pudl.output.pudltabl.PudlTabl(freq=freq, pudl_engine=pudl_engine)
+    pudl_engine = sa.create_engine(SETTINGS["PUDL_DB"])
+    if start_year is not None:
+        start_year = pd.to_datetime(start_year, format="%Y")
+    if end_year is not None:
+        end_year = pd.to_datetime(end_year + 1, format="%Y")
+    pudl_out = pudl.output.pudltabl.PudlTabl(
+        freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
+    )
 
     return pudl_engine, pudl_out
 
