@@ -1028,13 +1028,11 @@ def calculate_weighted_heat_rate(heat_rate_df):
         )
         return weighted_hr
 
-    weighted_unit_hr = (
-        heat_rate_df.groupby(["plant_id_eia", "unit_id_pudl"], as_index=False)
-        .apply(w_hr)
-        .reset_index()
+    weighted_unit_hr = heat_rate_df.groupby(["plant_id_eia", "unit_id_pudl"]).apply(
+        w_hr
     )
-
-    weighted_unit_hr = weighted_unit_hr.rename(columns={0: "heat_rate_mmbtu_mwh"})
+    weighted_unit_hr.name = "heat_rate_mmbtu_mwh"
+    weighted_unit_hr = weighted_unit_hr.reset_index()
 
     return weighted_unit_hr
 
@@ -1637,8 +1635,12 @@ def gentype_region_capacity_factor(
     """
     generation = pd.read_sql_query(sql, pudl_engine, parse_dates={"report_date": "%Y"})
 
-    capacity_factor = pudl.helpers.merge_on_date_year(
-        plant_tech_cap, generation, on=["plant_id_eia"], how="left"
+    capacity_factor = pudl.helpers.clean_merge_asof(
+        generation,
+        plant_tech_cap,
+        left_on="report_date",
+        right_on="report_date",
+        by={"plant_id_eia": "eia"},
     )
 
     if settings.get("group_technologies"):
