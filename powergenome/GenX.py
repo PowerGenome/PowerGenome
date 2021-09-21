@@ -137,7 +137,7 @@ def add_misc_gen_values(gen_clusters, settings):
     return gen_clusters
 
 
-def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
+def make_genx_settings_file(pg_engine, settings, calculated_ces=None):
     """Make a copy of the GenX settings file for a specific case.
 
     This function tries to make some intellegent choices about parameter values like
@@ -148,7 +148,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.Engine
+    pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas to access IPM load profiles. These
         load profiles are needed when DG is calculated as a fraction of load.
     settings : dict
@@ -178,7 +178,7 @@ def make_genx_settings_file(pudl_engine, settings, calculated_ces=None):
         year_case_policy = year_case_policy.squeeze()  # convert to series
 
     if settings.get("distributed_gen_profiles_fn"):
-        dg_generation = make_distributed_gen_profiles(pudl_engine, settings)
+        dg_generation = make_distributed_gen_profiles(pg_engine, settings)
         total_dg_gen = dg_generation.sum().sum()
     else:
         total_dg_gen = 0

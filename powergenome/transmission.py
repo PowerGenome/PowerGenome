@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 def agg_transmission_constraints(
-    pudl_engine,
+    pg_engine,
     settings,
-    pudl_table="transmission_single_epaipm",
+    pg_table="transmission_single_epaipm",
     settings_agg_key="region_aggregations",
 ):
 
@@ -30,7 +30,7 @@ def agg_transmission_constraints(
     reverse_combos = [(combo[-1], combo[0]) for combo in combos]
 
     logger.info("Loading transmission constraints from PUDL")
-    transmission_constraints_table = pd.read_sql_table(pudl_table, con=pudl_engine)
+    transmission_constraints_table = pd.read_sql_table(pg_table, con=pg_engine)
 
     if settings.get("user_transmission_constraints_fn"):
         user_tx_constraints = pd.read_csv(

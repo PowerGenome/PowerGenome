@@ -30,7 +30,7 @@ def load_settings(path: Union[str, Path]) -> dict:
     return settings
 
 
-def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
+def check_settings(settings: dict, pg_engine: sa.engine) -> None:
     """Check for user errors in the settings file.
 
     The YAML settings file is loaded as a dictionary object. It has many different parts
@@ -41,11 +41,11 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
     ----------
     settings : dict
         Parameters and values from the YAML settings file.
-    pudl_engine : sa.engine
+    pg_engine : sa.engine
         Connection to the PUDL sqlite database.
     """
 
-    ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pudl_engine)[
+    ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
         "region_id_epaipm"
     ].to_list()
 
@@ -120,8 +120,16 @@ def init_pudl_connection(
     pudl_out = pudl.output.pudltabl.PudlTabl(
         freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
     )
+    if SETTINGS.get("PG_DB"):
+        pg_engine = sa.create_engine(SETTINGS["PG_DB"])
+    else:
+        logger.warning(
+            "No path to a `PG_DB` database was found in the .env file. Using the "
+            "`PUDL_DB` path instead."
+        )
+        pg_engine = sa.create_engine(SETTINGS["PUDL_DB"])
 
-    return pudl_engine, pudl_out
+    return pudl_engine, pudl_out, pg_engine
 
 
 def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, str]:

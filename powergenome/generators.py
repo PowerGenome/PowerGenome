@@ -345,7 +345,12 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
 
 
 def load_plant_region_map(
-    gens_860, pudl_engine, settings, model_regions_gdf, table="plant_region_map_epaipm"
+    gens_860,
+    pudl_engine,
+    pg_engine,
+    settings,
+    model_regions_gdf,
+    table="plant_region_map_epaipm",
 ):
     """
     Load the region that each plant is located in.
@@ -366,7 +371,7 @@ def load_plant_region_map(
         from the original region labels.
     """
     # Load dataframe of region labels for each EIA plant id
-    region_map_df = pd.read_sql_table(table, con=pudl_engine)
+    region_map_df = pd.read_sql_table(table, con=pg_engine)
 
     if settings.get("plant_region_map_fn"):
         user_region_map_df = pd.read_csv(
@@ -1953,6 +1958,7 @@ class GeneratorClusters:
         self,
         pudl_engine,
         pudl_out,
+        pg_engine,
         settings,
         current_gens=True,
         sort_gens=False,
@@ -1972,6 +1978,7 @@ class GeneratorClusters:
         """
         self.pudl_engine = pudl_engine
         self.pudl_out = pudl_out
+        self.pg_engine = pg_engine
         self.settings = settings
         self.current_gens = current_gens
         self.sort_gens = sort_gens
@@ -1986,7 +1993,7 @@ class GeneratorClusters:
                 "generators_entity_eia", self.pudl_engine
             )
 
-            bga = self.pudl_out.bga()
+            bga = self.pudl_out.bga_eia860()
             self.bga = bga.loc[
                 bga.report_date.dt.year.isin(self.data_years), :
             ].drop_duplicates(["plant_id_eia", "generator_id"])
@@ -1995,6 +2002,7 @@ class GeneratorClusters:
             self.plant_region_map = load_plant_region_map(
                 self.gens_860,
                 self.pudl_engine,
+                self.pg_engine,
                 self.settings,
                 self.model_regions_gdf,
                 table=plant_region_map_table,
@@ -2018,7 +2026,7 @@ class GeneratorClusters:
         else:
             self.existing_resources = pd.DataFrame()
         self.fuel_prices = fetch_fuel_prices(self.settings)
-        self.atb_hr = fetch_atb_heat_rates(self.pudl_engine, self.settings)
+        self.atb_hr = fetch_atb_heat_rates(self.pg_engine, self.settings)
         self.coal_fgd = pd.read_csv(DATA_PATHS["coal_fgd"])
 
     def fill_na_heat_rates(self, s):
@@ -2279,7 +2287,7 @@ class GeneratorClusters:
                 atb_fixed_var_om_existing,
                 self.atb_hr,
                 self.settings,
-                self.pudl_engine,
+                self.pg_engine,
                 self.coal_fgd,
             )
         )
@@ -2540,10 +2548,10 @@ class GeneratorClusters:
 
     def create_new_generators(self):
         self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
-            self.pudl_engine, self.settings
+            self.pg_engine, self.settings
         )
         self.atb_costs = fetch_atb_costs(
-            self.pudl_engine, self.settings, self.offshore_spur_costs
+            self.pg_engine, self.settings, self.offshore_spur_costs
         )
 
         self.new_generators = atb_new_generators(

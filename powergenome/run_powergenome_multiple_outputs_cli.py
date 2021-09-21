@@ -157,16 +157,17 @@ def main():
     shutil.copy(args.settings_file, out_folder)
 
     logger.info("Initiating PUDL connections")
-    pudl_engine, pudl_out = init_pudl_connection(
+    pudl_engine, pudl_out, pg_engine = init_pudl_connection(
         freq="AS",
         start_year=min(settings.get("data_years")),
         end_year=max(settings.get("data_years")),
     )
+    check_settings(settings, pg_engine)
 
     # Make sure everything in model_regions is either an aggregate region
     # or an IPM region. Will need to change this once we start using non-IPM
     # regions.
-    ipm_regions = pd.read_sql_table("regions_entity_epaipm", pudl_engine)[
+    ipm_regions = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
         "region_id_epaipm"
     ]
     all_valid_regions = ipm_regions.tolist() + list(
@@ -218,6 +219,7 @@ def main():
                     gc = GeneratorClusters(
                         pudl_engine=pudl_engine,
                         pudl_out=pudl_out,
+                        pg_engine=pg_engine,
                         settings=_settings,
                         current_gens=args.current_gens,
                         sort_gens=args.sort_gens,
@@ -298,7 +300,7 @@ def main():
                     else:
                         model_regions_gdf = gc.model_regions_gdf
                         transmission = agg_transmission_constraints(
-                            pudl_engine=pudl_engine, settings=_settings
+                            pg_engine=pg_engine, settings=_settings
                         )
                         transmission = (
                             transmission.pipe(
@@ -390,9 +392,7 @@ def main():
                     # )
 
             if args.load:
-                load = make_final_load_curves(
-                    pudl_engine=pudl_engine, settings=_settings
-                )
+                load = make_final_load_curves(pg_engine=pg_engine, settings=_settings)
                 load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
 
                 (
@@ -479,7 +479,7 @@ def main():
 
             if _settings.get("genx_settings_fn"):
                 genx_settings = make_genx_settings_file(
-                    pudl_engine, _settings, calculated_ces=ces
+                    pg_engine, _settings, calculated_ces=ces
                 )
                 write_case_settings_file(
                     settings=genx_settings,
