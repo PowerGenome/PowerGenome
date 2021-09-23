@@ -21,6 +21,7 @@ from powergenome.GenX import (
     create_policy_req,
     fix_min_power_values,
     make_genx_settings_file,
+    min_cap_req,
     reduce_time_domain,
     add_misc_gen_values,
     network_line_loss,
@@ -457,6 +458,7 @@ def main():
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
                     cap_res = create_policy_req(_settings, col_str_match="CapRes")
+                min_cap = min_cap_req(_settings)
 
                 # Change the CES limit for cases where it's emissions based
                 # if "emissions_ces_limit" in _settings:
@@ -500,6 +502,13 @@ def main():
                         folder=case_folder,
                         file_name="CO2_cap.csv",
                         include_index=True,
+                    )
+                if min_cap is not None:
+                    write_results_file(
+                        df=min_cap,
+                        folder=case_folder,
+                        file_name="Minimum_capacity_requirement.csv",
+                        include_index=False,
                     )
 
             if args.fuel and args.gens:

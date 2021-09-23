@@ -348,6 +348,7 @@ def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFram
         raise KeyError(
             "The parameter 'tx_line_loss_100_miles' is required in your settings file."
         )
+    loss_per_100_miles = settings["tx_line_loss_100_miles"]
     if "distance_mile" in transmission.columns:
         distance_col = "distance_mile"
     elif "distance_km" in transmission.columns:
@@ -356,7 +357,7 @@ def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFram
         logger.info("Line loss per 100 miles was converted to km.")
     else:
         raise KeyError("No distance column is available in the transmission dataframe")
-    loss_per_100_miles = settings["tx_line_loss_100_miles"]
+
     transmission["Line_Loss_Percentage"] = (
         transmission[distance_col] / 100 * loss_per_100_miles
     )
@@ -690,3 +691,63 @@ def fix_min_power_values(
     resource_df.loc[mask, min_power_col] = gen_profile_min[mask].round(3)
 
     return resource_df
+
+
+def min_cap_req(settings: dict) -> pd.DataFrame:
+    """Create a dataframe of minimum capacity requirements for GenX
+
+    Parameters
+    ----------
+    settings : dict
+        Dictionary with user settings. Should include the key `MinCapReg` with nested
+        keys of `MinCapTag_*`, then further nested keys `description` and `min_mw`. The
+        `MinCapTag_*` should also be listed as values under `model_tag_names`. Any
+        technologies eligible for each of the `MinCapTag_*` should have `model_tag_values`
+        of 1.
+
+    Returns
+    -------
+    pd.DataFrame
+        A dataframe with minimum capacity constraints formatted for GenX. If `MinCapReq`
+        is not included in the settings dictionary it will return None.
+
+    Raises
+    ------
+    KeyError
+        If a `MinCapTag_*` is included under `MinCapReq` but not included in `model_tag_names`
+        the function will raise an error.
+    """
+
+    c_num = []
+    description = []
+    min_mw = []
+
+    # if settings.get("MinCapReq"):
+    for cap_tag, values in settings.get("MinCapReq", {}).items():
+        if cap_tag not in settings.get("model_tag_names", []):
+            raise KeyError(
+                f"The minimum capacity tag {cap_tag} is listed in the settings "
+                "'MinCapReq' but not under 'model_tag_names'. You must add it to "
+                "'model_tag_names' for the column to appear in Generators_data.csv."
+            )
+
+        # It's easy to forget to add all the necessary column names to the
+        # generators_columns list in settings.
+        if cap_tag not in settings.get("generator_columns", []) and isinstance(
+            settings.get("generator_columns"), list
+        ):
+            settings["generator_columns"].append(cap_tag)
+
+        c_num.append(cap_tag.split("_")[1])
+        description.append(values.get("description"))
+        min_mw.append(values.get("min_mw"))
+
+    min_cap_df = pd.DataFrame()
+    min_cap_df["MinCapReqConstraint"] = c_num
+    min_cap_df["Constraint_Description"] = description
+    min_cap_df["Min_MW"] = min_mw
+
+    if not min_cap_df.empty:
+        return min_cap_df
+    else:
+        return None

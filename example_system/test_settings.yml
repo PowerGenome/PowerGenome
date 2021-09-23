@@ -555,6 +555,8 @@ model_tag_names:
   - Hydro_level
   - CapRes_1
   - Hydro_Energy_to_Power_Ratio
+  - MinCapTag_1
+  - MinCapTag_2
 
 default_model_tag: 0
 
@@ -653,6 +655,8 @@ model_tag_values:
     Small Hydroelectric: 1
     Solar Photovoltaic: 1
     UtilityPV: 1
+  MinCapTag_1: # Do not need to list anything here. All values will be 0 by default
+    LandbasedWind: 1
   New_Build:
     Battery: 1
     Biomass: -1
@@ -709,9 +713,19 @@ regional_tag_values:
     New_Build:
       Hydroelectric Pumped Storage: 1
       Nuclear: 0
+    MinCapTag_2:
+      UtilityPV: 1
   CA_N:
     New_Build:
       Nuclear: 0
+
+MinCapReq:
+  MinCapTag_1:
+    description: Landbasedwind
+    min_mw: 8000
+  MinCapTag_2:
+    description: CA_S_solar
+    min_mw: 10000
 
 # Generator cost data from NREL ATB
 
@@ -1216,6 +1230,8 @@ generator_columns: [
             "HYDRO",
             "ESR_1",
             "ESR_2",
+            "MinCapTag_1",
+            "MinCapTag_2",
             "Min_Share",
             "Max_Share",
             "Existing_Cap_MWh",
