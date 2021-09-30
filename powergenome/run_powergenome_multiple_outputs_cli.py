@@ -535,6 +535,11 @@ def main():
                     file_name="Fuels_data.csv",
                     include_index=True,
                 )
+            if _settings.get("reserves_fn"):
+                shutil.copy(
+                    _settings["input_folder"] / _settings["reserves_fn"],
+                    case_folder / "Inputs",
+                )
 
             if _settings.get("genx_settings_fn"):
                 genx_settings = make_genx_settings_file(pudl_engine, _settings)
