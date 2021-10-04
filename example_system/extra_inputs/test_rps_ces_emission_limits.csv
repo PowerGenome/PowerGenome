@@ -1,9 +1,12 @@
-﻿case_id,year,region,CES,RPS,CO_2_Max_Mtons,CO_2_Max_ton_MWh,CO_2_Import_ton_MWh,CO_2_Export_ton_MWh,copy_case_id
-p1,2030,all,0.8,0.5,None,-1,0,0,
+﻿case_id,year,region,ESR_1,ESR_2,CO_2_Cap_Zone_1,CO_2_Max_Mtons_1,CO_2_Max_tons_MWh_1,CapRes_1,copy_case_id
+p1,2030,all,0.5,0.8,0,-1,-1,0.156,
 s1,2030,all,,,,,,,p1
-p1,2045,CA_N,1,0.5,None,-1,0,0,
-p1,2045,CA_S,1,0.5,None,-1,0,0,
-p1,2045,WECC_AZ,0.9,0.45,None,0.1,0,0,
+s1,2030,CA_N,,,,,,0.156,
+s1,2030,CA_S,,,,,,0.2,
+s1,2030,WECC_AZ,,,,,,0.11,
+p1,2045,CA_N,0.5,1,0,-1,-1,0.156,
+p1,2045,CA_S,0.5,1,0,-1,-1,0.156,
+p1,2045,WECC_AZ,0.45,0.9,0,-1,0.1,0.156,
 s1,2045,CA_N,,,,,,,p1
 s1,2045,CA_S,,,,,,,p1
 s1,2045,WECC_AZ,,,,,,,p1

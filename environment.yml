@@ -1,7 +1,7 @@
 name: pg_pudl_update
 channels:
   - conda-forge
-  - defaults
+  # - defaults
 dependencies:
   - python>=3.8 # Remove for tox.ini & setup.py
   - pip
@@ -16,7 +16,6 @@ dependencies:
   - isort
   - pre-commit
   - conda-forge::nb_conda_kernels
-  # - xlrd=1.2
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona

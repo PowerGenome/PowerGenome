@@ -187,7 +187,7 @@ def main():
         )
         gen_clusters = gc.create_all_generators()
         gen_clusters = remove_fuel_scenario_name(gen_clusters, settings)
-        gen_clusters["zone"] = gen_clusters["region"].map(zone_num_map)
+        gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
 
     if args.load:
         load = make_final_load_curves(pudl_engine=pudl_engine, settings=settings)

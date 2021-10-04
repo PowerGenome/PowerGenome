@@ -205,7 +205,7 @@ def startup_nonfuel_costs(df, settings):
     Returns
     -------
     DataFrame
-        Modified df with new column "Start_cost_per_MW"
+        Modified df with new column "Start_Cost_per_MW"
     """
     logger.info("Adding non-fuel startup costs")
     target_usd_year = settings["target_usd_year"]
@@ -233,22 +233,22 @@ def startup_nonfuel_costs(df, settings):
             price=cost, base_year=startup_costs_usd_year, target_year=target_usd_year
         )
 
-    df["Start_cost_per_MW"] = 0
+    df["Start_Cost_per_MW"] = 0
 
     for existing_tech, cost_tech in settings["existing_startup_costs_tech_map"].items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[
-            df["technology"].str.contains(existing_tech), "Start_cost_per_MW"
+            df["technology"].str.contains(existing_tech), "Start_Cost_per_MW"
         ] = total_startup_costs
 
     for new_tech, cost_tech in settings["new_build_startup_costs"].items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[
-            df["technology"].str.contains(new_tech), "Start_cost_per_MW"
+            df["technology"].str.contains(new_tech), "Start_Cost_per_MW"
         ] = total_startup_costs
-    df.loc[:, "Start_cost_per_MW"] = df.loc[:, "Start_cost_per_MW"]
+    df.loc[:, "Start_Cost_per_MW"] = df.loc[:, "Start_Cost_per_MW"]
 
-    # df.loc[df["technology"].str.contains("Nuclear"), "Start_cost_per_MW"] = "FILL VALUE"
+    # df.loc[df["technology"].str.contains("Nuclear"), "Start_Cost_per_MW"] = "FILL VALUE"
 
     return df
 
@@ -1122,8 +1122,8 @@ def group_units(df, settings):
             settings["capacity_col"]: "sum",
             "minimum_load_mw": "sum",
             "heat_rate_mmbtu_mwh": "mean",
-            "Fixed_OM_cost_per_MWyr": "mean",
-            "Var_OM_cost_per_MWh": "mean",
+            "Fixed_OM_Cost_per_MWyr": "mean",
+            "Var_OM_Cost_per_MWh": "mean",
         }
     )
     grouped_units = grouped_units.replace([np.inf, -np.inf], np.nan)
@@ -1173,8 +1173,8 @@ def calc_unit_cluster_values(df, settings, technology=None):
             settings["capacity_col"]: "mean",
             "minimum_load_mw": "mean",
             "heat_rate_mmbtu_mwh": wm,
-            "Fixed_OM_cost_per_MWyr": wm,
-            "Var_OM_cost_per_MWh": wm,
+            "Fixed_OM_Cost_per_MWyr": wm,
+            "Var_OM_Cost_per_MWh": wm,
         }
     )
     if df_values["heat_rate_mmbtu_mwh"].isnull().values.any():
@@ -1187,10 +1187,10 @@ def calc_unit_cluster_values(df, settings, technology=None):
         {"heat_rate_mmbtu_mwh": "std"}
     )
     df_values["fixed_o_m_mw_std"] = df.groupby("cluster").agg(
-        {"Fixed_OM_cost_per_MWyr": "std"}
+        {"Fixed_OM_Cost_per_MWyr": "std"}
     )
 
-    df_values["Min_power"] = (
+    df_values["Min_Power"] = (
         df_values["minimum_load_mw"] / df_values[settings["capacity_col"]]
     )
 
@@ -1513,7 +1513,7 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
         * planned_gdf[settings["capacity_col"]]
     )
 
-    # Assume anything else being built at scale is wind/solar and will have a Min_power
+    # Assume anything else being built at scale is wind/solar and will have a Min_Power
     # of 0
     planned_gdf.loc[planned_gdf["minimum_load_mw"].isnull(), "minimum_load_mw"] = 0
 
@@ -1905,7 +1905,7 @@ def add_transmission_inv_cost(
     ----------
     resource_df
         Each row represents a single resource within a region. Should have columns
-        `Inv_cost_per_MWyr` and transmission costs.
+        `Inv_Cost_per_MWyr` and transmission costs.
             - one or more `<type>_inv_mwyr`,
                 where <type> is 'spur', 'offshore_spur', or 'tx'.
             - `interconnect_annuity`
@@ -1917,7 +1917,7 @@ def add_transmission_inv_cost(
     Returns
     -------
     DataFrame
-        A modified copy of the input dataframe where 'Inv_cost_per_MWyr' represents the
+        A modified copy of the input dataframe where 'Inv_Cost_per_MWyr' represents the
         combined plant and transmission investment costs. The new column
         `plant_inv_cost_mwyr` represents just the plant investment costs.
     """
@@ -1925,7 +1925,7 @@ def add_transmission_inv_cost(
         settings.get("transmission_investment_cost", {}).get("use_total", False)
         and "interconnect_annuity" in resource_df
     )
-    resource_df["plant_inv_cost_mwyr"] = resource_df["Inv_cost_per_MWyr"]
+    resource_df["plant_inv_cost_mwyr"] = resource_df["Inv_Cost_per_MWyr"]
     columns = [
         c for c in [f"{t}_inv_mwyr" for t in TRANSMISSION_TYPES] if c in resource_df
     ]
@@ -1939,7 +1939,7 @@ def add_transmission_inv_cost(
             "Transmission investment costs are missing or zero for some resources"
             " and will not be included in the total investment costs."
         )
-    resource_df["Inv_cost_per_MWyr"] += cost
+    resource_df["Inv_Cost_per_MWyr"] += cost
     return resource_df
 
 
@@ -2350,8 +2350,8 @@ class GeneratorClusters:
             if not alt_cluster_method:
                 if num_clusters[region][tech] > 0:
                     cluster_cols = [
-                        "Fixed_OM_cost_per_MWyr",
-                        # "Var_OM_cost_per_MWh",
+                        "Fixed_OM_Cost_per_MWyr",
+                        # "Var_OM_Cost_per_MWh",
                         # "minimum_load_mw",
                         "heat_rate_mmbtu_mwh",
                     ]
@@ -2439,7 +2439,7 @@ class GeneratorClusters:
         self.results.rename(
             columns={
                 self.settings["capacity_col"]: "Cap_size",
-                "heat_rate_mmbtu_mwh": "Heat_rate_MMBTU_per_MWh",
+                "heat_rate_mmbtu_mwh": "Heat_Rate_MMBTU_per_MWh",
             },
             inplace=True,
         )
@@ -2606,8 +2606,8 @@ class GeneratorClusters:
 
         self.all_resources = self.all_resources.round(3)
         self.all_resources["Cap_size"] = self.all_resources["Cap_size"]
-        self.all_resources["Heat_rate_MMBTU_per_MWh"] = self.all_resources[
-            "Heat_rate_MMBTU_per_MWh"
+        self.all_resources["Heat_Rate_MMBTU_per_MWh"] = self.all_resources[
+            "Heat_Rate_MMBTU_per_MWh"
         ]
 
         self.all_resources = self.all_resources.reset_index(drop=True)
@@ -2616,8 +2616,8 @@ class GeneratorClusters:
             if isinstance(p, (collections.Sequence, np.ndarray)):
                 self.all_resources.loc[i, "variable_CF"] = np.mean(p)
 
-        # Set Min_power of wind/solar to 0
-        self.all_resources.loc[self.all_resources["DISP"] == 1, "Min_power"] = 0
+        # Set Min_Power of wind/solar to 0
+        self.all_resources.loc[self.all_resources["VRE"] == 1, "Min_Power"] = 0
 
         self.all_resources["R_ID"] = np.arange(len(self.all_resources)) + 1
 
