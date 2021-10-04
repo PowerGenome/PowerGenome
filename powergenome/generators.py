@@ -1225,6 +1225,10 @@ def add_genx_model_tags(df, settings):
     default = settings.get("default_model_tag", 0)
     for tag_col in settings.get("model_tag_names", []):
         df[tag_col] = default
+        if tag_col not in settings.get("generator_columns", []) and isinstance(
+            settings.get("generator_columns"), list
+        ):
+            settings["generator_columns"].append(tag_col)
 
         try:
             for tech, tag_value in settings["model_tag_values"][tag_col].items():
