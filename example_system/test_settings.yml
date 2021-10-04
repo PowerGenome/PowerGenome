@@ -558,6 +558,8 @@ model_tag_names:
   - Hydro_Energy_to_Power_Ratio
   - MinCapTag_1
   - MinCapTag_2
+  - Reg_Max
+  - Rsv_Max
 
 default_model_tag: 0
 
@@ -1284,10 +1286,8 @@ generator_columns: [
             "Down_Time",
             "NACC_Eff",
             "NACC_Peak_to_Base",
-            "Reg_Up",
-            "Reg_Dn",
-            "Rsv_Up",
-            "Rsv_Dn",
+            "Reg_Max",
+            "Rsv_Max",
             "Reg_Cost",
             "Rsv_Cost",
             "spur_miles",
