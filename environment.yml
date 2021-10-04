@@ -1,4 +1,4 @@
-name: pg_pudl_update
+name: powergenome
 channels:
   - conda-forge
   - defaults
@@ -16,7 +16,7 @@ dependencies:
   - isort
   - pre-commit
   - conda-forge::nb_conda_kernels
-  # - xlrd=1.2
+  - fastparquet
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona
