@@ -1,7 +1,7 @@
 name: powergenome
 channels:
   - conda-forge
-  - defaults
+  # - defaults
 dependencies:
   - python>=3.8 # Remove for tox.ini & setup.py
   - pip

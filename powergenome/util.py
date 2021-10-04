@@ -120,6 +120,7 @@ def init_pudl_connection(
     pudl_out = pudl.output.pudltabl.PudlTabl(
         freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
     )
+
     if SETTINGS.get("PG_DB"):
         pg_engine = sa.create_engine(SETTINGS["PG_DB"])
     else:
@@ -128,6 +129,7 @@ def init_pudl_connection(
             "`PUDL_DB` path instead."
         )
         pg_engine = sa.create_engine(SETTINGS["PUDL_DB"])
+
 
     return pudl_engine, pudl_out, pg_engine
 
@@ -231,10 +233,17 @@ def remove_fuel_scenario_name(df, settings):
     _df = df.copy()
     scenarios = settings["eia_series_scenario_names"].keys()
     for s in scenarios:
-        _df["Fuel"] = _df["Fuel"].str.replace(f"_{s}", "")
+        _df.columns = _df.columns.str.replace(f"_{s}", "")
 
     return _df
 
+def remove_fuel_gen_scenario_name(df, settings):
+    _df = df.copy()
+    scenarios = settings["eia_series_scenario_names"].keys()
+    for s in scenarios:
+        _df["Fuel"] = _df["Fuel"].str.replace(f"_{s}", "")
+
+    return _df
 
 def write_results_file(df, folder, file_name, include_index=False):
     """Write a finalized dataframe to one of the results csv files.
