@@ -414,13 +414,13 @@ type: Dict[str, Dict[str, Union[str, list]]]
 description: This parameter modifies parameters for ATB technologies in-place (keeping the same name). Top-level keys are user names for each resource and are not used by PowerGenome. Below the top level, a dictionary with the ATB `technology` and `tech_detail` will also include keys of column names that should be modified. The values for each of these keys is a list, where the first value is a string operator name (`add`, `mul`, `truediv`, or `sub`) and the second value is the numeric value.
 
 Valid column names are
-- `Var_OM_cost_per_MWh`
-- `Fixed_OM_cost_per_MWyr`
-- `Fixed_OM_cost_per_MWhyr`
-- `Heat_rate_MMBTU_per_MWh`
-- `capex`
+- `Var_OM_Cost_per_MWh`
+- `Fixed_OM_Cost_per_MWyr`
+- `Fixed_OM_Cost_per_MWhyr`
+- `Heat_Rate_MMBTU_per_MWh`
+- `capex_mw`
 - `capex_mwh`
-- `wacc`
+- `wacc_real`
 
 ### modified_atb_new_gen
 
