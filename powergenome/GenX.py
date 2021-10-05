@@ -185,7 +185,7 @@ def add_misc_gen_values(gen_clusters, settings):
     return gen_clusters
 
 
-def make_genx_settings_file(pudl_engine, settings):
+def make_genx_settings_file(pg_engine, settings, calculated_ces=None):
     """Make a copy of the GenX settings file for a specific case.
 
     This function tries to make some intellegent choices about parameter values like
@@ -196,7 +196,7 @@ def make_genx_settings_file(pudl_engine, settings):
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.Engine
+    pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas to access IPM load profiles. These
         load profiles are needed when DG is calculated as a fraction of load.
     settings : dict
@@ -226,7 +226,7 @@ def make_genx_settings_file(pudl_engine, settings):
         year_case_policy = year_case_policy.squeeze()  # convert to series
 
     if settings.get("distributed_gen_profiles_fn"):
-        dg_generation = make_distributed_gen_profiles(pudl_engine, settings)
+        dg_generation = make_distributed_gen_profiles(pg_engine, settings)
         total_dg_gen = dg_generation.sum().sum()
     else:
         total_dg_gen = 0
@@ -234,6 +234,49 @@ def make_genx_settings_file(pudl_engine, settings):
     if isinstance(year_case_policy, pd.DataFrame):
         year_case_policy = year_case_policy.sum()
 
+    # If a value isn't supplied to the function use value from file
+    if calculated_ces is None:
+        CES = year_case_policy["CES"]
+    else:
+        CES = calculated_ces
+    RPS = year_case_policy["RPS"]
+
+    # THIS WILL NEED TO BE MORE FLEXIBLE FOR OTHER SCENARIOS
+    if float(year_case_policy["CO_2_Max_Mtons"]) >= 0:
+        genx_settings["CO2Cap"] = 2
+    elif float(year_case_policy["CO_2_Max_Mtons"]) == -1:
+        genx_settings["CO2Cap"] = 0
+    else:
+        genx_settings["CO2Cap"] = 0
+
+    if float(year_case_policy["RPS"]) > 0:
+        # print(total_dg_gen)
+        # print(year_case_policy["RPS"])
+        if policies.loc[(case_id, model_year), "region"].all() == "all":
+            genx_settings["RPS"] = 3
+            genx_settings["RPS_Adjustment"] = float((1 - RPS) * total_dg_gen)
+        else:
+            genx_settings["RPS"] = 2
+            genx_settings["RPS_Adjustment"] = 0
+    else:
+        genx_settings["RPS"] = 0
+        genx_settings["RPS_Adjustment"] = 0
+
+    if float(year_case_policy["CES"]) > 0:
+        if policies.loc[(case_id, model_year), "region"].all() == "all":
+            genx_settings["CES"] = 3
+
+            # This is a little confusing but for partial CES
+            if settings.get("partial_ces"):
+                genx_settings["CES_Adjustment"] = 0
+            else:
+                genx_settings["CES_Adjustment"] = float((1 - CES) * total_dg_gen)
+        else:
+            genx_settings["CES"] = 2
+            genx_settings["CES_Adjustment"] = 0
+    else:
+        genx_settings["CES"] = 0
+        genx_settings["CES_Adjustment"] = 0
     # Don't wrap when time domain isn't reduced
     if not settings.get("reduce_time_domain"):
         genx_settings["OperationWrapping"] = 0
@@ -467,7 +510,31 @@ def network_max_reinforcement(
             "This numeric value is included under tx_expansion_per_period. See the "
             "`test_settings.yml` file for an example."
         )
+    # if isinstance(max_expansion, dict):
+    #     expansion_method = settings.get("tx_expansion_method")
+    #     if not expansion_method:
+    #         raise KeyError(
+    #         "The transmission expansion parameter 'tx_expansion_per_period' is a "
+    #         "dictionary. There should also be a settings parameter 'tx_expansion_method' "
+    #         "with a dictionary of model region: <type> (either 'capacity' or 'fraction' "
+    #         "but it isn't in your settings file."
+    #     )
+    #     for region, value in max_expansion.items():
+    #         existing_tx = transmission.query("Region description == @region")["Line_Max_Flow_MW"]
+    #         if expansion_method[region].lower() == "capacity":
+    #             transmission.loc[transmission["Region description"] == region,
+    #             "Line_Max_Reinforcement_MW"] = value
+    #         elif expansion_method[region].lower() == "fraction":
+    #             transmission.loc[transmission["Region description"] == region,
+    #             "Line_Max_Reinforcement_MW"] = value * existing_tx
+    #         else:
+    #             raise KeyError(
+    #             "The transmission expansion method parameter (tx_expansion_method) "
+    #             "should have values of 'capacity' or 'fraction' for each model region. "
+    #             f"The value provided was '{expansion_method[region]}'."
+    #         )
 
+    # else:
     transmission.loc[:, "Line_Max_Reinforcement_MW"] = (
         transmission.loc[:, "Line_Max_Flow_MW"] * max_expansion
     )
@@ -691,7 +758,7 @@ def fix_min_power_values(
     resource_df.loc[mask, min_power_col] = gen_profile_min[mask].round(3)
 
     return resource_df
-
+  
 
 def min_cap_req(settings: dict) -> pd.DataFrame:
     """Create a dataframe of minimum capacity requirements for GenX

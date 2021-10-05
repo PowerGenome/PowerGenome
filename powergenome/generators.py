@@ -345,7 +345,12 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
 
 
 def load_plant_region_map(
-    gens_860, pudl_engine, settings, model_regions_gdf, table="plant_region_map_epaipm"
+    gens_860,
+    pudl_engine,
+    pg_engine,
+    settings,
+    model_regions_gdf,
+    table="plant_region_map_epaipm",
 ):
     """
     Load the region that each plant is located in.
@@ -366,7 +371,7 @@ def load_plant_region_map(
         from the original region labels.
     """
     # Load dataframe of region labels for each EIA plant id
-    region_map_df = pd.read_sql_table(table, con=pudl_engine)
+    region_map_df = pd.read_sql_table(table, con=pg_engine)
 
     if settings.get("plant_region_map_fn"):
         user_region_map_df = pd.read_csv(
@@ -1023,13 +1028,11 @@ def calculate_weighted_heat_rate(heat_rate_df):
         )
         return weighted_hr
 
-    weighted_unit_hr = (
-        heat_rate_df.groupby(["plant_id_eia", "unit_id_pudl"], as_index=False)
-        .apply(w_hr)
-        .reset_index()
+    weighted_unit_hr = heat_rate_df.groupby(["plant_id_eia", "unit_id_pudl"]).apply(
+        w_hr
     )
-
-    weighted_unit_hr = weighted_unit_hr.rename(columns={0: "heat_rate_mmbtu_mwh"})
+    weighted_unit_hr.name = "heat_rate_mmbtu_mwh"
+    weighted_unit_hr = weighted_unit_hr.reset_index()
 
     return weighted_unit_hr
 
@@ -1632,8 +1635,12 @@ def gentype_region_capacity_factor(
     """
     generation = pd.read_sql_query(sql, pudl_engine, parse_dates={"report_date": "%Y"})
 
-    capacity_factor = pudl.helpers.merge_on_date_year(
-        plant_tech_cap, generation, on=["plant_id_eia"], how="left"
+    capacity_factor = pudl.helpers.clean_merge_asof(
+        generation,
+        plant_tech_cap,
+        left_on="report_date",
+        right_on="report_date",
+        by={"plant_id_eia": "eia"},
     )
 
     if settings.get("group_technologies"):
@@ -1953,6 +1960,7 @@ class GeneratorClusters:
         self,
         pudl_engine,
         pudl_out,
+        pg_engine,
         settings,
         current_gens=True,
         sort_gens=False,
@@ -1972,6 +1980,7 @@ class GeneratorClusters:
         """
         self.pudl_engine = pudl_engine
         self.pudl_out = pudl_out
+        self.pg_engine = pg_engine
         self.settings = settings
         self.current_gens = current_gens
         self.sort_gens = sort_gens
@@ -1986,7 +1995,7 @@ class GeneratorClusters:
                 "generators_entity_eia", self.pudl_engine
             )
 
-            bga = self.pudl_out.bga()
+            bga = self.pudl_out.bga_eia860()
             self.bga = bga.loc[
                 bga.report_date.dt.year.isin(self.data_years), :
             ].drop_duplicates(["plant_id_eia", "generator_id"])
@@ -1995,6 +2004,7 @@ class GeneratorClusters:
             self.plant_region_map = load_plant_region_map(
                 self.gens_860,
                 self.pudl_engine,
+                self.pg_engine,
                 self.settings,
                 self.model_regions_gdf,
                 table=plant_region_map_table,
@@ -2018,7 +2028,8 @@ class GeneratorClusters:
         else:
             self.existing_resources = pd.DataFrame()
         self.fuel_prices = fetch_fuel_prices(self.settings)
-        self.atb_hr = fetch_atb_heat_rates(self.pudl_engine, self.settings)
+        self.atb_hr = fetch_atb_heat_rates(self.pg_engine, self.settings)
+        self.coal_fgd = pd.read_csv(DATA_PATHS["coal_fgd"])
 
     def fill_na_heat_rates(self, s):
         """Fill null heat rate values with the median of the series. Not many null
@@ -2275,7 +2286,11 @@ class GeneratorClusters:
             self.units_model.rename(columns={"technology_description": "technology"})
             .query("technology.isin(@techs).values")
             .pipe(
-                atb_fixed_var_om_existing, self.atb_hr, self.settings, self.pudl_engine
+                atb_fixed_var_om_existing,
+                self.atb_hr,
+                self.settings,
+                self.pg_engine,
+                self.coal_fgd,
             )
         )
 
@@ -2535,10 +2550,10 @@ class GeneratorClusters:
 
     def create_new_generators(self):
         self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
-            self.pudl_engine, self.settings
+            self.pg_engine, self.settings
         )
         self.atb_costs = fetch_atb_costs(
-            self.pudl_engine, self.settings, self.offshore_spur_costs
+            self.pg_engine, self.settings, self.offshore_spur_costs
         )
 
         self.new_generators = atb_new_generators(

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def fetch_atb_costs(
-    pudl_engine: sqlalchemy.engine.base.Engine,
+    pg_engine: sqlalchemy.engine.base.Engine,
     settings: dict,
     offshore_spur_costs: pd.DataFrame = None,
 ) -> pd.DataFrame:
@@ -34,7 +34,7 @@ def fetch_atb_costs(
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.Engine
+    pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas
     settings : dict
         User-defined parameters from a settings file. Needs to have keys
@@ -105,7 +105,7 @@ def fetch_atb_costs(
             AND atb_year == {atb_year}
             AND parameter IN ({','.join('?'*len(cost_params))})
         """
-        all_rows.extend(pudl_engine.execute(s, cost_params).fetchall())
+        all_rows.extend(pg_engine.execute(s, cost_params).fetchall())
 
         if tech not in tech_list:
             # ATB2020 summary file provides a single WACC for each technology and a single
@@ -121,7 +121,7 @@ def fetch_atb_costs(
                 AND atb_year == {atb_year}
                 AND parameter == "wacc_real"
             """
-            wacc_rows.extend(pudl_engine.execute(wacc_s).fetchall())
+            wacc_rows.extend(pg_engine.execute(wacc_s).fetchall())
 
         tech_list.append(tech)
 
@@ -134,7 +134,7 @@ def fetch_atb_costs(
         # ATB doesn't have a WACC for battery storage. We use UtilityPV WACC as a default
         # stand-in -- make sure we have it in case.
         s = 'SELECT DISTINCT("technology") from technology_costs_nrelatb WHERE parameter == "wacc_real"'
-        atb_techs = [x[0] for x in pudl_engine.execute(s).fetchall()]
+        atb_techs = [x[0] for x in pg_engine.execute(s).fetchall()]
         battery_wacc_standin = settings.get("atb_battery_wacc")
         battery_tech = [x for x in techs if x[0] == "Battery"][0]
         if isinstance(battery_wacc_standin, float):
@@ -166,7 +166,7 @@ def fetch_atb_costs(
                 AND parameter == "wacc_real"
 
             """
-            b_rows = pudl_engine.execute(wacc_s).fetchall()
+            b_rows = pg_engine.execute(wacc_s).fetchall()
             battery_wacc_rows = [
                 (battery_tech[0], battery_tech[2], b_row[2], b_row[3])
                 for b_row in b_rows
@@ -252,13 +252,13 @@ def fetch_atb_costs(
 
 
 def fetch_atb_offshore_spur_costs(
-    pudl_engine: sqlalchemy.engine.base.Engine, settings: dict
+    pg_engine: sqlalchemy.engine.base.Engine, settings: dict
 ) -> pd.DataFrame:
     """Load offshore spur-line costs and convert to desired dollar-year.
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.Engine
+    pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas
     settings : dict
         User-defined parameters from a settings file. Needs to have keys `atb_data_year`
@@ -270,7 +270,7 @@ def fetch_atb_offshore_spur_costs(
         Total offshore spur line capex from ATB for each technology/tech_detail/
         basis_year/cost_case combination.
     """
-    spur_costs = pd.read_sql_table("offshore_spur_costs_nrelatb", pudl_engine)
+    spur_costs = pd.read_sql_table("offshore_spur_costs_nrelatb", pg_engine)
     spur_costs = spur_costs.loc[spur_costs["atb_year"] == settings["atb_data_year"], :]
 
     atb_target_year = settings["target_usd_year"]
@@ -289,7 +289,7 @@ def fetch_atb_offshore_spur_costs(
 
 
 def fetch_atb_heat_rates(
-    pudl_engine: sqlalchemy.engine.base.Engine, settings: dict
+    pg_engine: sqlalchemy.engine.base.Engine, settings: dict
 ) -> pd.DataFrame:
     """Get heat rate projections for power plants
 
@@ -298,7 +298,7 @@ def fetch_atb_heat_rates(
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.Engine
+    pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas
     settings : dict
         User-defined parameters from a settings file. Needs to have key `atb_data_year`.
@@ -310,7 +310,7 @@ def fetch_atb_heat_rates(
         ['technology', 'tech_detail', 'basis_year', 'heat_rate']
     """
 
-    heat_rates = pd.read_sql_table("technology_heat_rates_nrelatb", pudl_engine)
+    heat_rates = pd.read_sql_table("technology_heat_rates_nrelatb", pg_engine)
     heat_rates = heat_rates.loc[heat_rates["atb_year"] == settings["atb_data_year"], :]
 
     return heat_rates
@@ -320,7 +320,8 @@ def atb_fixed_var_om_existing(
     results: pd.DataFrame,
     atb_hr_df: pd.DataFrame,
     settings: dict,
-    pudl_engine: sqlalchemy.engine.base.Engine,
+    pg_engine: sqlalchemy.engine.base.Engine,
+    coal_fgd_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """Add fixed and variable O&M for existing power plants
 
@@ -390,7 +391,7 @@ def atb_fixed_var_om_existing(
                 .squeeze()
                 .at["heat_rate"]
             )
-        except ValueError:
+        except (ValueError, TypeError):
             # Not all technologies have a heat rate. If they don't, just set both values
             # to 1
             existing_hr = 1
@@ -409,7 +410,7 @@ def atb_fixed_var_om_existing(
                     AND parameter == "variable_o_m_mwh"
 
                 """
-            atb_var_om_mwh = pudl_engine.execute(s).fetchall()[0][0]
+            atb_var_om_mwh = pg_engine.execute(s).fetchall()[0][0]
         except IndexError:
             # logger.warning(f"No variable O&M for {atb_tech}")
             atb_var_om_mwh = 0
@@ -428,7 +429,7 @@ def atb_fixed_var_om_existing(
                     AND parameter == "fixed_o_m_mw"
 
                 """
-            atb_fixed_om_mw_yr = pudl_engine.execute(s).fetchall()[0][0]
+            atb_fixed_om_mw_yr = pg_engine.execute(s).fetchall()[0][0]
         except IndexError:
             # logger.warning(f"No fixed O&M for {atb_tech}")
             atb_fixed_om_mw_yr = 0
@@ -596,9 +597,18 @@ def atb_fixed_var_om_existing(
                 age = settings["model_year"] - _df.operating_date.dt.year
                 age = age.fillna(age.mean())
                 age = age.fillna(40)
+                gen_ids = _df["generator_id"].to_list()
+                fgd = coal_fgd_df.query(
+                    "plant_id_eia == @plant_id & generator_id in @gen_ids"
+                )["fgd"].values
+                if not np.any(fgd):
+                    gen_ids = [g.lstrip("0") for g in gen_ids]
+                    fgd = coal_fgd_df.query(
+                        "plant_id_eia == @plant_id & generator_id in @gen_ids"
+                    )["fgd"].values
 
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
-                annual_capex = (16.53 + (0.126 * age) + (5.68 * 0.5)) * 1000
+                annual_capex = (16.53 + (0.126 * age) + (5.68 * fgd)) * 1000
 
                 if plant_capacity < 500:
                     fixed = 44.21 * 1000
