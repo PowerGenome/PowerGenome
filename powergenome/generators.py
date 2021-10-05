@@ -685,6 +685,7 @@ def supplement_generator_860_data(
         "generator_id",
         # "balancing_authority_code",
         settings["capacity_col"],
+        "capacity_mw",
         "energy_source_code_1",
         "energy_source_code_2",
         "minimum_load_mw",
