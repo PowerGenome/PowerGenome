@@ -29,6 +29,7 @@ DATA_PATHS["eia_860m"] = DATA_PATHS["eia"] / "860m"
 DATA_PATHS["cost_multipliers"] = DATA_PATHS["data"] / "cost_multipliers"
 DATA_PATHS["additional_techs"] = DATA_PATHS["data"] / "additional_technologies"
 DATA_PATHS["coal_fgd"] = DATA_PATHS["data"] / "coal_fgd" / "fgd_output.csv"
+DATA_PATHS["cpi_data"] = DATA_PATHS["data"] / "cpi_data" / "cpi_data.csv"
 
 IPM_SHAPEFILE_PATH = DATA_PATHS["ipm_shapefiles"] / "IPM_Regions_201770405.shp"
 IPM_GEOJSON_PATH = DATA_PATHS["data"] / "ipm_regions_simple.geojson"
@@ -42,13 +43,4 @@ if not SETTINGS["RESOURCE_GROUPS"]:
 else:
     CLUSTER_BUILDER = ClusterBuilder.from_json(
         Path(SETTINGS.get("RESOURCE_GROUPS"), ".").glob("**/*.json")
-)
-
-# "postgresql://catalyst@127.0.0.1/pudl"
-
-# {
-#     'drivername': 'postgresql',
-#     'host': '127.0.0.1',
-#     'username': 'catalyst',
-#     'database': 'pudl'
-# }
+    )
