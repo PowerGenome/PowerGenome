@@ -17,10 +17,8 @@ from powergenome.generators import (
     add_genx_model_tags,
 )
 from powergenome.GenX import (
-    add_emission_policies,
     create_policy_req,
     fix_min_power_values,
-    make_genx_settings_file,
     min_cap_req,
     reduce_time_domain,
     add_misc_gen_values,
@@ -30,7 +28,6 @@ from powergenome.GenX import (
     round_col_values,
     set_int_cols,
     calculate_partial_CES_values,
-    calc_emissions_ces_level,
 )
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
@@ -168,7 +165,6 @@ def main():
     )
 
     check_settings(settings, pg_engine)
-
 
     # Make sure everything in model_regions is either an aggregate region
     # or an IPM region. Will need to change this once we start using non-IPM
@@ -466,18 +462,6 @@ def main():
                     cap_res = create_policy_req(_settings, col_str_match="CapRes")
                 min_cap = min_cap_req(_settings)
 
-                # Change the CES limit for cases where it's emissions based
-                # if "emissions_ces_limit" in _settings:
-                #     network = calc_emissions_ces_level(network, load, _settings)
-
-                # If single-value for CES, use that value for input to GenX
-                # settings creation. This way values that are calculated internally
-                # get used.
-                # if "CES" in network.columns and network["CES"].std() == 0:
-                #    ces = network["CES"].mean()
-                # else:
-                #    ces = None
-
                 write_results_file(
                     df=network,
                     folder=case_folder,
@@ -545,15 +529,8 @@ def main():
                 )
 
             if _settings.get("genx_settings_fn"):
+                shutil.copy(cwd / _settings["genx_settings_fn"], case_folder / "Inputs")
 
-                genx_settings = make_genx_settings_file(
-                    pg_engine, _settings, calculated_ces=ces
-                )
-                write_case_settings_file(
-                    settings=genx_settings,
-                    folder=case_folder,
-                    file_name="GenX_settings.yml",
-                )
             write_case_settings_file(
                 settings=_settings,
                 folder=case_folder,

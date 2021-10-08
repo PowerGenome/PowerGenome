@@ -185,122 +185,6 @@ def add_misc_gen_values(gen_clusters, settings):
     return gen_clusters
 
 
-def make_genx_settings_file(pg_engine, settings, calculated_ces=None):
-    """Make a copy of the GenX settings file for a specific case.
-
-    This function tries to make some intellegent choices about parameter values like
-    the RPS/CES type and can also read values from a file.
-
-    There should be a base-level GenX settings file with parameters like the solver and
-    solver-specific settings that stay constant across all cases.
-
-    Parameters
-    ----------
-    pg_engine : sqlalchemy.Engine
-        A sqlalchemy connection for use by pandas to access IPM load profiles. These
-        load profiles are needed when DG is calculated as a fraction of load.
-    settings : dict
-        User-defined parameters from a settings file. Should have keys of `model_year`
-        `case_id`, 'case_name', `input_folder` (a Path object of where to find
-        user-supplied data), `emission_policies_fn`, 'distributed_gen_profiles_fn'
-        (the files to load in other functions), and 'genx_settings_fn'.
-
-    Returns
-    -------
-    dict
-        Dictionary of settings for a GenX run
-    """
-
-    model_year = settings["model_year"]
-    case_id = settings["case_id"]
-    case_name = settings["case_name"]
-
-    genx_settings = load_settings(settings["genx_settings_fn"])
-    policies = load_policy_scenarios(settings)
-    year_case_policy = policies.loc[(case_id, model_year), :]
-
-    # Bug where multiple regions for a case will return this as a df, even if the policy
-    # for this case applies to all regions (code below expects a Series)
-    ycp_shape = year_case_policy.shape
-    if ycp_shape[0] == 1 and len(ycp_shape) > 1:
-        year_case_policy = year_case_policy.squeeze()  # convert to series
-
-    if settings.get("distributed_gen_profiles_fn"):
-        dg_generation = make_distributed_gen_profiles(pg_engine, settings)
-        total_dg_gen = dg_generation.sum().sum()
-    else:
-        total_dg_gen = 0
-
-    if isinstance(year_case_policy, pd.DataFrame):
-        year_case_policy = year_case_policy.sum()
-
-    # If a value isn't supplied to the function use value from file
-    if calculated_ces is None:
-        CES = year_case_policy["CES"]
-    else:
-        CES = calculated_ces
-    RPS = year_case_policy["RPS"]
-
-    # THIS WILL NEED TO BE MORE FLEXIBLE FOR OTHER SCENARIOS
-    if float(year_case_policy["CO_2_Max_Mtons"]) >= 0:
-        genx_settings["CO2Cap"] = 2
-    elif float(year_case_policy["CO_2_Max_Mtons"]) == -1:
-        genx_settings["CO2Cap"] = 0
-    else:
-        genx_settings["CO2Cap"] = 0
-
-    if float(year_case_policy["RPS"]) > 0:
-        # print(total_dg_gen)
-        # print(year_case_policy["RPS"])
-        if policies.loc[(case_id, model_year), "region"].all() == "all":
-            genx_settings["RPS"] = 3
-            genx_settings["RPS_Adjustment"] = float((1 - RPS) * total_dg_gen)
-        else:
-            genx_settings["RPS"] = 2
-            genx_settings["RPS_Adjustment"] = 0
-    else:
-        genx_settings["RPS"] = 0
-        genx_settings["RPS_Adjustment"] = 0
-
-    if float(year_case_policy["CES"]) > 0:
-        if policies.loc[(case_id, model_year), "region"].all() == "all":
-            genx_settings["CES"] = 3
-
-            # This is a little confusing but for partial CES
-            if settings.get("partial_ces"):
-                genx_settings["CES_Adjustment"] = 0
-            else:
-                genx_settings["CES_Adjustment"] = float((1 - CES) * total_dg_gen)
-        else:
-            genx_settings["CES"] = 2
-            genx_settings["CES_Adjustment"] = 0
-    else:
-        genx_settings["CES"] = 0
-        genx_settings["CES_Adjustment"] = 0
-    # Don't wrap when time domain isn't reduced
-    if not settings.get("reduce_time_domain"):
-        genx_settings["OperationWrapping"] = 0
-
-    genx_settings["case_id"] = case_id
-    genx_settings["case_name"] = case_name
-    genx_settings["year"] = str(model_year)
-
-    # This is a new setting, will need to have a way to change.
-    genx_settings["CapacityReserveMargin"] = 0
-    genx_settings["LDS"] = 0
-
-    # Load user defined values for the genx settigns file. This overrides the
-    # complicated logic above.
-    if settings.get("case_genx_settings_fn"):
-        user_genx_settings = load_user_genx_settings(settings)
-        user_case_settings = user_genx_settings.loc[(case_id, model_year), :]
-        for key, value in user_case_settings.items():
-            if not pd.isna(value):
-                genx_settings[key] = value
-
-    return genx_settings
-
-
 def reduce_time_domain(
     resource_profiles, load_profiles, settings, variable_resources_only=True
 ):
@@ -758,7 +642,7 @@ def fix_min_power_values(
     resource_df.loc[mask, min_power_col] = gen_profile_min[mask].round(3)
 
     return resource_df
-  
+
 
 def min_cap_req(settings: dict) -> pd.DataFrame:
     """Create a dataframe of minimum capacity requirements for GenX
