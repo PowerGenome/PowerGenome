@@ -122,6 +122,7 @@ def add_resource_max_cap_spur(
         "spur_miles": 0,
         capacity_col: -1,
         "interconnect_annuity": 0,
+        "interconnect_capex_mw": 0,
     }
     # Prepare file
     path = Path(settings["input_folder"]) / settings["capacity_limit_spur_fn"]
@@ -139,9 +140,8 @@ def add_resource_max_cap_spur(
     for (region, tech), _df in grouped_df:
         mask = (new_resource_df["region"] == region) & (
             new_resource_df["technology"]
-            .str.lower()
-            .str.replace("_*", "_all")
-            .str.contains(tech.lower().replace("_*", "_all"))
+            .str.replace("_\*", "_all")
+            .str.contains(tech.replace("_\*", "_all"), case=False)
         )
         if mask.sum() > 1:
             resources = new_resource_df.loc[mask, "technology"].to_list()
@@ -150,6 +150,8 @@ def add_resource_max_cap_spur(
                 f"{settings['capacity_limit_spur_fn']} matches multiple resources:"
                 f"\n{resources}"
             )
+        else:
+            pass
         for key, value in defaults.items():
             _key = "max_capacity" if key == capacity_col else key
             new_resource_df.loc[mask & (new_resource_df[key] == value), key] = _df[
@@ -226,7 +228,10 @@ def make_generator_variability(
         return np.ones(8760, dtype=float)
 
     if "profile" in df:
-        hours = df["profile"].apply(profile_len).max()
+        if remove_feb_29:
+            hours = 8760
+        else:
+            hours = df["profile"].apply(profile_len).max()
         kwargs = {"remove_feb_29": remove_feb_29, "hours": hours}
         profiles = np.column_stack(df["profile"].apply(format_profile, **kwargs).values)
     # elif not remove_feb_29:
