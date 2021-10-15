@@ -2222,6 +2222,9 @@ class GeneratorClusters:
             )
         else:
             logger.info("Using unit heat rates from previous round.")
+        self.weighted_unit_hr["unit_id_pudl"] = self.weighted_unit_hr[
+            "unit_id_pudl"
+        ].astype("object")
 
         # Merge the PUDL calculated heat rate data and set the index for easy
         # mapping using plant/prime mover heat rates from 923
