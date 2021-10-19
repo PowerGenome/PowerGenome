@@ -461,7 +461,6 @@ def main():
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
                     cap_res = create_policy_req(_settings, col_str_match="CapRes")
                 min_cap = min_cap_req(_settings)
-
                 write_results_file(
                     df=network,
                     folder=case_folder,

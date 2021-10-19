@@ -117,10 +117,20 @@ def init_pudl_connection(
         start_year = pd.to_datetime(start_year, format="%Y")
     if end_year is not None:
         end_year = pd.to_datetime(end_year + 1, format="%Y")
+    '''
     pudl_out = pudl.output.pudltabl.PudlTabl(
         freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
+        #freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year, ds=""
     )
-
+    '''
+    pudl_out = pudl.output.pudltabl.PudlTabl(
+        freq=freq,
+        pudl_engine=pudl_engine,
+        start_date=start_year,
+        end_date=end_year,
+        ds=pudl.workspace.datastore.Datastore(),
+    )
+    
     if SETTINGS.get("PG_DB"):
         pg_engine = sa.create_engine(SETTINGS["PG_DB"])
     else:

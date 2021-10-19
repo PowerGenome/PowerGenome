@@ -800,7 +800,7 @@ eia_atb_tech_map:
   Biomass: Biopower_Dedicated
   Solar Thermal without Energy Storage: CSP_Class1
   Conventional Steam Coal: Coal_newAvgCF
-  Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF
+  Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF #[NaturalGas_CCAvgCF, NETL_NGCC]
   Natural Gas Fired Combustion Turbine: NaturalGas_CTAvgCF
   Peaker: NaturalGas_CTAvgCF
   Solar Photovoltaic: UtilityPV_LosAngeles
@@ -819,7 +819,7 @@ eia_atb_tech_map:
 # Offshore wind in the west will be floating - OTRG10 maybe.
 # Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
 atb_new_gen:
-  - [NaturalGas, CCCCSAvgCF, Mid, 500]
+  - [NaturalGas, CCCCSAvgCF, Mid, 500] 
   - [NaturalGas, CCAvgCF, Mid, 500]
   - [NaturalGas, CTAvgCF, Mid, 100]
   - [LandbasedWind, LTRG4, Mid, 1]
@@ -833,11 +833,13 @@ atb_new_gen:
 # Provide the filename (no path needed) in the parameter below or "~" for none.
 # All technologies listed in the file will be included in the outputs unless they are
 # also included in "new_gen_not_available".
-additional_technologies_fn: AZ_additional_tech.csv
+additional_technologies_fn: AZ_additional_tech.csv #NETL_Additional_tech.csv
 
 additional_new_gen:
   - Nuclear_mid
   # - NGCCS100_mid
+  # - NETL_NGCC
+  # - NETL+NGCC_CCS
 
 
 # Dictionary of lists with model region as key and ATB tech (string matching) in list
@@ -933,8 +935,8 @@ cost_multiplier_technology_map:
   CT - aeroderivative: []
   CT - industrial frame: [NaturalGas_CTAvgCF, NaturalGas_CTHighCF]
   CC - single shaft: []
-  CC - multi shaft: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF]
-  CC with 90% CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100, NaturalGas_CCS100, NaturalGas_CCS100_low,NaturalGas_CCS100_high ]
+  CC - multi shaft: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF] #, NETL_NGCC] ##
+  CC with 90% CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100, NaturalGas_CCS100, NaturalGas_CCS100_low,NaturalGas_CCS100_high] #, NETL_NGCC_CCS ] ##
   Fuel cells: []
   Advanced nuclear: [Nuclear_*, Nuclear_mid, Nuclear_low, Nuclear_high]
   Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
@@ -1139,6 +1141,7 @@ tech_fuel_map:
 # where the fuel matches something from "aeo_fuel_scenarios" (above
 # ATB: technology_tech_detail.
 ccs_fuel_map:
+  #NETL_NGCC_CCS: naturalgas_ccs90
   NaturalGas_CCS100: naturalgas_ccs100
   NaturalGas_CCCCS: naturalgas_ccs90
   Coal_CCS30: coal_ccs30
