@@ -690,6 +690,7 @@ def supplement_generator_860_data(
         "generator_id",
         # "balancing_authority_code",
         settings["capacity_col"],
+        "capacity_mw",
         "energy_source_code_1",
         "energy_source_code_2",
         "minimum_load_mw",
@@ -726,6 +727,33 @@ def supplement_generator_860_data(
         )
         .merge(bga[bga_cols], on=["plant_id_eia", "generator_id"], how="left")
     )
+
+    gens_860_model.loc[gens_860_model.unit_id_pudl.isnull(), "unit_id_pudl"] = (
+        gens_860_model.loc[gens_860_model.unit_id_pudl.isnull(), "plant_id_eia"].astype(
+            str
+        )
+        + "_"
+        + gens_860_model.loc[
+            gens_860_model.unit_id_pudl.isnull(), "generator_id"
+        ].astype(str)
+    ).to_numpy()
+
+    # Where summer/winter capacity values are missing set equal to nameplate capacity,
+    # but only if all generators within a unit are missing the capacity value
+    check_units = gens_860_model.loc[
+        gens_860_model[settings["capacity_col"]].isna()
+    ].groupby(["plant_id_eia", "unit_id_pudl"])
+    for (plant_id, unit_id), _df in check_units:
+        if _df[settings["capacity_col"]].isna().all():
+            gens_860_model.loc[
+                (gens_860_model["plant_id_eia"] == plant_id)
+                & (gens_860_model["unit_id_pudl"] == unit_id),
+                settings["capacity_col"],
+            ] = gens_860_model.loc[
+                (gens_860_model["plant_id_eia"] == plant_id)
+                & (gens_860_model["unit_id_pudl"] == unit_id),
+                "capacity_mw",
+            ]
 
     merged_capacity = gens_860_model.groupby("technology_description")[
         settings["capacity_col"]
@@ -2194,6 +2222,9 @@ class GeneratorClusters:
             )
         else:
             logger.info("Using unit heat rates from previous round.")
+        self.weighted_unit_hr["unit_id_pudl"] = self.weighted_unit_hr[
+            "unit_id_pudl"
+        ].astype("object")
 
         # Merge the PUDL calculated heat rate data and set the index for easy
         # mapping using plant/prime mover heat rates from 923
