@@ -94,6 +94,146 @@ def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
     return zone_df
 
 
+def create_regional_cap_res(settings: dict) -> pd.DataFrame:
+    """Create a dataframe of regional capacity reserve constraints from settings params
+
+    Parameters
+    ----------
+    settings : dict
+        PowerGenome settings dictionary with parameters 'model_regions' and
+        'regional_capacity_reserves'
+
+    Returns
+    -------
+    pd.DataFrame
+        A dataframe with a 'Network_zones' column and one 'CapRes_*' for each capacity
+        reserve constraint
+
+    Raises
+    ------
+    KeyError
+        If the settings parameter 'regional_capacity_reserves' does not have a key of
+        'model_regions'
+    KeyError
+        If the settings parameter 'regional_capacity_reserves' does not have a key of
+        'capacity_reserve'
+    """
+
+    if not settings.get("regional_capacity_reserves"):
+        return None
+    else:
+        zones = settings["model_regions"]
+        zone_num_map = {
+            zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
+        }
+        cap_res_cols = list(settings["regional_capacity_reserves"])
+        cap_res_df = pd.DataFrame(index=zones, columns=["Network_zones"] + cap_res_cols)
+        cap_res_df["Network_zones"] = cap_res_df.index.map(zone_num_map)
+
+        for col, cap_res_dict in settings["regional_capacity_reserves"].items():
+            if "model_regions" not in list(cap_res_dict):
+                raise KeyError(
+                    "Each CapRes_* within the settings parameter 'regional_capacity_reserves' "
+                    "must have a sub-key 'model_regions', with a list of model regions "
+                    "associated with the CapRes_* constraint. The 'model_regions' key is "
+                    "missing from your settings file."
+                )
+            if "capacity_reserve" not in list(cap_res_dict):
+                raise KeyError(
+                    "Each CapRes_* within the settings parameter 'regional_capacity_reserves' "
+                    "must have a sub-key 'capacity_reserve', with a list of model regions "
+                    "associated with the CapRes_* constraint. The 'capacity_reserve' key is "
+                    "missing from your settings file."
+                )
+            cap_res_df.loc[cap_res_dict["model_regions"], col] = cap_res_dict[
+                "capacity_reserve"
+            ]
+
+        cap_res_df = cap_res_df.fillna(0)
+
+        return cap_res_df
+
+
+def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
+    """Add capacity reserve colums to the transmission dataframe (Network.csv)
+
+    Parameters
+    ----------
+    tx_df : pd.DataFrame
+        Transmission dataframe with a column 'Transmission Path Name'
+    settings : dict
+        PowerGenome settings, with parameters 'model_regions', 'network_cap_res', and
+        'regional_capacity_reserves'
+
+    Returns
+    -------
+    pd.DataFrame
+        A copy of the input dataframe with additional columns 'CapRes_*', 'DerateCapRes_*',
+        and 'CapRes_Excl_*' for each capacity reserve constraint
+    """
+    original_cols = tx_df.columns.to_list()
+
+    zones = settings["model_regions"]
+    zone_num_map = {
+        zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
+    }
+    policy_nums = []
+    excl_dict = {}
+    for cap_res, cap_res_dict in settings.get("network_cap_res", {}).items():
+        cap_res_num = int(cap_res.split("_")[-1])
+        policy_nums.append(cap_res_num)
+        excl_dict[cap_res_num] = []
+        dest_regions = settings["regional_capacity_reserves"][cap_res]["model_regions"]
+        dest_zone_nums = map(zone_num_map, dest_regions)
+
+        for line in cap_res_dict["eligible"]:
+            for r, val in line.items():
+                path_names = [f"{r[0]}_to_{r[1]}", f"{r[1]}_to_{r[0]}"]
+                if f"{r[0]}_to_{r[1]}" in tx_df["Transmission Path Name"].to_list():
+                    tx_df.loc[
+                        tx_df["Transmission Path Name"] == f"{r[0]}_to_{r[1]}", cap_res
+                    ] = val
+
+                    if r[0] in dest_regions or r[1] in dest_regions:
+                        tx_df.loc[
+                            tx_df["Transmission Path Name"] == f"{r[0]}_to_{r[1]}",
+                            f"CapRes_Excl_{cap_res_num}",
+                        ] = -1
+                    else:
+                        tx_df.loc[
+                            tx_df["Transmission Path Name"] == f"{r[0]}_to_{r[1]}",
+                            f"CapRes_Excl_{cap_res_num}",
+                        ] = 1
+                elif f"{r[1]}_to_{r[0]}" in tx_df["Transmission Path Name"].to_list():
+                    tx_df.loc[
+                        tx_df["Transmission Path Name"] == f"{r[1]}_to_{r[0]}", cap_res
+                    ] = val
+                    if r[0] in dest_regions or r[1] in dest_regions:
+                        tx_df.loc[
+                            tx_df["Transmission Path Name"] == f"{r[1]}_to_{r[0]}",
+                            f"CapRes_Excl_{cap_res_num}",
+                        ] = -1
+                    else:
+                        tx_df.loc[
+                            tx_df["Transmission Path Name"] == f"{r[1]}_to_{r[0]}",
+                            f"CapRes_Excl_{cap_res_num}",
+                        ] = 1
+        for line in cap_res_dict["derate"]:
+            for r, val in line.items():
+                path_names = [f"{r[0]}_to_{r[1]}", f"{r[1]}_to_{r[0]}"]
+                tx_df.loc[
+                    tx_df["Transmission Path Name"].isin(path_names),
+                    f"DerateCapRes_{cap_res_num}",
+                ] = val
+
+    policy_nums.sort()
+    capres_cols = [f"CapRes_{n}" for n in policy_nums]
+    derate_cols = [f"DerateCapRes_{n}" for n in policy_nums]
+    excl_cols = [f"CapRes_Excl_{n}" for n in policy_nums]
+
+    return tx_df[original_cols + capres_cols + derate_cols + excl_cols].fillna(0)
+
+
 def add_emission_policies(transmission_df, settings):
     """Add emission policies to the transmission dataframe
 
