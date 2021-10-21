@@ -412,11 +412,13 @@ region_aggregations:
 
 regional_capacity_reserves:
   CapRes_1:
-    model_regions: [CA_N, CA_S]
-    capacity_reserve: 0.137
+    CA_N: 0.137
+    CA_S: 0.137
   CapRes_2:
-    model_regions: [WECC_AZ]
-    capacity_reserve: 0.1
+    WECC_AZ: 0.1
+
+cap_res_network_derate_default: 0.95
+
 
 # CLUSTERING
 # Existing thermal power plants are clusted to reduce the number of distinct plants.
@@ -782,18 +784,6 @@ MinCapReq:
   MinCapTag_2:
     description: CA_S_solar
     min_mw: 10000
-
-network_cap_res:
-  CapRes_1:
-    eligible:
-      - [CA_S, WECC_AZ]: 1
-    derate:
-      - [CA_S, WECC_AZ]: 0.95
-  CapRes_2:
-    eligible:
-      - [CA_S, WECC_AZ]: 1
-    derate:
-      - [CA_S, WECC_AZ]: 0.9
 
 
 # Generator cost data from NREL ATB

@@ -92,7 +92,7 @@ def agg_transmission_constraints(
 
     if tc_joined.empty:
         logger.info(f"No transmission lines exist between model regions {combos}")
-        tc_joined["Transmission Path Name"] = None
+        tc_joined["transmission_path_name"] = None
         tc_joined.rename(columns=zone_num_map, inplace=True)
         return tc_joined.reset_index(drop=True)
 
@@ -111,7 +111,7 @@ def agg_transmission_constraints(
 
     tc_joined.rename(columns=zone_num_map, inplace=True)
     tc_joined = tc_joined.reset_index()
-    tc_joined["Transmission Path Name"] = (
+    tc_joined["transmission_path_name"] = (
         tc_joined["model_region_from"] + "_to_" + tc_joined["model_region_to"]
     )
     # tc_joined = tc_joined.set_index("Transmission Path Name")
@@ -188,7 +188,7 @@ def transmission_line_distance(
 
     distances = [
         single_line_distance(line_name, region_centroids, units=units)
-        for line_name in trans_constraints_df["Transmission Path Name"]
+        for line_name in trans_constraints_df["transmission_path_name"]
     ]
     trans_constraints_df[f"distance_{units}"] = distances
     trans_constraints_df[f"distance_{units}"] = trans_constraints_df[

@@ -3,7 +3,7 @@
 from itertools import product
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 import pandas as pd
 
 from powergenome.external_data import (
@@ -112,11 +112,7 @@ def create_regional_cap_res(settings: dict) -> pd.DataFrame:
     Raises
     ------
     KeyError
-        If the settings parameter 'regional_capacity_reserves' does not have a key of
-        'model_regions'
-    KeyError
-        If the settings parameter 'regional_capacity_reserves' does not have a key of
-        'capacity_reserve'
+        A region listed in a capacity reserve constraint is not a valid model region
     """
 
     if not settings.get("regional_capacity_reserves"):
@@ -131,27 +127,50 @@ def create_regional_cap_res(settings: dict) -> pd.DataFrame:
         cap_res_df["Network_zones"] = cap_res_df.index.map(zone_num_map)
 
         for col, cap_res_dict in settings["regional_capacity_reserves"].items():
-            if "model_regions" not in list(cap_res_dict):
-                raise KeyError(
-                    "Each CapRes_* within the settings parameter 'regional_capacity_reserves' "
-                    "must have a sub-key 'model_regions', with a list of model regions "
-                    "associated with the CapRes_* constraint. The 'model_regions' key is "
-                    "missing from your settings file."
-                )
-            if "capacity_reserve" not in list(cap_res_dict):
-                raise KeyError(
-                    "Each CapRes_* within the settings parameter 'regional_capacity_reserves' "
-                    "must have a sub-key 'capacity_reserve', with a list of model regions "
-                    "associated with the CapRes_* constraint. The 'capacity_reserve' key is "
-                    "missing from your settings file."
-                )
-            cap_res_df.loc[cap_res_dict["model_regions"], col] = cap_res_dict[
-                "capacity_reserve"
-            ]
+            for region, val in cap_res_dict.items():
+                if region not in zones:
+                    raise KeyError(
+                        f"The region {region} in 'regional_capacity_reserves', {col} "
+                        "is not a valid model region."
+                    )
+                cap_res_df.loc[region, col] = val
 
         cap_res_df = cap_res_df.fillna(0)
 
         return cap_res_df
+
+
+def label_cap_res_lines(path_names: List[str], dest_regions: List[str]) -> List[int]:
+    """Label if each transmission line is part of a capacity reserve constraint
+
+    Parameters
+    ----------
+    path_names : List[str]
+        String names of transmission lines, with format <region>_to_<region>
+    dest_regions : List[str]
+        Names of model regions, corresponding to region names used in 'path_names'
+
+    Returns
+    -------
+    List[int]
+        Same length as 'path_names'. Values of 1 mean it connects a region within a
+        capacity reserve constraint to a region outside the constraint. Values of 0 mean
+        it connects two regions that are both within or outside the constraint.
+    """
+    cap_res_list = []
+    for name in path_names:
+        s_r = name.split("_to_")[0]
+        e_r = name.split("_to_")[-1]
+        if (s_r in dest_regions or e_r in dest_regions) and not (
+            s_r in dest_regions and e_r in dest_regions
+        ):
+            cap_res_list.append(1)
+        else:
+            cap_res_list.append(0)
+
+    assert len(cap_res_list) == len(path_names)
+
+    return cap_res_list
 
 
 def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
@@ -160,10 +179,14 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     Parameters
     ----------
     tx_df : pd.DataFrame
-        Transmission dataframe with a column 'Transmission Path Name'
+        Transmission dataframe with rows for each transmission line, a column
+        'transmission_path_name', and columns 'z1', 'z2', etc for each model region. The
+        'z*' columns have values of -1 (line is outbound from region), 0 (not connected),
+        or 1 (inbound to region).
     settings : dict
-        PowerGenome settings, with parameters 'model_regions', 'network_cap_res', and
-        'regional_capacity_reserves'
+        PowerGenome settings, with parameters 'model_regions', 'regional_capacity_reserves',
+        and 'cap_res_network_derate_default'.
+
 
     Returns
     -------
@@ -171,60 +194,47 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         A copy of the input dataframe with additional columns 'CapRes_*', 'DerateCapRes_*',
         and 'CapRes_Excl_*' for each capacity reserve constraint
     """
+    if (
+        "Transmission Path Name" in tx_df.columns
+        and "transmission_path_name" not in tx_df.columns
+    ):
+        tx_df["transmission_path_name"] = tx_df["Transmission Path Name"]
     original_cols = tx_df.columns.to_list()
 
     zones = settings["model_regions"]
     zone_num_map = {
         zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
+    path_names = tx_df["transmission_path_name"].to_list()
     policy_nums = []
-    excl_dict = {}
-    for cap_res, cap_res_dict in settings.get("network_cap_res", {}).items():
+
+    # Loop through capacity reserve constraints (CapRes_*) and determine network
+    # parameters for each
+    for cap_res in settings.get("regional_capacity_reserves", {}):
         cap_res_num = int(cap_res.split("_")[-1])
         policy_nums.append(cap_res_num)
-        excl_dict[cap_res_num] = []
-        dest_regions = settings["regional_capacity_reserves"][cap_res]["model_regions"]
-        dest_zone_nums = map(zone_num_map, dest_regions)
+        dest_regions = list(settings["regional_capacity_reserves"][cap_res].keys())
+        dest_zone_nums = [zone_num_map[reg] for reg in dest_regions]
 
-        for line in cap_res_dict["eligible"]:
-            for r, val in line.items():
-                path_names = [f"{r[0]}_to_{r[1]}", f"{r[1]}_to_{r[0]}"]
-                if f"{r[0]}_to_{r[1]}" in tx_df["Transmission Path Name"].to_list():
-                    tx_df.loc[
-                        tx_df["Transmission Path Name"] == f"{r[0]}_to_{r[1]}", cap_res
-                    ] = val
+        tx_df[cap_res] = label_cap_res_lines(path_names, dest_regions)
 
-                    if r[0] in dest_regions or r[1] in dest_regions:
-                        tx_df.loc[
-                            tx_df["Transmission Path Name"] == f"{r[0]}_to_{r[1]}",
-                            f"CapRes_Excl_{cap_res_num}",
-                        ] = -1
-                    else:
-                        tx_df.loc[
-                            tx_df["Transmission Path Name"] == f"{r[0]}_to_{r[1]}",
-                            f"CapRes_Excl_{cap_res_num}",
-                        ] = 1
-                elif f"{r[1]}_to_{r[0]}" in tx_df["Transmission Path Name"].to_list():
-                    tx_df.loc[
-                        tx_df["Transmission Path Name"] == f"{r[1]}_to_{r[0]}", cap_res
-                    ] = val
-                    if r[0] in dest_regions or r[1] in dest_regions:
-                        tx_df.loc[
-                            tx_df["Transmission Path Name"] == f"{r[1]}_to_{r[0]}",
-                            f"CapRes_Excl_{cap_res_num}",
-                        ] = -1
-                    else:
-                        tx_df.loc[
-                            tx_df["Transmission Path Name"] == f"{r[1]}_to_{r[0]}",
-                            f"CapRes_Excl_{cap_res_num}",
-                        ] = 1
-        for line in cap_res_dict["derate"]:
-            for r, val in line.items():
-                path_names = [f"{r[0]}_to_{r[1]}", f"{r[1]}_to_{r[0]}"]
-                tx_df.loc[
-                    tx_df["Transmission Path Name"].isin(path_names),
-                    f"DerateCapRes_{cap_res_num}",
-                ] = val
+        # May add ability to have different values by CapRes and line in the future
+        tx_df[f"DerateCapRes_{cap_res_num}"] = settings.get(
+            "cap_res_network_derate_default", 0.95
+        )
+
+        excl_list = []
+        for idx, row in tx_df.iterrows():
+            if ((row[dest_zone_nums] != 0).all() and len(dest_zone_nums) > 1) or (
+                row[dest_zone_nums] == 0
+            ).sum() == len(dest_zone_nums):
+                excl_list.append(0)
+            else:
+                for zone_num, reg in zip(dest_zone_nums, dest_regions):
+                    if reg in row["transmission_path_name"] and row[zone_num] != 0:
+                        excl_list.append(row[zone_num])
+
+        tx_df[f"CapRes_Excl_{cap_res_num}"] = excl_list
 
     policy_nums.sort()
     capres_cols = [f"CapRes_{n}" for n in policy_nums]
@@ -440,7 +450,7 @@ def network_reinforcement_cost(
     Parameters
     ----------
     transmission : pd.DataFrame
-        One network line per row with columns "Transmission Path Name" and
+        One network line per row with columns "transmission_path_name" and
         "distance_mile".
     settings : dict
         User-defined settings with dictionary "transmission_investment_cost.tx" with
@@ -465,10 +475,10 @@ def network_reinforcement_cost(
             "example."
         )
     origin_region_cost = (
-        transmission["Transmission Path Name"].str.split("_to_").str[0].map(cost_dict)
+        transmission["transmission_path_name"].str.split("_to_").str[0].map(cost_dict)
     )
     dest_region_cost = (
-        transmission["Transmission Path Name"].str.split("_to_").str[-1].map(cost_dict)
+        transmission["transmission_path_name"].str.split("_to_").str[-1].map(cost_dict)
     )
 
     # Average the costs per mile between origin and destination regions
