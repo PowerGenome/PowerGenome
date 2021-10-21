@@ -637,7 +637,11 @@ def load_generator_860_data(pudl_engine, data_years=[2017]):
 
 
 def supplement_generator_860_data(
-    gens_860, gens_entity, bga, model_region_map, settings
+    gens_860: pd.DataFrame,
+    gens_entity: pd.DataFrame,
+    bga: pd.DataFrame,
+    model_region_map: pd.DataFrame,
+    settings: dict,
 ):
     """
     Load data about each generating unit in the model area.
@@ -759,9 +763,11 @@ def supplement_generator_860_data(
         settings["capacity_col"]
     ].sum()
     if not np.allclose(initial_capacity.sum(), merged_capacity.sum()):
-        logger.warning(
-            f"Capacity changed from {initial_capacity} \nto \n{merged_capacity}"
-        )
+        for i_idx, i_row in initial_capacity.iteritems():
+            if not np.allclose(i_row, merged_capacity[i_idx]):
+                logger.warning(
+                    f"Technology {i_idx} changed capacity from {i_row} to {merged_capacity[i_idx]}"
+                )
 
     return gens_860_model
 
