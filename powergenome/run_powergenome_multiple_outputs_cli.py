@@ -17,7 +17,9 @@ from powergenome.generators import (
     add_genx_model_tags,
 )
 from powergenome.GenX import (
+    add_cap_res_network,
     create_policy_req,
+    create_regional_cap_res,
     fix_min_power_values,
     min_cap_req,
     reduce_time_domain,
@@ -448,6 +450,7 @@ def main():
                     .pipe(network_reinforcement_cost, settings=_settings)
                     .pipe(set_int_cols)
                     .pipe(round_col_values)
+                    .pipe(add_cap_res_network, settings=_settings)
                 )
                 zones = settings["model_regions"]
                 network_zones = [f"z{n+1}" for n in range(len(zones))]
@@ -459,8 +462,13 @@ def main():
                     # network = add_emission_policies(transmission, _settings)
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
-                    cap_res = create_policy_req(_settings, col_str_match="CapRes")
                 min_cap = min_cap_req(_settings)
+<<<<<<< HEAD
+=======
+
+                cap_res = create_regional_cap_res(_settings)
+
+>>>>>>> 3565b926f9284784580e1019075ea763ebdde650
                 write_results_file(
                     df=network,
                     folder=case_folder,
@@ -475,8 +483,6 @@ def main():
                         include_index=False,
                     )
                 if cap_res is not None:
-                    cap_res = cap_res.set_index("Region_description")
-                    cap_res.index.name = None
                     write_results_file(
                         df=cap_res,
                         folder=case_folder,

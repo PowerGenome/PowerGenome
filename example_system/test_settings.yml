@@ -410,6 +410,14 @@ region_aggregations:
   CA_S: [WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
 
 
+regional_capacity_reserves:
+  CapRes_1:
+    model_regions: [CA_N, CA_S]
+    capacity_reserve: 0.137
+  CapRes_2:
+    model_regions: [WECC_AZ]
+    capacity_reserve: 0.1
+
 # CLUSTERING
 # Existing thermal power plants are clusted to reduce the number of distinct plants.
 # The existing method (for now) is to specify the number of clusters for each type
@@ -555,6 +563,7 @@ model_tag_names:
   - New_Build
   - Hydro_level
   - CapRes_1
+  - CapRes_2
   - Hydro_Energy_to_Power_Ratio
   - MinCapTag_1
   - MinCapTag_2
@@ -698,7 +707,51 @@ model_tag_values:
     Biopower_: 0.9
     Nuclear_: 0.9
     CSP_: 0.9
-    NGCCS0.900: 0.9
+    NGCCS100: 0.9
+    OffshoreWind: 0.8
+    LandbasedWind: 0.8
+    UtilityPV: 0.8
+    Conventional Hydroelectric: 0.8
+    Onshore Wind: 0.8
+    Small Hydroelectric: 0.8
+    Solar Photovoltaic: 0.8
+    Battery: 0.95
+    Hydroelectric Pumped Storage: 0.95
+    ev_load_shifting: 0.95
+  CapRes_2:
+    Conventional Steam Coal: 0.9
+    Natural Gas Fired Combined Cycle: 0.9
+    Natural Gas Fired Combustion Turbine: 0.9
+    Petroleum Liquids: 0.9
+    Natural Gas Internal Combustion Engine: 0.9
+    Nuclear: 0.9
+    Natural Gas Steam Turbine: 0.9
+    Wood/Wood Waste Biomass: 0.9
+    Petroleum Coke: 0.9
+    Geothermal: 0.9
+    Municipal Solid Waste: 0.9
+    Landfill Gas: 0.9
+    Coal Integrated Gasification Combined Cycle: 0.9
+    Other Waste Biomass: 0.9
+    Other Gases: 0.9
+    Other Natural Gas: 0.9
+    Other_peaker: 0.9 # Is there any way to do this based on the underlying categories?
+    Biomass: 0.9
+    NaturalGas_: 0.9
+    Biopower_: 0.9
+    Nuclear_: 0.9
+    CSP_: 0.9
+    NGCCS100: 0.9
+    OffshoreWind: 0.8
+    LandbasedWind: 0.8
+    UtilityPV: 0.8
+    Conventional Hydroelectric: 0.8
+    Onshore Wind: 0.8
+    Small Hydroelectric: 0.8
+    Solar Photovoltaic: 0.8
+    Battery: 0.95
+    Hydroelectric Pumped Storage: 0.95
+    ev_load_shifting: 0.95
   Hydro_Energy_to_Power_Ratio:
     Conventional Hydroelectric: 158.7301587
   MUST_RUN:
@@ -729,6 +782,19 @@ MinCapReq:
   MinCapTag_2:
     description: CA_S_solar
     min_mw: 10000
+
+network_cap_res:
+  CapRes_1:
+    eligible:
+      - [CA_S, WECC_AZ]: 1
+    derate:
+      - [CA_S, WECC_AZ]: 0.95
+  CapRes_2:
+    eligible:
+      - [CA_S, WECC_AZ]: 1
+    derate:
+      - [CA_S, WECC_AZ]: 0.9
+
 
 # Generator cost data from NREL ATB
 
@@ -1225,6 +1291,7 @@ generator_columns: [
             "Zone",
             "Num_VRE_Bins",
             "CapRes_1",
+            "CapRes_2",
             "THERM",
             "VRE",
             "MUST_RUN",
