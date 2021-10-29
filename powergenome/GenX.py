@@ -50,9 +50,17 @@ def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
     if len(policy_cols) == 0:
         return None
 
-    year_case_policy = policies.loc[
-        (case_id, model_year), ["region"] + policy_cols
-    ].dropna(subset=policy_cols)
+    year_case_policy = policies.loc[(case_id, model_year), ["region"] + policy_cols]
+    if isinstance(year_case_policy, pd.DataFrame):
+        year_case_policy = year_case_policy.dropna(subset=policy_cols)
+    elif isinstance(year_case_policy, pd.Series):
+        year_case_policy = year_case_policy.dropna()
+    else:
+        raise TypeError(
+            "Somehow the object 'year_case_policy' is not a dataframe of a series."
+            "Please submit this as an issue in the PowerGenome repository."
+            f"{year_case_policy}"
+        )
     # Bug where multiple regions for a case will return this as a df, even if the policy
     # for this case applies to all regions (code below expects a Series)
     ycp_shape = year_case_policy.shape
