@@ -463,12 +463,9 @@ def main():
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
                 min_cap = min_cap_req(_settings)
-<<<<<<< HEAD
-=======
 
                 cap_res = create_regional_cap_res(_settings)
 
->>>>>>> 3565b926f9284784580e1019075ea763ebdde650
                 write_results_file(
                     df=network,
                     folder=case_folder,
