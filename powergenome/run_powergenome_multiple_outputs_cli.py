@@ -533,6 +533,12 @@ def main():
             if _settings.get("genx_settings_fn"):
                 shutil.copy(cwd / _settings["genx_settings_fn"], case_folder / "Inputs")
 
+            if _settings.get("genx_settings_folder"):
+                genx_settings_folder = case_folder / "Settings"
+                genx_settings_folder.mkdir(exist_ok=True)
+                for f in (cwd / _settings.get("genx_settings_folder")).glob("*.yml"):
+                    shutil.copy(f, genx_settings_folder)
+
             write_case_settings_file(
                 settings=_settings,
                 folder=case_folder,
