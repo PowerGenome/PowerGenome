@@ -7,7 +7,7 @@ import collections
 import logging
 import operator
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -762,7 +762,13 @@ def investment_cost_calculator(capex, wacc, cap_rec_years):
     return inv_cost
 
 
-def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipliers):
+def regional_capex_multiplier(
+    df: pd.DataFrame,
+    region: str,
+    region_map: Dict[str, str],
+    tech_map: Dict[str, str],
+    regional_multipliers: pd.DataFrame,
+) -> pd.DataFrame:
 
     cost_region = region_map[region]
     tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
@@ -777,7 +783,17 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
                 df["technology"].str.contains(atb_tech).idxmax(), "technology"
             ]
             tech_multiplier_map[full_atb_tech] = tech_multiplier.at[eia_tech]
-
+        if df["technology"].str.contains(atb_tech).sum() > 1:
+            s = f"""
+    ***************************
+    There is an issue with assigning regional cost multipliers. In your settings file
+    under the parameter 'cost_multiplier_technology_map`, the EIA technology '{eia_tech}'
+    has an ATB technology '{atb_tech}'. This ATB name matches more than one new ATB tech
+    listed in the settings parameter 'atb_new_gen'. Only the first matching tech in
+    'atb_new_gen' will get a valid regional cost multiplier; the rest will have values of
+    0, which will lead to annual investment costs of $0.
+        """
+            logger.warning(s)
     df["Inv_Cost_per_MWyr"] *= df["technology"].map(tech_multiplier_map)
     df["Inv_Cost_per_MWhyr"] *= df["technology"].map(tech_multiplier_map)
     df["regional_cost_multiplier"] = df["technology"].map(tech_multiplier_map)
