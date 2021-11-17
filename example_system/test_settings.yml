@@ -1000,7 +1000,7 @@ cost_multiplier_technology_map:
   Solar thermal: [CSP]
   Solar PV - tracking: [UtilityPV, CommPV, ResPV]
   Battery storage: [Battery_*]
-  Geothermal: [Geothermal]
+  Geothermal: [Geothermal_HydroBinary, Geothermal_HydroFlash, Geothermal_NFEGSBinary, Geothermal_DeepEGSBinary, Geothermal_NFEGSFlash, Geothermal_DeepEGSFlash]
   Conventional hydropower: [Hydropower]
 
 
