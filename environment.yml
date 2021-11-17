@@ -1,11 +1,11 @@
 name: powergenome
 channels:
   - conda-forge
-  - defaults
+  # - defaults
 dependencies:
-  - python=3.7 # Remove for tox.ini & setup.py
+  - python>=3.8 # Remove for tox.ini & setup.py
   - pip
-  - conda-forge::catalystcoop.pudl=0.3
+  - conda-forge::catalystcoop.pudl=0.4
   - jupyterlab
   - black
   - pytest
@@ -16,7 +16,7 @@ dependencies:
   - isort
   - pre-commit
   - conda-forge::nb_conda_kernels
-  - xlrd=1.2
+  - fastparquet
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona

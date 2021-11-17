@@ -7,7 +7,7 @@ import collections
 import logging
 import operator
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def fetch_atb_costs(
-    pudl_engine: sqlalchemy.engine.base.Engine,
+    pg_engine: sqlalchemy.engine.base.Engine,
     settings: dict,
     offshore_spur_costs: pd.DataFrame = None,
 ) -> pd.DataFrame:
@@ -34,7 +34,7 @@ def fetch_atb_costs(
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.Engine
+    pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas
     settings : dict
         User-defined parameters from a settings file. Needs to have keys
@@ -105,7 +105,7 @@ def fetch_atb_costs(
             AND atb_year == {atb_year}
             AND parameter IN ({','.join('?'*len(cost_params))})
         """
-        all_rows.extend(pudl_engine.execute(s, cost_params).fetchall())
+        all_rows.extend(pg_engine.execute(s, cost_params).fetchall())
 
         if tech not in tech_list:
             # ATB2020 summary file provides a single WACC for each technology and a single
@@ -121,7 +121,7 @@ def fetch_atb_costs(
                 AND atb_year == {atb_year}
                 AND parameter == "wacc_real"
             """
-            wacc_rows.extend(pudl_engine.execute(wacc_s).fetchall())
+            wacc_rows.extend(pg_engine.execute(wacc_s).fetchall())
 
         tech_list.append(tech)
 
@@ -134,7 +134,7 @@ def fetch_atb_costs(
         # ATB doesn't have a WACC for battery storage. We use UtilityPV WACC as a default
         # stand-in -- make sure we have it in case.
         s = 'SELECT DISTINCT("technology") from technology_costs_nrelatb WHERE parameter == "wacc_real"'
-        atb_techs = [x[0] for x in pudl_engine.execute(s).fetchall()]
+        atb_techs = [x[0] for x in pg_engine.execute(s).fetchall()]
         battery_wacc_standin = settings.get("atb_battery_wacc")
         battery_tech = [x for x in techs if x[0] == "Battery"][0]
         if isinstance(battery_wacc_standin, float):
@@ -166,7 +166,7 @@ def fetch_atb_costs(
                 AND parameter == "wacc_real"
 
             """
-            b_rows = pudl_engine.execute(wacc_s).fetchall()
+            b_rows = pg_engine.execute(wacc_s).fetchall()
             battery_wacc_rows = [
                 (battery_tech[0], battery_tech[2], b_row[2], b_row[3])
                 for b_row in b_rows
@@ -252,13 +252,13 @@ def fetch_atb_costs(
 
 
 def fetch_atb_offshore_spur_costs(
-    pudl_engine: sqlalchemy.engine.base.Engine, settings: dict
+    pg_engine: sqlalchemy.engine.base.Engine, settings: dict
 ) -> pd.DataFrame:
     """Load offshore spur-line costs and convert to desired dollar-year.
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.Engine
+    pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas
     settings : dict
         User-defined parameters from a settings file. Needs to have keys `atb_data_year`
@@ -270,7 +270,7 @@ def fetch_atb_offshore_spur_costs(
         Total offshore spur line capex from ATB for each technology/tech_detail/
         basis_year/cost_case combination.
     """
-    spur_costs = pd.read_sql_table("offshore_spur_costs_nrelatb", pudl_engine)
+    spur_costs = pd.read_sql_table("offshore_spur_costs_nrelatb", pg_engine)
     spur_costs = spur_costs.loc[spur_costs["atb_year"] == settings["atb_data_year"], :]
 
     atb_target_year = settings["target_usd_year"]
@@ -289,7 +289,7 @@ def fetch_atb_offshore_spur_costs(
 
 
 def fetch_atb_heat_rates(
-    pudl_engine: sqlalchemy.engine.base.Engine, settings: dict
+    pg_engine: sqlalchemy.engine.base.Engine, settings: dict
 ) -> pd.DataFrame:
     """Get heat rate projections for power plants
 
@@ -298,7 +298,7 @@ def fetch_atb_heat_rates(
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.Engine
+    pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas
     settings : dict
         User-defined parameters from a settings file. Needs to have key `atb_data_year`.
@@ -310,7 +310,7 @@ def fetch_atb_heat_rates(
         ['technology', 'tech_detail', 'basis_year', 'heat_rate']
     """
 
-    heat_rates = pd.read_sql_table("technology_heat_rates_nrelatb", pudl_engine)
+    heat_rates = pd.read_sql_table("technology_heat_rates_nrelatb", pg_engine)
     heat_rates = heat_rates.loc[heat_rates["atb_year"] == settings["atb_data_year"], :]
 
     return heat_rates
@@ -320,7 +320,7 @@ def atb_fixed_var_om_existing(
     results: pd.DataFrame,
     atb_hr_df: pd.DataFrame,
     settings: dict,
-    pudl_engine: sqlalchemy.engine.base.Engine,
+    pg_engine: sqlalchemy.engine.base.Engine,
     coal_fgd_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """Add fixed and variable O&M for existing power plants
@@ -334,7 +334,7 @@ def atb_fixed_var_om_existing(
     ----------
     results : DataFrame
         Compiled results of clustered power plants with weighted average heat rates.
-        Note that column names should include "technology", "Heat_rate_MMBTU_per_MWh",
+        Note that column names should include "technology", "Heat_Rate_MMBTU_per_MWh",
         and "region". Technology names should not yet be converted to snake case.
     atb_hr_df : DataFrame
         Heat rate data from NREL ATB
@@ -345,7 +345,7 @@ def atb_fixed_var_om_existing(
     -------
     DataFrame
         Same as incoming "results" dataframe but with new columns
-        "Fixed_OM_cost_per_MWyr" and "Var_OM_cost_per_MWh"
+        "Fixed_OM_Cost_per_MWyr" and "Var_OM_Cost_per_MWh"
     """
     logger.info("Adding fixed and variable O&M for existing plants")
 
@@ -391,7 +391,7 @@ def atb_fixed_var_om_existing(
                 .squeeze()
                 .at["heat_rate"]
             )
-        except ValueError:
+        except (ValueError, TypeError):
             # Not all technologies have a heat rate. If they don't, just set both values
             # to 1
             existing_hr = 1
@@ -410,7 +410,7 @@ def atb_fixed_var_om_existing(
                     AND parameter == "variable_o_m_mwh"
 
                 """
-            atb_var_om_mwh = pudl_engine.execute(s).fetchall()[0][0]
+            atb_var_om_mwh = pg_engine.execute(s).fetchall()[0][0]
         except IndexError:
             # logger.warning(f"No variable O&M for {atb_tech}")
             atb_var_om_mwh = 0
@@ -429,7 +429,7 @@ def atb_fixed_var_om_existing(
                     AND parameter == "fixed_o_m_mw"
 
                 """
-            atb_fixed_om_mw_yr = pudl_engine.execute(s).fetchall()[0][0]
+            atb_fixed_om_mw_yr = pg_engine.execute(s).fetchall()[0][0]
         except IndexError:
             # logger.warning(f"No fixed O&M for {atb_tech}")
             atb_fixed_om_mw_yr = 0
@@ -521,10 +521,10 @@ def atb_fixed_var_om_existing(
                     fixed = 11.68 * 1000
                     variable = 3.37
 
-                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
+                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
                     fixed, 2017, target_usd_year
                 )
-                _df["Var_OM_cost_per_MWh"] = inflation_price_adjustment(
+                _df["Var_OM_Cost_per_MWh"] = inflation_price_adjustment(
                     variable, 2017, target_usd_year
                 )
 
@@ -540,7 +540,7 @@ def atb_fixed_var_om_existing(
                 op, op_value = (
                     settings.get("atb_modifiers", {})
                     .get("ngct", {})
-                    .get("Var_OM_cost_per_MWh", (None, None))
+                    .get("Var_OM_Cost_per_MWh", (None, None))
                 )
 
                 if op:
@@ -561,10 +561,10 @@ def atb_fixed_var_om_existing(
 
                 fixed = fixed - (variable * 8760 * 0.04)
 
-                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
+                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
                     fixed, 2017, target_usd_year
                 )
-                _df["Var_OM_cost_per_MWh"] = inflation_price_adjustment(
+                _df["Var_OM_Cost_per_MWh"] = inflation_price_adjustment(
                     variable, 2017, target_usd_year
                 )
 
@@ -582,10 +582,10 @@ def atb_fixed_var_om_existing(
                     annual_capex = 10.82 * 1000
                     fixed = annual_capex + 14.51 * 1000
 
-                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
+                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
                     fixed, 2017, target_usd_year
                 )
-                _df["Var_OM_cost_per_MWh"] = simple_o_m["Natural Gas Steam Turbine"][
+                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Natural Gas Steam Turbine"][
                     "variable_o_m_mwh"
                 ]
 
@@ -619,27 +619,27 @@ def atb_fixed_var_om_existing(
                 else:
                     fixed = 33.27 * 1000
 
-                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
+                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
                     fixed + annual_capex, 2017, target_usd_year
                 )
-                _df["Var_OM_cost_per_MWh"] = simple_o_m["Coal"]["variable_o_m_mwh"]
+                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Coal"]["variable_o_m_mwh"]
             if "Hydroelectric" in eia_tech:
-                _df["Fixed_OM_cost_per_MWyr"] = simple_o_m[
+                _df["Fixed_OM_Cost_per_MWyr"] = simple_o_m[
                     "Conventional Hydroelectric"
                 ]["fixed_o_m_mw"]
-                _df["Var_OM_cost_per_MWh"] = simple_o_m["Conventional Hydroelectric"][
+                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Conventional Hydroelectric"][
                     "variable_o_m_mwh"
                 ]
             if "Geothermal" in eia_tech:
-                _df["Fixed_OM_cost_per_MWyr"] = simple_o_m["Geothermal"]["fixed_o_m_mw"]
-                _df["Var_OM_cost_per_MWh"] = simple_o_m["Geothermal"][
+                _df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Geothermal"]["fixed_o_m_mw"]
+                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Geothermal"][
                     "variable_o_m_mwh"
                 ]
             if "Pumped" in eia_tech:
-                _df["Fixed_OM_cost_per_MWyr"] = simple_o_m["Pumped Hydro"][
+                _df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Pumped Hydro"][
                     "fixed_o_m_mw"
                 ]
-                _df["Var_OM_cost_per_MWh"] = simple_o_m["Pumped Hydro"][
+                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Pumped Hydro"][
                     "variable_o_m_mwh"
                 ]
             if "Nuclear" in eia_tech:
@@ -668,26 +668,26 @@ def atb_fixed_var_om_existing(
                 # fixed[age < 30] *= 27 * 1000
                 # fixed[age >= 30] *= (27+37) * 1000
 
-                _df["Fixed_OM_cost_per_MWyr"] = inflation_price_adjustment(
+                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
                     fixed, 2015, target_usd_year
                 )
-                _df["Var_OM_cost_per_MWh"] = atb_var_om_mwh * (
+                _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (
                     existing_hr / new_build_hr
                 )
 
         else:
-            _df["Fixed_OM_cost_per_MWyr"] = atb_fixed_om_mw_yr
-            _df["Var_OM_cost_per_MWh"] = atb_var_om_mwh * (existing_hr / new_build_hr)
+            _df["Fixed_OM_Cost_per_MWyr"] = atb_fixed_om_mw_yr
+            _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (existing_hr / new_build_hr)
 
         df_list.append(_df)
 
     mod_results = pd.concat(df_list, ignore_index=True)
     # mod_results = mod_results.sort_values(["model_region", "technology", "cluster"])
-    mod_results.loc[:, "Fixed_OM_cost_per_MWyr"] = mod_results.loc[
-        :, "Fixed_OM_cost_per_MWyr"
+    mod_results.loc[:, "Fixed_OM_Cost_per_MWyr"] = mod_results.loc[
+        :, "Fixed_OM_Cost_per_MWyr"
     ].astype(int)
-    mod_results.loc[:, "Var_OM_cost_per_MWh"] = mod_results.loc[
-        :, "Var_OM_cost_per_MWh"
+    mod_results.loc[:, "Var_OM_Cost_per_MWh"] = mod_results.loc[
+        :, "Var_OM_Cost_per_MWh"
     ]
 
     return mod_results
@@ -762,7 +762,13 @@ def investment_cost_calculator(capex, wacc, cap_rec_years):
     return inv_cost
 
 
-def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipliers):
+def regional_capex_multiplier(
+    df: pd.DataFrame,
+    region: str,
+    region_map: Dict[str, str],
+    tech_map: Dict[str, str],
+    regional_multipliers: pd.DataFrame,
+) -> pd.DataFrame:
 
     cost_region = region_map[region]
     tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
@@ -777,9 +783,19 @@ def regional_capex_multiplier(df, region, region_map, tech_map, regional_multipl
                 df["technology"].str.contains(atb_tech).idxmax(), "technology"
             ]
             tech_multiplier_map[full_atb_tech] = tech_multiplier.at[eia_tech]
-
-    df["Inv_cost_per_MWyr"] *= df["technology"].map(tech_multiplier_map)
-    df["Inv_cost_per_MWhyr"] *= df["technology"].map(tech_multiplier_map)
+        if df["technology"].str.contains(atb_tech).sum() > 1:
+            s = f"""
+    ***************************
+    There is an issue with assigning regional cost multipliers. In your settings file
+    under the parameter 'cost_multiplier_technology_map`, the EIA technology '{eia_tech}'
+    has an ATB technology '{atb_tech}'. This ATB name matches more than one new ATB tech
+    listed in the settings parameter 'atb_new_gen'. Only the first matching tech in
+    'atb_new_gen' will get a valid regional cost multiplier; the rest will have values of
+    0, which will lead to annual investment costs of $0.
+        """
+            logger.warning(s)
+    df["Inv_Cost_per_MWyr"] *= df["technology"].map(tech_multiplier_map)
+    df["Inv_Cost_per_MWhyr"] *= df["technology"].map(tech_multiplier_map)
     df["regional_cost_multiplier"] = df["technology"].map(tech_multiplier_map)
 
     return df
@@ -879,9 +895,9 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     -------
     DataFrame
         New generating resources in every region. Contains the columns:
-        ['technology', 'basis_year', 'Fixed_OM_cost_per_MWyr',
-       'Fixed_OM_cost_per_MWhyr', 'Var_OM_cost_per_MWh', 'capex', 'capex_mwh',
-       'Inv_cost_per_MWyr', 'Inv_cost_per_MWhyr', 'Heat_rate_MMBTU_per_MWh',
+        ['technology', 'basis_year', 'Fixed_OM_Cost_per_MWyr',
+       'Fixed_OM_Cost_per_MWhyr', 'Var_OM_Cost_per_MWh', 'capex', 'capex_mwh',
+       'Inv_Cost_per_MWyr', 'Inv_Cost_per_MWhyr', 'Heat_Rate_MMBTU_per_MWh',
        'Cap_size', 'region']
     """
     logger.info("Creating new resources for each region.")
@@ -934,10 +950,10 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
     new_gen_df = new_gen_df.rename(
         columns={
-            "heat_rate": "Heat_rate_MMBTU_per_MWh",
-            "fixed_o_m_mw": "Fixed_OM_cost_per_MWyr",
-            "fixed_o_m_mwh": "Fixed_OM_cost_per_MWhyr",
-            "variable_o_m_mwh": "Var_OM_cost_per_MWh",
+            "heat_rate": "Heat_Rate_MMBTU_per_MWh",
+            "fixed_o_m_mw": "Fixed_OM_Cost_per_MWyr",
+            "fixed_o_m_mwh": "Fixed_OM_Cost_per_MWhyr",
+            "variable_o_m_mwh": "Var_OM_Cost_per_MWh",
         }
     )
 
@@ -1005,13 +1021,13 @@ def atb_new_generators(atb_costs, atb_hr, settings):
             "cap_recovery_years",
         ] = years
 
-    new_gen_df["Inv_cost_per_MWyr"] = investment_cost_calculator(
+    new_gen_df["Inv_Cost_per_MWyr"] = investment_cost_calculator(
         capex=new_gen_df["capex_mw"],
         wacc=new_gen_df["wacc_real"],
         cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
-    new_gen_df["Inv_cost_per_MWhyr"] = investment_cost_calculator(
+    new_gen_df["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
         capex=new_gen_df["capex_mwh"],
         wacc=new_gen_df["wacc_real"],
         cap_rec_years=new_gen_df["cap_recovery_years"],
@@ -1020,14 +1036,14 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     keep_cols = [
         "technology",
         "basis_year",
-        "Fixed_OM_cost_per_MWyr",
-        "Fixed_OM_cost_per_MWhyr",
-        "Var_OM_cost_per_MWh",
+        "Fixed_OM_Cost_per_MWyr",
+        "Fixed_OM_Cost_per_MWhyr",
+        "Var_OM_Cost_per_MWh",
         "capex_mw",
         "capex_mwh",
-        "Inv_cost_per_MWyr",
-        "Inv_cost_per_MWhyr",
-        "Heat_rate_MMBTU_per_MWh",
+        "Inv_Cost_per_MWyr",
+        "Inv_Cost_per_MWhyr",
+        "Heat_Rate_MMBTU_per_MWh",
         "Cap_size",
         "cap_recovery_years",
         "wacc_real",
@@ -1076,15 +1092,15 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     results = pd.concat(df_list, ignore_index=True, sort=False)
 
     int_cols = [
-        "Fixed_OM_cost_per_MWyr",
-        "Fixed_OM_cost_per_MWhyr",
-        "Inv_cost_per_MWyr",
-        "Inv_cost_per_MWhyr",
+        "Fixed_OM_Cost_per_MWyr",
+        "Fixed_OM_Cost_per_MWhyr",
+        "Inv_Cost_per_MWyr",
+        "Inv_Cost_per_MWhyr",
         "cluster",
     ]
     results = results.fillna(0)
     results[int_cols] = results[int_cols].astype(int)
-    results["Var_OM_cost_per_MWh"] = results["Var_OM_cost_per_MWh"].astype(float)
+    results["Var_OM_Cost_per_MWh"] = results["Var_OM_Cost_per_MWh"].astype(float)
 
     return results
 
