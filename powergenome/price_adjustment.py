@@ -97,7 +97,7 @@ def get_cpi_data(start_year: int = 1980, end_year: int = None) -> pd.DataFrame:
         )
         a_cpi_df = a_cpi_df.query("period == 12")
         df_list.append(a_cpi_df)
-        start_year = e_y + 1
+        start_year = e_y
         e_y = start_year + 10
 
     annual_cpi = pd.concat(df_list)
