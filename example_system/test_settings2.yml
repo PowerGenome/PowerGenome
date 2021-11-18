@@ -73,7 +73,7 @@ distributed_gen_values:
 avg_distribution_loss: 0.0453
 
 # NZA electrifications scenarios: current_policy, deep_decarbonization, moderate_decarbonization, stated_policy
-# NZA_electrification: current_policy
+NZA_electrification: current_policy
 
 # Name of the DSM resource, fraction of load that can be shifted, and number of hours
 # that it can be shifted
