@@ -549,6 +549,18 @@ class ResourceGroup:
         if cap_multiplier is not None:
             # Apply capacity multiplier
             df[CAPACITY] *= cap_multiplier
+
+        if df.empty:
+            drop_keys = ["tree", "metadata", "site_cluster", "profiles"]
+            group_info = {k: v for k, v in self.group.items() if k not in drop_keys}
+            raise KeyError(
+                f"""
+                No resources for the group
+                {group_info}
+                were found in the model region containing IPM Regions
+                {ipm_regions}
+            """
+            )
         # Sort resources by lcoe (ascending) or capacity (descending)
         by = "lcoe" if "lcoe" in df else CAPACITY
         df = df.sort_values(by, ascending=by == "lcoe")
