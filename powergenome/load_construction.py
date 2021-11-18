@@ -205,6 +205,8 @@ def CreateBaseLoad(
     }
     model_states = pop.loc[pop["GenX.Region"].isin(regions), "State"]
     EFS_2020_LoadProf = pd.read_parquet(path_in / "EFS_REF_load_2020.parquet")
+    total_efs_2020_load = EFS_2020_LoadProf["LoadMW"].sum()
+
     EFS_2020_LoadProf = EFS_2020_LoadProf.loc[
         EFS_2020_LoadProf["State"].isin(model_states), :
     ]
@@ -231,7 +233,8 @@ def CreateBaseLoad(
 
     ratio_A = (
         Original_Load_2019["LoadMW_original"].sum()
-        / EFS_2020_LoadProf["weighted"].sum()
+        # / EFS_2020_LoadProf["weighted"].sum()
+        / total_efs_2020_load
     )
     EFS_2020_LoadProf["weighted"] *= ratio_A
 
