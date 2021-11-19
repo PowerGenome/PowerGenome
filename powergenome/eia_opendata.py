@@ -9,10 +9,39 @@ from typing import Union
 import pandas as pd
 import requests
 
-from powergenome.params import SETTINGS
+from powergenome.params import SETTINGS, DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
 
 numeric = Union[int, float]
+
+
+def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.DataFrame:
+    """Load EIA AEO data either from file (if it exists) or from the API.
+
+    Parameters
+    ----------
+    series_id : str
+        The AEO API series ID that uniquely identifies the data request.
+    api_key : str
+        A valid API key for EIA's open data portal
+    columns : list
+        The expected output dataframe columns
+
+    Returns
+    -------
+    pd.DataFrame
+        [description]
+    """
+    data_dir = DATA_PATHS["eia"] / "open_data"
+    if not (data_dir / f"{series_id}.csv").exists():
+        url = f"http://api.eia.gov/series/?series_id={series_id}&api_key={api_key}&out=json"
+        r = requests.get(url)
+        df = pd.DataFrame(r.json()["series"][0]["data"], columns=columns, dtype=float)
+        df.to_csv(data_dir / f"{series_id}.csv", index=False)
+    else:
+        df = pd.read_csv(data_dir / f"{series_id}.csv")
+
+    return df
 
 
 def fetch_fuel_prices(settings):
@@ -34,15 +63,9 @@ def fetch_fuel_prices(settings):
 
         SERIES_ID = f"AEO.{aeo_year}.{scenario_series}.PRCE_REAL_ELEP_NA_{fuel_series}_NA_{region_series}_Y13DLRPMMBTU.A"
 
-        url = f"http://api.eia.gov/series/?series_id={SERIES_ID}&api_key={API_KEY}&out=json"
-        r = requests.get(url)
-        try:
-            df = pd.DataFrame(r.json()["series"][0]["data"], columns=["year", "price"])
-        except KeyError:
-            print(
-                "There was an error getting EIA AEO fuel price data.\n"
-                f"Your requested url was {url}, make sure it looks right."
-            )
+        df = load_aeo_series(
+            series_id=SERIES_ID, api_key=API_KEY, columns=["year", "price"]
+        )
         df["fuel"] = fuel_name
         df["region"] = region_name
         df["scenario"] = scenario_name
@@ -65,7 +88,7 @@ def fetch_fuel_prices(settings):
 
 
 def get_aeo_load(
-    region: str, aeo_year: Union[str, numeric], scenario_series: str,
+    region: str, aeo_year: Union[str, numeric], scenario_series: str
 ) -> pd.DataFrame:
     """Find the electricity demand in a single AEO region. Use EIA API if data has not
     been previously saved.
@@ -84,7 +107,6 @@ def get_aeo_load(
     pd.DataFrame
         The demand data for a single region.
     """
-    from powergenome.params import DATA_PATHS
 
     data_dir = DATA_PATHS["eia"] / "open_data"
     data_dir.mkdir(exist_ok=True)
