@@ -2396,6 +2396,16 @@ class GeneratorClusters:
                         # "minimum_load_mw",
                         "heat_rate_mmbtu_mwh",
                     ]
+                    if len(grouped) < num_clusters[region][tech]:
+                        s = f"""
+    *****************************
+    The technology {tech} in region {region} has only {len(grouped)} operating units,
+    which is less than the {num_clusters[region][tech]} clusters you specified.
+    The number of clusters has been set equal to the number of units.
+    *****************************
+                            """
+                        logger.info(s)
+                        num_clusters[region][tech] = len(grouped)
                     clusters = cluster.KMeans(
                         n_clusters=num_clusters[region][tech], random_state=6
                     ).fit(
