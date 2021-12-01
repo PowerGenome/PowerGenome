@@ -321,7 +321,7 @@ def atb_fixed_var_om_existing(
     atb_hr_df: pd.DataFrame,
     settings: dict,
     pudl_engine: sqlalchemy.engine.base.Engine,
-    coal_fgd_df: pd.DataFrame
+    coal_fgd_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """Add fixed and variable O&M for existing power plants
 
@@ -597,8 +597,18 @@ def atb_fixed_var_om_existing(
                 age = settings["model_year"] - _df.operating_date.dt.year
                 age = age.fillna(age.mean())
                 age = age.fillna(40)
-                gen_ids = _df["generator_id"]
-                fgd = coal_fgd_df.query("plant_id_eia == @plant_id & generator_id in @gen_ids")["fgd"].values
+                gen_ids = _df["generator_id"].to_list()
+                fgd = coal_fgd_df.query(
+                    "plant_id_eia == @plant_id & generator_id in @gen_ids"
+                )["fgd"].values
+                if not np.any(fgd):
+                    gen_ids = [g.lstrip("0") for g in gen_ids]
+                    fgd = coal_fgd_df.query(
+                        "plant_id_eia == @plant_id & generator_id in @gen_ids"
+                    )["fgd"].values
+                if not np.any(fgd):
+                    # If FGD isn't found, use average of with/without FGD
+                    fgd = np.ones_like(age) * 0.5
 
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
                 annual_capex = (16.53 + (0.126 * age) + (5.68 * fgd)) * 1000

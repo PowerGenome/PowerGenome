@@ -57,6 +57,28 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
         itertools.chain.from_iterable(settings["aeo_fuel_region_map"].values())
     )
 
+    techs = settings["atb_new_gen"]
+
+    for tech in techs:
+        tech, tech_detail, cost_case, _ = tech
+
+        s = f"""
+        SELECT technology, tech_detail
+        from technology_costs_nrelatb
+        where
+            technology == "{tech}"
+            AND tech_detail == "{tech_detail}"
+        """
+        if len(pudl_engine.execute(s).fetchall()) == 0:
+            s = f"""
+    *****************************
+    The technology {tech} - {tech_detail} listed in your settings file under 'atb_new_gen'
+    does not match any NREL ATB technologies. Check your settings file to ensure it is
+    spelled correctly"
+    *****************************
+    """
+            logger.warning(s)
+
     for agg_region, ipm_regions in (settings.get("region_aggregations") or {}).items():
         for ipm_region in ipm_regions:
             if ipm_region not in ipm_region_list:
@@ -92,6 +114,25 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
             " Remove the duplicates and try again."
         )
 
+    if settings.get("eia_aeo_year"):
+        aeo_year = settings["eia_aeo_year"]
+        for k, v in settings.get("eia_series_scenario_names", {}).items():
+            if "REF" in v and str(aeo_year) not in v:
+                logger.warning(
+                    "The settings EIA fuel scenario (eia_series_scenario_names) key "
+                    f"{k} has a value of {v}, which does not match the aeo data year "
+                    f"{aeo_year}. It has been changed to REF{aeo_year}."
+                )
+                settings["eia_series_scenario_names"][k] = f"REF{aeo_year}"
+        growth_scenario = settings.get("growth_scenario", "")
+        if "REF" in growth_scenario and str(aeo_year) not in growth_scenario:
+            logger.warning(
+                "The settings EIA demand growth scenario (growth_scenario) key "
+                f"value is {growth_scenario}, which does not match the aeo data year "
+                f"{aeo_year}. It has been changed to REF{aeo_year}."
+            )
+            settings["growth_scenario"] = f"REF{aeo_year}"
+
 
 def init_pudl_connection(
     freq: str = "YS",
@@ -112,6 +153,7 @@ def init_pudl_connection(
         object for quickly accessing parts of the database. `pudl_out` is used
         to access unit heat rates.
     """
+
     pudl_engine = sa.create_engine(
         SETTINGS["PUDL_DB"]
     )  # pudl.init.connect_db(SETTINGS)
