@@ -69,17 +69,12 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
             technology == "{tech}"
             AND tech_detail == "{tech_detail}"
         """
-        if (
-            len(
-                pudl_engine.execute(
-                    s,
-                ).fetchall()
-            )
-            == 0
-        ):
+        if len(pudl_engine.execute(s).fetchall()) == 0:
             s = f"""
     *****************************
-    The technology {tech} - {tech_detail} listed in your settings file under 'atb_new_gen' does not match any NREL ATB technologies. Check your settings file to ensure it is spelled correctly"
+    The technology {tech} - {tech_detail} listed in your settings file under 'atb_new_gen'
+    does not match any NREL ATB technologies. Check your settings file to ensure it is
+    spelled correctly"
     *****************************
     """
             logger.warning(s)
