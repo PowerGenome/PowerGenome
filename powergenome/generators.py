@@ -89,6 +89,10 @@ op_status_map = {
     "(P) Planned for installation, but regulatory approvals not initiated": "P",
     "(L) Regulatory approvals pending. Not under construction": "L",
     "(OT) Other": "OT",
+    "(SB) Standby/Backup: available for service but not normally used": "SB",
+    "(OP) Operating": "OP",
+    "(OA) Out of service but expected to return to service in next calendar year": "OA",
+    "(OS) Out of service and NOT expected to return to service in next calendar year": "OS",
 }
 
 TRANSMISSION_TYPES = ["spur", "offshore_spur", "tx"]
@@ -1440,6 +1444,7 @@ def load_860m(settings: dict) -> Dict[str, pd.DataFrame]:
         The 860m dataframes, with the keys 'planned', 'canceled', and 'retired'.
     """
     sheet_map = {
+        "operating": "Operating",
         "planned": "Planned",
         "canceled": "Canceled or Postponed",
         "retired": "Retired",
@@ -1466,28 +1471,30 @@ def load_860m(settings: dict) -> Dict[str, pd.DataFrame]:
     return data_dict
 
 
-def import_proposed_generators(planned, settings, model_regions_gdf):
-    """
-    Load the most recent proposed generating units from EIA860m. Will also add
-    any planned generators that are included in the settings file.
+def label_gen_region(
+    df: pd.DataFrame, settings: dict, model_regions_gdf: gpd.GeoDataFrame
+) -> pd.DataFrame:
+    """Label the region that generators in a dataframe belong to based on their
+    geographic location. This is done via geospaital join and may not always be accurate
+    based on actual utility connections.
 
     Parameters
     ----------
+    df : pd.DataFrame
+        Generators that are not assigned to a model region.
     settings : dict
-        User defined parameters from a settings YAML file
-    model_regions_gdf : geodataframe
+        Need the parameter `capacity_col` to determine which column has capacity.
+    model_regions_gdf : gpd.GeoDataFrame
         Contains the name and geometry of each region being used in the study
 
     Returns
     -------
-    dataframe
-        All proposed generators.
+    pd.DataFrame
+        [description]
     """
 
-    # Some plants don't have lat/lon data. Log this now to determine if any action is
-    # needed, then drop them from the dataframe.
-    no_lat_lon = planned.loc[
-        (planned["latitude"].isnull()) | (planned["longitude"].isnull()), :
+    no_lat_lon = df.loc[
+        (df["latitude"].isnull()) | (df["longitude"].isnull()), :
     ].copy()
     if not no_lat_lon.empty:
         no_lat_lon_cap = no_lat_lon[settings["capacity_col"]].sum()
@@ -1499,20 +1506,143 @@ def import_proposed_generators(planned, settings, model_regions_gdf):
             f"\n{no_lat_lon['balancing_authority_code'].tolist()}"
         )
 
-    planned = planned.dropna(subset=["latitude", "longitude"])
+    df = df.dropna(subset=["latitude", "longitude"])
 
     # Convert the lon/lat values to geo points. Need to add an initial CRS and then
     # change it to align with the IPM regions
     print("Creating gdf")
-    planned_gdf = gpd.GeoDataFrame(
-        planned.copy(),
-        geometry=gpd.points_from_xy(planned.longitude.copy(), planned.latitude.copy()),
+    gdf = gpd.GeoDataFrame(
+        df.copy(),
+        geometry=gpd.points_from_xy(df.longitude.copy(), df.latitude.copy()),
         crs="EPSG:4326",
     )
-    if planned_gdf.crs != model_regions_gdf.crs:
-        planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
+    if gdf.crs != model_regions_gdf.crs:
+        gdf = gdf.to_crs(model_regions_gdf.crs)
 
-    planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
+    gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), gdf)
+
+    return gdf
+
+
+def import_new_generators(
+    operating_860m: pd.DataFrame,
+    gens_860: pd.DataFrame,
+    settings: dict,
+    model_regions_gdf: gpd.GeoDataFrame,
+) -> pd.DataFrame:
+
+    gens_860_id = list(zip(gens_860["plant_id_eia"], gens_860["generator_id"]))
+    operating_860m_id = zip(
+        operating_860m["plant_id_eia"], operating_860m["generator_id"]
+    )
+
+    new_mask = [g not in gens_860_id for g in operating_860m_id]
+    new_operating = label_gen_region(
+        operating_860m.loc[new_mask, :], settings, model_regions_gdf
+    )
+    new_operating.loc[:, "heat_rate_mmbtu_mwh"] = new_operating.loc[
+        :, "technology_description"
+    ].map(settings["proposed_gen_heat_rates"])
+
+    # The default EIA heat rate for non-thermal technologies is 9.21
+    new_operating.loc[
+        new_operating["heat_rate_mmbtu_mwh"].isnull(), "heat_rate_mmbtu_mwh"
+    ] = 9.21
+
+    new_operating.loc[:, "minimum_load_mw"] = (
+        new_operating["technology_description"].map(settings["proposed_min_load"])
+        * new_operating[settings["capacity_col"]]
+    )
+
+    # Assume anything else being built at scale is wind/solar and will have a Min_power
+    # of 0
+    new_operating.loc[new_operating["minimum_load_mw"].isnull(), "minimum_load_mw"] = 0
+
+    new_operating = new_operating.set_index(
+        ["plant_id_eia", "prime_mover_code", "energy_source_code_1"]
+    )
+
+    # Add a retirement year based on the planned start year
+    label_retirement_year(
+        df=new_operating,
+        settings=settings,
+        age_col="Operating Year",
+        add_additional_retirements=False,
+    )
+
+    if settings.get("group_technologies"):
+        new_operating = group_technologies(new_operating, settings)
+        print(new_operating["technology_description"].unique().tolist())
+
+    keep_cols = [
+        "model_region",
+        "technology_description",
+        "generator_id",
+        settings["capacity_col"],
+        "minimum_load_mw",
+        "operational_status_code",
+        "heat_rate_mmbtu_mwh",
+        "retirement_year",
+        "Operating Year",
+        "state",
+    ]
+
+    return new_operating.loc[:, keep_cols]
+
+
+def import_proposed_generators(
+    planned: pd.DataFrame, settings: dict, model_regions_gdf: gpd.GeoDataFrame
+) -> pd.DataFrame:
+    """
+    Load the most recent proposed generating units from EIA860m. Will also add
+    any planned generators that are included in the settings file.
+
+    Parameters
+    ----------
+    planned : pd.DataFrame
+        Generators that are not assigned to a model region.
+    settings : dict
+        User defined parameters from a settings YAML file
+    model_regions_gdf : gpd.GeoDataFrame
+        Contains the name and geometry of each region being used in the study
+
+    Returns
+    -------
+    pd.DataFrame
+        All proposed generators.
+    """
+
+    # Some plants don't have lat/lon data. Log this now to determine if any action is
+    # needed, then drop them from the dataframe.
+    # no_lat_lon = planned.loc[
+    #     (planned["latitude"].isnull()) | (planned["longitude"].isnull()), :
+    # ].copy()
+    # if not no_lat_lon.empty:
+    #     no_lat_lon_cap = no_lat_lon[settings["capacity_col"]].sum()
+    #     logger.warning(
+    #         "Some generators do not have lon/lat data. Check the source "
+    #         "file to determine if they should be included in results. "
+    #         f"\nThe affected generators account for {no_lat_lon_cap} in balancing "
+    #         "authorities: "
+    #         f"\n{no_lat_lon['balancing_authority_code'].tolist()}"
+    #     )
+
+    # planned = planned.dropna(subset=["latitude", "longitude"])
+
+    # # Convert the lon/lat values to geo points. Need to add an initial CRS and then
+    # # change it to align with the IPM regions
+    # print("Creating gdf")
+    # planned_gdf = gpd.GeoDataFrame(
+    #     planned.copy(),
+    #     geometry=gpd.points_from_xy(planned.longitude.copy(), planned.latitude.copy()),
+    #     crs="EPSG:4326",
+    # )
+    # if planned_gdf.crs != model_regions_gdf.crs:
+    #     planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
+
+    # planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
+
+    planned_gdf = label_gen_region(planned, settings, model_regions_gdf)
 
     # Add planned additions from the settings file
     additional_planned = settings.get("additional_planned") or []
@@ -2042,6 +2172,7 @@ class GeneratorClusters:
             )
 
             self.eia_860m = load_860m(self.settings)
+            self.operating_860m = self.eia_860m["operating"]
             self.planned_860m = self.eia_860m["planned"]
             self.canceled_860m = self.eia_860m["canceled"]
             self.retired_860m = self.eia_860m["retired"]
@@ -2281,17 +2412,25 @@ class GeneratorClusters:
             f"Before adding proposed generators, {len(self.units_model)} units with "
             f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
         )
-        proposed_gens = import_proposed_generators(
+        self.proposed_gens = import_proposed_generators(
             planned=self.planned_860m,
+            settings=self.settings,
+            model_regions_gdf=self.model_regions_gdf,
+        )
+        self.new_860m_gens = import_new_generators(
+            operating_860m=self.operating_860m,
+            gens_860=self.gens_860_model,
             settings=self.settings,
             model_regions_gdf=self.model_regions_gdf,
         )
         logger.info(
             f"Proposed gen technologies are "
-            f"{proposed_gens.technology_description.unique().tolist()}"
+            f"{self.proposed_gens.technology_description.unique().tolist()}"
         )
-        logger.info(f"{proposed_gens[self.settings['capacity_col']].sum()} MW proposed")
-        self.units_model = pd.concat([proposed_gens, self.units_model], sort=False)
+        logger.info(f"{self.proposed_gens[self.settings['capacity_col']].sum()} MW proposed")
+        self.units_model = pd.concat(
+            [self.proposed_gens, self.units_model, self.new_860m_gens], sort=False
+        )
 
         # Create a pudl unit id based on plant and generator id where one doesn't exist.
         # This is used later to match the cluster numbers to plants
