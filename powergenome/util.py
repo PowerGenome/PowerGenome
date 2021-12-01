@@ -92,6 +92,25 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
             " Remove the duplicates and try again."
         )
 
+    if settings.get("eia_aeo_year"):
+        aeo_year = settings["eia_aeo_year"]
+        for k, v in settings.get("eia_series_scenario_names", {}).items():
+            if "REF" in v and str(aeo_year) not in v:
+                logger.warning(
+                    "The settings EIA fuel scenario (eia_series_scenario_names) key "
+                    f"{k} has a value of {v}, which does not match the aeo data year "
+                    f"{aeo_year}. It has been changed to REF{aeo_year}."
+                )
+                settings["eia_series_scenario_names"][k] = f"REF{aeo_year}"
+        growth_scenario = settings.get("growth_scenario", "")
+        if "REF" in growth_scenario and str(aeo_year) not in growth_scenario:
+            logger.warning(
+                "The settings EIA demand growth scenario (growth_scenario) key "
+                f"value is {growth_scenario}, which does not match the aeo data year "
+                f"{aeo_year}. It has been changed to REF{aeo_year}."
+            )
+            settings["growth_scenario"] = f"REF{aeo_year}"
+
 
 def init_pudl_connection(
     freq: str = "YS",
@@ -112,6 +131,7 @@ def init_pudl_connection(
         object for quickly accessing parts of the database. `pudl_out` is used
         to access unit heat rates.
     """
+
     pudl_engine = sa.create_engine(
         SETTINGS["PUDL_DB"]
     )  # pudl.init.connect_db(SETTINGS)
