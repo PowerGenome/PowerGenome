@@ -1058,7 +1058,8 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     new_gen_df["Max_Cap_MW"] = -1
 
     regional_cost_multipliers = pd.read_csv(
-        DATA_PATHS["cost_multipliers"] / "AEO_2020_regional_cost_corrections.csv",
+        DATA_PATHS["cost_multipliers"]
+        / settings.get("cost_multiplier_fn", "AEO_2020_regional_cost_corrections.csv"),
         index_col=0,
     )
     if settings.get("user_regional_cost_multiplier_fn"):
