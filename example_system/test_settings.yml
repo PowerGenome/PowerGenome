@@ -374,7 +374,7 @@ settings_management:
 # more than one year is used then things like heat rate will be calculated as the
 # average (weighted by generation per year).
 data_years:
-  - 2018
+  - 2020
 
 target_usd_year: 2017
 
@@ -875,7 +875,7 @@ eia_atb_tech_map:
 # Offshore wind in the west will be floating - OTRG10 maybe.
 # Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
 atb_new_gen:
-  - [NaturalGas, CCCCSAvgCF, Mid, 500] 
+  - [NaturalGas, CCCCSAvgCF, Mid, 500]
   - [NaturalGas, CCAvgCF, Mid, 500]
   - [NaturalGas, CTAvgCF, Mid, 100]
   - [LandbasedWind, LTRG4, Mid, 1]
@@ -980,9 +980,17 @@ cost_multiplier_region_map:
   CASO: [WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE, CA_S]
   SRSG: [WECC_AZ, WECC_NM, WECC_SNV]
 
-# The keys are technologies listed in EIA's 2016 capital cost assumptions document
-# (https://www.eia.gov/analysis/studies/powerplants/capitalcost/pdf/capcost_assumption.pdf)
-# Values are lists of ATB technologies that map to the EIA keys.
+# The keys in cost_multiplier_technology_map are technologies listed in EIA's capital
+# cost assumptions document. The 2020 version is available at
+# https://www.eia.gov/outlooks/archive/aeo20/assumptions/pdf/table_8.2.pdf
+# Values in the list are string-matched to technologies (`<tech>_<tech_detail>`) from ATB.
+# Be sure to include any custom technologies you are using from `additional_technologies_fn`
+# or `modified_atb_new_gen`.
+# If a value in one of the lists matches more than one technology, the cost multiplier
+# will only be applied to the first technology.
+# If you want to modify the regional cost corrections CSV, you can put your own copy in
+# the folder PowerGenome/data/cost_multipliers.
+cost_multiplier_fn: AEO_2020_regional_cost_corrections.csv
 cost_multiplier_technology_map:
   Ultra-supercritical coal (USC): [Coal_newAvgCF, Coal_newHighCF]
   # IGCC: [Coal_IGCCAvgCF, Coal_IGCCAvgCF]
@@ -991,8 +999,8 @@ cost_multiplier_technology_map:
   CT - aeroderivative: []
   CT - industrial frame: [NaturalGas_CTAvgCF, NaturalGas_CTHighCF]
   CC - single shaft: []
-  CC - multi shaft: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF] #, NETL_NGCC] ##
-  CC with 90% CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100, NaturalGas_CCS100, NaturalGas_CCS100_low,NaturalGas_CCS100_high] #, NETL_NGCC_CCS ] ##
+  CC - multi shaft: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF]
+  CC with 90% CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100, NaturalGas_CCS100, NaturalGas_CCS100_low,NaturalGas_CCS100_high]
   Fuel cells: []
   Advanced nuclear: [Nuclear_*, Nuclear_mid, Nuclear_low, Nuclear_high]
   Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
@@ -1008,7 +1016,7 @@ cost_multiplier_technology_map:
 
 # PROPOSED GENERATOR VARIABLES
 
-eia_860m_fn: july_generator2019.xlsx
+eia_860m_fn: september_generator2021.xlsx
 
 # The status codes below exclude plants where regulatory approvals have not been
 # initiated or received. "Other" is also excluded.
