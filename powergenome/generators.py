@@ -989,26 +989,30 @@ def group_gen_by_year_fuel_primemover(df):
     by = [
         "plant_id_eia",
         "fuel_type",
+        "energy_source_code",
         "fuel_type_code_pudl",
         "fuel_type_code_aer",
         "prime_mover_code",
     ]
+    by = [c for c in by if c in df.columns]
+    sort = ["plant_id_eia", "fuel_type", "energy_source_code", "prime_mover_code"]
+    sort = [c for c in sort if c in df.columns]
 
     annual_gen_fuel_923 = (
         (
-            df.drop(columns=["id", "nuclear_unit_id"])
-            .groupby(by=by, as_index=False)[
+            df.groupby(  # .drop(columns=["id", "nuclear_unit_id"])
+                by=by, as_index=False
+            )[
                 "fuel_consumed_units",
                 "fuel_consumed_for_electricity_units",
                 "fuel_consumed_mmbtu",
                 "fuel_consumed_for_electricity_mmbtu",
                 "net_generation_mwh",
-            ]
-            .sum()
+            ].sum()
         )
         .reset_index()
         .drop(columns="index")
-        .sort_values(["plant_id_eia", "fuel_type", "prime_mover_code"])
+        .sort_values(sort)
     )
 
     return annual_gen_fuel_923
@@ -1089,7 +1093,8 @@ def plant_pm_heat_rates(annual_gen_fuel_923):
         rate.
     """
 
-    by = ["plant_id_eia", "prime_mover_code", "fuel_type"]
+    by = ["plant_id_eia", "prime_mover_code", "fuel_type", "energy_source_code"]
+    by = [c for c in by if c in annual_gen_fuel_923.columns]
     annual_gen_fuel_923_groups = annual_gen_fuel_923.groupby(by)
 
     prime_mover_hr_map = {
