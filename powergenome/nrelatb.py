@@ -671,8 +671,13 @@ def atb_fixed_var_om_existing(
                 _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
                     fixed, 2015, target_usd_year
                 )
+
+                # If nuclear heat rates are NaN, set them to new build value
+                _df.loc[
+                    _df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"
+                ] = new_build_hr
                 _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (
-                    existing_hr / new_build_hr
+                    _df["heat_rate_mmbtu_mwh"].mean() / new_build_hr
                 )
 
         else:
