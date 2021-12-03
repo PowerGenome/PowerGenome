@@ -5,7 +5,7 @@ channels:
 dependencies:
   - python>=3.8 # Remove for tox.ini & setup.py
   - pip
-  - conda-forge::catalystcoop.pudl=0.4
+  - conda-forge::catalystcoop.pudl=0.5
   - jupyterlab
   - black
   - pytest
