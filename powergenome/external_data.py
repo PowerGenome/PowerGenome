@@ -428,12 +428,15 @@ def overwrite_wind_pv_capacity(df, settings):
     for region in df["region"].unique():
         for tech in ["Solar Photovoltaic", "Onshore Wind Turbine"]:
             if tech in df.query("region == @region")["technology"].to_list():
-                df.loc[
-                    (df["region"] == region) & (df["technology"] == tech),
-                    "Existing_Cap_MW",
-                ] = wind_pv_model_region_capacity.loc[
-                    idx[region, tech], "nameplate_capacity_mw"
-                ]
+                try:
+                    df.loc[
+                        (df["region"] == region) & (df["technology"] == tech),
+                        "Existing_Cap_MW",
+                    ] = wind_pv_model_region_capacity.loc[
+                        idx[region, tech], "nameplate_capacity_mw"
+                    ]
+                except:
+                    pass
 
     df = df.set_index(["region", "technology", "cluster"])
 
