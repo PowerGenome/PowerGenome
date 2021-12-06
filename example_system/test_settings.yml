@@ -27,6 +27,7 @@ region_wind_pv_cap_fn: existing_wind_pv_capacity.csv
 demand_segments_fn: test_demand_segments_voll.csv
 misc_gen_inputs_fn: test_misc_gen_inputs.csv
 genx_settings_fn: GenX_settings.yml # In the same folder as this file, not in "input_folder" subfolder
+reserves_fn: Reserves.csv
 # regional_load_fn: test_regional_load_profiles.csv #Externally provide load data
 
 # If regional load is provided by the user and it already includes demand response
@@ -76,14 +77,16 @@ demand_response_resources:
     ev_load_shifting:
       fraction_shiftable: 0.8
       parameter_values:
-        Max_DSM_delay: 5
-        DR: 2
+        Max_Flexible_Demand_Delay: 5
+        FLEX: 1
+        Flexible_Demand_Energy_Eff: 1
   2045:
     ev_load_shifting:
       fraction_shiftable: 0.8
       parameter_values:
-        Max_DSM_delay: 5
-        DR: 2
+        Max_Flexible_Demand_Delay: 5
+        FLEX: 1
+        Flexible_Demand_Energy_Eff: 1
 demand_response: 'moderate'
 
 # Transmission financial information to calculate annual investment costs
@@ -138,11 +141,11 @@ settings_management:
     conv_hydro_rps_eligible:
       no:
         model_tag_values:
-          RPS:
+          ESR_1:
             Conventional Hydroelectric: 0
       yes:
         model_tag_values:
-          RPS:
+          ESR_1:
             Conventional Hydroelectric: 1
     tx_expansion:
       high:
@@ -247,11 +250,11 @@ settings_management:
     conv_hydro_rps_eligible:
       no:
         model_tag_values:
-          RPS:
+          ESR_1:
             Conventional Hydroelectric: 0
       yes:
         model_tag_values:
-          RPS:
+          ESR_1:
             Conventional Hydroelectric: 1
     tx_expansion:
       high:
@@ -259,10 +262,20 @@ settings_management:
       limited:
         tx_expansion_per_period: 0.25
     growth:
-      normal: ~
-      half_wecc:
+      normal:
+        alt_num_clusters:
+          CA_S:
+            Conventional Steam Coal: 0
+          WECC_AZ:
+            Natural Gas Fired Combined Cycle: 1
+      half:
         default_growth_rates:
           WECC_California: 0.0015 # 0.003
+        alt_num_clusters:
+          CA_S:
+            Conventional Steam Coal: 0
+          WECC_AZ:
+            Natural Gas Fired Combined Cycle: 1
     ng_price:
       reference:
         aeo_fuel_scenarios:
@@ -361,7 +374,7 @@ settings_management:
 # more than one year is used then things like heat rate will be calculated as the
 # average (weighted by generation per year).
 data_years:
-  - 2018
+  - 2020
 
 target_usd_year: 2017
 
@@ -395,6 +408,16 @@ model_regions:
 region_aggregations:
   CA_N: [WEC_CALN, WEC_BANC]
   CA_S: [WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
+
+
+regional_capacity_reserves:
+  CapRes_1:
+    CA_N: 0.137
+    CA_S: 0.137
+  CapRes_2:
+    WECC_AZ: 0.1
+
+cap_res_network_derate_default: 0.95
 
 
 # CLUSTERING
@@ -530,27 +553,35 @@ retirement_ages:
 
 model_tag_names:
   - THERM
-  - DISP
-  - NDISP
+  - VRE
+  - Num_VRE_Bins
+  - MUST_RUN
   - STOR
-  - DR
+  - FLEX
   - HYDRO
   - Commit
-  - RPS
-  - CES
+  - ESR_1
+  - ESR_2
   - New_Build
   - Hydro_level
+  - CapRes_1
+  - CapRes_2
+  - Hydro_Energy_to_Power_Ratio
+  - MinCapTag_1
+  - MinCapTag_2
+  - Reg_Max
+  - Rsv_Max
 
 default_model_tag: 0
 
 model_tag_values:
   THERM:
-    Biomass: 1
-    Biopower: 1
+    # Biomass: 1
+    # Biopower: 1
     Coal Integrated Gasification Combined Cycle: 1
     Conventional Steam Coal: 1
     CSP: 1
-    Geothermal: 1
+    # Geothermal: 1
     Landfill Gas: 1
     Municipal Solid Waste: 1
     Natural Gas: 1
@@ -567,23 +598,32 @@ model_tag_values:
     Petroleum Coke: 1
     Petroleum Liquids: 1
     Wood/Wood Waste Biomass: 1
-  DISP:
+  VRE:
     CSP: 1
-    Landbased Wind: 1
-    Offshore Wind: 1
+    LandbasedWind: 1
+    OffshoreWind: 1
     Onshore Wind: 1
     Solar Photovoltaic: 1
     Solar Thermal without Energy Storage: 1
-    Utility PV: 1
+    UtilityPV: 1
+  Num_VRE_Bins:
+    CSP: 1
+    LandbasedWind: 1
+    OffshoreWind: 1
+    Onshore Wind: 1
+    Solar Photovoltaic: 1
+    Solar Thermal without Energy Storage: 1
+    UtilityPV: 1
   NDISP:
     Biomass: 1
     Geothermal: 1
     Small Hydroelectric: 1
     Wood/Wood Waste Biomass: 1
   STOR:
-    Battery: 2
+    Battery: 1
     Hydroelectric Pumped Storage: 1
-  DR: ~
+  FLEX:
+    ev_load_shifting: 1
   HYDRO:
     Conventional Hydroelectric: 1
     Hydropower: 1
@@ -602,49 +642,51 @@ model_tag_values:
     Other Peaker: 1 # Is there any way to do this based on the underlying categories?
     Petroleum Coke: 1
     Petroleum Liquids: 1
-  RPS:
+  ESR_1:
     Biomass: 1
     Biopower: 1
     Conventional Hydroelectric: 0 # Need they key here to update value in 2045 cases
     CSP: 1
     Geothermal: 1
-    Landbased Wind: 1
-    Offshore Wind: 1
+    LandbasedWind: 1
+    OffshoreWind: 1
     Onshore Wind: 1
     Small Hydroelectric: 1
     Solar Photovoltaic: 1
-    Utility PV: 1
-  CES:
+    UtilityPV: 1
+  ESR_2:
     Biomass: 1
     Biopower: 1
     Conventional Hydroelectric: 1
     CSP: 1
     Geothermal: 1
-    Landbased Wind: 1
+    LandbasedWind: 1
     Natural Gas CCS100: 1
     NGCCS100: 1
     Nuclear: 1
-    Offshore Wind: 1
+    OffshoreWind: 1
     Onshore Wind: 1
     Small Hydroelectric: 1
     Solar Photovoltaic: 1
-    Utility PV: 1
+    UtilityPV: 1
+  MinCapTag_1: # Do not need to list anything here. All values will be 0 by default
+    LandbasedWind: 1
   New_Build:
     Battery: 1
     Biomass: -1
     Biopower: 1
     Conventional Hydroelectric: -1
     Geothermal: -1
-    Landbased Wind: 1
+    LandbasedWind: 1
     Natural Gas: 1
     NGCCS100: 1
-    Offshore Wind: 1
+    OffshoreWind: 1
     Small Hydroelectric: -1
-    Utility PV: 1
+    UtilityPV: 1
     Nuclear_*: 1
   Hydro_level:
     Conventional Hydroelectric: 0.5
-  CapRes:
+  CapRes_1:
     Conventional Steam Coal: 0.9
     Natural Gas Fired Combined Cycle: 0.9
     Natural Gas Fired Combustion Turbine: 0.9
@@ -667,7 +709,58 @@ model_tag_values:
     Biopower_: 0.9
     Nuclear_: 0.9
     CSP_: 0.9
-    NGCCS0.900: 0.9
+    NGCCS100: 0.9
+    OffshoreWind: 0.8
+    LandbasedWind: 0.8
+    UtilityPV: 0.8
+    Conventional Hydroelectric: 0.8
+    Onshore Wind: 0.8
+    Small Hydroelectric: 0.8
+    Solar Photovoltaic: 0.8
+    Battery: 0.95
+    Hydroelectric Pumped Storage: 0.95
+    ev_load_shifting: 0.95
+  CapRes_2:
+    Conventional Steam Coal: 0.9
+    Natural Gas Fired Combined Cycle: 0.9
+    Natural Gas Fired Combustion Turbine: 0.9
+    Petroleum Liquids: 0.9
+    Natural Gas Internal Combustion Engine: 0.9
+    Nuclear: 0.9
+    Natural Gas Steam Turbine: 0.9
+    Wood/Wood Waste Biomass: 0.9
+    Petroleum Coke: 0.9
+    Geothermal: 0.9
+    Municipal Solid Waste: 0.9
+    Landfill Gas: 0.9
+    Coal Integrated Gasification Combined Cycle: 0.9
+    Other Waste Biomass: 0.9
+    Other Gases: 0.9
+    Other Natural Gas: 0.9
+    Other_peaker: 0.9 # Is there any way to do this based on the underlying categories?
+    Biomass: 0.9
+    NaturalGas_: 0.9
+    Biopower_: 0.9
+    Nuclear_: 0.9
+    CSP_: 0.9
+    NGCCS100: 0.9
+    OffshoreWind: 0.8
+    LandbasedWind: 0.8
+    UtilityPV: 0.8
+    Conventional Hydroelectric: 0.8
+    Onshore Wind: 0.8
+    Small Hydroelectric: 0.8
+    Solar Photovoltaic: 0.8
+    Battery: 0.95
+    Hydroelectric Pumped Storage: 0.95
+    ev_load_shifting: 0.95
+  Hydro_Energy_to_Power_Ratio:
+    Conventional Hydroelectric: 158.7301587
+  MUST_RUN:
+    Small Hydroelectric: 1
+    Geothermal: 1
+    Wood/Wood Waste Biomass: 1
+    Biomass: 1
 
 # Tags for a technology in a specific region
 # Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>
@@ -678,9 +771,20 @@ regional_tag_values:
     New_Build:
       Hydroelectric Pumped Storage: 1
       Nuclear: 0
+    MinCapTag_2:
+      UtilityPV: 1
   CA_N:
     New_Build:
       Nuclear: 0
+
+MinCapReq:
+  MinCapTag_1:
+    description: Landbasedwind
+    min_mw: 8000
+  MinCapTag_2:
+    description: CA_S_solar
+    min_mw: 10000
+
 
 # Generator cost data from NREL ATB
 
@@ -713,16 +817,16 @@ atb_modifiers:
     technology: NaturalGas
     tech_detail: CTAvgCF
     capex_mw: [mul, 0.76]
-    Var_OM_cost_per_MWh: [mul, 0.98]
-    Fixed_OM_cost_per_MWyr: [mul, 0.6]
-    Heat_rate_MMBTU_per_MWh: [mul, 1.04]
+    Var_OM_Cost_per_MWh: [mul, 0.98]
+    Fixed_OM_Cost_per_MWyr: [mul, 0.6]
+    Heat_Rate_MMBTU_per_MWh: [mul, 1.04]
   ngcc:
     technology: NaturalGas
     tech_detail: CCAvgCF
     capex_mw: [mul, 0.89]
-    Var_OM_cost_per_MWh: [mul, 0.73]
-    Fixed_OM_cost_per_MWyr: [mul, 0.95]
-    Heat_rate_MMBTU_per_MWh: [mul, 0.98]
+    Var_OM_Cost_per_MWh: [mul, 0.73]
+    Fixed_OM_Cost_per_MWyr: [mul, 0.95]
+    Heat_Rate_MMBTU_per_MWh: [mul, 0.98]
 
 
 # Copy and modify an existing ATB new generator. This takes place BEFORE the ATB CC/CT
@@ -752,7 +856,7 @@ eia_atb_tech_map:
   Biomass: Biopower_Dedicated
   Solar Thermal without Energy Storage: CSP_Class1
   Conventional Steam Coal: Coal_newAvgCF
-  Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF
+  Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF #[NaturalGas_CCAvgCF, NETL_NGCC]
   Natural Gas Fired Combustion Turbine: NaturalGas_CTAvgCF
   Peaker: NaturalGas_CTAvgCF
   Solar Photovoltaic: UtilityPV_LosAngeles
@@ -762,7 +866,7 @@ eia_atb_tech_map:
   Conventional Hydroelectric: Hydropower_NSD4 # Large variability based on choice
   Hydroelectric Pumped Storage: Hydropower_NSD4 # Large variability based on choice
   Small Hydroelectric: Hydropower_NSD3 # Large variability based on choice
-  Onshore Wind Turbine: LandbasedWind_LTRG1 # All onshore wind is the same
+  Onshore Wind Turbine: LandbasedWind_LTRG4 # All onshore wind is the same
   Offshore Wind Turbine: OffShoreWind_OTRG10 # Mid-range of floating offshore wind
   Nuclear: Nuclear_*
   Natural Gas Steam Turbine: Coal_newAvgCF # No gas steam turbines in ATB, using coal instead
@@ -774,8 +878,8 @@ atb_new_gen:
   - [NaturalGas, CCCCSAvgCF, Mid, 500]
   - [NaturalGas, CCAvgCF, Mid, 500]
   - [NaturalGas, CTAvgCF, Mid, 100]
-  - [LandbasedWind, LTRG1, Mid, 1]
-  - [OffShoreWind, OTRG10, Mid, 1]
+  - [LandbasedWind, LTRG4, Mid, 1]
+  - [OffShoreWind, OTRG13, Mid, 1]
   - [UtilityPV, LosAngeles, Mid, 1]
   - [Battery, "*", Mid, 1]
   # - [Nuclear, "*", Mid, 500]
@@ -785,11 +889,13 @@ atb_new_gen:
 # Provide the filename (no path needed) in the parameter below or "~" for none.
 # All technologies listed in the file will be included in the outputs unless they are
 # also included in "new_gen_not_available".
-additional_technologies_fn: AZ_additional_tech.csv
+additional_technologies_fn: AZ_additional_tech.csv #NETL_Additional_tech.csv
 
 additional_new_gen:
   - Nuclear_mid
   # - NGCCS100_mid
+  # - NETL_NGCC
+  # - NETL+NGCC_CCS
 
 
 # Dictionary of lists with model region as key and ATB tech (string matching) in list
@@ -874,9 +980,17 @@ cost_multiplier_region_map:
   CASO: [WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE, CA_S]
   SRSG: [WECC_AZ, WECC_NM, WECC_SNV]
 
-# The keys are technologies listed in EIA's 2016 capital cost assumptions document
-# (https://www.eia.gov/analysis/studies/powerplants/capitalcost/pdf/capcost_assumption.pdf)
-# Values are lists of ATB technologies that map to the EIA keys.
+# The keys in cost_multiplier_technology_map are technologies listed in EIA's capital
+# cost assumptions document. The 2020 version is available at
+# https://www.eia.gov/outlooks/archive/aeo20/assumptions/pdf/table_8.2.pdf
+# Values in the list are string-matched to technologies (`<tech>_<tech_detail>`) from ATB.
+# Be sure to include any custom technologies you are using from `additional_technologies_fn`
+# or `modified_atb_new_gen`.
+# If a value in one of the lists matches more than one technology, the cost multiplier
+# will only be applied to the first technology.
+# If you want to modify the regional cost corrections CSV, you can put your own copy in
+# the folder PowerGenome/data/cost_multipliers.
+cost_multiplier_fn: AEO_2020_regional_cost_corrections.csv
 cost_multiplier_technology_map:
   Ultra-supercritical coal (USC): [Coal_newAvgCF, Coal_newHighCF]
   # IGCC: [Coal_IGCCAvgCF, Coal_IGCCAvgCF]
@@ -886,7 +1000,7 @@ cost_multiplier_technology_map:
   CT - industrial frame: [NaturalGas_CTAvgCF, NaturalGas_CTHighCF]
   CC - single shaft: []
   CC - multi shaft: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF]
-  CC with 90% CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100, NaturalGas_CCS100, NaturalGas_CCS100_low,NaturalGas_CCS100_high ]
+  CC with 90% CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100, NaturalGas_CCS100, NaturalGas_CCS100_low,NaturalGas_CCS100_high]
   Fuel cells: []
   Advanced nuclear: [Nuclear_*, Nuclear_mid, Nuclear_low, Nuclear_high]
   Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
@@ -896,13 +1010,13 @@ cost_multiplier_technology_map:
   Solar thermal: [CSP]
   Solar PV - tracking: [UtilityPV, CommPV, ResPV]
   Battery storage: [Battery_*]
-  Geothermal: [Geothermal]
+  Geothermal: [Geothermal_HydroBinary, Geothermal_HydroFlash, Geothermal_NFEGSBinary, Geothermal_DeepEGSBinary, Geothermal_NFEGSFlash, Geothermal_DeepEGSFlash]
   Conventional hydropower: [Hydropower]
 
 
 # PROPOSED GENERATOR VARIABLES
 
-eia_860m_fn: july_generator2019.xlsx
+eia_860m_fn: september_generator2021.xlsx
 
 # The status codes below exclude plants where regulatory approvals have not been
 # initiated or received. "Other" is also excluded.
@@ -1091,6 +1205,7 @@ tech_fuel_map:
 # where the fuel matches something from "aeo_fuel_scenarios" (above
 # ATB: technology_tech_detail.
 ccs_fuel_map:
+  #NETL_NGCC_CCS: naturalgas_ccs90
   NaturalGas_CCS100: naturalgas_ccs100
   NaturalGas_CCCCS: naturalgas_ccs90
   Coal_CCS30: coal_ccs30
@@ -1168,68 +1283,79 @@ new_build_startup_costs:
 generator_columns: [
             "region",
             "Resource",
+            "technology",
             "cluster",
             "R_ID",
-            "zone",
-            "voltage_level",
-            "CapRes",
+            "Zone",
+            "Num_VRE_Bins",
+            "CapRes_1",
+            "CapRes_2",
             "THERM",
-            "DISP",
-            "NDISP",
+            "VRE",
+            "MUST_RUN",
             "STOR",
-            "DR",
-            "HEAT",
-            "NACC",
-            "TRADER",
+            "FLEX",
+            # "HEAT",
+            # "NACC",
+            # "TRADER",
             "HYDRO",
-            "RPS",
-            "CES",
-            "Commit",
+            "ESR_1",
+            "ESR_2",
+            "MinCapTag_1",
+            "MinCapTag_2",
             "Min_Share",
             "Max_Share",
             "Existing_Cap_MWh",
             "Existing_Cap_MW",
+            "Existing_Charge_Cap_MW",
             "num_units",
             "unmodified_existing_cap_mw",
             "New_Build",
-            "Cap_size",
+            "Cap_Size",
             "Min_Cap_MW",
             "Max_Cap_MW",
+            "Max_Cap_MWh",
+            "Min_Cap_MWh",
+            "Max_Charge_Cap_MW",
+            "Min_Charge_Cap_MW",
             "Min_Share_percent",
             "Max_Share_percent",
             "capex_mw",
-            "Inv_cost_per_MWyr",
-            "Fixed_OM_cost_per_MWyr",
+            "Inv_Cost_per_MWyr",
+            "Fixed_OM_Cost_per_MWyr",
             "capex_mwh",
-            "Inv_cost_per_MWhyr",
-            "Fixed_OM_cost_per_MWhyr",
-            "Var_OM_cost_per_MWh",
-            "Var_OM_cost_per_MWh_in",
-            "Externality_cost_MWh",
-            "Start_cost_per_MW",
-            "Start_fuel_MMBTU_per_MW",
-            "Heat_rate_MMBTU_per_MWh",
+            "Inv_Cost_per_MWhyr",
+            "Fixed_OM_Cost_per_MWhyr",
+            "Var_OM_Cost_per_MWh",
+            "Var_OM_Cost_per_MWh_In",
+            "Inv_Cost_Charge_per_MWyr",
+            "Fixed_OM_Cost_Charge_per_MWyr",
+            # "Externality_cost_MWh",
+            "Start_Cost_per_MW",
+            "Start_Fuel_MMBTU_per_MW",
+            "Heat_Rate_MMBTU_per_MWh",
             "heat_rate_mmbtu_mwh_iqr",
             "heat_rate_mmbtu_mwh_std",
             "Fuel",
-            "Min_power",
-            "Self_disch",
-            "Eff_up",
-            "Eff_down",
+            "Min_Power",
+            "Self_Disch",
+            "Eff_Up",
+            "Eff_Down",
+            "Hydro_Energy_to_Power_Ratio",
             "Ratio_power_to_energy",
             "Min_Duration",
             "Max_Duration",
-            "Max_DSM_delay",
-            "Ramp_Up_percentage",
-            "Ramp_Dn_percentage",
-            "Up_time",
-            "Down_time",
+            "Max_Flexible_Demand_Delay",
+            "Max_Flexible_Demand_Advance",
+            "Flexible_Demand_Energy_Eff",
+            "Ramp_Up_Percentage",
+            "Ramp_Dn_Percentage",
+            "Up_Time",
+            "Down_Time",
             "NACC_Eff",
             "NACC_Peak_to_Base",
-            "Reg_Up",
-            "Reg_Dn",
-            "Rsv_Up",
-            "Rsv_Dn",
+            "Reg_Max",
+            "Rsv_Max",
             "Reg_Cost",
             "Rsv_Cost",
             "spur_miles",

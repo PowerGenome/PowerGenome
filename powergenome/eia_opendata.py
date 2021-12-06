@@ -4,6 +4,7 @@ Load data from EIA's Open Data API. Requires an api key, which should be include
 """
 
 from itertools import product
+import logging
 from typing import Union
 
 import pandas as pd
@@ -11,6 +12,8 @@ import requests
 
 from powergenome.params import SETTINGS, DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
+
+logger = logging.getLogger(__name__)
 
 numeric = Union[int, float]
 
@@ -30,13 +33,24 @@ def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.Da
     Returns
     -------
     pd.DataFrame
-        [description]
+        Data from EIA's AEO via their open data API.
     """
     data_dir = DATA_PATHS["eia"] / "open_data"
     if not (data_dir / f"{series_id}.csv").exists():
         url = f"http://api.eia.gov/series/?series_id={series_id}&api_key={api_key}&out=json"
         r = requests.get(url)
-        df = pd.DataFrame(r.json()["series"][0]["data"], columns=columns, dtype=float)
+
+        try:
+            df = pd.DataFrame(
+                r.json()["series"][0]["data"], columns=columns, dtype=float
+            )
+        except KeyError:
+            print(
+                "There was an error creating a dataframe from your EIA AEO data request. "
+                f"The constructed series ID is {series_id}. Check to make sure it looks "
+                "correct. The data returned from EIA's API is: \n"
+                f"{r.json()}"
+            )
         df.to_csv(data_dir / f"{series_id}.csv", index=False)
     else:
         df = pd.read_csv(data_dir / f"{series_id}.csv")
@@ -44,7 +58,60 @@ def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.Da
     return df
 
 
-def fetch_fuel_prices(settings):
+def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFrame:
+    """
+    Get EIA AEO fuel prices for all regions, fuel types, and scenarios (series IDs)
+    included in the settings.
+
+    Parameters
+    ----------
+    settings : dict
+        Should include the following keys:
+            eia_aeo_year (int)
+            eia_series_region_names (list)
+            eia_series_fuel_names (list)
+            eia_series_scenario_names (list)
+    inflate_price: bool
+        If True, adjust the AEO prices to the year "target_usd_year" from the settings.
+        If False, do not adjust the AEO prices. Requires the additional settings keys
+        "target_usd_year" and "aeo_fuel_usd_year".
+
+    Returns
+    -------
+    pd.DataFrame
+        All fuel price data from AEO for the product of regions, fuels, and scenarios
+        included in the settings dictionary.
+
+    Examples
+    --------
+    Prepare the settings dictionary
+    >>> settings = {}
+    >>> settings["eia_aeo_year"] = 2020
+    >>> settings["aeo_fuel_usd_year"] = 2019
+    >>> settings["eia_series_scenario_names"] = {"reference": "REF2020"}
+    >>> settings["eia_series_fuel_names"] = {"coal": "STC"}
+    >>> settings["eia_series_region_names"] = {"mountain": "MTN"}
+
+    Find the fuel cost with inflating costs.
+
+    >>> fuel_price = fetch_fuel_prices(settings, inflate_price=False)
+    >>> print(fuel_price.head())
+       year     price  fuel    region   scenario           full_fuel_name
+    0  2050  1.501850  coal  mountain  reference  mountain_reference_coal
+    1  2049  1.488098  coal  mountain  reference  mountain_reference_coal
+    2  2048  1.508208  coal  mountain  reference  mountain_reference_coal
+    3  2047  1.506809  coal  mountain  reference  mountain_reference_coal
+    4  2046  1.497366  coal  mountain  reference  mountain_reference_coal
+
+    If either of the keys "target_usd_year" or "aeo_fuel_usd_year" is missing, fuel prices
+    cannot be inflated.
+
+    >>> fuel_price = fetch_fuel_prices(settings)
+    ************
+    Unable to inflate fuel prices. Check your settings file to ensure the keys
+    "target_usd_year" and "aeo_fuel_usd_year" exist and are valid integers.
+    ************
+    """
     API_KEY = SETTINGS["EIA_API_KEY"]
 
     aeo_year = settings["eia_aeo_year"]
@@ -76,13 +143,24 @@ def fetch_fuel_prices(settings):
 
     final = pd.concat(df_list, ignore_index=True)
 
-    fuel_price_base_year = settings["aeo_fuel_usd_year"]
-    fuel_price_target_year = settings["target_usd_year"]
-    final.loc[:, "price"] = inflation_price_adjustment(
-        price=final.loc[:, "price"],
-        base_year=fuel_price_base_year,
-        target_year=fuel_price_target_year,
-    )
+    if inflate_price:
+        try:
+            fuel_price_base_year = settings["aeo_fuel_usd_year"]
+            fuel_price_target_year = settings["target_usd_year"]
+            final.loc[:, "price"] = inflation_price_adjustment(
+                price=final.loc[:, "price"],
+                base_year=fuel_price_base_year,
+                target_year=fuel_price_target_year,
+            )
+        except (KeyError, TypeError):
+            logger.warning(
+                """
+    ************
+    Unable to inflate fuel prices. Check your settings file to ensure the keys
+    "target_usd_year" and "aeo_fuel_usd_year" are valid integers.
+    ************
+                """
+            )
 
     return final
 
@@ -106,6 +184,17 @@ def get_aeo_load(
     -------
     pd.DataFrame
         The demand data for a single region.
+
+    Examples
+    --------
+    >>> texas_load = get_aeo_load("TRE", 2020, "REF2020")
+    >>> print(texas_load.head())
+       year      demand
+    0  2050  489.009247
+    1  2049  483.176544
+    2  2048  477.624481
+    3  2047  472.314972
+    4  2046  466.875671
     """
 
     data_dir = DATA_PATHS["eia"] / "open_data"
@@ -117,14 +206,7 @@ def get_aeo_load(
         f"AEO.{aeo_year}.{scenario_series}.CNSM_NA_ELEP_NA_ELC_NA_{region}_BLNKWH.A"
     )
 
-    if not (data_dir / f"{SERIES_ID}.csv").exists():
-        url = f"http://api.eia.gov/series/?series_id={SERIES_ID}&api_key={API_KEY}&out=json"
-        r = requests.get(url)
-        df = pd.DataFrame(
-            r.json()["series"][0]["data"], columns=["year", "demand"], dtype=float
-        )
-        df.to_csv(data_dir / f"{SERIES_ID}.csv", index=False)
-    else:
-        df = pd.read_csv(data_dir / f"{SERIES_ID}.csv")
+    df = load_aeo_series(SERIES_ID, API_KEY, columns=["year", "demand"])
+    df["year"] = df["year"].astype(int)
 
     return df

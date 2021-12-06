@@ -30,7 +30,7 @@ def load_settings(path: Union[str, Path]) -> dict:
     return settings
 
 
-def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
+def check_settings(settings: dict, pg_engine: sa.engine) -> None:
     """Check for user errors in the settings file.
 
     The YAML settings file is loaded as a dictionary object. It has many different parts
@@ -41,11 +41,11 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
     ----------
     settings : dict
         Parameters and values from the YAML settings file.
-    pudl_engine : sa.engine
+    pg_engine : sa.engine
         Connection to the PUDL sqlite database.
     """
 
-    ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pudl_engine)[
+    ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
         "region_id_epaipm"
     ].to_list()
 
@@ -135,7 +135,7 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
 
 
 def init_pudl_connection(
-    freq: str = "YS",
+    freq: str = "AS", start_year: int = None, end_year: int = None
 ) -> Tuple[sa.engine.base.Engine, pudl.output.pudltabl.PudlTabl]:
     """Initiate a connection object to the sqlite PUDL database and create a pudl
     object that can quickly access parts of the database.
@@ -153,13 +153,35 @@ def init_pudl_connection(
         object for quickly accessing parts of the database. `pudl_out` is used
         to access unit heat rates.
     """
+    pudl_engine = sa.create_engine(SETTINGS["PUDL_DB"])
+    if start_year is not None:
+        start_year = pd.to_datetime(start_year, format="%Y")
+    if end_year is not None:
+        end_year = pd.to_datetime(end_year + 1, format="%Y")
+    """
+    pudl_out = pudl.output.pudltabl.PudlTabl(
+        freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
+        #freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year, ds=""
+    )
+    """
+    pudl_out = pudl.output.pudltabl.PudlTabl(
+        freq=freq,
+        pudl_engine=pudl_engine,
+        start_date=start_year,
+        end_date=end_year,
+        ds=pudl.workspace.datastore.Datastore(),
+    )
 
-    pudl_engine = sa.create_engine(
-        SETTINGS["PUDL_DB"]
-    )  # pudl.init.connect_db(SETTINGS)
-    pudl_out = pudl.output.pudltabl.PudlTabl(freq=freq, pudl_engine=pudl_engine)
+    if SETTINGS.get("PG_DB"):
+        pg_engine = sa.create_engine(SETTINGS["PG_DB"])
+    else:
+        logger.warning(
+            "No path to a `PG_DB` database was found in the .env file. Using the "
+            "`PUDL_DB` path instead."
+        )
+        pg_engine = sa.create_engine(SETTINGS["PUDL_DB"])
 
-    return pudl_engine, pudl_out
+    return pudl_engine, pudl_out, pg_engine
 
 
 def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, str]:
@@ -258,6 +280,15 @@ def update_dictionary(d: dict, u: dict) -> dict:
 
 
 def remove_fuel_scenario_name(df, settings):
+    _df = df.copy()
+    scenarios = settings["eia_series_scenario_names"].keys()
+    for s in scenarios:
+        _df.columns = _df.columns.str.replace(f"_{s}", "")
+
+    return _df
+
+
+def remove_fuel_gen_scenario_name(df, settings):
     _df = df.copy()
     scenarios = settings["eia_series_scenario_names"].keys()
     for s in scenarios:

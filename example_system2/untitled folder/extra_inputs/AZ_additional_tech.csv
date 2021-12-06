@@ -1,0 +1,7 @@
+﻿technology,planning_year,capex_mw,capex_mwh,fixed_o_m_mw,fixed_o_m_mwh,variable_o_m_mwh,wacc_real,dollar_year,heat_rate,notes
+Nuclear_mid,2030,5885000,0,100889,0,2.314,0.071893686,2017,10.461,construction finance factor of 1.07 from ATB geothermal example with 5 years construction time
+Nuclear_low,2030,3066000,0,100889,0,2.314,0.071893686,2017,10.461,construction finance factor of 1.022 from ATB natural gas example with 3 years construction time
+Nuclear_high,2030,11540000,0,100889,0,2.314,0.071893686,2017,10.461,construction finance factor of 1.154 for 10% construction in every year for 10 years
+Nuclear_mid,2045,4815000,0,100889,0,2.314,0.0715422,2017,10.461,construction finance factor of 1.07 from ATB geothermal example with 5 years construction time
+Nuclear_low,2045,2044000,0,100889,0,2.314,0.0715422,2017,10.461,construction finance factor of 1.022 from ATB natural gas example with 3 years construction time
+Nuclear_high,2045,9232000,0,100889,0,2.314,0.0715422,2017,10.461,construction finance factor of 1.154 for 10% construction in every year for 10 years
