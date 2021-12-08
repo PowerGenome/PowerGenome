@@ -2402,9 +2402,13 @@ class GeneratorClusters:
             self.prime_mover_hr_map
         )
 
-        # Set heat rates < 5 or > 35 mmbtu/MWh to nan
+        # Set heat rates < 5 or > 35 mmbtu/MWh to nan. Don't change heat rates of 0,
+        # which is when there is positive generation and no fuel use (pumped storage)
         self.units_model.loc[
-            (self.units_model.heat_rate_mmbtu_mwh < 5)
+            (
+                (self.units_model.heat_rate_mmbtu_mwh < 5)
+                & (self.units_model.heat_rate_mmbtu_mwh != 0)
+            )
             | (self.units_model.heat_rate_mmbtu_mwh > 35),
             "heat_rate_mmbtu_mwh",
         ] = np.nan
@@ -2446,7 +2450,9 @@ class GeneratorClusters:
             f"Proposed gen technologies are "
             f"{self.proposed_gens.technology_description.unique().tolist()}"
         )
-        logger.info(f"{self.proposed_gens[self.settings['capacity_col']].sum()} MW proposed")
+        logger.info(
+            f"{self.proposed_gens[self.settings['capacity_col']].sum()} MW proposed"
+        )
         self.units_model = pd.concat(
             [self.proposed_gens, self.units_model, self.new_860m_gens], sort=False
         )
