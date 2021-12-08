@@ -69,7 +69,7 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
             technology == "{tech}"
             AND tech_detail == "{tech_detail}"
         """
-        if len(pudl_engine.execute(s).fetchall()) == 0:
+        if len(pg_engine.execute(s).fetchall()) == 0:
             s = f"""
     *****************************
     The technology {tech} - {tech_detail} listed in your settings file under 'atb_new_gen'

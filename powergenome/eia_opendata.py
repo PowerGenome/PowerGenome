@@ -36,6 +36,7 @@ def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.Da
         Data from EIA's AEO via their open data API.
     """
     data_dir = DATA_PATHS["eia"] / "open_data"
+    data_dir.mkdir(exist_ok=True)
     if not (data_dir / f"{series_id}.csv").exists():
         url = f"http://api.eia.gov/series/?series_id={series_id}&api_key={api_key}&out=json"
         r = requests.get(url)
