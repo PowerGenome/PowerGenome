@@ -20,11 +20,11 @@ The goal of PowerGenome is to let a user make all of these choices in a settings
 
 ## Data
 
-PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. The data are accessed through a combination of sqlite databases, CSV files, and parquet data files. EIA data on existing generating units are already compiled into either a [single sqlite database](https://doi.org/10.5281/zenodo.3653158) (see instructions for using it below). A [second sqlite database](https://drive.google.com/file/d/1LM0ShpM69yLhZX9ScyVDmVBjC3iyyEg4/view?usp=sharing) has tables with new resource costs from NREL ATB, transmission constraints between IPM regions from EIA, and hourly demand within each IPM region from FERC. There are also a few data files stored in this repository:
+PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. The data are accessed through a combination of sqlite databases, CSV files, and parquet data files. EIA data on existing generating units are already compiled into a [single sqlite database](https://doi.org/10.5281/zenodo.3653158) (see instructions for using it below). A [second sqlite database](https://drive.google.com/file/d/1LM0ShpM69yLhZX9ScyVDmVBjC3iyyEg4/view?usp=sharing) has tables with new resource costs from NREL ATB, transmission constraints between IPM regions from EIA, and hourly demand within each IPM region from FERC. There are also a few data files stored in this repository:
 
 - Regional cost multipliers for individual technologies developed by EIA (`data/cost_multipliers/AEO_2020_regional_cost_corrections.csv`).
 - A simplified geojson version of EPA's shapefile for IPM regions (`data/ipm_regions_simple.geojson`).
-- Information on user-defined technologies, which can be included in outputs. This can be used to define a custom cost case (e.g. $500/kW PV) or a new technology such as natural gas with 100% carbon capture. The CSV files are stored in `data/additional_technologies` and there is a documentation file in that folder describing what to include in the file.
+- Information on user-defined technologies, which can be included in outputs. This can be used to define a custom cost case (e.g. $500/kW PV) or a new technology such as natural gas with 100% carbon capture. The CSV files are stored in the `extra_inputs` subfolders of each example system. A documentation file in that folder describes what to include in the file.
 
 ## PUDL Dependency
 
@@ -70,10 +70,10 @@ conda activate powergenome
 pip install -e .
 ```
 
-5. Download [the PUDL database](https://doi.org/10.5281/zenodo.3653158), unzip it, and copy the `/pudl_data/sqlite/pudl.sqlite` to wherever you would like to store PowerGenome data on your computer. Note that as of December 2021 the most recent version of this database (Data Release v3.0.0) is compatible with `catalystcoop.pudl` version 0.5.* and will not work if an earlier version is included in your conda environment.
+5. Download [the PUDL database](https://doi.org/10.5281/zenodo.3653158), unzip it, and copy the `/pudl_data/sqlite/pudl.sqlite` to wherever you would like to store PowerGenome data on your computer. The zip file contains other data sets that aren't needed for PowerGenome and can be deleted.  Note that as of December 2021 the most recent version of this database (Data Release v3.0.0) is compatible with `catalystcoop.pudl` version 0.5.* and will not work if an earlier version is included in your conda environment.
 
 
-6. Download [additional PowerGenome data](https://drive.google.com/file/d/1LM0ShpM69yLhZX9ScyVDmVBjC3iyyEg4/view?usp=sharing) that includes NREL ATB cost data and IPM region hourly demand/transmission constraints. These files will eventually be provided through a data repository with citation information.
+6. Download [additional PowerGenome data](https://drive.google.com/file/d/1LM0ShpM69yLhZX9ScyVDmVBjC3iyyEg4/view?usp=sharing) that includes NREL ATB cost data, transmission constraints between IPM regions, and hourly demand for each IPM region. Hourly demand is for 2012 and was constructed from FERC 714 data. These files will eventually be provided through a data repository with citation information.
 
 7. Download the [renewable resource data](https://drive.google.com/file/d/1g0Q6TdNp4C12HQJy6pAURzp_oVg0Q7ly/view?usp=sharing) containing generation profiles and capacity for existing and new-build renewable resources. Save and unzip this file. The suggested location for all of the unzipped files is `PowerGenome/data/resource_groups/`. These files will eventually be provided through a data repository with citation information.
 
@@ -81,14 +81,13 @@ pip install -e .
 
 9. Create the file `PowerGenome/powergenome/.env`. To this file, add `PUDL_DB=YOUR_PATH_HERE` (your path to the PUDL database downloaded in step 5), `PG_DB=YOUR_PATH_HERE` (your path to the additional PowerGenome data downloaded in step 6), `EIA_API_KEY=YOUR_KEY_HERE` (your EIA API key) and `RESOURCE_GROUPS=YOUR_PATH_HERE` (your path to where the resource groups data from Step 6 are saved). Quotation marks are only needed if your values contain spaces. The `.env` file is included in `.gitignore` and will not be synced with the repository. See the [SQLAlchemy documentation](https://docs.sqlalchemy.org/en/13/dialects/sqlite.html#connect-strings) for examples of how to format the `PUDL_DB` and `PG_DB` paths (e.g. `sqlite:////<entire path to the folder containing pudl file>/pudl.sqlite`, or `sqlite:///C:/path/to/folder/pudl.sqlite` on Windows). If you get any errors when trying to initite the PUDL database, go back and check your path formatting against the SQLAlchemy documentation examples.
 
-10. Update the Consumer Price Index (CPI) data used to adjust U.S. dollars for inflation (see https://github.com/datadesk/cpi#updating-the-cpi). Because the orignial [cpi](https://github.com/datadesk/cpi) package takes ~30 seconds to load, PowerGenome includes a modified version that only stores a handfull of the BLS CPI tables. Update these tables by starting a `python` session and running:
-
-```python
-from powergenome.externals.cpi import cpi as cpi
-cpi.update()
-```
-
 ## Running code
+
+### Suggested folder structure
+
+It is best practice to set up project folders outside of the cloned repository so that git doesn't track any new/changed files within the upper-level `PowerGenome` folder. Try copying one of the example systems (settings file and extra inputs) and modifying it. Copy the `notebooks` folder into your project folder, change the path to the settings file as needed, and run code in the notebooks. This can also be a good way to learn how data are created in PowerGenome and debug problem.
+
+Keeping project folders separate from the cloned `PowerGenome` folder will also make it easier to pull changes as they are released.
 
 ### Settings
 
@@ -102,7 +101,7 @@ A series of example notebooks are included in [`PowerGenome/notebooks`](/noteboo
 
 The outputs are all formatted for GenX we hope to make the data formatting code more module to allow users to easily switch between outputs for different power system models.
 
-Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). Examples of how to load data in this way are included in `PowerGenome/notebooks`. To run from the command line, navigate to a project folder that contains a settings file and extra inputs (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome_multiple` with flags for the settings file name and where the results should be saved:
+Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). Examples of how to load data in this way are included in `PowerGenome/notebooks`. To run from the command line, navigate to a project folder that contains a settings file and extra inputs (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome_multiple` with flags for the settings file name and where the results should be saved. Since the `powergenome` package is installed in the `powergenome` conda environment, you can run the command line function from anywhere on your computer (not just within the cloned `PowerGenome` folder).
 
 ```sh
 run_powergenome_multiple --settings_file test_settings.yml --results_folder test_system
