@@ -1414,11 +1414,15 @@ def clean_860m_sheet(
     """
 
     df = eia_860m.parse(sheet_name=sheet_name, na_values=[" "])
+
+    # Find skiprows and skipfooters, which changes across 860m versions.
+    # NEW: drop rows with all NaN because EIA added a blank row before the footer.
+    sr = 0
     for idx, row in df.iterrows():
         if row.iloc[0] == "Entity ID":
             sr = idx + 1
             break
-
+    sf = 0
     for idx in list(range(-10, 0)):
         if isinstance(df.iloc[idx, 0], str):
             sf = -idx
@@ -1426,6 +1430,7 @@ def clean_860m_sheet(
     df = eia_860m.parse(
         sheet_name=sheet_name, skiprows=sr, skipfooter=sf, na_values=[" "]
     )
+    df = df.dropna(how="all")
     df = df.rename(columns=planned_col_map)
 
     if sheet_name in ["Operating", "Planned"]:
