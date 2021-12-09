@@ -233,9 +233,7 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
         excl_list = []
         for idx, row in tx_df.iterrows():
-            if ((row[dest_zone_nums] != 0).all() and len(dest_zone_nums) > 1) or (
-                row[dest_zone_nums] == 0
-            ).sum() == len(dest_zone_nums):
+            if row[cap_res] == 0:
                 excl_list.append(0)
             else:
                 for zone_num, reg in zip(dest_zone_nums, dest_regions):
