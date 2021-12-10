@@ -162,19 +162,15 @@ def label_cap_res_lines(path_names: List[str], dest_regions: List[str]) -> List[
     -------
     List[int]
         Same length as 'path_names'. Values of 1 mean it connects a region within a
-        capacity reserve constraint to a region outside the constraint. Values of 0 mean
-        it connects two regions that are both within or outside the constraint.
+        capacity reserve constraint to a region outside the constraint. Values of -1 
+        mean it connects a region outside a capacity reserve constraint to a region 
+        within the constraint. Values of 0 mean it connects two regions that are both
+        within or outside the constraint.
     """
     cap_res_list = []
     for name in path_names:
         s_r = name.split("_to_")[0]
         e_r = name.split("_to_")[-1]
-        # if (s_r in dest_regions or e_r in dest_regions) and not (
-        #     s_r in dest_regions and e_r in dest_regions
-        # ):
-        #     cap_res_list.append(1)
-        # else:
-        #     cap_res_list.append(0)
         if (s_r in dest_regions) and not (e_r in dest_regions):
             cap_res_list.append(1)
         elif (e_r in dest_regions) and not (s_r in dest_regions):
@@ -228,37 +224,14 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         cap_res_num = int(cap_res.split("_")[-1]) # the number of the capres constraint
         policy_nums.append(cap_res_num)
         dest_regions = list(settings["regional_capacity_reserves"][cap_res].keys()) # list of regions in the CapRes
-        dest_zone_nums = [zone_num_map[reg] for reg in dest_regions] # numbering of the zones
-
-        # tx_df[cap_res] = label_cap_res_lines(path_names, dest_regions)
-
         # May add ability to have different values by CapRes and line in the future
         tx_df[f"DerateCapRes_{cap_res_num}"] = settings.get(
             "cap_res_network_derate_default", 0.95
         )
-
-        # excl_list = []
-        # for idx, row in tx_df.iterrows():
-        #     # if ((row[dest_zone_nums] != 0).all() and len(dest_zone_nums) > 1) or (
-        #     #     row[dest_zone_nums] == 0
-        #     # ).sum() == len(dest_zone_nums):
-        #     # if (row[cap_res]==0):
-        #     #     excl_list.append(0)
-        #     # else:
-        #     #     for zone_num, reg in zip(dest_zone_nums, dest_regions):
-        #     #         if reg in row["transmission_path_name"] and row[zone_num] != 0:
-        #     #             excl_list.append(row[zone_num])
-        #     zone_capres = 0
-        #     for zone_num, reg in zip(dest_zone_nums, dest_regions):
-        #         if reg in row["transmission_path_name"] and row[zone_num] != 0:
-        #             zone_capres += row[zone_num]
-        #     excl_list.append(row[zone_num])
-
         tx_df[f"CapRes_Excl_{cap_res_num}"] = label_cap_res_lines(
             path_names, dest_regions)
 
     policy_nums.sort()
-    # capres_cols = [f"CapRes_{n}" for n in policy_nums]
     derate_cols = [f"DerateCapRes_{n}" for n in policy_nums]
     excl_cols = [f"CapRes_Excl_{n}" for n in policy_nums]
 
