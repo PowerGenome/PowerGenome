@@ -691,24 +691,26 @@ def supplement_generator_860_data(
     # Combine generator data that can change over time with static entity data
     # and only keep generators that are in a region of interest
 
-    gen_cols = [
-        # "report_date",
-        "plant_id_eia",
-        # "plant_name",
-        "generator_id",
-        # "balancing_authority_code",
-        settings["capacity_col"],
-        "capacity_mw",
-        "energy_source_code_1",
-        "energy_source_code_2",
-        "minimum_load_mw",
-        "operational_status_code",
-        "planned_new_capacity_mw",
-        "switch_oil_gas",
-        "technology_description",
-        "time_cold_shutdown_full_load_code",
-        "planned_retirement_date",
-    ]
+    gen_cols = set(
+        [
+            # "report_date",
+            "plant_id_eia",
+            # "plant_name",
+            "generator_id",
+            # "balancing_authority_code",
+            settings["capacity_col"],
+            "capacity_mw",
+            "energy_source_code_1",
+            "energy_source_code_2",
+            "minimum_load_mw",
+            "operational_status_code",
+            "planned_new_capacity_mw",
+            "switch_oil_gas",
+            "technology_description",
+            "time_cold_shutdown_full_load_code",
+            "planned_retirement_date",
+        ]
+    )
 
     entity_cols = ["plant_id_eia", "generator_id", "prime_mover_code", "operating_date"]
 
@@ -2431,7 +2433,9 @@ class GeneratorClusters:
         # assert (
         #     self.units_model["heat_rate_mmbtu_mwh"].isnull().any() is False
         # ), "There are still some null heat rate values"
+        # from IPython import embed
 
+        # embed()
         logger.info(
             f"Units model technologies are "
             f"{self.units_model.technology_description.unique().tolist()}"
@@ -2451,6 +2455,7 @@ class GeneratorClusters:
             settings=self.settings,
             model_regions_gdf=self.model_regions_gdf,
         )
+        # embed()
         logger.info(
             f"Proposed gen technologies are "
             f"{self.proposed_gens.technology_description.unique().tolist()}"
