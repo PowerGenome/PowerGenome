@@ -1,4 +1,4 @@
-name: newpowergenome
+name: powergenome
 channels:
   - conda-forge
   # - defaults
