@@ -57,9 +57,16 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
         itertools.chain.from_iterable(settings["aeo_fuel_region_map"].values())
     )
 
-    techs = settings["atb_new_gen"]
+    atb_techs = settings["atb_new_gen"]
+    atb_mod_techs = settings.get("modified_atb_new_gen", {})
+    add_new_techs = settings.get("additional_new_gen", [])
+    cost_mult_techs = []
+    for k, v in settings.get("cost_multiplier_technology_map", {}).items():
+        for t in v:
+            cost_mult_techs.append(t)
 
-    for tech in techs:
+    # Make sure atb techs are spelled correctly and are in the cost_multiplier_technology_map
+    for tech in atb_techs:
         tech, tech_detail, cost_case, _ = tech
 
         s = f"""
@@ -78,6 +85,40 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
     *****************************
     """
             logger.warning(s)
+
+        if f"{tech}_{tech_detail}" not in cost_mult_techs:
+            s = f"""
+    *****************************
+    The ATB technology "{tech}_{tech_detail}" listed in your settings file under 'atb_new_gen'
+    is not fully specified in the 'cost_multiplier_technology_map' settings parameter.
+    Part of the <tech>_<tech_detail> string might be included, but it is best practice to
+    include the full name in this format. Check your settings file.
+        """
+            logger.warning((s))
+
+    for mod_tech in atb_mod_techs.values():
+        mt_name = f"{mod_tech['new_technology']}_{mod_tech['new_tech_detail']}"
+        if mt_name not in cost_mult_techs:
+            s = f"""
+    *****************************
+    The modified ATB technology "{mt_name}" listed in your settings file under
+    'modified_atb_new_gen' is not fully specified in the 'cost_multiplier_technology_map'
+    settings parameter. Part of the <new_technology>_<new_tech_detail> string might be
+    included, but it is best practice to include the full name in this format. Check
+    your settings file.
+        """
+            logger.warning((s))
+
+    for add_tech in add_new_techs:
+        if add_tech not in cost_mult_techs:
+            s = f"""
+    *****************************
+    The additional user-specified technology "{add_tech}" listed in your settings file under
+    'additional_new_gen' is not fully specified in the 'cost_multiplier_technology_map'
+    settings parameter. Part of the name string might be included, but it is best practice
+    to include the full name in this format. Check your settings file.
+        """
+            logger.warning((s))
 
     for agg_region, ipm_regions in (settings.get("region_aggregations") or {}).items():
         for ipm_region in ipm_regions:
