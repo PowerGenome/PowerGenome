@@ -2795,7 +2795,7 @@ class GeneratorClusters:
         ).pipe(add_transmission_inv_cost, self.settings)
 
         if self.settings.get("demand_response_fn"):
-            dr_rows = self.create_demand_response_gen_rows()
+            dr_rows = self.create_demand_response_gen_rows().pipe(add_genx_model_tags, self.settings)
             self.new_generators = pd.concat([self.new_generators, dr_rows], sort=False)
 
         self.new_generators["Resource"] = snake_case_col(
