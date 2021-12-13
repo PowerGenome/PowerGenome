@@ -149,7 +149,8 @@ def create_regional_cap_res(settings: dict) -> pd.DataFrame:
 
 
 def label_cap_res_lines(path_names: List[str], dest_regions: List[str]) -> List[int]:
-    """Label if each transmission line is part of a capacity reserve constraint
+    """Label if each transmission line is part of a capacity reserve constraint and
+    if line flow is into or out of the constraint region.
 
     Parameters
     ----------
@@ -161,9 +162,9 @@ def label_cap_res_lines(path_names: List[str], dest_regions: List[str]) -> List[
     Returns
     -------
     List[int]
-        Same length as 'path_names'. Values of 1 mean it connects a region within a
-        capacity reserve constraint to a region outside the constraint. Values of -1 
-        mean it connects a region outside a capacity reserve constraint to a region 
+        Same length as 'path_names'. Values of 1 mean the line connects a region within
+        a capacity reserve constraint to a region outside the constraint. Values of -1
+        mean it connects a region outside a capacity reserve constraint to a region
         within the constraint. Values of 0 mean it connects two regions that are both
         within or outside the constraint.
     """
@@ -221,15 +222,18 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     # Loop through capacity reserve constraints (CapRes_*) and determine network
     # parameters for each
     for cap_res in settings.get("regional_capacity_reserves", {}):
-        cap_res_num = int(cap_res.split("_")[-1]) # the number of the capres constraint
+        cap_res_num = int(cap_res.split("_")[-1])  # the number of the capres constraint
         policy_nums.append(cap_res_num)
-        dest_regions = list(settings["regional_capacity_reserves"][cap_res].keys()) # list of regions in the CapRes
+        dest_regions = list(
+            settings["regional_capacity_reserves"][cap_res].keys()
+        )  # list of regions in the CapRes
         # May add ability to have different values by CapRes and line in the future
         tx_df[f"DerateCapRes_{cap_res_num}"] = settings.get(
             "cap_res_network_derate_default", 0.95
         )
         tx_df[f"CapRes_Excl_{cap_res_num}"] = label_cap_res_lines(
-            path_names, dest_regions)
+            path_names, dest_regions
+        )
 
     policy_nums.sort()
     derate_cols = [f"DerateCapRes_{n}" for n in policy_nums]
