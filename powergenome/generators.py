@@ -2748,7 +2748,7 @@ class GeneratorClusters:
             logger.info(
                 "\n **************** \nDistributed generation is being added as generating"
                 " resources. The capacity of DG in each region is increased by "
-                f"{self.settings.get('avg_distribution_loss', 0):%} to account for no"
+                f"{self.settings.get('avg_distribution_loss', 0):%} to account for no "
                 "distribution losses.\n"
             )
             self.results = add_dg_resources(
