@@ -216,7 +216,9 @@ def make_final_load_curves(
         else:
             load_curves_dr = load_curves_before_dg
 
-    if settings.get("distributed_gen_profiles_fn"):
+    if settings.get("distributed_gen_profiles_fn") and not settings.get(
+        "dg_as_resource"
+    ):
         final_load_curves = subtract_distributed_generation(
             load_curves_dr, pg_engine, settings
         )

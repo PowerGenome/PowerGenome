@@ -13,6 +13,7 @@ from pathlib import Path
 import pudl
 from bs4 import BeautifulSoup
 from flatten_dict import flatten
+import sqlalchemy
 from powergenome.cluster_method import (
     cluster_by_owner,
     cluster_kmeans,
@@ -30,6 +31,7 @@ from powergenome.load_data import (
     load_plants_860,
     load_utilities_eia,
 )
+from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
     atb_fixed_var_om_existing,
     atb_new_generators,
@@ -2127,6 +2129,47 @@ def save_weighted_hr(weighted_unit_hr, pudl_engine):
     pass
 
 
+def add_dg_resources(
+    pg_engine: sqlalchemy.engine.Engine,
+    settings: dict,
+    gen_df: pd.DataFrame = pd.DataFrame(),
+) -> pd.DataFrame:
+    """Add distributed generation resources as rows in a generators dataframe
+
+    Parameters
+    ----------
+    pg_engine : sqlalchemy.engine.Engine
+        Connection to database with hourly generation values. Needed if installed DG
+        capacity is calculated as a fraction of load.
+    settings : dict
+        Settings dictionary with parameters "model_year", "input_folder", "distributed_gen_profiles_fn",
+        "distributed_gen_method", "distributed_gen_values", and "avg_distribution_loss".
+    gen_df : pd.DataFrame, optional
+        A dataframe with other generating resources, by default pd.DataFrame()
+
+    Returns
+    -------
+    pd.DataFrame
+        A modified version of the input dataframe with distributed generation resources
+        for each region where a generation profile has been supplied in the
+        "distributed_gen_profiles_fn" file. Each dg resource is one row and includes
+        values for the columns "technology", "region", "Existing_Cap_MW", and "profile".
+    """
+    dg_profiles = make_distributed_gen_profiles(pg_engine, settings)
+    df = pd.DataFrame(
+        columns=["technology", "region", "Existing_Cap_MW", "profile"],
+        index=range(len(dg_profiles.columns)),
+    )
+    df["technology"] = "dg_generation"
+    df["region"] = dg_profiles.columns
+    for idx, (region, s) in enumerate(dg_profiles.iteritems()):
+        cap = s.max()
+        df.loc[idx, "profile"] = (s / cap).round(3).to_list()
+        df.loc[idx, "Existing_Cap_MW"] = cap.round(0).astype(int)
+
+    return pd.concat([gen_df, df], ignore_index=True)
+
+
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -2699,6 +2742,15 @@ class GeneratorClusters:
             logger.info("Setting existing wind/pv using external file")
             self.results = overwrite_wind_pv_capacity(self.results, self.settings)
 
+        if self.settings.get("dg_as_resource"):
+            logger.info(
+                "\n **************** \nDistributed generation is being added as generating"
+                " resources. The capacity of DG in each region is increased by "
+                f"{self.settings.get('avg_distribution_loss', 0):%} to account for no"
+                "distribution losses.\n"
+            )
+            self.results = add_dg_resources(self.pg_engine, self.settings, self.results)
+
         # Add fixed/variable O&M based on NREL atb
         self.results = (
             self.results.reset_index()
@@ -2795,7 +2847,9 @@ class GeneratorClusters:
         ).pipe(add_transmission_inv_cost, self.settings)
 
         if self.settings.get("demand_response_fn"):
-            dr_rows = self.create_demand_response_gen_rows()
+            dr_rows = self.create_demand_response_gen_rows().pipe(
+                add_genx_model_tags, self.settings
+            )
             self.new_generators = pd.concat([self.new_generators, dr_rows], sort=False)
 
         self.new_generators["Resource"] = snake_case_col(
