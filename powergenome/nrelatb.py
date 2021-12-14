@@ -510,6 +510,7 @@ def atb_fixed_var_om_existing(
             if "Combined Cycle" in eia_tech:
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
                 assert not _df[settings["capacity_col"]].isnull().all()
+                plant_capacity = _df[settings["capacity_col"]].sum()
                 if plant_capacity < 500:
                     fixed = 15.62 * 1000
                     variable = 4.31
@@ -570,6 +571,7 @@ def atb_fixed_var_om_existing(
             if "Natural Gas Steam Turbine" in eia_tech:
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
                 assert not _df[settings["capacity_col"]].isnull().all()
+                plant_capacity = _df[settings["capacity_col"]].sum()
                 if plant_capacity < 500:
                     annual_capex = 18.86 * 1000
                     fixed = annual_capex + 29.73 * 1000
@@ -589,6 +591,7 @@ def atb_fixed_var_om_existing(
 
             if "Coal" in eia_tech:
                 assert not _df[settings["capacity_col"]].isnull().all()
+                plant_capacity = _df[settings["capacity_col"]].sum()
 
                 age = settings["model_year"] - _df.operating_date.dt.year
                 age = age.fillna(age.mean())
