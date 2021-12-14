@@ -2157,15 +2157,17 @@ def add_dg_resources(
     """
     dg_profiles = make_distributed_gen_profiles(pg_engine, settings)
     df = pd.DataFrame(
-        columns=["technology", "region", "Existing_Cap_MW", "profile"],
+        columns=["technology", "region", "cluster", "Existing_Cap_MW", "profile"],
         index=range(len(dg_profiles.columns)),
     )
-    df["technology"] = "dg_generation"
-    df["region"] = dg_profiles.columns
+
     for idx, (region, s) in enumerate(dg_profiles.iteritems()):
         cap = s.max()
         df.loc[idx, "profile"] = (s / cap).round(3).to_list()
         df.loc[idx, "Existing_Cap_MW"] = cap.round(0).astype(int)
+    df["technology"] = "dg_generation"
+    df["region"] = dg_profiles.columns
+    df["cluster"] = 1
 
     return pd.concat([gen_df, df], ignore_index=True)
 
@@ -2749,7 +2751,11 @@ class GeneratorClusters:
                 f"{self.settings.get('avg_distribution_loss', 0):%} to account for no"
                 "distribution losses.\n"
             )
-            self.results = add_dg_resources(self.pg_engine, self.settings, self.results)
+            self.results = add_dg_resources(
+                self.pg_engine, self.settings, self.results.reset_index()
+            )
+        else:
+            self.results["profile"] = None
 
         # Add fixed/variable O&M based on NREL atb
         self.results = (
@@ -2772,7 +2778,6 @@ class GeneratorClusters:
         self.results["Resource"] = snake_case_col(self.results["technology"])
 
         # Add variable resource profiles
-        self.results["profile"] = None
         self.results = self.results.reset_index(drop=True)
         for i, row in enumerate(self.results.itertuples()):
             params = map_eia_technology(row.technology)
