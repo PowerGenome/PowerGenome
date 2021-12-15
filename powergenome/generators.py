@@ -2163,7 +2163,7 @@ def add_dg_resources(
 
     for idx, (region, s) in enumerate(dg_profiles.iteritems()):
         cap = s.max()
-        df.loc[idx, "profile"] = (s / cap).round(3).to_list()
+        df.loc[idx, "profile"] = (s / cap).round(3).to_numpy()
         df.loc[idx, "Existing_Cap_MW"] = cap.round(0).astype(int)
     df["technology"] = "distributed_generation"
     df["region"] = dg_profiles.columns

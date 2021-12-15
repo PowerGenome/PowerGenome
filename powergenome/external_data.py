@@ -224,6 +224,8 @@ def make_generator_variability(
                 if remove_feb_29:
                     return np.delete(x, slice(1416, 1440))
             return x
+        if isinstance(x, list):
+            return format_profile(np.array(x), remove_feb_29, hours)
         # Fill missing with default [1, ...]
         return np.ones(8760, dtype=float)
 
