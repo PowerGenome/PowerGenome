@@ -66,6 +66,9 @@ distributed_gen_values:
     CA_N: 9788
     CA_S: 12618
 
+# Set this parameter to "true" if existing distributed generation in each region should
+# be represented as a resource rather than being subtracted from demand.
+dg_as_resource: true
 
 # Distribution loss used when subtracting distributed generation from total load.
 avg_distribution_loss: 0.0453
@@ -761,6 +764,7 @@ model_tag_values:
     Geothermal: 1
     Wood/Wood Waste Biomass: 1
     Biomass: 1
+    distributed_generation: 1
 
 # Tags for a technology in a specific region
 # Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>
