@@ -57,9 +57,9 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
         itertools.chain.from_iterable(settings["aeo_fuel_region_map"].values())
     )
 
-    atb_techs = settings["atb_new_gen"]
-    atb_mod_techs = settings.get("modified_atb_new_gen", {})
-    add_new_techs = settings.get("additional_new_gen", [])
+    atb_techs = settings.get("atb_new_gen", []) or []
+    atb_mod_techs = settings.get("modified_atb_new_gen", {}) or {}
+    add_new_techs = settings.get("additional_new_gen", []) or []
     cost_mult_techs = []
     for k, v in settings.get("cost_multiplier_technology_map", {}).items():
         for t in v:
