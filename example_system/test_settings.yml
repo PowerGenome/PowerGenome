@@ -764,6 +764,7 @@ model_tag_values:
     Geothermal: 1
     Wood/Wood Waste Biomass: 1
     Biomass: 1
+    distributed_generation: 1
 
 # Tags for a technology in a specific region
 # Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>

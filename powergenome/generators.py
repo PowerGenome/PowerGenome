@@ -2165,7 +2165,7 @@ def add_dg_resources(
         cap = s.max()
         df.loc[idx, "profile"] = (s / cap).round(3).to_list()
         df.loc[idx, "Existing_Cap_MW"] = cap.round(0).astype(int)
-    df["technology"] = "dg_generation"
+    df["technology"] = "distributed_generation"
     df["region"] = dg_profiles.columns
     df["cluster"] = 1
 
