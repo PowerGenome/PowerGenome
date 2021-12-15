@@ -15,23 +15,22 @@ from pathlib import Path
 from pandas.core.reshape.merge import merge
 from powergenome.util import regions_to_keep
 from powergenome.us_state_abbrev import state2abbr, abbr2state
+from powergenome.params import SETTINGS
 
-path_in = Path(
-    "/Volumes/Extreme SSD/load_profiles_data/input"
-)  # r"..\data\load_profiles_data\input"  # fix
+path_in = Path(SETTINGS["EFS_DATA"])
 
 # read in state proportions
 # how much state load should be distributed to GenXRegion
 # pop = pd.read_parquet(path_in + "\GenX_State_Pop_Weight.parquet")
-pop_cols = ["GenX.Region", "State", "State Prop"]
-pop_dtypes = {"State Prop": np.float32}
+pop_cols = ["ipm_region", "state", "state_prop"]
+# pop_dtypes = {"State Prop": np.float32}
 pop = pd.read_parquet(
     path_in / "ipm_state_pop_weight_20210517.parquet", columns=pop_cols
 )
-pop = pop.astype(pop_dtypes)
-states = pop.drop_duplicates(subset=["State"])["State"]
+# pop = pop.astype(pop_dtypes)
+states = pop.drop_duplicates(subset=["state"])["state"]
 states_abb = list(map(state2abbr, states))
-pop["State"] = list(map(state2abbr, pop["State"]))
+pop["state"] = list(map(state2abbr, pop["state"]))
 states_eastern_abbr = [
     "ME",
     "VT",
@@ -121,62 +120,6 @@ Nsubsector = len(running_subsector)
 
 logger = logging.getLogger(__name__)
 
-# Define function for adjusting time-difference
-def addhour(x):
-    x += 1
-    x = x.replace(8761, 1)
-    return x
-
-
-def SolveThreeUnknowns(a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3):
-    D = (
-        a1 * b2 * c3
-        + b1 * c2 * a3
-        + c1 * a2 * b3
-        - a1 * c2 * b3
-        - b1 * a2 * c3
-        - c1 * b2 * a3
-    )
-    Dx = (
-        d1 * b2 * c3
-        + b1 * c2 * d3
-        + c1 * d2 * b3
-        - d1 * c2 * b3
-        - b1 * d2 * c3
-        - c1 * b2 * d3
-    )
-    Dy = (
-        a1 * d2 * c3
-        + d1 * c2 * a3
-        + c1 * a2 * d3
-        - a1 * c2 * d3
-        - d1 * a2 * c3
-        - c1 * d2 * a3
-    )
-    Dz = (
-        a1 * b2 * d3
-        + b1 * d2 * a3
-        + d1 * a2 * b3
-        - a1 * d2 * b3
-        - b1 * a2 * d3
-        - d1 * b2 * a3
-    )
-    Sx = Dx / D
-    Sy = Dy / D
-    Sz = Dz / D
-    d = {"Sx": Sx, "Sy": Sy, "Sz": Sz}
-    return pd.DataFrame(d)
-
-
-def SolveTwoUnknowns(a1, b1, c1, a2, b2, c2):
-    D = a1 * b2 - a2 * b1
-    Dx = c1 * b2 - c2 * b1
-    Dy = a1 * c2 - a2 * c1
-    Sx = Dx / D
-    Sy = Dy / D
-    d = {"Sx": Sx, "Sy": Sy}
-    return pd.DataFrame(d)
-
 
 def CreateOutputFolder(case_folder):
     path = case_folder / "extra_outputs"
@@ -203,7 +146,7 @@ def CreateBaseLoad(
         "Subsector": "category",
         "LoadMW": np.float32,
     }
-    model_states = pop.loc[pop["GenX.Region"].isin(regions), "State"]
+    model_states = pop.loc[pop["ipm_region"].isin(regions), "state"]
     EFS_2020_LoadProf = pd.read_parquet(path_in / "EFS_REF_load_2020.parquet")
     total_efs_2020_load = EFS_2020_LoadProf["LoadMW"].sum()
 
@@ -216,7 +159,7 @@ def CreateBaseLoad(
         weighted=EFS_2020_LoadProf["LoadMW"] * EFS_2020_LoadProf["State Prop"]
     )
     EFS_2020_LoadProf = EFS_2020_LoadProf.groupby(
-        ["Year", "GenX.Region", "LocalHourID", "Sector", "Subsector"],
+        ["Year", "ipm_region", "LocalHourID", "Sector", "Subsector"],
         as_index=False,
         observed=True,
     ).agg({"weighted": "sum"})
