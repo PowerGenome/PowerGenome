@@ -4,25 +4,55 @@ Hourly demand profiles
 
 import logging
 from pathlib import Path
+from typing import Dict
 import pandas as pd
 import numpy as np
+from joblib import Memory
+import sqlalchemy
 
 from powergenome.util import regions_to_keep, reverse_dict_of_lists, remove_feb_29
 from powergenome.external_data import make_demand_response_profiles
 from powergenome.eia_opendata import get_aeo_load
+from powergenome.params import DATA_PATHS
 
 logger = logging.getLogger(__name__)
 
 
+memory = Memory(location=DATA_PATHS["cache"], verbose=0)
+
+
 def make_load_curves(
-    pudl_engine,
-    settings,
-    pudl_table="load_curves_ferc",
-    settings_agg_key="region_aggregations",
-):
+    pudl_engine: sqlalchemy.engine.Engine,
+    settings: dict,
+    pudl_table: str = "load_curves_ferc",
+) -> pd.DataFrame:
+    """Make wide-form load (demand) curves for model regionsl in a future year using
+    historical IPM region data from a sql table and load growth parameters in the
+    settings dictionary.
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.engine.Engine
+        Connection to a sql database
+    settings : dict
+        Dictionary with settings parameters. Should have "model_regions", and "region_aggregations"
+        (optional). To add load growth, the additional parameters "future_load_region_map",
+        "historical_load_region_map", "growth_scenario", "eia_aeo_year", "model_year",
+        "regular_load_growth_start_year" (optional), and "alt_growth_rate" (optional)
+        are needed.
+    pudl_table : str, optional
+        Name of the sql table with historical demand data, by default "load_curves_ferc"
+
+    Returns
+    -------
+    pd.DataFrame
+        [description]
+    """
     # IPM regions to keep. Regions not in this list will be dropped from the
     # dataframe
-    keep_regions, region_agg_map = regions_to_keep(settings)
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations")
+    )
 
     # I'd rather use a sql query and only pull the regions of interest but
     # sqlalchemy doesn't allow table names to be parameterized.
@@ -69,9 +99,39 @@ def make_load_curves(
 
 
 def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
-    keep_regions, region_agg_map = regions_to_keep(settings)
-    hist_region_map = reverse_dict_of_lists(settings["historical_load_region_maps"])
-    future_region_map = reverse_dict_of_lists(settings["future_load_region_map"])
+    """Add load (demand) growth to regions using EIA AEO data for historical and future
+    years.
+
+    Parameters
+    ----------
+    load_curves : pd.DataFrame
+        Long-form dataframe of demand for model regions, with columns "region_id_epaipm"
+        and "load_mw"
+    settings : dict
+        Settings dictionary with parameters "future_load_region_map",
+        "historical_load_region_map", "growth_scenario", "eia_aeo_year", "model_year",
+        "regular_load_growth_start_year" (optional), and "alt_growth_rate" (optional).
+
+    Returns
+    -------
+    pd.DataFrame
+        [description]
+    """
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations", {}) or {}
+    )
+
+    future_growth_factor = calc_growth_factors(
+        keep_regions,
+        load_region_map=settings["future_load_region_map"],
+        growth_scenario=settings.get(
+            "growth_scenario", f"REF{settings.get('eia_aeo_year', 2020)}"
+        ),
+        eia_aeo_year=settings.get("eia_aeo_year", 2020),
+        start_year=settings.get("regular_load_growth_start_year", 2019),
+        end_year=settings["model_year"],
+        alt_growth_rate=settings.get("alt_growth_rate", {}) or {},
+    )
 
     hist_region_map = reverse_dict_of_lists(settings["historical_load_region_map"])
     hist_demand_start = {
@@ -90,44 +150,10 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         .loc[2018, "demand"]
         for ipm_region in keep_regions
     }
-
-    growth_scenario = settings.get("growth_scenario", "REF2020")
-    load_growth_dict = {
-        ipm_region: get_aeo_load(
-            region=future_region_map[ipm_region],
-            aeo_year=settings.get("eia_aeo_year", 2020),
-            scenario_series=growth_scenario,
-        ).set_index("year")
-        for ipm_region in keep_regions
-    }
-
-    load_growth_start_map = {
-        ipm_region: _df.loc[
-            settings.get("regular_load_growth_start_year", 2019), "demand"
-        ]
-        for ipm_region, _df in load_growth_dict.items()
-    }
-
-    load_growth_end_map = {
-        ipm_region: _df.loc[settings["model_year"], "demand"]
-        for ipm_region, _df in load_growth_dict.items()
-    }
-
-    future_growth_factor = {
-        ipm_region: load_growth_end_map[ipm_region] / load_growth_start_map[ipm_region]
-        for ipm_region in keep_regions
-    }
     hist_growth_factor = {
         ipm_region: hist_demand_end[ipm_region] / hist_demand_start[ipm_region]
         for ipm_region in keep_regions
     }
-
-    years_growth = settings["model_year"] - settings.get(
-        "regular_load_growth_start_year", 2019
-    )
-
-    for region, rate in (settings.get("alt_growth_rate") or {}).items():
-        future_growth_factor[region] = (1 + rate) ** years_growth
 
     for region in keep_regions:
         load_curves.loc[load_curves["region_id_epaipm"] == region, "load_mw"] *= (
@@ -135,6 +161,82 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         )
 
     return load_curves
+
+
+@memory.cache
+def calc_growth_factors(
+    keep_regions: list,
+    load_region_map: dict,
+    growth_scenario: str,
+    eia_aeo_year: int,
+    start_year: int,
+    end_year: int,
+    alt_growth_rate: dict = {},
+) -> Dict[str:float]:
+    """Calculate future demand growth factors for each region using EIA AEO data for
+    electricity market regions. Growth factors for each region are determined based on a
+    mapping of IPM regions to EMM regions.
+
+    Growth factors are calculated as a ratio of end year demand over start year demand
+    rather than as an annualized growth rate.
+
+
+    Parameters
+    ----------
+    keep_regions : list
+        List of IPM regions
+    load_region_map : dict
+        Mapping of IPM regions to AEO EMM regions
+    growth_scenario : str
+        Name of the AEO growth scenario from EIA's open data portal that should be used
+        in the API call. Examples from AEO2020 include "REF2020", "HIGHMACRO", and
+        "LOWMACRO" for Reference, High growth, and Low growth scenarios.
+    eia_aeo_year : int
+        Year of AEO data to use
+    start_year : int
+        First year of demand to use when calculating growth.
+    end_year : int
+        Final year of demand to use when calculating growth.
+    alt_growth_rate : dict, optional
+        Alternate growth rates (percentages) for regions, by default {}
+
+    Returns
+    -------
+    Dict[str: float]
+        Key, value pairs of a growth factor for each IPM region.
+    """
+    region_map = reverse_dict_of_lists(load_region_map)
+    # growth_scenario = settings.get(
+    #     "growth_scenario", f"REF{settings.get('eia_aeo_year', 2020)}"
+    # )
+    load_growth_dict = {
+        ipm_region: get_aeo_load(
+            region=region_map[ipm_region],
+            aeo_year=eia_aeo_year,
+            scenario_series=growth_scenario,
+        ).set_index("year")
+        for ipm_region in keep_regions
+    }
+
+    load_growth_start_map = {
+        ipm_region: _df.loc[start_year, "demand"]
+        for ipm_region, _df in load_growth_dict.items()
+    }
+
+    load_growth_end_map = {
+        ipm_region: _df.loc[end_year, "demand"]
+        for ipm_region, _df in load_growth_dict.items()
+    }
+    growth_factor = {
+        ipm_region: load_growth_end_map[ipm_region] / load_growth_start_map[ipm_region]
+        for ipm_region in keep_regions
+    }
+    years_growth = end_year - start_year
+
+    for region, rate in alt_growth_rate.items():
+        growth_factor[region] = (1 + rate) ** years_growth
+
+    return growth_factor
 
 
 def add_demand_response_resource_load(load_curves, settings):
@@ -185,11 +287,31 @@ def load_usr_demand_profiles(settings):
 
 
 def make_final_load_curves(
-    pudl_engine,
-    settings,
-    pudl_table="load_curves_ferc",
-    settings_agg_key="region_aggregations",
-):
+    pudl_engine: sqlalchemy.engine.Engine,
+    settings: dict,
+    pudl_table: str = "load_curves_ferc",
+) -> pd.DataFrame:
+    """Make wide-form dataframe of load (demand) curves for each model region. Includes
+    load growth, demand response (flexible loads), and distributed generation.
+
+    Regional demand profiles can be provided by the user with the setting parameter
+    "regional_load_fn". Flexible loads can be provided with the parameter "demand_response_fn".
+    Distributed generation profiles can be provided with the parameter "distributed_gen_profiles_fn".
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.engine.Engine
+        Connection to sql database
+    settings : dict
+        Dictionary of settings parameters needed to calculate demand, demand growth, etc.
+    pudl_table : str, optional
+        SQL table name, by default "load_curves_ferc"
+
+    Returns
+    -------
+    pd.DataFrame
+        [description]
+    """
     # Check if regional loads are supplied by the user
     if settings.get("regional_load_fn"):
         logger.info("Loading regional demand profiles from user")
@@ -208,9 +330,7 @@ def make_final_load_curves(
                     "file. No filename has been provided."
                 )
     else:
-        load_curves_before_dg = make_load_curves(
-            pudl_engine, settings, pudl_table, settings_agg_key
-        )
+        load_curves_before_dg = make_load_curves(pudl_engine, settings, pudl_table)
 
         if settings.get("demand_response_fn"):
             load_curves_dr = add_demand_response_resource_load(

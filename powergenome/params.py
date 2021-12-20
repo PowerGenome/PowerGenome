@@ -27,6 +27,8 @@ DATA_PATHS["settings"] = project_path / "settings"
 DATA_PATHS["eia"] = DATA_PATHS["data"] / "eia"
 DATA_PATHS["eia_860m"] = DATA_PATHS["eia"] / "860m"
 DATA_PATHS["cost_multipliers"] = DATA_PATHS["data"] / "cost_multipliers"
+DATA_PATHS["cache"] = DATA_PATHS["data"] / "cache"
+DATA_PATHS["cache"].mkdir(exist_ok=True)
 DATA_PATHS["additional_techs"] = DATA_PATHS["data"] / "additional_technologies"
 
 IPM_SHAPEFILE_PATH = DATA_PATHS["ipm_shapefiles"] / "IPM_Regions_201770405.shp"
