@@ -954,7 +954,7 @@ default_load_year: 2012
 regular_load_growth_start_year: 2019
 growth_scenario: REF2020
 
-historical_load_region_maps:
+historical_load_region_map:
   TRE: [ERC_PHDL, ERC_REST, ERC_WEST]
   FLRC: [FRCC] #FRCC
   MWRCE: [MIS_WUMS]
