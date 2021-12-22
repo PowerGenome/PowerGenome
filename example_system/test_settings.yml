@@ -69,6 +69,9 @@ distributed_gen_values:
 # Distribution loss used when subtracting distributed generation from total load.
 avg_distribution_loss: 0.0453
 
+
+# electrification_stock_fn: SCENARIO_STOCK.parquet
+# electrification_scenario: current_policy
 # Name of the DSM resource, fraction of load that can be shifted, and number of hours
 # that it can be shifted
 demand_response_resources:
