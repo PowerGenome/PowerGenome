@@ -212,8 +212,8 @@ def CreateBaseLoad(
         "model_regions": list(pop["ipm_region"].unique()),
         "utc_offset": -5,
     }
-    pudl_engine, pudl_out = init_pudl_connection()
-    original_load_2019 = load_profiles.make_load_curves(pudl_engine, demand_settings)
+    pudl_engine, pudl_out, pg_engine = init_pudl_connection()
+    original_load_2019 = load_profiles.make_load_curves(pg_engine, demand_settings)
     original_load_2019 = original_load_2019.reset_index().rename(
         columns={"time_index": "localhourid"}
     )

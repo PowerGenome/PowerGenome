@@ -292,9 +292,7 @@ def load_usr_demand_profiles(settings):
 
 
 def make_final_load_curves(
-    pg_engine,
-    settings,
-    pudl_table="load_curves_ferc",
+    pg_engine, settings, pudl_table="load_curves_ferc"
 ) -> pd.DataFrame:
     """Make wide-form dataframe of load (demand) curves for each model region. Includes
     load growth, demand response (flexible loads), and distributed generation.
@@ -335,9 +333,7 @@ def make_final_load_curves(
                     "file. No filename has been provided."
                 )
     else:
-        load_curves_before_dg = make_load_curves(
-            pg_engine, settings, pudl_table, settings_agg_key
-        )
+        load_curves_before_dg = make_load_curves(pg_engine, settings, pudl_table)
 
         if settings.get("demand_response_fn"):
             load_curves_dr = add_demand_response_resource_load(
