@@ -4,11 +4,13 @@ Hourly demand profiles
 
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Union
 import pandas as pd
 import numpy as np
 from joblib import Memory
 import sqlalchemy
+from powergenome.load_construction import build_total_load
+
 
 from powergenome.util import regions_to_keep, reverse_dict_of_lists, remove_feb_29
 from powergenome.external_data import make_demand_response_profiles
@@ -172,7 +174,7 @@ def calc_growth_factors(
     start_year: int,
     end_year: int,
     alt_growth_rate: dict = {},
-) -> Dict[str:float]:
+) -> Dict[str, float]:
     """Calculate future demand growth factors for each region using EIA AEO data for
     electricity market regions. Growth factors for each region are determined based on a
     mapping of IPM regions to EMM regions.
@@ -244,11 +246,15 @@ def add_demand_response_resource_load(load_curves, settings):
     dr_path = Path(settings["input_folder"]) / settings["demand_response_fn"]
     dr_types = settings["demand_response_resources"][settings["model_year"]].keys()
 
-    dr_curves = make_demand_response_profiles(dr_path, list(dr_types)[0], settings)
+    dr_curves = make_demand_response_profiles(
+        dr_path, list(dr_types)[0], settings["model_year"], settings["demand_response"]
+    )
 
     if len(dr_types) > 1:
         for dr in dr_types[1:]:
-            _dr_curves = make_demand_response_profiles(dr_path, dr, settings)
+            _dr_curves = make_demand_response_profiles(
+                dr_path, dr, settings["model_year"], settings["demand_response"]
+            )
             dr_curves = dr_curves + _dr_curves
 
     for col in dr_curves.columns:
@@ -336,6 +342,32 @@ def make_final_load_curves(
             load_curves_dr = add_demand_response_resource_load(
                 load_curves_before_dg, settings
             )
+        elif settings.get("electrification_stock_fn") and settings.get(
+            "electrification_scenario"
+        ):
+            from powergenome.load_construction import (
+                AddElectrification,
+                FilterTotalProfile,
+            )
+
+            keep_regions, region_agg_map = regions_to_keep(
+                settings["model_regions"], settings.get("region_aggregations", {}) or {}
+            )
+            elec_kwargs = {
+                "future_load_region_map": settings["future_load_region_map"],
+                "eia_aeo_year": settings["eia_aeo_year"],
+                "growth_scenario": settings["growth_scenario"],
+            }
+
+            total_load = build_total_load(
+                settings.get("electrification_stock_fn"),
+                settings["model_year"],
+                settings.get("electrification_scenario"),
+                keep_regions,
+                settings.get("extra_outputs"),
+                **elec_kwargs,
+            )
+            load_curves_dr = FilterTotalProfile(settings, total_load)
         else:
             load_curves_dr = load_curves_before_dg
 

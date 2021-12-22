@@ -12,7 +12,9 @@ from powergenome.price_adjustment import inflation_price_adjustment
 logger = logging.getLogger(__name__)
 
 
-def make_demand_response_profiles(path, resource_name, settings):
+def make_demand_response_profiles(
+    path: Path, resource_name: str, year: int, scenario: str
+) -> pd.DataFrame:
     """Read files with DR profiles across years and scenarios. Return the hourly
     load profiles for a single resource in the model year.
 
@@ -22,17 +24,17 @@ def make_demand_response_profiles(path, resource_name, settings):
         Where to load the file from
     resource_name : str
         Name of of the demand response resource
-    settings : dict
-        User-defined parameters from a settings file
+    year : int
+        Year of data to use from the user demand response file
+    scenario : str
+        Name of scenario to use from the user demand response file
 
     Returns
     -------
     DataFrame
-        8760 hourly profiles of DR load for each region where the resource is available.
+        Hourly profiles of DR load for each region where the resource is available.
         Column names are the regions plus 'scenario'.
     """
-    year = settings["model_year"]
-    scenario = settings["demand_response"]
 
     df = pd.read_csv(path, header=[0, 1, 2, 3])
 
@@ -153,7 +155,7 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
         f"{settings['target_usd_year']}"
     )
     new_resource_df["interconnect_annuity"] = inflation_price_adjustment(
-        new_resource_df["interconnect_annuity"], 2017, settings["target_usd_year"],
+        new_resource_df["interconnect_annuity"], 2017, settings["target_usd_year"]
     )
     return new_resource_df
 
@@ -161,7 +163,7 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
 def make_generator_variability(df: pd.DataFrame) -> pd.DataFrame:
     """Make a generator variability dataframe with normalized (0-1) hourly profiles
     for each resource in resource_df.
-    
+
     Any resources that do not have a profile in column
     `profile` are assumed to have constant hourly profiles with a value of 1.
     February 29 is removed from any profiles of length 8784 (leap year).

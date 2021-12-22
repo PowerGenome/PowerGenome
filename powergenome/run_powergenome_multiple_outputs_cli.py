@@ -204,11 +204,6 @@ def main():
     # Build a dictionary of settings for every planning year and case_id
     scenario_settings = build_scenario_settings(settings, scenario_definitions)
 
-    if "NZA_electrification" in scenario_definitions.columns:
-        alt_method = True
-        Total_Load = MakeLoadProfiles(scenario_settings, out_folder)
-
-    # breakpoint()
     i = 0
     model_regions_gdf = None
     for year in scenario_settings:
@@ -216,7 +211,8 @@ def main():
             case_folder = (
                 out_folder / f"{year}" / f"{case_id}_{year}_{_settings['case_name']}"
             )
-            # breakpoint()
+            _settings["extra_outputs"] = case_folder / "extra_outputs"
+            _settings["extra_outputs"].mkdir(parents=True, exist_ok=True)
             if i == 0:
                 if args.gens:
                     gc = GeneratorClusters(
@@ -394,39 +390,22 @@ def main():
                     # )
 
             if args.load:
-                if alt_method == False:
-                    load = make_final_load_curves(
-                        pudl_engine=pudl_engine, settings=_settings
-                    )
-                    load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
+                load = make_final_load_curves(
+                    pudl_engine=pudl_engine, settings=_settings
+                )
+                load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
 
-                    (
-                        reduced_resource_profile,
-                        reduced_load_profile,
-                        time_series_mapping,
-                    ) = reduce_time_domain(gen_variability, load, _settings)
-                    write_results_file(
-                        df=reduced_load_profile,
-                        folder=case_folder,
-                        file_name="Load_data.csv",
-                        include_index=False,
-                    )
-                else:
-
-                    load = FilterTotalProfile(_settings, Total_Load)
-                    load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
-
-                    (
-                        reduced_resource_profile,
-                        reduced_load_profile,
-                        time_series_mapping,
-                    ) = reduce_time_domain(gen_variability, load, _settings)
-                    write_results_file(
-                        df=reduced_load_profile,
-                        folder=case_folder,
-                        file_name="Load_data.csv",
-                        include_index=False,
-                    )
+                (
+                    reduced_resource_profile,
+                    reduced_load_profile,
+                    time_series_mapping,
+                ) = reduce_time_domain(gen_variability, load, _settings)
+                write_results_file(
+                    df=reduced_load_profile,
+                    folder=case_folder,
+                    file_name="Load_data.csv",
+                    include_index=False,
+                )
 
                 write_results_file(
                     df=reduced_resource_profile,

@@ -24,6 +24,7 @@ from powergenome.external_data import (
     demand_response_resource_capacity,
     add_resource_max_cap_spur,
 )
+
 from powergenome.load_data import (
     load_ipm_plant_region_map,
     load_ownership_eia860,
@@ -388,7 +389,9 @@ def load_plant_region_map(
 
     # Settings has a dictionary of lists for regional aggregations. Need
     # to reverse this to use in a map method.
-    keep_regions, region_agg_map = regions_to_keep(settings)
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations")
+    )
 
     # Create a new column "model_region" with labels that we're using for aggregated
     # regions
@@ -1255,7 +1258,9 @@ def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
     geodataframe
         Regions to use in the study with the matching geometry for each.
     """
-    keep_regions, region_agg_map = regions_to_keep(settings)
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations")
+    )
 
     ipm_regions = gpd.read_file(IPM_GEOJSON_PATH)
 
@@ -1357,14 +1362,12 @@ def clean_860m_sheet(
         One of the sheets from 860m
     """
 
-    df = eia_860m.parse(
-        sheet_name=sheet_name, na_values=[" "]
-    )
+    df = eia_860m.parse(sheet_name=sheet_name, na_values=[" "])
     for idx, row in df.iterrows():
         if row.iloc[0] == "Entity ID":
             sr = idx + 1
             break
-    
+
     for idx in list(range(-10, 0)):
         if isinstance(df.iloc[idx, 0], str):
             sf = -idx
@@ -1928,6 +1931,46 @@ def save_weighted_hr(weighted_unit_hr, pudl_engine):
     pass
 
 
+def load_demand_response_efs_profile(
+    resource: str,
+    electrification_stock_fn: str,
+    model_year: int,
+    electrification_scenario: str,
+    extra_outputs_fn: Path,
+    future_load_region_map: dict,
+    eia_aeo_year: str,
+    growth_scenario: str,
+    model_regions: list,
+    region_aggregations: dict = {},
+) -> pd.DataFrame:
+    from powergenome.load_construction import build_total_load
+
+    keep_regions, region_agg_map = regions_to_keep(model_regions, region_aggregations)
+    elec_kwargs = {
+        "future_load_region_map": future_load_region_map,
+        "eia_aeo_year": eia_aeo_year,
+        "growth_scenario": growth_scenario,
+    }
+
+    total_load = build_total_load(
+        electrification_stock_fn,
+        model_year,
+        electrification_scenario,
+        keep_regions,
+        extra_outputs_fn,
+        **elec_kwargs,
+    )
+    dr_profile = total_load.loc[:, ["localhourid", "ipm_region", resource]].pivot(
+        index="localhourid", columns="ipm_region"
+    )
+    dr_profile.columns = dr_profile.columns.droplevel()
+    for mod_r, ipm_regs in region_aggregations.items():
+        dr_profile[mod_r] = dr_profile[ipm_regs].sum(axis=1)
+        dr_profile = dr_profile.drop(columns=ipm_regs)
+
+    return dr_profile
+
+
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -2064,13 +2107,35 @@ class GeneratorClusters:
             _df = _df.drop(columns="Resource")
             _df["technology"] = resource
             _df["region"] = self.settings["model_regions"]
-
-            dr_path = (
-                Path.cwd()
-                / self.settings["input_folder"]
-                / self.settings["demand_response_fn"]
-            )
-            dr_profile = make_demand_response_profiles(dr_path, resource, self.settings)
+            if self.settings.get("demand_response_fn"):
+                dr_path = (
+                    Path.cwd()
+                    / self.settings["input_folder"]
+                    / self.settings["demand_response_fn"]
+                )
+                dr_profile = make_demand_response_profiles(
+                    dr_path,
+                    resource,
+                    self.settings["model_year"],
+                    self.settings["demand_response"],
+                )
+            elif self.settings.get("electrification_stock_fn"):
+                keep_regions, region_agg_map = regions_to_keep(
+                    self.settings["model_regions"],
+                    self.settings.get("region_aggregations", {}) or {},
+                )
+                dr_profile = load_demand_response_efs_profile(
+                    resource,
+                    self.settings.get("electrification_stock_fn"),
+                    self.settings["model_year"],
+                    self.settings.get("electrification_scenario"),
+                    self.settings.get("extra_outputs"),
+                    self.settings["future_load_region_map"],
+                    self.settings["eia_aeo_year"],
+                    self.settings["growth_scenario"],
+                    keep_regions,
+                    self.settings.get("region_aggregations", {}) or {},
+                )
             self.demand_response_profiles[resource] = dr_profile
             # Add hourly profile to demand response rows
             dr_cf = dr_profile / dr_profile.max()
@@ -2263,10 +2328,7 @@ class GeneratorClusters:
             self.units_model.rename(columns={"technology_description": "technology"})
             .query("technology.isin(@techs).values")
             .pipe(
-                atb_fixed_var_om_existing,
-                self.atb_hr,
-                self.settings,
-                self.pudl_engine,
+                atb_fixed_var_om_existing, self.atb_hr, self.settings, self.pudl_engine
             )
         )
 
