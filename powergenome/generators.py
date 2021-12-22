@@ -2557,7 +2557,6 @@ class GeneratorClusters:
             self.units_model.rename(columns={"technology_description": "technology"})
             .query("technology.isin(@techs).values")
             .pipe(
-
                 atb_fixed_var_om_existing,
                 self.atb_hr,
                 self.settings,
@@ -2865,7 +2864,9 @@ class GeneratorClusters:
             calculate_transmission_inv_cost, self.settings, self.offshore_spur_costs
         ).pipe(add_transmission_inv_cost, self.settings)
 
-        if self.settings.get("demand_response_fn"):
+        if self.settings.get("demand_response_fn") or self.settings.get(
+            "electrification_stock_fn"
+        ):
             dr_rows = self.create_demand_response_gen_rows()
             self.new_generators = pd.concat([self.new_generators, dr_rows], sort=False)
 
