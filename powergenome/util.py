@@ -47,7 +47,7 @@ def fix_param_names(settings: dict) -> dict:
     return settings
 
 
-def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
+def check_settings(settings: dict, pg_engine: sa.engine) -> None:
     """Check for user errors in the settings file.
 
     The YAML settings file is loaded as a dictionary object. It has many different parts
@@ -58,11 +58,11 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
     ----------
     settings : dict
         Parameters and values from the YAML settings file.
-    pudl_engine : sa.engine
+    pg_engine : sa.engine
         Connection to the PUDL sqlite database.
     """
 
-    ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pudl_engine)[
+    ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
         "region_id_epaipm"
     ].to_list()
 
@@ -73,6 +73,69 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
     aeo_fuel_regions = list(
         itertools.chain.from_iterable(settings["aeo_fuel_region_map"].values())
     )
+
+    atb_techs = settings.get("atb_new_gen", []) or []
+    atb_mod_techs = settings.get("modified_atb_new_gen", {}) or {}
+    add_new_techs = settings.get("additional_new_gen", []) or []
+    cost_mult_techs = []
+    for k, v in settings.get("cost_multiplier_technology_map", {}).items():
+        for t in v:
+            cost_mult_techs.append(t)
+
+    # Make sure atb techs are spelled correctly and are in the cost_multiplier_technology_map
+    for tech in atb_techs:
+        tech, tech_detail, cost_case, _ = tech
+
+        s = f"""
+        SELECT technology, tech_detail
+        from technology_costs_nrelatb
+        where
+            technology == "{tech}"
+            AND tech_detail == "{tech_detail}"
+        """
+        if len(pg_engine.execute(s).fetchall()) == 0:
+            s = f"""
+    *****************************
+    The technology {tech} - {tech_detail} listed in your settings file under 'atb_new_gen'
+    does not match any NREL ATB technologies. Check your settings file to ensure it is
+    spelled correctly"
+    *****************************
+    """
+            logger.warning(s)
+
+        if f"{tech}_{tech_detail}" not in cost_mult_techs:
+            s = f"""
+    *****************************
+    The ATB technology "{tech}_{tech_detail}" listed in your settings file under 'atb_new_gen'
+    is not fully specified in the 'cost_multiplier_technology_map' settings parameter.
+    Part of the <tech>_<tech_detail> string might be included, but it is best practice to
+    include the full name in this format. Check your settings file.
+        """
+            logger.warning((s))
+
+    for mod_tech in atb_mod_techs.values():
+        mt_name = f"{mod_tech['new_technology']}_{mod_tech['new_tech_detail']}"
+        if mt_name not in cost_mult_techs:
+            s = f"""
+    *****************************
+    The modified ATB technology "{mt_name}" listed in your settings file under
+    'modified_atb_new_gen' is not fully specified in the 'cost_multiplier_technology_map'
+    settings parameter. Part of the <new_technology>_<new_tech_detail> string might be
+    included, but it is best practice to include the full name in this format. Check
+    your settings file.
+        """
+            logger.warning((s))
+
+    for add_tech in add_new_techs:
+        if add_tech not in cost_mult_techs:
+            s = f"""
+    *****************************
+    The additional user-specified technology "{add_tech}" listed in your settings file under
+    'additional_new_gen' is not fully specified in the 'cost_multiplier_technology_map'
+    settings parameter. Part of the name string might be included, but it is best practice
+    to include the full name in this format. Check your settings file.
+        """
+            logger.warning((s))
 
     for agg_region, ipm_regions in (settings.get("region_aggregations") or {}).items():
         for ipm_region in ipm_regions:
@@ -101,9 +164,36 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
             """
             logger.warning(s)
 
+    gen_col_count = collections.Counter(settings["generator_columns"])
+    duplicate_cols = [c for c, num in gen_col_count.items() if num > 1]
+    if duplicate_cols:
+        raise KeyError(
+            f"The settings parameter 'generator_columns' has duplicates of {duplicate_cols}."
+            " Remove the duplicates and try again."
+        )
+
+    if settings.get("eia_aeo_year"):
+        aeo_year = settings["eia_aeo_year"]
+        for k, v in settings.get("eia_series_scenario_names", {}).items():
+            if "REF" in v and str(aeo_year) not in v:
+                logger.warning(
+                    "The settings EIA fuel scenario (eia_series_scenario_names) key "
+                    f"{k} has a value of {v}, which does not match the aeo data year "
+                    f"{aeo_year}. It has been changed to REF{aeo_year}."
+                )
+                settings["eia_series_scenario_names"][k] = f"REF{aeo_year}"
+        growth_scenario = settings.get("growth_scenario", "")
+        if "REF" in growth_scenario and str(aeo_year) not in growth_scenario:
+            logger.warning(
+                "The settings EIA demand growth scenario (growth_scenario) key "
+                f"value is {growth_scenario}, which does not match the aeo data year "
+                f"{aeo_year}. It has been changed to REF{aeo_year}."
+            )
+            settings["growth_scenario"] = f"REF{aeo_year}"
+
 
 def init_pudl_connection(
-    freq: str = "YS",
+    freq: str = "AS", start_year: int = None, end_year: int = None
 ) -> Tuple[sa.engine.base.Engine, pudl.output.pudltabl.PudlTabl]:
     """Initiate a connection object to the sqlite PUDL database and create a pudl
     object that can quickly access parts of the database.
@@ -121,12 +211,35 @@ def init_pudl_connection(
         object for quickly accessing parts of the database. `pudl_out` is used
         to access unit heat rates.
     """
-    pudl_engine = sa.create_engine(
-        SETTINGS["PUDL_DB"]
-    )  # pudl.init.connect_db(SETTINGS)
-    pudl_out = pudl.output.pudltabl.PudlTabl(freq=freq, pudl_engine=pudl_engine)
+    pudl_engine = sa.create_engine(SETTINGS["PUDL_DB"])
+    if start_year is not None:
+        start_year = pd.to_datetime(start_year, format="%Y")
+    if end_year is not None:
+        end_year = pd.to_datetime(end_year + 1, format="%Y")
+    """
+    pudl_out = pudl.output.pudltabl.PudlTabl(
+        freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
+        #freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year, ds=""
+    )
+    """
+    pudl_out = pudl.output.pudltabl.PudlTabl(
+        freq=freq,
+        pudl_engine=pudl_engine,
+        start_date=start_year,
+        end_date=end_year,
+        ds=pudl.workspace.datastore.Datastore(),
+    )
 
-    return pudl_engine, pudl_out
+    if SETTINGS.get("PG_DB"):
+        pg_engine = sa.create_engine(SETTINGS["PG_DB"])
+    else:
+        logger.warning(
+            "No path to a `PG_DB` database was found in the .env file. Using the "
+            "`PUDL_DB` path instead."
+        )
+        pg_engine = sa.create_engine(SETTINGS["PUDL_DB"])
+
+    return pudl_engine, pudl_out, pg_engine
 
 
 def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, str]:
@@ -137,7 +250,9 @@ def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, str]:
     return rev
 
 
-def map_agg_region_names(df, region_agg_map, original_col_name, new_col_name):
+def map_agg_region_names(
+    df: pd.DataFrame, region_agg_map: dict, original_col_name: str, new_col_name: str
+) -> pd.DataFrame:
 
     df[new_col_name] = df.loc[:, original_col_name]
 
@@ -223,6 +338,15 @@ def update_dictionary(d: dict, u: dict) -> dict:
 
 
 def remove_fuel_scenario_name(df, settings):
+    _df = df.copy()
+    scenarios = settings["eia_series_scenario_names"].keys()
+    for s in scenarios:
+        _df.columns = _df.columns.str.replace(f"_{s}", "")
+
+    return _df
+
+
+def remove_fuel_gen_scenario_name(df, settings):
     _df = df.copy()
     scenarios = settings["eia_series_scenario_names"].keys()
     for s in scenarios:

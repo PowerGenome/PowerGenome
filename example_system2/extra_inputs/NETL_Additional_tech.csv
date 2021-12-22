@@ -1,0 +1,3 @@
+﻿technology,planning_year,capex_mw,capex_mwh,fixed_o_m_mw,fixed_o_m_mwh,variable_o_m_mwh,wacc_real,dollar_year,heat_rate,notes
+NETL_NGCC,2040,952000,0,26792,0,1.70517,0.033,2017,6.363,NETL_Reference
+NETL_NGCC_CCS,2040,2412000,0,63911,0,5.63373,0.033,2017,7.159,NETL_Reference

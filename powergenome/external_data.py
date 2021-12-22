@@ -91,13 +91,15 @@ def demand_response_resource_capacity(df, resource_name, settings):
     return shiftable_capacity
 
 
-def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_MW"):
+def add_resource_max_cap_spur(
+    new_resource_df: pd.DataFrame, settings: dict, capacity_col: str = "Max_Cap_MW"
+) -> pd.DataFrame:
     """Load user supplied maximum capacity and spur line data for new resources. Add
     those values to the resources dataframe.
 
     Parameters
     ----------
-    new_resource_df : DataFrame
+    new_resource_df : pd.DataFrame
         New resources that can be built. Each row should be a single resource, with
         columns 'region' and 'technology'. The number of copies for a region/resource
         (e.g. more than one UtilityPV resource in a region) should match what is
@@ -111,7 +113,7 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         A modified version of new_resource_df with spur_miles and the maximum
         capacity for a resource. Copies of a resource within a region should have a
         cluster name to uniquely identify them.
@@ -122,6 +124,7 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
         "spur_miles": 0,
         capacity_col: -1,
         "interconnect_annuity": 0,
+        "interconnect_capex_mw": 0,
     }
     # Prepare file
     path = Path(settings["input_folder"]) / settings["capacity_limit_spur_fn"]
@@ -138,13 +141,19 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
     grouped_df = df.groupby(["region", "technology"])
     for (region, tech), _df in grouped_df:
         mask = (new_resource_df["region"] == region) & (
-            new_resource_df["technology"].str.lower().str.contains(tech.lower())
+            new_resource_df["technology"]
+            .str.replace("_\*", "_all")
+            .str.contains(tech.replace("_\*", "_all"), case=False)
         )
         if mask.sum() > 1:
+            resources = new_resource_df.loc[mask, "technology"].to_list()
             raise ValueError(
                 f"Resource {tech} in region {region} from file "
-                f"{settings['capacity_limit_spur_fn']} matches multiple resources"
+                f"{settings['capacity_limit_spur_fn']} matches multiple resources:"
+                f"\n{resources}"
             )
+        else:
+            pass
         for key, value in defaults.items():
             _key = "max_capacity" if key == capacity_col else key
             new_resource_df.loc[mask & (new_resource_df[key] == value), key] = _df[
@@ -160,7 +169,9 @@ def add_resource_max_cap_spur(new_resource_df, settings, capacity_col="Max_Cap_M
     return new_resource_df
 
 
-def make_generator_variability(df: pd.DataFrame) -> pd.DataFrame:
+def make_generator_variability(
+    df: pd.DataFrame, remove_feb_29: bool = True
+) -> pd.DataFrame:
     """Make a generator variability dataframe with normalized (0-1) hourly profiles
     for each resource in resource_df.
 
@@ -199,23 +210,40 @@ def make_generator_variability(df: pd.DataFrame) -> pd.DataFrame:
     [8760 rows x 3 columns]
     """
 
-    def format_profile(x: Any) -> np.ndarray:
+    def profile_len(x: Any) -> int:
+        if isinstance(x, np.ndarray):
+            return len(x)
+        return 1
+
+    def format_profile(
+        x: Any, remove_feb_29: bool = True, hours: int = 8760
+    ) -> np.ndarray:
+        # from IPython import embed
+        # embed()
         if isinstance(x, np.ndarray):
             if len(x) == 8784:
                 # Remove February 29 from leap year
-                return np.delete(x, slice(1416, 1440))
+                if remove_feb_29:
+                    return np.delete(x, slice(1416, 1440))
             return x
         # Fill missing with default [1, ...]
         return np.ones(8760, dtype=float)
 
     if "profile" in df:
-        profiles = np.column_stack(df["profile"].map(format_profile).values)
+        if remove_feb_29:
+            hours = 8760
+        else:
+            hours = df["profile"].apply(profile_len).max()
+        kwargs = {"remove_feb_29": remove_feb_29, "hours": hours}
+        profiles = np.column_stack(df["profile"].apply(format_profile, **kwargs).values)
+    # elif not remove_feb_29:
+    #     profiles = np.ones((8760, len(df)), dtype=float)
     else:
         profiles = np.ones((8760, len(df)), dtype=float)
     return pd.DataFrame(profiles, columns=np.arange(len(df)).astype(str))
 
 
-def load_policy_scenarios(settings):
+def load_policy_scenarios(settings: dict) -> pd.DataFrame:
     """Load the policy scenarios and copy cases where indicated. The policy file should
     start with columns `case_id` and `year`, and can contain an optional `copy_case_id`.
     Other columns should match the desired output format. The value `None` is included
@@ -402,12 +430,15 @@ def overwrite_wind_pv_capacity(df, settings):
     for region in df["region"].unique():
         for tech in ["Solar Photovoltaic", "Onshore Wind Turbine"]:
             if tech in df.query("region == @region")["technology"].to_list():
-                df.loc[
-                    (df["region"] == region) & (df["technology"] == tech),
-                    "Existing_Cap_MW",
-                ] = wind_pv_model_region_capacity.loc[
-                    idx[region, tech], "nameplate_capacity_mw"
-                ]
+                try:
+                    df.loc[
+                        (df["region"] == region) & (df["technology"] == tech),
+                        "Existing_Cap_MW",
+                    ] = wind_pv_model_region_capacity.loc[
+                        idx[region, tech], "nameplate_capacity_mw"
+                    ]
+                except:
+                    pass
 
     df = df.set_index(["region", "technology", "cluster"])
 
