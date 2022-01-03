@@ -160,7 +160,7 @@ def group_generators_at_plant(df, by=["plant_id_eia"], agg_fn={"capacity_mw": "s
     return df_grouped
 
 
-def startup_fuel(df, settings):
+def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     """Add startup fuel consumption for generators
 
     Parameters
@@ -185,6 +185,7 @@ def startup_fuel(df, settings):
             ]
 
         atb_tech = settings["eia_atb_tech_map"][eia_tech]
+        atb_tech.append(eia_tech)
         for tech in atb_tech:
             df.loc[df["technology"] == tech, "Start_fuel_MMBTU_per_MW"] = fuel_use
             df.loc[
@@ -195,7 +196,7 @@ def startup_fuel(df, settings):
     return df
 
 
-def startup_nonfuel_costs(df, settings):
+def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     """Add inflation adjusted startup nonfuel costs per MW for generators
 
     Parameters
@@ -243,7 +244,8 @@ def startup_nonfuel_costs(df, settings):
     for existing_tech, cost_tech in settings["existing_startup_costs_tech_map"].items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[
-            df["technology"].str.contains(existing_tech), "Start_Cost_per_MW"
+            df["technology"].str.contains(existing_tech, case=False),
+            "Start_Cost_per_MW",
         ] = total_startup_costs
 
     for new_tech, cost_tech in settings["new_build_startup_costs"].items():
