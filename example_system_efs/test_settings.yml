@@ -71,8 +71,8 @@ distributed_gen_values:
 avg_distribution_loss: 0.0453
 
 
-electrification_stock_fn: SCENARIO_STOCK.parquet
-electrification_scenario: current_policy
+electrification_stock_fn: EFS_STOCK_AGG.parquet  # SCENARIO_STOCK.parquet
+electrification_scenario: REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT # current_policy
 # Name of the DSM resource, fraction of load that can be shifted, and number of hours
 # that it can be shifted
 demand_response_resources:
