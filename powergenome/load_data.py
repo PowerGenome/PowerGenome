@@ -3,12 +3,12 @@
 import pandas as pd
 
 
-def load_ipm_plant_region_map(pudl_engine):
+def load_ipm_plant_region_map(pg_engine):
     """Load the table associating each power plant to an IPM region
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.Engine
+    pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas
 
     Returns
@@ -18,7 +18,7 @@ def load_ipm_plant_region_map(pudl_engine):
         plant_id_eia and region.
     """
     region_map_df = pd.read_sql_table(
-        "plant_region_map_epaipm", con=pudl_engine, columns=["plant_id_eia", "region"]
+        "plant_region_map_epaipm", con=pg_engine, columns=["plant_id_eia", "region"]
     )
 
     return region_map_df

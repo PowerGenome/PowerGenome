@@ -1,0 +1,922 @@
+2021-08-31 14:46:13 [    INFO] powergenome:155 Reading settings file
+2021-08-31 14:46:13 [    INFO] powergenome:161 Initiating PUDL connections
+2021-08-31 14:46:13 [    INFO] powergenome:185 Sorted zones are CA_N, CA_S, WECC_AZ
+2021-08-31 14:46:19 [    INFO] powergenome.generators:1994 Loading map of plants to IPM regions
+2021-08-31 14:46:31 [    INFO] powergenome.generators:1315 Downloading the EIA860m file july_generator2019.xlsx
+2021-08-31 14:46:31 [ WARNING] powergenome.generators:1320 A more recent version of EIA-860m is available
+2021-08-31 14:46:58 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-08-31 14:46:58 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-08-31 14:47:33 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-08-31 14:47:33 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-08-31 14:47:50 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-08-31 14:47:50 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-08-31 14:47:51 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-08-31 14:47:51 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-08-31 14:47:51 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-08-31 14:47:51 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-08-31 14:47:51 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-08-31 14:47:51 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-08-31 14:48:00 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-08-31 14:48:00 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-08-31 14:48:01 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-08-31 14:48:01 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-08-31 14:48:06 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-08-31 14:48:06 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-08-31 14:48:06 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-08-31 14:48:06 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-08-31 14:48:07 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-08-31 14:48:07 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-08-31 14:48:07 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-08-31 14:48:07 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-08-31 14:48:07 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-08-31 14:48:08 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-08-31 14:48:09 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-08-31 14:48:10 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-08-31 14:48:10 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-08-31 14:48:10 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-08-31 14:48:10 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-08-31 14:48:10 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-08-31 14:48:10 [    INFO] powergenome.generators:2611 Capacity of 83094.125 MW in final clusters
+2021-08-31 14:48:11 [    INFO] powergenome:256 Finished first round with year 2030 scenario p1
+2021-08-31 14:48:11 [    INFO] powergenome.GenX:685 2 resources have Min_Power larger than hourly generation.
+2021-08-31 14:48:11 [    INFO] powergenome.transmission:32 Loading transmission constraints from PUDL
+2021-08-31 14:48:11 [    INFO] powergenome.transmission:64 Map and aggregate region names for transmission constraints
+2021-08-31 14:48:11 [    INFO] powergenome.transmission:84 Build a new transmission constraints dataframe with a single line between regions
+2021-08-31 14:48:11 [    INFO] powergenome.transmission:183 Calculating transmission line distance
+2021-08-31 14:48:12 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-08-31 14:48:14 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-08-31 14:48:15 [    INFO] powergenome.GenX:72 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-08-31 14:48:15 [    INFO] powergenome.GenX:72 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-08-31 14:48:15 [    INFO] powergenome:330 
+Starting year 2030 scenario s1
+2021-08-31 14:48:16 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-08-31 14:48:16 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-08-31 14:48:16 [    INFO] powergenome.generators:2181 Using unit heat rates from previous round.
+2021-08-31 14:48:16 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-08-31 14:48:16 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-08-31 14:48:33 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-08-31 14:48:33 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-08-31 14:48:34 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-08-31 14:48:34 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-08-31 14:48:34 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-08-31 14:48:34 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-08-31 14:48:34 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-08-31 14:48:34 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-08-31 14:48:43 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-08-31 14:48:43 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-08-31 14:48:44 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-08-31 14:48:44 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-08-31 14:48:49 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-08-31 14:48:49 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-08-31 14:48:49 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-08-31 14:48:49 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-08-31 14:48:50 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-08-31 14:48:50 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-08-31 14:48:50 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-08-31 14:48:50 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-08-31 14:48:50 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-08-31 14:48:51 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-08-31 14:48:52 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-08-31 14:48:53 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-08-31 14:48:53 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-08-31 14:48:53 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-08-31 14:48:53 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-08-31 14:48:53 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-08-31 14:48:53 [    INFO] powergenome.generators:2611 Capacity of 83094.125 MW in final clusters
+2021-08-31 14:48:54 [    INFO] powergenome.GenX:685 2 resources have Min_Power larger than hourly generation.
+2021-08-31 14:48:54 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-08-31 14:48:55 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-08-31 14:48:57 [    INFO] powergenome.GenX:72 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-08-31 14:48:57 [    INFO] powergenome.GenX:72 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-08-31 14:48:57 [    INFO] powergenome:330 
+Starting year 2045 scenario p1
+2021-08-31 14:48:57 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-08-31 14:48:57 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-08-31 14:48:57 [    INFO] powergenome.generators:2181 Using unit heat rates from previous round.
+2021-08-31 14:48:57 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-08-31 14:48:57 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-08-31 14:49:17 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-08-31 14:49:17 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-08-31 14:49:17 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-08-31 14:49:18 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-08-31 14:49:18 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-08-31 14:49:18 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-08-31 14:49:18 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-08-31 14:49:18 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-08-31 14:49:28 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-08-31 14:49:28 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-08-31 14:49:29 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-08-31 14:49:29 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-08-31 14:49:34 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-08-31 14:49:34 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-08-31 14:49:34 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-08-31 14:49:34 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-08-31 14:49:34 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-08-31 14:49:34 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-08-31 14:49:34 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-08-31 14:49:34 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-08-31 14:49:35 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-08-31 14:49:35 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-08-31 14:49:36 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-08-31 14:49:37 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-08-31 14:49:37 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-08-31 14:49:37 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-08-31 14:49:37 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-08-31 14:49:37 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-08-31 14:49:37 [    INFO] powergenome.generators:2611 Capacity of 57717.08900000001 MW in final clusters
+2021-08-31 14:49:38 [    INFO] powergenome.GenX:685 2 resources have Min_Power larger than hourly generation.
+2021-08-31 14:49:38 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-08-31 14:49:39 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-08-31 14:49:41 [    INFO] powergenome:330 
+Starting year 2045 scenario s1
+2021-08-31 14:49:41 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-08-31 14:49:41 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-08-31 14:49:41 [    INFO] powergenome.generators:2181 Using unit heat rates from previous round.
+2021-08-31 14:49:41 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-08-31 14:49:41 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-08-31 14:50:00 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-08-31 14:50:00 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-08-31 14:50:00 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-08-31 14:50:01 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-08-31 14:50:01 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-08-31 14:50:01 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-08-31 14:50:01 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-08-31 14:50:01 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-08-31 14:50:11 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-08-31 14:50:11 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-08-31 14:50:12 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-08-31 14:50:12 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-08-31 14:50:17 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-08-31 14:50:17 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-08-31 14:50:17 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-08-31 14:50:17 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-08-31 14:50:17 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-08-31 14:50:18 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-08-31 14:50:18 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-08-31 14:50:18 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-08-31 14:50:18 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-08-31 14:50:19 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-08-31 14:50:19 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-08-31 14:50:20 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-08-31 14:50:20 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-08-31 14:50:20 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-08-31 14:50:21 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-08-31 14:50:21 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-08-31 14:50:21 [    INFO] powergenome.generators:2611 Capacity of 57717.08900000001 MW in final clusters
+2021-08-31 14:50:21 [    INFO] powergenome.GenX:685 2 resources have Min_Power larger than hourly generation.
+2021-08-31 14:50:21 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-08-31 14:50:23 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-09-20 10:11:07 [    INFO] powergenome:155 Reading settings file
+2021-09-20 10:11:07 [    INFO] powergenome:161 Initiating PUDL connections
+2021-09-20 10:11:07 [    INFO] powergenome:185 Sorted zones are CA_N, CA_S, WECC_AZ
+2021-09-20 10:11:13 [    INFO] powergenome.generators:1994 Loading map of plants to IPM regions
+2021-09-20 10:11:49 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-09-20 10:11:49 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-09-20 10:12:26 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-09-20 10:12:26 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-09-20 10:12:48 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-09-20 10:12:48 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-09-20 10:12:48 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-09-20 10:12:49 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-09-20 10:12:49 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-09-20 10:12:49 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-09-20 10:12:49 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-09-20 10:12:49 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-09-20 10:13:01 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-09-20 10:13:01 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-09-20 10:13:02 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-09-20 10:13:02 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-09-20 10:13:07 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-09-20 10:13:07 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-09-20 10:13:07 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-09-20 10:13:07 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-09-20 10:13:08 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-09-20 10:13:08 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-09-20 10:13:08 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-09-20 10:13:08 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-09-20 10:13:08 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-09-20 10:13:09 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-09-20 10:13:10 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-09-20 10:13:11 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-09-20 10:13:11 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-09-20 10:13:11 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-09-20 10:13:11 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-09-20 10:13:11 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-09-20 10:13:11 [    INFO] powergenome.generators:2611 Capacity of 83094.125 MW in final clusters
+2021-09-20 10:13:12 [    INFO] powergenome:256 Finished first round with year 2030 scenario p1
+2021-09-20 10:13:12 [    INFO] powergenome.GenX:687 2 resources have Min_Power larger than hourly generation.
+2021-09-20 10:13:12 [    INFO] powergenome.transmission:32 Loading transmission constraints from PUDL
+2021-09-20 10:13:12 [    INFO] powergenome.transmission:64 Map and aggregate region names for transmission constraints
+2021-09-20 10:13:12 [    INFO] powergenome.transmission:84 Build a new transmission constraints dataframe with a single line between regions
+2021-09-20 10:13:12 [    INFO] powergenome.transmission:183 Calculating transmission line distance
+2021-09-20 10:13:13 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-09-20 10:13:14 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-09-20 10:13:16 [    INFO] powergenome.GenX:74 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-09-20 10:13:16 [    INFO] powergenome.GenX:74 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-09-20 10:13:16 [    INFO] powergenome.GenX:74 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-09-20 10:13:16 [    INFO] powergenome:330 
+Starting year 2030 scenario s1
+2021-09-20 10:13:16 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-09-20 10:13:16 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-09-20 10:13:17 [    INFO] powergenome.generators:2181 Using unit heat rates from previous round.
+2021-09-20 10:13:17 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-09-20 10:13:17 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-09-20 10:13:39 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-09-20 10:13:39 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-09-20 10:13:39 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-09-20 10:13:40 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-09-20 10:13:40 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-09-20 10:13:40 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-09-20 10:13:40 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-09-20 10:13:40 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-09-20 10:13:52 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-09-20 10:13:52 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-09-20 10:13:53 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-09-20 10:13:53 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-09-20 10:13:58 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-09-20 10:13:58 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-09-20 10:13:58 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-09-20 10:13:58 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-09-20 10:13:59 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-09-20 10:13:59 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-09-20 10:13:59 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-09-20 10:13:59 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-09-20 10:13:59 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-09-20 10:14:00 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-09-20 10:14:01 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-09-20 10:14:02 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-09-20 10:14:02 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-09-20 10:14:02 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-09-20 10:14:02 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-09-20 10:14:02 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-09-20 10:14:02 [    INFO] powergenome.generators:2611 Capacity of 83094.125 MW in final clusters
+2021-09-20 10:14:03 [    INFO] powergenome.GenX:687 2 resources have Min_Power larger than hourly generation.
+2021-09-20 10:14:03 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-09-20 10:14:05 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-09-20 10:14:06 [    INFO] powergenome.GenX:74 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-09-20 10:14:06 [    INFO] powergenome.GenX:74 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-09-20 10:14:06 [    INFO] powergenome:330 
+Starting year 2045 scenario p1
+2021-09-20 10:14:07 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-09-20 10:14:07 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-09-20 10:14:07 [    INFO] powergenome.generators:2181 Using unit heat rates from previous round.
+2021-09-20 10:14:07 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-09-20 10:14:07 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-09-20 10:14:30 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-09-20 10:14:30 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-09-20 10:14:30 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-09-20 10:14:31 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-09-20 10:14:31 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-09-20 10:14:31 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-09-20 10:14:31 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-09-20 10:14:31 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-09-20 10:14:43 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-09-20 10:14:43 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-09-20 10:14:44 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-09-20 10:14:44 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-09-20 10:14:49 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-09-20 10:14:49 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-09-20 10:14:49 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-09-20 10:14:49 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-09-20 10:14:49 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-09-20 10:14:49 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-09-20 10:14:50 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-09-20 10:14:50 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-09-20 10:14:50 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-09-20 10:14:50 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-09-20 10:14:51 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-09-20 10:14:52 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-09-20 10:14:52 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-09-20 10:14:52 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-09-20 10:14:53 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-09-20 10:14:53 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-09-20 10:14:53 [    INFO] powergenome.generators:2611 Capacity of 57717.08900000001 MW in final clusters
+2021-09-20 10:14:53 [    INFO] powergenome.GenX:687 2 resources have Min_Power larger than hourly generation.
+2021-09-20 10:14:53 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-09-20 10:14:55 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-09-20 10:14:57 [    INFO] powergenome:330 
+Starting year 2045 scenario s1
+2021-09-20 10:14:57 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-09-20 10:14:57 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-09-20 10:14:57 [    INFO] powergenome.generators:2181 Using unit heat rates from previous round.
+2021-09-20 10:14:57 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-09-20 10:14:57 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-09-20 10:15:19 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-09-20 10:15:19 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-09-20 10:15:20 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-09-20 10:15:21 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-09-20 10:15:21 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-09-20 10:15:21 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-09-20 10:15:21 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-09-20 10:15:21 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-09-20 10:15:32 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-09-20 10:15:32 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-09-20 10:15:33 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-09-20 10:15:33 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-09-20 10:15:38 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-09-20 10:15:38 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-09-20 10:15:38 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-09-20 10:15:38 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-09-20 10:15:39 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-09-20 10:15:39 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-09-20 10:15:39 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-09-20 10:15:39 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-09-20 10:15:39 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-09-20 10:15:40 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-09-20 10:15:41 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-09-20 10:15:42 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-09-20 10:15:42 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-09-20 10:15:42 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-09-20 10:15:42 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-09-20 10:15:42 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-09-20 10:15:42 [    INFO] powergenome.generators:2611 Capacity of 57717.08900000001 MW in final clusters
+2021-09-20 10:15:43 [    INFO] powergenome.GenX:687 2 resources have Min_Power larger than hourly generation.
+2021-09-20 10:15:43 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-09-20 10:15:44 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-10-01 11:08:35 [    INFO] powergenome:156 Reading settings file
+2021-10-01 11:08:35 [    INFO] powergenome:162 Initiating PUDL connections
+2021-10-01 11:08:35 [    INFO] powergenome:189 Sorted zones are CA_N, CA_S, WECC_AZ
+2021-10-01 11:08:40 [    INFO] powergenome.generators:1994 Loading map of plants to IPM regions
+2021-10-01 11:09:13 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-10-01 11:09:13 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-10-01 11:09:19 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-01 11:09:19 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-10-01 11:09:38 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-01 11:09:38 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-10-01 11:09:38 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-10-01 11:09:39 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-10-01 11:09:39 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-10-01 11:09:39 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-10-01 11:09:39 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-10-01 11:09:39 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-10-01 11:09:48 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-10-01 11:09:48 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-10-01 11:09:49 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-10-01 11:09:49 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-10-01 11:09:54 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-10-01 11:09:54 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-01 11:09:54 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-01 11:09:54 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-10-01 11:09:54 [ WARNING] powergenome.generators:1235 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-01 11:09:55 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-10-01 11:09:55 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-10-01 11:09:55 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-10-01 11:09:55 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-10-01 11:09:55 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-10-01 11:09:56 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-10-01 11:09:57 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-10-01 11:09:58 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-01 11:09:58 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-01 11:09:58 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-10-01 11:09:58 [ WARNING] powergenome.generators:1235 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-01 11:09:58 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-10-01 11:09:58 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-10-01 11:09:58 [    INFO] powergenome.generators:2611 Capacity of 83094.125 MW in final clusters
+2021-10-01 11:09:58 [    INFO] powergenome:260 Finished first round with year 2030 scenario p1
+2021-10-01 11:09:58 [    INFO] powergenome.GenX:688 2 resources have Min_Power larger than hourly generation.
+2021-10-01 11:09:58 [    INFO] powergenome.transmission:32 Loading transmission constraints from PUDL
+2021-10-01 11:09:58 [    INFO] powergenome.transmission:64 Map and aggregate region names for transmission constraints
+2021-10-01 11:09:58 [    INFO] powergenome.transmission:84 Build a new transmission constraints dataframe with a single line between regions
+2021-10-01 11:09:58 [    INFO] powergenome.transmission:183 Calculating transmission line distance
+2021-10-01 11:09:59 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-10-01 11:10:01 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-10-01 11:10:02 [    INFO] powergenome.GenX:74 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-01 11:10:02 [    INFO] powergenome.GenX:74 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-01 11:10:02 [    INFO] powergenome.GenX:74 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-01 11:10:02 [    INFO] powergenome:334 
+Starting year 2030 scenario s1
+2021-10-01 11:10:02 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-10-01 11:10:02 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-10-01 11:10:03 [    INFO] powergenome.generators:2181 Using unit heat rates from previous round.
+2021-10-01 11:10:03 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-01 11:10:03 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-10-01 11:10:21 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-01 11:10:21 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-10-01 11:10:22 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-10-01 11:10:22 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-10-01 11:10:22 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-10-01 11:10:22 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-10-01 11:10:22 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-10-01 11:10:22 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-10-01 11:10:32 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-10-01 11:10:32 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-10-01 11:10:33 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-10-01 11:10:33 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-10-01 11:10:38 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-10-01 11:10:38 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-01 11:10:38 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-01 11:10:38 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-10-01 11:10:38 [ WARNING] powergenome.generators:1235 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-01 11:10:38 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-10-01 11:10:39 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-10-01 11:10:39 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-10-01 11:10:39 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-10-01 11:10:39 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-10-01 11:10:39 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-10-01 11:10:40 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-10-01 11:10:41 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-01 11:10:41 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-01 11:10:41 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-10-01 11:10:41 [ WARNING] powergenome.generators:1235 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-01 11:10:41 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-10-01 11:10:41 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-10-01 11:10:42 [    INFO] powergenome.generators:2611 Capacity of 83094.125 MW in final clusters
+2021-10-01 11:10:42 [    INFO] powergenome.GenX:688 2 resources have Min_Power larger than hourly generation.
+2021-10-01 11:10:42 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-10-01 11:10:44 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-10-01 11:10:45 [    INFO] powergenome.GenX:74 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-01 11:10:45 [    INFO] powergenome.GenX:74 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-01 11:10:45 [    INFO] powergenome:334 
+Starting year 2045 scenario p1
+2021-10-01 11:10:45 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-10-01 11:10:45 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-10-01 11:10:46 [    INFO] powergenome.generators:2181 Using unit heat rates from previous round.
+2021-10-01 11:10:46 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-01 11:10:46 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-10-01 11:11:08 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-01 11:11:08 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-10-01 11:11:08 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-10-01 11:11:09 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-10-01 11:11:09 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-10-01 11:11:09 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-10-01 11:11:09 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-10-01 11:11:09 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-10-01 11:11:19 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-10-01 11:11:19 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-10-01 11:11:20 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-10-01 11:11:20 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-10-01 11:11:24 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-10-01 11:11:25 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-01 11:11:25 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-01 11:11:25 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-10-01 11:11:25 [ WARNING] powergenome.generators:1235 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-01 11:11:25 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-10-01 11:11:25 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-10-01 11:11:25 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-10-01 11:11:25 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-10-01 11:11:25 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-10-01 11:11:26 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-10-01 11:11:27 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-10-01 11:11:28 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-01 11:11:28 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-01 11:11:28 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-10-01 11:11:28 [ WARNING] powergenome.generators:1235 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-01 11:11:28 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-10-01 11:11:28 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-10-01 11:11:28 [    INFO] powergenome.generators:2611 Capacity of 57717.08900000001 MW in final clusters
+2021-10-01 11:11:29 [    INFO] powergenome.GenX:688 2 resources have Min_Power larger than hourly generation.
+2021-10-01 11:11:29 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-10-01 11:11:30 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-10-01 11:11:32 [    INFO] powergenome:334 
+Starting year 2045 scenario s1
+2021-10-01 11:11:32 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-10-01 11:11:32 [    INFO] powergenome.generators:2174 Loading heat rate data for units and generator/fuel combinations
+2021-10-01 11:11:32 [    INFO] powergenome.generators:2181 Using unit heat rates from previous round.
+2021-10-01 11:11:32 [    INFO] powergenome.generators:2194 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-01 11:11:32 [    INFO] powergenome.generators:2200 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-10-01 11:11:51 [    INFO] powergenome.generators:2239 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-01 11:11:51 [    INFO] powergenome.generators:2243 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-10-01 11:11:52 [    INFO] powergenome.generators:1496 0 generators were added to the planned list based on settings
+2021-10-01 11:11:52 [    INFO] powergenome.generators:519 No retirement dates changed based on the settings file
+2021-10-01 11:11:52 [    INFO] powergenome.generators:2252 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-10-01 11:11:52 [    INFO] powergenome.generators:2255 3832.2 MW proposed
+2021-10-01 11:11:52 [    INFO] powergenome.generators:2272 Calculating plant O&M costs
+2021-10-01 11:11:52 [    INFO] powergenome.nrelatb:349 Adding fixed and variable O&M for existing plants
+2021-10-01 11:12:02 [    INFO] powergenome.generators:2287 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-10-01 11:12:02 [    INFO] powergenome.generators:2323 Creating technology clusters by region
+2021-10-01 11:12:03 [    INFO] powergenome.generators:2409 Finalizing generation clusters
+2021-10-01 11:12:03 [    INFO] powergenome.generators:2412 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-10-01 11:12:08 [    INFO] powergenome.generators:2473 Setting existing wind/pv using external file
+2021-10-01 11:12:08 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-01 11:12:08 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-01 11:12:08 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-10-01 11:12:08 [ WARNING] powergenome.generators:1235 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-01 11:12:08 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-10-01 11:12:08 [    INFO] powergenome.nrelatb:156 Using UtilityPV Market WACC for Battery storage.
+2021-10-01 11:12:09 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-10-01 11:12:09 [    INFO] powergenome.nrelatb:877 Creating new resources for each region.
+2021-10-01 11:12:09 [ WARNING] powergenome.nrelatb:1223 The file with your user defined technologies is not in the user input folder. Reading the file from PowerGenome/data/additional_technolgies instead. This may be depreciated in a future version, please move AZ_additional_tech.csv to the folder /Users/sc87/code/PowerGenome_Forked/PowerGenome/example_system/extra_inputs.
+2021-10-01 11:12:09 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-10-01 11:12:10 [ WARNING] powergenome.nrelatb:1172 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-10-01 11:12:11 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-01 11:12:11 [    INFO] powergenome.generators:217 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-01 11:12:11 [    INFO] powergenome.generators:229 Changing non-fuel startup costs from 2011 to 2017
+2021-10-01 11:12:11 [ WARNING] powergenome.generators:1235 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-01 11:12:11 [    INFO] powergenome.external_data:159 Inflating external interconnect annuity costs from 2017 to 2017
+2021-10-01 11:12:11 [ WARNING] powergenome.generators:1932 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-10-01 11:12:11 [    INFO] powergenome.generators:2611 Capacity of 57717.08900000001 MW in final clusters
+2021-10-01 11:12:12 [    INFO] powergenome.GenX:688 2 resources have Min_Power larger than hourly generation.
+2021-10-01 11:12:12 [    INFO] powergenome.load_profiles:33 Loading load curves from PUDL
+2021-10-01 11:12:13 [    INFO] powergenome.load_profiles:55 Aggregating load curves in grouped regions
+2021-10-06 16:12:12 [    INFO] powergenome:156 Reading settings file
+2021-10-06 16:12:12 [    INFO] powergenome:162 Initiating PUDL connections
+2021-10-06 16:20:37 [    INFO] powergenome:156 Reading settings file
+2021-10-06 16:20:37 [    INFO] powergenome:162 Initiating PUDL connections
+2021-10-06 16:21:34 [    INFO] powergenome:156 Reading settings file
+2021-10-06 16:21:34 [    INFO] powergenome:162 Initiating PUDL connections
+2021-10-06 16:22:10 [    INFO] powergenome:156 Reading settings file
+2021-10-06 16:22:10 [    INFO] powergenome:162 Initiating PUDL connections
+2021-10-06 16:24:47 [    INFO] powergenome:156 Reading settings file
+2021-10-06 16:24:48 [    INFO] powergenome:162 Initiating PUDL connections
+2021-10-07 13:13:53 [    INFO] powergenome:156 Reading settings file
+2021-10-07 13:13:53 [    INFO] powergenome:162 Initiating PUDL connections
+2021-10-08 13:44:46 [    INFO] powergenome:156 Reading settings file
+2021-10-08 13:44:46 [    INFO] powergenome:162 Initiating PUDL connections
+2021-10-08 13:44:46 [    INFO] powergenome:193 Sorted zones are CA_N, CA_S, WECC_AZ
+2021-10-08 13:44:57 [    INFO] powergenome.generators:2003 Loading map of plants to IPM regions
+2021-10-08 13:45:36 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-08 13:45:36 [    INFO] powergenome.generators:2185 Loading heat rate data for units and generator/fuel combinations
+2021-10-08 13:45:46 [    INFO] powergenome.generators:2204 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-08 13:45:46 [    INFO] powergenome.generators:2210 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-10-08 13:45:50 [    INFO] powergenome.generators:2249 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-08 13:45:50 [    INFO] powergenome.generators:2253 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-10-08 13:45:50 [    INFO] powergenome.generators:1498 0 generators were added to the planned list based on settings
+2021-10-08 13:45:50 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-08 13:45:50 [    INFO] powergenome.generators:2262 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-10-08 13:45:50 [    INFO] powergenome.generators:2266 3832.2 MW proposed
+2021-10-08 13:45:50 [    INFO] powergenome.generators:2283 Calculating plant O&M costs
+2021-10-08 13:45:50 [    INFO] powergenome.nrelatb:350 Adding fixed and variable O&M for existing plants
+2021-10-08 13:45:56 [    INFO] powergenome.generators:2301 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-10-08 13:45:56 [    INFO] powergenome.generators:2338 Creating technology clusters by region
+2021-10-08 13:45:58 [    INFO] powergenome.generators:2424 Finalizing generation clusters
+2021-10-08 13:45:58 [    INFO] powergenome.generators:2426 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-10-08 13:46:05 [    INFO] powergenome.generators:2488 Setting existing wind/pv using external file
+2021-10-08 13:46:05 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-08 13:46:05 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-08 13:46:05 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-08 13:46:05 [ WARNING] powergenome.generators:1238 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-08 13:46:05 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-10-08 13:46:06 [    INFO] powergenome.nrelatb:155 Using UtilityPV Market WACC for Battery storage.
+2021-10-08 13:46:06 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-10-08 13:46:06 [    INFO] powergenome.nrelatb:887 Creating new resources for each region.
+2021-10-08 13:46:06 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-10-08 13:46:07 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-10-08 13:46:08 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-08 13:46:08 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-08 13:46:08 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-08 13:46:08 [ WARNING] powergenome.generators:1238 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-08 13:46:08 [    INFO] powergenome.external_data:160 Inflating external interconnect annuity costs from 2017 to 2017
+2021-10-08 13:46:08 [ WARNING] powergenome.generators:1938 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-10-08 13:46:08 [    INFO] powergenome.generators:2625 Capacity of 84887.685 MW in final clusters
+2021-10-08 13:46:08 [    INFO] powergenome:264 Finished first round with year 2030 scenario p1
+2021-10-08 13:46:08 [    INFO] powergenome.GenX:754 2 resources have Min_Power larger than hourly generation.
+2021-10-08 13:46:08 [    INFO] powergenome.transmission:32 Loading transmission constraints from PUDL
+2021-10-08 13:46:08 [    INFO] powergenome.transmission:64 Map and aggregate region names for transmission constraints
+2021-10-08 13:46:08 [    INFO] powergenome.transmission:83 Build a new transmission constraints dataframe with a single line between regions
+2021-10-08 13:46:08 [    INFO] powergenome.transmission:183 Calculating transmission line distance
+2021-10-08 13:46:09 [    INFO] powergenome.load_profiles:29 Loading load curves from PUDL
+2021-10-08 13:46:10 [    INFO] powergenome.load_profiles:51 Aggregating load curves in grouped regions
+2021-10-08 13:46:12 [    INFO] powergenome.GenX:73 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-08 13:46:12 [    INFO] powergenome.GenX:73 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-08 13:46:12 [    INFO] powergenome.GenX:73 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-08 15:37:55 [    INFO] powergenome:156 Reading settings file
+2021-10-08 15:37:55 [    INFO] powergenome:162 Initiating PUDL connections
+2021-10-08 15:37:55 [    INFO] powergenome:193 Sorted zones are CA_N, CA_S, WECC_AZ
+2021-10-08 15:38:06 [    INFO] powergenome.generators:2003 Loading map of plants to IPM regions
+2021-10-08 15:38:43 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-08 15:38:43 [    INFO] powergenome.generators:2185 Loading heat rate data for units and generator/fuel combinations
+2021-10-08 15:38:53 [    INFO] powergenome.generators:2204 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-08 15:38:53 [    INFO] powergenome.generators:2210 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-10-08 15:38:57 [    INFO] powergenome.generators:2249 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-08 15:38:57 [    INFO] powergenome.generators:2253 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-10-08 15:38:57 [    INFO] powergenome.generators:1498 0 generators were added to the planned list based on settings
+2021-10-08 15:38:57 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-08 15:38:57 [    INFO] powergenome.generators:2262 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-10-08 15:38:57 [    INFO] powergenome.generators:2266 3832.2 MW proposed
+2021-10-08 15:38:57 [    INFO] powergenome.generators:2283 Calculating plant O&M costs
+2021-10-08 15:38:57 [    INFO] powergenome.nrelatb:350 Adding fixed and variable O&M for existing plants
+2021-10-08 15:39:04 [    INFO] powergenome.generators:2301 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-10-08 15:39:04 [    INFO] powergenome.generators:2338 Creating technology clusters by region
+2021-10-08 15:39:06 [    INFO] powergenome.generators:2424 Finalizing generation clusters
+2021-10-08 15:39:06 [    INFO] powergenome.generators:2426 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-10-08 15:39:12 [    INFO] powergenome.generators:2488 Setting existing wind/pv using external file
+2021-10-08 15:39:12 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-08 15:39:12 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-08 15:39:12 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-08 15:39:12 [ WARNING] powergenome.generators:1238 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-08 15:39:13 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-10-08 15:39:13 [    INFO] powergenome.nrelatb:155 Using UtilityPV Market WACC for Battery storage.
+2021-10-08 15:39:13 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-10-08 15:39:13 [    INFO] powergenome.nrelatb:887 Creating new resources for each region.
+2021-10-08 15:39:14 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-10-08 15:39:14 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-10-08 15:39:15 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-08 15:39:15 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-08 15:39:15 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-08 15:39:15 [ WARNING] powergenome.generators:1238 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-08 15:39:15 [    INFO] powergenome.external_data:160 Inflating external interconnect annuity costs from 2017 to 2017
+2021-10-08 15:39:15 [ WARNING] powergenome.generators:1938 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-10-08 15:39:15 [    INFO] powergenome.generators:2625 Capacity of 84887.685 MW in final clusters
+2021-10-08 15:39:16 [    INFO] powergenome:264 Finished first round with year 2030 scenario p1
+2021-10-08 15:39:16 [    INFO] powergenome.GenX:754 2 resources have Min_Power larger than hourly generation.
+2021-10-08 15:39:16 [    INFO] powergenome.transmission:32 Loading transmission constraints from PUDL
+2021-10-08 15:39:16 [    INFO] powergenome.transmission:64 Map and aggregate region names for transmission constraints
+2021-10-08 15:39:16 [    INFO] powergenome.transmission:83 Build a new transmission constraints dataframe with a single line between regions
+2021-10-08 15:39:16 [    INFO] powergenome.transmission:183 Calculating transmission line distance
+2021-10-08 15:39:16 [    INFO] powergenome.load_profiles:29 Loading load curves from PUDL
+2021-10-08 15:39:18 [    INFO] powergenome.load_profiles:51 Aggregating load curves in grouped regions
+2021-10-08 15:39:19 [    INFO] powergenome.GenX:73 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-08 15:39:19 [    INFO] powergenome.GenX:73 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-08 15:39:19 [    INFO] powergenome.GenX:73 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-11 13:21:53 [    INFO] powergenome:153 Reading settings file
+2021-10-11 13:21:53 [    INFO] powergenome:159 Initiating PUDL connections
+2021-10-12 09:36:16 [    INFO] powergenome:153 Reading settings file
+2021-10-12 09:36:16 [    INFO] powergenome:159 Initiating PUDL connections
+2021-10-12 09:36:16 [    INFO] powergenome:189 Sorted zones are CA_N, CA_S, WECC_AZ
+2021-10-12 09:36:27 [    INFO] powergenome.generators:2007 Loading map of plants to IPM regions
+2021-10-12 09:37:08 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-12 09:37:08 [    INFO] powergenome.generators:2189 Loading heat rate data for units and generator/fuel combinations
+2021-10-12 09:37:17 [    INFO] powergenome.generators:2208 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-12 09:37:17 [    INFO] powergenome.generators:2214 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-10-12 09:37:22 [    INFO] powergenome.generators:2253 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-12 09:37:22 [    INFO] powergenome.generators:2257 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-10-12 09:37:22 [    INFO] powergenome.generators:1502 0 generators were added to the planned list based on settings
+2021-10-12 09:37:22 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-12 09:37:22 [    INFO] powergenome.generators:2266 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-10-12 09:37:22 [    INFO] powergenome.generators:2270 3832.2 MW proposed
+2021-10-12 09:37:22 [    INFO] powergenome.generators:2287 Calculating plant O&M costs
+2021-10-12 09:37:22 [    INFO] powergenome.nrelatb:350 Adding fixed and variable O&M for existing plants
+2021-10-12 09:37:29 [    INFO] powergenome.generators:2305 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-10-12 09:37:29 [    INFO] powergenome.generators:2342 Creating technology clusters by region
+2021-10-12 09:37:30 [    INFO] powergenome.generators:2428 Finalizing generation clusters
+2021-10-12 09:37:30 [    INFO] powergenome.generators:2430 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-10-12 09:37:37 [    INFO] powergenome.generators:2492 Setting existing wind/pv using external file
+2021-10-12 09:37:37 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-12 09:37:37 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-12 09:37:37 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-12 09:37:37 [ WARNING] powergenome.generators:1242 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-12 09:37:37 [ WARNING] powergenome.generators:1242 No model tag values found for Reg_Max ('Reg_Max')
+2021-10-12 09:37:37 [ WARNING] powergenome.generators:1242 No model tag values found for Rsv_Max ('Rsv_Max')
+2021-10-12 09:37:38 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-10-12 09:37:38 [    INFO] powergenome.nrelatb:155 Using UtilityPV Market WACC for Battery storage.
+2021-10-12 09:37:38 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-10-12 09:37:38 [    INFO] powergenome.nrelatb:887 Creating new resources for each region.
+2021-10-12 09:37:39 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-10-12 09:37:39 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-10-12 09:37:40 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-12 09:37:40 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-12 09:37:40 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-12 09:37:40 [ WARNING] powergenome.generators:1242 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-12 09:37:40 [ WARNING] powergenome.generators:1242 No model tag values found for Reg_Max ('Reg_Max')
+2021-10-12 09:37:40 [ WARNING] powergenome.generators:1242 No model tag values found for Rsv_Max ('Rsv_Max')
+2021-10-12 09:37:40 [    INFO] powergenome.external_data:160 Inflating external interconnect annuity costs from 2017 to 2017
+2021-10-12 09:37:40 [ WARNING] powergenome.generators:1942 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-10-12 09:37:40 [    INFO] powergenome.generators:2629 Capacity of 84887.685 MW in final clusters
+2021-10-12 09:37:41 [    INFO] powergenome:260 Finished first round with year 2030 scenario p1
+2021-10-12 09:37:41 [    INFO] powergenome.GenX:638 2 resources have Min_Power larger than hourly generation.
+2021-10-12 09:37:41 [    INFO] powergenome.transmission:32 Loading transmission constraints from PUDL
+2021-10-12 09:37:41 [    INFO] powergenome.transmission:64 Map and aggregate region names for transmission constraints
+2021-10-12 09:37:41 [    INFO] powergenome.transmission:83 Build a new transmission constraints dataframe with a single line between regions
+2021-10-12 09:37:41 [    INFO] powergenome.transmission:183 Calculating transmission line distance
+2021-10-12 09:37:41 [    INFO] powergenome.load_profiles:29 Loading load curves from PUDL
+2021-10-12 09:37:43 [    INFO] powergenome.load_profiles:51 Aggregating load curves in grouped regions
+2021-10-12 09:37:44 [    INFO] powergenome.GenX:73 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-12 09:37:44 [    INFO] powergenome.GenX:73 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-12 09:37:44 [    INFO] powergenome.GenX:73 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-12 09:37:44 [    INFO] powergenome:335 
+Starting year 2030 scenario s1
+2021-10-12 09:37:44 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-12 09:37:44 [    INFO] powergenome.generators:2189 Loading heat rate data for units and generator/fuel combinations
+2021-10-12 09:37:44 [    INFO] powergenome.generators:2196 Using unit heat rates from previous round.
+2021-10-12 09:37:44 [    INFO] powergenome.generators:2208 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-12 09:37:44 [    INFO] powergenome.generators:2214 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-10-12 09:37:49 [    INFO] powergenome.generators:2253 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-12 09:37:49 [    INFO] powergenome.generators:2257 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-10-12 09:37:49 [    INFO] powergenome.generators:1502 0 generators were added to the planned list based on settings
+2021-10-12 09:37:49 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-12 09:37:49 [    INFO] powergenome.generators:2266 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-10-12 09:37:49 [    INFO] powergenome.generators:2270 3832.2 MW proposed
+2021-10-12 09:37:49 [    INFO] powergenome.generators:2287 Calculating plant O&M costs
+2021-10-12 09:37:49 [    INFO] powergenome.nrelatb:350 Adding fixed and variable O&M for existing plants
+2021-10-12 09:37:56 [    INFO] powergenome.generators:2305 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-10-12 09:37:56 [    INFO] powergenome.generators:2342 Creating technology clusters by region
+2021-10-12 09:37:57 [    INFO] powergenome.generators:2428 Finalizing generation clusters
+2021-10-12 09:37:57 [    INFO] powergenome.generators:2430 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-10-12 09:38:04 [    INFO] powergenome.generators:2492 Setting existing wind/pv using external file
+2021-10-12 09:38:04 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-12 09:38:04 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-12 09:38:04 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-12 09:38:04 [ WARNING] powergenome.generators:1242 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-12 09:38:04 [ WARNING] powergenome.generators:1242 No model tag values found for Reg_Max ('Reg_Max')
+2021-10-12 09:38:04 [ WARNING] powergenome.generators:1242 No model tag values found for Rsv_Max ('Rsv_Max')
+2021-10-12 09:38:05 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-10-12 09:38:05 [    INFO] powergenome.nrelatb:155 Using UtilityPV Market WACC for Battery storage.
+2021-10-12 09:38:05 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-10-12 09:38:05 [    INFO] powergenome.nrelatb:887 Creating new resources for each region.
+2021-10-12 09:38:05 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-10-12 09:38:06 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-10-12 09:38:07 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-12 09:38:07 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-12 09:38:07 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-12 09:38:07 [ WARNING] powergenome.generators:1242 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-12 09:38:07 [ WARNING] powergenome.generators:1242 No model tag values found for Reg_Max ('Reg_Max')
+2021-10-12 09:38:07 [ WARNING] powergenome.generators:1242 No model tag values found for Rsv_Max ('Rsv_Max')
+2021-10-12 09:38:07 [    INFO] powergenome.external_data:160 Inflating external interconnect annuity costs from 2017 to 2017
+2021-10-12 09:38:07 [ WARNING] powergenome.generators:1942 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-10-12 09:38:07 [    INFO] powergenome.generators:2629 Capacity of 84887.685 MW in final clusters
+2021-10-12 09:38:07 [    INFO] powergenome.GenX:638 2 resources have Min_Power larger than hourly generation.
+2021-10-12 09:38:07 [    INFO] powergenome.load_profiles:29 Loading load curves from PUDL
+2021-10-12 09:38:09 [    INFO] powergenome.load_profiles:51 Aggregating load curves in grouped regions
+2021-10-12 09:38:10 [    INFO] powergenome.GenX:73 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-12 09:38:10 [    INFO] powergenome.GenX:73 Only one zone was found in the emissions policy file. The same emission policies are being applied to all zones.
+2021-10-12 09:38:10 [    INFO] powergenome:335 
+Starting year 2045 scenario p1
+2021-10-12 09:38:10 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-12 09:38:10 [    INFO] powergenome.generators:2189 Loading heat rate data for units and generator/fuel combinations
+2021-10-12 09:38:11 [    INFO] powergenome.generators:2196 Using unit heat rates from previous round.
+2021-10-12 09:38:11 [    INFO] powergenome.generators:2208 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-12 09:38:11 [    INFO] powergenome.generators:2214 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-10-12 09:38:15 [    INFO] powergenome.generators:2253 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-12 09:38:15 [    INFO] powergenome.generators:2257 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-10-12 09:38:15 [    INFO] powergenome.generators:1502 0 generators were added to the planned list based on settings
+2021-10-12 09:38:15 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-12 09:38:15 [    INFO] powergenome.generators:2266 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-10-12 09:38:15 [    INFO] powergenome.generators:2270 3832.2 MW proposed
+2021-10-12 09:38:15 [    INFO] powergenome.generators:2287 Calculating plant O&M costs
+2021-10-12 09:38:15 [    INFO] powergenome.nrelatb:350 Adding fixed and variable O&M for existing plants
+2021-10-12 09:38:22 [    INFO] powergenome.generators:2305 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-10-12 09:38:22 [    INFO] powergenome.generators:2342 Creating technology clusters by region
+2021-10-12 09:38:23 [    INFO] powergenome.generators:2428 Finalizing generation clusters
+2021-10-12 09:38:23 [    INFO] powergenome.generators:2430 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-10-12 09:38:30 [    INFO] powergenome.generators:2492 Setting existing wind/pv using external file
+2021-10-12 09:38:30 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-12 09:38:30 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-12 09:38:30 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-12 09:38:30 [ WARNING] powergenome.generators:1242 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-12 09:38:30 [ WARNING] powergenome.generators:1242 No model tag values found for Reg_Max ('Reg_Max')
+2021-10-12 09:38:30 [ WARNING] powergenome.generators:1242 No model tag values found for Rsv_Max ('Rsv_Max')
+2021-10-12 09:38:30 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-10-12 09:38:31 [    INFO] powergenome.nrelatb:155 Using UtilityPV Market WACC for Battery storage.
+2021-10-12 09:38:31 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-10-12 09:38:31 [    INFO] powergenome.nrelatb:887 Creating new resources for each region.
+2021-10-12 09:38:31 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-10-12 09:38:32 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-10-12 09:38:33 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-12 09:38:33 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-12 09:38:33 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-12 09:38:33 [ WARNING] powergenome.generators:1242 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-12 09:38:33 [ WARNING] powergenome.generators:1242 No model tag values found for Reg_Max ('Reg_Max')
+2021-10-12 09:38:33 [ WARNING] powergenome.generators:1242 No model tag values found for Rsv_Max ('Rsv_Max')
+2021-10-12 09:38:33 [    INFO] powergenome.external_data:160 Inflating external interconnect annuity costs from 2017 to 2017
+2021-10-12 09:38:33 [ WARNING] powergenome.generators:1942 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-10-12 09:38:33 [    INFO] powergenome.generators:2629 Capacity of 58980.925 MW in final clusters
+2021-10-12 09:38:33 [    INFO] powergenome.GenX:638 2 resources have Min_Power larger than hourly generation.
+2021-10-12 09:38:33 [    INFO] powergenome.load_profiles:29 Loading load curves from PUDL
+2021-10-12 09:38:35 [    INFO] powergenome.load_profiles:51 Aggregating load curves in grouped regions
+2021-10-12 09:38:36 [    INFO] powergenome:335 
+Starting year 2045 scenario s1
+2021-10-12 09:38:36 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-12 09:38:36 [    INFO] powergenome.generators:2189 Loading heat rate data for units and generator/fuel combinations
+2021-10-12 09:38:36 [    INFO] powergenome.generators:2196 Using unit heat rates from previous round.
+2021-10-12 09:38:36 [    INFO] powergenome.generators:2208 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-12 09:38:36 [    INFO] powergenome.generators:2214 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-10-12 09:38:41 [    INFO] powergenome.generators:2253 Units model technologies are ['Biomass', 'Batteries', 'Solar Photovoltaic', 'Other Natural Gas', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Small Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Hydroelectric Pumped Storage', 'Other Gases', 'Geothermal', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Hydroelectric', 'Petroleum Coke', 'Conventional Steam Coal', 'Nuclear', 'Natural Gas Steam Turbine']
+2021-10-12 09:38:41 [    INFO] powergenome.generators:2257 Before adding proposed generators, 2567 units with 99615.8 MW capacity
+2021-10-12 09:38:41 [    INFO] powergenome.generators:1502 0 generators were added to the planned list based on settings
+2021-10-12 09:38:41 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-12 09:38:41 [    INFO] powergenome.generators:2266 Proposed gen technologies are ['Solar Photovoltaic', 'Onshore Wind Turbine', 'Batteries', 'Biomass', 'Conventional Hydroelectric', 'Natural Gas Fired Combined Cycle', 'Other_peaker', 'All Other', 'Natural Gas Fired Combustion Turbine', 'Other Natural Gas']
+2021-10-12 09:38:41 [    INFO] powergenome.generators:2270 3832.2 MW proposed
+2021-10-12 09:38:41 [    INFO] powergenome.generators:2287 Calculating plant O&M costs
+2021-10-12 09:38:41 [    INFO] powergenome.nrelatb:350 Adding fixed and variable O&M for existing plants
+2021-10-12 09:38:48 [    INFO] powergenome.generators:2305 After adding proposed generators, 2344 units with 99861.4 MW capacity
+2021-10-12 09:38:48 [    INFO] powergenome.generators:2342 Creating technology clusters by region
+2021-10-12 09:38:49 [    INFO] powergenome.generators:2428 Finalizing generation clusters
+2021-10-12 09:38:49 [    INFO] powergenome.generators:2430 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic', 'Conventional Steam Coal', 'Nuclear']
+2021-10-12 09:38:56 [    INFO] powergenome.generators:2492 Setting existing wind/pv using external file
+2021-10-12 09:38:56 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-12 09:38:56 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-12 09:38:56 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-12 09:38:56 [ WARNING] powergenome.generators:1242 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-12 09:38:56 [ WARNING] powergenome.generators:1242 No model tag values found for Reg_Max ('Reg_Max')
+2021-10-12 09:38:56 [ WARNING] powergenome.generators:1242 No model tag values found for Rsv_Max ('Rsv_Max')
+2021-10-12 09:38:57 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-10-12 09:38:57 [    INFO] powergenome.nrelatb:155 Using UtilityPV Market WACC for Battery storage.
+2021-10-12 09:38:57 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-10-12 09:38:57 [    INFO] powergenome.nrelatb:887 Creating new resources for each region.
+2021-10-12 09:38:58 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_N less than minimum (8424.4314 < 25000 MW)
+2021-10-12 09:38:58 [ WARNING] powergenome.nrelatb:1179 Selected technology landbasedwind capacity in region CA_S less than minimum (23639.682500000003 < 45000 MW)
+2021-10-12 09:38:59 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-12 09:38:59 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2017
+2021-10-12 09:38:59 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2017
+2021-10-12 09:38:59 [ WARNING] powergenome.generators:1242 No model tag values found for MinCapTag_2 ('MinCapTag_2')
+2021-10-12 09:38:59 [ WARNING] powergenome.generators:1242 No model tag values found for Reg_Max ('Reg_Max')
+2021-10-12 09:38:59 [ WARNING] powergenome.generators:1242 No model tag values found for Rsv_Max ('Rsv_Max')
+2021-10-12 09:38:59 [    INFO] powergenome.external_data:160 Inflating external interconnect annuity costs from 2017 to 2017
+2021-10-12 09:38:59 [ WARNING] powergenome.generators:1942 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-10-12 09:38:59 [    INFO] powergenome.generators:2629 Capacity of 58980.925 MW in final clusters
+2021-10-12 09:39:00 [    INFO] powergenome.GenX:638 2 resources have Min_Power larger than hourly generation.
+2021-10-12 09:39:00 [    INFO] powergenome.load_profiles:29 Loading load curves from PUDL
+2021-10-12 09:39:01 [    INFO] powergenome.load_profiles:51 Aggregating load curves in grouped regions
+2021-10-15 00:00:28 [    INFO] powergenome:153 Reading settings file
+2021-10-15 00:04:09 [    INFO] powergenome:153 Reading settings file
+2021-10-15 00:07:46 [    INFO] powergenome:153 Reading settings file
+2021-10-15 00:11:21 [    INFO] powergenome:153 Reading settings file
+2021-10-19 14:40:21 [    INFO] powergenome:153 Reading settings file
+2021-10-19 14:40:21 [    INFO] powergenome:159 Initiating PUDL connections
+2021-10-19 14:40:21 [    INFO] powergenome:189 Sorted zones are USA_Single
+2021-10-19 14:40:30 [    INFO] powergenome.generators:2035 Loading map of plants to IPM regions
+2021-10-19 14:40:50 [    INFO] powergenome.generators:1350 Downloading the EIA860m file july_generator2021.xlsx
+2021-10-19 14:41:19 [ WARNING] powergenome.generators:762 Capacity changed from technology_description
+All Other                                         859.7
+Batteries                                        1765.8
+Coal Integrated Gasification Combined Cycle       779.0
+Conventional Hydroelectric                      78253.6
+Conventional Steam Coal                        238151.4
+Flywheels                                          40.0
+Geothermal                                       2592.0
+Hydroelectric Pumped Storage                    22203.7
+Landfill Gas                                     1926.7
+Municipal Solid Waste                            2146.4
+Natural Gas Fired Combined Cycle               281424.0
+Natural Gas Fired Combustion Turbine           139964.3
+Natural Gas Internal Combustion Engine           4260.6
+Natural Gas Steam Turbine                       65880.3
+Natural Gas with Compressed Air Storage           110.0
+Nuclear                                        102375.7
+Offshore Wind Turbine                              29.3
+Onshore Wind Turbine                            90313.1
+Other Gases                                      1273.5
+Other Natural Gas                                 122.0
+Other Waste Biomass                               522.4
+Petroleum Coke                                   1221.6
+Petroleum Liquids                               30016.5
+Solar Photovoltaic                              24758.9
+Solar Thermal with Energy Storage                 390.0
+Solar Thermal without Energy Storage             1189.8
+Wood/Wood Waste Biomass                          4589.2
+Name: winter_capacity_mw, dtype: float64 
+to 
+technology_description
+All Other                                         859.7
+Batteries                                        1765.8
+Coal Integrated Gasification Combined Cycle       965.5
+Conventional Hydroelectric                      78451.4
+Conventional Steam Coal                        238151.4
+Flywheels                                          40.0
+Geothermal                                       2592.0
+Hydroelectric Pumped Storage                    22203.7
+Landfill Gas                                     1926.7
+Municipal Solid Waste                            2146.4
+Natural Gas Fired Combined Cycle               284557.0
+Natural Gas Fired Combustion Turbine           140514.5
+Natural Gas Internal Combustion Engine           4260.6
+Natural Gas Steam Turbine                       66171.4
+Natural Gas with Compressed Air Storage           110.0
+Nuclear                                        102375.7
+Offshore Wind Turbine                              29.3
+Onshore Wind Turbine                            90313.1
+Other Gases                                      1273.5
+Other Natural Gas                                 122.0
+Other Waste Biomass                               522.4
+Petroleum Coke                                   1221.6
+Petroleum Liquids                               30073.9
+Solar Photovoltaic                              24857.0
+Solar Thermal with Energy Storage                 390.0
+Solar Thermal without Energy Storage             1189.8
+Wood/Wood Waste Biomass                          4589.2
+Name: winter_capacity_mw, dtype: float64
+2021-10-19 14:41:20 [    INFO] powergenome.generators:482 Changing retirement dates based on settings file
+2021-10-19 14:41:20 [    INFO] powergenome.generators:487 Starting retirement capacity is 454072.19999999995 MW
+2021-10-19 14:41:20 [    INFO] powergenome.generators:509 Ending retirement capacity is 460415.1 MW
+2021-10-19 14:41:20 [    INFO] powergenome.generators:519 The retirement year for 104 plants, totaling 32378.6 MW, was changed based on settings file parameters
+2021-10-19 14:41:20 [    INFO] powergenome.generators:2217 Loading heat rate data for units and generator/fuel combinations
+2021-10-19 14:41:30 [    INFO] powergenome.generators:2239 Units model technologies are ['Small Hydroelectric', 'Conventional Hydroelectric', 'Biomass', 'Batteries', 'Solar Photovoltaic', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Other_peaker', 'Other Natural Gas', 'Natural Gas Fired Combined Cycle', 'All Other', 'Geothermal', 'Natural Gas Steam Turbine', 'Offshore Wind Turbine', 'Petroleum Coke', 'Other Gases', 'Hydroelectric Pumped Storage', 'Flywheels', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Steam Coal', 'Nuclear', 'Coal Integrated Gasification Combined Cycle', 'Natural Gas with Compressed Air Storage']
+2021-10-19 14:41:30 [    INFO] powergenome.generators:2245 Assigning technology/fuel heat rates where unit heat rates are not available
+2021-10-19 14:42:47 [    INFO] powergenome.generators:2284 Units model technologies are ['Small Hydroelectric', 'Conventional Hydroelectric', 'Biomass', 'Batteries', 'Solar Photovoltaic', 'Natural Gas Fired Combustion Turbine', 'Onshore Wind Turbine', 'Other_peaker', 'Other Natural Gas', 'Natural Gas Fired Combined Cycle', 'All Other', 'Geothermal', 'Natural Gas Steam Turbine', 'Offshore Wind Turbine', 'Petroleum Coke', 'Other Gases', 'Hydroelectric Pumped Storage', 'Flywheels', 'Solar Thermal without Energy Storage', 'Solar Thermal with Energy Storage', 'Conventional Steam Coal', 'Nuclear', 'Coal Integrated Gasification Combined Cycle', 'Natural Gas with Compressed Air Storage']
+2021-10-19 14:42:47 [    INFO] powergenome.generators:2288 Before adding proposed generators, 18602 units with 1101673.6 MW capacity
+2021-10-19 14:42:47 [    INFO] powergenome.generators:1530 0 generators were added to the planned list based on settings
+2021-10-19 14:42:47 [    INFO] powergenome.generators:524 No retirement dates changed based on the settings file
+2021-10-19 14:42:47 [    INFO] powergenome.generators:2297 Proposed gen technologies are ['Batteries', 'Other_peaker', 'Solar Photovoltaic', 'Onshore Wind Turbine', 'Natural Gas Fired Combustion Turbine', 'Natural Gas Fired Combined Cycle', 'Natural Gas with Compressed Air Storage', 'Biomass', 'Natural Gas Steam Turbine', 'Other Natural Gas', 'Conventional Hydroelectric', 'Nuclear', 'Geothermal', 'All Other']
+2021-10-19 14:42:47 [    INFO] powergenome.generators:2301 68838.8 MW proposed
+2021-10-19 14:42:47 [    INFO] powergenome.generators:2318 Calculating plant O&M costs
+2021-10-19 14:42:48 [    INFO] powergenome.nrelatb:350 Adding fixed and variable O&M for existing plants
+2021-10-19 14:43:26 [    INFO] powergenome.generators:2336 After adding proposed generators, 15494 units with 1123072.7 MW capacity
+2021-10-19 14:43:26 [    INFO] powergenome.generators:2373 Creating technology clusters by region
+2021-10-19 14:43:28 [    INFO] powergenome.generators:2459 Finalizing generation clusters
+2021-10-19 14:43:28 [    INFO] powergenome.generators:2461 Results technologies are ['Biomass', 'Conventional Hydroelectric', 'Conventional Steam Coal', 'Geothermal', 'Hydroelectric Pumped Storage', 'Natural Gas Fired Combined Cycle', 'Natural Gas Fired Combustion Turbine', 'Natural Gas Steam Turbine', 'Nuclear', 'Onshore Wind Turbine', 'Small Hydroelectric', 'Solar Photovoltaic']
+2021-10-19 14:43:44 [    INFO] powergenome.generators:2523 Setting existing wind/pv using external file
+2021-10-19 14:43:45 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-19 14:43:45 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2019
+2021-10-19 14:43:45 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2019
+2021-10-19 14:43:45 [ WARNING] powergenome.generators:1270 No model tag values found for Reg_Max ('Reg_Max')
+2021-10-19 14:43:45 [ WARNING] powergenome.generators:1270 No model tag values found for Rsv_Max ('Rsv_Max')
+2021-10-19 14:43:45 [    INFO] powergenome.nrelatb:57 Loading NREL ATB data
+2021-10-19 14:43:45 [    INFO] powergenome.nrelatb:155 Using UtilityPV Market WACC for Battery storage.
+2021-10-19 14:43:45 [    INFO] powergenome.nrelatb:236 PV costs are already in AC units, not inflating the cost.
+2021-10-19 14:43:45 [    INFO] powergenome.nrelatb:887 Creating new resources for each region.
+2021-10-19 14:43:46 [    INFO] powergenome.generators:210 Adding non-fuel startup costs
+2021-10-19 14:43:46 [    INFO] powergenome.generators:216 Changing non-fuel VOM costs from 2011 to 2019
+2021-10-19 14:43:46 [    INFO] powergenome.generators:228 Changing non-fuel startup costs from 2011 to 2019
+2021-10-19 14:43:46 [ WARNING] powergenome.generators:1270 No model tag values found for Reg_Max ('Reg_Max')
+2021-10-19 14:43:46 [ WARNING] powergenome.generators:1270 No model tag values found for Rsv_Max ('Rsv_Max')
+2021-10-19 14:43:46 [    INFO] powergenome.external_data:160 Inflating external interconnect annuity costs from 2017 to 2019
+2021-10-19 14:43:46 [ WARNING] powergenome.generators:1970 Transmission investment costs are missing or zero for some resources and will not be included in the total investment costs.
+2021-10-19 14:43:47 [    INFO] powergenome.generators:2660 Capacity of 691951.666 MW in final clusters
+2021-10-19 14:43:47 [    INFO] powergenome:260 Finished first round with year 2040 scenario p1
+2021-10-19 14:43:47 [    INFO] powergenome.GenX:638 1 resources have Min_Power larger than hourly generation.
+2021-10-19 14:43:47 [    INFO] powergenome.transmission:32 Loading transmission constraints from PUDL
+2021-10-19 14:43:47 [    INFO] powergenome.transmission:64 Map and aggregate region names for transmission constraints
+2021-10-19 14:43:47 [    INFO] powergenome.transmission:83 Build a new transmission constraints dataframe with a single line between regions
+2021-10-19 14:43:47 [    INFO] powergenome.transmission:94 No transmission lines exist between model regions []
+2021-10-19 14:43:47 [    INFO] powergenome.transmission:183 Calculating transmission line distance
+2021-10-19 14:44:08 [    INFO] powergenome.load_profiles:192 Loading regional demand profiles from user

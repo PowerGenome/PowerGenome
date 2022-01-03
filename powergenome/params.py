@@ -36,6 +36,7 @@ IPM_GEOJSON_PATH = DATA_PATHS["data"] / "ipm_regions_simple.geojson"
 
 SETTINGS = {}
 SETTINGS["PUDL_DB"] = os.environ.get("PUDL_DB")
+SETTINGS["PG_DB"] = os.environ.get("PG_DB")
 SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
 SETTINGS["RESOURCE_GROUPS"] = os.environ.get("RESOURCE_GROUPS")
 if not SETTINGS["RESOURCE_GROUPS"]:
