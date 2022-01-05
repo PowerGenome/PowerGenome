@@ -77,9 +77,17 @@ pip install -e .
 
 7. Download the [renewable resource data](https://drive.google.com/file/d/1g0Q6TdNp4C12HQJy6pAURzp_oVg0Q7ly/view?usp=sharing) containing generation profiles and capacity for existing and new-build renewable resources. Save and unzip this file. The suggested location for all of the unzipped files is `PowerGenome/data/resource_groups/`. These files will eventually be provided through a data repository with citation information.
 
-8. Get an [API key for EIA's OpenData portal](https://www.eia.gov/opendata/register.php). This key is needed to download projected fuel prices from EIA's Annual Energy Outlook.
+8. Download and unzip [data files derived from NREL's EFS](https://drive.google.com/file/d/19UsnaXmyS-d_e2n19-upmXGE99ZuyPFT/view)
 
-9. Create the file `PowerGenome/powergenome/.env`. To this file, add `PUDL_DB=YOUR_PATH_HERE` (your path to the PUDL database downloaded in step 5), `PG_DB=YOUR_PATH_HERE` (your path to the additional PowerGenome data downloaded in step 6), `EIA_API_KEY=YOUR_KEY_HERE` (your EIA API key) and `RESOURCE_GROUPS=YOUR_PATH_HERE` (your path to where the resource groups data from Step 6 are saved). Quotation marks are only needed if your values contain spaces. The `.env` file is included in `.gitignore` and will not be synced with the repository. See the [SQLAlchemy documentation](https://docs.sqlalchemy.org/en/13/dialects/sqlite.html#connect-strings) for examples of how to format the `PUDL_DB` and `PG_DB` paths (e.g. `sqlite:////<entire path to the folder containing pudl file>/pudl.sqlite`, or `sqlite:///C:/path/to/folder/pudl.sqlite` on Windows). If you get any errors when trying to initite the PUDL database, go back and check your path formatting against the SQLAlchemy documentation examples.
+9. Get an [API key for EIA's OpenData portal](https://www.eia.gov/opendata/register.php). This key is needed to download projected fuel prices and regonal demand growth from EIA's Annual Energy Outlook.
+
+10. Create the file `PowerGenome/powergenome/.env`. In this file, add:
+- `PUDL_DB=YOUR_PATH_HERE` (your path to the PUDL database downloaded in step 5)
+- `PG_DB=YOUR_PATH_HERE` (your path to the additional PowerGenome data downloaded in step 6)
+- `EIA_API_KEY=YOUR_KEY_HERE` (your EIA API key)
+- `RESOURCE_GROUPS=YOUR_PATH_HERE` (your path to where the resource groups data from Step 6 are saved)
+- `EFS_DATA=YOUR_PATH_HERE` (your path to the folder with EFS derived data files)
+Quotation marks are only needed if your values contain spaces. The `.env` file is included in `.gitignore` and will not be synced with the repository. See the [SQLAlchemy documentation](https://docs.sqlalchemy.org/en/13/dialects/sqlite.html#connect-strings) for examples of how to format the `PUDL_DB` and `PG_DB` paths (e.g. `sqlite:////<entire path to the folder containing pudl file>/pudl.sqlite`, or `sqlite:///C:/path/to/folder/pudl.sqlite` on Windows). If you get any errors when trying to initite the PUDL database, go back and check your path formatting against the SQLAlchemy documentation examples.
 
 ## Running code
 
