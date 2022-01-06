@@ -18,7 +18,6 @@ model_first_planning_year: [2020]
 input_folder: extra_inputs # Subfolder directly below the location of this settings file
 case_id_description_fn: case_id_description.csv # Match the case_id with longer case_name
 scenario_definitions_fn: scenario_inputs.csv # Define policy/cost scenarios for each case
-# scenario_definitions_fn: test_scenario_inputs.csv # Define policy/cost scenarios for each case
 # distributed_gen_profiles_fn: test_dg_profiles.csv # Hourly profiles of distributed gen by region
 demand_response_fn: heat_load_shifting.csv # Load profiles of DR resources by model_year and scenario
 emission_policies_fn: emission_policies.csv # Emission policies for each model_year/region/case_id
@@ -26,7 +25,7 @@ capacity_limit_spur_fn: resource_capacity_spur.csv # Max capacity and spur line 
 region_wind_pv_cap_fn: existing_wind_pv_capacity.csv
 demand_segments_fn: demand_segments_voll.csv
 misc_gen_inputs_fn: misc_gen_inputs.csv
-genx_settings_folder: Settings # In the same folder as this file, not in "input_folder" subfolder
+genx_settings_folder: settings_full # In the same folder as this file, not in "input_folder" subfolder
 reserves_fn: Reserves.csv
 # regional_load_fn: test_regional_load_profiles.csv #Externally provide load data
 
@@ -132,6 +131,8 @@ settings_management:
     time_series:
       full:
         reduce_time_domain: false
+      sampled:
+        genx_settings_folder: settings_4x5
 
 ###########################################
 # INDIVIDUAL SCENARIO/CASE SETTINGS
