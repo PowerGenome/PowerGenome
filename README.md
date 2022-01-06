@@ -52,10 +52,16 @@ Either way, you will need to download the new database files in steps 5/6 below 
 
 1. Clone this repository to your local machine and navigate to the top level (PowerGenome) folder.
 
-2. Create a conda environment named `powergenome` using the provided `environment.yml` file. Note that resolving all the dependencies can be slow with conda, so you might want to [install mamba](https://mamba.readthedocs.io/en/latest/installation.html#existing-conda-install) and use it instead (just sub `mamba` for `conda` below).
+2. Create a conda environment named `powergenome` using the provided `environment.yml` file. If you don't already use conda, [download and install miniconda](https://docs.conda.io/en/latest/miniconda.html). Note that resolving all the dependencies can be slow with conda, so I highly recommend that you [install mamba](https://mamba.readthedocs.io/en/latest/installation.html#existing-conda-install) and use it instead (just sub `mamba` for `conda` below). Mamba installation is easy and will probably take less time than sitting around while conda resolves dependencies.
 
 ```sh
 conda env create -f environment.yml
+```
+
+or if you installed mamba:
+
+```sh
+mamba env create -f environment.yml
 ```
 
 3. Activate the `powergenome` environment.
