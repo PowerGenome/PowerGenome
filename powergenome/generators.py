@@ -259,7 +259,12 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     return df
 
 
-def group_technologies(df, settings):
+def group_technologies(
+    df: pd.DataFrame,
+    group_technologies: bool = False,
+    tech_groups: Dict[str, list] = {},
+    regional_no_grouping: Dict[str, list] = {},
+) -> pd.DataFrame:
     """
     Group different technologies together based on parameters in the settings file.
     An example would be to put a bunch of different technologies under the umbrella
@@ -277,13 +282,14 @@ def group_technologies(df, settings):
     dataframe
         Same as incoming dataframe but with grouped technology types
     """
-    if settings.get("group_technologies"):
-
+    if not group_technologies:
+        return df
+    else:
         df["_technology"] = df["technology_description"]
-        for tech, group in settings["tech_groups"].items():
+        for tech, group in tech_groups.items():
             df.loc[df["technology_description"].isin(group), "_technology"] = tech
 
-        for region, tech_list in (settings.get("regional_no_grouping") or {}).items():
+        for region, tech_list in regional_no_grouping.items():
             df.loc[
                 (df["model_region"] == region)
                 & (df["technology_description"].isin(tech_list)),
@@ -1592,7 +1598,12 @@ def import_new_generators(
     )
 
     if settings.get("group_technologies"):
-        new_operating = group_technologies(new_operating, settings)
+        new_operating = group_technologies(
+            new_operating,
+            settings["group_technologies"],
+            settings.get("tech_group", {}) or {},
+            settings.get("regional_no_grouping", {}) or {},
+        )
         print(new_operating["technology_description"].unique().tolist())
 
     keep_cols = [
@@ -1712,7 +1723,12 @@ def import_proposed_generators(
     )
 
     if settings.get("group_technologies"):
-        planned_gdf = group_technologies(planned_gdf, settings)
+        planned_gdf = group_technologies(
+            planned_gdf,
+            settings["group_technologies"],
+            settings.get("tech_group", {}) or {},
+            settings.get("regional_no_grouping", {}) or {},
+        )
         print(planned_gdf["technology_description"].unique().tolist())
 
     keep_cols = [
@@ -1826,7 +1842,12 @@ def gentype_region_capacity_factor(
     )
 
     if settings.get("group_technologies"):
-        capacity_factor = group_technologies(capacity_factor, settings)
+        capacity_factor = group_technologies(
+            capacity_factor,
+            settings["group_technologies"],
+            settings.get("tech_group", {}) or {},
+            settings.get("regional_no_grouping", {}) or {},
+        )
 
     if years_filter is None:
         years_filter = {
@@ -2351,7 +2372,12 @@ class GeneratorClusters:
             .pipe(remove_retired_860m, self.retired_860m)
             .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
             .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
-            .pipe(group_technologies, self.settings)
+            .pipe(
+                group_technologies,
+                self.settings.get("group_technologies"),
+                self.settings.get("tech_groups", {}) or {},
+                self.settings.get("regional_no_grouping", {}) or {},
+            )
         )
         self.gens_860_model = self.gens_860_model.pipe(
             modify_cc_prime_mover_code, self.gens_860_model
