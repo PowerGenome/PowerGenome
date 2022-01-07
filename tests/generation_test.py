@@ -12,6 +12,7 @@ from powergenome.generators import (
     label_retirement_year,
     label_small_hydro,
     unit_generator_heat_rates,
+    load_860m,
 )
 from powergenome.params import DATA_PATHS
 from powergenome.util import load_settings, map_agg_region_names, reverse_dict_of_lists
@@ -70,7 +71,7 @@ def plant_region_map_ipm_data():
 
 @pytest.fixture(scope="module")
 def test_settings():
-    settings = load_settings(DATA_PATHS["test_data"] / "pudl_data_extraction.yml")
+    settings = load_settings(DATA_PATHS["test_data"] / "test_settings.yml")
     return settings
 
 
@@ -100,7 +101,12 @@ def test_group_technologies(generators_eia860_data, test_settings):
     # df = df.query("report_date.dt.year==2017")
     df = df.drop_duplicates(subset=["plant_id_eia", "generator_id"])
 
-    grouped_by_tech = group_technologies(df, test_settings)
+    grouped_by_tech = group_technologies(
+        df,
+        test_settings.get("group_technologies"),
+        test_settings.get("tech_groups", {}) or {},
+        test_settings.get("regional_no_grouping", {}) or {},
+    )
     techs = grouped_by_tech["technology_description"].unique()
     capacities = grouped_by_tech.groupby("technology_description")["capacity_mw"].sum()
     expected_hydro_cap = 48.1
@@ -175,3 +181,8 @@ def test_unit_generator_heat_rates(data_years=[2016, 2017]):
         ].values,
         [8.274763485],
     )
+
+
+def test_load_860m():
+    eia_860m = load_860m({"eia_860m_fn": None})
+    eia_860m = load_860m({"eia_860m_fn": "september_generator2021.xlsx"})
