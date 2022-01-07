@@ -1402,7 +1402,13 @@ def find_newest_860m() -> str:
     site_url = "https://www.eia.gov/electricity/data/eia860m/"
     r = requests.get(site_url)
     soup = BeautifulSoup(r.content, "lxml")
-    table = soup.find("table", attrs={"class": "simpletable"})
+    table = soup.find("table", attrs={"class": "basic-table"})
+    if not table:
+        raise ValueError(
+            "Could not determine the most recently posted EIA 860m file. EIA may have "
+            "changed their HTML format, please post this as an issue on the PowerGenome "
+            "github repository (https://github.com/PowerGenome/PowerGenome/issues/new)."
+        )
     href = table.find("a")["href"]
     fn = href.split("/")[-1]
 
