@@ -4,6 +4,7 @@ import sqlite3
 
 import numpy as np
 import pandas as pd
+import sqlalchemy
 import powergenome
 import pytest
 from powergenome.generators import (
@@ -15,6 +16,7 @@ from powergenome.generators import (
     load_860m,
 )
 from powergenome.params import DATA_PATHS
+from powergenome.transmission import agg_transmission_constraints
 from powergenome.util import load_settings, map_agg_region_names, reverse_dict_of_lists
 
 logger = logging.getLogger(powergenome.__name__)
@@ -29,13 +31,18 @@ formatter = logging.Formatter(
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-DB_CONN = sqlite3.connect(DATA_PATHS["test_data"] / "test_data.db")
+PUDL_DB_CONN = sqlite3.connect(DATA_PATHS["test_data"] / "test_data.db")
+PG_DB_CONN = sqlalchemy.create_engine(
+    "sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite")
+)
 
 
 @pytest.fixture(scope="module")
 def generation_fuel_eia923_data():
     gen_fuel = pd.read_sql_query(
-        "SELECT * FROM generation_fuel_eia923", DB_CONN, parse_dates=["report_date"]
+        "SELECT * FROM generation_fuel_eia923",
+        PUDL_DB_CONN,
+        parse_dates=["report_date"],
     )
     return gen_fuel
 
@@ -48,7 +55,7 @@ def generators_eia860_data():
         WHERE operational_status_code = 'OP'
     """
     gens_860 = pd.read_sql_query(
-        sql, DB_CONN, parse_dates=["report_date", "planned_retirement_date"]
+        sql, PUDL_DB_CONN, parse_dates=["report_date", "planned_retirement_date"]
     )
     return gens_860
 
@@ -56,7 +63,9 @@ def generators_eia860_data():
 @pytest.fixture(scope="module")
 def generators_entity_eia_data():
     gen_entity = pd.read_sql_query(
-        "SELECT * FROM generators_entity_eia", DB_CONN, parse_dates=["operating_date"]
+        "SELECT * FROM generators_entity_eia",
+        PUDL_DB_CONN,
+        parse_dates=["operating_date"],
     )
     return gen_entity
 
@@ -64,7 +73,7 @@ def generators_entity_eia_data():
 @pytest.fixture(scope="module")
 def plant_region_map_ipm_data():
     plant_region_map = pd.read_sql_query(
-        "SELECT * FROM plant_region_map_epaipm", DB_CONN
+        "SELECT * FROM plant_region_map_epaipm", PUDL_DB_CONN
     )
     return plant_region_map
 
@@ -84,13 +93,15 @@ class MockPudlOut:
     def hr_by_unit():
         "Heat rate by unit over multiple years"
         hr_by_unit = pd.read_sql_query(
-            "SELECT * FROM hr_by_unit", DB_CONN, parse_dates=["report_date"]
+            "SELECT * FROM hr_by_unit", PUDL_DB_CONN, parse_dates=["report_date"]
         )
         return hr_by_unit
 
     def bga():
         "Boiler generator associations with unit_id_pudl values"
-        bga = pd.read_sql_query("SELECT * FROM boiler_generator_assn_eia860", DB_CONN)
+        bga = pd.read_sql_query(
+            "SELECT * FROM boiler_generator_assn_eia860", PUDL_DB_CONN
+        )
         return bga
 
 
@@ -187,3 +198,7 @@ def test_load_860m(test_settings):
     eia_860m = load_860m(test_settings)
     test_settings["eia_860m_fn"] = None
     eia_860m = load_860m(test_settings)
+
+
+def test_agg_transmission_constraints(test_settings):
+    agg_transmission_constraints(PG_DB_CONN, test_settings)
