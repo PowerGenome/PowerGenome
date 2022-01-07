@@ -3,6 +3,7 @@ import logging
 from numbers import Number
 from typing import Dict
 import re
+from zipfile import BadZipFile
 
 import requests
 
@@ -1349,19 +1350,24 @@ def download_860m(settings: dict) -> pd.ExcelFile:
     ----------
     settings : dict
         User-defined settings loaded from a YAML file. This is where the EIA860m
-        filename is defined.
+        filename is defined as the parameter "eia_860m_fn".
 
     Returns
     -------
     pd.ExcelFile
         The ExcelFile object with all sheets from 860m.
     """
-    try:
-        fn = settings["eia_860m_fn"]
-    except KeyError:
-        # No key in the settings file
+    fn = settings.get("eia_860m_fn")
+    if not fn:
         logger.info("Trying to determine the most recent EIA860m file...")
         fn = find_newest_860m()
+
+    engine = None
+    ext = fn.split(".")[-1]
+    if ext == "xlsx":
+        engine = "openpyxl"
+    elif ext == "xls":
+        engine = "xlrd"
 
     # Only the most recent file will not have archive in the url
     url = f"https://www.eia.gov/electricity/data/eia860m/xls/{fn}"
@@ -1375,11 +1381,11 @@ def download_860m(settings: dict) -> pd.ExcelFile:
         logger.info(f"Downloading the EIA860m file {fn}")
         try:
             download_save(url, local_file)
-            eia_860m = pd.ExcelFile(local_file)
-        except XLRDError:
+            eia_860m = pd.ExcelFile(local_file, engine=engine)
+        except (XLRDError, ValueError, BadZipFile):
             logger.warning("A more recent version of EIA-860m is available")
             download_save(archive_url, local_file)
-            eia_860m = pd.ExcelFile(local_file)
+            eia_860m = pd.ExcelFile(local_file, engine=engine)
         # write the file to disk
 
     return eia_860m
