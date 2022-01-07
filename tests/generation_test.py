@@ -183,6 +183,7 @@ def test_unit_generator_heat_rates(data_years=[2016, 2017]):
     )
 
 
-def test_load_860m():
-    eia_860m = load_860m({"eia_860m_fn": None})
-    eia_860m = load_860m({"eia_860m_fn": "september_generator2021.xlsx"})
+def test_load_860m(test_settings):
+    eia_860m = load_860m(test_settings)
+    test_settings["eia_860m_fn"] = None
+    eia_860m = load_860m(test_settings)
