@@ -18,7 +18,12 @@ from powergenome.generators import (
 from powergenome.load_profiles import make_load_curves
 from powergenome.params import DATA_PATHS
 from powergenome.transmission import agg_transmission_constraints
-from powergenome.util import load_settings, map_agg_region_names, reverse_dict_of_lists
+from powergenome.util import (
+    check_settings,
+    load_settings,
+    map_agg_region_names,
+    reverse_dict_of_lists,
+)
 
 logger = logging.getLogger(powergenome.__name__)
 logger.setLevel(logging.INFO)
@@ -207,3 +212,7 @@ def test_agg_transmission_constraints(test_settings):
 
 def test_demand_curve(test_settings):
     make_load_curves(PG_DB_CONN, test_settings)
+
+
+def test_check_settings(test_settings):
+    check_settings(test_settings, PG_DB_CONN)
