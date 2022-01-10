@@ -15,6 +15,7 @@ from powergenome.generators import (
     unit_generator_heat_rates,
     load_860m,
 )
+from powergenome.load_profiles import make_load_curves
 from powergenome.params import DATA_PATHS
 from powergenome.transmission import agg_transmission_constraints
 from powergenome.util import load_settings, map_agg_region_names, reverse_dict_of_lists
@@ -202,3 +203,7 @@ def test_load_860m(test_settings):
 
 def test_agg_transmission_constraints(test_settings):
     agg_transmission_constraints(PG_DB_CONN, test_settings)
+
+
+def test_demand_curve(test_settings):
+    make_load_curves(PG_DB_CONN, test_settings)
