@@ -33,7 +33,7 @@ logger.addHandler(handler)
 
 PUDL_DB_CONN = sqlite3.connect(DATA_PATHS["test_data"] / "test_data.db")
 PG_DB_CONN = sqlalchemy.create_engine(
-    "sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite")
+    "sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3")
 )
 
 
