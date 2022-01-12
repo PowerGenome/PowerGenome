@@ -322,6 +322,7 @@ model_tag_names:
   - STOR
   - FLEX
   - HYDRO
+  - LDS
   - Commit
   - ESR_1
   - ESR_2
@@ -366,6 +367,7 @@ model_tag_values:
     LandbasedWind: 1
     OffshoreWind: 1
     Onshore Wind: 1
+    Offshore Wind: 1
     Solar Photovoltaic: 1
     Solar Thermal without Energy Storage: 1
     UtilityPV: 1
@@ -414,6 +416,7 @@ model_tag_values:
     LandbasedWind: 1
     OffshoreWind: 1
     Onshore Wind: 1
+    Offshore Wind: 1
     Small Hydroelectric: 1
     Solar Photovoltaic: 1
     UtilityPV: 1
@@ -429,6 +432,7 @@ model_tag_values:
     Nuclear: 1
     OffshoreWind: 1
     Onshore Wind: 1
+    Offshore Wind: 1
     Small Hydroelectric: 1
     Solar Photovoltaic: 1
     UtilityPV: 1
@@ -442,6 +446,7 @@ model_tag_values:
     Geothermal: -1
     LandbasedWind: 1
     Natural Gas: 1
+    NaturalGas: 1
     NGCCS100: 1
     OffshoreWind: 1
     Small Hydroelectric: -1
@@ -703,12 +708,6 @@ renewables_clusters:
     max_clusters: 1
     min_capacity: 17100
     cap_multiplier: 0.2
-  # - region: NENG_CT
-  #   technology: offshorewind
-  #   turbine_type: fixed
-  #   pref_site: 1
-  #   max_clusters: 1
-  #   min_capacity: 500
   - region: NENG_ME
     technology: landbasedwind
     max_clusters: 1
