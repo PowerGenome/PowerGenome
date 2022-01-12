@@ -24,6 +24,8 @@ INT_COLS = [
     "Inv_Cost_per_MWhyr",
     "Fixed_OM_Cost_per_MWhyr",
     "Line_Reinforcement_Cost_per_MW_yr",
+    "Up_Time",
+    "Down_Time",
 ]
 
 COL_ROUND_VALUES = {
