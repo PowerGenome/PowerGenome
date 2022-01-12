@@ -859,6 +859,12 @@ eia_atb_tech_map:
   Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF #[NaturalGas_CCAvgCF, NETL_NGCC]
   Natural Gas Fired Combustion Turbine: NaturalGas_CTAvgCF
   Peaker: NaturalGas_CTAvgCF
+  Natural Gas Internal Combustion Engine: NaturalGas_CTAvgCF
+  Landfill Gas: NaturalGas_CTAvgCF
+  Petroleum Liquids: NaturalGas_CTAvgCF
+  Municipal Solid Waste: Biopower_Dedicated
+  Other Waste Biomass: Biopower_Dedicated
+  Wood/Wood Waste Biomass: Biopower_Dedicated
   Solar Photovoltaic: UtilityPV_LosAngeles
   Geothermal: Geothermal_HydroFlash # assume installed capacity is dominated by flash
 
