@@ -535,7 +535,7 @@ def network_max_reinforcement(
 
     max_expansion = settings.get("tx_expansion_per_period")
 
-    if not max_expansion:
+    if not max_expansion and max_expansion != 0:
         raise KeyError(
             "No value for the transmission expansion allowed in this model period is "
             "included in the settings."
