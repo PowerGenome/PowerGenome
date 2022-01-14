@@ -3,6 +3,7 @@ import logging
 from numbers import Number
 from typing import Dict
 import re
+from zipfile import BadZipFile
 
 import requests
 
@@ -161,7 +162,7 @@ def group_generators_at_plant(df, by=["plant_id_eia"], agg_fn={"capacity_mw": "s
     return df_grouped
 
 
-def startup_fuel(df, settings):
+def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     """Add startup fuel consumption for generators
 
     Parameters
@@ -186,6 +187,7 @@ def startup_fuel(df, settings):
             ]
 
         atb_tech = settings["eia_atb_tech_map"][eia_tech]
+        atb_tech.append(eia_tech)
         for tech in atb_tech:
             df.loc[df["technology"] == tech, "Start_fuel_MMBTU_per_MW"] = fuel_use
             df.loc[
@@ -196,7 +198,7 @@ def startup_fuel(df, settings):
     return df
 
 
-def startup_nonfuel_costs(df, settings):
+def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     """Add inflation adjusted startup nonfuel costs per MW for generators
 
     Parameters
@@ -244,7 +246,8 @@ def startup_nonfuel_costs(df, settings):
     for existing_tech, cost_tech in settings["existing_startup_costs_tech_map"].items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[
-            df["technology"].str.contains(existing_tech), "Start_Cost_per_MW"
+            df["technology"].str.contains(existing_tech, case=False),
+            "Start_Cost_per_MW",
         ] = total_startup_costs
 
     for new_tech, cost_tech in settings["new_build_startup_costs"].items():
@@ -259,7 +262,12 @@ def startup_nonfuel_costs(df, settings):
     return df
 
 
-def group_technologies(df, settings):
+def group_technologies(
+    df: pd.DataFrame,
+    group_technologies: bool = False,
+    tech_groups: Dict[str, list] = {},
+    regional_no_grouping: Dict[str, list] = {},
+) -> pd.DataFrame:
     """
     Group different technologies together based on parameters in the settings file.
     An example would be to put a bunch of different technologies under the umbrella
@@ -277,13 +285,14 @@ def group_technologies(df, settings):
     dataframe
         Same as incoming dataframe but with grouped technology types
     """
-    if settings.get("group_technologies"):
-
+    if not group_technologies:
+        return df
+    else:
         df["_technology"] = df["technology_description"]
-        for tech, group in settings["tech_groups"].items():
+        for tech, group in tech_groups.items():
             df.loc[df["technology_description"].isin(group), "_technology"] = tech
 
-        for region, tech_list in (settings.get("regional_no_grouping") or {}).items():
+        for region, tech_list in regional_no_grouping.items():
             df.loc[
                 (df["model_region"] == region)
                 & (df["technology_description"].isin(tech_list)),
@@ -1343,19 +1352,24 @@ def download_860m(settings: dict) -> pd.ExcelFile:
     ----------
     settings : dict
         User-defined settings loaded from a YAML file. This is where the EIA860m
-        filename is defined.
+        filename is defined as the parameter "eia_860m_fn".
 
     Returns
     -------
     pd.ExcelFile
         The ExcelFile object with all sheets from 860m.
     """
-    try:
-        fn = settings["eia_860m_fn"]
-    except KeyError:
-        # No key in the settings file
+    fn = settings.get("eia_860m_fn")
+    if not fn:
         logger.info("Trying to determine the most recent EIA860m file...")
         fn = find_newest_860m()
+
+    engine = None
+    ext = fn.split(".")[-1]
+    if ext == "xlsx":
+        engine = "openpyxl"
+    elif ext == "xls":
+        engine = "xlrd"
 
     # Only the most recent file will not have archive in the url
     url = f"https://www.eia.gov/electricity/data/eia860m/xls/{fn}"
@@ -1369,11 +1383,11 @@ def download_860m(settings: dict) -> pd.ExcelFile:
         logger.info(f"Downloading the EIA860m file {fn}")
         try:
             download_save(url, local_file)
-            eia_860m = pd.ExcelFile(local_file)
-        except XLRDError:
+            eia_860m = pd.ExcelFile(local_file, engine=engine)
+        except (XLRDError, ValueError, BadZipFile):
             logger.warning("A more recent version of EIA-860m is available")
             download_save(archive_url, local_file)
-            eia_860m = pd.ExcelFile(local_file)
+            eia_860m = pd.ExcelFile(local_file, engine=engine)
         # write the file to disk
 
     return eia_860m
@@ -1390,7 +1404,13 @@ def find_newest_860m() -> str:
     site_url = "https://www.eia.gov/electricity/data/eia860m/"
     r = requests.get(site_url)
     soup = BeautifulSoup(r.content, "lxml")
-    table = soup.find("table", attrs={"class": "simpletable"})
+    table = soup.find("table", attrs={"class": "basic-table"})
+    if not table:
+        raise ValueError(
+            "Could not determine the most recently posted EIA 860m file. EIA may have "
+            "changed their HTML format, please post this as an issue on the PowerGenome "
+            "github repository (https://github.com/PowerGenome/PowerGenome/issues/new)."
+        )
     href = table.find("a")["href"]
     fn = href.split("/")[-1]
 
@@ -1592,7 +1612,12 @@ def import_new_generators(
     )
 
     if settings.get("group_technologies"):
-        new_operating = group_technologies(new_operating, settings)
+        new_operating = group_technologies(
+            new_operating,
+            settings["group_technologies"],
+            settings.get("tech_group", {}) or {},
+            settings.get("regional_no_grouping", {}) or {},
+        )
         print(new_operating["technology_description"].unique().tolist())
 
     keep_cols = [
@@ -1712,7 +1737,12 @@ def import_proposed_generators(
     )
 
     if settings.get("group_technologies"):
-        planned_gdf = group_technologies(planned_gdf, settings)
+        planned_gdf = group_technologies(
+            planned_gdf,
+            settings["group_technologies"],
+            settings.get("tech_group", {}) or {},
+            settings.get("regional_no_grouping", {}) or {},
+        )
         print(planned_gdf["technology_description"].unique().tolist())
 
     keep_cols = [
@@ -1826,7 +1856,12 @@ def gentype_region_capacity_factor(
     )
 
     if settings.get("group_technologies"):
-        capacity_factor = group_technologies(capacity_factor, settings)
+        capacity_factor = group_technologies(
+            capacity_factor,
+            settings["group_technologies"],
+            settings.get("tech_group", {}) or {},
+            settings.get("regional_no_grouping", {}) or {},
+        )
 
     if years_filter is None:
         years_filter = {
@@ -2394,7 +2429,12 @@ class GeneratorClusters:
             .pipe(remove_retired_860m, self.retired_860m)
             .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
             .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
-            .pipe(group_technologies, self.settings)
+            .pipe(
+                group_technologies,
+                self.settings.get("group_technologies"),
+                self.settings.get("tech_groups", {}) or {},
+                self.settings.get("regional_no_grouping", {}) or {},
+            )
         )
         self.gens_860_model = self.gens_860_model.pipe(
             modify_cc_prime_mover_code, self.gens_860_model
