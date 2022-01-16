@@ -22,6 +22,7 @@ from powergenome.GenX import (
     create_regional_cap_res,
     fix_min_power_values,
     min_cap_req,
+    max_cap_req,
     reduce_time_domain,
     add_misc_gen_values,
     network_line_loss,
@@ -458,6 +459,7 @@ def main():
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
                 min_cap = min_cap_req(_settings)
+                max_cap = max_cap_req(_settings)
 
                 cap_res = create_regional_cap_res(_settings)
 
@@ -495,6 +497,13 @@ def main():
                         df=min_cap,
                         folder=case_folder,
                         file_name="Minimum_capacity_requirement.csv",
+                        include_index=False,
+                    )
+                if max_cap is not None:
+                    write_results_file(
+                        df=max_cap,
+                        folder=case_folder,
+                        file_name="Maximum_capacity_limit.csv",
                         include_index=False,
                     )
 
