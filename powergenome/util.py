@@ -357,7 +357,7 @@ def write_results_file(df, folder, file_name, include_index=False):
 
     path_out = sub_folder / file_name
 
-    df.to_csv(path_out, index=include_index)
+    df.to_csv(path_out, index=include_index, float_format="%g")
 
 
 def write_case_settings_file(settings, folder, file_name):

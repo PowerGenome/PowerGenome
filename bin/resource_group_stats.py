@@ -115,7 +115,7 @@ def main():
         )
         summary_fn = Path(SETTINGS["RESOURCE_GROUPS"]) / "resource_summary_stats.csv"
 
-    results_df.to_csv(summary_fn, index=False)
+    results_df.to_csv(summary_fn, index=False, float_format="%g")
 
 
 if __name__ == "__main__":

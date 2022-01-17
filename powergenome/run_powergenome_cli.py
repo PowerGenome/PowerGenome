@@ -211,7 +211,8 @@ def main():
         )
 
     if args.fuel and args.gens:
-        fuels.to_csv(out_folder / f"Fuels_data_{args.results_folder}.csv", index=False)
+        fuels.to_csv(out_folder / f"Fuels_data_{args.results_folder}.csv",
+                index=False, float_format="%g")
 
 
 if __name__ == "__main__":

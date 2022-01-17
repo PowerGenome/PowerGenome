@@ -52,7 +52,7 @@ def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.Da
                 "correct. The data returned from EIA's API is: \n"
                 f"{r.json()}"
             )
-        df.to_csv(data_dir / f"{series_id}.csv", index=False)
+        df.to_csv(data_dir / f"{series_id}.csv", index=False, float_format="%g")
     else:
         df = pd.read_csv(data_dir / f"{series_id}.csv")
 
