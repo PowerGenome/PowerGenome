@@ -206,8 +206,8 @@ settings_management:
           - [NaturalGas, CCCCSAvgCF, Mid, 500]
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
-          - [LandbasedWind, Class1, Mid, 1]
-          - [OffShoreWind, Class10, Mid, 1]
+          - [LandbasedWind, LTRG1, Mid, 1]
+          - [OffShoreWind, OTRG10, Mid, 1]
           - [UtilityPV, LosAngeles, Mid, 1]
           - [Battery, "*", Mid, 1]
       low:
@@ -215,8 +215,8 @@ settings_management:
           - [NaturalGas, CCCCSAvgCF, Mid, 500]
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
-          - [LandbasedWind, Class1, Low, 1]
-          - [OffShoreWind, Class10, Low, 1]
+          - [LandbasedWind, LTRG1, Low, 1]
+          - [OffShoreWind, OTRG10, Low, 1]
           - [UtilityPV, LosAngeles, Low, 1]
           - [Battery, "*", Low, 1]
     nuclear_capex:
@@ -323,8 +323,8 @@ settings_management:
           - [NaturalGas, CCCCSAvgCF, Mid, 500]
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
-          - [LandbasedWind, Class1, Mid, 1]
-          - [OffShoreWind, Class10, Mid, 1]
+          - [LandbasedWind, LTRG1, Mid, 1]
+          - [OffShoreWind, OTRG10, Mid, 1]
           - [UtilityPV, LosAngeles, Mid, 1]
           - [Battery, "*", Mid, 1]
       low:
@@ -332,8 +332,8 @@ settings_management:
           - [NaturalGas, CCCCSAvgCF, Mid, 500]
           - [NaturalGas, CCAvgCF, Mid, 500]
           - [NaturalGas, CTAvgCF, Mid, 100]
-          - [LandbasedWind, Class1, Low, 1]
-          - [OffShoreWind, Class10, Low, 1]
+          - [LandbasedWind, LTRG1, Low, 1]
+          - [OffShoreWind, OTRG10, Low, 1]
           - [UtilityPV, LosAngeles, Low, 1]
           - [Battery, "*", Low, 1]
     nuclear_capex:
@@ -683,7 +683,7 @@ model_tag_values:
     OffshoreWind: 1
     Small Hydroelectric: -1
     UtilityPV: 1
-    Nuclear_Nuclear: 1
+    Nuclear_*: 1
   Hydro_level:
     Conventional Hydroelectric: 0.5
   CapRes_1:
@@ -788,7 +788,7 @@ MinCapReq:
 
 # Generator cost data from NREL ATB
 
-atb_data_year: 2021
+atb_data_year: 2020
 atb_cost_case: Mid
 atb_financial_case: Market
 atb_cap_recovery_years: 20
@@ -803,33 +803,30 @@ alt_atb_cap_recovery_years:
   Nuclear: 40
 
 # The year of NREL ATB data to use for matching existing generators (O&M costs)
-atb_existing_year: 2019
+atb_existing_year: 2018
+atb_usd_year: 2017 # From Capex figure in atb documentation https://atb.nrel.gov/electricity/2019/summary.html
 
-# ****UPDATE WITH ATB2021*****
-# ATB now uses data from NETL for fossil fuel technologies, so it is no longer necessary
-# to modify NGCT and NGCC technologies.
-# ****************************
 # ATB uses an average of conventional and advanced techs. We only want advanced. To use
 # standard ATB values set multipliers to 1.
 # Heat rate multipliers are an average of "heat rate" and "final heat rate" multipliers.
 # This parameter shoud be a set of nested dictionaries. Each lower-level dict must have
 # "technology" and "tech_detail" keys uniquely identifying the resource to be modified.
 # The 'ngct' dictionary is required for calculating existing CT variable O&M costs.
-# atb_modifiers:
-#   ngct:
-#     technology: NaturalGas
-#     tech_detail: CTAvgCF
-#     capex_mw: [mul, 0.76]
-#     Var_OM_Cost_per_MWh: [mul, 0.98]
-#     Fixed_OM_Cost_per_MWyr: [mul, 0.6]
-#     Heat_Rate_MMBTU_per_MWh: [mul, 1.04]
-#   ngcc:
-#     technology: NaturalGas
-#     tech_detail: CCAvgCF
-#     capex_mw: [mul, 0.89]
-#     Var_OM_Cost_per_MWh: [mul, 0.73]
-#     Fixed_OM_Cost_per_MWyr: [mul, 0.95]
-#     Heat_Rate_MMBTU_per_MWh: [mul, 0.98]
+atb_modifiers:
+  ngct:
+    technology: NaturalGas
+    tech_detail: CTAvgCF
+    capex_mw: [mul, 0.76]
+    Var_OM_Cost_per_MWh: [mul, 0.98]
+    Fixed_OM_Cost_per_MWyr: [mul, 0.6]
+    Heat_Rate_MMBTU_per_MWh: [mul, 1.04]
+  ngcc:
+    technology: NaturalGas
+    tech_detail: CCAvgCF
+    capex_mw: [mul, 0.89]
+    Var_OM_Cost_per_MWh: [mul, 0.73]
+    Fixed_OM_Cost_per_MWyr: [mul, 0.95]
+    Heat_Rate_MMBTU_per_MWh: [mul, 0.98]
 
 
 # Copy and modify an existing ATB new generator. This takes place BEFORE the ATB CC/CT
@@ -868,30 +865,30 @@ eia_atb_tech_map:
   Municipal Solid Waste: Biopower_Dedicated
   Other Waste Biomass: Biopower_Dedicated
   Wood/Wood Waste Biomass: Biopower_Dedicated
-  Solar Photovoltaic: UtilityPV_Class1
+  Solar Photovoltaic: UtilityPV_LosAngeles
   Geothermal: Geothermal_HydroFlash # assume installed capacity is dominated by flash
 
   # Check head-height, which is difference between NSD2 and 4
   Conventional Hydroelectric: Hydropower_NSD4 # Large variability based on choice
   Hydroelectric Pumped Storage: Hydropower_NSD4 # Large variability based on choice
   Small Hydroelectric: Hydropower_NSD3 # Large variability based on choice
-  Onshore Wind Turbine: LandbasedWind_Class4 # All onshore wind is the same
-  Offshore Wind Turbine: OffShoreWind_Class10 # Mid-range of floating offshore wind
-  Nuclear: Nuclear_Nuclear
+  Onshore Wind Turbine: LandbasedWind_LTRG4 # All onshore wind is the same
+  Offshore Wind Turbine: OffShoreWind_OTRG10 # Mid-range of floating offshore wind
+  Nuclear: Nuclear_*
   Natural Gas Steam Turbine: Coal_newAvgCF # No gas steam turbines in ATB, using coal instead
   Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
 
-# Offshore wind in the west will be floating - Class10 maybe.
+# Offshore wind in the west will be floating - OTRG10 maybe.
 # Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
 atb_new_gen:
   - [NaturalGas, CCCCSAvgCF, Mid, 500]
   - [NaturalGas, CCAvgCF, Mid, 500]
   - [NaturalGas, CTAvgCF, Mid, 100]
-  - [LandbasedWind, Class3, Mid, 1]
-  - [OffShoreWind, Class10, Mid, 1]
+  - [LandbasedWind, LTRG4, Mid, 1]
+  - [OffShoreWind, OTRG13, Mid, 1]
   - [UtilityPV, LosAngeles, Mid, 1]
   - [Battery, "*", Mid, 1]
-  # - [Nuclear, Nuclear, Mid, 500]
+  # - [Nuclear, "*", Mid, 500]
 
 
 # Additional technologies can be specified in a csv file under data/additional_technologies
@@ -902,21 +899,23 @@ additional_technologies_fn: AZ_additional_tech.csv #NETL_Additional_tech.csv
 
 additional_new_gen:
   - Nuclear_mid
+  # - NGCCS100_mid
+  # - NETL_NGCC
+  # - NETL+NGCC_CCS
 
 
-# Dictionary of lists with model region as key and ATB tech (string matching) in list.
-# It isn't necessary to include wind/solar resources here. If they aren't included in
-# the renewables_clusters parameter below, they won't be included in the final generators
-# dataframe.
+# Dictionary of lists with model region as key and ATB tech (string matching) in list
 new_gen_not_available:
-  # WECC_CO:
-  #   - OffShoreWind
-  # WECC_AZ:
-  #   - OffShoreWind
-  # WECC_NM:
-  #   - OffShoreWind
-  # WECC_SNV:
-  #   - OffShoreWind
+  WECC_CO:
+    - OffShoreWind
+  WECC_AZ:
+    - OffShoreWind
+  WECC_NM:
+    - OffShoreWind
+  WECC_SNV:
+    - OffShoreWind
+
+pv_ac_dc_ratio: 1.3
 
 renewables_clusters:
   - region: CA_N
@@ -1009,7 +1008,7 @@ cost_multiplier_technology_map:
   CC - multi shaft: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF]
   CC with 90% CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100, NaturalGas_CCS100, NaturalGas_CCS100_low,NaturalGas_CCS100_high]
   Fuel cells: []
-  Advanced nuclear: [Nuclear_Nuclear, Nuclear_mid, Nuclear_low, Nuclear_high]
+  Advanced nuclear: [Nuclear_*, Nuclear_mid, Nuclear_low, Nuclear_high]
   Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
   MSW - landfill gas: []
   Wind: [LandbasedWind]
@@ -1280,7 +1279,6 @@ new_build_startup_costs:
   NaturalGas_CT: gas_large_ct
   NaturalGas_CC: gas_cc
   NaturalGas_CCS100: gas_cc
-  Nuclear_Nuclear: nuclear
 
 
 ######################################################################################
