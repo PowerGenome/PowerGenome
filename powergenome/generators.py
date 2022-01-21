@@ -1613,7 +1613,7 @@ def import_new_generators(
         new_operating = group_technologies(
             new_operating,
             settings["group_technologies"],
-            settings.get("tech_group", {}) or {},
+            settings.get("tech_groups", {}) or {},
             settings.get("regional_no_grouping", {}) or {},
         )
         print(new_operating["technology_description"].unique().tolist())
@@ -1738,7 +1738,7 @@ def import_proposed_generators(
         planned_gdf = group_technologies(
             planned_gdf,
             settings["group_technologies"],
-            settings.get("tech_group", {}) or {},
+            settings.get("tech_groups", {}) or {},
             settings.get("regional_no_grouping", {}) or {},
         )
         print(planned_gdf["technology_description"].unique().tolist())
@@ -1857,7 +1857,7 @@ def gentype_region_capacity_factor(
         capacity_factor = group_technologies(
             capacity_factor,
             settings["group_technologies"],
-            settings.get("tech_group", {}) or {},
+            settings.get("tech_groups", {}) or {},
             settings.get("regional_no_grouping", {}) or {},
         )
 
