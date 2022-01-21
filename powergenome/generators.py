@@ -1866,7 +1866,7 @@ def gentype_region_capacity_factor(
             tech: settings["capacity_factor_default_year_filter"]
             for tech in plant_gen_tech_cap["technology_description"].unique()
         }
-        if type(settings["alt_year_filters"]) is dict:
+        if type(settings.get("alt_year_filters")) is dict:
             for tech, value in settings["alt_year_filters"].items():
                 years_filter[tech] = value
 

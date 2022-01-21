@@ -50,11 +50,13 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
     ].to_list()
 
     cost_mult_regions = list(
-        itertools.chain.from_iterable(settings["cost_multiplier_region_map"].values())
+        itertools.chain.from_iterable(
+            settings.get("cost_multiplier_region_map", {}).values()
+        )
     )
 
     aeo_fuel_regions = list(
-        itertools.chain.from_iterable(settings["aeo_fuel_region_map"].values())
+        itertools.chain.from_iterable(settings.get("aeo_fuel_region_map", {}).values())
     )
 
     atb_techs = settings.get("atb_new_gen", []) or []
@@ -147,7 +149,7 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
             """
             logger.warning(s)
 
-    gen_col_count = collections.Counter(settings["generator_columns"])
+    gen_col_count = collections.Counter(settings.get("generator_columns", []))
     duplicate_cols = [c for c, num in gen_col_count.items() if num > 1]
     if duplicate_cols:
         raise KeyError(
