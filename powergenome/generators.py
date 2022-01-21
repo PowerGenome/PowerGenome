@@ -1857,7 +1857,7 @@ def gentype_region_capacity_factor(
         capacity_factor = group_technologies(
             capacity_factor,
             settings["group_technologies"],
-            settings.get("tech_group", {}) or {},
+            settings.get("tech_groups", {}) or {},
             settings.get("regional_no_grouping", {}) or {},
         )
 

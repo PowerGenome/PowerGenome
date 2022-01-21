@@ -11,7 +11,7 @@ model_year: 2030
 # more than one year is used then things like heat rate will be calculated as the
 # average (weighted by generation per year).
 data_years:
-  - 2017
+  - 2018
 
 
 # CAPACITY TYPE
@@ -86,6 +86,7 @@ num_clusters:
   Municipal Solid Waste: 1
   Biomass: 1
   Peaker: 1
+  Thermal: 1
 
 
 # Group these technologies
@@ -100,6 +101,9 @@ tech_groups:
     - Natural Gas Fired Combustion Turbine
     - Natural Gas Internal Combustion Engine
     - Petroleum Liquids
+  Steam_Turbine:
+    - Conventional Steam Coal
+    - Natural Gas Steam Turbine
 
 regional_no_grouping: ~
 
@@ -112,6 +116,26 @@ alt_clusters:
     Natural Gas Fired Combined Cycle: 2
     Natural Gas Fired Combustion Turbine: 2
 
+# Default value to limit the years used to calculate capacity factors.
+# Use "~" (null, converted to None in Python) to use all data years. PUDL currently has
+# generation data from 2011 through the most recent final release of 923/860.
+capacity_factor_default_year_filter: [2018]
+
+# Select the year filters for specific technologies. Grouped technologies should be
+# used rather than in individual categories (e.g. Peaker rather than Combustion Turbine).
+# Again, use "~" to use all years.
+alt_year_filters:
+  Small Hydroelectric: ~
+  Conventional Hydroelectric: ~
+  Biomass: ~
+  Geothermal: ~
+
+derate_capacity: True
+derate_techs:
+  - Peaker
+  - Small Hydroelectric
+  - Biomass
+  - Steam_Turbine
 
 # RETIREMENT AGES
 # The age at which each technolgy type is expected to retire. Planned retirements
@@ -121,8 +145,8 @@ retirement_ages:
   Conventional Hydroelectric: 100
   Small Hydroelectric: 100
   Conventional Steam Coal: 60
-  Natural Gas Fired Combined Cycle: 40
-  Natural Gas Fired Combustion Turbine: 40
+  Natural Gas Fired Combined Cycle: 100
+  Natural Gas Fired Combustion Turbine: 100
   Petroleum Liquids: 40
   Natural Gas Internal Combustion Engine: 40
   Nuclear: 60
