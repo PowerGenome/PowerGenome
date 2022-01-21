@@ -44,6 +44,6 @@ jobs:
         EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
       run: |
         pip install pytest-cov
-        pytest --cov=powergenome tests/
+        pytest --cov=powergenome tests/ --cov-report=xml
     - name: Upload test coverage report to CodeCov
       uses: codecov/codecov-action@v2.1.0
