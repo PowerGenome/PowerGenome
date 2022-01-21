@@ -10,6 +10,8 @@ jobs:
         shell: bash
     strategy:
       max-parallel: 5
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v2
@@ -41,5 +43,7 @@ jobs:
       env:
         EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
       run: |
-        mamba install pytest
-        pytest
+        pip install pytest-cov
+        pytest --cov=powergenome tests/
+    - name: Upload test coverage report to CodeCov
+      uses: codecov/codecov-action@v2.1.0
