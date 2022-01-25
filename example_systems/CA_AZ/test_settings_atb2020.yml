@@ -26,7 +26,7 @@ capacity_limit_spur_fn: test_resource_capacity_spur.csv # Max capacity and spur 
 region_wind_pv_cap_fn: existing_wind_pv_capacity.csv
 demand_segments_fn: test_demand_segments_voll.csv
 misc_gen_inputs_fn: test_misc_gen_inputs.csv
-genx_settings_fn: genx_settings
+genx_settings_folder: genx_settings
 reserves_fn: Reserves.csv
 # regional_load_fn: test_regional_load_profiles.csv #Externally provide load data
 
