@@ -411,6 +411,7 @@ def main():
                     folder=case_folder,
                     file_name="Generators_variability.csv",
                     include_index=True,
+                    float_format="%.3f",
                 )
                 if time_series_mapping is not None:
                     write_results_file(

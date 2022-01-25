@@ -410,7 +410,13 @@ def remove_fuel_gen_scenario_name(df, settings):
     return _df
 
 
-def write_results_file(df, folder, file_name, include_index=False):
+def write_results_file(
+    df: pd.DataFrame,
+    folder: Path,
+    file_name: str,
+    include_index: bool = False,
+    float_format: str = None,
+):
     """Write a finalized dataframe to one of the results csv files.
 
     Parameters
@@ -423,13 +429,14 @@ def write_results_file(df, folder, file_name, include_index=False):
         Name of the file.
     include_index : bool, optional
         If pandas should include the index when writing to csv, by default False
+    float_format: str
+        Parameter passed to pandas .to_csv
     """
     sub_folder = folder / "Inputs"
     sub_folder.mkdir(exist_ok=True, parents=True)
 
     path_out = sub_folder / file_name
-
-    df.to_csv(path_out, index=include_index)
+    df.to_csv(path_out, index=include_index, float_format=float_format)
 
 
 def write_case_settings_file(settings, folder, file_name):
