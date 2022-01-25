@@ -28,6 +28,19 @@ description: A dictionary with list values, used to aggregate IPM regions into g
 - `alt_growth_rate`
 - `aeo_fuel_region_map`
 
+### regional_capacity_reserves
+
+type: Dict[str, Dict[str, float]]
+
+description: A nested dictionary of capacity reserve constraints for model regions. The top-level keys are of form `CapRes_<num>`. The next level of keys are model regions, with values equal to the capacity reserve requirements.
+
+
+### cap_res_network_derate_default
+
+type: float
+
+description: The derating of transmission imports used to meet capacity reserve requirements.
+
 <!-- Combine model_year and model_first_planning_year into a list of tuples -->
 ### model_year
 
@@ -141,7 +154,13 @@ description: This file is where users can add extra or miscellaneous inputs for 
 
 type: str
 
-description: This is a YAML file used to record input parameters for GenX model runs. A version is copied into each of the final case folders. Some parameter values - such as RPS and CES - will be changed on a case-by-case basis depending on inputs in other files.
+description: This is a YAML file used to record input parameters for GenX model runs. A version is copied into each of the final case folders. *This parameter is depreciated in preference of `genx_settings_folder` now that GenX expects a folder of settings files.
+
+### genx_settings_folder
+
+type: str
+
+description: This is a folder of YAML files used to record input parameters for GenX model runs. A version is copied into each of the final case folders.
 
 ### regional_load_fn
 
