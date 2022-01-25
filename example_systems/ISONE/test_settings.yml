@@ -149,6 +149,7 @@ target_usd_year: 2019
 
 # HOURS OFFSET FROM UTC
 # All time profile data are stored in UTC. Provide an offset for the model timezone.
+# US East cost is UTC-5, Pacific is UTC-8
 utc_offset: -5
 
 # CAPACITY TYPE
@@ -198,7 +199,7 @@ cap_res_network_derate_default: 0.95
 # Won't show up if not listed here (expand)
 cluster_method: kmeans
 
-
+# ** Any technologies not included in num_clusters will be omitted **
 num_clusters:
   Conventional Steam Coal: 1
   Natural Gas Fired Combined Cycle: 2
