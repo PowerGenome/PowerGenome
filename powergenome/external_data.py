@@ -190,7 +190,7 @@ def make_generator_variability(
 
     Examples
     --------
-    >>> df = pd.DataFrame({'profile': [np.zeros(8760), np.ones(8784) / 2, None]})
+    >>> df = pd.DataFrame({'profile': [[0] * 8760, np.ones(8784) / 2, None]})
     >>> make_generator_variability(df)
             0    1    2
     0     0.0  0.5  1.0
@@ -224,6 +224,8 @@ def make_generator_variability(
                 if remove_feb_29:
                     return np.delete(x, slice(1416, 1440))
             return x
+        if isinstance(x, list):
+            return format_profile(np.array(x), remove_feb_29, hours)
         # Fill missing with default [1, ...]
         return np.ones(8760, dtype=float)
 
