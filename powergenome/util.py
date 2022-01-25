@@ -114,7 +114,8 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
     pg_engine : sa.engine
         Connection to the PG sqlite database.
     """
-    check_atb_scenario(settings, pg_engine)
+    if settings.get("atb_data_year"):
+        check_atb_scenario(settings, pg_engine)
     ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
         "region_id_epaipm"
     ].to_list()
