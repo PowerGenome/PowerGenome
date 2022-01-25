@@ -24,6 +24,8 @@ INT_COLS = [
     "Inv_Cost_per_MWhyr",
     "Fixed_OM_Cost_per_MWhyr",
     "Line_Reinforcement_Cost_per_MW_yr",
+    "Up_Time",
+    "Down_Time",
 ]
 
 COL_ROUND_VALUES = {
@@ -38,6 +40,12 @@ COL_ROUND_VALUES = {
     "Line_Max_Reinforcement_MW": 0,
     "distance_miles": 1,
     "distance_km": 1,
+    "Existing_Cap_MW": 1,
+    "Existing_Cap_MWh": 1,
+    "Max_Cap_MW": 1,
+    "Max_Cap_MWh": 1,
+    "Min_Cap_MW": 1,
+    "Min_Cap_MWh": 1,
 }
 
 
@@ -535,7 +543,7 @@ def network_max_reinforcement(
 
     max_expansion = settings.get("tx_expansion_per_period")
 
-    if not max_expansion:
+    if not max_expansion and max_expansion != 0:
         raise KeyError(
             "No value for the transmission expansion allowed in this model period is "
             "included in the settings."
