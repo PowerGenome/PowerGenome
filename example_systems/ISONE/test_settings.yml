@@ -65,6 +65,9 @@ demand_weight_factor: 1 # Demand profiles are scaled from 0-1, then scaled up us
 #     CA_N: 9788
 #     CA_S: 12618
 
+# Set this parameter to "true" if existing distributed generation in each region should
+# be represented as a resource rather than being subtracted from demand.
+# dg_as_resource: true
 
 # Distribution loss used when subtracting distributed generation from total load.
 avg_distribution_loss: 0.0453
