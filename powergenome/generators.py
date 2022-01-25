@@ -1613,7 +1613,7 @@ def import_new_generators(
         new_operating = group_technologies(
             new_operating,
             settings["group_technologies"],
-            settings.get("tech_group", {}) or {},
+            settings.get("tech_groups", {}) or {},
             settings.get("regional_no_grouping", {}) or {},
         )
         print(new_operating["technology_description"].unique().tolist())
@@ -1738,7 +1738,7 @@ def import_proposed_generators(
         planned_gdf = group_technologies(
             planned_gdf,
             settings["group_technologies"],
-            settings.get("tech_group", {}) or {},
+            settings.get("tech_groups", {}) or {},
             settings.get("regional_no_grouping", {}) or {},
         )
         print(planned_gdf["technology_description"].unique().tolist())
@@ -1857,7 +1857,7 @@ def gentype_region_capacity_factor(
         capacity_factor = group_technologies(
             capacity_factor,
             settings["group_technologies"],
-            settings.get("tech_group", {}) or {},
+            settings.get("tech_groups", {}) or {},
             settings.get("regional_no_grouping", {}) or {},
         )
 
@@ -1866,7 +1866,7 @@ def gentype_region_capacity_factor(
             tech: settings["capacity_factor_default_year_filter"]
             for tech in plant_gen_tech_cap["technology_description"].unique()
         }
-        if type(settings["alt_year_filters"]) is dict:
+        if type(settings.get("alt_year_filters")) is dict:
             for tech, value in settings["alt_year_filters"].items():
                 years_filter[tech] = value
 
@@ -2160,6 +2160,41 @@ def add_transmission_inv_cost(
 
 def save_weighted_hr(weighted_unit_hr, pudl_engine):
     pass
+
+
+def energy_storage_mwh(
+    df: pd.DataFrame,
+    energy_storage_duration: Dict[str, float],
+    tech_col: str,
+    cap_col: str,
+    energy_col: str,
+) -> pd.DataFrame:
+    """Convert resource capacity (MW) to MWh using a dictionary with storage duration
+    by technology name.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Resource dataframe with columns specified by `tech_col`, `cap_col`, and
+        `energy_col`
+    energy_storage_duration : Dict[str, float]
+        Keys are technology names, values are the duration of storage
+    tech_col : str
+        Dataframe column with technology names
+    cap_col : str
+        Dataframe column with technology capacity (power)
+    energy_col : str
+        Dataframe column to fill with technology energy storage
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified dataframe with energy storage values
+    """
+    for k, v in energy_storage_duration.items():
+        df.loc[df[tech_col] == k, energy_col] = df[cap_col] * v
+
+    return df
 
 
 class GeneratorClusters:
@@ -2732,6 +2767,14 @@ class GeneratorClusters:
         self.results["unmodified_existing_cap_mw"] = (
             self.results["unmodified_cap_size"] * self.results["num_units"]
         )
+        if self.settings.get("energy_storage_duration"):
+            self.results = energy_storage_mwh(
+                self.results,
+                self.settings["energy_storage_duration"],
+                "technology",
+                "Existing_Cap_MW",
+                "Existing_Cap_MWh",
+            )
 
         if self.settings.get("region_wind_pv_cap_fn"):
             from powergenome.external_data import overwrite_wind_pv_capacity

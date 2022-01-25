@@ -30,6 +30,76 @@ def load_settings(path: Union[str, Path]) -> dict:
     return settings
 
 
+def findkeys(node: Union[dict, list], kv: str):
+    """
+    Return all values in a dictionary from a matching key
+    https://stackoverflow.com/a/19871956
+    """
+    if isinstance(node, list):
+        for i in node:
+            for x in findkeys(i, kv):
+                yield x
+    elif isinstance(node, dict):
+        if kv in node:
+            yield node[kv]
+        for j in node.values():
+            for x in findkeys(j, kv):
+                yield x
+
+
+def check_atb_scenario(settings: dict, pg_engine: sa.engine.base.Engine):
+    """Check the
+
+    Parameters
+    ----------
+    settings : dict
+        Parameters and values from the YAML settings file.
+    pg_engine : sa.engine.base.Engine
+        Connection to the PG sqlite database.
+
+    Raises
+    ------
+    KeyError
+        Raises an error if an ATB technology scenario in the settings file doesn't match
+        the list of available values for that year of ATB data.
+    """
+    atb_year = settings.get("atb_data_year")
+
+    s = f"""
+    SELECT DISTINCT cost_case
+    FROM technology_costs_nrelatb
+    WHERE
+        atb_year == {atb_year}
+    """
+
+    atb_cases = [c[0] for c in pg_engine.execute(s).fetchall()]
+
+    techs = []
+    for l in findkeys(settings, "atb_new_gen"):
+        techs.extend(l)
+
+    cases = [tech[2] for tech in techs]
+
+    for l in findkeys(settings, "atb_cost_case"):
+        cases.append(l)
+
+    bad_case_names = []
+    for case in cases:
+        if case not in atb_cases:
+            bad_case_names.append(case)
+    if bad_case_names:
+        bad_names = list(set(bad_case_names))
+        raise KeyError(
+            f"There is an error with the ATB tech scenario key in your settings file."
+            f" You are using ATB data from {atb_year}, which has cost cases of:\n\n "
+            f"{atb_cases}\n\n"
+            "Under either 'atb_new_gen' or 'modified_atb_new_gen' you have cost cases "
+            f"of:\n\n{bad_names}\n\n "
+            "Try searching your settings file for these "
+            "values and replacing them with valid cost cases for your ATB year."
+        )
+
+
 def check_settings(settings: dict, pg_engine: sa.engine) -> None:
     """Check for user errors in the settings file.
 
@@ -42,19 +112,22 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
     settings : dict
         Parameters and values from the YAML settings file.
     pg_engine : sa.engine
-        Connection to the PUDL sqlite database.
+        Connection to the PG sqlite database.
     """
-
+    if settings.get("atb_data_year"):
+        check_atb_scenario(settings, pg_engine)
     ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
         "region_id_epaipm"
     ].to_list()
 
     cost_mult_regions = list(
-        itertools.chain.from_iterable(settings["cost_multiplier_region_map"].values())
+        itertools.chain.from_iterable(
+            settings.get("cost_multiplier_region_map", {}).values()
+        )
     )
 
     aeo_fuel_regions = list(
-        itertools.chain.from_iterable(settings["aeo_fuel_region_map"].values())
+        itertools.chain.from_iterable(settings.get("aeo_fuel_region_map", {}).values())
     )
 
     atb_techs = settings.get("atb_new_gen", []) or []
@@ -147,7 +220,7 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
             """
             logger.warning(s)
 
-    gen_col_count = collections.Counter(settings["generator_columns"])
+    gen_col_count = collections.Counter(settings.get("generator_columns", []))
     duplicate_cols = [c for c, num in gen_col_count.items() if num > 1]
     if duplicate_cols:
         raise KeyError(
@@ -338,7 +411,13 @@ def remove_fuel_gen_scenario_name(df, settings):
     return _df
 
 
-def write_results_file(df, folder, file_name, include_index=False):
+def write_results_file(
+    df: pd.DataFrame,
+    folder: Path,
+    file_name: str,
+    include_index: bool = False,
+    float_format: str = None,
+):
     """Write a finalized dataframe to one of the results csv files.
 
     Parameters
@@ -351,13 +430,14 @@ def write_results_file(df, folder, file_name, include_index=False):
         Name of the file.
     include_index : bool, optional
         If pandas should include the index when writing to csv, by default False
+    float_format: str
+        Parameter passed to pandas .to_csv
     """
     sub_folder = folder / "Inputs"
     sub_folder.mkdir(exist_ok=True, parents=True)
 
     path_out = sub_folder / file_name
-
-    df.to_csv(path_out, index=include_index)
+    df.to_csv(path_out, index=include_index, float_format=float_format)
 
 
 def write_case_settings_file(settings, folder, file_name):
