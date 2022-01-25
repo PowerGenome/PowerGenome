@@ -2162,6 +2162,41 @@ def save_weighted_hr(weighted_unit_hr, pudl_engine):
     pass
 
 
+def energy_storage_mwh(
+    df: pd.DataFrame,
+    energy_storage_duration: Dict[str, float],
+    tech_col: str,
+    cap_col: str,
+    energy_col: str,
+) -> pd.DataFrame:
+    """Convert resource capacity (MW) to MWh using a dictionary with storage duration
+    by technology name.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Resource dataframe with columns specified by `tech_col`, `cap_col`, and
+        `energy_col`
+    energy_storage_duration : Dict[str, float]
+        Keys are technology names, values are the duration of storage
+    tech_col : str
+        Dataframe column with technology names
+    cap_col : str
+        Dataframe column with technology capacity (power)
+    energy_col : str
+        Dataframe column to fill with technology energy storage
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified dataframe with energy storage values
+    """
+    for k, v in energy_storage_duration.items():
+        df.loc[df[tech_col] == k, energy_col] = df[cap_col] * v
+
+    return df
+
+
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -2732,6 +2767,14 @@ class GeneratorClusters:
         self.results["unmodified_existing_cap_mw"] = (
             self.results["unmodified_cap_size"] * self.results["num_units"]
         )
+        if self.settings.get("energy_storage_duration"):
+            self.results = energy_storage_mwh(
+                self.results,
+                self.settings["energy_storage_duration"],
+                "technology",
+                "Existing_Cap_MW",
+                "Existing_Cap_MWh",
+            )
 
         if self.settings.get("region_wind_pv_cap_fn"):
             from powergenome.external_data import overwrite_wind_pv_capacity
