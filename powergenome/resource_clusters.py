@@ -591,9 +591,12 @@ class ResourceGroup:
             raise ValueError(f"No resources found or selected")
         if tree:
             # Only keep trees with one ore more base resources
-            df["tree"] = ""
-            for t in tree:
-                df["tree"] += df[t].astype(str)
+            if isinstance(tree, list):
+                df["tree"] = ""
+                for t in tree:
+                    df["tree"] += df[t].astype(str)
+            else:
+                df["tree"] = tree
             selected = (
                 pd.Series(mask, index=df.index)
                 .groupby(df["tree"])
