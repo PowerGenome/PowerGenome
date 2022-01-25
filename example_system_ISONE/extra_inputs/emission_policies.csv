@@ -1,7 +1,0 @@
-﻿case_id,year,region,ESR_1,ESR_2,CO_2_Cap_Zone_1,CO_2_Max_Mtons_1,CO_2_Max_tons_MWh_1,copy_case_id
-p1,2030,NENGREST,0.259,0.348,1,8.59,-1,
-p1,2030,NENG_CT,0.44,0.44,1,2.31,-1,
-p1,2030,NENG_ME,0.776,0.776,1,1.29,-1,
-s1,2030,NENGREST,,,,,,p1
-s1,2030,NENG_CT,,,,,,p1
-s1,2030,NENG_ME,,,,,,p1
