@@ -46,6 +46,7 @@ COL_ROUND_VALUES = {
     "Max_Cap_MWh": 1,
     "Min_Cap_MW": 1,
     "Min_Cap_MWh": 1,
+    "Line_Loss_Percentage": 4,
 }
 
 
