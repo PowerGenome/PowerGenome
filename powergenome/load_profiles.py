@@ -7,11 +7,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-from powergenome.util import (
-    regions_to_keep,
-    reverse_dict_of_lists,
-    remove_feb_29,
-)
+from powergenome.util import regions_to_keep, reverse_dict_of_lists, remove_feb_29
 from powergenome.external_data import make_demand_response_profiles
 from powergenome.eia_opendata import get_aeo_load
 
@@ -19,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 def make_load_curves(
-    pudl_engine,
+    pg_engine,
     settings,
-    pudl_table="load_curves_ferc",
+    pg_table="load_curves_ferc",
     settings_agg_key="region_aggregations",
 ):
     # IPM regions to keep. Regions not in this list will be dropped from the
@@ -32,7 +28,7 @@ def make_load_curves(
     # sqlalchemy doesn't allow table names to be parameterized.
     logger.info("Loading load curves from PUDL")
     load_curves = pd.read_sql_table(
-        pudl_table, pudl_engine, columns=["region_id_epaipm", "time_index", "load_mw"]
+        pg_table, pg_engine, columns=["region_id_epaipm", "time_index", "load_mw"]
     )
 
     load_curves = load_curves.loc[load_curves.region_id_epaipm.isin(keep_regions)]
@@ -60,7 +56,7 @@ def make_load_curves(
 
     if len(lc_wide) == 8784:
         lc_wide = remove_feb_29(lc_wide)
-    
+
     # Shift load from UTC
     for col in lc_wide:
         lc_wide[col] = np.roll(lc_wide[col].values, settings.get("utc_offset", 0))
@@ -159,9 +155,9 @@ def add_demand_response_resource_load(load_curves, settings):
     return load_curves
 
 
-def subtract_distributed_generation(load_curves, pudl_engine, settings):
+def subtract_distributed_generation(load_curves, pg_engine, settings):
 
-    dg_profiles = make_distributed_gen_profiles(pudl_engine, settings)
+    dg_profiles = make_distributed_gen_profiles(pg_engine, settings)
     dg_profiles.index = dg_profiles.index + 1
 
     for col in dg_profiles.columns:
@@ -186,7 +182,7 @@ def load_usr_demand_profiles(settings):
 
 
 def make_final_load_curves(
-    pudl_engine,
+    pg_engine,
     settings,
     pudl_table="load_curves_ferc",
     settings_agg_key="region_aggregations",
@@ -210,7 +206,7 @@ def make_final_load_curves(
                 )
     else:
         load_curves_before_dg = make_load_curves(
-            pudl_engine, settings, pudl_table, settings_agg_key
+            pg_engine, settings, pudl_table, settings_agg_key
         )
 
         if settings.get("demand_response_fn"):
@@ -220,9 +216,11 @@ def make_final_load_curves(
         else:
             load_curves_dr = load_curves_before_dg
 
-    if settings.get("distributed_gen_profiles_fn"):
+    if settings.get("distributed_gen_profiles_fn") and not settings.get(
+        "dg_as_resource"
+    ):
         final_load_curves = subtract_distributed_generation(
-            load_curves_dr, pudl_engine, settings
+            load_curves_dr, pg_engine, settings
         )
     else:
         final_load_curves = load_curves_dr
@@ -232,7 +230,7 @@ def make_final_load_curves(
     return final_load_curves
 
 
-def make_distributed_gen_profiles(pudl_engine, settings):
+def make_distributed_gen_profiles(pg_engine, settings):
     """Create 8760 annual generation profiles for distributed generation in regions.
     Uses a distribution loss parameter in the settings file when DG generation is
     defined a fraction of delivered load.
@@ -241,7 +239,7 @@ def make_distributed_gen_profiles(pudl_engine, settings):
     ----------
     dg_profiles_path : path-like
         Where to load the file from
-    pudl_engine : sqlalchemy.Engine
+    pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas. Needed to create base load profiles.
     settings : dict
         User-defined parameters from a settings file
@@ -280,7 +278,7 @@ def make_distributed_gen_profiles(pudl_engine, settings):
         )
 
     if "fraction_load" in dg_calc_methods.values():
-        regional_load = make_load_curves(pudl_engine, settings)
+        regional_load = make_load_curves(pg_engine, settings)
 
     dg_hourly_gen = pd.DataFrame(columns=dg_calc_methods.keys())
 

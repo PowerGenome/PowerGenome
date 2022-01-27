@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 def agg_transmission_constraints(
-    pudl_engine,
+    pg_engine,
     settings,
-    pudl_table="transmission_single_epaipm",
+    pg_table="transmission_single_epaipm",
     settings_agg_key="region_aggregations",
 ):
 
@@ -30,7 +30,7 @@ def agg_transmission_constraints(
     reverse_combos = [(combo[-1], combo[0]) for combo in combos]
 
     logger.info("Loading transmission constraints from PUDL")
-    transmission_constraints_table = pd.read_sql_table(pudl_table, con=pudl_engine)
+    transmission_constraints_table = pd.read_sql_table(pg_table, con=pg_engine)
 
     if settings.get("user_transmission_constraints_fn"):
         user_tx_constraints = pd.read_csv(
@@ -85,18 +85,18 @@ def agg_transmission_constraints(
         "regions"
     )
     tc_joined = pd.DataFrame(
-        columns=["Network_lines"] + zones + ["Line_Max_Flow_MW", "Line_Min_Flow_MW"],
+        columns=["Network_Lines"] + zones + ["Line_Max_Flow_MW", "Line_Min_Flow_MW"],
         index=transmission_constraints_table.reindex(combos).dropna().index,
         data=0,
     )
 
     if tc_joined.empty:
         logger.info(f"No transmission lines exist between model regions {combos}")
-        tc_joined["Transmission Path Name"] = None
+        tc_joined["transmission_path_name"] = None
         tc_joined.rename(columns=zone_num_map, inplace=True)
         return tc_joined.reset_index(drop=True)
 
-    tc_joined["Network_lines"] = range(1, len(tc_joined) + 1)
+    tc_joined["Network_Lines"] = range(1, len(tc_joined) + 1)
     tc_joined["Line_Max_Flow_MW"] = transmission_constraints_table.reindex(
         combos
     ).dropna()
@@ -111,7 +111,7 @@ def agg_transmission_constraints(
 
     tc_joined.rename(columns=zone_num_map, inplace=True)
     tc_joined = tc_joined.reset_index()
-    tc_joined["Transmission Path Name"] = (
+    tc_joined["transmission_path_name"] = (
         tc_joined["model_region_from"] + "_to_" + tc_joined["model_region_to"]
     )
     # tc_joined = tc_joined.set_index("Transmission Path Name")
@@ -188,7 +188,7 @@ def transmission_line_distance(
 
     distances = [
         single_line_distance(line_name, region_centroids, units=units)
-        for line_name in trans_constraints_df["Transmission Path Name"]
+        for line_name in trans_constraints_df["transmission_path_name"]
     ]
     trans_constraints_df[f"distance_{units}"] = distances
     trans_constraints_df[f"distance_{units}"] = trans_constraints_df[

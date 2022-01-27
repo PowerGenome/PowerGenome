@@ -190,7 +190,7 @@ def make_generator_variability(
 
     Examples
     --------
-    >>> df = pd.DataFrame({'profile': [np.zeros(8760), np.ones(8784) / 2, None]})
+    >>> df = pd.DataFrame({'profile': [[0] * 8760, np.ones(8784) / 2, None]})
     >>> make_generator_variability(df)
             0    1    2
     0     0.0  0.5  1.0
@@ -224,8 +224,10 @@ def make_generator_variability(
                 if remove_feb_29:
                     return np.delete(x, slice(1416, 1440))
             return x
+        if isinstance(x, list):
+            return format_profile(np.array(x), remove_feb_29, hours)
         # Fill missing with default [1, ...]
-        return np.ones(hours, dtype=float)
+        return np.ones(8760, dtype=float)
 
     if "profile" in df:
         if remove_feb_29:
@@ -241,7 +243,7 @@ def make_generator_variability(
     return pd.DataFrame(profiles, columns=np.arange(len(df)).astype(str))
 
 
-def load_policy_scenarios(settings):
+def load_policy_scenarios(settings: dict) -> pd.DataFrame:
     """Load the policy scenarios and copy cases where indicated. The policy file should
     start with columns `case_id` and `year`, and can contain an optional `copy_case_id`.
     Other columns should match the desired output format. The value `None` is included

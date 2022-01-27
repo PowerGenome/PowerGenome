@@ -30,7 +30,77 @@ def load_settings(path: Union[str, Path]) -> dict:
     return settings
 
 
-def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
+def findkeys(node: Union[dict, list], kv: str):
+    """
+    Return all values in a dictionary from a matching key
+    https://stackoverflow.com/a/19871956
+    """
+    if isinstance(node, list):
+        for i in node:
+            for x in findkeys(i, kv):
+                yield x
+    elif isinstance(node, dict):
+        if kv in node:
+            yield node[kv]
+        for j in node.values():
+            for x in findkeys(j, kv):
+                yield x
+
+
+def check_atb_scenario(settings: dict, pg_engine: sa.engine.base.Engine):
+    """Check the
+
+    Parameters
+    ----------
+    settings : dict
+        Parameters and values from the YAML settings file.
+    pg_engine : sa.engine.base.Engine
+        Connection to the PG sqlite database.
+
+    Raises
+    ------
+    KeyError
+        Raises an error if an ATB technology scenario in the settings file doesn't match
+        the list of available values for that year of ATB data.
+    """
+    atb_year = settings.get("atb_data_year")
+
+    s = f"""
+    SELECT DISTINCT cost_case
+    FROM technology_costs_nrelatb
+    WHERE
+        atb_year == {atb_year}
+    """
+
+    atb_cases = [c[0] for c in pg_engine.execute(s).fetchall()]
+
+    techs = []
+    for l in findkeys(settings, "atb_new_gen"):
+        techs.extend(l)
+
+    cases = [tech[2] for tech in techs]
+
+    for l in findkeys(settings, "atb_cost_case"):
+        cases.append(l)
+
+    bad_case_names = []
+    for case in cases:
+        if case not in atb_cases:
+            bad_case_names.append(case)
+    if bad_case_names:
+        bad_names = list(set(bad_case_names))
+        raise KeyError(
+            f"There is an error with the ATB tech scenario key in your settings file."
+            f" You are using ATB data from {atb_year}, which has cost cases of:\n\n "
+            f"{atb_cases}\n\n"
+            "Under either 'atb_new_gen' or 'modified_atb_new_gen' you have cost cases "
+            f"of:\n\n{bad_names}\n\n "
+            "Try searching your settings file for these "
+            "values and replacing them with valid cost cases for your ATB year."
+        )
+
+
+def check_settings(settings: dict, pg_engine: sa.engine) -> None:
     """Check for user errors in the settings file.
 
     The YAML settings file is loaded as a dictionary object. It has many different parts
@@ -41,25 +111,35 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
     ----------
     settings : dict
         Parameters and values from the YAML settings file.
-    pudl_engine : sa.engine
-        Connection to the PUDL sqlite database.
+    pg_engine : sa.engine
+        Connection to the PG sqlite database.
     """
-
-    ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pudl_engine)[
+    if settings.get("atb_data_year"):
+        check_atb_scenario(settings, pg_engine)
+    ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
         "region_id_epaipm"
     ].to_list()
 
     cost_mult_regions = list(
-        itertools.chain.from_iterable(settings["cost_multiplier_region_map"].values())
+        itertools.chain.from_iterable(
+            settings.get("cost_multiplier_region_map", {}).values()
+        )
     )
 
     aeo_fuel_regions = list(
-        itertools.chain.from_iterable(settings["aeo_fuel_region_map"].values())
+        itertools.chain.from_iterable(settings.get("aeo_fuel_region_map", {}).values())
     )
 
-    techs = settings["atb_new_gen"]
+    atb_techs = settings.get("atb_new_gen", []) or []
+    atb_mod_techs = settings.get("modified_atb_new_gen", {}) or {}
+    add_new_techs = settings.get("additional_new_gen", []) or []
+    cost_mult_techs = []
+    for k, v in settings.get("cost_multiplier_technology_map", {}).items():
+        for t in v:
+            cost_mult_techs.append(t)
 
-    for tech in techs:
+    # Make sure atb techs are spelled correctly and are in the cost_multiplier_technology_map
+    for tech in atb_techs:
         tech, tech_detail, cost_case, _ = tech
 
         s = f"""
@@ -69,7 +149,7 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
             technology == "{tech}"
             AND tech_detail == "{tech_detail}"
         """
-        if len(pudl_engine.execute(s).fetchall()) == 0:
+        if len(pg_engine.execute(s).fetchall()) == 0:
             s = f"""
     *****************************
     The technology {tech} - {tech_detail} listed in your settings file under 'atb_new_gen'
@@ -78,6 +158,40 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
     *****************************
     """
             logger.warning(s)
+
+        if f"{tech}_{tech_detail}" not in cost_mult_techs:
+            s = f"""
+    *****************************
+    The ATB technology "{tech}_{tech_detail}" listed in your settings file under 'atb_new_gen'
+    is not fully specified in the 'cost_multiplier_technology_map' settings parameter.
+    Part of the <tech>_<tech_detail> string might be included, but it is best practice to
+    include the full name in this format. Check your settings file.
+        """
+            logger.warning((s))
+
+    for mod_tech in atb_mod_techs.values():
+        mt_name = f"{mod_tech['new_technology']}_{mod_tech['new_tech_detail']}"
+        if mt_name not in cost_mult_techs:
+            s = f"""
+    *****************************
+    The modified ATB technology "{mt_name}" listed in your settings file under
+    'modified_atb_new_gen' is not fully specified in the 'cost_multiplier_technology_map'
+    settings parameter. Part of the <new_technology>_<new_tech_detail> string might be
+    included, but it is best practice to include the full name in this format. Check
+    your settings file.
+        """
+            logger.warning((s))
+
+    for add_tech in add_new_techs:
+        if add_tech not in cost_mult_techs:
+            s = f"""
+    *****************************
+    The additional user-specified technology "{add_tech}" listed in your settings file under
+    'additional_new_gen' is not fully specified in the 'cost_multiplier_technology_map'
+    settings parameter. Part of the name string might be included, but it is best practice
+    to include the full name in this format. Check your settings file.
+        """
+            logger.warning((s))
 
     for agg_region, ipm_regions in (settings.get("region_aggregations") or {}).items():
         for ipm_region in ipm_regions:
@@ -106,7 +220,7 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
             """
             logger.warning(s)
 
-    gen_col_count = collections.Counter(settings["generator_columns"])
+    gen_col_count = collections.Counter(settings.get("generator_columns", []))
     duplicate_cols = [c for c, num in gen_col_count.items() if num > 1]
     if duplicate_cols:
         raise KeyError(
@@ -135,7 +249,7 @@ def check_settings(settings: dict, pudl_engine: sa.engine) -> None:
 
 
 def init_pudl_connection(
-    freq: str = "YS",
+    freq: str = "AS", start_year: int = None, end_year: int = None
 ) -> Tuple[sa.engine.base.Engine, pudl.output.pudltabl.PudlTabl]:
     """Initiate a connection object to the sqlite PUDL database and create a pudl
     object that can quickly access parts of the database.
@@ -153,13 +267,35 @@ def init_pudl_connection(
         object for quickly accessing parts of the database. `pudl_out` is used
         to access unit heat rates.
     """
+    pudl_engine = sa.create_engine(SETTINGS["PUDL_DB"])
+    if start_year is not None:
+        start_year = pd.to_datetime(start_year, format="%Y")
+    if end_year is not None:
+        end_year = pd.to_datetime(end_year + 1, format="%Y")
+    """
+    pudl_out = pudl.output.pudltabl.PudlTabl(
+        freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
+        #freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year, ds=""
+    )
+    """
+    pudl_out = pudl.output.pudltabl.PudlTabl(
+        freq=freq,
+        pudl_engine=pudl_engine,
+        start_date=start_year,
+        end_date=end_year,
+        ds=pudl.workspace.datastore.Datastore(),
+    )
 
-    pudl_engine = sa.create_engine(
-        SETTINGS["PUDL_DB"]
-    )  # pudl.init.connect_db(SETTINGS)
-    pudl_out = pudl.output.pudltabl.PudlTabl(freq=freq, pudl_engine=pudl_engine)
+    if SETTINGS.get("PG_DB"):
+        pg_engine = sa.create_engine(SETTINGS["PG_DB"])
+    else:
+        logger.warning(
+            "No path to a `PG_DB` database was found in the .env file. Using the "
+            "`PUDL_DB` path instead."
+        )
+        pg_engine = sa.create_engine(SETTINGS["PUDL_DB"])
 
-    return pudl_engine, pudl_out
+    return pudl_engine, pudl_out, pg_engine
 
 
 def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, str]:
@@ -261,12 +397,27 @@ def remove_fuel_scenario_name(df, settings):
     _df = df.copy()
     scenarios = settings["eia_series_scenario_names"].keys()
     for s in scenarios:
+        _df.columns = _df.columns.str.replace(f"_{s}", "")
+
+    return _df
+
+
+def remove_fuel_gen_scenario_name(df, settings):
+    _df = df.copy()
+    scenarios = settings["eia_series_scenario_names"].keys()
+    for s in scenarios:
         _df["Fuel"] = _df["Fuel"].str.replace(f"_{s}", "")
 
     return _df
 
 
-def write_results_file(df, folder, file_name, include_index=False):
+def write_results_file(
+    df: pd.DataFrame,
+    folder: Path,
+    file_name: str,
+    include_index: bool = False,
+    float_format: str = None,
+):
     """Write a finalized dataframe to one of the results csv files.
 
     Parameters
@@ -279,13 +430,14 @@ def write_results_file(df, folder, file_name, include_index=False):
         Name of the file.
     include_index : bool, optional
         If pandas should include the index when writing to csv, by default False
+    float_format: str
+        Parameter passed to pandas .to_csv
     """
     sub_folder = folder / "Inputs"
     sub_folder.mkdir(exist_ok=True, parents=True)
 
     path_out = sub_folder / file_name
-
-    df.to_csv(path_out, index=include_index)
+    df.to_csv(path_out, index=include_index, float_format=float_format)
 
 
 def write_case_settings_file(settings, folder, file_name):

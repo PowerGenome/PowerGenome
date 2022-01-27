@@ -6,19 +6,19 @@ especially the ATB <technology>_<tech_detail> combination.
 
 planning_year: The model planning year. This might be different from the basis year that technology costs and attributes are based on.
 
-capex: USD/MW capital expenses, including construction financing costs, etc. Be sure to
+capex_mw: USD/MW capital expenses, including construction financing costs, etc. Be sure to
 convert from $/kW.
 
 capex_mwh: USD/MWh capital expenses, including construction financing costs, etc. Used
 for storage resources such as batteries.
 
-o_m_fixed_mw: Fixed O&M costs per MW-year.
+fixed_o_m_mw: Fixed O&M costs per MW-year.
 
-o_m_fixed_mwh: Fixed O&M costs per MWh-year. Used for storage resources such as batteries.
+fixed_o_m_mwh: Fixed O&M costs per MWh-year. Used for storage resources such as batteries.
 
-o_m_variable_mwh: Variable O&M costs per MWh.
+variable_o_m_mwh: Variable O&M costs per MWh.
 
-waccnomtech: Nominal weighted average cost of capital.
+wacc_real: Nominal weighted average cost of capital.
 
 dollar_year: Year that dollars are calculated for. This is used to convert costs to a
 consistent dollar year across inputs.
