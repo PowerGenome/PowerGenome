@@ -251,7 +251,7 @@ def main():
                     existing_gens = gc.existing_resources.copy()
 
                     logger.info(
-                        f"Finished first round with year {year} scenario {case_id}"
+                        f"\nFinished first round with year {year} scenario {case_id}\n"
                     )
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
@@ -287,7 +287,7 @@ def main():
                         model_regions_gdf = load_ipm_shapefile(_settings)
 
             else:
-                logger.info(f"\nStarting year {year} scenario {case_id}")
+                logger.info(f"\nStarting year {year} scenario {case_id}\n")
                 if args.gens:
 
                     gc.settings = _settings
