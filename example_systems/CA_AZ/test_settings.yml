@@ -520,6 +520,13 @@ energy_storage_duration:
 
 # RETIREMENT AGES
 # The age at which each technolgy type is expected to retire
+# ********* IMPORTANT ****************
+# If you are running a myopic model with multiple planning periods, age-based retirements
+# between planning periods can change the units assigned to each cluster. In this situation
+# the heat rates and O&M of a cluster will change because of the units it contains.
+# Economic retirements of capacity from a cluster may not accurately represent the units
+# that should be retired. To avoid this, set all retirement ages to a large value
+# (e.g. 500).
 
 retirement_ages:
   Conventional Hydroelectric: 500

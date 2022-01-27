@@ -371,6 +371,9 @@ type: dict
 
 description: Keys are EIA technology names, values are the maximum age of a generator that will be included in PowerGenome outputs. Generator age is calculated as the difference between `model_year` and the "operating date" year specified in EIA 860. If you want a capacity expansion model to control all retirements for a technology, set the retirement age to some very high value like 500.
 
+**IMPORTANT**
+If you are running a myopic model with multiple planning periods, age-based retirements between planning periods can change the units assigned to each cluster. In this situation the heat rates and O&M of a cluster will change because of the units it contains. Economic retirements of capacity from a cluster may not accurately represent the units that should be retired. To avoid this, set all retirement ages to a large value (e.g. 500).
+
 ## Model tags
 
 ### model_tag_names
