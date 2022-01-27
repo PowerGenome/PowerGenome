@@ -101,7 +101,9 @@ op_status_map = {
 TRANSMISSION_TYPES = ["spur", "offshore_spur", "tx"]
 
 
-def fill_missing_tech_descriptions(df):
+def fill_missing_tech_descriptions(
+    df: pd.DataFrame, date_col: str = "report_date"
+) -> pd.DataFrame:
     """
     EIA 860 records before 2014 don't have a technology description. If we want to
     include any of this data in the historical record (e.g. heat rates or capacity
@@ -112,6 +114,10 @@ def fill_missing_tech_descriptions(df):
     df : dataframe
         A pandas dataframe with columns plant_id_eia, generator_id, and
         technology_description.
+    date_col: str
+        The column with date information, used to sort values from oldest to newest.
+        Assumes that newer records will have a valid technology description for the
+        generator.
 
     Returns
     -------
@@ -119,13 +125,25 @@ def fill_missing_tech_descriptions(df):
         Same data that came in, but with missing technology_description values filled
         in.
     """
+    if (
+        date_col not in df.columns
+        and not df.loc[df["technology_description"].isnull(), :].empty
+    ):
+        logger.warning(
+            "A dataframe with missing technology descriptions does not have the date column "
+            f"{date_col}. The rows with missing technology descriptions look like:\n\n"
+            f"{df.loc[df['technology_description'].isnull(), :]}\n\n"
+        )
     start_len = len(df)
-    df = df.sort_values(by="report_date")
+    df = df.sort_values(by=date_col)
     df_list = []
     for _, _df in df.groupby(["plant_id_eia", "generator_id"], as_index=False):
         _df["technology_description"].fillna(method="bfill", inplace=True)
         df_list.append(_df)
     results = pd.concat(df_list, ignore_index=True, sort=False)
+
+    if df.loc[df["technology_description"].isnull(), :].empty is False:
+        logger.warning("Failed to fill some technology names.")
 
     end_len = len(results)
     assert (
@@ -471,9 +489,6 @@ def label_retirement_year(
     start_len = len(df)
     retirement_ages = settings[settings_retirement_table]
 
-    if df.loc[df["technology_description"].isnull(), :].empty is False:
-        df = fill_missing_tech_descriptions(df)
-
     for tech, life in retirement_ages.items():
         try:
             df.loc[df.technology_description == tech, "retirement_year"] = (
@@ -783,7 +798,11 @@ def supplement_generator_860_data(
         for i_idx, i_row in initial_capacity.iteritems():
             if not np.allclose(i_row, merged_capacity[i_idx]):
                 logger.warning(
-                    f"Technology {i_idx} changed capacity from {i_row} to {merged_capacity[i_idx]}"
+                    "********************************\n"
+                    "When adding plant entity/boiler info to generators and filling missing"
+                    " seasonal capacity values, technology"
+                    f"{i_idx} changed capacity from {i_row} to {merged_capacity[i_idx]}"
+                    "\n********************************"
                 )
 
     return gens_860_model
@@ -1610,6 +1629,22 @@ def import_new_generators(
         age_col="Operating Year",
         add_additional_retirements=False,
     )
+    if (
+        new_operating.loc[new_operating["technology_description"].isnull(), :].empty
+        is False
+    ):
+        plant_ids = new_operating.loc[
+            new_operating["technology_description"].isnull(), "plant_id_eia"
+        ].to_list()
+        plant_capacity = new_operating.loc[
+            new_operating["technology_description"].isnull(), settings["capacity_col"]
+        ].sum()
+
+        logger.warning(
+            f"The EIA860 file has {len(plant_ids)} operating generator(s) without a technology "
+            f"description. The plant IDs are {plant_ids}, and they have a combined "
+            f"capcity of {plant_capacity} MW."
+        )
 
     if settings.get("group_technologies"):
         new_operating = group_technologies(
@@ -1727,6 +1762,23 @@ def import_proposed_generators(
     planned_gdf = planned_gdf.set_index(
         ["plant_id_eia", "prime_mover_code", "energy_source_code_1"]
     )
+
+    if (
+        planned_gdf.loc[planned_gdf["technology_description"].isnull(), :].empty
+        is False
+    ):
+        plant_ids = planned_gdf.loc[
+            planned_gdf["technology_description"].isnull(), "plant_id_eia"
+        ].to_list()
+        plant_capacity = planned_gdf.loc[
+            planned_gdf["technology_description"].isnull(), settings["capacity_col"]
+        ].sum()
+
+        logger.warning(
+            f"The EIA860 file has {len(plant_ids)} proposed generator(s) without a technology "
+            f"description. The plant IDs are {plant_ids}, and they have a combined "
+            f"capcity of {plant_capacity} MW."
+        )
 
     # Add a retirement year based on the planned start year
     label_retirement_year(
@@ -2452,7 +2504,8 @@ class GeneratorClusters:
 
         """
         self.gens_860_model = (
-            self.gens_860.pipe(
+            self.gens_860.pipe(fill_missing_tech_descriptions)
+            .pipe(
                 supplement_generator_860_data,
                 self.gens_entity,
                 self.bga,
