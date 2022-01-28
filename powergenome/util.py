@@ -249,7 +249,11 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
 
 
 def init_pudl_connection(
-    freq: str = "AS", start_year: int = None, end_year: int = None
+    freq: str = "AS",
+    start_year: int = None,
+    end_year: int = None,
+    pudl_db: str = None,
+    pg_db: str = None,
 ) -> Tuple[sa.engine.base.Engine, pudl.output.pudltabl.PudlTabl]:
     """Initiate a connection object to the sqlite PUDL database and create a pudl
     object that can quickly access parts of the database.
@@ -267,7 +271,18 @@ def init_pudl_connection(
         object for quickly accessing parts of the database. `pudl_out` is used
         to access unit heat rates.
     """
-    pudl_engine = sa.create_engine(SETTINGS["PUDL_DB"])
+    if not pudl_db:
+        pudl_db = SETTINGS["PUDL_DB"]
+    if not pg_db:
+        if SETTINGS.get("PG_DB"):
+            pg_db = SETTINGS["PG_DB"]
+        else:
+            logger.warning(
+                "No path to a `PG_DB` database was provided or found in the .env file. Using "
+                "the `PUDL_DB` path instead."
+            )
+            pg_db = SETTINGS["PUDL_DB"]
+    pudl_engine = sa.create_engine(pudl_db)
     if start_year is not None:
         start_year = pd.to_datetime(start_year, format="%Y")
     if end_year is not None:
@@ -285,15 +300,15 @@ def init_pudl_connection(
         end_date=end_year,
         ds=pudl.workspace.datastore.Datastore(),
     )
-
-    if SETTINGS.get("PG_DB"):
-        pg_engine = sa.create_engine(SETTINGS["PG_DB"])
-    else:
-        logger.warning(
-            "No path to a `PG_DB` database was found in the .env file. Using the "
-            "`PUDL_DB` path instead."
-        )
-        pg_engine = sa.create_engine(SETTINGS["PUDL_DB"])
+    pg_engine = sa.create_engine(pg_db)
+    # if SETTINGS.get("PG_DB"):
+    #     pg_engine = sa.create_engine(SETTINGS["PG_DB"])
+    # else:
+    #     logger.warning(
+    #         "No path to a `PG_DB` database was found in the .env file. Using the "
+    #         "`PUDL_DB` path instead."
+    #     )
+    #     pg_engine = sa.create_engine(SETTINGS["PUDL_DB"])
 
     return pudl_engine, pudl_out, pg_engine
 

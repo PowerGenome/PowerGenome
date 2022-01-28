@@ -694,7 +694,7 @@ class ClusterBuilder:
         """
         paths = list(paths)
         if not paths:
-            raise ValueError(f"No resource groups specified")
+            raise ValueError(f"No resource groups specified {paths}")
         return cls([ResourceGroup.from_json(path) for path in paths])
 
     def find_groups(self, **kwargs: Any) -> List[ResourceGroup]:
