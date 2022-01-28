@@ -3,6 +3,21 @@ import logging
 import sqlite3
 import os
 from pathlib import Path
+from powergenome.GenX import (
+    add_cap_res_network,
+    create_policy_req,
+    create_regional_cap_res,
+    min_cap_req,
+    network_line_loss,
+    network_max_reinforcement,
+    network_reinforcement_cost,
+    reduce_time_domain,
+    round_col_values,
+    set_int_cols,
+)
+from powergenome.external_data import make_generator_variability
+
+from powergenome.fuels import fuel_cost_table
 
 CWD = Path.cwd()
 # os.environ["RESOURCE_GROUPS"] = str(CWD / "data" / "resource_groups_base")
@@ -28,15 +43,21 @@ from powergenome.generators import (
     load_860m,
     GeneratorClusters,
 )
-from powergenome.load_profiles import make_load_curves
+from powergenome.load_profiles import make_final_load_curves, make_load_curves
 from powergenome.params import DATA_PATHS  # , SETTINGS
-from powergenome.transmission import agg_transmission_constraints
+from powergenome.transmission import (
+    agg_transmission_constraints,
+    transmission_line_distance,
+)
 from powergenome.util import (
+    build_scenario_settings,
     init_pudl_connection,
     check_settings,
     load_settings,
     map_agg_region_names,
+    remove_fuel_scenario_name,
     reverse_dict_of_lists,
+    write_results_file,
 )
 
 logger = logging.getLogger(powergenome.__name__)
@@ -119,15 +140,18 @@ def CA_AZ_settings():
         / "CA_AZ"
         / "test_settings_atb2020.yml"
     )
-    settings["model_year"] = settings["model_year"][0]
-    settings["model_first_planning_year"] = settings["model_first_planning_year"][0]
     settings["input_folder"] = Path(
         DATA_PATHS["powergenome"].parent
         / "example_systems"
         / "CA_AZ"
         / settings["input_folder"]
     )
-    return settings
+    scenario_definitions = pd.read_csv(
+        settings["input_folder"] / settings["scenario_definitions_fn"]
+    )
+    scenario_settings = build_scenario_settings(settings, scenario_definitions)
+
+    return scenario_settings[2030]["p1"]
 
 
 class MockPudlOut:
@@ -277,9 +301,53 @@ def test_check_settings(test_settings):
 #     assert df.loc[df["technology"].isin(cf_techs), "capacity_factor"].max() < 2
 
 
-def test_gen_integration(CA_AZ_settings):
+def test_gen_integration(CA_AZ_settings, tmp_path):
     gc = GeneratorClusters(
         pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=False
     )
-    all_gens = gc.create_region_technology_clusters()
-    new_gens = gc.create_new_generators()
+    all_gens = gc.create_all_generators()
+    gen_variability = make_generator_variability(all_gens)
+    fuels = fuel_cost_table(
+        fuel_costs=gc.fuel_prices,
+        generators=gc.all_resources,
+        settings=gc.settings,
+    )
+    fuels.index.name = "Time_Index"
+    write_results_file(
+        df=remove_fuel_scenario_name(fuels, gc.settings)
+        .pipe(set_int_cols)
+        .pipe(round_col_values),
+        folder=tmp_path,
+        file_name="Fuels_data.csv",
+        include_index=True,
+    )
+    load = make_final_load_curves(pg_engine=pg_engine, settings=gc.settings)
+    (
+        reduced_resource_profile,
+        reduced_load_profile,
+        time_series_mapping,
+    ) = reduce_time_domain(gen_variability, load, gc.settings)
+
+    model_regions_gdf = gc.model_regions_gdf
+    transmission = (
+        agg_transmission_constraints(pg_engine=pg_engine, settings=gc.settings)
+        .pipe(
+            transmission_line_distance,
+            ipm_shapefile=model_regions_gdf,
+            settings=gc.settings,
+            units="mile",
+        )
+        .pipe(network_line_loss, settings=gc.settings)
+        .pipe(network_max_reinforcement, settings=gc.settings)
+        .pipe(network_reinforcement_cost, settings=gc.settings)
+        .pipe(set_int_cols)
+        .pipe(round_col_values)
+        .pipe(add_cap_res_network, settings=gc.settings)
+    )
+
+    if gc.settings.get("emission_policies_fn"):
+        energy_share_req = create_policy_req(gc.settings, col_str_match="ESR")
+        co2_cap = create_policy_req(gc.settings, col_str_match="CO_2")
+    min_cap = min_cap_req(gc.settings)
+
+    cap_res = create_regional_cap_res(gc.settings)
