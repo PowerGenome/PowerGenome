@@ -4,7 +4,7 @@ import sqlite3
 import os
 from pathlib import Path
 
-# CWD = Path.cwd()
+CWD = Path.cwd()
 # os.environ["RESOURCE_GROUPS"] = str(CWD / "data" / "resource_groups_base")
 # os.environ["PUDL_DB"] = "sqlite:////" + str(
 #     CWD / "tests" / "data" / "pudl_test_data.db"
@@ -56,7 +56,12 @@ logger.addHandler(handler)
 #     "sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3")
 # )
 
-pudl_engine, pudl_out, pg_engine = init_pudl_connection(start_year=2018, end_year=2020)
+pudl_engine, pudl_out, pg_engine = init_pudl_connection(
+    start_year=2018,
+    end_year=2020,
+    pudl_db="sqlite:////" + str(DATA_PATHS["test_data"] / "pudl_test_data.db"),
+    pg_db="sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3"),
+)
 
 
 @pytest.fixture(scope="module")
@@ -271,3 +276,4 @@ def test_gen_integration(CA_AZ_settings):
         pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=False
     )
     all_gens = gc.create_region_technology_clusters()
+    new_gens = gc.create_new_generators()
