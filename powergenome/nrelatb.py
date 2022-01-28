@@ -594,8 +594,10 @@ def atb_fixed_var_om_existing(
                 plant_capacity = _df[settings["capacity_col"]].sum()
 
                 age = settings["model_year"] - _df.operating_date.dt.year
-                age = age.fillna(age.mean())
-                age = age.fillna(40)
+                try:
+                    age = age.fillna(age.mean())
+                except:
+                    age = age.fillna(40)
                 gen_ids = _df["generator_id"].to_list()
                 fgd = coal_fgd_df.query(
                     "plant_id_eia == @plant_id & generator_id in @gen_ids"

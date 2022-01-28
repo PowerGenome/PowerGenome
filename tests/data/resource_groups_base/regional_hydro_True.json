@@ -1,0 +1,7 @@
+{
+    "technology": "hydro",
+    "existing": true,
+    "metadata": "regional_existing_hydro_metadata.csv",
+    "profiles": "regional_existing_hydro_profiles.csv",
+    "small": false
+}

@@ -1,0 +1,9 @@
+{
+    "technology": "offshorewind",
+    "tree": "metro_id",
+    "existing": false,
+    "turbine_type": "floating",
+    "pref_site": true,
+    "metadata": "v1_offshorewind_metro_id_False_floating_True_metadata.csv",
+    "site_cluster": "v1_offshorewind_metro_id_False_floating_True_site_cluster.json"
+}

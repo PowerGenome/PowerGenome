@@ -1,8 +1,57 @@
 import sqlite3
+import sqlalchemy as sa
 
 import pandas as pd
 from powergenome.params import DATA_PATHS
 from powergenome.util import init_pudl_connection
+
+GENS860_COLS = [
+    "report_date",
+    "plant_id_eia",
+    "generator_id",
+    # "associated_combined_heat_power",
+    # "balancing_authority_code_eia",
+    # "bypass_heat_recovery",
+    "capacity_mw",
+    # "county",
+    "current_planned_operating_date",
+    "energy_source_code_1",
+    # "ferc_cogen_status",
+    # "iso_rto_code",
+    # "latitude",
+    # "longitude",
+    "minimum_load_mw",
+    # "operating_date",
+    "operational_status_code",
+    # "original_planned_operating_date",
+    # "state",
+    "summer_capacity_mw",
+    "technology_description",
+    # "unit_id_pudl",
+    "winter_capacity_mw",
+    "fuel_type_code_pudl",
+    # "zip_code",
+    "planned_retirement_date",
+    "time_cold_shutdown_full_load_code",
+    "switch_oil_gas",
+    "planned_new_capacity_mw",
+    "energy_source_code_2",
+    "region",
+]
+GEN_FUEL_COLS = [
+    "report_date",
+    "plant_id_eia",
+    "energy_source_code",
+    "fuel_consumed_for_electricity_mmbtu",
+    "fuel_consumed_for_electricity_units",
+    "fuel_consumed_mmbtu",
+    "fuel_consumed_units",
+    "fuel_mmbtu_per_unit",
+    "net_generation_mwh",
+    "prime_mover_code",
+    "fuel_type_code_pudl",
+]
+ENTITY_COLS = ["plant_id_eia", "generator_id", "prime_mover_code", "operating_date"]
 
 
 def create_testing_db():
@@ -11,60 +60,104 @@ def create_testing_db():
     )
     pudl_test_conn = sqlite3.connect(DATA_PATHS["test_data"] / "pudl_test_data.db")
 
-    sql = """
-        SELECT *
-        FROM boiler_generator_assn_eia860
-        WHERE plant_id_eia IN (116, 151, 149, 34, 113, 117, 141, 160)
-    """
-    bga = pd.read_sql_query(sql, pudl_engine, parse_dates="report_date")
-    bga = bga.query("report_date.dt.year >= 2018")
-    bga.to_sql(
-        "boiler_generator_assn_eia860", pudl_test_conn, index=False, if_exists="replace"
+    plant_region = pd.read_sql_table("plant_region_map_epaipm", pg_engine)
+    # gens_860 = pudl_out.gens_eia860()
+    gens_860 = pd.read_sql_table(
+        "generators_eia860", pudl_engine, parse_dates="report_date"
     )
+    gens_860 = gens_860.loc[gens_860.report_date.dt.year == 2020, :]
+    gens_860 = pd.merge(gens_860, plant_region, on="plant_id_eia", how="inner")
+    gens_860 = gens_860.loc[:, GENS860_COLS]
+    gens_860 = gens_860.groupby(
+        ["region", "technology_description"], as_index=False
+    ).head(10)
+    gens_860 = gens_860.drop(columns="region")
+    eia_plant_ids = gens_860["plant_id_eia"].unique()
 
-    sql = """
-        SELECT *
-        FROM generation_fuel_eia923
-        WHERE plant_id_eia IN (116, 151, 149, 34, 113, 117, 141, 160)
-    """
-    gen_fuel = pd.read_sql_query(sql, pudl_engine, parse_dates="report_date")
-    gen_fuel = gen_fuel.query("report_date.dt.year >= 2018")
-    gen_fuel.to_sql(
-        "generation_fuel_eia923", pudl_test_conn, index=False, if_exists="replace"
+    gen_entity = pd.read_sql_table("generators_entity_eia", pudl_engine)
+    gen_entity = gen_entity.loc[
+        gen_entity["plant_id_eia"].isin(eia_plant_ids), ENTITY_COLS
+    ]
+
+    bga = pudl_out.bga_eia860()
+    bga = bga.loc[
+        (bga.report_date.dt.year == 2020) & (bga.plant_id_eia.isin(eia_plant_ids)), :
+    ]
+
+    gen_fuel = pd.read_sql_table("generation_fuel_eia923", pudl_engine)
+    gen_fuel = gen_fuel.loc[
+        (gen_fuel.report_date.dt.year == 2020)
+        & (gen_fuel.plant_id_eia.isin(eia_plant_ids)),
+        GEN_FUEL_COLS,
+    ]
+    gen_923 = pd.read_sql_table(
+        "generation_eia923", pudl_engine, parse_dates=["report_date"]
     )
+    gen_923 = gen_923.loc[
+        (gen_923.report_date.dt.year == 2020)
+        & (gen_923.plant_id_eia.isin(eia_plant_ids)),
+        :,
+    ]
 
-    sql = """
-        SELECT *
-        FROM generators_eia860
-        WHERE plant_id_eia IN (116, 151, 149, 34, 113, 117, 141, 160)
-    """
-    gen860 = pd.read_sql_query(sql, pudl_engine, parse_dates="report_date")
-    gen860 = gen860.query("report_date.dt.year >= 2018")
-    gen860.to_sql("generators_eia860", pudl_test_conn, index=False, if_exists="replace")
+    boiler_fuel = pd.read_sql_table(
+        "boiler_fuel_eia923", pudl_engine, parse_dates="report_date"
+    )
+    boiler_fuel = boiler_fuel.loc[
+        (boiler_fuel.report_date.dt.year == 2020)
+        & (boiler_fuel.plant_id_eia.isin(eia_plant_ids)),
+        :,
+    ]
 
-    sql = """
-        SELECT *
-        FROM generators_entity_eia
-        WHERE plant_id_eia IN (116, 151, 149, 34, 113, 117, 141, 160)
-    """
-    gen_entity = pd.read_sql_query(sql, pudl_engine)
+    plant_entity = pd.read_sql_table("plants_entity_eia", pudl_engine)
+    plant_entity = plant_entity.loc[plant_entity["plant_id_eia"].isin(eia_plant_ids), :]
+    plants_eia_860 = pd.read_sql_table("plants_eia860", pudl_engine)
+    plants_eia_860 = plants_eia_860.loc[
+        plants_eia_860["plant_id_eia"].isin(eia_plant_ids), :
+    ]
+
+    plants_eia = pd.read_sql_table("plants_eia", pudl_engine)
+    plants_eia = plants_eia.loc[plants_eia["plant_id_eia"].isin(eia_plant_ids), :]
+
+    utilities_eia = pd.read_sql_table("utilities_eia", pudl_engine)
+    utilities_entity = pd.read_sql_table("utilities_entity_eia", pudl_engine)
+    utilities_860 = pd.read_sql_table("utilities_eia860", pudl_engine)
+
+    plant_region.to_sql(
+        "plant_region_map_epaipm", pudl_test_conn, index=False, if_exists="replace"
+    )
+    gens_860.to_sql(
+        "generators_eia860", pudl_test_conn, index=False, if_exists="replace"
+    )
     gen_entity.to_sql(
         "generators_entity_eia", pudl_test_conn, index=False, if_exists="replace"
     )
-
-    hr_by_unit = pudl_out.hr_by_unit().query(
-        "plant_id_eia.isin([116, 151, 149, 34, 113, 117, 141, 160])"
+    bga.to_sql(
+        "boiler_generator_assn_eia860", pudl_test_conn, index=False, if_exists="replace"
     )
-    hr_by_unit.to_sql("hr_by_unit", pudl_test_conn, index=False, if_exists="replace")
-
-    sql = """
-        SELECT *
-        FROM plant_region_map_epaipm
-        WHERE plant_id_eia IN (116, 151, 149, 34, 113, 117, 141, 160)
-    """
-    plant_region = pd.read_sql_query(sql, pg_engine)
-    plant_region.to_sql(
-        "plant_region_map_epaipm", pudl_test_conn, index=False, if_exists="replace"
+    gen_fuel.to_sql(
+        "generation_fuel_eia923", pudl_test_conn, index=False, if_exists="replace"
+    )
+    gen_923.to_sql(
+        "generation_eia923", pudl_test_conn, index=False, if_exists="replace"
+    )
+    boiler_fuel.to_sql(
+        "boiler_fuel_eia923", pudl_test_conn, index=False, if_exists="replace"
+    )
+    plant_entity.to_sql(
+        "plants_entity_eia", pudl_test_conn, index=False, if_exists="replace"
+    )
+    plants_eia_860.to_sql(
+        "plants_eia860", pudl_test_conn, index=False, if_exists="replace"
+    )
+    plants_eia.to_sql("plants_eia", pudl_test_conn, index=False, if_exists="replace")
+    utilities_eia.to_sql(
+        "utilities_eia", pudl_test_conn, index=False, if_exists="replace"
+    )
+    utilities_entity.to_sql(
+        "utilities_entity_eia", pudl_test_conn, index=False, if_exists="replace"
+    )
+    utilities_860.to_sql(
+        "utilities_eia860", pudl_test_conn, index=False, if_exists="replace"
     )
 
 
