@@ -129,6 +129,7 @@ def plant_region_map_ipm_data():
 @pytest.fixture(scope="module")
 def test_settings():
     settings = load_settings(DATA_PATHS["test_data"] / "test_settings.yml")
+    settings["RESOURCE_GROUPS"] = DATA_PATHS["test_data"] / "resource_groups_base"
     return settings
 
 
@@ -146,6 +147,7 @@ def CA_AZ_settings():
         / "CA_AZ"
         / settings["input_folder"]
     )
+    settings["RESOURCE_GROUPS"] = DATA_PATHS["test_data"] / "resource_groups_base"
     scenario_definitions = pd.read_csv(
         settings["input_folder"] / settings["scenario_definitions_fn"]
     )

@@ -35,7 +35,11 @@ from powergenome.nrelatb import (
     fetch_atb_offshore_spur_costs,
     investment_cost_calculator,
 )
-from powergenome.params import CLUSTER_BUILDER, DATA_PATHS, IPM_GEOJSON_PATH
+from powergenome.params import (
+    DATA_PATHS,
+    IPM_GEOJSON_PATH,
+    build_resource_clusters,
+)
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_eia_technology
 from powergenome.util import (
@@ -2944,7 +2948,10 @@ class GeneratorClusters:
                 # EIA technology not supported
                 continue
             params.update({"existing": True})
-            groups = CLUSTER_BUILDER.find_groups(**params)
+            cluster_builder = build_resource_clusters(
+                self.settings.get("RESOURCE_GROUPS")
+            )
+            groups = cluster_builder.find_groups(**params)
             if not groups:
                 # No matching resource groups
                 continue
