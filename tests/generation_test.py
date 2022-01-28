@@ -263,12 +263,18 @@ def test_check_settings(test_settings):
 
 
 def test_gentype_region_capacity_factor(plant_region_map_ipm_data, test_settings):
+    cf_techs = test_settings["capacity_factor_techs"]
 
+    plant_region_map_ipm_data = plant_region_map_ipm_data.rename(
+        columns={"region": "model_region"}
+    )
     df = gentype_region_capacity_factor(
         pudl_engine, plant_region_map_ipm_data, test_settings
     )
     print(df.technology.unique())
-    assert "Peaker" in df.technology.unique()
+    assert "Biomass" in df.technology.unique()
+    # CF can sometime be greater than 1, but shouldn't be significantly higher.
+    assert df.loc[df["technology"].isin(cf_techs), "capacity_factor"].max() < 2
 
 
 def test_gen_integration(CA_AZ_settings):
