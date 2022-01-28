@@ -4,14 +4,14 @@ import sqlite3
 import os
 from pathlib import Path
 
-CWD = Path.cwd()
-os.environ["RESOURCE_GROUPS"] = str(CWD / "data" / "resource_groups_base")
-os.environ["PUDL_DB"] = "sqlite:////" + str(
-    CWD / "tests" / "data" / "pudl_test_data.db"
-)
-os.environ["PG_DB"] = "sqlite:////" + str(
-    CWD / "tests" / "data" / "pg_misc_tables.sqlite3"
-)
+# CWD = Path.cwd()
+# os.environ["RESOURCE_GROUPS"] = str(CWD / "data" / "resource_groups_base")
+# os.environ["PUDL_DB"] = "sqlite:////" + str(
+#     CWD / "tests" / "data" / "pudl_test_data.db"
+# )
+# os.environ["PG_DB"] = "sqlite:////" + str(
+#     CWD / "tests" / "data" / "pg_misc_tables.sqlite3"
+# )
 
 import numpy as np
 import pandas as pd
@@ -29,7 +29,7 @@ from powergenome.generators import (
     GeneratorClusters,
 )
 from powergenome.load_profiles import make_load_curves
-from powergenome.params import DATA_PATHS, SETTINGS
+from powergenome.params import DATA_PATHS  # , SETTINGS
 from powergenome.transmission import agg_transmission_constraints
 from powergenome.util import (
     init_pudl_connection,
@@ -270,4 +270,4 @@ def test_gen_integration(CA_AZ_settings):
     gc = GeneratorClusters(
         pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=False
     )
-    all_gens = gc.create_all_generators()
+    all_gens = gc.create_region_technology_clusters()
