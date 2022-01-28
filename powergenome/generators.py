@@ -1,7 +1,7 @@
 import collections
 import logging
 from numbers import Number
-from typing import Dict
+from typing import Dict, List
 import re
 from zipfile import BadZipFile
 
@@ -25,12 +25,6 @@ from powergenome.external_data import (
     make_demand_response_profiles,
     demand_response_resource_capacity,
     add_resource_max_cap_spur,
-)
-from powergenome.load_data import (
-    load_ipm_plant_region_map,
-    load_ownership_eia860,
-    load_plants_860,
-    load_utilities_eia,
 )
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
@@ -2291,6 +2285,33 @@ def energy_storage_mwh(
         df.loc[df[tech_col] == k, energy_col] = df[cap_col] * v
 
     return df
+
+
+def load_plants_860(
+    pudl_engine: sqlalchemy.engine.Engine, data_years: List[int] = [2020]
+) -> pd.DataFrame:
+    """Load database table with EIA860 information on plants
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.engine.Engine
+        Connection to PUDL database
+    data_years : List[int], optional
+        Year of data to keep, by default [2020]
+
+    Returns
+    -------
+    pd.DataFrame
+        Includes all columns from the database table
+    """
+
+    plants = pd.read_sql_table(
+        "plants_eia860", pudl_engine, parse_dates=["report_date"]
+    )
+
+    plants = plants.loc[plants["report_date"].dt.year.isin(data_years), :]
+
+    return plants
 
 
 class GeneratorClusters:
