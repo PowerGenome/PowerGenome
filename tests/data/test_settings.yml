@@ -116,10 +116,19 @@ alt_clusters:
     Natural Gas Fired Combined Cycle: 2
     Natural Gas Fired Combustion Turbine: 2
 
+
+# CAPACITY FACTOR
+# Calculate the capacity factor of technology types listed here. If derate_capacity is
+# True, multiply the calculated capacity of each cluster by the CF
+capacity_factor_techs:
+  - Small Hydroelectric
+  - Biomass
+  - Geothermal
+
 # Default value to limit the years used to calculate capacity factors.
 # Use "~" (null, converted to None in Python) to use all data years. PUDL currently has
 # generation data from 2011 through the most recent final release of 923/860.
-capacity_factor_default_year_filter: [2018]
+capacity_factor_default_year_filter: [2020]
 
 # Select the year filters for specific technologies. Grouped technologies should be
 # used rather than in individual categories (e.g. Peaker rather than Combustion Turbine).

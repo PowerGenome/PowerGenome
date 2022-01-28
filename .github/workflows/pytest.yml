@@ -11,7 +11,7 @@ jobs:
     strategy:
       max-parallel: 5
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v2
@@ -42,6 +42,9 @@ jobs:
     - name: Test with pytest
       env:
         EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        RESOURCE_GROUPS: ${{ secrets.RESOURCE_GROUPS }}
+        PUDL_DB: ${{ secrets.PUDL_DB }}
+        PG_DB: ${{ secrets.PG_DB }}
       run: |
         pip install pytest-cov
         pytest --cov=powergenome tests/ --cov-report=xml

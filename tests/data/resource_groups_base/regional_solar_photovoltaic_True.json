@@ -1,0 +1,6 @@
+{
+    "technology": "utilitypv",
+    "existing": true,
+    "metadata": "regional_existing_solarpv_metadata.csv",
+    "profiles": "regional_existing_solarpv_profiles.csv"
+}

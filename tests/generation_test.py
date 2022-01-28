@@ -1,6 +1,32 @@
 """Test functions in generation.py"""
 import logging
 import sqlite3
+import os
+from pathlib import Path
+from powergenome.GenX import (
+    add_cap_res_network,
+    create_policy_req,
+    create_regional_cap_res,
+    min_cap_req,
+    network_line_loss,
+    network_max_reinforcement,
+    network_reinforcement_cost,
+    reduce_time_domain,
+    round_col_values,
+    set_int_cols,
+)
+from powergenome.external_data import make_generator_variability
+
+from powergenome.fuels import fuel_cost_table
+
+CWD = Path.cwd()
+# os.environ["RESOURCE_GROUPS"] = str(CWD / "data" / "resource_groups_base")
+# os.environ["PUDL_DB"] = "sqlite:////" + str(
+#     CWD / "tests" / "data" / "pudl_test_data.db"
+# )
+# os.environ["PG_DB"] = "sqlite:////" + str(
+#     CWD / "tests" / "data" / "pg_misc_tables.sqlite3"
+# )
 
 import numpy as np
 import pandas as pd
@@ -15,15 +41,23 @@ from powergenome.generators import (
     label_small_hydro,
     unit_generator_heat_rates,
     load_860m,
+    GeneratorClusters,
 )
-from powergenome.load_profiles import make_load_curves
-from powergenome.params import DATA_PATHS
-from powergenome.transmission import agg_transmission_constraints
+from powergenome.load_profiles import make_final_load_curves, make_load_curves
+from powergenome.params import DATA_PATHS  # , SETTINGS
+from powergenome.transmission import (
+    agg_transmission_constraints,
+    transmission_line_distance,
+)
 from powergenome.util import (
+    build_scenario_settings,
+    init_pudl_connection,
     check_settings,
     load_settings,
     map_agg_region_names,
+    remove_fuel_scenario_name,
     reverse_dict_of_lists,
+    write_results_file,
 )
 
 logger = logging.getLogger(powergenome.__name__)
@@ -38,9 +72,16 @@ formatter = logging.Formatter(
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-PUDL_DB_CONN = sqlite3.connect(DATA_PATHS["test_data"] / "pudl_test_data.db")
-PG_DB_CONN = sqlalchemy.create_engine(
-    "sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3")
+# pudl_engine = sqlite3.connect(DATA_PATHS["test_data"] / "pudl_test_data.db")
+# pg_engine = sqlalchemy.create_engine(
+#     "sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3")
+# )
+
+pudl_engine, pudl_out, pg_engine = init_pudl_connection(
+    start_year=2018,
+    end_year=2020,
+    pudl_db="sqlite:////" + str(DATA_PATHS["test_data"] / "pudl_test_data.db"),
+    pg_db="sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3"),
 )
 
 
@@ -48,7 +89,7 @@ PG_DB_CONN = sqlalchemy.create_engine(
 def generation_fuel_eia923_data():
     gen_fuel = pd.read_sql_query(
         "SELECT * FROM generation_fuel_eia923",
-        PUDL_DB_CONN,
+        pudl_engine,
         parse_dates=["report_date"],
     )
     return gen_fuel
@@ -62,7 +103,7 @@ def generators_eia860_data():
         WHERE operational_status_code = 'OP'
     """
     gens_860 = pd.read_sql_query(
-        sql, PUDL_DB_CONN, parse_dates=["report_date", "planned_retirement_date"]
+        sql, pudl_engine, parse_dates=["report_date", "planned_retirement_date"]
     )
     return gens_860
 
@@ -71,7 +112,7 @@ def generators_eia860_data():
 def generators_entity_eia_data():
     gen_entity = pd.read_sql_query(
         "SELECT * FROM generators_entity_eia",
-        PUDL_DB_CONN,
+        pudl_engine,
         parse_dates=["operating_date"],
     )
     return gen_entity
@@ -80,7 +121,7 @@ def generators_entity_eia_data():
 @pytest.fixture(scope="module")
 def plant_region_map_ipm_data():
     plant_region_map = pd.read_sql_query(
-        "SELECT * FROM plant_region_map_epaipm", PUDL_DB_CONN
+        "SELECT * FROM plant_region_map_epaipm", pudl_engine
     )
     return plant_region_map
 
@@ -88,7 +129,31 @@ def plant_region_map_ipm_data():
 @pytest.fixture(scope="module")
 def test_settings():
     settings = load_settings(DATA_PATHS["test_data"] / "test_settings.yml")
+    settings["RESOURCE_GROUPS"] = DATA_PATHS["test_data"] / "resource_groups_base"
     return settings
+
+
+@pytest.fixture(scope="module")
+def CA_AZ_settings():
+    settings = load_settings(
+        DATA_PATHS["powergenome"].parent
+        / "example_systems"
+        / "CA_AZ"
+        / "test_settings_atb2020.yml"
+    )
+    settings["input_folder"] = Path(
+        DATA_PATHS["powergenome"].parent
+        / "example_systems"
+        / "CA_AZ"
+        / settings["input_folder"]
+    )
+    settings["RESOURCE_GROUPS"] = DATA_PATHS["test_data"] / "resource_groups_base"
+    scenario_definitions = pd.read_csv(
+        settings["input_folder"] / settings["scenario_definitions_fn"]
+    )
+    scenario_settings = build_scenario_settings(settings, scenario_definitions)
+
+    return scenario_settings[2030]["p1"]
 
 
 class MockPudlOut:
@@ -100,21 +165,21 @@ class MockPudlOut:
     def hr_by_unit():
         "Heat rate by unit over multiple years"
         hr_by_unit = pd.read_sql_query(
-            "SELECT * FROM hr_by_unit", PUDL_DB_CONN, parse_dates=["report_date"]
+            "SELECT * FROM hr_by_unit", pudl_engine, parse_dates=["report_date"]
         )
         return hr_by_unit
 
     def bga():
         "Boiler generator associations with unit_id_pudl values"
         bga = pd.read_sql_query(
-            "SELECT * FROM boiler_generator_assn_eia860", PUDL_DB_CONN
+            "SELECT * FROM boiler_generator_assn_eia860", pudl_engine
         )
         return bga
 
 
 def test_group_technologies(generators_eia860_data, test_settings):
     df = generators_eia860_data.loc[
-        generators_eia860_data.report_date.dt.year == 2018, :
+        generators_eia860_data.report_date.dt.year == 2020, :
     ]
     # df = df.query("report_date.dt.year==2017")
     df = df.drop_duplicates(subset=["plant_id_eia", "generator_id"])
@@ -172,26 +237,27 @@ def test_label_small_hyro(
 
     assert "Small Hydroelectric" in df["technology_description"].unique()
     assert np.allclose(
-        df.loc[df.technology_description == "Small Hydroelectric", "capacity_mw"], 12.1
+        df.loc[df.technology_description == "Small Hydroelectric", "capacity_mw"].sum(),
+        140.5,
     )
 
 
-def test_label_retirement_year(
-    generators_eia860_data, generators_entity_eia_data, test_settings
-):
-    gens = pd.merge(
-        generators_eia860_data,
-        generators_entity_eia_data,
-        on=["plant_id_eia", "generator_id"],
-        how="left",
-    )
-    df = label_retirement_year(gens, test_settings)
-    print(df)
+# def test_label_retirement_year(
+#     generators_eia860_data, generators_entity_eia_data, test_settings
+# ):
+#     gens = pd.merge(
+#         generators_eia860_data,
+#         generators_entity_eia_data,
+#         on=["plant_id_eia", "generator_id"],
+#         how="left",
+#     )
+#     df = label_retirement_year(gens, test_settings)
+#     print(df)
 
-    assert df.loc[df["retirement_year"].isnull(), :].empty is True
+#     assert df.loc[df["retirement_year"].isnull(), :].empty is True
 
 
-def test_unit_generator_heat_rates(data_years=[2018]):
+def test_unit_generator_heat_rates(data_years=[2020]):
     hr_df = unit_generator_heat_rates(MockPudlOut, data_years)
 
     assert hr_df.empty is False
@@ -200,7 +266,7 @@ def test_unit_generator_heat_rates(data_years=[2018]):
         hr_df.query("plant_id_eia==117 & unit_id_pudl == 2")[
             "heat_rate_mmbtu_mwh"
         ].values,
-        [7.805624],
+        [7.635626],
     )
 
 
@@ -211,21 +277,85 @@ def test_load_860m(test_settings):
 
 
 def test_agg_transmission_constraints(test_settings):
-    agg_transmission_constraints(PG_DB_CONN, test_settings)
+    agg_transmission_constraints(pg_engine, test_settings)
 
 
 def test_demand_curve(test_settings):
-    make_load_curves(PG_DB_CONN, test_settings)
+    make_load_curves(pg_engine, test_settings)
 
 
 def test_check_settings(test_settings):
-    check_settings(test_settings, PG_DB_CONN)
+    check_settings(test_settings, pg_engine)
 
 
 # def test_gentype_region_capacity_factor(plant_region_map_ipm_data, test_settings):
+#     cf_techs = test_settings["capacity_factor_techs"]
 
+#     plant_region_map_ipm_data = plant_region_map_ipm_data.rename(
+#         columns={"region": "model_region"}
+#     )
 #     df = gentype_region_capacity_factor(
-#         PUDL_DB_CONN, plant_region_map_ipm_data, test_settings
+#         pudl_engine, plant_region_map_ipm_data, test_settings
 #     )
 #     print(df.technology.unique())
-#     assert "Peaker" in df.technology.unique()
+#     assert "Biomass" in df.technology.unique()
+#     # CF can sometime be greater than 1, but shouldn't be significantly higher.
+#     assert df.loc[df["technology"].isin(cf_techs), "capacity_factor"].max() < 2
+
+
+def test_gen_integration(CA_AZ_settings, tmp_path):
+    gc = GeneratorClusters(
+        pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=False
+    )
+    all_gens = gc.create_all_generators()
+    gen_variability = make_generator_variability(all_gens)
+    fuels = fuel_cost_table(
+        fuel_costs=gc.fuel_prices,
+        generators=gc.all_resources,
+        settings=gc.settings,
+    )
+    fuels.index.name = "Time_Index"
+    write_results_file(
+        df=remove_fuel_scenario_name(fuels, gc.settings)
+        .pipe(set_int_cols)
+        .pipe(round_col_values),
+        folder=tmp_path,
+        file_name="Fuels_data.csv",
+        include_index=True,
+    )
+    load = make_final_load_curves(pg_engine=pg_engine, settings=gc.settings)
+    (
+        reduced_resource_profile,
+        reduced_load_profile,
+        time_series_mapping,
+    ) = reduce_time_domain(gen_variability, load, gc.settings)
+
+    gc.settings["distributed_gen_method"]["CA_N"] = "fraction_load"
+    gc.settings["distributed_gen_values"][2030]["CA_N"] = 0.1
+    gc.settings["regional_load_fn"] = "test_regional_load_profiles.csv"
+    gc.settings["regional_load_includes_demand_response"] = False
+    make_final_load_curves(pg_engine=pg_engine, settings=gc.settings)
+
+    model_regions_gdf = gc.model_regions_gdf
+    transmission = (
+        agg_transmission_constraints(pg_engine=pg_engine, settings=gc.settings)
+        .pipe(
+            transmission_line_distance,
+            ipm_shapefile=model_regions_gdf,
+            settings=gc.settings,
+            units="mile",
+        )
+        .pipe(network_line_loss, settings=gc.settings)
+        .pipe(network_max_reinforcement, settings=gc.settings)
+        .pipe(network_reinforcement_cost, settings=gc.settings)
+        .pipe(set_int_cols)
+        .pipe(round_col_values)
+        .pipe(add_cap_res_network, settings=gc.settings)
+    )
+
+    if gc.settings.get("emission_policies_fn"):
+        energy_share_req = create_policy_req(gc.settings, col_str_match="ESR")
+        co2_cap = create_policy_req(gc.settings, col_str_match="CO_2")
+    min_cap = min_cap_req(gc.settings)
+
+    cap_res = create_regional_cap_res(gc.settings)

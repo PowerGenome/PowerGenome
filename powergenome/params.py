@@ -1,6 +1,7 @@
 """
 Parameters and settings
 """
+from typing import Union
 import os
 from pathlib import Path
 
@@ -39,9 +40,15 @@ SETTINGS["PUDL_DB"] = os.environ.get("PUDL_DB")
 SETTINGS["PG_DB"] = os.environ.get("PG_DB")
 SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
 SETTINGS["RESOURCE_GROUPS"] = os.environ.get("RESOURCE_GROUPS")
-if not SETTINGS["RESOURCE_GROUPS"]:
-    CLUSTER_BUILDER = ClusterBuilder([])
-else:
-    CLUSTER_BUILDER = ClusterBuilder.from_json(
-        Path(SETTINGS.get("RESOURCE_GROUPS"), ".").glob("**/*.json")
-    )
+
+
+def build_resource_clusters(group_path: Union[str, Path] = None):
+    if not group_path:
+        group_path = SETTINGS.get("RESOURCE_GROUPS")
+    if not group_path:
+        cluster_builder = ClusterBuilder([])
+    else:
+        cluster_builder = ClusterBuilder.from_json(
+            Path(group_path, ".").glob("**/*.json")
+        )
+    return cluster_builder

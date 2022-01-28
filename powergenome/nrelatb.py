@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import sqlalchemy
 
-from powergenome.params import CLUSTER_BUILDER, DATA_PATHS
+from powergenome.params import DATA_PATHS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_nrel_atb_technology
 from powergenome.util import reverse_dict_of_lists
@@ -594,8 +594,10 @@ def atb_fixed_var_om_existing(
                 plant_capacity = _df[settings["capacity_col"]].sum()
 
                 age = settings["model_year"] - _df.operating_date.dt.year
-                age = age.fillna(age.mean())
-                age = age.fillna(40)
+                try:
+                    age = age.fillna(age.mean())
+                except:
+                    age = age.fillna(40)
                 gen_ids = _df["generator_id"].to_list()
                 fgd = coal_fgd_df.query(
                     "plant_id_eia == @plant_id & generator_id in @gen_ids"
@@ -1186,8 +1188,9 @@ def add_renewables_clusters(
         # region not an argument to ClusterBuilder.get_clusters()
         scenario = scenario.copy()
         scenario.pop("region")
+        cluster_builder = build_resource_clusters(settings.get("RESOURCE_GROUPS"))
         clusters = (
-            CLUSTER_BUILDER.get_clusters(
+            cluster_builder.get_clusters(
                 **scenario,
                 ipm_regions=ipm_regions,
                 existing=False,

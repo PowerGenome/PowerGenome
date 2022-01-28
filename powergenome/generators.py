@@ -1,7 +1,7 @@
 import collections
 import logging
 from numbers import Number
-from typing import Dict
+from typing import Dict, List
 import re
 from zipfile import BadZipFile
 
@@ -26,12 +26,6 @@ from powergenome.external_data import (
     demand_response_resource_capacity,
     add_resource_max_cap_spur,
 )
-from powergenome.load_data import (
-    load_ipm_plant_region_map,
-    load_ownership_eia860,
-    load_plants_860,
-    load_utilities_eia,
-)
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
     atb_fixed_var_om_existing,
@@ -41,7 +35,11 @@ from powergenome.nrelatb import (
     fetch_atb_offshore_spur_costs,
     investment_cost_calculator,
 )
-from powergenome.params import CLUSTER_BUILDER, DATA_PATHS, IPM_GEOJSON_PATH
+from powergenome.params import (
+    DATA_PATHS,
+    IPM_GEOJSON_PATH,
+    build_resource_clusters,
+)
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_eia_technology
 from powergenome.util import (
@@ -2297,6 +2295,33 @@ def energy_storage_mwh(
     return df
 
 
+def load_plants_860(
+    pudl_engine: sqlalchemy.engine.Engine, data_years: List[int] = [2020]
+) -> pd.DataFrame:
+    """Load database table with EIA860 information on plants
+
+    Parameters
+    ----------
+    pudl_engine : sqlalchemy.engine.Engine
+        Connection to PUDL database
+    data_years : List[int], optional
+        Year of data to keep, by default [2020]
+
+    Returns
+    -------
+    pd.DataFrame
+        Includes all columns from the database table
+    """
+
+    plants = pd.read_sql_table(
+        "plants_eia860", pudl_engine, parse_dates=["report_date"]
+    )
+
+    plants = plants.loc[plants["report_date"].dt.year.isin(data_years), :]
+
+    return plants
+
+
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -2313,6 +2338,7 @@ class GeneratorClusters:
         pg_engine,
         settings,
         current_gens=True,
+        supplement_with_860m=True,
         sort_gens=False,
         plant_region_map_table="plant_region_map_epaipm",
         settings_agg_key="region_aggregations",
@@ -2336,6 +2362,7 @@ class GeneratorClusters:
         self.sort_gens = sort_gens
         self.model_regions_gdf = load_ipm_shapefile(self.settings)
         self.weighted_unit_hr = None
+        self.supplement_with_860m = supplement_with_860m
 
         if self.current_gens:
             self.data_years = self.settings["data_years"]
@@ -2616,32 +2643,33 @@ class GeneratorClusters:
             f"Units model technologies are "
             f"{self.units_model.technology_description.unique().tolist()}"
         )
-        logger.info(
-            f"Before adding proposed generators, {len(self.units_model)} units with "
-            f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
-        )
-        self.proposed_gens = import_proposed_generators(
-            planned=self.planned_860m,
-            settings=self.settings,
-            model_regions_gdf=self.model_regions_gdf,
-        )
-        self.new_860m_gens = import_new_generators(
-            operating_860m=self.operating_860m,
-            gens_860=self.gens_860_model,
-            settings=self.settings,
-            model_regions_gdf=self.model_regions_gdf,
-        )
-        # embed()
-        logger.info(
-            f"Proposed gen technologies are "
-            f"{self.proposed_gens.technology_description.unique().tolist()}"
-        )
-        logger.info(
-            f"{self.proposed_gens[self.settings['capacity_col']].sum()} MW proposed"
-        )
-        self.units_model = pd.concat(
-            [self.proposed_gens, self.units_model, self.new_860m_gens], sort=False
-        )
+        if self.supplement_with_860m:
+            logger.info(
+                f"Before adding proposed generators, {len(self.units_model)} units with "
+                f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
+            )
+            self.proposed_gens = import_proposed_generators(
+                planned=self.planned_860m,
+                settings=self.settings,
+                model_regions_gdf=self.model_regions_gdf,
+            )
+            self.new_860m_gens = import_new_generators(
+                operating_860m=self.operating_860m,
+                gens_860=self.gens_860_model,
+                settings=self.settings,
+                model_regions_gdf=self.model_regions_gdf,
+            )
+            # embed()
+            logger.info(
+                f"Proposed gen technologies are "
+                f"{self.proposed_gens.technology_description.unique().tolist()}"
+            )
+            logger.info(
+                f"{self.proposed_gens[self.settings['capacity_col']].sum()} MW proposed"
+            )
+            self.units_model = pd.concat(
+                [self.proposed_gens, self.units_model, self.new_860m_gens], sort=False
+            )
 
         # Create a pudl unit id based on plant and generator id where one doesn't exist.
         # This is used later to match the cluster numbers to plants
@@ -2924,7 +2952,10 @@ class GeneratorClusters:
                 # EIA technology not supported
                 continue
             params.update({"existing": True})
-            groups = CLUSTER_BUILDER.find_groups(**params)
+            cluster_builder = build_resource_clusters(
+                self.settings.get("RESOURCE_GROUPS")
+            )
+            groups = cluster_builder.find_groups(**params)
             if not groups:
                 # No matching resource groups
                 continue
@@ -3022,7 +3053,7 @@ class GeneratorClusters:
         self.all_resources = self.all_resources.reset_index(drop=True)
         self.all_resources["variable_CF"] = 0.0
         for i, p in enumerate(self.all_resources["profile"]):
-            if isinstance(p, (collections.Sequence, np.ndarray)):
+            if isinstance(p, (collections.abc.Sequence, np.ndarray)):
                 self.all_resources.loc[i, "variable_CF"] = np.mean(p)
 
         # Set Min_Power of wind/solar to 0
