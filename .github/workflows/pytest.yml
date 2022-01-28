@@ -43,6 +43,9 @@ jobs:
       env:
         EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
       run: |
+        echo "RESOURCE_GROUPS=./tests/data/resource_groups_base" >> $GITHUB_ENV
+        echo "PUDL_DB=sqlite://///tests/data/pudl_test_data.db" >> $GITHUB_ENV
+        echo "PG_DB=sqlite://///tests/data/pg_misc_tables.sqlite3" >> $GITHUB_ENV
         pip install pytest-cov
         pytest --cov=powergenome tests/ --cov-report=xml
     - name: Upload test coverage report to CodeCov
