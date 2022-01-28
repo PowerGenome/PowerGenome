@@ -1633,9 +1633,11 @@ def import_new_generators(
         new_operating.loc[new_operating["technology_description"].isnull(), :].empty
         is False
     ):
-        plant_ids = new_operating.loc[
-            new_operating["technology_description"].isnull(), "plant_id_eia"
-        ].to_list()
+        plant_ids = list(
+            new_operating.loc[new_operating["technology_description"].isnull(), :]
+            .index.get_level_values("plant_id_eia")
+            .to_numpy()
+        )
         plant_capacity = new_operating.loc[
             new_operating["technology_description"].isnull(), settings["capacity_col"]
         ].sum()
@@ -1767,9 +1769,11 @@ def import_proposed_generators(
         planned_gdf.loc[planned_gdf["technology_description"].isnull(), :].empty
         is False
     ):
-        plant_ids = planned_gdf.loc[
-            planned_gdf["technology_description"].isnull(), "plant_id_eia"
-        ].to_list()
+        plant_ids = list(
+            planned_gdf.loc[planned_gdf["technology_description"].isnull(), :]
+            .index.get_level_values("plant_id_eia")
+            .to_numpy()
+        )
         plant_capacity = planned_gdf.loc[
             planned_gdf["technology_description"].isnull(), settings["capacity_col"]
         ].sum()
