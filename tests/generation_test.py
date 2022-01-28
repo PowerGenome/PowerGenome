@@ -328,6 +328,12 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
         time_series_mapping,
     ) = reduce_time_domain(gen_variability, load, gc.settings)
 
+    gc.settings["distributed_gen_method"]["CA_N"] = "fraction_load"
+    gc.settings["distributed_gen_values"][2030]["CA_N"] = 0.1
+    gc.settings["regional_load_fn"] = "test_regional_load_profiles.csv"
+    gc.settings["regional_load_includes_demand_response"] = False
+    make_final_load_curves(pg_engine=pg_engine, settings=gc.settings)
+
     model_regions_gdf = gc.model_regions_gdf
     transmission = (
         agg_transmission_constraints(pg_engine=pg_engine, settings=gc.settings)
