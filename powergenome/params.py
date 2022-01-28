@@ -52,11 +52,3 @@ def build_resource_clusters(group_path: Union[str, Path] = None):
             Path(group_path, ".").glob("**/*.json")
         )
     return cluster_builder
-
-
-# if not SETTINGS["RESOURCE_GROUPS"]:
-#     CLUSTER_BUILDER = ClusterBuilder([])
-# else:
-#     CLUSTER_BUILDER = ClusterBuilder.from_json(
-#         Path(SETTINGS.get("RESOURCE_GROUPS"), ".").glob("**/*.json")
-#     )
