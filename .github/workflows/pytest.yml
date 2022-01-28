@@ -39,17 +39,20 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Make envfile
-      uses: SpicyPizza/create-envfile@v1
-      with:
-        RESOURCE_GROUPS: tests/data/resource_groups_base
-        PUDL_DB: sqlite://///tests/data/pudl_test_data.db
-        PG_DB: sqlite://///tests/data/pg_misc_tables.sqlite3
-        directory: powergenome
-        file_name: .env
+    # - name: Make envfile
+    #   uses: SpicyPizza/create-envfile@v1
+    #   with:
+    #     RESOURCE_GROUPS: tests/data/resource_groups_base
+    #     PUDL_DB: sqlite://///tests/data/pudl_test_data.db
+    #     PG_DB: sqlite://///tests/data/pg_misc_tables.sqlite3
+    #     directory: powergenome
+    #     file_name: .env
     - name: Test with pytest
       env:
         EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        RESOURCE_GROUPS: tests/data/resource_groups_base
+        PUDL_DB: sqlite://///tests/data/pudl_test_data.db
+        PG_DB: sqlite://///tests/data/pg_misc_tables.sqlite3
       run: |
         pip install pytest-cov
         pytest --cov=powergenome tests/ --cov-report=xml
