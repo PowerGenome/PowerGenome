@@ -2309,6 +2309,7 @@ class GeneratorClusters:
         pg_engine,
         settings,
         current_gens=True,
+        supplement_with_860m=True,
         sort_gens=False,
         plant_region_map_table="plant_region_map_epaipm",
         settings_agg_key="region_aggregations",
@@ -2332,6 +2333,7 @@ class GeneratorClusters:
         self.sort_gens = sort_gens
         self.model_regions_gdf = load_ipm_shapefile(self.settings)
         self.weighted_unit_hr = None
+        self.supplement_with_860m = supplement_with_860m
 
         if self.current_gens:
             self.data_years = self.settings["data_years"]
@@ -2612,32 +2614,33 @@ class GeneratorClusters:
             f"Units model technologies are "
             f"{self.units_model.technology_description.unique().tolist()}"
         )
-        logger.info(
-            f"Before adding proposed generators, {len(self.units_model)} units with "
-            f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
-        )
-        self.proposed_gens = import_proposed_generators(
-            planned=self.planned_860m,
-            settings=self.settings,
-            model_regions_gdf=self.model_regions_gdf,
-        )
-        self.new_860m_gens = import_new_generators(
-            operating_860m=self.operating_860m,
-            gens_860=self.gens_860_model,
-            settings=self.settings,
-            model_regions_gdf=self.model_regions_gdf,
-        )
-        # embed()
-        logger.info(
-            f"Proposed gen technologies are "
-            f"{self.proposed_gens.technology_description.unique().tolist()}"
-        )
-        logger.info(
-            f"{self.proposed_gens[self.settings['capacity_col']].sum()} MW proposed"
-        )
-        self.units_model = pd.concat(
-            [self.proposed_gens, self.units_model, self.new_860m_gens], sort=False
-        )
+        if self.supplement_with_860m:
+            logger.info(
+                f"Before adding proposed generators, {len(self.units_model)} units with "
+                f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
+            )
+            self.proposed_gens = import_proposed_generators(
+                planned=self.planned_860m,
+                settings=self.settings,
+                model_regions_gdf=self.model_regions_gdf,
+            )
+            self.new_860m_gens = import_new_generators(
+                operating_860m=self.operating_860m,
+                gens_860=self.gens_860_model,
+                settings=self.settings,
+                model_regions_gdf=self.model_regions_gdf,
+            )
+            # embed()
+            logger.info(
+                f"Proposed gen technologies are "
+                f"{self.proposed_gens.technology_description.unique().tolist()}"
+            )
+            logger.info(
+                f"{self.proposed_gens[self.settings['capacity_col']].sum()} MW proposed"
+            )
+            self.units_model = pd.concat(
+                [self.proposed_gens, self.units_model, self.new_860m_gens], sort=False
+            )
 
         # Create a pudl unit id based on plant and generator id where one doesn't exist.
         # This is used later to match the cluster numbers to plants
