@@ -62,10 +62,9 @@ def create_testing_db():
 
     plant_region = pd.read_sql_table("plant_region_map_epaipm", pg_engine)
     # gens_860 = pudl_out.gens_eia860()
-    gens_860 = pd.read_sql_table(
-        "generators_eia860", pudl_engine, parse_dates="report_date"
-    )
-    gens_860 = gens_860.loc[gens_860.report_date.dt.year == 2020, :]
+    s = "SELECT * from generators_eia860 where strftime('%Y',report_date)='2020'"
+    gens_860 = pd.read_sql_query(s, pudl_engine, parse_dates=["report_date"])
+    # gens_860 = gens_860.loc[gens_860.report_date.dt.year == 2020, :]
     gens_860 = pd.merge(gens_860, plant_region, on="plant_id_eia", how="inner")
     gens_860 = gens_860.loc[:, GENS860_COLS]
     gens_860 = gens_860.groupby(
@@ -84,27 +83,31 @@ def create_testing_db():
         (bga.report_date.dt.year == 2020) & (bga.plant_id_eia.isin(eia_plant_ids)), :
     ]
 
-    gen_fuel = pd.read_sql_table("generation_fuel_eia923", pudl_engine)
+    s = "SELECT * from generation_fuel_eia923 where strftime('%Y',report_date)='2020'"
+    gen_fuel = pd.read_sql_query(s, pudl_engine, parse_dates=["report_date"])
     gen_fuel = gen_fuel.loc[
-        (gen_fuel.report_date.dt.year == 2020)
-        & (gen_fuel.plant_id_eia.isin(eia_plant_ids)),
+        gen_fuel.plant_id_eia.isin(eia_plant_ids),
         GEN_FUEL_COLS,
     ]
-    gen_923 = pd.read_sql_table(
-        "generation_eia923", pudl_engine, parse_dates=["report_date"]
-    )
+    s = "SELECT * from generation_fuel_nuclear_eia923 where strftime('%Y',report_date)='2020'"
+    gen_fuel_nuc = pd.read_sql_query(s, pudl_engine, parse_dates=["report_date"])
+    gen_fuel_nuc = gen_fuel_nuc.loc[
+        gen_fuel_nuc.plant_id_eia.isin(eia_plant_ids),
+        GEN_FUEL_COLS,
+    ]
+    # gen_fuel = pd.concat([gen_fuel, gen_fuel_nuc], ignore_index=True)
+
+    s = "SELECT * from generation_eia923 where strftime('%Y',report_date)='2020'"
+    gen_923 = pd.read_sql_query(s, pudl_engine, parse_dates=["report_date"])
     gen_923 = gen_923.loc[
-        (gen_923.report_date.dt.year == 2020)
-        & (gen_923.plant_id_eia.isin(eia_plant_ids)),
+        gen_923.plant_id_eia.isin(eia_plant_ids),
         :,
     ]
 
-    boiler_fuel = pd.read_sql_table(
-        "boiler_fuel_eia923", pudl_engine, parse_dates="report_date"
-    )
+    s = "SELECT * from boiler_fuel_eia923 where strftime('%Y',report_date)='2020'"
+    boiler_fuel = pd.read_sql_query(s, pudl_engine, parse_dates=["report_date"])
     boiler_fuel = boiler_fuel.loc[
-        (boiler_fuel.report_date.dt.year == 2020)
-        & (boiler_fuel.plant_id_eia.isin(eia_plant_ids)),
+        boiler_fuel.plant_id_eia.isin(eia_plant_ids),
         :,
     ]
 
@@ -136,6 +139,12 @@ def create_testing_db():
     )
     gen_fuel.to_sql(
         "generation_fuel_eia923", pudl_test_conn, index=False, if_exists="replace"
+    )
+    gen_fuel_nuc.to_sql(
+        "generation_fuel_nuclear_eia923",
+        pudl_test_conn,
+        index=False,
+        if_exists="replace",
     )
     gen_923.to_sql(
         "generation_eia923", pudl_test_conn, index=False, if_exists="replace"
