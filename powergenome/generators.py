@@ -651,15 +651,18 @@ def load_generator_860_data(pudl_engine, data_years=[2017]):
     dataframe
         All of the generating units from PUDL
     """
-
-    sql = """
+    data_years = [str(y) for y in data_years]
+    sql = f"""
         SELECT * FROM generators_eia860
         WHERE operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
+        AND strftime('%Y',report_date) in ({','.join(['?']*len(data_years))})
     """
     gens_860 = pd.read_sql_query(
-        sql=sql, con=pudl_engine, parse_dates=["planned_retirement_date", "report_date"]
+        sql=sql,
+        con=pudl_engine,
+        params=data_years,
+        parse_dates=["report_date", "planned_retirement_date"],
     )
-    gens_860 = gens_860.loc[gens_860["report_date"].dt.year.isin(data_years), :]
 
     return gens_860
 
@@ -949,18 +952,41 @@ def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[
        'fuel_consumed_for_electricity_mmbtu', 'net_generation_mwh',
        'heat_rate_mmbtu_mwh']
     """
+    if isinstance(data_years, (int, float)):
+        data_years = [str(data_years)]
+    data_years = [str(y) for y in data_years]
 
     # Load 923 generation and fuel data for one or more years.
     # Only load plants in the model regions.
-    sql = """
+    sql = f"""
         SELECT * FROM generation_fuel_eia923
+        WHERE strftime('%Y',report_date) in ({','.join(['?']*len(data_years))})
     """
-    gen_fuel_923 = pd.read_sql_query(sql, pudl_engine, parse_dates=["report_date"])
+    gen_fuel_923 = pd.read_sql_query(
+        sql, pudl_engine, params=data_years, parse_dates=["report_date"]
+    )
     gen_fuel_923 = gen_fuel_923.loc[
-        (gen_fuel_923["report_date"].dt.year.isin(data_years))
-        & (gen_fuel_923["plant_id_eia"].isin(model_region_map.plant_id_eia)),
+        gen_fuel_923["plant_id_eia"].isin(model_region_map.plant_id_eia),
         :,
     ]
+
+    insp = sqlalchemy.inspect(pudl_engine)
+    if insp.has_table("generation_fuel_nuclear_eia923"):
+        sql = f"""
+            SELECT * FROM generation_fuel_nuclear_eia923
+            WHERE strftime('%Y',report_date) in ({','.join(['?']*len(data_years))})
+        """
+        gen_fuel_nuclear_923 = pd.read_sql_query(
+            sql, pudl_engine, params=data_years, parse_dates=["report_date"]
+        )
+        gen_fuel_nuclear_923 = gen_fuel_nuclear_923.loc[
+            gen_fuel_nuclear_923["plant_id_eia"].isin(model_region_map.plant_id_eia),
+            :,
+        ]
+
+        gen_fuel_923 = pd.concat(
+            [gen_fuel_923, gen_fuel_nuclear_923], ignore_index=True
+        )
 
     return gen_fuel_923
 
@@ -1839,11 +1865,11 @@ def gentype_region_capacity_factor(
     DataFrame
         A dataframe with the capacity factor of every selected technology
     """
-
+    data_years = [str(y) for y in settings["data_years"]]
     cap_col = settings["capacity_col"]
 
     # Include standby (SB) generators since they are in our capacity totals
-    sql = """
+    sql = f"""
         SELECT
             G.report_date,
             G.plant_id_eia,
@@ -1856,6 +1882,7 @@ def gentype_region_capacity_factor(
         FROM
             generators_eia860 G
         WHERE operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
+        AND strftime('%Y',report_date) in ({','.join(['?']*len(data_years))})
         GROUP BY
             G.report_date,
             G.plant_id_eia,
@@ -1866,7 +1893,7 @@ def gentype_region_capacity_factor(
     """
 
     plant_gen_tech_cap = pd.read_sql_query(
-        sql, pudl_engine, parse_dates=["report_date"]
+        sql, pudl_engine, params=data_years, parse_dates=["report_date"]
     )
     plant_gen_tech_cap = plant_gen_tech_cap.loc[
         plant_gen_tech_cap["plant_id_eia"].isin(plant_region_map["plant_id_eia"]), :
@@ -2312,12 +2339,14 @@ def load_plants_860(
     pd.DataFrame
         Includes all columns from the database table
     """
-
-    plants = pd.read_sql_table(
-        "plants_eia860", pudl_engine, parse_dates=["report_date"]
+    data_years = [str(y) for y in data_years]
+    s = f"""
+    SELECT * from plants_eia860
+    WHERE strftime('%Y',report_date) in ({','.join(['?']*len(data_years))})
+    """
+    plants = pd.read_sql_query(
+        s, pudl_engine, params=data_years, parse_dates=["report_date"]
     )
-
-    plants = plants.loc[plants["report_date"].dt.year.isin(data_years), :]
 
     return plants
 
