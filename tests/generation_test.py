@@ -309,6 +309,8 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
     )
     all_gens = gc.create_all_generators()
     gen_variability = make_generator_variability(all_gens)
+    assert (gen_variability >= 0).all().all()
+
     fuels = fuel_cost_table(
         fuel_costs=gc.fuel_prices,
         generators=gc.all_resources,
@@ -359,3 +361,128 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
     min_cap = min_cap_req(gc.settings)
 
     cap_res = create_regional_cap_res(gc.settings)
+
+
+def test_existing_gen_profiles():
+    ipm_regions = pd.read_sql_table("regions_entity_epaipm", pg_engine)
+    regions = [r for r in ipm_regions.region_id_epaipm.to_list() if "CN_" not in r]
+
+    s = """
+    SELECT DISTINCT technology_description
+    FROM generators_eia860
+    """
+    technologies = (
+        pd.read_sql_query(s, pudl_engine).dropna()["technology_description"].to_list()
+    )
+    technologies.remove("Natural Gas with Compressed Air Storage")
+    settings = dict(
+        RESOURCE_GROUPS=DATA_PATHS["test_data"] / "resource_groups_base",
+        target_usd_year=2019,
+        model_year=2030,
+        model_first_planning_year=2022,
+        model_regions=regions,
+        data_years=[2020],
+        capacity_col="capacity_mw",
+        num_clusters={tech: 2 for tech in technologies},
+        retirement_ages={tech: 200 for tech in technologies},
+        atb_data_year=2021,
+        atb_existing_year=2019,
+        eia_aeo_year=2020,
+        aeo_fuel_usd_year=2019,
+        eia_series_region_names={
+            "mountain": "MTN",
+            "pacific": "PCF",
+            "west_south_central": "WSC",
+            "east_south_central": "ESC",
+            "south_atlantic": "SOATL",
+            "west_north_central": "WNC",
+            "east_north_central": "ENC",
+            "middle_atlantic": "MDATL",
+            "new_england": "NEENGL",
+        },
+        eia_series_fuel_names={
+            "coal": "STC",
+            "naturalgas": "NG",
+            "distillate": "DFO",
+            "uranium": "U",
+        },
+        eia_series_scenario_names={
+            "reference": "REF2020",
+        },
+        aeo_fuel_scenarios={
+            "coal": "reference",
+            "naturalgas": "reference",
+            "distillate": "reference",
+            "uranium": "reference",
+        },
+        eia_atb_tech_map={
+            "Battery": "Battery_*",
+            "Batteries": "Battery_*",
+            "Biomass": "Biopower_Dedicated",
+            "Solar Thermal without Energy Storage": "CSP_Class1",
+            "Conventional Steam Coal": "Coal_newAvgCF",
+            "Coal Integrated Gasification Combined Cycle": "NaturalGas_CCAvgCF",
+            "Natural Gas Fired Combined Cycle": "NaturalGas_CCAvgCF",  # [NaturalGas_CCAvgCF, NETL_NGCC]
+            "Natural Gas Fired Combustion Turbine": "NaturalGas_CTAvgCF",
+            "Peaker": "NaturalGas_CTAvgCF",
+            "Natural Gas Internal Combustion Engine": "NaturalGas_CTAvgCF",
+            "Landfill Gas": "NaturalGas_CTAvgCF",
+            "Petroleum Liquids": "NaturalGas_CTAvgCF",
+            "Municipal Solid Waste": "Biopower_Dedicated",
+            "Other Waste Biomass": "Biopower_Dedicated",
+            "Wood/Wood Waste Biomass": "Biopower_Dedicated",
+            "Solar Photovoltaic": "UtilityPV_Class1",
+            "Geothermal": "Geothermal_HydroFlash",  # assume installed capacity is dominated by flash
+            "Conventional Hydroelectric": "Hydropower_NSD4",  # Large variability based on choice
+            "Hydroelectric Pumped Storage": "Hydropower_NSD4",  # Large variability based on choice
+            "Small Hydroelectric": "Hydropower_NSD3",  # Large variability based on choice
+            "Onshore Wind Turbine": "LandbasedWind_Class4",  # All onshore wind is the same
+            "Offshore Wind Turbine": "OffShoreWind_Class10",  # Mid-range of floating offshore wind
+            "Nuclear": "Nuclear_Nuclear",
+            "Natural Gas Steam Turbine": "Coal_newAvgCF",  # No gas steam turbines in ATB, using coal instead
+            "Solar Thermal with Energy Storage": "CSP_Class1",
+            "Solar Thermal without Energy Storage": "CSP_Class1",
+            "Other Gases": "NaturalGas_CTAvgCF",
+            "Other Natural Gas": "NaturalGas_CTAvgCF",
+            "Petroleum Coke": "Coal_newAvgCF",
+            "All Other": "NaturalGas_CTAvgCF",
+            "Flywheels": "Battery_*",
+            "Natural Gas with Compressed Air Storage": "NaturalGas_CTAvgCF",
+        },
+        startup_vom_costs_mw={
+            "coal_small_sub": 2.81,
+            "coal_large_sub": 2.69,
+            "coal_supercritical": 2.98,
+            "gas_cc": 1.03,
+            "gas_large_ct": 0.77,
+            "gas_aero_ct": 0.70,
+            "gas_steam": 1.03,
+            "nuclear": 5.4,
+        },
+        startup_vom_costs_usd_year=2011,
+        startup_costs_type="startup_costs_per_cold_start_mw",
+        startup_costs_per_cold_start_usd_year=2011,
+        startup_costs_per_cold_start_mw={
+            "coal_small_sub": 147,
+            "coal_large_sub": 105,
+            "coal_supercritical": 104,
+            "gas_cc": 79,
+            "gas_large_ct": 103,
+            "gas_aero_ct": 32,
+            "gas_steam": 75,
+            "nuclear": 210,
+        },
+        existing_startup_costs_tech_map={
+            "Conventional Steam Coal": "coal_large_sub",
+            "Natural Gas Fired Combined Cycle": "gas_cc",
+            "Natural Gas Fired Combustion Turbine": "gas_large_ct",
+            "Natural Gas Steam Turbine": "gas_steam",
+            "Nuclear": "nuclear",
+        },
+    )
+    gc = GeneratorClusters(
+        pudl_engine, pudl_out, pg_engine, settings, supplement_with_860m=False
+    )
+    existing_gen = gc.create_region_technology_clusters()
+    gen_variability = make_generator_variability(existing_gen)
+    assert (gen_variability >= 0.01).all().all()
