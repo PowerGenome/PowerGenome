@@ -259,14 +259,16 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
     df["Start_Cost_per_MW"] = 0
 
-    for existing_tech, cost_tech in settings["existing_startup_costs_tech_map"].items():
+    for existing_tech, cost_tech in settings.get(
+        "existing_startup_costs_tech_map", {}
+    ).items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[
             df["technology"].str.contains(existing_tech, case=False),
             "Start_Cost_per_MW",
         ] = total_startup_costs
 
-    for new_tech, cost_tech in settings["new_build_startup_costs"].items():
+    for new_tech, cost_tech in settings.get("new_build_startup_costs", {}).items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[
             df["technology"].str.contains(new_tech), "Start_Cost_per_MW"
@@ -1037,11 +1039,13 @@ def group_gen_by_year_fuel_primemover(df):
             df.groupby(  # .drop(columns=["id", "nuclear_unit_id"])
                 by=by, as_index=False
             )[
-                "fuel_consumed_units",
-                "fuel_consumed_for_electricity_units",
-                "fuel_consumed_mmbtu",
-                "fuel_consumed_for_electricity_mmbtu",
-                "net_generation_mwh",
+                [
+                    "fuel_consumed_units",
+                    "fuel_consumed_for_electricity_units",
+                    "fuel_consumed_mmbtu",
+                    "fuel_consumed_for_electricity_mmbtu",
+                    "net_generation_mwh",
+                ]
             ].sum()
         )
         .reset_index()
@@ -2856,7 +2860,7 @@ class GeneratorClusters:
         )
 
         # Calculate average capacity factors
-        if type(self.settings["capacity_factor_techs"]) is list:
+        if type(self.settings.get("capacity_factor_techs")) is list:
             self.capacity_factors = gentype_region_capacity_factor(
                 self.pudl_engine, self.plant_region_map, self.settings
             )
@@ -2889,9 +2893,10 @@ class GeneratorClusters:
         self.results = self.results.round(3)
         self.results["Cap_size"] = self.results["Cap_size"]
         self.results["Existing_Cap_MW"] = self.results.Cap_size * self.results.num_units
-        self.results["unmodified_existing_cap_mw"] = (
-            self.results["unmodified_cap_size"] * self.results["num_units"]
-        )
+        if self.settings.get("derate_capacity"):
+            self.results["unmodified_existing_cap_mw"] = (
+                self.results["unmodified_cap_size"] * self.results["num_units"]
+            )
         if self.settings.get("energy_storage_duration"):
             self.results = energy_storage_mwh(
                 self.results,
