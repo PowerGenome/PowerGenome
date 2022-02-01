@@ -311,6 +311,14 @@ def fetch_atb_heat_rates(
     """
 
     heat_rates = pd.read_sql_table("technology_heat_rates_nrelatb", pg_engine)
+    if settings["atb_data_year"] not in heat_rates["atb_year"].unique():
+        max_atb_year = heat_rates["atb_year"].max()
+        logger.warning(
+            f"Your settings file has parameter `atb_year` of {settings['atb_data_year']}"
+            ", which isn't in the table `technology_heat_rates_nrelatb`. Using "
+            f"{max_atb_year} instead."
+        )
+        settings["atb_data_year"] = max_atb_year
     heat_rates = heat_rates.loc[heat_rates["atb_year"] == settings["atb_data_year"], :]
 
     return heat_rates
@@ -370,7 +378,7 @@ def atb_fixed_var_om_existing(
         try:
             atb_tech, tech_detail = techs[eia_tech]
         except KeyError:
-            if eia_tech in settings["tech_groups"]:
+            if eia_tech in settings.get("tech_groups", {}) or {}:
                 raise KeyError(
                     f"{eia_tech} is defined in 'tech_groups' but doesn't have a "
                     "corresponding ATB technology in 'eia_atb_tech_map'"
@@ -393,9 +401,9 @@ def atb_fixed_var_om_existing(
             )
         except (ValueError, TypeError):
             # Not all technologies have a heat rate. If they don't, just set both values
-            # to 1
-            existing_hr = 1
-            new_build_hr = 1
+            # to 10.34 (33% efficiency)
+            existing_hr = 10.34
+            new_build_hr = 10.34
         try:
             s = f"""
                 select parameter_value
@@ -691,6 +699,19 @@ def atb_fixed_var_om_existing(
         df_list.append(_df)
 
     mod_results = pd.concat(df_list, ignore_index=True)
+
+    # Fill na FOM values, first by technology and then across all techs
+    if not mod_results.loc[mod_results["Fixed_OM_Cost_per_MWyr"].isna()].empty:
+        df_list = []
+        for tech, _df in mod_results.groupby("technology"):
+            _df.loc[
+                _df["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
+            ] = _df["Fixed_OM_Cost_per_MWyr"].mean()
+            df_list.append(_df)
+        mod_results = pd.concat(df_list, ignore_index=True)
+        mod_results.loc[
+            mod_results["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
+        ] = mod_results["Fixed_OM_Cost_per_MWyr"].mean()
     # mod_results = mod_results.sort_values(["model_region", "technology", "cluster"])
     mod_results.loc[:, "Fixed_OM_Cost_per_MWyr"] = mod_results.loc[
         :, "Fixed_OM_Cost_per_MWyr"
