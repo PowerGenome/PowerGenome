@@ -354,7 +354,7 @@ def reduce_time_domain(
         include_peak_day = settings["include_peak_day"]
         load_weight = settings["demand_weight_factor"]
 
-        results, _, _ = kmeans_time_clustering(
+        results, representative_point, _ = kmeans_time_clustering(
             resource_profiles=resource_profiles,
             load_profiles=load_profiles,
             days_in_group=days,
@@ -389,7 +389,7 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return reduced_resource_profile, reduced_load_output, time_series_mapping
+        return reduced_resource_profile, reduced_load_output, time_series_mapping, representative_point
 
     else:
         time_index = pd.Series(data=range(1, 8761), name="Time_Index")

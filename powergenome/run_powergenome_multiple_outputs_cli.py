@@ -335,6 +335,7 @@ def main():
                     reduced_resource_profile,
                     reduced_load_profile,
                     time_series_mapping,
+                    representative_point,
                 ) = reduce_time_domain(gen_variability, load, _settings)
                 reduced_resource_profile.index.name = "Time_Index"
                 write_results_file(
@@ -355,6 +356,13 @@ def main():
                         df=time_series_mapping,
                         folder=case_folder,
                         file_name="Period_map.csv",
+                        include_index=False,
+                    )
+                if representative_point is not None:
+                    write_results_file(
+                        df=representative_point,
+                        folder=case_folder,
+                        file_name="Representative_Period.csv",
                         include_index=False,
                     )
 
