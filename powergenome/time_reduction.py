@@ -325,6 +325,7 @@ def kmeans_time_clustering(
             pass
     resource_df = resource_df.fillna(value=1)
 
+
     # load_df["Sub_Weights"] = np.nan
     # load_df.loc[: len(EachClusterWeight) - 1, "Sub_Weights"] = (
     #     np.array(EachClusterWeight) * NumGrpDays * 24
@@ -336,7 +337,7 @@ def kmeans_time_clustering(
     # renewable_df = renewable_df.drop(columns=["GrpWeight"])
     # renewable_df.insert(loc=0, column="Resource", value=renewable_df.index + 1)
     # renewable_df.to_csv("renewables_time_reduced.csv", index=False)
-
+    EachClusterRepPoint = pd.DataFrame(EachClusterRepPoint, columns=['slot'])
     return (
         {
             "load_profiles": load_df,  # Scaled Output Load and Renewables profiles for the sampled representative groupings

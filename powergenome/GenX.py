@@ -354,7 +354,7 @@ def reduce_time_domain(
         include_peak_day = settings["include_peak_day"]
         load_weight = settings["demand_weight_factor"]
 
-        results, _, _ = kmeans_time_clustering(
+        results, representative_point, _ = kmeans_time_clustering(
             resource_profiles=resource_profiles,
             load_profiles=load_profiles,
             days_in_group=days,
@@ -389,7 +389,12 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return reduced_resource_profile, reduced_load_output, time_series_mapping
+        return (
+            reduced_resource_profile,
+            reduced_load_output,
+            time_series_mapping,
+            representative_point,
+        )
 
     else:
         time_index = pd.Series(data=range(1, 8761), name="Time_Index")
@@ -410,7 +415,7 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return resource_profiles, load_output, None
+        return resource_profiles, load_output, None, None
 
 
 def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFrame:
@@ -857,5 +862,65 @@ def min_cap_req(settings: dict) -> pd.DataFrame:
 
     if not min_cap_df.empty:
         return min_cap_df
+    else:
+        return None
+
+
+def max_cap_req(settings: dict) -> pd.DataFrame:
+    """Create a dataframe of maximum capacity requirements for GenX
+
+    Parameters
+    ----------
+    settings : dict
+        Dictionary with user settings. Should include the key `MinCapReg` with nested
+        keys of `MaxCapTag_*`, then further nested keys `description` and `min_mw`. The
+        `MaxCapTag_*` should also be listed as values under `model_tag_names`. Any
+        technologies eligible for each of the `MaxCapTag_*` should have `model_tag_values`
+        of 1.
+
+    Returns
+    -------
+    pd.DataFrame
+        A dataframe with maximum capacity constraints formatted for GenX. If `MaxCapReq`
+        is not included in the settings dictionary it will return None.
+
+    Raises
+    ------
+    KeyError
+        If a `MaxCapTag_*` is included under `MaxCapReq` but not included in `model_tag_names`
+        the function will raise an error.
+    """
+
+    c_num = []
+    description = []
+    max_mw = []
+
+    # if settings.get("MaxCapReq"):
+    for cap_tag, values in settings.get("MaxCapReq", {}).items():
+        if cap_tag not in settings.get("model_tag_names", []):
+            raise KeyError(
+                f"The maximum capacity tag {cap_tag} is listed in the settings "
+                "'MaxCapReq' but not under 'model_tag_names'. You must add it to "
+                "'model_tag_names' for the column to appear in Generators_data.csv."
+            )
+
+        # It's easy to forget to add all the necessary column names to the
+        # generators_columns list in settings.
+        if cap_tag not in settings.get("generator_columns", []) and isinstance(
+            settings.get("generator_columns"), list
+        ):
+            settings["generator_columns"].append(cap_tag)
+
+        c_num.append(cap_tag.split("_")[1])
+        description.append(values.get("description"))
+        max_mw.append(values.get("max_mw"))
+
+    max_cap_df = pd.DataFrame()
+    max_cap_df["MaxCapReqConstraint"] = c_num
+    max_cap_df["Constraint_Description"] = description
+    max_cap_df["Max_MW"] = max_mw
+
+    if not max_cap_df.empty:
+        return max_cap_df
     else:
         return None
