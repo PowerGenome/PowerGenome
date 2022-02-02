@@ -7,6 +7,7 @@ from powergenome.GenX import (
     add_cap_res_network,
     create_policy_req,
     create_regional_cap_res,
+    max_cap_req,
     min_cap_req,
     network_line_loss,
     network_max_reinforcement,
@@ -496,3 +497,25 @@ def test_existing_gen_profiles():
     existing_gen = gc.create_region_technology_clusters()
     gen_variability = make_generator_variability(existing_gen)
     assert (gen_variability >= -0.01).all().all()
+
+
+def test_cap_req():
+    settings = {
+        "model_tag_names": ["MinCapTag_1", "MinCapTag_2", "MaxCapTag_1", "MaxCapTag_2"],
+        "MinCapReq": {
+            "MinCapTag_1": {"description": "Landbasedwind", "min_mw": 8000},
+            "MinCapTag_2": {"description": "CA_S_solar", "min_mw": 10000},
+        },
+        "MaxCapReq": {
+            "MaxCapTag_1": {"description": "Landbasedwind", "max_mw": 8000},
+            "MaxCapTag_2": {"description": "CA_S_solar", "max_mw": 10000},
+        },
+        "generator_columns": [],
+    }
+
+    max_cap = max_cap_req(settings)
+    min_cap = min_cap_req(settings)
+
+    assert set(settings["generator_columns"]) == set(settings["model_tag_names"])
+    assert min_cap.isna().any().all() == False
+    assert max_cap.isna().any().all() == False
