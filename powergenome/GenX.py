@@ -389,7 +389,12 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return reduced_resource_profile, reduced_load_output, time_series_mapping, representative_point
+        return (
+            reduced_resource_profile,
+            reduced_load_output,
+            time_series_mapping,
+            representative_point,
+        )
 
     else:
         time_index = pd.Series(data=range(1, 8761), name="Time_Index")
@@ -410,7 +415,7 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return resource_profiles, load_output, None
+        return resource_profiles, load_output, None, None
 
 
 def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFrame:

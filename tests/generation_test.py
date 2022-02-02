@@ -330,6 +330,7 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
         reduced_resource_profile,
         reduced_load_profile,
         time_series_mapping,
+        representative_point,
     ) = reduce_time_domain(gen_variability, load, gc.settings)
 
     gc.settings["distributed_gen_method"]["CA_N"] = "fraction_load"
