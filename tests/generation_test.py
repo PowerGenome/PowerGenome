@@ -332,6 +332,15 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
         time_series_mapping,
         representative_point,
     ) = reduce_time_domain(gen_variability, load, gc.settings)
+    if gc.settings["reduce_time_domain"]:
+        assert len(representative_point) == gc.settings["time_domain_periods"]
+        assert (
+            time_series_mapping["Rep_Period"].nunique()
+            == gc.settings["time_domain_periods"]
+        )
+        assert representative_point.isna().any().all() == False
+        assert time_series_mapping.isna().any().all() == False
+    assert len(reduced_load_profile) == len(reduced_resource_profile)
 
     gc.settings["distributed_gen_method"]["CA_N"] = "fraction_load"
     gc.settings["distributed_gen_values"][2030]["CA_N"] = 0.1
