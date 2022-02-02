@@ -38,14 +38,28 @@ NREL_ATB_TECHNOLOGY_MAP = {
             "technology": "offshorewind",
             "turbine_type": "fixed",
         }
-        for x in range(1, 6)
+        for x in range(1, 8)
+    },
+    **{
+        ("offshorewind", f"class{x}"): {
+            "technology": "offshorewind",
+            "turbine_type": "fixed",
+        }
+        for x in range(1, 8)
     },
     **{
         ("offshorewind", f"otrg{x}"): {
             "technology": "offshorewind",
             "turbine_type": "floating",
         }
-        for x in range(6, 16)
+        for x in range(8, 16)
+    },
+    **{
+        ("offshorewind", f"class{x}"): {
+            "technology": "offshorewind",
+            "turbine_type": "floating",
+        }
+        for x in range(8, 16)
     },
 }
 EIA_TECHNOLOGY_MAP = {
