@@ -107,7 +107,7 @@ def fetch_atb_costs(
         """
         all_rows.extend(pg_engine.execute(s, cost_params).fetchall())
 
-        if tech not in tech_list:
+        if (tech, cost_case) not in tech_list:
             # ATB2020 summary file provides a single WACC for each technology and a single
             # tech detail of "*", so need to fetch this separately from other cost params.
             # Only need to fetch once per technology.
@@ -123,9 +123,9 @@ def fetch_atb_costs(
             """
             wacc_rows.extend(pg_engine.execute(wacc_s).fetchall())
 
-        tech_list.append(tech)
-
-    if "Battery" not in tech_list:
+        tech_list.append((tech, cost_case))
+    tech_names = [t[0] for t in tech_list]
+    if "Battery" not in tech_names:
         df = pd.DataFrame(all_rows, columns=col_names)
         wacc_df = pd.DataFrame(
             wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_real"]
@@ -155,23 +155,24 @@ def fetch_atb_costs(
             logger.info(
                 f"Using {battery_wacc_standin} {fin_case} WACC for Battery storage."
             )
-            wacc_s = f"""
-            select technology, cost_case, basis_year, parameter_value
-            from technology_costs_nrelatb
-            where
-                technology == "{battery_wacc_standin}"
-                AND financial_case == "{fin_case}"
-                AND cost_case == "Mid"
-                AND atb_year == {atb_year}
-                AND parameter == "wacc_real"
+            for cost_case in ["Mid", "Moderate"]:
+                wacc_s = f"""
+                select technology, cost_case, basis_year, parameter_value
+                from technology_costs_nrelatb
+                where
+                    technology == "{battery_wacc_standin}"
+                    AND financial_case == "{fin_case}"
+                    AND cost_case == "{cost_case}"
+                    AND atb_year == {atb_year}
+                    AND parameter == "wacc_real"
 
-            """
-            b_rows = pg_engine.execute(wacc_s).fetchall()
-            battery_wacc_rows = [
-                (battery_tech[0], battery_tech[2], b_row[2], b_row[3])
-                for b_row in b_rows
-            ]
-            wacc_rows.extend(battery_wacc_rows)
+                """
+                b_rows = pg_engine.execute(wacc_s).fetchall()
+                battery_wacc_rows = [
+                    (battery_tech[0], battery_tech[2], b_row[2], b_row[3])
+                    for b_row in b_rows
+                ]
+                wacc_rows.extend(battery_wacc_rows)
         else:
             raise ValueError(
                 f"The settings key `atb_battery_wacc` value is {battery_wacc_standin}. It "
@@ -396,6 +397,7 @@ def atb_fixed_var_om_existing(
                     "technology==@atb_tech & tech_detail==@tech_detail"
                     "& basis_year==@existing_year"
                 )
+                .drop_duplicates()
                 .squeeze()
                 .at["heat_rate"]
             )
@@ -413,7 +415,7 @@ def atb_fixed_var_om_existing(
                     AND tech_detail == "{tech_detail}"
                     AND basis_year == "{existing_year}"
                     AND financial_case == "Market"
-                    AND cost_case == "Mid"
+                    AND cost_case in ("Mid", "Moderate")
                     AND atb_year == "{settings['atb_data_year']}"
                     AND parameter == "variable_o_m_mwh"
 
@@ -432,7 +434,7 @@ def atb_fixed_var_om_existing(
                     AND tech_detail == "{tech_detail}"
                     AND basis_year == "{existing_year}"
                     AND financial_case == "Market"
-                    AND cost_case == "Mid"
+                    AND cost_case in ("Mid", "Moderate")
                     AND atb_year == "{settings['atb_data_year']}"
                     AND parameter == "fixed_o_m_mw"
 
