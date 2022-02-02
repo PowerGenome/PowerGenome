@@ -40,6 +40,13 @@ COL_ROUND_VALUES = {
     "Line_Max_Reinforcement_MW": 0,
     "distance_miles": 1,
     "distance_km": 1,
+    "Existing_Cap_MW": 1,
+    "Existing_Cap_MWh": 1,
+    "Max_Cap_MW": 1,
+    "Max_Cap_MWh": 1,
+    "Min_Cap_MW": 1,
+    "Min_Cap_MWh": 1,
+    "Line_Loss_Percentage": 4,
 }
 
 

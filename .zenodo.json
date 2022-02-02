@@ -1,0 +1,37 @@
+{
+    "creators": [
+        {
+            "affiliation": "Carbon Impact Consulting",
+            "name": "Greg Schivley",
+            "orcid": "0000-0002-8947-694X"
+        },
+        {
+            "name": "Ethan Welty",
+            "orcid": "0000-0001-8046-2210"
+        },
+        {
+            "name": "Neha Patankar",
+            "affiliation": "Princeton University",
+            "orcid": "0000-0001-7288-0391"
+        },
+        {
+            "name": "Anna Jacobson",
+            "affiliation": "Princeton University",
+            "orcid": "0000-0002-3929-4742"
+        },
+        {
+            "name": "Qingyu Xu",
+            "affiliation": "Princeton University",
+            "orcid": "0000-0003-2692-5135"
+        },
+        {
+            "name": "Aneesha Manocha",
+            "affiliation": "Princeton University"
+        },
+        {
+            "name": "Jesse D. Jenkins",
+            "affiliation": "Princeton University",
+            "orcid": "0000-0002-9670-7793"
+        }
+    ]
+}

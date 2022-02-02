@@ -505,6 +505,7 @@ class ResourceGroup:
         cap_multiplier: float = None,
         profiles: bool = True,
         utc_offset: int = 0,
+        sub_region=None,
     ) -> pd.DataFrame:
         """
         Compute resource clusters.
@@ -546,6 +547,8 @@ class ResourceGroup:
         if ipm_regions is not None:
             # Filter by IPM region
             df = df[df["ipm_region"].isin(ipm_regions)]
+        if sub_region is not None:
+            df = df.loc[df[self.group["sub_region"]] == sub_region, :]
         if cap_multiplier is not None:
             # Apply capacity multiplier
             df[CAPACITY] *= cap_multiplier
@@ -567,7 +570,11 @@ class ResourceGroup:
         # Select base resources
         tree = self.group["tree"]
         if tree:
-            max_level = df[tree].map(df.groupby(tree)["level"].max())
+            idx = df.index
+            df = df.set_index(tree)
+            max_level = df.index.map(df.groupby(tree)["level"].max())
+            df = df.reset_index()
+            df.index = idx
             base = (df["level"] == max_level).values
             mask = base.copy()
         else:
@@ -584,9 +591,15 @@ class ResourceGroup:
             raise ValueError(f"No resources found or selected")
         if tree:
             # Only keep trees with one ore more base resources
+            if isinstance(tree, list):
+                df["tree"] = ""
+                for t in tree:
+                    df["tree"] += df[t].astype(str)
+            else:
+                df["tree"] = tree
             selected = (
                 pd.Series(mask, index=df.index)
-                .groupby(df[tree])
+                .groupby(df["tree"])
                 .transform(lambda x: x.sum() > 0)
             )
             # Add non-base resources to selected trees
@@ -681,7 +694,7 @@ class ClusterBuilder:
         """
         paths = list(paths)
         if not paths:
-            raise ValueError(f"No resource groups specified")
+            raise ValueError(f"No resource groups specified {paths}")
         return cls([ResourceGroup.from_json(path) for path in paths])
 
     def find_groups(self, **kwargs: Any) -> List[ResourceGroup]:
@@ -696,7 +709,11 @@ class ClusterBuilder:
         return [
             rg
             for rg in self.groups
-            if all(k in rg.group and rg.group[k] == v for k, v in kwargs.items())
+            if all(
+                k in rg.group and rg.group[k] == v
+                for k, v in kwargs.items()
+                if k not in ["sub_region", "extra_uniques"]
+            )
         ]
 
     def get_clusters(
@@ -751,6 +768,7 @@ class ClusterBuilder:
                 max_lcoe=max_lcoe,
                 cap_multiplier=cap_multiplier,
                 utc_offset=utc_offset,
+                sub_region=kwargs.get("sub_region"),
             )
             .assign(**kwargs)
             .rename_axis("ids")
@@ -1116,12 +1134,20 @@ def cluster_trees(
     """
     required = ["parent_id", "level", by]
     if tree:
-        required.append(tree)
+        if isinstance(tree, list):
+            required.extend(tree)
+        else:
+            required.append(tree)
     missing = [key for key in required if key not in df]
     if missing:
         raise ValueError(f"Missing required fields {missing}")
     if tree:
-        mask = df["level"] == df[tree].map(df.groupby(tree)["level"].max())
+        idx = df.index
+        df = df.set_index(tree)
+        mask = df["level"] == df.index.map(df.groupby(tree)["level"].max())
+        mask.index = idx
+        df = df.reset_index()
+        df.index = idx
     else:
         mask = df["level"] == df["level"].max()
     nrows = mask.sum()

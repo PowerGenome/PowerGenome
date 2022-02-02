@@ -1,0 +1,52 @@
+name: pytest
+
+on: [push, pull_request]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      max-parallel: 5
+      matrix:
+        python-version: ["3.9", "3.10"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    - name: Add conda to system path
+      run: |
+        # $CONDA is an environment variable pointing to the root of the miniconda directory
+        echo $CONDA/bin >> $GITHUB_PATH
+    - name: install mamba
+      run: |
+        conda install mamba -n base -c conda-forge
+    - name: Install dependencies
+      run: |
+        mamba env update --file environment.yml --name base
+    - name: install powergenome
+      run: |
+        pip install -e .
+    - name: Lint with flake8
+      run: |
+        mamba install flake8
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Test with pytest
+      env:
+        EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        RESOURCE_GROUPS: ${{ secrets.RESOURCE_GROUPS }}
+        PUDL_DB: ${{ secrets.PUDL_DB }}
+        PG_DB: ${{ secrets.PG_DB }}
+      run: |
+        pip install pytest-cov
+        pytest --cov=powergenome tests/ --cov-report=xml
+    - name: Upload test coverage report to CodeCov
+      uses: codecov/codecov-action@v2.1.0
