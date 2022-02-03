@@ -166,6 +166,80 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
     return final
 
 
+def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFrame:
+    """Add user fuel prices to a dataframe of user prices from AEO (or elsewhere)
+
+    Parameters
+    ----------
+    settings : dict
+        If adding user prices, should have the key "user_fuel_price" with value of a
+        dictionary matching user fuel names and prices. Prices can either be a single
+        price for all regions or a price per region. For example this shows biomass with
+        different prices in two regions and ZCF with the same price in all regions:
+
+        settings["user_fuel_price"] = {
+            "biomass": {"SC_VACA": 10, "PJM_DOM": 5},
+            "ZCF": 15
+        }
+
+        If the keys "target_usd_year" and "user_fuel_usd_year" are also included, fuel
+        prices will be corrected to the correct USD year. "user_fuel_usd_year" should
+        be a dictionary with fuel name: USD year pairings. Only fuels included in this
+        dictionary will have their prices changed to the target USD year.
+    df : pd.DataFrame, optional
+        A dataframe with fuel prices from AEO (or elsewhere), by default None. Should
+        have columns ["year", "price", "fuel", "region", "scenario", "full_fuel_name"]
+
+    Returns
+    -------
+    pd.DataFrame
+        The combined dataframes of user prices and the other price dataframe provided
+        as input. Columns are ["year", "price", "fuel", "region", "scenario", "full_fuel_name"].
+    """
+
+    if not settings.get("user_fuel_price"):
+        if df is not None:
+            return df
+    cols = ["year", "price", "fuel", "region", "scenario", "full_fuel_name"]
+    if df is not None:
+        years = df["year"].unique()
+    else:
+        years = range(2020, 2051)
+    fuel_data = {c: [] for c in cols}
+
+    for fuel, val in settings["user_fuel_price"].items():
+        if isinstance(val, dict):
+            for region, price in val.items():
+                fuel_name = f"{region}_{fuel}"
+                fuel_data["year"].extend(years)
+                fuel_data["price"].extend([price] * len(years))
+                fuel_data["fuel"].extend([fuel] * len(years))
+                fuel_data["region"].extend([region] * len(years))
+                fuel_data["scenario"].extend(["user"] * len(years))
+                fuel_data["full_fuel_name"].extend([fuel_name] * len(years))
+        else:
+            fuel_data["year"].extend(years)
+            fuel_data["price"].extend([val] * len(years))
+            fuel_data["fuel"].extend([fuel] * len(years))
+            fuel_data["region"].extend([region] * len(years))
+            fuel_data["scenario"].extend(["user"] * len(years))
+            fuel_data["full_fuel_name"].extend([fuel] * len(years))
+
+    user_fuel_price = pd.DataFrame(fuel_data)
+    if settings.get("target_usd_year"):
+        for fuel, year in (settings.get("user_fuel_usd_year", {}) or {}).items():
+            user_fuel_price.loc[
+                user_fuel_price["fuel"] == fuel, "price"
+            ] = inflation_price_adjustment(
+                user_fuel_price.loc[user_fuel_price["fuel"] == fuel, "price"],
+                year,
+                settings["target_usd_year"],
+            )
+    if df is not None:
+        user_fuel_price = pd.concat([df, user_fuel_price])
+    return user_fuel_price
+
+
 def get_aeo_load(
     region: str, aeo_year: Union[str, numeric], scenario_series: str
 ) -> pd.DataFrame:

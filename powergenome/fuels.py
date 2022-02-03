@@ -2,12 +2,18 @@
 Load fuel prices needed for the model
 """
 
+from asyncio.log import logger
 import pandas as pd
 
-def fuel_cost_table(fuel_costs, generators, settings):
+from powergenome.eia_opendata import add_user_fuel_prices
 
+
+def fuel_cost_table(fuel_costs, generators, settings):
+    all_fuel_costs = add_user_fuel_prices(settings, fuel_costs)
     unique_fuels = generators["Fuel"].drop_duplicates()
-    model_year_costs = fuel_costs.loc[fuel_costs["year"] == settings["model_year"], :]
+    model_year_costs = all_fuel_costs.loc[
+        all_fuel_costs["year"] == settings["model_year"], :
+    ]
     fuel_df = pd.DataFrame(unique_fuels)
 
     fuel_price_map = {
@@ -16,6 +22,15 @@ def fuel_cost_table(fuel_costs, generators, settings):
     }
 
     emission_dict = settings["fuel_emission_factors"]
+    user_fuels = set(all_fuel_costs["fuel"]) - set(fuel_costs["fuel"])
+    for u_f in user_fuels:
+        if u_f not in emission_dict.keys():
+            logger.warning(
+                "\n\n**********************\n"
+                f"The user fuel {u_f} does not have an emissions factor specified in "
+                "the settings parameter 'fuel_emission_factors'. This is fine if the "
+                "emission factor should be 0, otherwise be sure to add a value.\n"
+            )
     fuel_emission_map = {}
     for full_fuel_name in fuel_price_map:
         base_fuel_name = full_fuel_name.split("_")[-1]
@@ -48,7 +63,9 @@ def fuel_cost_table(fuel_costs, generators, settings):
     else:
         num_hours = 8760
 
-    fuel_df_prices = pd.DataFrame([fuel_df["Cost_per_MMBtu"]], index=range(1, num_hours+1))
+    fuel_df_prices = pd.DataFrame(
+        [fuel_df["Cost_per_MMBtu"]], index=range(1, num_hours + 1)
+    )
     fuel_df_prices = fuel_df_prices.round(2)
     fuel_df_prices.columns = unique_fuels
 
@@ -56,14 +73,14 @@ def fuel_cost_table(fuel_costs, generators, settings):
     fuel_df_top = fuel_df_top.round(5)
     fuel_df_top.columns = unique_fuels
     fuel_df_top.index = [0]
-    
+
     fuel_frames = [fuel_df_top, fuel_df_prices]
     fuel_df_new = pd.concat(fuel_frames)
     fuel_df_new.index.name = "Time_Index"
     return fuel_df_new
 
-#def modify_fuel_new_genx():
 
+# def modify_fuel_new_genx():
 
 
 def adjust_ccs_fuels(ccs_fuel_row, settings):
