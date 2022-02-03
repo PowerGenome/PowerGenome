@@ -4,7 +4,9 @@ import sqlite3
 import os
 from pathlib import Path
 from powergenome.GenX import (
+    RESOURCE_TAGS,
     add_cap_res_network,
+    check_resource_tags,
     create_policy_req,
     create_regional_cap_res,
     max_cap_req,
@@ -519,3 +521,20 @@ def test_cap_req():
     assert set(settings["generator_columns"]) == set(settings["model_tag_names"])
     assert min_cap.isna().any().all() == False
     assert max_cap.isna().any().all() == False
+
+
+def test_check_resource_tags():
+    # Check something that should fail
+    cols = ["region", "technology"] + RESOURCE_TAGS
+    data = [pd.Series(["a", "b"] + [1] * len(RESOURCE_TAGS), index=cols)]
+    df = pd.DataFrame(data)
+
+    with pytest.raises(Exception):
+        check_resource_tags(df)
+
+    # Check something that should pass
+    cols = ["region", "technology"] + RESOURCE_TAGS
+    data = [pd.Series(["a", "b", 1] + [0] * (len(RESOURCE_TAGS) - 1), index=cols)]
+    df = pd.DataFrame(data)
+
+    check_resource_tags(df)
