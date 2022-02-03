@@ -2036,7 +2036,7 @@ def add_fuel_labels(df, fuel_prices, settings):
         corresponding fuel (coal, natural_gas, uranium, or distillate) or "None".
     """
 
-    df["Fuel"] = "None"
+    df["Fuel"] = np.nan
     for eia_tech, fuel in (settings.get("tech_fuel_map") or {}).items():
         try:
             if eia_tech == "Natural Gas Steam Turbine":
@@ -2050,7 +2050,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                         settings["eia_atb_tech_map"][eia_tech]
                     ]
                 atb_tech = [
-                    tech.split("_")[0]
+                    tech.split("_")[0] + "_"
                     for tech in settings["eia_atb_tech_map"][eia_tech]
                 ]
         except KeyError:
@@ -2077,7 +2077,8 @@ def add_fuel_labels(df, fuel_prices, settings):
                 for tech in atb_tech:
                     df.loc[
                         (df["technology"].str.contains(tech, case=False))
-                        & df["region"].isin(model_regions),
+                        & (df["region"].isin(model_regions))
+                        & (df["Fuel"].isna()),
                         "Fuel",
                     ] = fuel_name
 
@@ -2091,6 +2092,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                 & df["region"].isin(model_regions),
                 "Fuel",
             ] = ccs_fuel_name
+    df.loc[df["Fuel"].isna(), "Fuel"] = "None"
 
     return df
 
