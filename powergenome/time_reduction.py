@@ -205,7 +205,8 @@ def kmeans_time_clustering(
     # appending the week representing peak load
     time_series_mapping = time_series_mapping.append(
         pd.DataFrame(
-            {"Period_Index": int(GroupingwithPeakLoad[0][1:]), "Rep_Period": k + 2}, index=[0]
+            {"Period_Index": int(GroupingwithPeakLoad[0][1:]), "Rep_Period": k + 2},
+            index=[0],
         ),
         ignore_index=True,
     )
@@ -214,12 +215,12 @@ def kmeans_time_clustering(
     time_series_mapping = time_series_mapping.sort_values(by=["Period_Index"])
     time_series_mapping = time_series_mapping.reset_index(drop=True)
 
-    #extract month corresponding to each time slot
-    time_series_mapping['Rep_Period_Index']=0
-    for Period_Index in time_series_mapping['Period_Index']:
+    # extract month corresponding to each time slot
+    time_series_mapping["Month"] = 0
+    for Period_Index in time_series_mapping["Period_Index"]:
         dayOfYear = days_in_group * Period_Index
-        d = datetime.datetime.strptime('{} {}'.format(dayOfYear, 2011),'%j %Y')
-        time_series_mapping['Rep_Period_Index'][Period_Index-1] = d.month
+        d = datetime.datetime.strptime("{} {}".format(dayOfYear, 2011), "%j %Y")
+        time_series_mapping["Month"][Period_Index - 1] = d.month
 
     # Storing selected groupings in a new data frame with appropriate dimensions
     # (E.g. load in GW)
@@ -307,7 +308,7 @@ def kmeans_time_clustering(
     # dropped off from original data set  due to rounding
     RMSE = {
         col: np.linalg.norm(
-            np.sort(input_data.truncate(after=len(FullLengthOutputs)-1)[col].values)
+            np.sort(input_data.truncate(after=len(FullLengthOutputs) - 1)[col].values)
             - np.sort(FullLengthOutputs[col].values)
         )
         for col in original_col_names
@@ -325,7 +326,6 @@ def kmeans_time_clustering(
             pass
     resource_df = resource_df.fillna(value=1)
 
-
     # load_df["Sub_Weights"] = np.nan
     # load_df.loc[: len(EachClusterWeight) - 1, "Sub_Weights"] = (
     #     np.array(EachClusterWeight) * NumGrpDays * 24
@@ -337,7 +337,7 @@ def kmeans_time_clustering(
     # renewable_df = renewable_df.drop(columns=["GrpWeight"])
     # renewable_df.insert(loc=0, column="Resource", value=renewable_df.index + 1)
     # renewable_df.to_csv("renewables_time_reduced.csv", index=False)
-    EachClusterRepPoint = pd.DataFrame(EachClusterRepPoint, columns=['slot'])
+    EachClusterRepPoint = pd.DataFrame(EachClusterRepPoint, columns=["slot"])
     return (
         {
             "load_profiles": load_df,  # Scaled Output Load and Renewables profiles for the sampled representative groupings
