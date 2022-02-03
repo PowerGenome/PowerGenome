@@ -882,24 +882,27 @@ def add_modified_atb_generators(
         gen["cost_case"] = mod_tech.pop("new_cost_case")
 
         for parameter, op_list in mod_tech.items():
-            assert len(op_list) == 2, (
-                "Two values, an operator and a numeric value, are needed in the parameter\n"
-                f"'{parameter}' for technology '{name}' in 'modified_atb_new_gen'."
-            )
-            op, op_value = op_list
+            if isinstance(op_list, float) | isinstance(op_list, int):
+                gen[parameter] = op_list
+            else:
+                assert len(op_list) == 2, (
+                    "Two values, an operator and a numeric value, are needed in the parameter\n"
+                    f"'{parameter}' for technology '{name}' in 'modified_atb_new_gen'."
+                )
+                op, op_value = op_list
 
-            assert parameter in gen.columns, (
-                f"'{parameter}' is not a valid parameter for new resources. Check '{name}'\n"
-                "in 'modified_atb_new_gen' of the settings file."
-            )
-            assert op in allowed_operators, (
-                f"The key {parameter} for technology {name} needs a valid operator from the list\n"
-                f"{allowed_operators}\n"
-                "in the format [<operator>, <value>] to modify the properties of an existing generator.\n"
-            )
+                assert parameter in gen.columns, (
+                    f"'{parameter}' is not a valid parameter for new resources. Check '{name}'\n"
+                    "in 'modified_atb_new_gen' of the settings file."
+                )
+                assert op in allowed_operators, (
+                    f"The key {parameter} for technology {name} needs a valid operator from the list\n"
+                    f"{allowed_operators}\n"
+                    "in the format [<operator>, <value>] to modify the properties of an existing generator.\n"
+                )
 
-            f = operator.attrgetter(op)
-            gen[parameter] = f(operator)(gen[parameter], op_value)
+                f = operator.attrgetter(op)
+                gen[parameter] = f(operator)(gen[parameter], op_value)
 
         mod_tech_list.append(gen)
 
@@ -1083,7 +1086,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     new_gen_df = new_gen_df[keep_cols]
     # Set no capacity limit on new resources that aren't renewables.
     new_gen_df["Max_Cap_MW"] = -1
-
+    new_gen_df["Max_Cap_MWh"] = -1
     regional_cost_multipliers = pd.read_csv(
         DATA_PATHS["cost_multipliers"]
         / settings.get("cost_multiplier_fn", "AEO_2020_regional_cost_corrections.csv"),
