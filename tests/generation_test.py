@@ -18,6 +18,7 @@ from powergenome.GenX import (
     round_col_values,
     set_int_cols,
 )
+from powergenome.eia_opendata import add_user_fuel_prices
 from powergenome.external_data import make_generator_variability
 
 from powergenome.fuels import fuel_cost_table
@@ -538,3 +539,26 @@ def test_check_resource_tags():
     df = pd.DataFrame(data)
 
     check_resource_tags(df)
+
+
+def test_add_user_fuel_prices():
+    settings = {
+        "user_fuel_price": {"biomass": {"SC_VACA": 10, "PJM_DOM": 5}, "ZCF": 15}
+    }
+    df_base = add_user_fuel_prices(settings)
+
+    for fuel in ["SC_VACA_biomass", "PJM_DOM_biomass", "ZCF"]:
+        assert fuel in df_base["full_fuel_name"].unique()
+
+    settings["target_usd_year"] = 2020
+    settings["user_fuel_usd_year"] = {"biomass": 2018, "ZCF": 2020}
+
+    df_inflate = add_user_fuel_prices(settings)
+    assert (
+        df_base.loc[df_base["fuel"] == "biomass", "price"].mean()
+        < df_inflate.loc[df_inflate["fuel"] == "biomass", "price"].mean()
+    )
+    assert np.allclose(
+        df_base.loc[df_base["fuel"] == "ZCF", "price"].mean(),
+        df_inflate.loc[df_inflate["fuel"] == "ZCF", "price"].mean(),
+    )
