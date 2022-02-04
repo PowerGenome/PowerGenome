@@ -499,7 +499,7 @@ def test_existing_gen_profiles():
     )
     existing_gen = gc.create_region_technology_clusters()
     gen_variability = make_generator_variability(existing_gen)
-    assert (gen_variability >= -0.01).all().all()
+    assert (gen_variability >= 0).all().all()
 
 
 def test_cap_req():
