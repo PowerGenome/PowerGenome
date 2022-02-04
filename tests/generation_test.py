@@ -308,10 +308,30 @@ def test_check_settings(test_settings):
 
 
 def test_gen_integration(CA_AZ_settings, tmp_path):
+    CA_AZ_settings["atb_modifiers"] = {
+        "ngccccs": {
+            "technology": "NaturalGas",
+            "tech_detail": "CCCCSAvgCF",
+            "Heat_Rate_MMBTU_per_MWh": 7.159,
+        }
+    }
+    CA_AZ_settings["modified_atb_new_gen"]["NGCCS100"]["heat_rate"] = 7.5
     gc = GeneratorClusters(
         pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=False
     )
     all_gens = gc.create_all_generators()
+    assert np.allclose(
+        all_gens.query("technology.str.contains('NaturalGas_CCCCS', case=False)")[
+            "Heat_Rate_MMBTU_per_MWh"
+        ].mean(),
+        7.159,
+    )
+    assert np.allclose(
+        all_gens.query("technology.str.contains('CCS100', case=False)")[
+            "Heat_Rate_MMBTU_per_MWh"
+        ].mean(),
+        7.5,
+    )
     gen_variability = make_generator_variability(all_gens)
     assert (gen_variability >= 0).all().all()
 

@@ -1015,32 +1015,38 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         allowed_operators = ["add", "mul", "truediv", "sub"]
 
         for key, op_list in tech_modifiers.items():
-
-            assert len(op_list) == 2, (
-                "Two values, an operator and a numeric value, are needed in the parameter\n"
-                f"'{key}' for technology '{tech}' in 'atb_modifiers'."
-            )
-            op, op_value = op_list
-
-            assert op in allowed_operators, (
-                f"The key {key} for technology {tech} needs a valid operator from the list\n"
-                f"{allowed_operators}\n"
-                "in the format [<operator>, <value>] to modify the properties of an existing generator.\n"
-            )
-
-            f = operator.attrgetter(op)
-            new_gen_df.loc[
-                (new_gen_df.technology == technology)
-                & (new_gen_df.tech_detail == tech_detail),
-                key,
-            ] = f(operator)(
+            if isinstance(op_list, float) | isinstance(op_list, int):
                 new_gen_df.loc[
                     (new_gen_df.technology == technology)
                     & (new_gen_df.tech_detail == tech_detail),
                     key,
-                ],
-                op_value,
-            )
+                ] = op_list
+            else:
+                assert len(op_list) == 2, (
+                    "Two values, an operator and a numeric value, are needed in the parameter\n"
+                    f"'{key}' for technology '{tech}' in 'atb_modifiers'."
+                )
+                op, op_value = op_list
+
+                assert op in allowed_operators, (
+                    f"The key {key} for technology {tech} needs a valid operator from the list\n"
+                    f"{allowed_operators}\n"
+                    "in the format [<operator>, <value>] to modify the properties of an existing generator.\n"
+                )
+
+                f = operator.attrgetter(op)
+                new_gen_df.loc[
+                    (new_gen_df.technology == technology)
+                    & (new_gen_df.tech_detail == tech_detail),
+                    key,
+                ] = f(operator)(
+                    new_gen_df.loc[
+                        (new_gen_df.technology == technology)
+                        & (new_gen_df.tech_detail == tech_detail),
+                        key,
+                    ],
+                    op_value,
+                )
 
     new_gen_df["technology"] = (
         new_gen_df[["technology", "tech_detail", "cost_case"]]
