@@ -308,7 +308,7 @@ def fetch_atb_heat_rates(
     -------
     pd.DataFrame
         Power plant heat rate data by year with columns:
-        ['technology', 'tech_detail', 'basis_year', 'heat_rate']
+        ['technology', 'tech_detail', 'cost_case', 'basis_year', 'heat_rate']
     """
 
     heat_rates = pd.read_sql_table("technology_heat_rates_nrelatb", pg_engine)
@@ -392,15 +392,18 @@ def atb_fixed_var_om_existing(
                 )
 
         try:
-            new_build_hr = (
-                atb_hr_df.query(
-                    "technology==@atb_tech & tech_detail==@tech_detail"
-                    "& basis_year==@existing_year"
+            new_build_hr = atb_hr_df.query(
+                "technology==@atb_tech & tech_detail==@tech_detail"
+                "& basis_year==@existing_year"
+            )["heat_rate"].mean()
+            if not isinstance(new_build_hr, float):
+                logger.warning(
+                    "\n\n****************\nCAUTION!!!\n\n"
+                    f"The calculated new build heat rate for {atb_tech}, {tech_detail} "
+                    f"should be a single value but is {new_build_hr}. This could cause "
+                    f"issues with your variable O&M costs for {eia_tech}. Please report "
+                    "this as an issue on the PowerGenome repository.\n"
                 )
-                .drop_duplicates()
-                .squeeze()
-                .at["heat_rate"]
-            )
         except (ValueError, TypeError):
             # Not all technologies have a heat rate. If they don't, just set both values
             # to 10.34 (33% efficiency)
@@ -756,16 +759,13 @@ def single_generator_row(
         "variable_o_m_mwh",
         "capex_mw",
         "capex_mwh",
-        # "cf",
-        # "fuel",
-        # "lcoe",
-        # "o_m",
         "wacc_real",
         "heat_rate",
     ]
     s = atb_costs_hr.loc[
         (atb_costs_hr["technology"] == technology)
         & (atb_costs_hr["tech_detail"] == tech_detail)
+        & (atb_costs_hr["cost_case"] == cost_case)
         & (atb_costs_hr["basis_year"].isin(model_year_range)),
         numeric_cols,
     ].mean()
@@ -947,7 +947,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     regions = settings["model_regions"]
 
     atb_costs_hr = atb_costs.merge(
-        atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
+        atb_hr, on=["technology", "tech_detail", "cost_case", "basis_year"], how="left"
     )
 
     new_gen_df = pd.concat(
