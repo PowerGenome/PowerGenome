@@ -943,10 +943,10 @@ def check_resource_tags(df: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
         An unaltered version of the input dataframe.
     """
-
-    if not (df[RESOURCE_TAGS].sum(axis=1) == 1).all():
+    tags = [t for t in RESOURCE_TAGS if t in df.columns]
+    if not (df[tags].sum(axis=1) == 1).all():
         for idx, row in df.iterrows():
-            num_tags = row[RESOURCE_TAGS].sum()
+            num_tags = row[tags].sum()
             if num_tags == 0:
                 logger.warning(
                     "\n*************************\n"
