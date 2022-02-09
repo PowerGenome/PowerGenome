@@ -221,7 +221,7 @@ def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFram
             fuel_data["year"].extend(years)
             fuel_data["price"].extend([val] * len(years))
             fuel_data["fuel"].extend([fuel] * len(years))
-            fuel_data["region"].extend([region] * len(years))
+            fuel_data["region"].extend([""] * len(years))
             fuel_data["scenario"].extend(["user"] * len(years))
             fuel_data["full_fuel_name"].extend([fuel] * len(years))
 

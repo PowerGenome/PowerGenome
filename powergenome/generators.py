@@ -2069,12 +2069,16 @@ def add_fuel_labels(df, fuel_prices, settings):
                 for region, price in settings["user_fuel_price"][fuel].items():
                     fuel_name = f"{region}_{fuel}"
                     df.loc[
-                        (df["technology"] == eia_tech) & (df["region"] == region),
+                        (
+                            df["technology"].str.rstrip("_").str.lower()
+                            == eia_tech.lower()
+                        )
+                        & (df["region"] == region),
                         "Fuel",
                     ] = fuel_name
             else:
                 df.loc[
-                    df["technology"] == eia_tech,
+                    df["technology"].str.rstrip("_").str.lower() == eia_tech.lower(),
                     "Fuel",
                 ] = fuel
         else:
