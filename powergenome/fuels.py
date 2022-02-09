@@ -33,18 +33,25 @@ def fuel_cost_table(fuel_costs, generators, settings):
             )
     fuel_emission_map = {}
     for full_fuel_name in fuel_price_map:
-        base_fuel_name = full_fuel_name.split("_")[-1]
+        if full_fuel_name.split("_")[-1] in settings["aeo_fuel_scenarios"].keys():
+            base_fuel_name = full_fuel_name.split("_")[-1]
+        else:
+            base_fuel_name = full_fuel_name
         if base_fuel_name in emission_dict:
             fuel_emission_map[full_fuel_name] = emission_dict[base_fuel_name]
         else:
             fuel_emission_map[full_fuel_name] = 0
 
-    ccs_fuels = generators.loc[generators["Fuel"].str.contains("ccs"), "Fuel"].unique()
+    ccs_fuels = (settings.get("ccs_fuel_map", {}) or {}).values()
     for ccs_fuel in ccs_fuels:
-        # keep the non-ccs price
-        base_name = ("_").join(ccs_fuel.split("_")[:-1])
-        fuel_price_map[ccs_fuel] = fuel_price_map[base_name]
-        fuel_emission_map[ccs_fuel] = fuel_emission_map[base_name]
+        fuels = generators.loc[
+            generators["Fuel"].str.contains(ccs_fuel), "Fuel"
+        ].unique()
+        for f in fuels:
+            # keep the non-ccs price
+            base_name = ("_").join(f.split("_")[:-1])
+            fuel_price_map[f] = fuel_price_map[base_name]
+            fuel_emission_map[f] = fuel_emission_map[base_name]
 
     fuel_df["Cost_per_MMBtu"] = fuel_df["Fuel"].map(fuel_price_map)
     fuel_df["CO2_content_tons_per_MMBtu"] = fuel_df["Fuel"].map(fuel_emission_map)
@@ -84,13 +91,15 @@ def fuel_cost_table(fuel_costs, generators, settings):
 
 
 def adjust_ccs_fuels(ccs_fuel_row, settings):
-
-    if "ccs" in ccs_fuel_row["Fuel"]:
+    base_fuel_name = None
+    for ccs_fuel in (settings.get("ccs_fuel_map", {}) or {}).values():
+        if ccs_fuel in ccs_fuel_row["Fuel"]:
+            base_fuel_name = ccs_fuel
+    if base_fuel_name:
 
         # USD/tonne disposal
         disposal_cost = settings["ccs_disposal_cost"]
 
-        base_fuel_name = ("_").join(ccs_fuel_row["Fuel"].split("_")[-2:])
         capture_rate = settings["ccs_capture_rate"][base_fuel_name]
 
         co2_captured = ccs_fuel_row["CO2_content_tons_per_MMBtu"] * capture_rate
