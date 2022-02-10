@@ -21,7 +21,7 @@ def fuel_cost_table(fuel_costs, generators, settings):
         for row in model_year_costs.itertuples(index=False, name="row")
     }
 
-    emission_dict = settings["fuel_emission_factors"]
+    emission_dict = settings.get("fuel_emission_factors", {}) or {}
     user_fuels = set(all_fuel_costs["fuel"]) - set(fuel_costs["fuel"])
     for u_f in user_fuels:
         if u_f not in emission_dict.keys():
@@ -33,7 +33,15 @@ def fuel_cost_table(fuel_costs, generators, settings):
             )
     fuel_emission_map = {}
     for full_fuel_name in fuel_price_map:
-        if full_fuel_name.split("_")[-1] in settings["aeo_fuel_scenarios"].keys():
+        if (
+            full_fuel_name.split("_")[-1]
+            in (settings.get("aeo_fuel_scenarios", {}) or {}).keys()
+        ):
+            base_fuel_name = full_fuel_name.split("_")[-1]
+        elif (
+            full_fuel_name.split("_")[-1]
+            in (settings.get("user_fuel_price", {}) or {}).keys()
+        ):
             base_fuel_name = full_fuel_name.split("_")[-1]
         else:
             base_fuel_name = full_fuel_name
