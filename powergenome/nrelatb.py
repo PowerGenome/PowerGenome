@@ -1140,6 +1140,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Inv_Cost_per_MWhyr",
         "cluster",
     ]
+    int_cols = [c for c in int_cols if c in results.columns]
     results = results.fillna(0)
     results[int_cols] = results[int_cols].astype(int)
     results["Var_OM_Cost_per_MWh"] = results["Var_OM_Cost_per_MWh"].astype(float)

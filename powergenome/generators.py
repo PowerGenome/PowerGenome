@@ -232,30 +232,34 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         Modified df with new column "Start_Cost_per_MW"
     """
     logger.info("Adding non-fuel startup costs")
-    target_usd_year = settings["target_usd_year"]
+    target_usd_year = settings.get("target_usd_year")
 
-    vom_costs = settings["startup_vom_costs_mw"]
-    vom_usd_year = settings["startup_vom_costs_usd_year"]
+    vom_costs = settings.get("startup_vom_costs_mw", {})
+    vom_usd_year = settings.get("startup_vom_costs_usd_year")
 
-    logger.info(
-        f"Changing non-fuel VOM costs from {vom_usd_year} to " f"{target_usd_year}"
-    )
-    for key, cost in vom_costs.items():
-        vom_costs[key] = inflation_price_adjustment(
-            price=cost, base_year=vom_usd_year, target_year=target_usd_year
+    if target_usd_year and vom_usd_year:
+        logger.info(
+            f"Changing non-fuel VOM costs from {vom_usd_year} to " f"{target_usd_year}"
         )
+        for key, cost in vom_costs.items():
+            vom_costs[key] = inflation_price_adjustment(
+                price=cost, base_year=vom_usd_year, target_year=target_usd_year
+            )
 
-    startup_type = settings["startup_costs_type"]
-    startup_costs = settings[startup_type]
-    startup_costs_usd_year = settings["startup_costs_per_cold_start_usd_year"]
+    startup_type = settings.get("startup_costs_type")
+    startup_costs = settings.get(startup_type, {})
+    startup_costs_usd_year = settings.get("startup_costs_per_cold_start_usd_year")
 
-    logger.info(
-        f"Changing non-fuel startup costs from {vom_usd_year} to {target_usd_year}"
-    )
-    for key, cost in startup_costs.items():
-        startup_costs[key] = inflation_price_adjustment(
-            price=cost, base_year=startup_costs_usd_year, target_year=target_usd_year
+    if target_usd_year and startup_costs_usd_year:
+        logger.info(
+            f"Changing non-fuel startup costs from {vom_usd_year} to {target_usd_year}"
         )
+        for key, cost in startup_costs.items():
+            startup_costs[key] = inflation_price_adjustment(
+                price=cost,
+                base_year=startup_costs_usd_year,
+                target_year=target_usd_year,
+            )
 
     df["Start_Cost_per_MW"] = 0
 
@@ -2056,7 +2060,7 @@ def add_fuel_labels(df, fuel_prices, settings):
         except KeyError:
             # No corresponding ATB technology
             atb_tech = None
-        scenario = settings["aeo_fuel_scenarios"].get(fuel)
+        scenario = settings.get("aeo_fuel_scenarios", {}).get(fuel)
         model_year = settings["model_year"]
         if not scenario:
             if fuel not in settings.get("user_fuel_price", []) or []:

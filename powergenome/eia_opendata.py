@@ -115,14 +115,28 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
     """
     API_KEY = SETTINGS["EIA_API_KEY"]
 
-    aeo_year = settings["eia_aeo_year"]
+    aeo_year = settings.get("eia_aeo_year")
 
     fuel_price_cases = product(
-        settings["eia_series_region_names"].items(),
-        settings["eia_series_fuel_names"].items(),
-        settings["eia_series_scenario_names"].items(),
+        settings.get("eia_series_region_names", {}).items(),
+        settings.get("eia_series_fuel_names", {}).items(),
+        settings.get("eia_series_scenario_names", {}).items(),
     )
-
+    if not aeo_year or not fuel_price_cases:
+        w = False
+        for f in ["coal", "naturalgas", "distillate", "uranium"]:
+            if f in settings.get("tech_fuel_map", {}).values():
+                w = True
+        if w:
+            logger.warning(
+                "Unable to get AEO fuel prices due to missing settings parameter 'eia_aeo_year', "
+                "'eia_series_region_names', 'eia_series_fuel_names', or 'eia_series_scenario_names'. "
+                "You have listed at least one AEO fuel in your settings 'tech_fuel_map' "
+                "parameter, but no prices for these fuels are being included."
+            )
+        return pd.DataFrame(
+            columns=["fuel", "region", "scenario", "full_fuel_name", "year"]
+        )
     df_list = []
     for region, fuel, scenario in fuel_price_cases:
         region_name, region_series = region
@@ -201,7 +215,7 @@ def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFram
         if df is not None:
             return df
     cols = ["year", "price", "fuel", "region", "scenario", "full_fuel_name"]
-    if df is not None:
+    if df is not None and not df.empty:
         years = df["year"].unique()
     else:
         years = range(2020, 2051)
