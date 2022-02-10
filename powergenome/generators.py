@@ -2076,11 +2076,29 @@ def add_fuel_labels(df, fuel_prices, settings):
                         & (df["region"] == region),
                         "Fuel",
                     ] = fuel_name
+
+                    if atb_tech is not None:
+                        for tech in atb_tech:
+                            df.loc[
+                                (df["technology"].str.contains(tech, case=False))
+                                & (df["region"] == region)
+                                & (df["Fuel"].isna()),
+                                "Fuel",
+                            ] = fuel_name
             else:
                 df.loc[
-                    df["technology"].str.rstrip("_").str.lower() == eia_tech.lower(),
+                    (df["technology"].str.rstrip("_").str.lower() == eia_tech.lower())
+                    & (df["Fuel"].isna()),
                     "Fuel",
                 ] = fuel
+
+                if atb_tech is not None:
+                    for tech in atb_tech:
+                        df.loc[
+                            (df["technology"].str.contains(tech, case=False))
+                            & (df["Fuel"].isna()),
+                            "Fuel",
+                        ] = fuel
         else:
             for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
                 fuel_name = ("_").join([aeo_region, scenario, fuel])
@@ -2106,15 +2124,41 @@ def add_fuel_labels(df, fuel_prices, settings):
                         ] = fuel_name
 
     for ccs_tech, ccs_fuel in (settings.get("ccs_fuel_map") or {}).items():
-        scenario = settings["aeo_fuel_scenarios"][ccs_fuel.split("_")[0]]
-        for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
-            ccs_fuel_name = ("_").join([aeo_region, scenario, ccs_fuel])
+        ccs_base_name = ("_").join(ccs_fuel.split("_")[:-1])
+        if ccs_base_name in (settings.get("aeo_fuel_scenarios", {}) or {}).keys():
+            scenario = settings["aeo_fuel_scenarios"][ccs_base_name]
+            for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
+                ccs_fuel_name = ("_").join([aeo_region, scenario, ccs_fuel])
 
-            df.loc[
-                (df["technology"].str.contains(ccs_tech))
-                & df["region"].isin(model_regions),
-                "Fuel",
-            ] = ccs_fuel_name
+                df.loc[
+                    (df["technology"].str.contains(ccs_tech))
+                    & df["region"].isin(model_regions),
+                    "Fuel",
+                ] = ccs_fuel_name
+        elif ccs_base_name in (settings.get("user_fuel_price", {}) or {}).keys():
+            if isinstance(settings["user_fuel_price"][ccs_base_name], dict):
+                for region in settings["user_fuel_price"][ccs_base_name].keys():
+                    ccs_fuel_name = ("_").join([region, ccs_fuel])
+                    df.loc[
+                        (df["technology"].str.contains(ccs_tech))
+                        & df["region"].isin(model_regions),
+                        "Fuel",
+                    ] = ccs_fuel_name
+            else:
+                df.loc[
+                    (df["technology"].str.contains(ccs_tech))
+                    & df["region"].isin(model_regions),
+                    "Fuel",
+                ] = ccs_fuel
+        else:
+            logger.warning(
+                f"The fuel {ccs_fuel} is included in settings parameter `ccs_fuel_map` "
+                "but it can't be matched against an AEO or user fuel. CCS fuels should "
+                "have the format <fuel name>_ccs<capture rate>, where the capture rate "
+                "is optional. The <fuel name> should match a fuel from `aeo_fuel_scenarios' "
+                "or `user_fuel_prices`."
+            )
+
     df.loc[df["Fuel"].isna(), "Fuel"] = "None"
 
     return df
