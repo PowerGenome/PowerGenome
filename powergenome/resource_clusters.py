@@ -610,7 +610,7 @@ class ResourceGroup:
                 for t in tree:
                     df["tree"] += df[t].astype(str)
             else:
-                df["tree"] = tree
+                df["tree"] = df[tree]
             selected = (
                 pd.Series(mask, index=df.index)
                 .groupby(df["tree"])
