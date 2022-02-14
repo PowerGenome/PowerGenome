@@ -491,7 +491,7 @@ def label_retirement_year(
     """
 
     start_len = len(df)
-    retirement_ages = settings[settings_retirement_table]
+    retirement_ages = settings.get(settings_retirement_table, {}) or {}
 
     for tech, life in retirement_ages.items():
         try:
@@ -2829,12 +2829,12 @@ class GeneratorClusters:
 
         region_tech_grouped = self.units_model.loc[
             (self.units_model.technology.isin(techs))
-            & (self.units_model.retirement_year > self.settings["model_year"]),
+            & ~(self.units_model.retirement_year <= self.settings["model_year"]),
             :,
         ].groupby(["model_region", "technology"])
 
         self.retired = self.units_model.loc[
-            self.units_model.retirement_year <= self.settings["model_year"], :
+            ~(self.units_model.retirement_year > self.settings["model_year"]), :
         ]
 
         # gens_860 lost the ownership code... refactor this!
