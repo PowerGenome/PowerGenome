@@ -492,6 +492,8 @@ def label_retirement_year(
 
     start_len = len(df)
     retirement_ages = settings.get(settings_retirement_table, {}) or {}
+    if "retirement_year" not in df.columns:
+        df["retirement_year"] = np.nan
 
     for tech, life in retirement_ages.items():
         try:
