@@ -1345,7 +1345,7 @@ def add_genx_model_tags(df, settings):
         try:
             for tech, tag_value in settings["model_tag_values"][tag_col].items():
                 tech = re.sub(ignored, "", tech)
-                mask = technology.str.contains(fr"^{tech}", case=False)
+                mask = technology.str.contains(rf"^{tech}", case=False)
                 df.loc[mask, tag_col] = tag_value
         except (KeyError, AttributeError) as e:
             logger.warning(f"No model tag values found for {tag_col} ({e})")
@@ -1356,7 +1356,7 @@ def add_genx_model_tags(df, settings):
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
         tech = re.sub(ignored, "", tech)
-        mask = technology.str.contains(fr"^{tech}", case=False)
+        mask = technology.str.contains(rf"^{tech}", case=False)
         df.loc[(df["region"] == region) & mask, tag_col] = tag_value
 
     return df

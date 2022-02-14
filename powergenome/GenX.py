@@ -52,6 +52,7 @@ COL_ROUND_VALUES = {
 # RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO", "LDS"]
 RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO"]
 
+
 def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
     model_year = settings["model_year"]
     case_id = settings["case_id"]
