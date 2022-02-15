@@ -614,6 +614,7 @@ model_tag_values:
     Petroleum Coke: 1
     Petroleum Liquids: 1
     Wood/Wood Waste Biomass: 1
+    NaturalGas_: 1
   VRE:
     CSP: 1
     LandbasedWind: 1
@@ -630,11 +631,6 @@ model_tag_values:
     Solar Photovoltaic: 1
     Solar Thermal without Energy Storage: 1
     UtilityPV: 1
-  NDISP:
-    Biomass: 1
-    Geothermal: 1
-    Small Hydroelectric: 1
-    Wood/Wood Waste Biomass: 1
   STOR:
     Battery: 1
     Hydroelectric Pumped Storage: 1
@@ -777,6 +773,7 @@ model_tag_values:
     Geothermal: 1
     Wood/Wood Waste Biomass: 1
     Biomass: 1
+    distributed_generation: 1
 
 # Tags for a technology in a specific region
 # Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>

@@ -338,7 +338,7 @@ def snake_case_col(col: pd.Series) -> pd.Series:
     "Remove special characters and convert to snake case"
     clean = (
         col.str.lower()
-        .str.replace(r"[^0-9a-zA-Z\-]+", " ")
+        .str.replace(r"[^0-9a-zA-Z\-]+", " ", regex=True)
         .str.replace("-", "")
         .str.strip()
         .str.replace(" ", "_")
@@ -350,7 +350,7 @@ def snake_case_str(s: str) -> str:
     "Remove special characters and convert to snake case"
     clean = (
         s.lower()
-        .replace(r"[^0-9a-zA-Z\-]+", " ")
+        .replace(r"[^0-9a-zA-Z\-]+", " ", regex=True)
         .replace("-", "")
         .strip()
         .replace(" ", "_")

@@ -236,6 +236,8 @@ def make_generator_variability(
             hours = df["profile"].apply(profile_len).max()
         kwargs = {"remove_feb_29": remove_feb_29, "hours": hours}
         profiles = np.column_stack(df["profile"].apply(format_profile, **kwargs).values)
+        # Make sure values are not less than 0
+        profiles = np.where(profiles >= 0, profiles, 0)
     # elif not remove_feb_29:
     #     profiles = np.ones((8760, len(df)), dtype=float)
     else:

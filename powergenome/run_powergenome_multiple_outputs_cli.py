@@ -18,6 +18,7 @@ from powergenome.generators import (
 )
 from powergenome.GenX import (
     add_cap_res_network,
+    check_resource_tags,
     create_policy_req,
     create_regional_cap_res,
     fix_min_power_values,
@@ -276,7 +277,8 @@ def main():
                             gens[cols].fillna(0), _settings
                         )
                         .pipe(set_int_cols)
-                        .pipe(round_col_values),
+                        .pipe(round_col_values)
+                        .pipe(check_resource_tags),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,
@@ -321,7 +323,8 @@ def main():
                             gens[cols].fillna(0), _settings
                         )
                         .pipe(set_int_cols)
-                        .pipe(round_col_values),
+                        .pipe(round_col_values)
+                        .pipe(check_resource_tags),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,
