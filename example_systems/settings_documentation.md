@@ -443,9 +443,9 @@ description: In some cases (e.g. conbustion turbine variable O&M), ATB data are 
 
 ### atb_modifiers
 
-type: Dict[str, Dict[str, Union[str, list]]]
+type: Dict[str, Dict[str, Union[str, Union[list, float]]]
 
-description: This parameter modifies parameters for ATB technologies in-place (keeping the same name). Top-level keys are user names for each resource and are not used by PowerGenome. Below the top level, a dictionary with the ATB `technology` and `tech_detail` will also include keys of column names that should be modified. The values for each of these keys is a list, where the first value is a string operator name (`add`, `mul`, `truediv`, or `sub`) and the second value is the numeric value.
+description: This parameter modifies parameters for ATB technologies in-place (keeping the same name). Top-level keys are user names for each resource and are not used by PowerGenome. Below the top level, a dictionary with the ATB `technology` and `tech_detail` will also include keys of column names that should be modified. The values for each of these keys is either 1) a list, where the first value is a string operator name (`add`, `mul`, `truediv`, or `sub`) and the second value is the numeric value, or 2) a numeric value (`int` or `float`) that will directly replace the ATB value.
 
 Valid column names are
 - `Var_OM_Cost_per_MWh`
@@ -604,13 +604,24 @@ description: The dollar year of AEO fuel price data.
 
 type: Dict[str, str]
 
-description: A mapping of fuel types (from `aeo_fuel_scenarios`) to EIA technology names. ATB technologies are mapped to the EIA names in `eia_atb_tech_map`. Both technologies are assigned a fuel type based on this parameter.
+description: A mapping of fuel types (from `aeo_fuel_scenarios` or `user_fuel_prices`) to EIA technology names. ATB technologies are mapped to the EIA names in `eia_atb_tech_map`. Both technologies are assigned a fuel type based on this parameter. Mappings can be done directly to non-EIA technologies but they must include the complete string match of a technology.
 
+### user_fuel_prices
+
+type: Dict[str, Union[float, Dict[str, float]]]
+
+description: This is where users can define their own fuel types that aren't included in EIA AEO. The price for a fuel can be across all model regions (use a numeric value) or for each model region (use a dictionary mapping prices to regions).
+
+### user_fuel_usd_year
+
+type: Dict[str, int]
+
+description: The dollar year of price data for each user fuel. Only a single value is allowed, unlike the regional option in `user_fuel_prices`. If no dollar year is given for a user fuel the price will not be modified to match `target_usd_year`.
 ### ccs_fuel_map
 
 type: Dict[str, str]
 
-description: A mapping ATB or user CCS technology names to CCS fuel names (key values on right have to be in the format `<fuel>_<ccslevel>`) where the fuel matches something from `aeo_fuel_scenarios`.
+description: A mapping ATB or user CCS technology names to CCS fuel names (key values on right have to be in the format `<fuel>_<ccslevel>`) where the fuel matches something from `aeo_fuel_scenarios` or `user_fuel_prices`.
 
 ### ccs_capture_rate
 

@@ -959,11 +959,11 @@ def check_resource_tags(df: pd.DataFrame) -> pd.DataFrame:
                 )
             if num_tags > 1:
                 s = row[RESOURCE_TAGS]
-                tags = list(s[s == 1].index)
+                _tags = list(s[s == 1].index)
                 logger.warning(
                     "\n*************************\n"
                     f"The resource {row['technology']} in region {row['region']} is "
-                    f"assigned {num_tags} resource tags ({tags}). Check the 'model_tag_values'"
+                    f"assigned {num_tags} resource tags ({_tags}). Check the 'model_tag_values'"
                     " and 'regional_tag_values' parameters in your settings file to make"
                     " sure it is assigned only one resource tag type from this list:\n\n"
                     f"{RESOURCE_TAGS}\n"
