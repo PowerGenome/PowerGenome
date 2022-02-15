@@ -232,30 +232,34 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         Modified df with new column "Start_Cost_per_MW"
     """
     logger.info("Adding non-fuel startup costs")
-    target_usd_year = settings["target_usd_year"]
+    target_usd_year = settings.get("target_usd_year")
 
-    vom_costs = settings["startup_vom_costs_mw"]
-    vom_usd_year = settings["startup_vom_costs_usd_year"]
+    vom_costs = settings.get("startup_vom_costs_mw", {})
+    vom_usd_year = settings.get("startup_vom_costs_usd_year")
 
-    logger.info(
-        f"Changing non-fuel VOM costs from {vom_usd_year} to " f"{target_usd_year}"
-    )
-    for key, cost in vom_costs.items():
-        vom_costs[key] = inflation_price_adjustment(
-            price=cost, base_year=vom_usd_year, target_year=target_usd_year
+    if target_usd_year and vom_usd_year:
+        logger.info(
+            f"Changing non-fuel VOM costs from {vom_usd_year} to " f"{target_usd_year}"
         )
+        for key, cost in vom_costs.items():
+            vom_costs[key] = inflation_price_adjustment(
+                price=cost, base_year=vom_usd_year, target_year=target_usd_year
+            )
 
-    startup_type = settings["startup_costs_type"]
-    startup_costs = settings[startup_type]
-    startup_costs_usd_year = settings["startup_costs_per_cold_start_usd_year"]
+    startup_type = settings.get("startup_costs_type")
+    startup_costs = settings.get(startup_type, {})
+    startup_costs_usd_year = settings.get("startup_costs_per_cold_start_usd_year")
 
-    logger.info(
-        f"Changing non-fuel startup costs from {vom_usd_year} to {target_usd_year}"
-    )
-    for key, cost in startup_costs.items():
-        startup_costs[key] = inflation_price_adjustment(
-            price=cost, base_year=startup_costs_usd_year, target_year=target_usd_year
+    if target_usd_year and startup_costs_usd_year:
+        logger.info(
+            f"Changing non-fuel startup costs from {vom_usd_year} to {target_usd_year}"
         )
+        for key, cost in startup_costs.items():
+            startup_costs[key] = inflation_price_adjustment(
+                price=cost,
+                base_year=startup_costs_usd_year,
+                target_year=target_usd_year,
+            )
 
     df["Start_Cost_per_MW"] = 0
 
@@ -487,7 +491,9 @@ def label_retirement_year(
     """
 
     start_len = len(df)
-    retirement_ages = settings[settings_retirement_table]
+    retirement_ages = settings.get(settings_retirement_table, {}) or {}
+    if "retirement_year" not in df.columns:
+        df["retirement_year"] = np.nan
 
     for tech, life in retirement_ages.items():
         try:
@@ -1339,7 +1345,7 @@ def add_genx_model_tags(df, settings):
         try:
             for tech, tag_value in settings["model_tag_values"][tag_col].items():
                 tech = re.sub(ignored, "", tech)
-                mask = technology.str.contains(fr"^{tech}", case=False)
+                mask = technology.str.contains(rf"^{tech}", case=False)
                 df.loc[mask, tag_col] = tag_value
         except (KeyError, AttributeError) as e:
             logger.warning(f"No model tag values found for {tag_col} ({e})")
@@ -1350,7 +1356,7 @@ def add_genx_model_tags(df, settings):
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
         tech = re.sub(ignored, "", tech)
-        mask = technology.str.contains(fr"^{tech}", case=False)
+        mask = technology.str.contains(rf"^{tech}", case=False)
         df.loc[(df["region"] == region) & mask, tag_col] = tag_value
 
     return df
@@ -2036,7 +2042,7 @@ def add_fuel_labels(df, fuel_prices, settings):
         corresponding fuel (coal, natural_gas, uranium, or distillate) or "None".
     """
 
-    df["Fuel"] = "None"
+    df["Fuel"] = np.nan
     for eia_tech, fuel in (settings.get("tech_fuel_map") or {}).items():
         try:
             if eia_tech == "Natural Gas Steam Turbine":
@@ -2050,47 +2056,116 @@ def add_fuel_labels(df, fuel_prices, settings):
                         settings["eia_atb_tech_map"][eia_tech]
                     ]
                 atb_tech = [
-                    tech.split("_")[0]
+                    tech.split("_")[0] + "_"
                     for tech in settings["eia_atb_tech_map"][eia_tech]
                 ]
         except KeyError:
             # No corresponding ATB technology
             atb_tech = None
-        scenario = settings["aeo_fuel_scenarios"][fuel]
+        scenario = settings.get("aeo_fuel_scenarios", {}).get(fuel)
         model_year = settings["model_year"]
-
-        for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
-            fuel_name = ("_").join([aeo_region, scenario, fuel])
-            assert (
-                fuel_prices.query(
-                    "year==@model_year & full_fuel_name==@fuel_name"
-                ).empty
-                is False
-            ), f"{fuel_name} doesn't show up in {model_year}"
-
-            df.loc[
-                (df["technology"] == eia_tech) & df["region"].isin(model_regions),
-                "Fuel",
-            ] = fuel_name
-
-            if atb_tech is not None:
-                for tech in atb_tech:
+        if not scenario:
+            if fuel not in settings.get("user_fuel_price", []) or []:
+                raise KeyError(
+                    f"The fuel type '{fuel}' is not in the settings parameters "
+                    "'aeo_fuel_scenarios' or 'user_fuel_price'. All fuels listed in "
+                    "'tech_fuel_map' must be included in one of these."
+                )
+            if isinstance(settings["user_fuel_price"][fuel], dict):
+                for region, price in settings["user_fuel_price"][fuel].items():
+                    fuel_name = f"{region}_{fuel}"
                     df.loc[
-                        (df["technology"].str.contains(tech, case=False))
-                        & df["region"].isin(model_regions),
+                        (
+                            df["technology"].str.rstrip("_").str.lower()
+                            == eia_tech.lower()
+                        )
+                        & (df["region"] == region),
                         "Fuel",
                     ] = fuel_name
 
-    for ccs_tech, ccs_fuel in (settings.get("ccs_fuel_map") or {}).items():
-        scenario = settings["aeo_fuel_scenarios"][ccs_fuel.split("_")[0]]
-        for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
-            ccs_fuel_name = ("_").join([aeo_region, scenario, ccs_fuel])
+                    if atb_tech is not None:
+                        for tech in atb_tech:
+                            df.loc[
+                                (df["technology"].str.contains(tech, case=False))
+                                & (df["region"] == region)
+                                & (df["Fuel"].isna()),
+                                "Fuel",
+                            ] = fuel_name
+            else:
+                df.loc[
+                    (df["technology"].str.rstrip("_").str.lower() == eia_tech.lower())
+                    & (df["Fuel"].isna()),
+                    "Fuel",
+                ] = fuel
 
-            df.loc[
-                (df["technology"].str.contains(ccs_tech))
-                & df["region"].isin(model_regions),
-                "Fuel",
-            ] = ccs_fuel_name
+                if atb_tech is not None:
+                    for tech in atb_tech:
+                        df.loc[
+                            (df["technology"].str.contains(tech, case=False))
+                            & (df["Fuel"].isna()),
+                            "Fuel",
+                        ] = fuel
+        else:
+            for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
+                fuel_name = ("_").join([aeo_region, scenario, fuel])
+                assert (
+                    fuel_prices.query(
+                        "year==@model_year & full_fuel_name==@fuel_name"
+                    ).empty
+                    is False
+                ), f"{fuel_name} doesn't show up in {model_year}"
+
+                df.loc[
+                    (df["technology"] == eia_tech) & df["region"].isin(model_regions),
+                    "Fuel",
+                ] = fuel_name
+
+                if atb_tech is not None:
+                    for tech in atb_tech:
+                        df.loc[
+                            (df["technology"].str.contains(tech, case=False))
+                            & (df["region"].isin(model_regions))
+                            & (df["Fuel"].isna()),
+                            "Fuel",
+                        ] = fuel_name
+
+    for ccs_tech, ccs_fuel in (settings.get("ccs_fuel_map") or {}).items():
+        ccs_base_name = ("_").join(ccs_fuel.split("_")[:-1])
+        if ccs_base_name in (settings.get("aeo_fuel_scenarios", {}) or {}).keys():
+            scenario = settings["aeo_fuel_scenarios"][ccs_base_name]
+            for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
+                ccs_fuel_name = ("_").join([aeo_region, scenario, ccs_fuel])
+
+                df.loc[
+                    (df["technology"].str.contains(ccs_tech))
+                    & df["region"].isin(model_regions),
+                    "Fuel",
+                ] = ccs_fuel_name
+        elif ccs_base_name in (settings.get("user_fuel_price", {}) or {}).keys():
+            if isinstance(settings["user_fuel_price"][ccs_base_name], dict):
+                for region in settings["user_fuel_price"][ccs_base_name].keys():
+                    ccs_fuel_name = ("_").join([region, ccs_fuel])
+                    df.loc[
+                        (df["technology"].str.contains(ccs_tech))
+                        & df["region"].isin(model_regions),
+                        "Fuel",
+                    ] = ccs_fuel_name
+            else:
+                df.loc[
+                    (df["technology"].str.contains(ccs_tech))
+                    & df["region"].isin(model_regions),
+                    "Fuel",
+                ] = ccs_fuel
+        else:
+            logger.warning(
+                f"The fuel {ccs_fuel} is included in settings parameter `ccs_fuel_map` "
+                "but it can't be matched against an AEO or user fuel. CCS fuels should "
+                "have the format <fuel name>_ccs<capture rate>, where the capture rate "
+                "is optional. The <fuel name> should match a fuel from `aeo_fuel_scenarios' "
+                "or `user_fuel_prices`."
+            )
+
+    df.loc[df["Fuel"].isna(), "Fuel"] = "None"
 
     return df
 
@@ -2756,12 +2831,12 @@ class GeneratorClusters:
 
         region_tech_grouped = self.units_model.loc[
             (self.units_model.technology.isin(techs))
-            & (self.units_model.retirement_year > self.settings["model_year"]),
+            & ~(self.units_model.retirement_year <= self.settings["model_year"]),
             :,
         ].groupby(["model_region", "technology"])
 
         self.retired = self.units_model.loc[
-            self.units_model.retirement_year <= self.settings["model_year"], :
+            ~(self.units_model.retirement_year > self.settings["model_year"]), :
         ]
 
         # gens_860 lost the ownership code... refactor this!

@@ -49,6 +49,9 @@ COL_ROUND_VALUES = {
     "Line_Loss_Percentage": 4,
 }
 
+# RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO", "LDS"]
+RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO"]
+
 
 def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
     model_year = settings["model_year"]
@@ -924,3 +927,49 @@ def max_cap_req(settings: dict) -> pd.DataFrame:
         return max_cap_df
     else:
         return None
+
+
+def check_resource_tags(df: pd.DataFrame) -> pd.DataFrame:
+    """Check complete generators dataframe to make sure each resource is assigned one,
+    and only one, resource tag.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Resource clusters. Should have columns "technology" and "region" in addition
+        to the resource tag columns expected by GenX.
+
+    Returns
+    -------
+    pd.DataFrame
+        An unaltered version of the input dataframe.
+    """
+    tags = [t for t in RESOURCE_TAGS if t in df.columns]
+    if not (df[tags].sum(axis=1) == 1).all():
+        for idx, row in df.iterrows():
+            num_tags = row[tags].sum()
+            if num_tags == 0:
+                logger.warning(
+                    "\n*************************\n"
+                    f"The resource {row['technology']} in region {row['region']} does "
+                    "not have any assigned resource tags. Check the 'model_tag_values' and "
+                    "'regional_tag_values' parameters in your settings file to make sure"
+                    "it is assigned one resource tag type from this list:\n\n"
+                    f"{RESOURCE_TAGS}\n"
+                )
+            if num_tags > 1:
+                s = row[RESOURCE_TAGS]
+                _tags = list(s[s == 1].index)
+                logger.warning(
+                    "\n*************************\n"
+                    f"The resource {row['technology']} in region {row['region']} is "
+                    f"assigned {num_tags} resource tags ({_tags}). Check the 'model_tag_values'"
+                    " and 'regional_tag_values' parameters in your settings file to make"
+                    " sure it is assigned only one resource tag type from this list:\n\n"
+                    f"{RESOURCE_TAGS}\n"
+                )
+
+        raise ValueError(
+            "Use the warnings above to fix the resource tags in your settings file."
+        )
+    return df
