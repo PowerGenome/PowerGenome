@@ -8,8 +8,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-        repository: GenXProject/GenX
-        ref: main
+        with:
+          repository: GenXProject/GenX
+          ref: main
       - uses: julia-actions/setup-julia@v1
         with:
           version: '1.6'
