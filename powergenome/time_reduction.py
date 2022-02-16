@@ -340,7 +340,10 @@ def kmeans_time_clustering(
     # renewable_df = renewable_df.drop(columns=["GrpWeight"])
     # renewable_df.insert(loc=0, column="Resource", value=renewable_df.index + 1)
     # renewable_df.to_csv("renewables_time_reduced.csv", index=False)
-    time_series_mapping["Rep_Period"] = EachClusterRepPoint
+    rep_period_map = {i + 1: int(p[1:]) for i, p in enumerate(EachClusterRepPoint)}
+    time_series_mapping["Rep_Period"] = time_series_mapping["Rep_Period_Index"].map(
+        rep_period_map
+    )
     EachClusterRepPoint = pd.DataFrame(EachClusterRepPoint, columns=["slot"])
     return (
         {
