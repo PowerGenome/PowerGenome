@@ -224,6 +224,7 @@ def kmeans_time_clustering(
         dayOfYear = days_in_group * Period_Index
         d = datetime.datetime.strptime("{} {}".format(dayOfYear, 2011), "%j %Y")
         time_series_mapping["Month"][Period_Index - 1] = d.month
+    time_series_mapping["Rep_Period_Index"] = time_series_mapping["Month"]
 
     # Storing selected groupings in a new data frame with appropriate dimensions
     # (E.g. load in GW)
