@@ -1,7 +1,7 @@
 import collections
 import logging
 from numbers import Number
-from typing import Dict, List
+from typing import Dict, List, Union
 import re
 from zipfile import BadZipFile
 
@@ -2430,6 +2430,55 @@ def load_plants_860(
     return plants
 
 
+def set_pumped_hydro_mwh(
+    df: pd.DataFrame,
+    storage_duration: Union[float, Dict[str, float]],
+    capacity_col: str,
+) -> pd.DataFrame:
+    """Set the energy storage capacity for pumped hydro
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame of generators/resources. Any resources with "pumped" in the name will
+        be treated as pumped hydro.
+    storage_duration : Union[float, Dict[str, float]]
+        Either a single numeric value that will be applied to pumped hydro in all regions,
+        or a dictionary with region-specific values.
+    capacity_col : str
+        Name of the column with resource capacity.
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified version of the input dataframe
+    """
+    if isinstance(storage_duration, dict):
+        for r in df.loc[
+            df["technology"].str.contains("pumped", case=False), "region"
+        ].unique():
+            if r not in storage_duration.keys():
+                logger.warning(
+                    f"The region {r} has pumped hydro resources and does not have a "
+                    "regional value for pumped_hydro_storage_duration. The energy storage "
+                    "value will be 0 in this region."
+                )
+        for region, val in storage_duration.items():
+            df.loc[
+                (df["technology"].str.contains("pumped", case=False))
+                & (df["region"] == region),
+                "Existing_Cap_MWh",
+            ] = (
+                df[capacity_col] * val
+            )
+    else:
+        df.loc[
+            df["technology"].str.contains("pumped", case=False), "Existing_Cap_MWh"
+        ] = (df[capacity_col] * storage_duration)
+
+    return df
+
+
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -3092,6 +3141,14 @@ class GeneratorClusters:
                 utc_offset=self.settings.get("utc_offset", 0),
             )
             self.results["profile"][i] = clusters["profile"][0]
+
+        # Add pumped hydro energy capacity. The default of 15.5 hours is an average for
+        # all US pumped hydro (https://sandia.gov/ess-ssl/gesdb/public/statistics.html)
+        self.results = set_pumped_hydro_mwh(
+            df=self.results,
+            storage_duration=self.settings.get("pumped_hydro_storage_duration", 15.5),
+            capacity_col="Existing_Cap_MW",
+        )
 
         return self.results
 

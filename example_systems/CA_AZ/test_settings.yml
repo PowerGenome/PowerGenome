@@ -811,6 +811,9 @@ MinCapReq:
     description: CA_S_solar
     min_mw: 10000
 
+# Can be a single value for all regions or dictionary of region: value
+pumped_hydro_storage_duration: 15.5
+
 
 # Generator cost data from NREL ATB
 

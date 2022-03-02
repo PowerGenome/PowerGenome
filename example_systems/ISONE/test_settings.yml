@@ -580,6 +580,8 @@ MinCapReq:
     description: MA_Solar
     min_mw: 3200
 
+# Can be a single value for all regions or dictionary of region: value
+pumped_hydro_storage_duration: 15.5
 
 # Generator cost data from NREL ATB
 
