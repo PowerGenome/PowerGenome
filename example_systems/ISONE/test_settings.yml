@@ -287,6 +287,9 @@ derate_techs:
 
 # Energy storge duration. Provide a default value for existing resources of a given type.
 # The value of 15.5 for pumped hydro comes from https://sandia.gov/ess-ssl/gesdb/public/statistics.html
+# Default value can be numeric or a dictionary of region: numeric values. Technology names
+# here and in the dataframe are both converted to snake case and matches are made if this
+# name is contained in the dataframe technology name.
 energy_storage_duration:
   Hydroelectric Pumped Storage: 15.5
 
@@ -580,8 +583,6 @@ MinCapReq:
     description: MA_Solar
     min_mw: 3200
 
-# Can be a single value for all regions or dictionary of region: value
-pumped_hydro_storage_duration: 15.5
 
 # Generator cost data from NREL ATB
 

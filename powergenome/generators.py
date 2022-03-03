@@ -48,6 +48,7 @@ from powergenome.util import (
     reverse_dict_of_lists,
     snake_case_col,
     regions_to_keep,
+    snake_case_str,
 )
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
@@ -2368,7 +2369,7 @@ def add_dg_resources(
 
 def energy_storage_mwh(
     df: pd.DataFrame,
-    energy_storage_duration: Dict[str, float],
+    energy_storage_duration: Dict[str, Union[float, Dict[str, float]]],
     tech_col: str,
     cap_col: str,
     energy_col: str,
@@ -2381,8 +2382,9 @@ def energy_storage_mwh(
     df : pd.DataFrame
         Resource dataframe with columns specified by `tech_col`, `cap_col`, and
         `energy_col`
-    energy_storage_duration : Dict[str, float]
-        Keys are technology names, values are the duration of storage
+    energy_storage_duration : Dict[str, Union[float, Dict[str, float]]]
+        Keys are technology names, values are either the duration of storage (float) or
+        a dictionary with region keys and storage duration values
     tech_col : str
         Dataframe column with technology names
     cap_col : str
@@ -2395,9 +2397,44 @@ def energy_storage_mwh(
     pd.DataFrame
         Modified dataframe with energy storage values
     """
-    for k, v in energy_storage_duration.items():
-        df.loc[df[tech_col] == k, energy_col] = df[cap_col] * v
-
+    all_regions = df["region"].unique()
+    for tech, val in energy_storage_duration.items():
+        if isinstance(val, dict):
+            tech_regions = val.keys()
+            model_tech_regions = df.loc[
+                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
+                "region",
+            ].to_list()
+            if not all(r in tech_regions for r in model_tech_regions):
+                missing_regions = [
+                    r for r in model_tech_regions if r not in tech_regions
+                ]
+                logger.warning(
+                    f"The regions {missing_regions} are missing from technology {tech} "
+                    "in the settings parameter 'energy_storage_duration'. This technology "
+                    "will not have any energy storage capacity in these regions."
+                )
+            for region, v in val.items():
+                if region not in all_regions:
+                    logger.warning(
+                        f"The settings parameter 'energy_storage_duration', technology '{tech}' "
+                        f"has the region '{region}', which is not one of your model regions."
+                    )
+                df.loc[
+                    (snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)))
+                    & (df["region"] == region),
+                    energy_col,
+                ] = (
+                    df[cap_col] * v
+                )
+        else:
+            df.loc[
+                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
+                energy_col,
+            ] = (
+                df[cap_col] * val
+            )
+    df[energy_col] = df[energy_col].fillna(0)
     return df
 
 
@@ -2428,55 +2465,6 @@ def load_plants_860(
     )
 
     return plants
-
-
-def set_pumped_hydro_mwh(
-    df: pd.DataFrame,
-    storage_duration: Union[float, Dict[str, float]],
-    capacity_col: str,
-) -> pd.DataFrame:
-    """Set the energy storage capacity for pumped hydro
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame of generators/resources. Any resources with "pumped" in the name will
-        be treated as pumped hydro.
-    storage_duration : Union[float, Dict[str, float]]
-        Either a single numeric value that will be applied to pumped hydro in all regions,
-        or a dictionary with region-specific values.
-    capacity_col : str
-        Name of the column with resource capacity.
-
-    Returns
-    -------
-    pd.DataFrame
-        Modified version of the input dataframe
-    """
-    if isinstance(storage_duration, dict):
-        for r in df.loc[
-            df["technology"].str.contains("pumped", case=False), "region"
-        ].unique():
-            if r not in storage_duration.keys():
-                logger.warning(
-                    f"The region {r} has pumped hydro resources and does not have a "
-                    "regional value for pumped_hydro_storage_duration. The energy storage "
-                    "value will be 0 in this region."
-                )
-        for region, val in storage_duration.items():
-            df.loc[
-                (df["technology"].str.contains("pumped", case=False))
-                & (df["region"] == region),
-                "Existing_Cap_MWh",
-            ] = (
-                df[capacity_col] * val
-            )
-    else:
-        df.loc[
-            df["technology"].str.contains("pumped", case=False), "Existing_Cap_MWh"
-        ] = (df[capacity_col] * storage_duration)
-
-    return df
 
 
 class GeneratorClusters:
@@ -3141,14 +3129,6 @@ class GeneratorClusters:
                 utc_offset=self.settings.get("utc_offset", 0),
             )
             self.results["profile"][i] = clusters["profile"][0]
-
-        # Add pumped hydro energy capacity. The default of 15.5 hours is an average for
-        # all US pumped hydro (https://sandia.gov/ess-ssl/gesdb/public/statistics.html)
-        self.results = set_pumped_hydro_mwh(
-            df=self.results,
-            storage_duration=self.settings.get("pumped_hydro_storage_duration", 15.5),
-            capacity_col="Existing_Cap_MW",
-        )
 
         return self.results
 
