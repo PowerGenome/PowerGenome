@@ -3203,7 +3203,8 @@ class GeneratorClusters:
                 self.all_resources.loc[i, "variable_CF"] = np.mean(p)
 
         # Set Min_Power of wind/solar to 0
-        self.all_resources.loc[self.all_resources["VRE"] == 1, "Min_Power"] = 0
+        if "VRE" in self.all_resources.columns:
+            self.all_resources.loc[self.all_resources["VRE"] == 1, "Min_Power"] = 0
 
         self.all_resources["R_ID"] = np.arange(len(self.all_resources)) + 1
 

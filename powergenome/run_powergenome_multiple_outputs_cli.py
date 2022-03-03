@@ -270,9 +270,7 @@ def main():
                         + "_"
                         + gen_clusters["cluster"].astype(str)
                     )
-                    gens = calculate_partial_CES_values(
-                        gen_clusters, fuels, _settings
-                    ).pipe(fix_min_power_values, gen_variability)
+                    gens = fix_min_power_values(gen_clusters, gen_variability)
                     for col in _settings["generator_columns"]:
                         if col not in gens.columns:
                             gens[col] = 0
@@ -325,9 +323,7 @@ def main():
                         + "_"
                         + gen_clusters["cluster"].astype(str)
                     )
-                    gens = calculate_partial_CES_values(
-                        gen_clusters, fuels, _settings
-                    ).pipe(fix_min_power_values, gen_variability)
+                    gens = fix_min_power_values(gen_clusters, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
                         df=remove_fuel_gen_scenario_name(
