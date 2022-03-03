@@ -9,6 +9,7 @@ from powergenome.GenX import (
     check_resource_tags,
     create_policy_req,
     create_regional_cap_res,
+    hydro_energy_to_power,
     max_cap_req,
     min_cap_req,
     network_line_loss,
@@ -46,6 +47,7 @@ from powergenome.generators import (
     unit_generator_heat_rates,
     load_860m,
     GeneratorClusters,
+    energy_storage_mwh,
 )
 from powergenome.load_profiles import make_final_load_curves, make_load_curves
 from powergenome.params import DATA_PATHS  # , SETTINGS
@@ -655,3 +657,60 @@ def test_add_user_fuel_prices():
             == settings["fuel_emission_factors"]["biomass"]
         )
     assert (fuel_table.loc[1:, :] == 0).any().any() == False
+
+
+def test_storage_duration(caplog):
+    settings = {
+        "energy_storage_duration": {
+            "hydroelectric pumped": 15.5,
+            "batteries": {"A": 2, "B": 1, "D": 1},
+        }
+    }
+
+    data = {
+        "region": ["A", "A", "A", "B", "B", "B", "C"],
+        "technology": ["Hydroelectric Pumped Storage", "Batteries", "Nuclear"] * 2
+        + ["Batteries"],
+        "Existing_Cap_MW": [1] * 7,
+    }
+    df = pd.DataFrame(data)
+
+    caplog.set_level(logging.WARNING)
+    df_mwh = energy_storage_mwh(
+        df,
+        settings["energy_storage_duration"],
+        "technology",
+        "Existing_Cap_MW",
+        "Existing_Cap_MWh",
+    )
+    assert "The regions ['C'] are missing from technology batteries" in caplog.text
+    assert "technology 'batteries' has the region 'D'" in caplog.text
+
+    assert df.equals(df_mwh[df.columns])
+    mwh = pd.Series([15.5, 2, 0, 15.5, 1, 0, 0])
+    assert mwh.equals(df_mwh["Existing_Cap_MWh"])
+
+
+def test_hydro_energy_to_power():
+    settings = {
+        "hydro_factor": 2,
+        "regional_hydro_factor": {
+            "A": 4,
+            "B": 1,
+        },
+    }
+
+    data = {
+        "region": ["A", "A", "A", "B", "B", "B", "C"],
+        "technology": ["Hydro", "NG", "Nuclear"] * 2 + ["Hydro"],
+        "HYDRO": [1, 0, 0] * 2 + [1],
+        "profile": [[0.5], np.nan, np.nan] * 2 + [[0.6]],
+    }
+    df = pd.DataFrame(data)
+
+    df_hydro_ratio = hydro_energy_to_power(
+        df, settings["hydro_factor"], settings["regional_hydro_factor"]
+    )
+    assert df.equals(df_hydro_ratio[df.columns])
+    hydro_ratio = pd.Series([2, 0, 0, 1, 0, 0, 1.2])
+    assert hydro_ratio.equals(df_hydro_ratio["Hydro_Energy_to_Power_Ratio"])

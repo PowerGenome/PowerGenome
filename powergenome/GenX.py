@@ -1022,13 +1022,10 @@ def hydro_energy_to_power(
         region_mask = df["region"] == region
         if region_mask.any():
             avg_inflow = (
-                make_generator_variability(
-                    df.loc[(df["HYDRO"] == 1) & region_mask, :]
-                ).mean()
-                * factor
-            )
+                make_generator_variability(df).mean().reset_index(drop=True) * factor
+            ).loc[hydro_mask & region_mask]
             df.loc[
                 (df["HYDRO"] == 1) & region_mask, "Hydro_Energy_to_Power_Ratio"
             ] = avg_inflow.where(avg_inflow > 1, 1)
-
+    df["Hydro_Energy_to_Power_Ratio"] = df["Hydro_Energy_to_Power_Ratio"].fillna(0)
     return df
