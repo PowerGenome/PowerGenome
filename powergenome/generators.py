@@ -2861,6 +2861,9 @@ class GeneratorClusters:
             # correct clustering method. Can't keep doing if statements as the number of
             # methods grows. CHANGE LATER.
             if not alt_cluster_method:
+                # Allow users to set value as None and not cluster units.
+                if num_clusters[region][tech] is None:
+                    num_clusters[region][tech] = len(grouped)
                 if num_clusters[region][tech] > 0:
                     cluster_cols = [
                         "Fixed_OM_Cost_per_MWyr",
