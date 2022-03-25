@@ -209,7 +209,7 @@ def make_generator_variability(
     """
 
     def profile_len(x: Any) -> int:
-        if isinstance(x, np.ndarray):
+        if isinstance(x, (list, np.ndarray)):
             return len(x)
         return 1
 
@@ -227,13 +227,12 @@ def make_generator_variability(
         if isinstance(x, list):
             return format_profile(np.array(x), remove_feb_29, hours)
         # Fill missing with default [1, ...]
-        return np.ones(8760, dtype=float)
+        return np.ones(hours, dtype=float)
 
     if "profile" in df:
-        if remove_feb_29:
+        hours = df["profile"].apply(profile_len).max()
+        if remove_feb_29 and hours == 8784:
             hours = 8760
-        else:
-            hours = df["profile"].apply(profile_len).max()
         kwargs = {"remove_feb_29": remove_feb_29, "hours": hours}
         profiles = np.column_stack(df["profile"].apply(format_profile, **kwargs).values)
         # Make sure values are not less than 0

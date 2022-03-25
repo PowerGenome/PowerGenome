@@ -396,6 +396,17 @@ small_hydro_regions:
   - CA_N
   - CA_S
 
+# Factors for calculating hydro energy to power ratio in GenX. The default factors is
+# numeric and will be applied to all regions. The regional factors are a dictionary mapping
+# model region names to specific regional factors. The factors are multiplied by average
+# annual inflow rates to determine the rated number of hours of reservoir hydro
+# storage at peak discharge power output.
+hydro_factor: 2
+
+regional_hydro_factor:
+  WECC_PNW: 4
+  WECC_N: 4
+
 # REGIONS
 # Select the regions and any regional aggregations that should be performed.
 # This currenly only works for IPM regions, either as the regions used in GenX or as
@@ -512,6 +523,13 @@ derate_techs:
   - Biomass
   - Geothermal
 
+# Energy storge duration. Provide a default value for existing resources of a given type.
+# The value of 15.5 for pumped hydro comes from https://sandia.gov/ess-ssl/gesdb/public/statistics.html
+# Default value can be numeric or a dictionary of region: numeric values. Technology names
+# here and in the dataframe are both converted to snake case and matches are made if this
+# name is contained in the dataframe technology name.
+energy_storage_duration:
+  Hydroelectric Pumped Storage: 15.5
 
 # RETIREMENT AGES
 # The age at which each technolgy type is expected to retire

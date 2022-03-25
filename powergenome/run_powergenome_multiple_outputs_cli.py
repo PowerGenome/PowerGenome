@@ -22,6 +22,7 @@ from powergenome.GenX import (
     create_policy_req,
     create_regional_cap_res,
     fix_min_power_values,
+    hydro_energy_to_power,
     min_cap_req,
     max_cap_req,
     reduce_time_domain,
@@ -247,6 +248,11 @@ def main():
 
                     gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
                     gen_clusters = add_misc_gen_values(gen_clusters, _settings)
+                    gen_clusters = hydro_energy_to_power(
+                        gen_clusters,
+                        _settings.get("hydro_factor"),
+                        _settings.get("regional_hydro_factor"),
+                    )
 
                     # Save existing resources that aren't demand response for use in
                     # other cases
@@ -264,9 +270,7 @@ def main():
                         + "_"
                         + gen_clusters["cluster"].astype(str)
                     )
-                    gens = calculate_partial_CES_values(
-                        gen_clusters, fuels, _settings
-                    ).pipe(fix_min_power_values, gen_variability)
+                    gens = fix_min_power_values(gen_clusters, gen_variability)
                     for col in _settings["generator_columns"]:
                         if col not in gens.columns:
                             gens[col] = 0
@@ -297,6 +301,11 @@ def main():
 
                     gen_clusters = gc.create_all_generators()
                     gen_clusters = add_misc_gen_values(gen_clusters, _settings)
+                    gen_clusters = hydro_energy_to_power(
+                        gen_clusters,
+                        _settings.get("hydro_factor"),
+                        _settings.get("regional_hydro_factor"),
+                    )
                     gen_clusters = set_int_cols(gen_clusters)
                     gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
 
@@ -314,9 +323,7 @@ def main():
                         + "_"
                         + gen_clusters["cluster"].astype(str)
                     )
-                    gens = calculate_partial_CES_values(
-                        gen_clusters, fuels, _settings
-                    ).pipe(fix_min_power_values, gen_variability)
+                    gens = fix_min_power_values(gen_clusters, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
                         df=remove_fuel_gen_scenario_name(
