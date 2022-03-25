@@ -20,13 +20,13 @@ case_id_description_fn: test_case_id_description.csv # Match the case_id with lo
 scenario_definitions_fn: test_scenario_inputs_short.csv # Define policy/cost scenarios for each case
 # scenario_definitions_fn: test_scenario_inputs.csv # Define policy/cost scenarios for each case
 distributed_gen_profiles_fn: test_dg_profiles.csv # Hourly profiles of distributed gen by region
-demand_response_fn: test_ev_load_shifting.csv # Load profiles of DR resources by model_year and scenario
+# demand_response_fn: test_ev_load_shifting.csv # Load profiles of DR resources by model_year and scenario
 emission_policies_fn: test_rps_ces_emission_limits.csv # Emission policies for each model_year/region/case_id
 capacity_limit_spur_fn: test_resource_capacity_spur.csv # Max capacity and spur line distance for each renewable resource
 region_wind_pv_cap_fn: existing_wind_pv_capacity.csv
 demand_segments_fn: test_demand_segments_voll.csv
 misc_gen_inputs_fn: test_misc_gen_inputs.csv
-genx_settings_folder: genx_settings
+genx_settings_fn: GenX_settings.yml # In the same folder as this file, not in "input_folder" subfolder
 reserves_fn: Reserves.csv
 # regional_load_fn: test_regional_load_profiles.csv #Externally provide load data
 
@@ -34,7 +34,7 @@ reserves_fn: Reserves.csv
 # loads, set this parameter to "true". If the regional hourly loads do not include
 # demand response - the DR should be added to the load profiles - set to "~" (None) or
 # "false".
-regional_load_includes_demand_response: true
+# regional_load_includes_demand_response: true
 
 
 # Time clustering/reduction parameters
@@ -66,34 +66,39 @@ distributed_gen_values:
     CA_N: 9788
     CA_S: 12618
 
-# Set this parameter to "true" if existing distributed generation in each region should
-# be represented as a resource rather than being subtracted from demand.
-dg_as_resource: true
 
 # Distribution loss used when subtracting distributed generation from total load.
 avg_distribution_loss: 0.0453
 
 
-# electrification_stock_fn: SCENARIO_STOCK.parquet
-# electrification_scenario: current_policy
+electrification_stock_fn: EFS_STOCK_AGG.parquet  # SCENARIO_STOCK.parquet
+electrification_scenario: REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT # current_policy
 # Name of the DSM resource, fraction of load that can be shifted, and number of hours
 # that it can be shifted
 demand_response_resources:
   2030:
-    ev_load_shifting:
+    LDV_MW:
       fraction_shiftable: 0.8
       parameter_values:
-        Max_Flexible_Demand_Delay: 5
-        FLEX: 1
-        Flexible_Demand_Energy_Eff: 1
+        Max_DSM_delay: 5
+        DR: 2
+    Res_WH_MW:
+      fraction_shiftable: 0.1
+      parameter_values:
+        Max_DSM_delay: 2
+        DR: 2
   2045:
-    ev_load_shifting:
+    LDV_MW:
       fraction_shiftable: 0.8
       parameter_values:
-        Max_Flexible_Demand_Delay: 5
-        FLEX: 1
-        Flexible_Demand_Energy_Eff: 1
-demand_response: 'moderate'
+        Max_DSM_delay: 5
+        DR: 2
+    Res_WH_MW:
+      fraction_shiftable: 0.25
+      parameter_values:
+        Max_DSM_delay: 2
+        DR: 2
+# demand_response: 'moderate'
 
 # Transmission financial information to calculate annual investment costs
 # capex_mw_mile: Capital cost per MW-mile for all (numeric) or each model region (dict).
@@ -386,8 +391,7 @@ target_usd_year: 2017
 
 # HOURS OFFSET FROM UTC
 # All time profile data are stored in UTC. Provide an offset for the model timezone.
-# US East cost is UTC-5, Pacific is UTC-8
-utc_offset: -8
+utc_offset: -5
 
 # CAPACITY TYPE
 capacity_col: winter_capacity_mw
@@ -398,17 +402,6 @@ small_hydro_mw: 30
 small_hydro_regions:
   - CA_N
   - CA_S
-
-# Factors for calculating hydro energy to power ratio in GenX. The default factors is
-# numeric and will be applied to all regions. The regional factors are a dictionary mapping
-# model region names to specific regional factors. The factors are multiplied by average
-# annual inflow rates to determine the rated number of hours of reservoir hydro
-# storage at peak discharge power output.
-hydro_factor: 2
-
-regional_hydro_factor:
-  WECC_PNW: 4
-  WECC_N: 4
 
 # REGIONS
 # Select the regions and any regional aggregations that should be performed.
@@ -447,7 +440,7 @@ cap_res_network_derate_default: 0.95
 # Won't show up if not listed here (expand)
 cluster_method: kmeans
 
-# ** Any technologies not included in num_clusters will be omitted **
+
 num_clusters:
   Conventional Steam Coal: 1
   Natural Gas Fired Combined Cycle: 1
@@ -526,23 +519,9 @@ derate_techs:
   - Biomass
   - Geothermal
 
-# Energy storge duration. Provide a default value for existing resources of a given type.
-# The value of 15.5 for pumped hydro comes from https://sandia.gov/ess-ssl/gesdb/public/statistics.html
-# Default value can be numeric or a dictionary of region: numeric values. Technology names
-# here and in the dataframe are both converted to snake case and matches are made if this
-# name is contained in the dataframe technology name.
-energy_storage_duration:
-  Hydroelectric Pumped Storage: 15.5
 
 # RETIREMENT AGES
 # The age at which each technolgy type is expected to retire
-# ********* IMPORTANT ****************
-# If you are running a myopic model with multiple planning periods, age-based retirements
-# between planning periods can change the units assigned to each cluster. In this situation
-# the heat rates and O&M of a cluster will change because of the units it contains.
-# Economic retirements of capacity from a cluster may not accurately represent the units
-# that should be retired. To avoid this, set all retirement ages to a large value
-# (e.g. 500).
 
 retirement_ages:
   Conventional Hydroelectric: 500
@@ -793,7 +772,6 @@ model_tag_values:
     Geothermal: 1
     Wood/Wood Waste Biomass: 1
     Biomass: 1
-    distributed_generation: 1
 
 # Tags for a technology in a specific region
 # Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>
@@ -892,12 +870,6 @@ eia_atb_tech_map:
   Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF #[NaturalGas_CCAvgCF, NETL_NGCC]
   Natural Gas Fired Combustion Turbine: NaturalGas_CTAvgCF
   Peaker: NaturalGas_CTAvgCF
-  Natural Gas Internal Combustion Engine: NaturalGas_CTAvgCF
-  Landfill Gas: NaturalGas_CTAvgCF
-  Petroleum Liquids: NaturalGas_CTAvgCF
-  Municipal Solid Waste: Biopower_Dedicated
-  Other Waste Biomass: Biopower_Dedicated
-  Wood/Wood Waste Biomass: Biopower_Dedicated
   Solar Photovoltaic: UtilityPV_LosAngeles
   Geothermal: Geothermal_HydroFlash # assume installed capacity is dominated by flash
 
@@ -928,13 +900,11 @@ atb_new_gen:
 # Provide the filename (no path needed) in the parameter below or "~" for none.
 # All technologies listed in the file will be included in the outputs unless they are
 # also included in "new_gen_not_available".
-additional_technologies_fn: AZ_additional_tech.csv #NETL_Additional_tech.csv
+additional_technologies_fn: AZ_additional_tech.csv
 
 additional_new_gen:
   - Nuclear_mid
   # - NGCCS100_mid
-  # - NETL_NGCC
-  # - NETL+NGCC_CCS
 
 
 # Dictionary of lists with model region as key and ATB tech (string matching) in list
@@ -1113,7 +1083,7 @@ default_load_year: 2012
 regular_load_growth_start_year: 2019
 growth_scenario: REF2020
 
-historical_load_region_map:
+historical_load_region_maps:
   TRE: [ERC_PHDL, ERC_REST, ERC_WEST]
   FLRC: [FRCC] #FRCC
   MWRCE: [MIS_WUMS]
@@ -1132,7 +1102,7 @@ historical_load_region_map:
   RFCET: [PJM_WMAC, PJM_EMAC, PJM_SMAC, PJM_PENE, PJM_Dom]
   RFCMI: [MIS_LMI]
   RFCWT: [PJM_West, PJM_AP, PJM_ATSI, PJM_COMD]
-  SERCDLT: [MIS_WOTA, MIS_LA, MIS_AMSO, MIS_AR, MIS_D_MS]
+  SERCDLT: [MIS_WOTA, MIS_LA, MIS_AMSO, MIS_AR, MIS_MD_MS]
   SERCGW: [MIS_MO, S_D_AECI, MIS_IL, MIS_INKY]
   SERCSOES: [S_SOU]
   SERCCNT: [S_C_TVA, S_C_KY]

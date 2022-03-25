@@ -28,6 +28,8 @@ DATA_PATHS["settings"] = project_path / "settings"
 DATA_PATHS["eia"] = DATA_PATHS["data"] / "eia"
 DATA_PATHS["eia_860m"] = DATA_PATHS["eia"] / "860m"
 DATA_PATHS["cost_multipliers"] = DATA_PATHS["data"] / "cost_multipliers"
+DATA_PATHS["cache"] = DATA_PATHS["data"] / "cache"
+DATA_PATHS["cache"].mkdir(exist_ok=True)
 DATA_PATHS["additional_techs"] = DATA_PATHS["data"] / "additional_technologies"
 DATA_PATHS["coal_fgd"] = DATA_PATHS["data"] / "coal_fgd" / "fgd_output.csv"
 DATA_PATHS["cpi_data"] = DATA_PATHS["data"] / "cpi_data" / "cpi_data.csv"
@@ -39,6 +41,7 @@ SETTINGS = {}
 SETTINGS["PUDL_DB"] = os.environ.get("PUDL_DB")
 SETTINGS["PG_DB"] = os.environ.get("PG_DB")
 SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
+SETTINGS["EFS_DATA"] = os.environ.get("EFS_DATA")
 SETTINGS["RESOURCE_GROUPS"] = os.environ.get("RESOURCE_GROUPS")
 
 
