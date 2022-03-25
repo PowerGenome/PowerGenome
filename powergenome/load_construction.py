@@ -18,7 +18,12 @@ from powergenome.util import (
 )
 from powergenome.params import DATA_PATHS, SETTINGS
 
-path_in = Path(SETTINGS["EFS_DATA"])
+logger = logging.getLogger(__name__)
+
+try:
+    path_in = Path(SETTINGS["EFS_DATA"])
+except TypeError:
+    logger.warning("The variable 'EFS_DATA' is not included in your .env file.")
 
 memory = Memory(location=DATA_PATHS["cache"], verbose=0)
 
