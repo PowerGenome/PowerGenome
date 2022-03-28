@@ -163,8 +163,6 @@ running_sectors = {
     "trans_bus": ("Transportation", "transit buses"),
 }
 
-logger = logging.getLogger(__name__)
-
 
 def CreateOutputFolder(case_folder):
     path = case_folder / "extra_outputs"

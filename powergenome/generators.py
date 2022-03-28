@@ -2508,6 +2508,7 @@ def load_demand_response_efs_profile(
     )
     dr_profile.columns = dr_profile.columns.droplevel()
     for mod_r, ipm_regs in region_aggregations.items():
+        ipm_regs = [r for r in ipm_regs if r != mod_r]
         dr_profile[mod_r] = dr_profile[ipm_regs].sum(axis=1)
         dr_profile = dr_profile.drop(columns=ipm_regs)
 
