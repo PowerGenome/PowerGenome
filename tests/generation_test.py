@@ -562,6 +562,13 @@ def test_check_resource_tags():
 
     check_resource_tags(df)
 
+    # Check something that should pass
+    cols = ["region", "technology"] + RESOURCE_TAGS
+    data = [pd.Series(["a", "b", 2] + [0] * (len(RESOURCE_TAGS) - 1), index=cols)]
+    df = pd.DataFrame(data)
+
+    check_resource_tags(df)
+
 
 def test_add_user_fuel_prices():
     settings = {

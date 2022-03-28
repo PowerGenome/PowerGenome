@@ -946,8 +946,10 @@ def check_resource_tags(df: pd.DataFrame) -> pd.DataFrame:
         An unaltered version of the input dataframe.
     """
     tags = [t for t in RESOURCE_TAGS if t in df.columns]
-    if not (df[tags].sum(axis=1) == 1).all():
-        for idx, row in df.iterrows():
+    df_copy = df.loc[:, ["technology", "region"] + tags].copy()
+    df_copy[tags] = df_copy[tags].where(df_copy[tags] == 0, 1)
+    if not (df_copy[tags].sum(axis=1) == 1).all():
+        for idx, row in df_copy.iterrows():
             num_tags = row[tags].sum()
             if num_tags == 0:
                 logger.warning(
@@ -959,7 +961,7 @@ def check_resource_tags(df: pd.DataFrame) -> pd.DataFrame:
                     f"{RESOURCE_TAGS}\n"
                 )
             if num_tags > 1:
-                s = row[RESOURCE_TAGS]
+                s = row[tags]
                 _tags = list(s[s == 1].index)
                 logger.warning(
                     "\n*************************\n"
