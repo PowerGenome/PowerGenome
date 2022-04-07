@@ -42,6 +42,9 @@ jobs:
         pip install -e .
     - name: flake8 Lint
       uses: py-actions/flake8@v2
+      with:
+        max-line-length: 127
+        args: "--count --exit-zero --max-complexity=10 --statistics"
     # - name: Lint with flake8
     #   run: |
     #     mamba install flake8
