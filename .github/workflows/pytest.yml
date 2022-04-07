@@ -16,20 +16,27 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v2
+    - uses: conda-incubator/setup-miniconda@v2
       with:
-        python-version: 3.9
-    - name: Add conda to system path
-      run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        echo $CONDA/bin >> $GITHUB_PATH
-    - name: install mamba
-      run: |
-        conda install mamba -n base -c conda-forge
-    - name: Install dependencies
-      run: |
-        mamba env update --file environment.yml --name base
+        mamba-version: "*"
+        channels: conda-forge,defaults
+        environment-file: environment.yml
+    # - name: Set up Python 3.9
+    #   uses: actions/setup-python@v2
+    #   with:
+    #     python-version: 3.9
+    # - name: Add conda to system path
+    #   run: |
+    #     # $CONDA is an environment variable pointing to the root of the miniconda directory
+    #     echo $CONDA/bin >> $GITHUB_PATH
+    # - name: install mamba
+    #   run: |
+    #     if [[ "${{ runner.os }}" = "Linux" ]]; then
+
+    #     conda install mamba -n base -c conda-forge
+    # - name: Install dependencies
+    #   run: |
+    #     mamba env update --file environment.yml --name base
     - name: install powergenome
       run: |
         pip install -e .
