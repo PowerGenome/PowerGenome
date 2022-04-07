@@ -3,8 +3,8 @@ name: pytest
 on: [push]
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash
@@ -12,6 +12,7 @@ jobs:
       max-parallel: 5
       matrix:
         python-version: ["3.9", "3.10"]
+        os: [ubuntu-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v2
