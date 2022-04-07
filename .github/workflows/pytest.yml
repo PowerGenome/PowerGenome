@@ -21,6 +21,7 @@ jobs:
         mamba-version: "*"
         channels: conda-forge,defaults
         environment-file: environment.yml
+        activate-environment: powergenome
     # - name: Set up Python 3.9
     #   uses: actions/setup-python@v2
     #   with:
