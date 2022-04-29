@@ -106,19 +106,19 @@ transmission_investment_cost:
       CA_N: 8775 # 2.5x the rest of WECC
       CA_S: 8775 # 2.5x the rest of WECC
       WECC_AZ: 3900
-    wacc: 0.069
+    wacc: 0.044
     investment_years: 60
   offshore_spur:
     # If missing, NREL ATB capex_mw_mile is used
     capex_mw_mile:
-    wacc: 0.069
+    wacc: 0.044
     investment_years: 60
   tx:
     capex_mw_mile:
       CA_N: 3037.5 # 2.5x the rest of WECC
       CA_S: 3037.5 # 2.5x the rest of WECC
       WECC_AZ: 1350
-    wacc: 0.069
+    wacc: 0.044
     investment_years: 60
 
 # Percent expansion in planning period above and beyond existing transmission
