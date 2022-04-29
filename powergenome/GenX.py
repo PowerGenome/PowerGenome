@@ -237,6 +237,7 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     for cap_res in settings.get("regional_capacity_reserves", {}):
         cap_res_num = int(cap_res.split("_")[-1])  # the number of the capres constraint
         policy_nums.append(cap_res_num)
+        # TODO #179 fix reference to regional_capacity_reserves key of settings dict
         dest_regions = list(
             settings["regional_capacity_reserves"][cap_res].keys()
         )  # list of regions in the CapRes
