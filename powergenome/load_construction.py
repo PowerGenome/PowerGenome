@@ -144,6 +144,7 @@ future_load_region_map = {
 def load_region_pop_frac(
     fn: str = "ipm_state_pop_weight_20210517.parquet",
 ) -> pd.DataFrame:
+    # TODO #178 finalize state pop weight file and filename
     # read in state proportions
     # how much state load should be distributed to GenXRegion
     pop_cols = ["ipm_region", "state", "state_prop"]
