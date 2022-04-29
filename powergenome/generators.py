@@ -1,7 +1,7 @@
 import collections
 import logging
 from numbers import Number
-from typing import Dict, List
+from typing import Dict, List, Union
 import re
 from zipfile import BadZipFile
 
@@ -48,6 +48,7 @@ from powergenome.util import (
     reverse_dict_of_lists,
     snake_case_col,
     regions_to_keep,
+    snake_case_str,
 )
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
@@ -2368,7 +2369,7 @@ def add_dg_resources(
 
 def energy_storage_mwh(
     df: pd.DataFrame,
-    energy_storage_duration: Dict[str, float],
+    energy_storage_duration: Dict[str, Union[float, Dict[str, float]]],
     tech_col: str,
     cap_col: str,
     energy_col: str,
@@ -2381,8 +2382,9 @@ def energy_storage_mwh(
     df : pd.DataFrame
         Resource dataframe with columns specified by `tech_col`, `cap_col`, and
         `energy_col`
-    energy_storage_duration : Dict[str, float]
-        Keys are technology names, values are the duration of storage
+    energy_storage_duration : Dict[str, Union[float, Dict[str, float]]]
+        Keys are technology names, values are either the duration of storage (float) or
+        a dictionary with region keys and storage duration values
     tech_col : str
         Dataframe column with technology names
     cap_col : str
@@ -2395,9 +2397,44 @@ def energy_storage_mwh(
     pd.DataFrame
         Modified dataframe with energy storage values
     """
-    for k, v in energy_storage_duration.items():
-        df.loc[df[tech_col] == k, energy_col] = df[cap_col] * v
-
+    all_regions = df["region"].unique()
+    for tech, val in energy_storage_duration.items():
+        if isinstance(val, dict):
+            tech_regions = val.keys()
+            model_tech_regions = df.loc[
+                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
+                "region",
+            ].to_list()
+            if not all(r in tech_regions for r in model_tech_regions):
+                missing_regions = [
+                    r for r in model_tech_regions if r not in tech_regions
+                ]
+                logger.warning(
+                    f"The regions {missing_regions} are missing from technology {tech} "
+                    "in the settings parameter 'energy_storage_duration'. This technology "
+                    "will not have any energy storage capacity in these regions."
+                )
+            for region, v in val.items():
+                if region not in all_regions:
+                    logger.warning(
+                        f"The settings parameter 'energy_storage_duration', technology '{tech}' "
+                        f"has the region '{region}', which is not one of your model regions."
+                    )
+                df.loc[
+                    (snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)))
+                    & (df["region"] == region),
+                    energy_col,
+                ] = (
+                    df[cap_col] * v
+                )
+        else:
+            df.loc[
+                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
+                energy_col,
+            ] = (
+                df[cap_col] * val
+            )
+    df[energy_col] = df[energy_col].fillna(0)
     return df
 
 
@@ -3166,7 +3203,8 @@ class GeneratorClusters:
                 self.all_resources.loc[i, "variable_CF"] = np.mean(p)
 
         # Set Min_Power of wind/solar to 0
-        self.all_resources.loc[self.all_resources["VRE"] == 1, "Min_Power"] = 0
+        if "VRE" in self.all_resources.columns:
+            self.all_resources.loc[self.all_resources["VRE"] == 1, "Min_Power"] = 0
 
         self.all_resources["R_ID"] = np.arange(len(self.all_resources)) + 1
 

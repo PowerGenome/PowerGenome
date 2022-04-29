@@ -10,6 +10,7 @@ from powergenome.external_data import (
     load_policy_scenarios,
     load_demand_segments,
     load_user_genx_settings,
+    make_generator_variability,
 )
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.time_reduction import kmeans_time_clustering
@@ -972,4 +973,59 @@ def check_resource_tags(df: pd.DataFrame) -> pd.DataFrame:
         raise ValueError(
             "Use the warnings above to fix the resource tags in your settings file."
         )
+    return df
+
+
+def hydro_energy_to_power(
+    df: pd.DataFrame,
+    default_factor: float = None,
+    regional_factors: Dict[str, float] = {},
+) -> pd.DataFrame:
+    """Calculate the hydro energy to power ratio. Uses average hydro inflow rate and
+    multiplied by a factor to calculate the rated number of hours of reservoir hydro
+    storage at peak discharge power output. Value minimum is 1.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame of resources. Hydro resources should be identified with a "HYDRO" tag
+        value of 1
+    default_factor : float, optional
+        Hydro factor used to scale average inflow rate, by default None
+    regional_factors : Dict[str, float], optional
+        Specific regional hydro factors used to scale average inflow rate, by default {}
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of the input dataframe with the new column "Hydro_Energy_to_Power_Ratio"
+    """
+    if "HYDRO" not in df.columns:
+        logger.warning(
+            "Generators do not have a column 'HYDRO', so no hydro energy to power ratio is calculated."
+        )
+        return df
+    if not default_factor and not regional_factors:
+        logger.warning(
+            "No hydro factors have been included in the settings, so no hydro energy to power ratio is calculated."
+        )
+        return df
+    hydro_mask = df["HYDRO"] == 1
+    avg_inflow = (
+        make_generator_variability(df).mean().reset_index(drop=True) * default_factor
+    ).loc[hydro_mask]
+    df.loc[hydro_mask, "Hydro_Energy_to_Power_Ratio"] = avg_inflow.where(
+        avg_inflow > 1, 1
+    )
+
+    for region, factor in regional_factors.items():
+        region_mask = df["region"] == region
+        if region_mask.any():
+            avg_inflow = (
+                make_generator_variability(df).mean().reset_index(drop=True) * factor
+            ).loc[hydro_mask & region_mask]
+            df.loc[
+                (df["HYDRO"] == 1) & region_mask, "Hydro_Energy_to_Power_Ratio"
+            ] = avg_inflow.where(avg_inflow > 1, 1)
+    df["Hydro_Energy_to_Power_Ratio"] = df["Hydro_Energy_to_Power_Ratio"].fillna(0)
     return df

@@ -2,6 +2,7 @@ import collections
 from copy import deepcopy
 import itertools
 import logging
+import re
 import subprocess
 from typing import Dict, Tuple, Union
 
@@ -349,8 +350,8 @@ def snake_case_col(col: pd.Series) -> pd.Series:
 def snake_case_str(s: str) -> str:
     "Remove special characters and convert to snake case"
     clean = (
-        s.lower()
-        .replace(r"[^0-9a-zA-Z\-]+", " ", regex=True)
+        re.sub(r"[^0-9a-zA-Z\-]+", " ", s)
+        .lower()
         .replace("-", "")
         .strip()
         .replace(" ", "_")
