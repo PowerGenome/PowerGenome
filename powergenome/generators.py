@@ -1259,6 +1259,13 @@ def calc_unit_cluster_values(df, settings, technology=None):
     dataframe
         Aggragate values for generators in a technology cluster
     """
+    # if not clustering units no need to calulate cluster average values
+    if df["cluster"].max() == len(df):
+        df["Min_Power"] = df["minimum_load_mw"] / df[settings["capacity_col"]]
+        df["num_units"] = 1
+        if technology:
+            df["technology"] = technology
+        return df
 
     # Define a function to compute the weighted mean.
     # The issue here is that the df name needs to be used in the function.
@@ -2863,7 +2870,23 @@ class GeneratorClusters:
             if not alt_cluster_method:
                 # Allow users to set value as None and not cluster units.
                 if num_clusters[region][tech] is None:
-                    num_clusters[region][tech] = len(grouped)
+                    grouped["cluster"] = np.arange(len(grouped)) + 1
+                    unit_list.append(grouped)
+                    _df = calc_unit_cluster_values(grouped, self.settings, tech)
+                    _df["region"] = region
+                    _df["plant_id_eia"] = (
+                        grouped.reset_index()
+                        .groupby("cluster")["plant_id_eia"]
+                        .apply(list)
+                    )
+                    _df["unit_id_pudl"] = (
+                        grouped.reset_index()
+                        .groupby("cluster")["unit_id_pudl"]
+                        .apply(list)
+                    )
+
+                    self.cluster_list.append(_df)
+                    continue
                 if num_clusters[region][tech] > 0:
                     cluster_cols = [
                         "Fixed_OM_Cost_per_MWyr",
