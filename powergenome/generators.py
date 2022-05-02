@@ -2981,10 +2981,11 @@ class GeneratorClusters:
 
         #     logger.info("Setting existing wind/pv using external file")
         #     self.results = overwrite_wind_pv_capacity(self.results, self.settings)
+        for col in ["region", "technology", "cluster"]:
+            if col in self.results.index.names:
+                self.results = self.results.reset_index()
 
-        self.results = self.results.reset_index().set_index(
-            ["region", "technology", "cluster"]
-        )
+        self.results = self.results.set_index(["region", "technology", "cluster"])
         self.results.rename(
             columns={
                 self.settings["capacity_col"]: "Cap_size",
