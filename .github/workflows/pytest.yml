@@ -28,8 +28,14 @@ jobs:
         channel-priority: true
         activate-environment: powergenome
         environment-file: environment.yml
+        auto-activate-base: false
     - run: |
+        conda activate powergenome
         conda info
+        conda list
+        conda config --show-sources
+        conda config --show
+        printenv | sort
 
     # - name: Add conda to system path
     #   run: |
