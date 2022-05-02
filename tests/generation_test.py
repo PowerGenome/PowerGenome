@@ -183,6 +183,21 @@ class MockPudlOut:
         return bga
 
 
+def test_load_single_settings():
+    settings = load_settings(
+        DATA_PATHS["powergenome"].parent
+        / "example_systems"
+        / "CA_AZ"
+        / "test_settings_atb2020.yml"
+    )
+
+
+def test_load_multiple_settings():
+    settings = load_settings(
+        DATA_PATHS["powergenome"].parent / "example_systems" / "CA_AZ" / "settings"
+    )
+
+
 def test_group_technologies(generators_eia860_data, test_settings):
     df = generators_eia860_data.loc[
         generators_eia860_data.report_date.dt.year == 2020, :
