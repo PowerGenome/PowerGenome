@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: bash
+        shell: bash -l {0}
     strategy:
       max-parallel: 5
       matrix:
