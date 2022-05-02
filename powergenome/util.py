@@ -22,11 +22,32 @@ logger = logging.getLogger(__name__)
 
 
 def load_settings(path: Union[str, Path]) -> dict:
+    """Load a YAML file or a dictionary of YAML files with settings parameters
 
-    with open(path, "r") as f:
-        #     settings = yaml.safe_load(f)
-        yaml = YAML(typ="safe")
-        settings = yaml.load(f)
+    Parameters
+    ----------
+    path : Union[str, Path]
+        Name of the settings file or folder
+
+    Returns
+    -------
+    dict
+        All parameters listed in the YAML file(s)
+    """
+
+    path = Path(path)
+    if path.is_file():
+        with open(path, "r") as f:
+            #     settings = yaml.safe_load(f)
+            yaml = YAML(typ="safe")
+            settings = yaml.load(f)
+    elif path.is_dir():
+        settings = {}
+        for sf in path.glob("*.yml"):
+            yaml = YAML(typ="safe")
+            s = yaml.load(sf)
+            if s:
+                settings.update(s)
 
     return settings
 
