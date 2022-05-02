@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: bash
+        shell: bash -l {0}
     strategy:
       max-parallel: 5
       # matrix:
@@ -28,9 +28,8 @@ jobs:
         channel-priority: true
         activate-environment: powergenome
         environment-file: environment.yml
-        auto-activate-base: false
+        # auto-activate-base: false
     - run: |
-        conda activate powergenome
         conda info
         conda list
         conda config --show-sources
@@ -52,7 +51,7 @@ jobs:
         pip install -e .
     - name: Lint with flake8
       run: |
-        mamba install flake8
+        pip install flake8
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
