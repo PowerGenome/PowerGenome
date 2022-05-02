@@ -1,0 +1,14 @@
+# The location and name of additional input files needed to create outputs
+input_folder: extra_inputs # Subfolder directly below the location of this settings file
+case_id_description_fn: test_case_id_description.csv # Match the case_id with longer case_name
+scenario_definitions_fn: test_scenario_inputs_short.csv # Define policy/cost scenarios for each case
+# scenario_definitions_fn: test_scenario_inputs.csv # Define policy/cost scenarios for each case
+distributed_gen_profiles_fn: test_dg_profiles.csv # Hourly profiles of distributed gen by region
+demand_response_fn: test_ev_load_shifting.csv # Load profiles of DR resources by model_year and scenario
+emission_policies_fn: test_rps_ces_emission_limits.csv # Emission policies for each model_year/region/case_id
+capacity_limit_spur_fn: test_resource_capacity_spur.csv # Max capacity and spur line distance for each renewable resource
+# region_wind_pv_cap_fn: existing_wind_pv_capacity.csv # Only use if your data is more up-to-date than PUDL
+demand_segments_fn: test_demand_segments_voll.csv
+misc_gen_inputs_fn: test_misc_gen_inputs.csv
+genx_settings_folder: genx_settings
+reserves_fn: Reserves.csv

@@ -1,0 +1,397 @@
+# DATA YEAR
+# Pick one or more years of generator data to use when creating clusters. If
+# more than one year is used then things like heat rate will be calculated as the
+# average (weighted by generation per year).
+data_years:
+  - 2020
+
+# CAPACITY TYPE
+capacity_col: winter_capacity_mw
+
+# CLUSTERING
+# Existing thermal power plants are clusted to reduce the number of distinct plants.
+# The existing method (for now) is to specify the number of clusters for each type
+# of thermal plant as a default and then specify specific values for any regions
+# that are different.
+
+# Won't show up if not listed here (expand)
+cluster_method: kmeans
+
+# ** Any technologies not included in num_clusters will be omitted **
+num_clusters:
+  Conventional Steam Coal: 1
+  Natural Gas Fired Combined Cycle: 1
+  Natural Gas Fired Combustion Turbine: 1
+  Nuclear: 1
+  Conventional Hydroelectric: 1
+  Wood/Wood Waste Biomass: 1
+  Natural Gas Internal Combustion Engine: 1
+  Natural Gas Steam Turbine: 1
+  Geothermal: 1
+  Solar Photovoltaic: 1
+  Onshore Wind Turbine: 1
+  Offshore Wind Turbine: 1
+  # Solar Thermal with Energy Storage: 1
+  # Solar Thermal without Energy Storage: 1
+  Small Hydroelectric: 1
+  Petroleum Liquids: 1
+  Landfill Gas: 1
+  Municipal Solid Waste: 1
+  Other Waste Biomass: 1
+  Hydroelectric Pumped Storage: 1
+  Biomass: 1
+  Other_peaker: 1
+
+alt_cluster_method: ~
+
+cluster_by_owner_regions: ~
+
+# Group these technologies
+group_technologies: True
+tech_groups:
+  Biomass:
+    - Wood/Wood Waste Biomass
+    - Landfill Gas
+    - Municipal Solid Waste
+    - Other Waste Biomass
+  Other_peaker:
+    - Natural Gas Internal Combustion Engine
+    - Petroleum Liquids
+
+# Use this to avoid grouping technologies in some regions
+regional_no_grouping: ~
+
+# Add code to ensure region names here are included above
+alt_num_clusters:
+  CA_S:
+    Conventional Steam Coal: 0
+  WECC_AZ:
+    Natural Gas Fired Combined Cycle: 3
+
+# CAPACITY FACTOR
+# Calculate the capacity factor of technology types listed here. If derate_capacity is
+# True, multiply the calculated capacity of each cluster by the CF
+capacity_factor_techs:
+  - Small Hydroelectric
+  - Biomass
+  - Geothermal
+
+# Default value to limit the years used to calculate capacity factors.
+# Use "~" (null, converted to None in Python) to use all data years. PUDL currently has
+# generation data from 2011 through the most recent final release of 923/860.
+capacity_factor_default_year_filter: [2016, 2017]
+
+# Select the year filters for specific technologies. Grouped technologies should be
+# used rather than in individual categories (e.g. Peaker rather than Combustion Turbine).
+# Again, use "~" to use all years.
+alt_year_filters:
+  Small Hydroelectric: ~
+  Conventional Hydroelectric: ~
+  Biomass: ~
+  Geothermal: ~
+
+derate_capacity: True
+derate_techs:
+  - Small Hydroelectric
+  - Biomass
+  - Geothermal
+
+
+# LABEL SMALL HYDRO
+small_hydro: True
+small_hydro_mw: 30
+small_hydro_regions:
+  - CA_N
+  - CA_S
+
+
+# Factors for calculating hydro energy to power ratio in GenX. The default factors is
+# numeric and will be applied to all regions. The regional factors are a dictionary mapping
+# model region names to specific regional factors. The factors are multiplied by average
+# annual inflow rates to determine the rated number of hours of reservoir hydro
+# storage at peak discharge power output.
+hydro_factor: 2
+
+regional_hydro_factor:
+  WECC_PNW: 4
+  WECC_N: 4
+
+
+# Energy storge duration. Provide a default value for existing resources of a given type.
+# The value of 15.5 for pumped hydro comes from https://sandia.gov/ess-ssl/gesdb/public/statistics.html
+# Default value can be numeric or a dictionary of region: numeric values. Technology names
+# here and in the dataframe are both converted to snake case and matches are made if this
+# name is contained in the dataframe technology name.
+energy_storage_duration:
+  Hydroelectric Pumped Storage: 15.5
+
+# Generator cost data from NREL ATB
+
+atb_data_year: 2021
+atb_financial_case: Market
+atb_cap_recovery_years: 20
+
+# Alternate capital recovery periods for specific technologies, which are used to calculate
+# the annual investment costs. The names are matched using str.contains rather than
+# exact matches. Set parameter value to none (~) if not used.
+alt_atb_cap_recovery_years:
+  NaturalGas_CCAvg: 15
+  NaturalGas_CTAvg: 15
+  Battery: 15
+  Nuclear: 40
+
+# The year of NREL ATB data to use for matching existing generators (O&M costs)
+atb_existing_year: 2019
+
+# ****UPDATE WITH ATB2021*****
+# ATB now uses data from NETL for fossil fuel technologies, so it is no longer necessary
+# to modify NGCT and NGCC technologies.
+# ****************************
+# ATB uses an average of conventional and advanced techs. We only want advanced. To use
+# standard ATB values set multipliers to 1.
+# Heat rate multipliers are an average of "heat rate" and "final heat rate" multipliers.
+# This parameter shoud be a set of nested dictionaries. Each lower-level dict must have
+# "technology" and "tech_detail" keys uniquely identifying the resource to be modified.
+# The 'ngct' dictionary is required for calculating existing CT variable O&M costs.
+# atb_modifiers:
+#   ngct:
+#     technology: NaturalGas
+#     tech_detail: CTAvgCF
+#     capex_mw: [mul, 0.76]
+#     Var_OM_Cost_per_MWh: [mul, 0.98]
+#     Fixed_OM_Cost_per_MWyr: [mul, 0.6]
+#     Heat_Rate_MMBTU_per_MWh: [mul, 1.04]
+#   ngcc:
+#     technology: NaturalGas
+#     tech_detail: CCAvgCF
+#     capex_mw: [mul, 0.89]
+#     Var_OM_Cost_per_MWh: [mul, 0.73]
+#     Fixed_OM_Cost_per_MWyr: [mul, 0.95]
+#     Heat_Rate_MMBTU_per_MWh: [mul, 0.98]
+
+
+# Copy and modify an existing ATB new generator. This takes place BEFORE the ATB CC/CT
+# modifiers. If adding a copy of CC/CT technologies, add the copy to the atb_modifiers
+# parameter. Set parameter to none (~) if not adding any modified generators.
+modified_atb_new_gen:
+  NGCCS100:
+    new_technology: NaturalGas
+    new_tech_detail: CCS100
+    new_cost_case: Moderate
+    atb_technology: NaturalGas
+    atb_tech_detail: CCCCSAvgCF
+    atb_cost_case: Conservative # ATB CCCCS conservative case represents current technology.
+    size_mw: 500
+    capex_mw: [add, 116000]
+    heat_rate: [add, 0.365]
+    fixed_o_m_mw: [add, 9670]
+    variable_o_m_mwh: [mul, 1.076]
+
+# ATB doesn't have a WACC for battery tech. Need to provide a value here.
+atb_battery_wacc: UtilityPV
+
+# Format for ATB is <technology>_<tech_detail>, all are Mid cost case
+# Might want to change this to list format like the new generators below
+eia_atb_tech_map:
+  Battery: Battery_*
+  Biomass: Biopower_Dedicated
+  Solar Thermal without Energy Storage: CSP_Class1
+  Conventional Steam Coal: Coal_newAvgCF
+  Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF #[NaturalGas_CCAvgCF, NETL_NGCC]
+  Natural Gas Fired Combustion Turbine: NaturalGas_CTAvgCF
+  Other_peaker: NaturalGas_CTAvgCF
+  Natural Gas Internal Combustion Engine: NaturalGas_CTAvgCF
+  Landfill Gas: NaturalGas_CTAvgCF
+  Petroleum Liquids: NaturalGas_CTAvgCF
+  Municipal Solid Waste: Biopower_Dedicated
+  Other Waste Biomass: Biopower_Dedicated
+  Wood/Wood Waste Biomass: Biopower_Dedicated
+  Solar Photovoltaic: UtilityPV_Class1
+  Geothermal: Geothermal_HydroFlash # assume installed capacity is dominated by flash
+
+  # Check head-height, which is difference between NSD2 and 4
+  Conventional Hydroelectric: Hydropower_NSD4 # Large variability based on choice
+  Hydroelectric Pumped Storage: Hydropower_NSD4 # Large variability based on choice
+  Small Hydroelectric: Hydropower_NSD3 # Large variability based on choice
+  Onshore Wind Turbine: LandbasedWind_Class4 # All onshore wind is the same
+  Offshore Wind Turbine: OffShoreWind_Class10 # Mid-range of floating offshore wind
+  Nuclear: Nuclear_Nuclear
+  Natural Gas Steam Turbine: Coal_newAvgCF # No gas steam turbines in ATB, using coal instead
+  Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
+
+# Offshore wind in the west will be floating - Class10 maybe.
+# Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
+atb_new_gen:
+  - [NaturalGas, CCCCSAvgCF, Conservative, 500] # ATB CCCCS conservative case represents current technology.
+  - [NaturalGas, CCAvgCF, Moderate, 500]
+  - [NaturalGas, CTAvgCF, Moderate, 100]
+  - [LandbasedWind, Class3, Moderate, 1]
+  - [OffShoreWind, Class10, Moderate, 1]
+  - [UtilityPV, Class1, Moderate, 1]
+  - [Battery, "*", Moderate, 1]
+  # - [Nuclear, Nuclear, Moderate, 500]
+
+
+# Additional technologies can be specified in a csv file under data/additional_technologies
+# Provide the filename (no path needed) in the parameter below or "~" for none.
+# All technologies listed in the file will be included in the outputs unless they are
+# also included in "new_gen_not_available".
+additional_technologies_fn: AZ_additional_tech.csv #NETL_Additional_tech.csv
+
+additional_new_gen:
+  - Nuclear_mid
+
+
+# Dictionary of lists with model region as key and ATB tech (string matching) in list.
+# It isn't necessary to include wind/solar resources here. If they aren't included in
+# the renewables_clusters parameter below, they won't be included in the final generators
+# dataframe.
+new_gen_not_available:
+  # WECC_CO:
+  #   - OffShoreWind
+  # WECC_AZ:
+  #   - OffShoreWind
+  # WECC_NM:
+  #   - OffShoreWind
+  # WECC_SNV:
+  #   - OffShoreWind
+
+renewables_clusters:
+  - region: CA_N
+    technology: landbasedwind
+    max_clusters: 2
+    max_lcoe: 110
+    min_capacity: 25000
+  - region: CA_N
+    technology: offshorewind
+    turbine_type: floating
+    pref_site: 1
+    max_clusters: 3
+    min_capacity: 40000
+  - region: CA_S
+    technology: landbasedwind
+    max_clusters: 4
+    max_lcoe: 100
+    min_capacity: 45000
+  - region: CA_S
+    technology: utilitypv
+    max_clusters: 5
+    max_lcoe: 75
+    min_capacity: 100000
+    cap_multiplier: 0.2
+  - region: WECC_AZ
+    technology: utilitypv
+    max_clusters: 3
+    min_capacity: 100000
+    cap_multiplier: 0.2
+
+
+# Map user-regions to AEO Electricity Market Module (EMM) regions for cost multipliers
+# IPM regions have been pre-populated in the lists below, but any user defined regions
+# must also be added. This cannot be mapped automatically since user regions might
+# cut across EMM regions.
+# See a map at https://www.eia.gov/outlooks/aeo/pdf/nerc_map.pdf
+cost_multiplier_region_map:
+  TRE: [ERC_PHDL, ERC_REST, ERC_WEST]
+  FRCC: [FRCC]
+  MISW: [MIS_WUMS, MIS_MNWI, MIS_IA]
+  MISE: [MIS_LMI]
+  PJMC: [PJM_COMD]
+  MISC: [MIS_IL, MIS_MO, S_D_AECI, MIS_INKY]
+  SPPN: [MIS_MAPP, SPP_WAUE, SPP_NEBR, MIS_MIDA]
+  SPPC: [SPP_N]
+  SPPS: [SPP_WEST, SPP_SPS]
+  MISS: [MIS_AMSO, MIS_WOTA, MIS_LA, MIS_AR, MIS_D_MS]
+  SRSE: [S_SOU]
+  SRCA: [S_VACA]
+  PJMD: [PJM_Dom]
+  PJMW: [PJM_West, PJM_AP, PJM_ATSI]
+  PJME: [PJM_WMAC, PJM_EMAC, PJM_SMAC, PJM_PENE]
+  SRCE: [S_C_TVA, S_C_KY]
+  NYUP: [NY_Z_A, NY_Z_B, NY_Z_C&E, NY_Z_D, NY_Z_F, NY_Z_G-I,]
+  NYCW: [NY_Z_J, NY_Z_K]
+  ISNE: [NENG_ME, NENGREST, NENG_CT]
+  RMRG: [WECC_CO]
+  BASN: [WECC_ID, WECC_WY, WECC_UT, WECC_NNV]
+  NWPP: [WECC_PNW, WECC_MT]
+  CANO: [WEC_CALN, WEC_BANC, CA_N]
+  CASO: [WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE, CA_S]
+  SRSG: [WECC_AZ, WECC_NM, WECC_SNV]
+
+# The keys in cost_multiplier_technology_map are technologies listed in EIA's capital
+# cost assumptions document. The 2020 version is available at
+# https://www.eia.gov/outlooks/archive/aeo20/assumptions/pdf/table_8.2.pdf
+# Values in the list are string-matched to technologies (`<tech>_<tech_detail>`) from ATB.
+# Be sure to include any custom technologies you are using from `additional_technologies_fn`
+# or `modified_atb_new_gen`.
+# If a value in one of the lists matches more than one technology, the cost multiplier
+# will only be applied to the first technology.
+# If you want to modify the regional cost corrections CSV, you can put your own copy in
+# the folder PowerGenome/data/cost_multipliers.
+cost_multiplier_fn: AEO_2020_regional_cost_corrections.csv
+cost_multiplier_technology_map:
+  Ultra-supercritical coal (USC): [Coal_newAvgCF, Coal_newHighCF]
+  # IGCC: [Coal_IGCCAvgCF, Coal_IGCCAvgCF]
+  USC with 30% CCS: [Coal_CCS30AvgCF, Coal_CCS30HighCF]
+  USC with 90% CCS: [Coal_CCS90AvgCF, Coal_CCS90HighCF]
+  CT - aeroderivative: []
+  CT - industrial frame: [NaturalGas_CTAvgCF, NaturalGas_CTHighCF]
+  CC - single shaft: []
+  CC - multi shaft: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF]
+  CC with 90% CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100, NaturalGas_CCS100, NaturalGas_CCS100_low,NaturalGas_CCS100_high]
+  Fuel cells: []
+  Advanced nuclear: [Nuclear_Nuclear, Nuclear_mid, Nuclear_low, Nuclear_high]
+  Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
+  MSW - landfill gas: []
+  Wind: [LandbasedWind]
+  Wind offshore: [OffShoreWind]
+  Solar thermal: [CSP]
+  Solar PV - tracking: [UtilityPV, CommPV, ResPV]
+  Battery storage: [Battery_*]
+  Geothermal: [Geothermal_HydroBinary, Geothermal_HydroFlash, Geothermal_NFEGSBinary, Geothermal_DeepEGSBinary, Geothermal_NFEGSFlash, Geothermal_DeepEGSFlash]
+  Conventional hydropower: [Hydropower]
+
+
+# PROPOSED GENERATOR VARIABLES
+
+eia_860m_fn: september_generator2021.xlsx
+
+# The status codes below exclude plants where regulatory approvals have not been
+# initiated or received. "Other" is also excluded.
+proposed_status_included:
+  - V # Under construction, more than 50 percent complete
+  - TS # Construction complete, but not yet in commercial operation
+  - U # Under construction, less than or equal to 50 percent complete
+  - T # Regulatory approvals received. Not under construction
+
+# Heat rates are from EIA's AEO 2019 Cost and Performace report (Table 8.2)
+# or NREL's 2018 ATB. ATB technologies use 2020 heat rate values.
+# All AEO heat rates are for advanced technologies and use values from the final
+# heat rate column
+proposed_gen_heat_rates:
+  Natural Gas Fired Combined Cycle: 6.41 # ATB
+  Natural Gas Fired Combustion Turbine: 9.66 # ATB
+  Natural Gas Internal Combustion Engine: 8.160 # AEO
+
+
+proposed_min_load:
+  Natural Gas Fired Combined Cycle: 0.3 # From GE
+  Natural Gas Fired Combustion Turbine: 0.3 # GE aero range is .15-.5, E3 has 0.3
+  Natural Gas Internal Combustion Engine: 0.18 # From E3 assumptions
+
+# EXTRA ADDITIONS AND RETIREMENTS
+
+# Use this section to hard-code retirements that are not included in the most recent
+# annual verion of EIA 860. The format is
+# [plant_id_eia, generator_id, planned_retirement_date]
+additional_retirements: ~
+  # - [55853, 1, 2020]
+  # - [55853, 2, 2020]
+  # - [2442, 1, 2029] # Retire Four Corners before 2030
+  # - [2442, 2, 2029]
+  # - [2442, 3, 2029]
+  # - [2442, 4, 2029]
+  # - [2442, 5, 2029]
+  # - [55177, A, 2031]
+  # - [55177, B, 2031]
+  # - [55177, ST1, 2031]
