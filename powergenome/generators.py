@@ -1241,7 +1241,9 @@ def group_units(df, settings):
     return grouped_units
 
 
-def calc_unit_cluster_values(df, settings, technology=None):
+def calc_unit_cluster_values(
+    df: pd.DataFrame, capacity_col: str, technology: str = None
+):
     """
     Calculate the total capacity, minimum load, weighted heat rate, and number of
     units/generators in a technology cluster.
@@ -1251,6 +1253,9 @@ def calc_unit_cluster_values(df, settings, technology=None):
     df : dataframe
         A dataframe with units/generators of a single technology. One column should be
         'cluster', to label units as belonging to a specific cluster grouping.
+    capacity_col: str
+        Name of the column with capacity values (e.g. capacity_mw, summer_capacity_mw or
+        winter_capacity_mw).
     technology : str, optional
         Name of the generating technology, by default None
 
@@ -1261,32 +1266,33 @@ def calc_unit_cluster_values(df, settings, technology=None):
     """
     # if not clustering units no need to calulate cluster average values
     if df["cluster"].max() == len(df):
-        df["Min_Power"] = df["minimum_load_mw"] / df[settings["capacity_col"]]
+        df["Min_Power"] = df["minimum_load_mw"] / df[capacity_col]
         df["num_units"] = 1
         if technology:
             df["technology"] = technology
-        return df
+
+        return df.reset_index()
 
     # Define a function to compute the weighted mean.
     # The issue here is that the df name needs to be used in the function.
     # So this will need to be within a function that takes df as an input
     def wm(x):
-        return np.average(x, weights=df.loc[x.index, settings["capacity_col"]])
+        return np.average(x, weights=df.loc[x.index, capacity_col])
 
     if df["heat_rate_mmbtu_mwh"].isnull().values.any():
         # mean =
         # df["heat_rate_mmbtu_mwh"] = df["heat_rate_mmbtu_mwh"].fillna(
         #     df["heat_rate_mmbtu_mwh"].median()
         # )
-        start_cap = df[settings["capacity_col"]].sum()
+        start_cap = df[capacity_col].sum()
         df = df.loc[~df["heat_rate_mmbtu_mwh"].isnull(), :]
-        end_cap = df[settings["capacity_col"]].sum()
+        end_cap = df[capacity_col].sum()
         cap_diff = start_cap - end_cap
         logger.warning(f"dropped {cap_diff}MW because of null heat rate values")
 
     df_values = df.groupby("cluster").agg(
         {
-            settings["capacity_col"]: "mean",
+            capacity_col: "mean",
             "minimum_load_mw": "mean",
             "heat_rate_mmbtu_mwh": wm,
             "Fixed_OM_Cost_per_MWyr": wm,
@@ -1306,9 +1312,7 @@ def calc_unit_cluster_values(df, settings, technology=None):
         {"Fixed_OM_Cost_per_MWyr": "std"}
     )
 
-    df_values["Min_Power"] = (
-        df_values["minimum_load_mw"] / df_values[settings["capacity_col"]]
-    )
+    df_values["Min_Power"] = df_values["minimum_load_mw"] / df_values[capacity_col]
 
     df_values["num_units"] = df.groupby("cluster")["cluster"].count()
 
@@ -2872,18 +2876,10 @@ class GeneratorClusters:
                 if num_clusters[region][tech] is None:
                     grouped["cluster"] = np.arange(len(grouped)) + 1
                     unit_list.append(grouped)
-                    _df = calc_unit_cluster_values(grouped, self.settings, tech)
+                    _df = calc_unit_cluster_values(
+                        grouped, self.settings["capacity_col"], tech
+                    )
                     _df["region"] = region
-                    _df["plant_id_eia"] = (
-                        grouped.reset_index()
-                        .groupby("cluster")["plant_id_eia"]
-                        .apply(list)
-                    )
-                    _df["unit_id_pudl"] = (
-                        grouped.reset_index()
-                        .groupby("cluster")["unit_id_pudl"]
-                        .apply(list)
-                    )
 
                     self.cluster_list.append(_df)
                     continue
@@ -2946,7 +2942,9 @@ class GeneratorClusters:
 
             # Don't add technologies with specified 0 clusters
             if num_clusters[region][tech] != 0:
-                _df = calc_unit_cluster_values(grouped, self.settings, tech)
+                _df = calc_unit_cluster_values(
+                    grouped, self.settings["capacity_col"], tech
+                )
                 _df["region"] = region
                 _df["plant_id_eia"] = (
                     grouped.reset_index().groupby("cluster")["plant_id_eia"].apply(list)
