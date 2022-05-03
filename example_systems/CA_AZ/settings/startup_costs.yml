@@ -1,3 +1,7 @@
+# STARTUP COSTS
+# The values in this file have been selected from NREL reports. Only change them if you
+# have more accurate cost information.
+
 # Fuel consumption for start-up events (mmbtu/MW) from Lew et al 2013,
 # Finding Flexibility: Cycling the Conventional Fleet
 startup_fuel_use:

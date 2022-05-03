@@ -3,11 +3,39 @@
 # Which year of AEO to use. Note that different years have different scenario names
 # so those may need to be modified accordingly.
 fuel_eia_aeo_year: 2020
-aeo_usd_year: 2019
+aeo_fuel_usd_year: 2019
 
-# Need to make choices about fuel regions when user-defined regions cross AEO fuel regions
-# I'm putting WECC_NW in the rockies because the PNW doesn't use as much coal/gas
+# FUEL SCENARIOS
+# These parameters map the EIA scenario names to user names (e.g. reference is used inplace
+# of REF2020 and low_resource in place of LOWOGS), and EIA fuel codes to user fuel names
+# (e.g. coal in place of STC). Each user fuel name is then assigned a user scenario name.
+
+# This is a subset of AEO 2020 scenarios. For a full list, look at the eia open data
+# page https://www.eia.gov/opendata/qb.php?category=3604304
+eia_series_scenario_names:
+  reference: REF2020
+  low_price: LOWPRICE
+  high_price: HIGHPRICE
+  high_resource: HIGHOGS
+  low_resource: LOWOGS
+
+eia_series_fuel_names:
+  coal: STC
+  naturalgas: NG
+  distillate: DFO
+  uranium: U
+
+aeo_fuel_scenarios:
+  coal: reference
+  naturalgas: reference
+  distillate: reference
+  uranium: reference
+
+# Need to make choices about fuel regions when user-defined regions cross AEO fuel regions.
+# I'm putting WECC_NW in the rockies because the PNW doesn't use as much coal/gas.
 # IPM regions are included here only as a guide. All user regions must be mapped to AEO regions.
+# See the PowerGenome wiki for a map of Census Divisions and IPM regions
+# https://github.com/PowerGenome/PowerGenome/wiki/Geospatial-Mappings
 aeo_fuel_region_map:
   mountain: [WECC_AZ, WECC_NM, WECC_CO, WECC_SNV, WECC_ID, WECC_WY, WECC_UT, WECC_NNV, WECC_NW]
   pacific: [WECC_PNW, WEC_CALN, WEC_BANC, WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE, CA_N, CA_S]
@@ -19,7 +47,7 @@ aeo_fuel_region_map:
   middle_atlantic: [PJM_WMAC, PJM_EMAC, PJM_SMAC, PJM_PENE, NY_Z_A, NY_Z_B, NY_Z_C&E, NY_Z_D, NY_Z_F, NY_Z_G-I, NY_Z_J, NY_Z_K]
   new_england: [NENG_ME, NENGREST, NENG_CT]
 
-
+# Map the user fuel regions to EIA region codes.
 eia_series_region_names:
   mountain: MTN
   pacific: PCF
@@ -32,31 +60,8 @@ eia_series_region_names:
   new_england: NEENGL
 
 
-eia_series_fuel_names:
-  coal: STC
-  naturalgas: NG
-  distillate: DFO
-  uranium: U
-
-# This is a subset of AEO 2020 scenarios. For a full list, look at the eia open data
-# page https://www.eia.gov/opendata/qb.php?category=3604304
-eia_series_scenario_names:
-  reference: REF2020
-  low_price: LOWPRICE
-  high_price: HIGHPRICE
-  high_resource: HIGHOGS
-  low_resource: LOWOGS
-
-aeo_fuel_scenarios:
-  coal: reference
-  naturalgas: reference
-  distillate: reference
-  uranium: reference
-
-aeo_fuel_usd_year: 2019
-
-
-# NEED TO ADD BIOMASS AND GET FUEL COSTS - CHECK TEMOA (BILLION TON STUDY REFERENCE
+# Map user fuel names to technologies. If a technology is included in the settings parameter
+# "eia_atb_tech_map" then all mapped technologies will be assigned the same fuel.
 tech_fuel_map:
   Conventional Steam Coal: coal
   Natural Gas Fired Combined Cycle: naturalgas

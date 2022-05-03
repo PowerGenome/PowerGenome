@@ -1,16 +1,11 @@
 # LOAD GROWTH ASSUMPTIONS
-# Include any load growth assumptions here
+#
 
-# If regional load is provided by the user and it already includes demand response
-# loads, set this parameter to "true". If the regional hourly loads do not include
-# demand response - the DR should be added to the load profiles - set to "~" (None) or
-# "false".
-regional_load_includes_demand_response: true
-
-
-# Load from IPM is for 2011. The growth rates from 2011-2018 can be calculated using
-# historical data
-default_load_year: 2012
+# Hourly demand from 2012 is included with PG. The growth rates from 2012-2019 can be
+# calculated using historical data. Different growth scenarios can be selected using the
+# same AEO scenarios used for fuel prices. Examples include HIGHMACRO for high growth and
+# LOWMACRO for low growth.
+# default_load_year: 2012
 regular_load_growth_start_year: 2019
 growth_scenario: REF2020
 load_eia_aeo_year: 2020
