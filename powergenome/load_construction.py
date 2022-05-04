@@ -190,19 +190,19 @@ def CreateBaseLoad(
     }
     pop = load_region_pop_frac()
     model_states = pop.loc[pop["ipm_region"].isin(regions), "state"]
-    EFS_2020_LoadProf = pd.read_parquet(path_in / "EFS_REF_load_2020.parquet")
-    EFS_2020_LoadProf = EFS_2020_LoadProf.astype(load_dtypes)
-    EFS_2020_LoadProf.columns = snake_case_col(EFS_2020_LoadProf.columns)
-    total_efs_2020_load = EFS_2020_LoadProf["loadmw"].sum()
+    efs_2020_load_prof = pd.read_parquet(path_in / "EFS_REF_load_2020.parquet")
+    efs_2020_load_prof = efs_2020_load_prof.astype(load_dtypes)
+    efs_2020_load_prof.columns = snake_case_col(efs_2020_load_prof.columns)
+    total_efs_2020_load = efs_2020_load_prof["loadmw"].sum()
 
-    EFS_2020_LoadProf = EFS_2020_LoadProf.loc[
-        EFS_2020_LoadProf["state"].isin(model_states), :
+    efs_2020_load_prof = efs_2020_load_prof.loc[
+        efs_2020_load_prof["state"].isin(model_states), :
     ]
-    EFS_2020_LoadProf = pd.merge(EFS_2020_LoadProf, pop, on=["state"])
-    EFS_2020_LoadProf = EFS_2020_LoadProf.assign(
-        weighted=EFS_2020_LoadProf["loadmw"] * EFS_2020_LoadProf["state_prop"]
+    efs_2020_load_prof = pd.merge(efs_2020_load_prof, pop, on=["state"])
+    efs_2020_load_prof = efs_2020_load_prof.assign(
+        weighted=efs_2020_load_prof["loadmw"] * efs_2020_load_prof["state_prop"]
     )
-    EFS_2020_LoadProf = EFS_2020_LoadProf.groupby(
+    efs_2020_load_prof = efs_2020_load_prof.groupby(
         ["year", "ipm_region", "localhourid", "sector", "subsector"],
         as_index=False,
         observed=True,
@@ -226,22 +226,22 @@ def CreateBaseLoad(
     )
 
     ratio_A = original_load_2019["loadmw_original"].sum() / total_efs_2020_load
-    EFS_2020_LoadProf["weighted"] *= ratio_A
+    efs_2020_load_prof["weighted"] *= ratio_A
 
-    Base_Load_2019 = EFS_2020_LoadProf.rename(columns={"weighted": "loadmw"})
+    base_load_2019 = efs_2020_load_prof.rename(columns={"weighted": "loadmw"})
 
     # Create Base loads
-    Base_Load_2019 = Base_Load_2019.loc[Base_Load_2019["ipm_region"].isin(regions), :]
-    Base_Load_2019.loc[
-        (Base_Load_2019["sector"] == "Industrial")
-        & (Base_Load_2019["subsector"].isin(["process heat", "machine drives"])),
+    base_load_2019 = base_load_2019.loc[base_load_2019["ipm_region"].isin(regions), :]
+    base_load_2019.loc[
+        (base_load_2019["sector"] == "Industrial")
+        & (base_load_2019["subsector"].isin(["process heat", "machine drives"])),
         "subsector",
     ] = "other"
-    Base_Load_2019 = Base_Load_2019.loc[Base_Load_2019["subsector"] == "other", :]
-    Base_Load_2019 = Base_Load_2019.groupby(
+    base_load_2019 = base_load_2019.loc[base_load_2019["subsector"] == "other", :]
+    base_load_2019 = base_load_2019.groupby(
         ["year", "localhourid", "ipm_region", "sector"], as_index=False
     ).agg({"loadmw": "sum"})
-    Base_Load = Base_Load_2019
+    base_load = base_load_2019
     for y in years:
         growth_factor = load_profiles.calc_growth_factors(
             regions,
@@ -252,11 +252,11 @@ def CreateBaseLoad(
             end_year=y,
             alt_growth_rate=alt_growth_rate,
         )
-        base_load_temp = Base_Load_2019.copy()
+        base_load_temp = base_load_2019.copy()
         base_load_temp["year"] = y
         base_load_temp["loadmw"] *= base_load_temp["ipm_region"].map(growth_factor)
-        Base_Load = Base_Load.append(base_load_temp, ignore_index=True)
-    return Base_Load
+        base_load = base_load.append(base_load_temp, ignore_index=True)
+    return base_load
 
 
 def create_subsector_ts(
