@@ -25,6 +25,10 @@ target_usd_year: 2020
 model_year: [2030, 2045]
 model_first_planning_year: [2020, 2031]
 
+# HOURS OFFSET FROM UTC
+# All time profile data are stored in UTC. Provide an offset for the model timezone.
+# US East cost is UTC-5, Pacific is UTC-8
+utc_offset: -5
 
 
 ######################################################################################
