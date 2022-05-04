@@ -14,9 +14,6 @@ capacity_col: winter_capacity_mw
 # of thermal plant as a default and then specify specific values for any regions
 # that are different.
 
-# Won't show up if not listed here (expand)
-cluster_method: kmeans
-
 # ** Any technologies not included in num_clusters will be omitted **
 num_clusters:
   Conventional Steam Coal: 1
@@ -42,9 +39,6 @@ num_clusters:
   Biomass: 1
   Other_peaker: 1
 
-alt_cluster_method: ~
-
-cluster_by_owner_regions: ~
 
 # Group these technologies
 group_technologies: True
