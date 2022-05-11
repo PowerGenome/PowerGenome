@@ -1,12 +1,14 @@
 # Creating your settings file(s)
 
-Parameters for PowerGenome are defined in one or more YAML files.
+Parameters for PowerGenome are defined in one or more YAML files. The sections below follow the multi-file format provided as an example. Many parameters are independent of each other, but some will need to be modified depending on the technologies or model regions that you choose.
 
 ## Model definition
 
-The first decisions to make when settings up a system are (1) the model regions and (2) the planning periods. Model regions (`model_regions`) are one or more [IPM Regions](https://github.com/PowerGenome/PowerGenome/wiki/Geospatial-Mappings#ipm-regions). If a model region is composed of multiple IPM regions, it should be defined in `region_aggregations`.
+The first decisions to make when settings up a system are (1) the model regions and (2) the planning periods. Model regions (`model_regions`) consist of one or more [IPM Regions](https://github.com/PowerGenome/PowerGenome/wiki/Geospatial-Mappings#ipm-regions). If a model region is composed of multiple IPM regions, it should be defined in `region_aggregations`.
 
-Planning periods are defined by `model_year` and `model_first_planning_year`. The model year is used to calculate hourly demand and existing generators (if any are retired due to age). Costs for new-build resources in each planning period are determined using the full span from the first year of a planning period through the model year.
+> **NOTE:** The `model_regions` are used in many settings parameters. Most are (hopefully) obvious, but it is important to include any aggregated regions in the parameters `cost_multiplier_region_map` and `aeo_fuel_region_map`.
+
+Planning periods are defined by `model_year` and `model_first_planning_year`. The model year is used to calculate hourly demand, fuel prices, and existing generators (if any are retired due to age). Costs for new-build resources in each planning period are determined using the full span from the first year of a planning period through the model year.
 
 Additional parameters that are important when defining a model include the dollar year that all costs should be converted to (`target_usd_year`) and the timezone that generation/demand will be presented in (`utc_offset`). For reference, the Eastern time zone is UTC -5 and Pacific is UTC -8.
 
@@ -17,19 +19,27 @@ Some inputs for PowerGenome are supplied in extra CSV files, stored in the `extr
 ### Scenarios
 PowerGenome is set up to provide inputs for multiple scenarios/cases. `case_id_description_fn` supplies a short ID and full name for each case. `scenario_descriptions_fn` defines the scenarios that are used to vary parameter values.
 
+> **NOTE:** The scenario description file has a "year" column that corresponds to values in the `model_year` parameter, and a "case_id" column that should match the values in the case ID description file.`
+
 ### User supplied time series
 Users can supply time series data for distributed generation profiles(`distributed_gen_profiles_fn`), flexible demand resources (`demand_response_fn`), and load (`regional_load_fn`) for each region. PowerGenome can supply all inputs except for distributed generation profiles.
+
+> **NOTE:** Any user supplied time series data will need to align with the model regions specified in `model_regions`.
 
 If regional demand is supplied by the user and it already includes the flexible/demand response load, then the parameter `regional_load_includes_demand_response` should be set to `true`.
 
 ### Generators
 PowerGenome doesn't supply all inputs for generator operations. Parameters such as the minimum power for new resources, ramp rates, and minimum up/down time are provided in `misc_gen_inputs_fn`. Any capacity limits for resources within each region and any interconnection distance/cost is in `capacity_limit_spur_fn`.
 
+> **NOTE:** These files depend on the generator technologies listed in `atb_new_gen`, `modified_atb_new_gen` and `additional_technologies`.
+
 ### Other
 - `emission_policies_fn`
 - `demand_segments_fn`
 - `genx_settings_folder`
 - `reserves_fn`
+
+> **NOTE:** The emission policies file depends on the `model_year` parameter, the case IDs, and the `model_region` parameter.
 
 ## Resources
 
@@ -70,6 +80,8 @@ Users should select the ATB resources for their model using `atb_new_gen`. Note 
 
 A user can modify one of the ATB resources (in-place) using `atb_modifiers`. One possible reason would be to modify the capex or O&M costs to represent federal ITC/PTC incentives. Modified copies of ATB resources can also created using `modified_atb_new_gen`.
 
+> **NOTE:** Modfied versions of ATB resources have their own names that need to be included in other parts of the settings file(s). This will include `cost_multiplier_technology_map`, `eia_atb_tech_map`, `new_build_startup_costs`, and `model_tag_values`.
+
 ATB doesn't provide a WACC for battery technologies. Users can either provide the name of a different ATB technology to look up a value or a numeric value with the parameter `atb_battery_wacc`.
 
 Technologies that should not be available in one or more model regions can be specified in `new_gen_not_available`. Note that it isn't necessary to list wind or solar technologies here -- if they aren't included with a region in `renewables_clusters` they won't be in the outputs.
@@ -78,9 +90,13 @@ Technologies that should not be available in one or more model regions can be sp
 
 Users can supply their own cost and performance characteristics for other resources in the file `additional_technologies_fn`, which should be located in the `extra_inputs` folder. Only technologies listed in the parameter `additional_new_gen` will be included in a case.
 
+> **NOTE:** User technologies should have values for each planning year in `model_year`. The names of user technologies may need to be included in other settings parameters such as `cost_multiplier_technology_map`, `eia_atb_tech_map`, `new_build_startup_costs`, and `model_tag_values`.
+
 ### Regional cost variation
 
-PowerGenome uses regional cost multipliers from EIA to adjust ATB and user technology costs in different model regions. Model regions are mapped to EIA NEMS electricity market module (EMM) regions in `cost_multiplier_region_map`. Technology mappings from EIA's names should be included in `cost_multiplier_technology_map`. As EIA publishes new reports the regional modifiers may change. `cost_multiplier_fn` points to the data file that should be used.
+PowerGenome uses regional cost multipliers from EIA to adjust ATB and user technology costs in different model regions. Model regions are mapped to EIA NEMS electricity market module (EMM) regions in `cost_multiplier_region_map`. Technology mappings from EIA's names should be included in `cost_multiplier_technology_map`. As EIA publishes new reports the regional modifiers may change. `cost_multiplier_fn` gives the name of a file located in "PowerGenome/data/cost_multipliers" that should be used.
+
+Users can include their own (additional) version of the regional cost multiplier file with other technology names in their extra inputs folder. The name of this file is given with the parameter `user_regional_cost_multiplier_fn`.
 
 ## Startup costs
 
@@ -146,3 +162,91 @@ TODO
 ## Time clustering
 
 PowerGenome can reduce the full timeseries of generation and demand profiles to a representative subset. A boolean parameter (`reduce_time_domain`) turns this functionality on/off. If it is used, the number of periods is determined by `time_domain_periods` and the number of days (24 hour segments) is specified in `time_domain_days_per_period`. The boolean parameter `include_peak_day` forces the peak demand day into one of the periods if it is true. By default, all generation and demand periods are normalized before the clustering selection method. Demand profiles can be given additional weight  using the parameter `demand_weight_factor`. A user might choose this option because some (or many) of the generation profiles used in the clustering method don't exist yet and may not be selected by the model.
+
+
+## Scenario management
+
+The parameter `settings_management` is a nested dictionary that controls alternate values for all other settings parameters. The first level should be integer values corresponding to model planning years. Below the model planning years are the column labels from the `scenario_definitions_fn` file. The next level can contain different values from each row in the column. Below this are actual settings parameters, which may have multiple nested levels of their own.
+
+> **NOTE:** If a settings parameter is a list or a dictionary with multiple keys you must include all elements of the parameter in `settings_management`, even ones that do not change. The "value" part of the key:value pair will entirely replace your original parameter value.
+
+For example, consider a scenario definitions file with a column named "solar_cost". The rows of this column have values of "high", "mid", and "low". If the original parameter `atb_new_gen` looks like this:
+
+```
+atb_new_gen:
+  - [NaturalGas, CTAvgCF, Moderate, 100]
+  - [LandbasedWind, Class3, Moderate, 1]
+  - [OffShoreWind, Class10, Moderate, 1]
+  - [UtilityPV, Class1, Moderate, 1]
+```
+
+and your `settings_management` parameter looks like this:
+
+```
+settings_management:
+  2030:
+    solar_cost:
+      high:
+        atb_new_gen:
+          - [UtilityPV, Class1, Conservative, 1]
+      mid:
+        atb_new_gen:
+            - [UtilityPV, Class1, Moderate, 1]
+      low:
+        atb_new_gen:
+            - [UtilityPV, Class1, Advanced, 1]
+```
+
+then "UtilityPV" will be the only ATB resource availible in 2030. To keep all resources and only modify the solar cost case, the settings should look like this:
+
+```
+settings_management:
+  2030:
+    solar_cost:
+      high:
+        atb_new_gen:
+          - [NaturalGas, CTAvgCF, Moderate, 100]
+          - [LandbasedWind, Class3, Moderate, 1]
+          - [OffShoreWind, Class10, Moderate, 1]
+          - [UtilityPV, Class1, Conservative, 1]
+      mid:
+        atb_new_gen:
+          - [NaturalGas, CTAvgCF, Moderate, 100]
+          - [LandbasedWind, Class3, Moderate, 1]
+          - [OffShoreWind, Class10, Moderate, 1]
+          - [UtilityPV, Class1, Moderate, 1]
+      low:
+        atb_new_gen:
+          - [NaturalGas, CTAvgCF, Moderate, 100]
+          - [LandbasedWind, Class3, Moderate, 1]
+          - [OffShoreWind, Class10, Moderate, 1]
+          - [UtilityPV, Class1, Advanced, 1]
+```
+
+This can lead to conflicts if you want to modify elements of a single parameter using different columns in your scenario definitions file (e.g. one column has solar cost cases and another has offshore wind cost cases). In this situation you should create a single column that controls ATB cost cases (e.g. "atb_cost") and have options for each permutation of values (e.g. "mid_all", "low_solar", "high_solar_low_offshorewind").
+
+```
+settings_management:
+  2030:
+    atb_cost:
+      mid_all:
+        atb_new_gen:
+          - [NaturalGas, CTAvgCF, Moderate, 100]
+          - [LandbasedWind, Class3, Moderate, 1]
+          - [OffShoreWind, Class10, Moderate, 1]
+          - [UtilityPV, Class1, Moderate, 1]
+      high_solar_low_offshorewind:
+        atb_new_gen:
+          - [NaturalGas, CTAvgCF, Moderate, 100]
+          - [LandbasedWind, Class3, Moderate, 1]
+          - [OffShoreWind, Class10, Advanced, 1]
+          - [UtilityPV, Class1, Conservative, 1]
+      low_solar:
+        atb_new_gen:
+          - [NaturalGas, CTAvgCF, Moderate, 100]
+          - [LandbasedWind, Class3, Moderate, 1]
+          - [OffShoreWind, Class10, Moderate, 1]
+          - [UtilityPV, Class1, Advanced, 1]
+```
+
+Since the "mid_all" case has the same values as the default parameter it can either be omitted or included in `settings_management` for completeness.
