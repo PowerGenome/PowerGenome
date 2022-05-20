@@ -4,11 +4,11 @@ Parameters for PowerGenome are defined in one or more YAML files. The sections b
 
 ## Model definition
 
-The first decisions to make when settings up a system are (1) the model regions and (2) the planning periods. Model regions (`model_regions`) consist of one or more [IPM Regions](https://github.com/PowerGenome/PowerGenome/wiki/Geospatial-Mappings#ipm-regions). If a model region is composed of multiple IPM regions, it should be defined in `region_aggregations`.
+The first decisions to make when settings up a system are (1) define the geographic model regions and (2) set the planning periods. Model regions (`model_regions`) consist of one or more [IPM Regions](https://github.com/PowerGenome/PowerGenome/wiki/Geospatial-Mappings#ipm-regions). If a model region is composed of multiple IPM regions, it should be defined in `region_aggregations`.
 
 > **NOTE:** The `model_regions` are used in many settings parameters. Most are (hopefully) obvious, but it is important to include any aggregated regions in the parameters `cost_multiplier_region_map` and `aeo_fuel_region_map`.
 
-Planning periods are defined by `model_year` and `model_first_planning_year`. The model year is used to calculate hourly demand, fuel prices, and existing generators (if any are retired due to age). Costs for new-build resources in each planning period are determined using the full span from the first year of a planning period through the model year.
+Planning periods are defined by the parameters `model_year` and `model_first_planning_year`. The model year is used to calculate hourly demand, fuel prices, and existing generators (if any are retired due to age). Costs for new-build resources in each planning period are determined using the full span from the first year of a planning period through the model year.
 
 Additional parameters that are important when defining a model include the dollar year that all costs should be converted to (`target_usd_year`) and the timezone that generation/demand will be presented in (`utc_offset`). For reference, the Eastern time zone is UTC -5 and Pacific is UTC -8.
 
@@ -34,22 +34,22 @@ PowerGenome doesn't supply all inputs for generator operations. Parameters such 
 > **NOTE:** These files depend on the generator technologies listed in `atb_new_gen`, `modified_atb_new_gen` and `additional_technologies`.
 
 ### Other
-- `emission_policies_fn`
-- `demand_segments_fn`
-- `genx_settings_folder`
-- `reserves_fn`
+- `emission_policies_fn`: A combination of energy share requirements (ESR) -- a generic category that covers RPS/CES type policies -- and emission limits.
+- `demand_segments_fn`: Includes the value of lost load and segmentation of demand based on willingness to curtail.
+- `genx_settings_folder`: The location of settings files for GenX.
+- `reserves_fn`: A file with regulation and reserve requirements already formatted for GenX.
 
-> **NOTE:** The emission policies file depends on the `model_year` parameter, the case IDs, and the `model_region` parameter.
+> **NOTE:** The emission policies file depends on the `model_year` parameter, the case IDs in `case_id_description_fn`, and the `model_region` parameter.
 
 ## Resources
 
 ### Existing generators
 
-Users should start by selecting the EIA data year(s) (`data_years`) to use and the type of capacity (`capacity_col`). Capacity types match the column names in PUDL (capacity_mw, winter_capacity_mw, or summer_capacity_mw).
+Users should start by selecting the EIA 923/860 data year(s) (`data_years`) to use -- it's fine to only use the most recent year of data available -- and the type of capacity (`capacity_col`). Capacity types match the column names in PUDL (capacity_mw, winter_capacity_mw, or summer_capacity_mw).
 
 Existing generating units are clustered within each region, with the default number of clusters specified in `num_clusters`. Technologies not included in this list will not be included in the outputs. If you want all units included in the outputs, list None (`~`) instead of a number. The number of clusters in individual model regions is specified in `alt_num_clusters`.
 
-If you want to combine technologies (maybe each has very little capacity), technology groups can be defined in `tech_groups`. Be sure to set `group_technologies` to `true`. The grouping can be disabled in some regions using the parameter `regional_no_grouping`.
+If you want to combine technologies (maybe each individual technology has very little capacity), technology groups can be defined in `tech_groups`. Be sure to set `group_technologies` to `true`. The grouping can be disabled in some regions using the parameter `regional_no_grouping`.
 
 If you want to de-rate the capacity of a technology by its historical capacity factor (e.g. as part of creating a must-run resource), list the technologies under both `capacity_factor_tech` and `derate_techs`, set `derate_capacity` to `true`, and select the data years for calculating capacity factor under `capacity_factor_default_year_filter`. Alternative years can be specified for technologies using `alt_year_filters`.
 
@@ -71,10 +71,14 @@ PowerGenome uses annual EIA data for information on existing generators, which c
 
 If a user knows of unit retirements that are not listed in EIA 860 or 860m they can be listed under `additional_retirements`.
 
+
+#### Mapping existing and new technologies
+
+The parameter `eia_atb_tech_map` links existing EIA technology names with ATB (or user) names. It is used when calculating O&M costs, assigning fuels, and assigning fuel startup costs.
 ## New-build generators
 
 ### NREL ATB
-NREL's ATB serves as the primary data source for new-build generators. The ATB data year is specified using `atb_data_year`. ATB has both "Market" and "R&D" financial cases -- specify which one to select with `atb_financial_case`. To calculate annuities from the ATB capex and weighted costs of capital (WACC), specify the capital recover period lenght using `atb_cap_recovery_years` and `alt_atb_cap_recovery_years`.
+NREL's ATB serves as the primary data source for new-build generators. The ATB data year is specified using `atb_data_year`. ATB has both "Market" and "R&D" financial cases -- specify which one to select with `atb_financial_case`. The "Market" financial case will generally give higher weighted average cost of capital (WACC) values. To calculate annuities from the ATB capex and WACC, specify the capital recover period length using `atb_cap_recovery_years` and `alt_atb_cap_recovery_years`.
 
 Users should select the ATB resources for their model using `atb_new_gen`. Note that ATB resources have the format <technology>, <tech_detail>, <cost_case> (e.g. NaturalGas, CCAvgCF, Moderate). The items in `atb_new_gen` are a list of these three elements plus the size (MW) of a single plant.
 
