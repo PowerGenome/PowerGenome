@@ -34,21 +34,24 @@ demand_response_resources:
     LDV_MW:
       fraction_shiftable: 0.8
       parameter_values:
-        Max_DSM_delay: 5
-        DR: 2
+        Max_Flexible_Demand_Delay: 5
+        FLEX: 1
+        Flexible_Demand_Energy_Eff: 1
     Res_WH_MW:
       fraction_shiftable: 0.1
       parameter_values:
-        Max_DSM_delay: 2
-        DR: 2
+        Max_Flexible_Demand_Delay: 2
+        FLEX: 1
+        Flexible_Demand_Energy_Eff: 1
   2045:
     LDV_MW:
       fraction_shiftable: 0.8
       parameter_values:
-        Max_DSM_delay: 5
-        DR: 2
+        Max_Flexible_Demand_Delay: 5
+        FLEX: 1
     Res_WH_MW:
       fraction_shiftable: 0.25
       parameter_values:
-        Max_DSM_delay: 2
-        DR: 2
+        Max_Flexible_Demand_Delay: 2
+        FLEX: 1
+        Flexible_Demand_Energy_Eff: 1
