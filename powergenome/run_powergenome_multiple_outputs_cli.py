@@ -159,7 +159,12 @@ def main():
     settings = load_settings(path=args.settings_file)
 
     # Copy the settings file to results folder
-    shutil.copy(args.settings_file, out_folder)
+    if Path(args.settings_file).is_file():
+        shutil.copy(args.settings_file, out_folder)
+    else:
+        shutil.copytree(
+            args.settings_file, out_folder / "pg_settings", dirs_exist_ok=True
+        )
 
     logger.info("Initiating PUDL connections")
 
