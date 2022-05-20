@@ -268,13 +268,7 @@ def main():
                     )
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
-                    gen_variability.columns = (
-                        gen_clusters["region"]
-                        + "_"
-                        + gen_clusters["Resource"]
-                        + "_"
-                        + gen_clusters["cluster"].astype(str)
-                    )
+                    gen_variability.columns = gen_clusters["Resource"]
                     gens = fix_min_power_values(gen_clusters, gen_variability)
                     for col in _settings["generator_columns"]:
                         if col not in gens.columns:
@@ -321,13 +315,7 @@ def main():
                     )
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
-                    gen_variability.columns = (
-                        gen_clusters["region"]
-                        + "_"
-                        + gen_clusters["Resource"]
-                        + "_"
-                        + gen_clusters["cluster"].astype(str)
-                    )
+                    gen_variability.columns = gen_clusters["Resource"]
                     gens = fix_min_power_values(gen_clusters, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(

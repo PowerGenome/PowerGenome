@@ -3088,7 +3088,13 @@ class GeneratorClusters:
             self.results = self.results.sort_values(["region", "technology"])
 
         # self.results = self.results.rename(columns={"technology": "Resource"})
-        self.results["Resource"] = snake_case_col(self.results["technology"])
+        self.results["Resource"] = (
+            self.results["region"]
+            + "_"
+            + snake_case_col(self.results["technology"])
+            + "_"
+            + self.results["cluster"].astype(str)
+        )
 
         # Add variable resource profiles
         self.results = self.results.reset_index(drop=True)
@@ -3173,8 +3179,12 @@ class GeneratorClusters:
             )
             self.new_generators = pd.concat([self.new_generators, dr_rows], sort=False)
 
-        self.new_generators["Resource"] = snake_case_col(
-            self.new_generators["technology"]
+        self.new_generators["Resource"] = (
+            self.new_generators["region"]
+            + "_"
+            + snake_case_col(self.new_generators["technology"])
+            + "_"
+            + self.new_generators["cluster"].astype(str)
         )
 
         return self.new_generators
