@@ -3178,7 +3178,8 @@ class GeneratorClusters:
                 add_genx_model_tags, self.settings
             )
             self.new_generators = pd.concat([self.new_generators, dr_rows], sort=False)
-
+        if "cluster" not in self.new_generators.columns:
+            self.new_generators["cluster"] = 1
         self.new_generators["Resource"] = (
             self.new_generators["region"]
             + "_"
