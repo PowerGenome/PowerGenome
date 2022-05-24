@@ -35,7 +35,7 @@ COL_ROUND_VALUES = {
     "Start_Cost_per_MW": 0,
     "Cost_per_MMBtu": 2,
     "CO2_content_tons_per_MMBtu": 5,
-    "Cap_size": 2,
+    "Cap_Size": 2,
     "Heat_Rate_MMBTU_per_MWh": 2,
     "distance_mile": 4,
     "Line_Max_Reinforcement_MW": 0,
