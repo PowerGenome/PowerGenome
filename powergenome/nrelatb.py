@@ -1074,22 +1074,6 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
-    keep_cols = [
-        "technology",
-        "basis_year",
-        "Fixed_OM_Cost_per_MWyr",
-        "Fixed_OM_Cost_per_MWhyr",
-        "Var_OM_Cost_per_MWh",
-        "capex_mw",
-        "capex_mwh",
-        "Inv_Cost_per_MWyr",
-        "Inv_Cost_per_MWhyr",
-        "Heat_Rate_MMBTU_per_MWh",
-        "Cap_size",
-        "cap_recovery_years",
-        "wacc_real",
-    ]
-    new_gen_df = new_gen_df[keep_cols]
     # Set no capacity limit on new resources that aren't renewables.
     new_gen_df["Max_Cap_MW"] = -1
     new_gen_df["Max_Cap_MWh"] = -1
