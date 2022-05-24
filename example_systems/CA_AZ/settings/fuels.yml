@@ -69,6 +69,7 @@ tech_fuel_map:
   Natural Gas Steam Turbine: naturalgas
   Nuclear: uranium
   Petroleum Liquids: distillate
+  Other_peaker: naturalgas
 
 # The CCS fuel names (key values on right have to be in the format <fuel>_<ccslevel>,
 # where the fuel matches something from "aeo_fuel_scenarios" (above

@@ -30,6 +30,14 @@ model_first_planning_year: [2020, 2031]
 # US East cost is UTC-5, Pacific is UTC-8
 utc_offset: -5
 
+regional_capacity_reserves:
+  CapRes_1:
+    CA_N: 0.137
+    CA_S: 0.137
+  CapRes_2:
+    WECC_AZ: 0.1
+
+cap_res_network_derate_default: 0.95
 
 ######################################################################################
 # MODEL OUTPUTS
