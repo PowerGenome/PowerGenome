@@ -3121,7 +3121,7 @@ class GeneratorClusters:
             if group.profiles is None:
                 # Resource group has no profiles
                 continue
-            if row.region in self.settings.get("region_aggregations", {}):
+            if row.region in (self.settings.get("region_aggregations", {}) or {}):
                 ipm_regions = self.settings.get("region_aggregations", {})[row.region]
             else:
                 ipm_regions = [row.region]

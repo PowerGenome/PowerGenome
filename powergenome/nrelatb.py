@@ -1179,7 +1179,7 @@ def add_renewables_clusters(
         df["region"] == region
     )
     cdfs = []
-    if region in settings.get("region_aggregations", {}):
+    if region in (settings.get("region_aggregations", {}) or {}):
         ipm_regions = settings.get("region_aggregations", {})[region]
         ipm_regions.append(region)  # Add model region, sometimes listed in RG file
     else:

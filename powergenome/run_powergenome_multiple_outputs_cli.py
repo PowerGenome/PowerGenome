@@ -183,7 +183,7 @@ def main():
         "region_id_epaipm"
     ]
     all_valid_regions = ipm_regions.tolist() + list(
-        settings.get("region_aggregations", {})
+        settings.get("region_aggregations", {}) or {}
     )
     good_regions = [region in all_valid_regions for region in settings["model_regions"]]
 
