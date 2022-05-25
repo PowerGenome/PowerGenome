@@ -1,0 +1,45 @@
+# Flexible loads associated with increased electrification can be included using data
+# from NREL's EFS study (described below) or using user input files. This case study
+# uses input files rather than the EFS data. The
+
+
+# Electrification scenarios are supplied in two files. EFS_STOCK_AGG.parquet has scenarios
+# from the NREL Electrification Futures Study (EFS). SCENARIO_STOCK.parquet has scenarios
+# from the Princeton Net Zero study. The scenario name will depend on which source you
+# use. The NREL EFS scenarios include:
+
+# HIGH ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT
+# MEDIUM ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT
+# REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT
+
+# The Princeton Net Zero scenarios include:
+
+# current_policy
+# stated_policy
+# deep_decarbonization
+# moderate_decarbonization
+
+# The type of flexible loads that can be included as demand response resources are:
+
+# Res_WH_MW (residential water heating)
+# Com_WH_MW (commercial water heating)
+# Res_SPH_MW (residential space heating)
+# Com_SPH_MW (commercial space heating)
+# LDV_MW (light duty vehicles)
+# MDV_MW (medium duty vehicles)
+# HDV_MW (heavy duty vehicles)
+
+
+electrification_stock_fn: ~ # EFS_STOCK_AGG.parquet  # SCENARIO_STOCK.parquet
+electrification_scenario: ~ # REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT # current_policy
+# Name of the flexible resource, fraction of load that can be shifted, and model-specific
+# parameters that will be applied to each resource.
+demand_response_resources:
+  2030:
+    heat_load_shifting:
+      fraction_shiftable: 0.35
+      parameter_values:
+        Max_Flexible_Demand_Delay: 4
+        FLEX: 1
+        Flexible_Demand_Energy_Eff: 1
+demand_response: 'moderate'

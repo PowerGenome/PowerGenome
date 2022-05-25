@@ -23,6 +23,7 @@ model_tag_names:
   - Hydro_Energy_to_Power_Ratio
   - MinCapTag_1
   - MinCapTag_2
+  - MinCapTag_3
   - Reg_Max
   - Rsv_Max
 
@@ -54,6 +55,7 @@ model_tag_values:
     CSP: 1
     LandbasedWind: 1
     OffshoreWind: 1
+    Offshore Wind Turbine: 1
     Onshore Wind: 1
     Solar Photovoltaic: 1
     Solar Thermal without Energy Storage: 1
@@ -66,11 +68,13 @@ model_tag_values:
     Solar Photovoltaic: 1
     Solar Thermal without Energy Storage: 1
     UtilityPV: 1
+    Offshore Wind Turbine: 1
   STOR:
     Battery: 1
     Hydroelectric Pumped Storage: 1
   FLEX:
     ev_load_shifting: 1
+    heat_load_shifting: 1
   HYDRO:
     Conventional Hydroelectric: 1
     Hydropower: 1
@@ -116,8 +120,9 @@ model_tag_values:
     Small Hydroelectric: 1
     Solar Photovoltaic: 1
     UtilityPV: 1
-  MinCapTag_1: # Do not need to list anything here. All values will be 0 by default
+  MinCapTag_1:
     LandbasedWind: 1
+    Onshore Wind: 1
   New_Build:
     Battery: 1
     Biomass: -1
@@ -213,20 +218,22 @@ model_tag_values:
 # Technologies will be matched using str.contains(), so partial names can be included
 # but they might unintentially map to other techs
 regional_tag_values:
-  CA_S:
-    New_Build:
-      Hydroelectric Pumped Storage: 1
-      Nuclear: 0
+  NENG_CT:
+    MinCapTag_1:
+      LandbasedWind: 0
+  NENGREST:
     MinCapTag_2:
+      OffShoreWind: 1
+    MinCapTag_3:
       UtilityPV: 1
-  CA_N:
-    New_Build:
-      Nuclear: 0
 
 MinCapReq:
   MinCapTag_1:
-    description: Landbasedwind
+    description: ME_Wind
     min_mw: 8000
   MinCapTag_2:
-    description: CA_S_solar
-    min_mw: 10000
+    description: ME_OSW
+    min_mw: 5000
+  MinCapTag_3:
+    description: MA_Solar
+    min_mw: 3200

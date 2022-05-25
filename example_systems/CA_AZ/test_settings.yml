@@ -782,8 +782,6 @@ model_tag_values:
     Battery: 0.95
     Hydroelectric Pumped Storage: 0.95
     ev_load_shifting: 0.95
-  Hydro_Energy_to_Power_Ratio:
-    Conventional Hydroelectric: 158.7301587
   MUST_RUN:
     Small Hydroelectric: 1
     Geothermal: 1
