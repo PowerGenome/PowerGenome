@@ -159,7 +159,7 @@ utc_offset: -5
 capacity_col: winter_capacity_mw
 
 # LABEL SMALL HYDRO
-small_hydro: True
+small_hydro: true
 small_hydro_mw: 30
 small_hydro_regions:
   - NENGREST
@@ -173,9 +173,7 @@ small_hydro_regions:
 # storage at peak discharge power output.
 hydro_factor: 2
 
-regional_hydro_factor:
-  WECC_PNW: 4
-  WECC_N: 4
+regional_hydro_factor: ~
 
 # REGIONS
 # Select the regions and any regional aggregations that should be performed.
@@ -190,9 +188,7 @@ model_regions:
   - NENG_ME
 
 # Comment out this setting if no aggregated regions are included in the study.
-# region_aggregations:
-#   CA_N: [WEC_CALN, WEC_BANC]
-#   CA_S: [WEC_LADW, WECC_SCE, WEC_SDGE, WECC_IID]
+region_aggregations: ~
 
 
 regional_capacity_reserves:
@@ -278,7 +274,6 @@ alt_year_filters:
   Small Hydroelectric: ~
   Conventional Hydroelectric: ~
   Biomass: ~
-  Geothermal: ~
 
 derate_capacity: True
 derate_techs:
@@ -382,6 +377,7 @@ model_tag_values:
     Natural Gas Internal Combustion Engine: 1
     Natural Gas Steam Turbine: 1
     NGCCS100: 1
+    NaturalGas: 1
     Nuclear: 1
     Other Gases: 1
     Other Natural Gas: 1
@@ -417,6 +413,7 @@ model_tag_values:
     Hydroelectric Pumped Storage: 1
   FLEX:
     ev_load_shifting: 1
+    heat_load_shifting: 1
   HYDRO:
     Conventional Hydroelectric: 1
     Hydropower: 1
@@ -464,8 +461,9 @@ model_tag_values:
     Small Hydroelectric: 1
     Solar Photovoltaic: 1
     UtilityPV: 1
-  MinCapTag_1: # Do not need to list anything here. All values will be 0 by default
+  MinCapTag_1:
     LandbasedWind: 1
+    Onshore Wind: 1
   New_Build:
     Battery: 1
     Biomass: -1
@@ -550,8 +548,6 @@ model_tag_values:
     Battery: 0.95
     Hydroelectric Pumped Storage: 0.95
     ev_load_shifting: 0.95
-  Hydro_Energy_to_Power_Ratio:
-    Conventional Hydroelectric: 158.7301587
   MUST_RUN:
     Small Hydroelectric: 1
     Geothermal: 1
@@ -586,7 +582,7 @@ MinCapReq:
 
 # Generator cost data from NREL ATB
 
-atb_data_year: 2020
+atb_data_year: 2021
 atb_financial_case: Market
 atb_cap_recovery_years: 20
 
@@ -600,35 +596,25 @@ alt_atb_cap_recovery_years:
   Nuclear: 40
 
 # The year of NREL ATB data to use for matching existing generators (O&M costs)
-atb_existing_year: 2018
-atb_usd_year: 2018 # From Capex figure in atb documentation https://atb-archive.nrel.gov/electricity/2020/index.php?t=in
+atb_existing_year: 2019
 
 
 # ****UPDATE WITH ATB2021*****
-# ATB now uses data from NETL for fossil fuel technologies, so it is no longer necessary
+# ATB 2021 uses data from NETL for fossil fuel technologies, so it is no longer necessary
 # to modify NGCT and NGCC technologies.
 # ****************************
-# ATB uses an average of conventional and advanced techs. We only want advanced. To use
-# standard ATB values set multipliers to 1.
-# Heat rate multipliers are an average of "heat rate" and "final heat rate" multipliers.
-# This parameter shoud be a set of nested dictionaries. Each lower-level dict must have
-# "technology" and "tech_detail" keys uniquely identifying the resource to be modified.
-# The 'ngct' dictionary is required for calculating existing CT variable O&M costs.
-# atb_modifiers:
-#   ngct:
-#     technology: NaturalGas
-#     tech_detail: CTAvgCF
-#     capex_mw: [mul, 0.76]
-#     Var_OM_Cost_per_MWh: [mul, 0.98]
-#     Fixed_OM_Cost_per_MWyr: [mul, 0.6]
-#     Heat_Rate_MMBTU_per_MWh: [mul, 1.04]
-#   ngcc:
-#     technology: NaturalGas
-#     tech_detail: CCAvgCF
-#     capex_mw: [mul, 0.89]
-#     Var_OM_Cost_per_MWh: [mul, 0.73]
-#     Fixed_OM_Cost_per_MWyr: [mul, 0.95]
-#     Heat_Rate_MMBTU_per_MWh: [mul, 0.98]
+# The atb_modifers parameter is now used to add a VOM cost to battery technologies. PNNL
+# reports a 0.03 cents per kWh VOM, which is split between Var_OM_Cost_per_MWh and
+# Var_OM_Cost_per_MWh_In (https://www.pnnl.gov/main/publications/external/technical_reports/PNNL-28866.pdf).
+# Because Var_OM_Cost_per_MWh_In is not part of the ATB database the value should be set
+# directly rather than using a list of [operator, value]. Operators ("add", "mul",
+# "truediv", and "sub") can only be used to modify values that exist in the ATB database.
+atb_modifiers:
+  batteries:
+    technology: Battery
+    tech_detail: "*"
+    Var_OM_Cost_per_MWh: [add, 0.15]
+    Var_OM_Cost_per_MWh_In: 0.15
 
 
 # Copy and modify an existing ATB new generator. This takes place BEFORE the ATB CC/CT
@@ -680,8 +666,8 @@ atb_new_gen:
   - [NaturalGas, CCCCSAvgCF, Conservative, 500] # ATB CCCCS conservative case represents current technology.
   - [NaturalGas, CCAvgCF, Moderate, 500]
   - [NaturalGas, CTAvgCF, Moderate, 100]
-  - [LandbasedWind, LTRG4, Moderate, 1]
-  - [OffShoreWind, OTRG3, Moderate, 1]
+  - [LandbasedWind, Class3, Moderate, 1]
+  - [OffShoreWind, Class3, Moderate, 1]
   - [UtilityPV, Class1, Moderate, 1]
   - [Battery, "*", Moderate, 1]
   # - [Nuclear, Nuclear, Moderate, 500]
@@ -691,27 +677,13 @@ atb_new_gen:
 # Provide the filename (no path needed) in the parameter below or "~" for none.
 # All technologies listed in the file will be included in the outputs unless they are
 # also included in "new_gen_not_available".
-# additional_technologies_fn: AZ_additional_tech.csv #NETL_Additional_tech.csv
+additional_technologies_fn: ~
 
-# additional_new_gen:
-#   - Nuclear_mid
-#   # - NGCCS100_mid
-#   # - NETL_NGCC
-#   # - NETL+NGCC_CCS
+additional_new_gen: ~
 
 
 # Dictionary of lists with model region as key and ATB tech (string matching) in list
-# new_gen_not_available:
-#   WECC_CO:
-#     - OffShoreWind
-#   WECC_AZ:
-#     - OffShoreWind
-#   WECC_NM:
-#     - OffShoreWind
-#   WECC_SNV:
-#     - OffShoreWind
-
-pv_ac_dc_ratio: 1.3
+new_gen_not_available: ~
 
 renewables_clusters:
   - region: NENGREST
@@ -880,9 +852,9 @@ additional_planned: ~
 
 # Load from IPM is for 2011. The growth rates from 2011-2018 can be calculated using
 # historical data
-default_load_year: 2012
-regular_load_growth_start_year: 2019
-growth_scenario: REF2020
+regular_load_growth_start_year: 2020
+growth_scenario: REF2021
+load_eia_aeo_year: 2021
 
 historical_load_region_maps:
   TRE: [ERC_PHDL, ERC_REST, ERC_WEST]
@@ -956,6 +928,11 @@ alt_growth_rate: ~
 ######################################################################################
 # EIA AEO FUEL PRICE VARIABLES
 
+# Which year of AEO to use. Note that different years have different scenario names
+# so those may need to be modified accordingly.
+fuel_eia_aeo_year: 2021
+aeo_fuel_usd_year: 2019
+
 # Need to make choices about fuel regions when user-defined regions cross AEO fuel regions.
 # IPM regions are included here only as a guide. All user regions must be mapped to AEO regions.
 aeo_fuel_region_map:
@@ -987,14 +964,11 @@ eia_series_fuel_names:
   distillate: DFO
   uranium: U
 
-# Which year of AEO to use. Note that different years have different scenario names
-# so those may need to be modified accordingly.
-eia_aeo_year: 2020
 
 # This is a subset of AEO 2020 scenarios. For a full list, look at the eia open data
 # page https://www.eia.gov/opendata/qb.php?category=3604304
 eia_series_scenario_names:
-  reference: REF2020
+  reference: REF2021
   low_price: LOWPRICE
   high_price: HIGHPRICE
   high_resource: HIGHOGS
@@ -1005,8 +979,6 @@ aeo_fuel_scenarios:
   naturalgas: reference
   distillate: reference
   uranium: reference
-
-aeo_fuel_usd_year: 2019
 
 
 # NEED TO ADD BIOMASS AND GET FUEL COSTS - CHECK TEMOA (BILLION TON STUDY REFERENCE
@@ -1111,9 +1083,7 @@ generator_columns: [
             "MUST_RUN",
             "STOR",
             "FLEX",
-            # "HEAT",
-            # "NACC",
-            # "TRADER",
+            "LDS",
             "HYDRO",
             "ESR_1",
             "ESR_2",

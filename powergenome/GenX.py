@@ -14,7 +14,7 @@ from powergenome.external_data import (
 )
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.time_reduction import kmeans_time_clustering
-from powergenome.util import load_settings
+from powergenome.util import load_settings, snake_case_col
 from powergenome.nrelatb import investment_cost_calculator
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ COL_ROUND_VALUES = {
     "Start_Cost_per_MW": 0,
     "Cost_per_MMBtu": 2,
     "CO2_content_tons_per_MMBtu": 5,
-    "Cap_size": 2,
+    "Cap_Size": 2,
     "Heat_Rate_MMBTU_per_MWh": 2,
     "distance_mile": 4,
     "Line_Max_Reinforcement_MW": 0,
@@ -326,23 +326,100 @@ def add_emission_policies(transmission_df, settings):
     return network_df
 
 
-def add_misc_gen_values(gen_clusters, settings):
+def add_misc_gen_values(
+    gen_clusters: pd.DataFrame, settings: dict, resource_col: str = "Resource"
+) -> pd.DataFrame:
+    """Add parameter values from a CSV file to resources.
+
+    Parameters
+    ----------
+    gen_clusters : pd.DataFrame
+        Resource dataframe with columns "region" and `resource_col`.
+    settings : dict
+        Model settings, with parameters "input_folder" and "misc_gen_inputs_fn". The
+        misc gen CSV file should have the column `resource_col`. If it has the column
+        "region" then regional values will be applied, otherwise values for each resource
+        will be applied across all regions.
+    resource_col : str, optional
+        Name of the column with resource name in both gen_clusters and the CSV file, by
+        default "Resource".
+
+    Returns
+    -------
+    pd.DataFrame
+        A modified version of gen_clusters with new parameter values for resources.
+    """
     path = Path(settings["input_folder"]) / settings["misc_gen_inputs_fn"]
     misc_values = pd.read_csv(path)
-    misc_values = misc_values.fillna("skip")
+    misc_values[resource_col] = snake_case_col(misc_values[resource_col])
 
-    for resource in misc_values["Resource"].unique():
-        # resource_misc_values = misc_values.loc[misc_values["Resource"] == resource, :].dropna()
+    if "region" not in misc_values.columns.str.lower():
+        misc_values["region"] = "all"
+    regions = [r for r in misc_values["region"].unique() if r.lower() != "all"]
+    wrong_regions = [r for r in regions if r not in settings["model_regions"]]
+    if wrong_regions:
+        raise ValueError(
+            f"The `misc_gen_inputs_fn` CSV has regions {wrong_regions}, which are not "
+            f"valid model regions. Valid model regions are {settings['model_regions']}."
+        )
 
-        for col in misc_values.columns:
-            if col == "Resource":
+    for region in settings["model_regions"]:
+        _df = misc_values.loc[misc_values["region"].str.lower() == "all", :]
+        _df.loc[:, "region"] = region
+        misc_values = misc_values.append(_df)
+
+    misc_values = misc_values.loc[misc_values["region"].str.lower() != "all", :]
+
+    resource_len = 0
+    for tech, _df in misc_values.groupby(resource_col):
+        num_tech_regions = len(
+            gen_clusters.loc[
+                gen_clusters[resource_col].str.contains(tech, case=False)
+            ].drop_duplicates(subset=["region"])
+        )
+        num_values = len(_df)
+        if num_values < num_tech_regions:
+            logger.warning(
+                f"The `misc_gen_inputs_fn` CSV has {num_values} region(s) for the resource "
+                f"'{tech}', but the resource is in {num_tech_regions} regions. Check "
+                "your input file to ensure values are provided for all appropriate regions."
+            )
+    generic_resources = []
+    for gen_resource in gen_clusters[resource_col].unique():
+        for r in settings["model_regions"]:
+            if r in gen_resource:
+                gen_resource = gen_resource.replace(r + "_", "")
+                generic_resources.append(gen_resource)
                 continue
-            value = misc_values.loc[misc_values["Resource"] == resource, col].values[0]
-            if value != "skip":
-                gen_clusters.loc[
-                    gen_clusters["Resource"].str.contains(resource, case=False), col
-                ] = value
+    generic_resources = set(generic_resources)
+    missing_resources = []
+    for resource in generic_resources:
+        match = False
+        for misc_resource in misc_values[resource_col].unique():
+            if misc_resource in resource.lower():
+                match = True
+                continue
+        if not match:
+            missing_resources.append(resource)
 
+    if missing_resources:
+        logger.warning(
+            f"The resources {missing_resources} are not included in your `misc_gen_inputs_fn` "
+            "CSV file. This is a warning in case they should have parameters in that file."
+        )
+
+    misc_values = misc_values.reset_index(drop=True)
+    value_cols = [
+        col for col in misc_values.columns if col not in ["region", resource_col]
+    ]
+
+    for idx, row in misc_values.iterrows():
+        row_cols = row[value_cols].dropna().index
+        gen_clusters.loc[
+            (gen_clusters["region"] == row["region"])
+            & (gen_clusters[resource_col].str.contains(row[resource_col], case=False)),
+            row_cols,
+        ] = row[row_cols].values
     return gen_clusters
 
 
@@ -1018,7 +1095,7 @@ def hydro_energy_to_power(
         avg_inflow > 1, 1
     )
 
-    for region, factor in regional_factors.items():
+    for region, factor in (regional_factors or {}).items():
         region_mask = df["region"] == region
         if region_mask.any():
             avg_inflow = (

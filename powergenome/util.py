@@ -22,11 +22,32 @@ logger = logging.getLogger(__name__)
 
 
 def load_settings(path: Union[str, Path]) -> dict:
+    """Load a YAML file or a dictionary of YAML files with settings parameters
 
-    with open(path, "r") as f:
-        #     settings = yaml.safe_load(f)
-        yaml = YAML(typ="safe")
-        settings = yaml.load(f)
+    Parameters
+    ----------
+    path : Union[str, Path]
+        Name of the settings file or folder
+
+    Returns
+    -------
+    dict
+        All parameters listed in the YAML file(s)
+    """
+
+    path = Path(path)
+    if path.is_file():
+        with open(path, "r") as f:
+            #     settings = yaml.safe_load(f)
+            yaml = YAML(typ="safe")
+            settings = yaml.load(f)
+    elif path.is_dir():
+        settings = {}
+        for sf in path.glob("*.yml"):
+            yaml = YAML(typ="safe")
+            s = yaml.load(sf)
+            if s:
+                settings.update(s)
 
     return settings
 
@@ -229,24 +250,31 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
             " Remove the duplicates and try again."
         )
 
-    if settings.get("eia_aeo_year"):
-        aeo_year = settings["eia_aeo_year"]
+    if settings.get("eia_aeo_year") or settings.get("fuel_eia_aeo_year"):
+        fuel_aeo_year = settings.get("fuel_eia_aeo_year") or settings.get(
+            "eia_aeo_year"
+        )
         for k, v in settings.get("eia_series_scenario_names", {}).items():
-            if "REF" in v and str(aeo_year) not in v:
+            if "REF" in v and str(fuel_aeo_year) not in v:
                 logger.warning(
                     "The settings EIA fuel scenario (eia_series_scenario_names) key "
                     f"{k} has a value of {v}, which does not match the aeo data year "
-                    f"{aeo_year}. It has been changed to REF{aeo_year}."
+                    f"{fuel_aeo_year}. It has been changed to REF{fuel_aeo_year}."
                 )
-                settings["eia_series_scenario_names"][k] = f"REF{aeo_year}"
+                settings["eia_series_scenario_names"][k] = f"REF{fuel_aeo_year}"
+
+    if settings.get("eia_aeo_year") or settings.get("load_eia_aeo_year"):
+        load_aeo_year = settings.get("load_eia_aeo_year") or settings.get(
+            "eia_aeo_year"
+        )
         growth_scenario = settings.get("growth_scenario", "")
-        if "REF" in growth_scenario and str(aeo_year) not in growth_scenario:
+        if "REF" in growth_scenario and str(load_aeo_year) not in growth_scenario:
             logger.warning(
                 "The settings EIA demand growth scenario (growth_scenario) key "
                 f"value is {growth_scenario}, which does not match the aeo data year "
-                f"{aeo_year}. It has been changed to REF{aeo_year}."
+                f"{load_aeo_year}. It has been changed to REF{load_aeo_year}."
             )
-            settings["growth_scenario"] = f"REF{aeo_year}"
+            settings["growth_scenario"] = f"REF{load_aeo_year}"
 
 
 def init_pudl_connection(

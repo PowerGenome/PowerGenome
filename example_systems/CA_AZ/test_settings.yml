@@ -103,19 +103,19 @@ transmission_investment_cost:
       CA_N: 8775 # 2.5x the rest of WECC
       CA_S: 8775 # 2.5x the rest of WECC
       WECC_AZ: 3900
-    wacc: 0.069
+    wacc: 0.044
     investment_years: 60
   offshore_spur:
     # If missing, NREL ATB capex_mw_mile is used
     capex_mw_mile:
-    wacc: 0.069
+    wacc: 0.044
     investment_years: 60
   tx:
     capex_mw_mile:
       CA_N: 3037.5 # 2.5x the rest of WECC
       CA_S: 3037.5 # 2.5x the rest of WECC
       WECC_AZ: 1350
-    wacc: 0.069
+    wacc: 0.044
     investment_years: 60
 
 # Percent expansion in planning period above and beyond existing transmission
@@ -706,7 +706,7 @@ model_tag_values:
     Conventional Hydroelectric: -1
     Geothermal: -1
     LandbasedWind: 1
-    Natural Gas: 1
+    NaturalGas: 1
     NGCCS100: 1
     OffshoreWind: 1
     Small Hydroelectric: -1
@@ -782,8 +782,6 @@ model_tag_values:
     Battery: 0.95
     Hydroelectric Pumped Storage: 0.95
     ev_load_shifting: 0.95
-  Hydro_Energy_to_Power_Ratio:
-    Conventional Hydroelectric: 158.7301587
   MUST_RUN:
     Small Hydroelectric: 1
     Geothermal: 1
@@ -843,7 +841,11 @@ atb_existing_year: 2019
 # This parameter shoud be a set of nested dictionaries. Each lower-level dict must have
 # "technology" and "tech_detail" keys uniquely identifying the resource to be modified.
 # The 'ngct' dictionary is required for calculating existing CT variable O&M costs.
-# atb_modifiers:
+atb_modifiers:
+  batteries:
+    technology: Battery
+    tech_detail: "*"
+    Var_OM_Cost_per_MWh: [add, 0.15]
 #   ngct:
 #     technology: NaturalGas
 #     tech_detail: CTAvgCF
@@ -889,7 +891,7 @@ eia_atb_tech_map:
   Conventional Steam Coal: Coal_newAvgCF
   Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF #[NaturalGas_CCAvgCF, NETL_NGCC]
   Natural Gas Fired Combustion Turbine: NaturalGas_CTAvgCF
-  Peaker: NaturalGas_CTAvgCF
+  Other_peaker: NaturalGas_CTAvgCF
   Natural Gas Internal Combustion Engine: NaturalGas_CTAvgCF
   Landfill Gas: NaturalGas_CTAvgCF
   Petroleum Liquids: NaturalGas_CTAvgCF
@@ -1244,6 +1246,7 @@ tech_fuel_map:
   Natural Gas Steam Turbine: naturalgas
   Nuclear: uranium
   Petroleum Liquids: distillate
+  Other_peaker: naturalgas
 
 # The CCS fuel names (key values on right have to be in the format <fuel>_<ccslevel>,
 # where the fuel matches something from "aeo_fuel_scenarios" (above
@@ -1340,9 +1343,7 @@ generator_columns: [
             "MUST_RUN",
             "STOR",
             "FLEX",
-            # "HEAT",
-            # "NACC",
-            # "TRADER",
+            "LDS",
             "HYDRO",
             "ESR_1",
             "ESR_2",
