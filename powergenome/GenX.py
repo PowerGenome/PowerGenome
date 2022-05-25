@@ -1095,7 +1095,7 @@ def hydro_energy_to_power(
         avg_inflow > 1, 1
     )
 
-    for region, factor in regional_factors.items():
+    for region, factor in (regional_factors or {}).items():
         region_mask = df["region"] == region
         if region_mask.any():
             avg_inflow = (
