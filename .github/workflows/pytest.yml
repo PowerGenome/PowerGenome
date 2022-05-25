@@ -35,6 +35,7 @@ jobs:
         conda config --show-sources
         conda config --show
         printenv | sort
+
     # - name: Add conda to system path
     #   run: |
     #     # $CONDA is an environment variable pointing to the root of the miniconda directory
