@@ -91,10 +91,13 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
     }
 
     growth_scenario = settings.get("growth_scenario", "REF2020")
+    load_aeo_year = settings.get("load_eia_aeo_year") or settings.get(
+        "eia_aeo_year", 2020
+    )
     load_growth_dict = {
         ipm_region: get_aeo_load(
             region=future_region_map[ipm_region],
-            aeo_year=settings.get("eia_aeo_year", 2020),
+            aeo_year=load_aeo_year,
             scenario_series=growth_scenario,
         ).set_index("year")
         for ipm_region in keep_regions

@@ -115,7 +115,10 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
     """
     API_KEY = SETTINGS["EIA_API_KEY"]
 
-    aeo_year = settings.get("eia_aeo_year")
+    if settings.get("fuel_eia_aeo_year"):
+        aeo_year = settings.get("fuel_eia_aeo_year")
+    else:
+        aeo_year = settings.get("eia_aeo_year")
 
     fuel_price_cases = product(
         settings.get("eia_series_region_names", {}).items(),

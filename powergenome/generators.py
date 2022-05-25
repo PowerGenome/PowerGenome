@@ -1,7 +1,7 @@
 import collections
 import logging
 from numbers import Number
-from typing import Dict, List
+from typing import Dict, List, Union
 import re
 from zipfile import BadZipFile
 
@@ -48,6 +48,7 @@ from powergenome.util import (
     reverse_dict_of_lists,
     snake_case_col,
     regions_to_keep,
+    snake_case_str,
 )
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
@@ -2379,7 +2380,7 @@ def add_dg_resources(
 
 def energy_storage_mwh(
     df: pd.DataFrame,
-    energy_storage_duration: Dict[str, float],
+    energy_storage_duration: Dict[str, Union[float, Dict[str, float]]],
     tech_col: str,
     cap_col: str,
     energy_col: str,
@@ -2392,8 +2393,9 @@ def energy_storage_mwh(
     df : pd.DataFrame
         Resource dataframe with columns specified by `tech_col`, `cap_col`, and
         `energy_col`
-    energy_storage_duration : Dict[str, float]
-        Keys are technology names, values are the duration of storage
+    energy_storage_duration : Dict[str, Union[float, Dict[str, float]]]
+        Keys are technology names, values are either the duration of storage (float) or
+        a dictionary with region keys and storage duration values
     tech_col : str
         Dataframe column with technology names
     cap_col : str
@@ -2406,9 +2408,44 @@ def energy_storage_mwh(
     pd.DataFrame
         Modified dataframe with energy storage values
     """
-    for k, v in energy_storage_duration.items():
-        df.loc[df[tech_col] == k, energy_col] = df[cap_col] * v
-
+    all_regions = df["region"].unique()
+    for tech, val in energy_storage_duration.items():
+        if isinstance(val, dict):
+            tech_regions = val.keys()
+            model_tech_regions = df.loc[
+                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
+                "region",
+            ].to_list()
+            if not all(r in tech_regions for r in model_tech_regions):
+                missing_regions = [
+                    r for r in model_tech_regions if r not in tech_regions
+                ]
+                logger.warning(
+                    f"The regions {missing_regions} are missing from technology {tech} "
+                    "in the settings parameter 'energy_storage_duration'. This technology "
+                    "will not have any energy storage capacity in these regions."
+                )
+            for region, v in val.items():
+                if region not in all_regions:
+                    logger.warning(
+                        f"The settings parameter 'energy_storage_duration', technology '{tech}' "
+                        f"has the region '{region}', which is not one of your model regions."
+                    )
+                df.loc[
+                    (snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)))
+                    & (df["region"] == region),
+                    energy_col,
+                ] = (
+                    df[cap_col] * v
+                )
+        else:
+            df.loc[
+                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
+                energy_col,
+            ] = (
+                df[cap_col] * val
+            )
+    df[energy_col] = df[energy_col].fillna(0)
     return df
 
 
@@ -2986,7 +3023,7 @@ class GeneratorClusters:
         self.results = self.results.set_index(["region", "technology", "cluster"])
         self.results.rename(
             columns={
-                self.settings["capacity_col"]: "Cap_size",
+                self.settings["capacity_col"]: "Cap_Size",
                 "heat_rate_mmbtu_mwh": "Heat_Rate_MMBTU_per_MWh",
             },
             inplace=True,
@@ -3008,10 +3045,10 @@ class GeneratorClusters:
             if self.settings.get("derate_capacity"):
                 derate_techs = self.settings["derate_techs"]
                 self.results.loc[:, "unmodified_cap_size"] = self.results.loc[
-                    :, "Cap_size"
+                    :, "Cap_Size"
                 ].copy()
                 self.results.loc[
-                    self.results["technology"].isin(derate_techs), "Cap_size"
+                    self.results["technology"].isin(derate_techs), "Cap_Size"
                 ] = (
                     self.results.loc[
                         self.results["technology"].isin(derate_techs),
@@ -3024,8 +3061,8 @@ class GeneratorClusters:
 
         # Round Cap_size to prevent GenX error.
         self.results = self.results.round(3)
-        self.results["Cap_size"] = self.results["Cap_size"]
-        self.results["Existing_Cap_MW"] = self.results.Cap_size * self.results.num_units
+        self.results["Cap_Size"] = self.results["Cap_Size"]
+        self.results["Existing_Cap_MW"] = self.results.Cap_Size * self.results.num_units
         if self.settings.get("derate_capacity"):
             self.results["unmodified_existing_cap_mw"] = (
                 self.results["unmodified_cap_size"] * self.results["num_units"]
@@ -3076,7 +3113,13 @@ class GeneratorClusters:
             self.results = self.results.sort_values(["region", "technology"])
 
         # self.results = self.results.rename(columns={"technology": "Resource"})
-        self.results["Resource"] = snake_case_col(self.results["technology"])
+        self.results["Resource"] = (
+            self.results["region"]
+            + "_"
+            + snake_case_col(self.results["technology"])
+            + "_"
+            + self.results["cluster"].astype(str)
+        )
 
         # Add variable resource profiles
         self.results = self.results.reset_index(drop=True)
@@ -3103,7 +3146,7 @@ class GeneratorClusters:
             if group.profiles is None:
                 # Resource group has no profiles
                 continue
-            if row.region in self.settings.get("region_aggregations", {}):
+            if row.region in (self.settings.get("region_aggregations", {}) or {}):
                 ipm_regions = self.settings.get("region_aggregations", {})[row.region]
             else:
                 ipm_regions = [row.region]
@@ -3160,9 +3203,14 @@ class GeneratorClusters:
                 add_genx_model_tags, self.settings
             )
             self.new_generators = pd.concat([self.new_generators, dr_rows], sort=False)
-
-        self.new_generators["Resource"] = snake_case_col(
-            self.new_generators["technology"]
+        if "cluster" not in self.new_generators.columns:
+            self.new_generators["cluster"] = 1
+        self.new_generators["Resource"] = (
+            self.new_generators["region"]
+            + "_"
+            + snake_case_col(self.new_generators["technology"])
+            + "_"
+            + self.new_generators["cluster"].astype(str)
         )
 
         return self.new_generators
@@ -3179,7 +3227,7 @@ class GeneratorClusters:
         )
 
         self.all_resources = self.all_resources.round(3)
-        self.all_resources["Cap_size"] = self.all_resources["Cap_size"]
+        self.all_resources["Cap_Size"] = self.all_resources["Cap_Size"]
         self.all_resources["Heat_Rate_MMBTU_per_MWh"] = self.all_resources[
             "Heat_Rate_MMBTU_per_MWh"
         ]
@@ -3191,7 +3239,8 @@ class GeneratorClusters:
                 self.all_resources.loc[i, "variable_CF"] = np.mean(p)
 
         # Set Min_Power of wind/solar to 0
-        self.all_resources.loc[self.all_resources["VRE"] == 1, "Min_Power"] = 0
+        if "VRE" in self.all_resources.columns:
+            self.all_resources.loc[self.all_resources["VRE"] == 1, "Min_Power"] = 0
 
         self.all_resources["R_ID"] = np.arange(len(self.all_resources)) + 1
 
