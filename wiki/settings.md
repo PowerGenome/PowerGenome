@@ -51,6 +51,8 @@ Existing generating units are clustered within each region, with the default num
 
 If you want to combine technologies (maybe each individual technology has very little capacity), technology groups can be defined in `tech_groups`. Be sure to set `group_technologies` to `true`. The grouping can be disabled in some regions using the parameter `regional_no_grouping`.
 
+> **NOTE:** Custom named groupings of EIA technologies created in `tech_groups` will need to be added to other parameters such as `tech_fuel_map`, `eia_atb_tech_map`, and `model_tag_values`.
+
 If you want to de-rate the capacity of a technology by its historical capacity factor (e.g. as part of creating a must-run resource), list the technologies under both `capacity_factor_tech` and `derate_techs`, set `derate_capacity` to `true`, and select the data years for calculating capacity factor under `capacity_factor_default_year_filter`. Alternative years can be specified for technologies using `alt_year_filters`.
 
 #### Operation and maintenance costs
@@ -129,6 +131,8 @@ AEO fuel prices are collected through the EIA Open Data API. To do this we need 
 AEO provides fuel price data for Census Divisions, which are mapped to model regions in `aeo_fuel_region_map`. Users need to make informed choices about the best assignment for their model regions. The parameter `eia_series_region_names` maps AEO fuel region codes to the names provided in `aeo_fuel_region_map`.
 
 Fuels are mapped to generating technologies using `tech_fuel_map`. Further (nested) mappings are performed using `eia_atb_tech_map` -- an ATB technology that is mapped to the EIA technology listed in `tech_fuel_map` will also be assigned the same fuel.
+
+> **NOTE:** If you defined a custom grouping of EIA technologies in `tech_groups`, be sure to assign it a fuel here.
 
 Emission factors for each fuel are listed in `fuel_emission_factors`.
 
