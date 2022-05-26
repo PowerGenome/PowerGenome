@@ -7,33 +7,39 @@ jobs:
     runs-on: ${{ matrix.os }}
     defaults:
       run:
-        shell: bash
+        shell: bash -l {0}
     strategy:
       max-parallel: 5
-      matrix:
-        python-version: ["3.9", "3.10"]
-        os: [ubuntu-latest, windows-latest]
+      # matrix:
+      #   python-version: ["3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v2
     - uses: conda-incubator/setup-miniconda@v2
       with:
+        python-version: 3.9
+    - name: mamba
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        python-version: 3.9
         mamba-version: "*"
         channels: conda-forge,defaults
-        environment-file: environment.yml
+        channel-priority: true
         activate-environment: powergenome
-    # - name: Set up Python 3.9
-    #   uses: actions/setup-python@v2
-    #   with:
-    #     python-version: 3.9
+        environment-file: environment.yml
+        # auto-activate-base: false
+    - run: |
+        conda info
+        conda list
+        conda config --show-sources
+        conda config --show
+        printenv | sort
     # - name: Add conda to system path
     #   run: |
     #     # $CONDA is an environment variable pointing to the root of the miniconda directory
     #     echo $CONDA/bin >> $GITHUB_PATH
     # - name: install mamba
     #   run: |
-    #     if [[ "${{ runner.os }}" = "Linux" ]]; then
-
     #     conda install mamba -n base -c conda-forge
     # - name: Install dependencies
     #   run: |
@@ -41,18 +47,13 @@ jobs:
     - name: install powergenome
       run: |
         pip install -e .
-    - name: flake8 Lint
-      uses: py-actions/flake8@v2
-      with:
-        max-line-length: 127
-        args: "--count --exit-zero --max-complexity=10 --statistics"
-    # - name: Lint with flake8
-    #   run: |
-    #     mamba install flake8
-    #     # stop the build if there are Python syntax errors or undefined names
-    #     flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-    #     # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-    #     flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       env:
         EIA_API_KEY: ${{ secrets.EIA_API_KEY }}

@@ -1,0 +1,232 @@
+# CLUSTER TAGS
+# All of the values will be 0 by default. If non-zero, add here.
+# The names below are matched to technology names in the data ignoring case, whitespace,
+# and underscores, and must only match the start of the technology name. Since e.g.
+# "Natural Gas" will match any "Natural Gas *", more specific terms should be listed
+# after more general terms ("Natural Gas CCS100: 0" should come after "Natural Gas: 1").
+
+model_tag_names:
+  - THERM
+  - VRE
+  - Num_VRE_Bins
+  - MUST_RUN
+  - STOR
+  - FLEX
+  - HYDRO
+  - Commit
+  - ESR_1
+  - ESR_2
+  - New_Build
+  - Hydro_level
+  - CapRes_1
+  - CapRes_2
+  - Hydro_Energy_to_Power_Ratio
+  - MinCapTag_1
+  - MinCapTag_2
+  - Reg_Max
+  - Rsv_Max
+
+default_model_tag: 0
+
+model_tag_values:
+  THERM:
+    Coal Integrated Gasification Combined Cycle: 1
+    Conventional Steam Coal: 1
+    CSP: 1
+    Landfill Gas: 1
+    Municipal Solid Waste: 1
+    Natural Gas: 1
+    Natural Gas Fired Combined Cycle: 1
+    Natural Gas Fired Combustion Turbine: 1
+    Natural Gas Internal Combustion Engine: 1
+    Natural Gas Steam Turbine: 1
+    NGCCS100: 1
+    Nuclear: 1
+    Other Gases: 1
+    Other Natural Gas: 1
+    Other Waste Biomass: 1
+    Other_peaker: 1 # Is there any way to do this based on the underlying categories?
+    Petroleum Coke: 1
+    Petroleum Liquids: 1
+    Wood/Wood Waste Biomass: 1
+    NaturalGas_: 1
+  VRE:
+    CSP: 1
+    LandbasedWind: 1
+    OffshoreWind: 1
+    Onshore Wind: 1
+    Solar Photovoltaic: 1
+    Solar Thermal without Energy Storage: 1
+    UtilityPV: 1
+  Num_VRE_Bins:
+    CSP: 1
+    LandbasedWind: 1
+    OffshoreWind: 1
+    Onshore Wind: 1
+    Solar Photovoltaic: 1
+    Solar Thermal without Energy Storage: 1
+    UtilityPV: 1
+  STOR:
+    Battery: 1
+    Hydroelectric Pumped Storage: 1
+  FLEX:
+    ev_load_shifting: 1
+  HYDRO:
+    Conventional Hydroelectric: 1
+    Hydropower: 1
+  Commit:
+    Biomass: 1
+    Biopower: 1
+    Coal Integrated Gasification Combined Cycle: 1
+    Conventional Steam Coal: 1
+    Natural Gas: 1
+    Natural Gas Fired Combined Cycle: 1
+    Natural Gas Fired Combustion Turbine: 1
+    Natural Gas Internal Combustion Engine: 1
+    Natural Gas Steam Turbine: 1
+    NGCCS100: 1
+    Nuclear: 1
+    Other_peaker: 1 # Is there any way to do this based on the underlying categories?
+    Petroleum Coke: 1
+    Petroleum Liquids: 1
+  ESR_1:
+    Biomass: 1
+    Biopower: 1
+    Conventional Hydroelectric: 0 # Need they key here to update value in 2045 cases
+    CSP: 1
+    Geothermal: 1
+    LandbasedWind: 1
+    OffshoreWind: 1
+    Onshore Wind: 1
+    Small Hydroelectric: 1
+    Solar Photovoltaic: 1
+    UtilityPV: 1
+  ESR_2:
+    Biomass: 1
+    Biopower: 1
+    Conventional Hydroelectric: 1
+    CSP: 1
+    Geothermal: 1
+    LandbasedWind: 1
+    Natural Gas CCS100: 1
+    NGCCS100: 1
+    Nuclear: 1
+    OffshoreWind: 1
+    Onshore Wind: 1
+    Small Hydroelectric: 1
+    Solar Photovoltaic: 1
+    UtilityPV: 1
+  MinCapTag_1: # Do not need to list anything here. All values will be 0 by default
+    LandbasedWind: 1
+  New_Build:
+    Battery: 1
+    Biomass: -1
+    Biopower: 1
+    Conventional Hydroelectric: -1
+    Geothermal: -1
+    LandbasedWind: 1
+    NaturalGas: 1
+    NGCCS100: 1
+    OffshoreWind: 1
+    Small Hydroelectric: -1
+    UtilityPV: 1
+    Nuclear_Nuclear: 1
+  Hydro_level:
+    Conventional Hydroelectric: 0.5
+  CapRes_1:
+    Conventional Steam Coal: 0.9
+    Natural Gas Fired Combined Cycle: 0.9
+    Natural Gas Fired Combustion Turbine: 0.9
+    Petroleum Liquids: 0.9
+    Natural Gas Internal Combustion Engine: 0.9
+    Nuclear: 0.9
+    Natural Gas Steam Turbine: 0.9
+    Wood/Wood Waste Biomass: 0.9
+    Petroleum Coke: 0.9
+    Geothermal: 0.9
+    Municipal Solid Waste: 0.9
+    Landfill Gas: 0.9
+    Coal Integrated Gasification Combined Cycle: 0.9
+    Other Waste Biomass: 0.9
+    Other Gases: 0.9
+    Other Natural Gas: 0.9
+    Other_peaker: 0.9 # Is there any way to do this based on the underlying categories?
+    Biomass: 0.9
+    NaturalGas_: 0.9
+    Biopower_: 0.9
+    Nuclear_: 0.9
+    CSP_: 0.9
+    NGCCS100: 0.9
+    OffshoreWind: 0.8
+    LandbasedWind: 0.8
+    UtilityPV: 0.8
+    Conventional Hydroelectric: 0.8
+    Onshore Wind: 0.8
+    Small Hydroelectric: 0.8
+    Solar Photovoltaic: 0.8
+    Battery: 0.95
+    Hydroelectric Pumped Storage: 0.95
+    ev_load_shifting: 0.95
+  CapRes_2:
+    Conventional Steam Coal: 0.9
+    Natural Gas Fired Combined Cycle: 0.9
+    Natural Gas Fired Combustion Turbine: 0.9
+    Petroleum Liquids: 0.9
+    Natural Gas Internal Combustion Engine: 0.9
+    Nuclear: 0.9
+    Natural Gas Steam Turbine: 0.9
+    Wood/Wood Waste Biomass: 0.9
+    Petroleum Coke: 0.9
+    Geothermal: 0.9
+    Municipal Solid Waste: 0.9
+    Landfill Gas: 0.9
+    Coal Integrated Gasification Combined Cycle: 0.9
+    Other Waste Biomass: 0.9
+    Other Gases: 0.9
+    Other Natural Gas: 0.9
+    Other_peaker: 0.9 # Is there any way to do this based on the underlying categories?
+    Biomass: 0.9
+    NaturalGas_: 0.9
+    Biopower_: 0.9
+    Nuclear_: 0.9
+    CSP_: 0.9
+    NGCCS100: 0.9
+    OffshoreWind: 0.8
+    LandbasedWind: 0.8
+    UtilityPV: 0.8
+    Conventional Hydroelectric: 0.8
+    Onshore Wind: 0.8
+    Small Hydroelectric: 0.8
+    Solar Photovoltaic: 0.8
+    Battery: 0.95
+    Hydroelectric Pumped Storage: 0.95
+    ev_load_shifting: 0.95
+  MUST_RUN:
+    Small Hydroelectric: 1
+    Geothermal: 1
+    Wood/Wood Waste Biomass: 1
+    Biomass: 1
+    distributed_generation: 1
+
+# Tags for a technology in a specific region
+# Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>
+# Technologies will be matched using str.contains(), so partial names can be included
+# but they might unintentially map to other techs
+regional_tag_values:
+  CA_S:
+    New_Build:
+      Hydroelectric Pumped Storage: 1
+      Nuclear: 0
+    MinCapTag_2:
+      UtilityPV: 1
+  CA_N:
+    New_Build:
+      Nuclear: 0
+
+MinCapReq:
+  MinCapTag_1:
+    description: Landbasedwind
+    min_mw: 8000
+  MinCapTag_2:
+    description: CA_S_solar
+    min_mw: 10000

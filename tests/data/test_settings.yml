@@ -358,7 +358,8 @@ future_load_region_map:
 
 # Which year of AEO to use. Note that different years have different scenario names
 # so those may need to be modified accordingly.
-eia_aeo_year: 2020
+load_eia_aeo_year: 2020
+fuel_eia_aeo_year: 2020
 
 cost_multiplier_fn: AEO_2020_regional_cost_corrections.csv
 cost_multiplier_technology_map:

@@ -161,7 +161,12 @@ def main():
     settings = load_settings(path=args.settings_file)
 
     # Copy the settings file to results folder
-    shutil.copy(args.settings_file, out_folder)
+    if Path(args.settings_file).is_file():
+        shutil.copy(args.settings_file, out_folder)
+    else:
+        shutil.copytree(
+            args.settings_file, out_folder / "pg_settings", dirs_exist_ok=True
+        )
 
     logger.info("Initiating PUDL connections")
 
@@ -180,7 +185,7 @@ def main():
         "region_id_epaipm"
     ]
     all_valid_regions = ipm_regions.tolist() + list(
-        settings.get("region_aggregations", {})
+        settings.get("region_aggregations", {}) or {}
     )
     good_regions = [region in all_valid_regions for region in settings["model_regions"]]
 
@@ -266,13 +271,7 @@ def main():
                     )
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
-                    gen_variability.columns = (
-                        gen_clusters["region"]
-                        + "_"
-                        + gen_clusters["Resource"]
-                        + "_"
-                        + gen_clusters["cluster"].astype(str)
-                    )
+                    gen_variability.columns = gen_clusters["Resource"]
                     gens = fix_min_power_values(gen_clusters, gen_variability)
                     for col in _settings["generator_columns"]:
                         if col not in gens.columns:
@@ -319,13 +318,7 @@ def main():
                     )
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
-                    gen_variability.columns = (
-                        gen_clusters["region"]
-                        + "_"
-                        + gen_clusters["Resource"]
-                        + "_"
-                        + gen_clusters["cluster"].astype(str)
-                    )
+                    gen_variability.columns = gen_clusters["Resource"]
                     gens = fix_min_power_values(gen_clusters, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
