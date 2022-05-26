@@ -192,7 +192,7 @@ def make_generator_variability(
 
     Examples
     --------
-    >>> df = pd.DataFrame({'profile': [np.zeros(8760), np.ones(8784) / 2, None]})
+    >>> df = pd.DataFrame({'profile': [[0] * 8760, np.ones(8784) / 2, None]})
     >>> make_generator_variability(df)
             0    1    2
     0     0.0  0.5  1.0
@@ -211,7 +211,7 @@ def make_generator_variability(
     """
 
     def profile_len(x: Any) -> int:
-        if isinstance(x, np.ndarray):
+        if isinstance(x, (list, np.ndarray)):
             return len(x)
         return 1
 
@@ -226,16 +226,19 @@ def make_generator_variability(
                 if remove_feb_29:
                     return np.delete(x, slice(1416, 1440))
             return x
+        if isinstance(x, list):
+            return format_profile(np.array(x), remove_feb_29, hours)
         # Fill missing with default [1, ...]
-        return np.ones(8760, dtype=float)
+        return np.ones(hours, dtype=float)
 
     if "profile" in df:
-        if remove_feb_29:
+        hours = df["profile"].apply(profile_len).max()
+        if remove_feb_29 and hours == 8784:
             hours = 8760
-        else:
-            hours = df["profile"].apply(profile_len).max()
         kwargs = {"remove_feb_29": remove_feb_29, "hours": hours}
         profiles = np.column_stack(df["profile"].apply(format_profile, **kwargs).values)
+        # Make sure values are not less than 0
+        profiles = np.where(profiles >= 0, profiles, 0)
     # elif not remove_feb_29:
     #     profiles = np.ones((8760, len(df)), dtype=float)
     else:

@@ -18,10 +18,13 @@ from powergenome.generators import (
 )
 from powergenome.GenX import (
     add_cap_res_network,
+    check_resource_tags,
     create_policy_req,
     create_regional_cap_res,
     fix_min_power_values,
+    hydro_energy_to_power,
     min_cap_req,
+    max_cap_req,
     reduce_time_domain,
     add_misc_gen_values,
     network_line_loss,
@@ -238,8 +241,6 @@ def main():
                             generators=gc.all_resources,
                             settings=_settings,
                         )
-                        # fuels["fuel_indices"] = range(1, len(fuels) + 1)
-                        # fuels = remove_fuel_scenario_name(fuels, _settings)
                         fuels.index.name = "Time_Index"
                         write_results_file(
                             df=remove_fuel_scenario_name(fuels, _settings),
@@ -248,24 +249,21 @@ def main():
                             include_index=True,
                         )
 
-                    # gen_clusters = remove_fuel_scenario_name(gen_clusters, _settings)
                     gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
                     gen_clusters = add_misc_gen_values(gen_clusters, _settings)
-                    # gen_clusters = set_int_cols(gen_clusters)
-                    # gen_clusters = gen_clusters.fillna(value=0)
+                    gen_clusters = hydro_energy_to_power(
+                        gen_clusters,
+                        _settings.get("hydro_factor"),
+                        _settings.get("regional_hydro_factor"),
+                    )
 
                     # Save existing resources that aren't demand response for use in
                     # other cases
                     existing_gens = gc.existing_resources.copy()
-                    # gen_clusters.loc[
-                    #     (gen_clusters["Existing_Cap_MW"] >= 0)
-                    #     & (gen_clusters["DR"] == 0),
-                    #     :,
-                    # ]
+
                     logger.info(
-                        f"Finished first round with year {year} scenario {case_id}"
+                        f"\nFinished first round with year {year} scenario {case_id}\n"
                     )
-                    # if settings.get("partial_ces"):
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
                     gen_variability.columns = (
@@ -275,9 +273,7 @@ def main():
                         + "_"
                         + gen_clusters["cluster"].astype(str)
                     )
-                    gens = calculate_partial_CES_values(
-                        gen_clusters, fuels, _settings
-                    ).pipe(fix_min_power_values, gen_variability)
+                    gens = fix_min_power_values(gen_clusters, gen_variability)
                     for col in _settings["generator_columns"]:
                         if col not in gens.columns:
                             gens[col] = 0
@@ -288,68 +284,32 @@ def main():
                             gens[cols].fillna(0), _settings
                         )
                         .pipe(set_int_cols)
-                        .pipe(round_col_values),
+                        .pipe(round_col_values)
+                        .pipe(check_resource_tags),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,
                     )
-                    # else:
-                    #     write_results_file(
-                    #         df=gen_clusters.fillna(0),
-                    #         folder=case_folder,
-                    #         file_name="Generators_data.csv",
-                    #         include_index=False,
-                    #     )
-
-                    # write_results_file(
-                    #     df=gen_variability,
-                    #     folder=case_folder,
-                    #     file_name="Generators_variability.csv",
-                    #     include_index=True,
-                    # )
 
                     i += 1
                 if args.transmission:
                     if args.gens is False:
                         model_regions_gdf = load_ipm_shapefile(_settings)
 
-                # genx_settings = make_genx_settings_file(pudl_engine, _settings)
-                # write_case_settings_file(
-                #     settings=genx_settings,
-                #     folder=case_folder,
-                #     file_name="GenX_settings.yml",
-                # )
-
             else:
-                logger.info(f"\nStarting year {year} scenario {case_id}")
+                logger.info(f"\nStarting year {year} scenario {case_id}\n")
                 if args.gens:
 
                     gc.settings = _settings
-                    # gc.current_gens = False
-
-                    # Change the fuel labels in existing generators to reflect the
-                    # correct AEO scenario for each fuel and update GenX tags based
-                    # on settings.
-                    # gc.existing_resources = existing_gens.pipe(
-                    #     add_fuel_labels, gc.fuel_prices, _settings
-                    # ).pipe(add_genx_model_tags, _settings)
 
                     gen_clusters = gc.create_all_generators()
-                    # if settings.get("partial_ces"):
-                    #     fuels = fuel_cost_table(
-                    #         fuel_costs=gc.fuel_prices,
-                    #         generators=gc.all_resources,
-                    #         settings=_settings,
-                    #     )
-                    #     gen_clusters = calculate_partial_CES_values(
-                    #         gen_clusters, fuels, _settings
-                    #     )
-
                     gen_clusters = add_misc_gen_values(gen_clusters, _settings)
+                    gen_clusters = hydro_energy_to_power(
+                        gen_clusters,
+                        _settings.get("hydro_factor"),
+                        _settings.get("regional_hydro_factor"),
+                    )
                     gen_clusters = set_int_cols(gen_clusters)
-                    # gen_clusters = gen_clusters.fillna(value=0)
-
-                    # gen_clusters = remove_fuel_scenario_name(gen_clusters, _settings)
                     gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
 
                     fuels = fuel_cost_table(
@@ -366,32 +326,19 @@ def main():
                         + "_"
                         + gen_clusters["cluster"].astype(str)
                     )
-                    gens = calculate_partial_CES_values(
-                        gen_clusters, fuels, _settings
-                    ).pipe(fix_min_power_values, gen_variability)
+                    gens = fix_min_power_values(gen_clusters, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
                         df=remove_fuel_gen_scenario_name(
                             gens[cols].fillna(0), _settings
                         )
                         .pipe(set_int_cols)
-                        .pipe(round_col_values),
+                        .pipe(round_col_values)
+                        .pipe(check_resource_tags),
                         folder=case_folder,
                         file_name="Generators_data.csv",
                         include_index=False,
                     )
-                    # write_results_file(
-                    #     df=gen_clusters.fillna(0),
-                    #     folder=case_folder,
-                    #     file_name="Generators_data.csv",
-                    # )
-
-                    # write_results_file(
-                    #     df=gen_variability,
-                    #     folder=case_folder,
-                    #     file_name="Generators_variability.csv",
-                    #     include_index=True,
-                    # )
 
             if args.load:
                 load = make_final_load_curves(pg_engine=pg_engine, settings=_settings)
@@ -401,6 +348,7 @@ def main():
                     reduced_resource_profile,
                     reduced_load_profile,
                     time_series_mapping,
+                    representative_point,
                 ) = reduce_time_domain(gen_variability, load, _settings)
                 reduced_resource_profile.index.name = "Time_Index"
                 write_results_file(
@@ -415,6 +363,7 @@ def main():
                     folder=case_folder,
                     file_name="Generators_variability.csv",
                     include_index=True,
+                    float_format="%.3f",
                 )
                 if time_series_mapping is not None:
                     write_results_file(
@@ -423,16 +372,15 @@ def main():
                         file_name="Period_map.csv",
                         include_index=False,
                     )
+                if representative_point is not None:
+                    write_results_file(
+                        df=representative_point,
+                        folder=case_folder,
+                        file_name="Representative_Period.csv",
+                        include_index=False,
+                    )
 
             if args.transmission:
-                # if not model_regions_gdf:
-                #     if args.gens is False:
-                #         model_regions_gdf = load_ipm_shapefile(_settings)
-                #     else:
-                #         model_regions_gdf = gc.model_regions_gdf
-                # transmission = agg_transmission_constraints(
-                #     pudl_engine=pudl_engine, settings=_settings
-                # )
                 model_regions_gdf = gc.model_regions_gdf
                 transmission = (
                     agg_transmission_constraints(
@@ -455,13 +403,12 @@ def main():
                 network_zones = [f"z{n+1}" for n in range(len(zones))]
                 nz_df = pd.Series(data=network_zones, name="Network_zones")
                 network = pd.concat([pd.DataFrame(nz_df), transmission], axis=1)
-                # network["Network_zones"] = network_zones
 
                 if _settings.get("emission_policies_fn"):
-                    # network = add_emission_policies(transmission, _settings)
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
                 min_cap = min_cap_req(_settings)
+                max_cap = max_cap_req(_settings)
 
                 cap_res = create_regional_cap_res(_settings)
 
@@ -501,6 +448,13 @@ def main():
                         file_name="Minimum_capacity_requirement.csv",
                         include_index=False,
                     )
+                if max_cap is not None:
+                    write_results_file(
+                        df=max_cap,
+                        folder=case_folder,
+                        file_name="Maximum_capacity_limit.csv",
+                        include_index=False,
+                    )
 
             if args.fuel and args.gens:
                 fuels = fuel_cost_table(
@@ -508,12 +462,7 @@ def main():
                     generators=gc.all_resources,
                     settings=_settings,
                 )
-                # fuels = remove_fuel_scenario_name(fuels, _settings)
 
-                # Hack to get around the fact that fuels with different cost names
-                # get added and end up as duplicates.
-                # fuels = fuels.drop_duplicates(subset=["Fuel"], keep="last")
-                # fuels["fuel_indices"] = range(1, len(fuels) + 1)
                 fuels.index.name = "Time_Index"
                 write_results_file(
                     df=remove_fuel_scenario_name(fuels, _settings)

@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import sqlalchemy
 
-from powergenome.params import CLUSTER_BUILDER, DATA_PATHS
+from powergenome.params import DATA_PATHS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_nrel_atb_technology
 from powergenome.util import reverse_dict_of_lists
@@ -107,7 +107,7 @@ def fetch_atb_costs(
         """
         all_rows.extend(pg_engine.execute(s, cost_params).fetchall())
 
-        if tech not in tech_list:
+        if (tech, cost_case) not in tech_list:
             # ATB2020 summary file provides a single WACC for each technology and a single
             # tech detail of "*", so need to fetch this separately from other cost params.
             # Only need to fetch once per technology.
@@ -123,9 +123,9 @@ def fetch_atb_costs(
             """
             wacc_rows.extend(pg_engine.execute(wacc_s).fetchall())
 
-        tech_list.append(tech)
-
-    if "Battery" not in tech_list:
+        tech_list.append((tech, cost_case))
+    tech_names = [t[0] for t in tech_list]
+    if "Battery" not in tech_names:
         df = pd.DataFrame(all_rows, columns=col_names)
         wacc_df = pd.DataFrame(
             wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_real"]
@@ -155,23 +155,24 @@ def fetch_atb_costs(
             logger.info(
                 f"Using {battery_wacc_standin} {fin_case} WACC for Battery storage."
             )
-            wacc_s = f"""
-            select technology, cost_case, basis_year, parameter_value
-            from technology_costs_nrelatb
-            where
-                technology == "{battery_wacc_standin}"
-                AND financial_case == "{fin_case}"
-                AND cost_case == "Mid"
-                AND atb_year == {atb_year}
-                AND parameter == "wacc_real"
+            for cost_case in ["Mid", "Moderate"]:
+                wacc_s = f"""
+                select technology, cost_case, basis_year, parameter_value
+                from technology_costs_nrelatb
+                where
+                    technology == "{battery_wacc_standin}"
+                    AND financial_case == "{fin_case}"
+                    AND cost_case == "{cost_case}"
+                    AND atb_year == {atb_year}
+                    AND parameter == "wacc_real"
 
-            """
-            b_rows = pg_engine.execute(wacc_s).fetchall()
-            battery_wacc_rows = [
-                (battery_tech[0], battery_tech[2], b_row[2], b_row[3])
-                for b_row in b_rows
-            ]
-            wacc_rows.extend(battery_wacc_rows)
+                """
+                b_rows = pg_engine.execute(wacc_s).fetchall()
+                battery_wacc_rows = [
+                    (battery_tech[0], battery_tech[2], b_row[2], b_row[3])
+                    for b_row in b_rows
+                ]
+                wacc_rows.extend(battery_wacc_rows)
         else:
             raise ValueError(
                 f"The settings key `atb_battery_wacc` value is {battery_wacc_standin}. It "
@@ -307,10 +308,18 @@ def fetch_atb_heat_rates(
     -------
     pd.DataFrame
         Power plant heat rate data by year with columns:
-        ['technology', 'tech_detail', 'basis_year', 'heat_rate']
+        ['technology', 'tech_detail', 'cost_case', 'basis_year', 'heat_rate']
     """
 
     heat_rates = pd.read_sql_table("technology_heat_rates_nrelatb", pg_engine)
+    if settings["atb_data_year"] not in heat_rates["atb_year"].unique():
+        max_atb_year = heat_rates["atb_year"].max()
+        logger.warning(
+            f"Your settings file has parameter `atb_year` of {settings['atb_data_year']}"
+            ", which isn't in the table `technology_heat_rates_nrelatb`. Using "
+            f"{max_atb_year} instead."
+        )
+        settings["atb_data_year"] = max_atb_year
     heat_rates = heat_rates.loc[heat_rates["atb_year"] == settings["atb_data_year"], :]
 
     return heat_rates
@@ -370,7 +379,7 @@ def atb_fixed_var_om_existing(
         try:
             atb_tech, tech_detail = techs[eia_tech]
         except KeyError:
-            if eia_tech in settings["tech_groups"]:
+            if eia_tech in settings.get("tech_groups", {}) or {}:
                 raise KeyError(
                     f"{eia_tech} is defined in 'tech_groups' but doesn't have a "
                     "corresponding ATB technology in 'eia_atb_tech_map'"
@@ -383,19 +392,23 @@ def atb_fixed_var_om_existing(
                 )
 
         try:
-            new_build_hr = (
-                atb_hr_df.query(
-                    "technology==@atb_tech & tech_detail==@tech_detail"
-                    "& basis_year==@existing_year"
+            new_build_hr = atb_hr_df.query(
+                "technology==@atb_tech & tech_detail==@tech_detail"
+                "& basis_year==@existing_year"
+            )["heat_rate"].mean()
+            if not isinstance(new_build_hr, float):
+                logger.warning(
+                    "\n\n****************\nCAUTION!!!\n\n"
+                    f"The calculated new build heat rate for {atb_tech}, {tech_detail} "
+                    f"should be a single value but is {new_build_hr}. This could cause "
+                    f"issues with your variable O&M costs for {eia_tech}. Please report "
+                    "this as an issue on the PowerGenome repository.\n"
                 )
-                .squeeze()
-                .at["heat_rate"]
-            )
         except (ValueError, TypeError):
             # Not all technologies have a heat rate. If they don't, just set both values
-            # to 1
-            existing_hr = 1
-            new_build_hr = 1
+            # to 10.34 (33% efficiency)
+            existing_hr = 10.34
+            new_build_hr = 10.34
         try:
             s = f"""
                 select parameter_value
@@ -405,7 +418,7 @@ def atb_fixed_var_om_existing(
                     AND tech_detail == "{tech_detail}"
                     AND basis_year == "{existing_year}"
                     AND financial_case == "Market"
-                    AND cost_case == "Mid"
+                    AND cost_case in ("Mid", "Moderate")
                     AND atb_year == "{settings['atb_data_year']}"
                     AND parameter == "variable_o_m_mwh"
 
@@ -424,7 +437,7 @@ def atb_fixed_var_om_existing(
                     AND tech_detail == "{tech_detail}"
                     AND basis_year == "{existing_year}"
                     AND financial_case == "Market"
-                    AND cost_case == "Mid"
+                    AND cost_case in ("Mid", "Moderate")
                     AND atb_year == "{settings['atb_data_year']}"
                     AND parameter == "fixed_o_m_mw"
 
@@ -594,8 +607,10 @@ def atb_fixed_var_om_existing(
                 plant_capacity = _df[settings["capacity_col"]].sum()
 
                 age = settings["model_year"] - _df.operating_date.dt.year
-                age = age.fillna(age.mean())
-                age = age.fillna(40)
+                try:
+                    age = age.fillna(age.mean())
+                except:
+                    age = age.fillna(40)
                 gen_ids = _df["generator_id"].to_list()
                 fgd = coal_fgd_df.query(
                     "plant_id_eia == @plant_id & generator_id in @gen_ids"
@@ -689,6 +704,19 @@ def atb_fixed_var_om_existing(
         df_list.append(_df)
 
     mod_results = pd.concat(df_list, ignore_index=True)
+
+    # Fill na FOM values, first by technology and then across all techs
+    if not mod_results.loc[mod_results["Fixed_OM_Cost_per_MWyr"].isna()].empty:
+        df_list = []
+        for tech, _df in mod_results.groupby("technology"):
+            _df.loc[
+                _df["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
+            ] = _df["Fixed_OM_Cost_per_MWyr"].mean()
+            df_list.append(_df)
+        mod_results = pd.concat(df_list, ignore_index=True)
+        mod_results.loc[
+            mod_results["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
+        ] = mod_results["Fixed_OM_Cost_per_MWyr"].mean()
     # mod_results = mod_results.sort_values(["model_region", "technology", "cluster"])
     mod_results.loc[:, "Fixed_OM_Cost_per_MWyr"] = mod_results.loc[
         :, "Fixed_OM_Cost_per_MWyr"
@@ -731,16 +759,13 @@ def single_generator_row(
         "variable_o_m_mwh",
         "capex_mw",
         "capex_mwh",
-        # "cf",
-        # "fuel",
-        # "lcoe",
-        # "o_m",
         "wacc_real",
         "heat_rate",
     ]
     s = atb_costs_hr.loc[
         (atb_costs_hr["technology"] == technology)
         & (atb_costs_hr["tech_detail"] == tech_detail)
+        & (atb_costs_hr["cost_case"] == cost_case)
         & (atb_costs_hr["basis_year"].isin(model_year_range)),
         numeric_cols,
     ].mean()
@@ -857,24 +882,27 @@ def add_modified_atb_generators(
         gen["cost_case"] = mod_tech.pop("new_cost_case")
 
         for parameter, op_list in mod_tech.items():
-            assert len(op_list) == 2, (
-                "Two values, an operator and a numeric value, are needed in the parameter\n"
-                f"'{parameter}' for technology '{name}' in 'modified_atb_new_gen'."
-            )
-            op, op_value = op_list
+            if isinstance(op_list, float) | isinstance(op_list, int):
+                gen[parameter] = op_list
+            else:
+                assert len(op_list) == 2, (
+                    "Two values, an operator and a numeric value, are needed in the parameter\n"
+                    f"'{parameter}' for technology '{name}' in 'modified_atb_new_gen'."
+                )
+                op, op_value = op_list
 
-            assert parameter in gen.columns, (
-                f"'{parameter}' is not a valid parameter for new resources. Check '{name}'\n"
-                "in 'modified_atb_new_gen' of the settings file."
-            )
-            assert op in allowed_operators, (
-                f"The key {parameter} for technology {name} needs a valid operator from the list\n"
-                f"{allowed_operators}\n"
-                "in the format [<operator>, <value>] to modify the properties of an existing generator.\n"
-            )
+                assert parameter in gen.columns, (
+                    f"'{parameter}' is not a valid parameter for new resources. Check '{name}'\n"
+                    "in 'modified_atb_new_gen' of the settings file."
+                )
+                assert op in allowed_operators, (
+                    f"The key {parameter} for technology {name} needs a valid operator from the list\n"
+                    f"{allowed_operators}\n"
+                    "in the format [<operator>, <value>] to modify the properties of an existing generator.\n"
+                )
 
-            f = operator.attrgetter(op)
-            gen[parameter] = f(operator)(gen[parameter], op_value)
+                f = operator.attrgetter(op)
+                gen[parameter] = f(operator)(gen[parameter], op_value)
 
         mod_tech_list.append(gen)
 
@@ -919,7 +947,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     regions = settings["model_regions"]
 
     atb_costs_hr = atb_costs.merge(
-        atb_hr, on=["technology", "tech_detail", "basis_year"], how="left"
+        atb_hr, on=["technology", "tech_detail", "cost_case", "basis_year"], how="left"
     )
 
     new_gen_df = pd.concat(
@@ -987,32 +1015,38 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         allowed_operators = ["add", "mul", "truediv", "sub"]
 
         for key, op_list in tech_modifiers.items():
-
-            assert len(op_list) == 2, (
-                "Two values, an operator and a numeric value, are needed in the parameter\n"
-                f"'{key}' for technology '{tech}' in 'atb_modifiers'."
-            )
-            op, op_value = op_list
-
-            assert op in allowed_operators, (
-                f"The key {key} for technology {tech} needs a valid operator from the list\n"
-                f"{allowed_operators}\n"
-                "in the format [<operator>, <value>] to modify the properties of an existing generator.\n"
-            )
-
-            f = operator.attrgetter(op)
-            new_gen_df.loc[
-                (new_gen_df.technology == technology)
-                & (new_gen_df.tech_detail == tech_detail),
-                key,
-            ] = f(operator)(
+            if isinstance(op_list, float) | isinstance(op_list, int):
                 new_gen_df.loc[
                     (new_gen_df.technology == technology)
                     & (new_gen_df.tech_detail == tech_detail),
                     key,
-                ],
-                op_value,
-            )
+                ] = op_list
+            else:
+                assert len(op_list) == 2, (
+                    "Two values, an operator and a numeric value, are needed in the parameter\n"
+                    f"'{key}' for technology '{tech}' in 'atb_modifiers'."
+                )
+                op, op_value = op_list
+
+                assert op in allowed_operators, (
+                    f"The key {key} for technology {tech} needs a valid operator from the list\n"
+                    f"{allowed_operators}\n"
+                    "in the format [<operator>, <value>] to modify the properties of an existing generator.\n"
+                )
+
+                f = operator.attrgetter(op)
+                new_gen_df.loc[
+                    (new_gen_df.technology == technology)
+                    & (new_gen_df.tech_detail == tech_detail),
+                    key,
+                ] = f(operator)(
+                    new_gen_df.loc[
+                        (new_gen_df.technology == technology)
+                        & (new_gen_df.tech_detail == tech_detail),
+                        key,
+                    ],
+                    op_value,
+                )
 
     new_gen_df["technology"] = (
         new_gen_df[["technology", "tech_detail", "cost_case"]]
@@ -1058,7 +1092,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
     new_gen_df = new_gen_df[keep_cols]
     # Set no capacity limit on new resources that aren't renewables.
     new_gen_df["Max_Cap_MW"] = -1
-
+    new_gen_df["Max_Cap_MWh"] = -1
     regional_cost_multipliers = pd.read_csv(
         DATA_PATHS["cost_multipliers"]
         / settings.get("cost_multiplier_fn", "AEO_2020_regional_cost_corrections.csv"),
@@ -1106,6 +1140,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         "Inv_Cost_per_MWhyr",
         "cluster",
     ]
+    int_cols = [c for c in int_cols if c in results.columns]
     results = results.fillna(0)
     results[int_cols] = results[int_cols].astype(int)
     results["Var_OM_Cost_per_MWh"] = results["Var_OM_Cost_per_MWh"].astype(float)
@@ -1162,6 +1197,7 @@ def add_renewables_clusters(
     cdfs = []
     if region in settings.get("region_aggregations", {}):
         ipm_regions = settings.get("region_aggregations", {})[region]
+        ipm_regions.append(region)  # Add model region, sometimes listed in RG file
     else:
         ipm_regions = [region]
     for scenario in settings.get("renewables_clusters", []):
@@ -1185,8 +1221,9 @@ def add_renewables_clusters(
         # region not an argument to ClusterBuilder.get_clusters()
         scenario = scenario.copy()
         scenario.pop("region")
+        cluster_builder = build_resource_clusters(settings.get("RESOURCE_GROUPS"))
         clusters = (
-            CLUSTER_BUILDER.get_clusters(
+            cluster_builder.get_clusters(
                 **scenario,
                 ipm_regions=ipm_regions,
                 existing=False,

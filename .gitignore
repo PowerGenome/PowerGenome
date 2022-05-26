@@ -110,7 +110,7 @@ data/raw_data/*
 data/transformed_data/*
 !data/transformed_data/.gitkeep
 !data/raw_data/nerc_ltra/
-*.zip
+# *.zip
 
 # Ignore all vscode settings
 **/.vscode

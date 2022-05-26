@@ -219,6 +219,26 @@ def calc_growth_factors(
         for ipm_region in keep_regions
     }
 
+    # Check to make sure start_year is in the list of data years. If not, use data from
+    # the year after start_year
+    if start_year not in list(load_growth_dict.values())[0].index:
+        data_year = start_year + 1
+        for r in load_growth_dict.keys():
+            start_scenario = growth_scenario
+            if "REF" in start_scenario:
+                start_scenario = f"REF{data_year}"
+
+            start_load = (
+                get_aeo_load(
+                    region=region_map[r],
+                    aeo_year=data_year,
+                    scenario_series=start_scenario,
+                )
+                .set_index("year")
+                .loc[start_year, "demand"]
+            )
+            load_growth_dict[r].loc[start_year, "demand"] = start_load
+
     load_growth_start_map = {
         ipm_region: _df.loc[start_year, "demand"]
         for ipm_region, _df in load_growth_dict.items()
@@ -368,7 +388,9 @@ def make_final_load_curves(
         else:
             load_curves_dr = load_curves_before_dg
 
-    if settings.get("distributed_gen_profiles_fn"):
+    if settings.get("distributed_gen_profiles_fn") and not settings.get(
+        "dg_as_resource"
+    ):
         final_load_curves = subtract_distributed_generation(
             load_curves_dr, pg_engine, settings
         )

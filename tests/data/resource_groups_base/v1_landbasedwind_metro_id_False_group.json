@@ -1,0 +1,7 @@
+{
+    "technology": "landbasedwind",
+    "tree": "metro_id",
+    "existing": false,
+    "metadata": "v1_landbasedwind_metro_id_False_metadata.csv",
+    "site_cluster": "v1_landbasedwind_metro_id_False_site_cluster.json"
+}

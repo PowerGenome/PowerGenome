@@ -2,9 +2,11 @@
 
 [![The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![code style black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4426097.svg)](https://doi.org/10.5281/zenodo.4426097)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4426097.svg)](https://doi.org/10.5281/zenodo.4426096)
+[![pytest](https://github.com/PowerGenome/PowerGenome/actions/workflows/pytest.yml/badge.svg)](https://github.com/PowerGenome/PowerGenome/actions/workflows/pytest.yml)
+[![codecov](https://codecov.io/gh/PowerGenome/PowerGenome/branch/master/graph/badge.svg?token=7KJYLE3jOW)](https://codecov.io/gh/PowerGenome/PowerGenome)
 
-**Note:** The code and data for PowerGenome are under active development and some changes may break existing functions. Keep up to date with major code and data releases by joining [PowerGenome on groups.io](https://groups.io/g/powergenome).
+**Note:** The code and data for PowerGenome are under active development and some changes may break existing functions. Keep up to date with major code and data releases by joining [PowerGenome on groups.io](https://groups.io/g/powergenome). And check out the growing documentation on the [Wiki](https://github.com/PowerGenome/PowerGenome/wiki) for helpful background information.
 
 Power system optimization models can be used to explore the cost and emission implications of different regulations in future energy systems. One of the most difficult parts of running these models is assembling all the data. A typical model will define several regions, each of which need data such as:
 
@@ -30,7 +32,7 @@ PowerGenome uses data from a number of different sources, including EIA, NREL, a
 
 This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl). As such, it requires installation of PUDL to access a normalized sqlite database and some of the convienience PUDL functions.
 
-`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). Catalyst Cooperative will be creating versioned data releases of PUDL, which can be [accessed on Zenodo](https://doi.org/10.5281/zenodo.3653158). Download the zip file from Zenodo, unzip it, and find the sqlite database under `/pudl_data/sqlite/pudl.sqlite`. Note that the version of `catalystcoop.pudl` software may change based on the database version you use. Look on the right-hand side of the zenodo archive to see what software version was used to compile the data. If the version in your conda environment does not match the version used to compile the data, you can change it in the `environment.yml` file or install a [different version](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#installing-packages) using `conda install catalystcoop.pudl=<your_version>`.
+`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). Catalyst Cooperative will be creating versioned data releases of PUDL, which can be [accessed on Zenodo](https://doi.org/10.5281/zenodo.3653158). Download the zip file from Zenodo, unzip it, and find the sqlite database under `pudl_data/sqlite/pudl.sqlite`. Note that the version of `catalystcoop.pudl` software may change based on the database version you use. Look on the right-hand side of the zenodo archive to see what software version was used to compile the data. If the version in your conda environment does not match the version used to compile the data, you can change it in the `environment.yml` file or install a [different version](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#installing-packages) using `conda install catalystcoop.pudl=<your_version>`.
 
 ![PUDL software version for database](/docs/_static/pudl_version.png)
 
@@ -52,10 +54,16 @@ Either way, you will need to download the new database files in steps 5/6 below 
 
 1. Clone this repository to your local machine and navigate to the top level (PowerGenome) folder.
 
-2. Create a conda environment named `powergenome` using the provided `environment.yml` file. Note that resolving all the dependencies can be slow with conda, so you might want to [install mamba](https://mamba.readthedocs.io/en/latest/installation.html#existing-conda-install) and use it instead (just sub `mamba` for `conda` below).
+2. Create a conda environment named `powergenome` using the provided `environment.yml` file. If you don't already use conda, [download and install miniconda](https://docs.conda.io/en/latest/miniconda.html). Note that resolving all the dependencies can be slow with conda, so I highly recommend that you [install mamba](https://mamba.readthedocs.io/en/latest/installation.html#existing-conda-install) and use it instead (just sub `mamba` for `conda` below). Mamba installation is easy and will probably take less time than sitting around while conda resolves dependencies.
 
 ```sh
 conda env create -f environment.yml
+```
+
+or if you installed mamba:
+
+```sh
+mamba env create -f environment.yml
 ```
 
 3. Activate the `powergenome` environment.
@@ -97,9 +105,13 @@ It is best practice to set up project folders outside of the cloned repository s
 
 Keeping project folders separate from the cloned `PowerGenome` folder will also make it easier to pull changes as they are released.
 
+### Example systems
+
+A few example systems are included under `PowerGenome/example_systems`. Each system has a settings file (`settings.yml`) and a folder with extra user inputs (`extra_inputs`). The different example systems are not meant to be accurate for real-world analysis, so please do not blindly use the external data files included with them in your own studies!
+
 ### Settings
 
-Settings are controlled in a YAML file. An example settings file (`test_settings.yml`) and folder with extra user inputs (`extra_inputs`), which set up a small 3-zone model of California and Arizona, are included in the folder `example_system`. Scenario options across different planning years are defined in the files `test_scenario_inputs_short.csv` and `test_scenario_inputs.csv` - the "short" version only includes a subset of the full scenario list covered in the settings file and takes much less time to run.
+Settings are controlled in a YAML file. An example settings file (`test_settings.yml`) and folder with extra user inputs (`extra_inputs`) are included in each of the example systems. Scenario options across different planning years are defined in the file `test_scenario_inputs.csv`. Documentation on extra inputs is included in the folder of each example system.
 
 ### Example notebooks
 
@@ -121,7 +133,7 @@ The command line arguments `--settings_file` and `--results_folder` can be short
 run_powergenome_multiple --help
 ```
 
-A folder with extra user inputs is required when using the `run_powergenome_multiple` command. The name of this folder is defined in the settings YAML file with the `input_folder` parameter. Look at the files in `PowerGenome/example_system` for a working test case to follow.
+A folder with extra user inputs is required when using the `run_powergenome_multiple` command. The name of this folder is defined in the settings YAML file with the `input_folder` parameter. Look at the files in each example system for test cases to follow.
 
 If you have previously installed PowerGenome and the `run_powergenome_multiple` command doesn't work, try reinstalling it using `pip install -e .` as described above. If you downloaded the custom PUDL database before May of 2020, some errors may be resolved by downloading a new version.
 

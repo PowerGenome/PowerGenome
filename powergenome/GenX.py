@@ -10,6 +10,7 @@ from powergenome.external_data import (
     load_policy_scenarios,
     load_demand_segments,
     load_user_genx_settings,
+    make_generator_variability,
 )
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.time_reduction import kmeans_time_clustering
@@ -24,6 +25,8 @@ INT_COLS = [
     "Inv_Cost_per_MWhyr",
     "Fixed_OM_Cost_per_MWhyr",
     "Line_Reinforcement_Cost_per_MW_yr",
+    "Up_Time",
+    "Down_Time",
 ]
 
 COL_ROUND_VALUES = {
@@ -38,7 +41,17 @@ COL_ROUND_VALUES = {
     "Line_Max_Reinforcement_MW": 0,
     "distance_miles": 1,
     "distance_km": 1,
+    "Existing_Cap_MW": 1,
+    "Existing_Cap_MWh": 1,
+    "Max_Cap_MW": 1,
+    "Max_Cap_MWh": 1,
+    "Min_Cap_MW": 1,
+    "Min_Cap_MWh": 1,
+    "Line_Loss_Percentage": 4,
 }
+
+# RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO", "LDS"]
+RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO"]
 
 
 def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
@@ -224,6 +237,7 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     for cap_res in settings.get("regional_capacity_reserves", {}):
         cap_res_num = int(cap_res.split("_")[-1])  # the number of the capres constraint
         policy_nums.append(cap_res_num)
+        # TODO #179 fix reference to regional_capacity_reserves key of settings dict
         dest_regions = list(
             settings["regional_capacity_reserves"][cap_res].keys()
         )  # list of regions in the CapRes
@@ -345,7 +359,7 @@ def reduce_time_domain(
         include_peak_day = settings["include_peak_day"]
         load_weight = settings["demand_weight_factor"]
 
-        results, _, _ = kmeans_time_clustering(
+        results, representative_point, _ = kmeans_time_clustering(
             resource_profiles=resource_profiles,
             load_profiles=load_profiles,
             days_in_group=days,
@@ -380,7 +394,12 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return reduced_resource_profile, reduced_load_output, time_series_mapping
+        return (
+            reduced_resource_profile,
+            reduced_load_output,
+            time_series_mapping,
+            representative_point,
+        )
 
     else:
         time_index = pd.Series(data=range(1, 8761), name="Time_Index")
@@ -401,7 +420,7 @@ def reduce_time_domain(
             axis=1,
         )
 
-        return resource_profiles, load_output, None
+        return resource_profiles, load_output, None, None
 
 
 def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFrame:
@@ -535,7 +554,7 @@ def network_max_reinforcement(
 
     max_expansion = settings.get("tx_expansion_per_period")
 
-    if not max_expansion:
+    if not max_expansion and max_expansion != 0:
         raise KeyError(
             "No value for the transmission expansion allowed in this model period is "
             "included in the settings."
@@ -850,3 +869,166 @@ def min_cap_req(settings: dict) -> pd.DataFrame:
         return min_cap_df
     else:
         return None
+
+
+def max_cap_req(settings: dict) -> pd.DataFrame:
+    """Create a dataframe of maximum capacity requirements for GenX
+
+    Parameters
+    ----------
+    settings : dict
+        Dictionary with user settings. Should include the key `MinCapReg` with nested
+        keys of `MaxCapTag_*`, then further nested keys `description` and `min_mw`. The
+        `MaxCapTag_*` should also be listed as values under `model_tag_names`. Any
+        technologies eligible for each of the `MaxCapTag_*` should have `model_tag_values`
+        of 1.
+
+    Returns
+    -------
+    pd.DataFrame
+        A dataframe with maximum capacity constraints formatted for GenX. If `MaxCapReq`
+        is not included in the settings dictionary it will return None.
+
+    Raises
+    ------
+    KeyError
+        If a `MaxCapTag_*` is included under `MaxCapReq` but not included in `model_tag_names`
+        the function will raise an error.
+    """
+
+    c_num = []
+    description = []
+    max_mw = []
+
+    # if settings.get("MaxCapReq"):
+    for cap_tag, values in settings.get("MaxCapReq", {}).items():
+        if cap_tag not in settings.get("model_tag_names", []):
+            raise KeyError(
+                f"The maximum capacity tag {cap_tag} is listed in the settings "
+                "'MaxCapReq' but not under 'model_tag_names'. You must add it to "
+                "'model_tag_names' for the column to appear in Generators_data.csv."
+            )
+
+        # It's easy to forget to add all the necessary column names to the
+        # generators_columns list in settings.
+        if cap_tag not in settings.get("generator_columns", []) and isinstance(
+            settings.get("generator_columns"), list
+        ):
+            settings["generator_columns"].append(cap_tag)
+
+        c_num.append(cap_tag.split("_")[1])
+        description.append(values.get("description"))
+        max_mw.append(values.get("max_mw"))
+
+    max_cap_df = pd.DataFrame()
+    max_cap_df["MaxCapReqConstraint"] = c_num
+    max_cap_df["Constraint_Description"] = description
+    max_cap_df["Max_MW"] = max_mw
+
+    if not max_cap_df.empty:
+        return max_cap_df
+    else:
+        return None
+
+
+def check_resource_tags(df: pd.DataFrame) -> pd.DataFrame:
+    """Check complete generators dataframe to make sure each resource is assigned one,
+    and only one, resource tag.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Resource clusters. Should have columns "technology" and "region" in addition
+        to the resource tag columns expected by GenX.
+
+    Returns
+    -------
+    pd.DataFrame
+        An unaltered version of the input dataframe.
+    """
+    tags = [t for t in RESOURCE_TAGS if t in df.columns]
+    df_copy = df.loc[:, ["technology", "region"] + tags].copy()
+    df_copy[tags] = df_copy[tags].where(df_copy[tags] == 0, 1)
+    if not (df_copy[tags].sum(axis=1) == 1).all():
+        for idx, row in df_copy.iterrows():
+            num_tags = row[tags].sum()
+            if num_tags == 0:
+                logger.warning(
+                    "\n*************************\n"
+                    f"The resource {row['technology']} in region {row['region']} does "
+                    "not have any assigned resource tags. Check the 'model_tag_values' and "
+                    "'regional_tag_values' parameters in your settings file to make sure"
+                    "it is assigned one resource tag type from this list:\n\n"
+                    f"{RESOURCE_TAGS}\n"
+                )
+            if num_tags > 1:
+                s = row[tags]
+                _tags = list(s[s == 1].index)
+                logger.warning(
+                    "\n*************************\n"
+                    f"The resource {row['technology']} in region {row['region']} is "
+                    f"assigned {num_tags} resource tags ({_tags}). Check the 'model_tag_values'"
+                    " and 'regional_tag_values' parameters in your settings file to make"
+                    " sure it is assigned only one resource tag type from this list:\n\n"
+                    f"{RESOURCE_TAGS}\n"
+                )
+
+        raise ValueError(
+            "Use the warnings above to fix the resource tags in your settings file."
+        )
+    return df
+
+
+def hydro_energy_to_power(
+    df: pd.DataFrame,
+    default_factor: float = None,
+    regional_factors: Dict[str, float] = {},
+) -> pd.DataFrame:
+    """Calculate the hydro energy to power ratio. Uses average hydro inflow rate and
+    multiplied by a factor to calculate the rated number of hours of reservoir hydro
+    storage at peak discharge power output. Value minimum is 1.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame of resources. Hydro resources should be identified with a "HYDRO" tag
+        value of 1
+    default_factor : float, optional
+        Hydro factor used to scale average inflow rate, by default None
+    regional_factors : Dict[str, float], optional
+        Specific regional hydro factors used to scale average inflow rate, by default {}
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of the input dataframe with the new column "Hydro_Energy_to_Power_Ratio"
+    """
+    if "HYDRO" not in df.columns:
+        logger.warning(
+            "Generators do not have a column 'HYDRO', so no hydro energy to power ratio is calculated."
+        )
+        return df
+    if not default_factor and not regional_factors:
+        logger.warning(
+            "No hydro factors have been included in the settings, so no hydro energy to power ratio is calculated."
+        )
+        return df
+    hydro_mask = df["HYDRO"] == 1
+    avg_inflow = (
+        make_generator_variability(df).mean().reset_index(drop=True) * default_factor
+    ).loc[hydro_mask]
+    df.loc[hydro_mask, "Hydro_Energy_to_Power_Ratio"] = avg_inflow.where(
+        avg_inflow > 1, 1
+    )
+
+    for region, factor in regional_factors.items():
+        region_mask = df["region"] == region
+        if region_mask.any():
+            avg_inflow = (
+                make_generator_variability(df).mean().reset_index(drop=True) * factor
+            ).loc[hydro_mask & region_mask]
+            df.loc[
+                (df["HYDRO"] == 1) & region_mask, "Hydro_Energy_to_Power_Ratio"
+            ] = avg_inflow.where(avg_inflow > 1, 1)
+    df["Hydro_Energy_to_Power_Ratio"] = df["Hydro_Energy_to_Power_Ratio"].fillna(0)
+    return df

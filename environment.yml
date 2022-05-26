@@ -11,12 +11,14 @@ dependencies:
   - pytest
   - requests
   - beautifulsoup4
+  - lxml
   - pyyaml
   - conda-forge::pre-commit
   - isort
   - pre-commit
   - conda-forge::nb_conda_kernels
   - fastparquet
+  - pandas=1.3.*
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona
