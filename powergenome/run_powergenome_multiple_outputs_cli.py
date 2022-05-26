@@ -256,7 +256,7 @@ def main():
                     gen_clusters = hydro_energy_to_power(
                         gen_clusters,
                         _settings.get("hydro_factor"),
-                        _settings.get("regional_hydro_factor"),
+                        _settings.get("regional_hydro_factor", {}),
                     )
 
                     # Save existing resources that aren't demand response for use in
