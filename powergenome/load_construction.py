@@ -598,56 +598,6 @@ def build_total_load(
     return total_load
 
 
-def MakeLoadProfiles(settings: dict, case_folder: Path) -> pd.DataFrame:
-    output_folder = case_folder / "extra_outputs"
-    output_folder.mkdir(exist_ok=True)
-
-    years = []
-    regions = []
-    electrification = []
-    for year in settings:
-        for cases, _settings in settings[year].items():
-            years.append(_settings["model_year"])
-            regions = (
-                regions
-                + regions_to_keep(
-                    _settings["model_regions"], settings.get("region_aggregations")
-                )[0]
-            )
-            electrification.append(_settings["NZA_electrification"])
-
-            if _settings.get("custom_stock"):
-                path_stock = _settings["input_folder"] / _settings["custom_stock"]
-            else:
-                path_stock = None
-            if _settings.get("custom_growthrate"):
-                path_growthrate = (
-                    _settings["input_folder"] / _settings["custom_growthrate"]
-                )
-            else:
-                path_growthrate = None
-            # try:
-            #     path_stock = (
-            #         str(_settings["input_folder"]) + "\\" + _settings["custom_stock"]
-            #     )
-            #     path_growthrate = (
-            #         str(_settings["input_folder"])
-            #         + "\\"
-            #         + _settings["custom_growthrate"]
-            #     )
-            # except:
-            #     path_stock = ""
-            #     path_growthrate = ""
-            # scenarios
-    # years = list(set(years))
-    regions = list(set(regions))
-    # electrification = list(set(electrification))
-    # CreateBaseLoad(years, regions, output_folder, path_growthrate)
-    return AddElectrification(
-        settings, years, regions, electrification, output_folder, path_stock
-    )
-
-
 def FilterTotalProfile(settings: dict, total_load: pd.DataFrame) -> pd.DataFrame:
     total_load = total_load.assign(
         TotalMW=total_load["Res_WH_MW"]

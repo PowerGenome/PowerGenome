@@ -53,8 +53,6 @@ from powergenome.util import (
     write_results_file,
 )
 
-from powergenome.load_construction import MakeLoadProfiles, FilterTotalProfile
-
 if not sys.warnoptions:
     import warnings
 
