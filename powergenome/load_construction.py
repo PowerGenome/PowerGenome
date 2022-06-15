@@ -338,7 +338,7 @@ def AddElectrification(
     except:
         pass
     # Creating Time-series
-    pop_files = path_in.glob("pop_weight*")
+    pop_files = path_in.glob("*pop_weight*")
     newest_pop_file = max(pop_files, key=os.path.getctime)
     pop = load_region_pop_frac(fn=newest_pop_file.name)
     states = pop.loc[pop["ipm_region"].isin(regions), "state"].unique()
