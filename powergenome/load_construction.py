@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Union
 import numpy as np
 import pandas as pd
 import os
@@ -142,13 +142,16 @@ future_load_region_map = {
 
 
 def load_region_pop_frac(
-    fn: str = "ipm_state_pop_weight_20210517.parquet",
+    fn: str = "ipm_state_pop_weight.parquet",
 ) -> pd.DataFrame:
     # TODO #178 finalize state pop weight file and filename
     # read in state proportions
     # how much state load should be distributed to GenXRegion
     pop_cols = ["ipm_region", "state", "state_prop"]
-    pop = pd.read_parquet(path_in / fn, columns=pop_cols)
+    if (path_in / fn).suffix == ".csv":
+        pop = pd.read_csv(path_in / fn, columns=pop_cols)
+    elif (path_in / fn).suffix == ".parquet":
+        pop = pd.read_parquet(path_in / fn, columns=pop_cols)
     pop["state"] = pop["state"].map(us_state_abbrev)
     return pop
 
@@ -180,6 +183,7 @@ def CreateBaseLoad(
     eia_aeo_year: int,
     regular_load_growth_start_year: int = 2019,
     alt_growth_rate: Dict[str, float] = {},
+    pop_fn: Union[str, Path] = None,
 ) -> pd.DataFrame:
     load_dtypes = {
         "Year": "category",
@@ -188,7 +192,10 @@ def CreateBaseLoad(
         "Subsector": "category",
         "LoadMW": np.float32,
     }
-    pop = load_region_pop_frac()
+    if pop_fn:
+        pop = load_region_pop_frac(fn=pop_fn)
+    else:
+        pop = load_region_pop_frac()
     model_states = pop.loc[pop["ipm_region"].isin(regions), "state"]
     efs_2020_load_prof = pd.read_parquet(path_in / "EFS_REF_load_2020.parquet")
     efs_2020_load_prof = efs_2020_load_prof.astype(load_dtypes)
@@ -331,7 +338,9 @@ def AddElectrification(
     except:
         pass
     # Creating Time-series
-    pop = load_region_pop_frac()
+    pop_files = path_in.glob("*pop_weight*")
+    newest_pop_file = max(pop_files, key=os.path.getctime)
+    pop = load_region_pop_frac(fn=newest_pop_file.name)
     states = pop.loc[pop["ipm_region"].isin(regions), "state"].unique()
     scenario_stock = pd.read_parquet(path_in / stock_fn)
     scenario_stock.columns = snake_case_col(scenario_stock.columns)
@@ -495,6 +504,7 @@ def AddElectrification(
             eia_aeo_year,
             regular_load_growth_start_year,
             alt_growth_rate,
+            newest_pop_file,
         )
         df_list.append(_df)
     base_load = pd.concat(df_list, ignore_index=True)
