@@ -1291,7 +1291,7 @@ def calc_unit_cluster_values(
         cap_diff = start_cap - end_cap
         logger.warning(f"dropped {cap_diff}MW because of null heat rate values")
 
-    df_values = df.groupby("cluster").agg(
+    df_values = df.groupby("cluster", as_index=False).agg(
         {
             capacity_col: "mean",
             "minimum_load_mw": "mean",
