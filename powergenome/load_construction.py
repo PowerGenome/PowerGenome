@@ -20,11 +20,6 @@ from powergenome.params import DATA_PATHS, SETTINGS
 
 logger = logging.getLogger(__name__)
 
-try:
-    path_in = Path(SETTINGS["EFS_DATA"])
-except TypeError:
-    logger.warning("The variable 'EFS_DATA' is not included in your .env file.")
-
 memory = Memory(location=DATA_PATHS["cache"], verbose=0)
 
 us_state_abbrev = {
@@ -142,6 +137,7 @@ future_load_region_map = {
 
 
 def load_region_pop_frac(
+    path_in: Path,
     fn: str = "ipm_state_pop_weight.parquet",
 ) -> pd.DataFrame:
     # TODO #178 finalize state pop weight file and filename
@@ -184,7 +180,13 @@ def CreateBaseLoad(
     regular_load_growth_start_year: int = 2019,
     alt_growth_rate: Dict[str, float] = {},
     pop_fn: Union[str, Path] = None,
+    path_in: Path = None,
 ) -> pd.DataFrame:
+    if not path_in:
+        try:
+            path_in = Path(SETTINGS["EFS_DATA"])
+        except TypeError:
+            logger.warning("The variable 'EFS_DATA' is not included in your .env file.")
     load_dtypes = {
         "Year": "category",
         "LocalHourID": "category",
@@ -193,7 +195,7 @@ def CreateBaseLoad(
         "LoadMW": np.float32,
     }
     if pop_fn:
-        pop = load_region_pop_frac(fn=pop_fn)
+        pop = load_region_pop_frac(path_in=path_in, fn=pop_fn)
     else:
         pop = load_region_pop_frac()
     model_states = pop.loc[pop["ipm_region"].isin(regions), "state"]
@@ -267,8 +269,17 @@ def CreateBaseLoad(
 
 
 def create_subsector_ts(
-    sector: str, subsector: str, year: int, scenario_stock: pd.DataFrame
+    sector: str,
+    subsector: str,
+    year: int,
+    scenario_stock: pd.DataFrame,
+    path_in: Path = None,
 ) -> pd.DataFrame:
+    if not path_in:
+        try:
+            path_in = Path(SETTINGS["EFS_DATA"])
+        except TypeError:
+            logger.warning("The variable 'EFS_DATA' is not included in your .env file.")
     ts_cols = ["State", "Year", "LocalHourID", "Unit", "Factor_Type1", "Factor_Type2"]
     timeseries = pd.read_parquet(
         path_in / f"{sector}_{subsector}_Incremental_Factor.parquet", columns=ts_cols
@@ -331,7 +342,13 @@ def AddElectrification(
     eia_aeo_year: int,
     regular_load_growth_start_year: int = 2019,
     alt_growth_rate: Dict[str, float] = {},
+    path_in: Path = None,
 ) -> pd.DataFrame:
+    if not path_in:
+        try:
+            path_in = Path(SETTINGS["EFS_DATA"])
+        except TypeError:
+            logger.warning("The variable 'EFS_DATA' is not included in your .env file.")
     try:
         if (output_folder / "load_by_region_sector.parquet").exists():
             return pd.read_parquet(output_folder / "load_by_region_sector.parquet")
@@ -340,7 +357,7 @@ def AddElectrification(
     # Creating Time-series
     pop_files = path_in.glob("*pop_weight*")
     newest_pop_file = max(pop_files, key=os.path.getctime)
-    pop = load_region_pop_frac(fn=newest_pop_file.name)
+    pop = load_region_pop_frac(path_in=path_in, fn=newest_pop_file.name)
     states = pop.loc[pop["ipm_region"].isin(regions), "state"].unique()
     scenario_stock = pd.read_parquet(path_in / stock_fn)
     scenario_stock.columns = snake_case_col(scenario_stock.columns)
@@ -505,6 +522,7 @@ def AddElectrification(
             regular_load_growth_start_year,
             alt_growth_rate,
             newest_pop_file,
+            path_in,
         )
         df_list.append(_df)
     base_load = pd.concat(df_list, ignore_index=True)
@@ -586,6 +604,7 @@ def build_total_load(
     eia_aeo_year: int,
     regular_load_growth_start_year: int = 2019,
     alt_growth_rate: Dict[str, float] = {},
+    path_in: Path = None,
 ) -> pd.DataFrame:
 
     total_load = AddElectrification(
@@ -599,6 +618,7 @@ def build_total_load(
         eia_aeo_year,
         regular_load_growth_start_year,
         alt_growth_rate,
+        path_in,
     )
 
     if output_folder and not (output_folder / "load_by_region_sector.parquet").exists():

@@ -374,6 +374,7 @@ def make_final_load_curves(
                 "future_load_region_map": settings["future_load_region_map"],
                 "eia_aeo_year": settings["eia_aeo_year"],
                 "growth_scenario": settings["growth_scenario"],
+                "path_in": settings.get("efs_path"),
             }
 
             total_load = build_total_load(

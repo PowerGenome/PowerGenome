@@ -23,6 +23,7 @@ from powergenome.eia_opendata import add_user_fuel_prices
 from powergenome.external_data import make_generator_variability
 
 from powergenome.fuels import fuel_cost_table
+from powergenome.load_construction import FilterTotalProfile, build_total_load
 
 CWD = Path.cwd()
 # os.environ["RESOURCE_GROUPS"] = str(CWD / "data" / "resource_groups_base")
@@ -61,6 +62,7 @@ from powergenome.util import (
     check_settings,
     load_settings,
     map_agg_region_names,
+    regions_to_keep,
     remove_fuel_scenario_name,
     reverse_dict_of_lists,
     write_results_file,
@@ -737,3 +739,42 @@ def test_hydro_energy_to_power():
     assert df.equals(df_hydro_ratio[df.columns])
     hydro_ratio = pd.Series([2, 0, 0, 1, 0, 0, 1.2])
     assert hydro_ratio.equals(df_hydro_ratio["Hydro_Energy_to_Power_Ratio"])
+
+
+def test_efs_load(CA_AZ_settings):
+
+    settings = CA_AZ_settings.copy()
+    settings["model_regions"] = ["WECC_AZ"]
+    settings.pop("demand_response_fn")
+    settings["electrification_stock_fn"] = "EFS_STOCK_AGG.parquet"
+    settings[
+        "electrification_scenario"
+    ] = "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
+    settings["demand_response_resources"]["2030"] = {
+        "LDV_MW": {
+            "fraction_shiftable": 0.8,
+            "parameter_values": {"Max_DSM_delay": 5, "DR": 2},
+        }
+    }
+    settings["model_year"] = 2030
+    settings["model_first_planning_year"] = 2025
+
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations", {}) or {}
+    )
+    elec_kwargs = {
+        "future_load_region_map": settings["future_load_region_map"],
+        "eia_aeo_year": settings["eia_aeo_year"],
+        "growth_scenario": settings["growth_scenario"],
+        "path_in": DATA_PATHS["test_data"] / "efs",
+    }
+
+    total_load = build_total_load(
+        settings.get("electrification_stock_fn"),
+        settings["model_year"],
+        settings.get("electrification_scenario"),
+        keep_regions,
+        settings.get("extra_outputs"),
+        **elec_kwargs,
+    )
+    load_curves_dr = FilterTotalProfile(settings, total_load)

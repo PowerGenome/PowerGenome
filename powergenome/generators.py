@@ -2496,6 +2496,7 @@ def load_demand_response_efs_profile(
     growth_scenario: str,
     model_regions: list,
     region_aggregations: dict = {},
+    path_in: Path = None,
 ) -> pd.DataFrame:
     from powergenome.load_construction import build_total_load
 
@@ -2504,6 +2505,7 @@ def load_demand_response_efs_profile(
         "future_load_region_map": future_load_region_map,
         "eia_aeo_year": eia_aeo_year,
         "growth_scenario": growth_scenario,
+        "path_in": path_in,
     }
 
     total_load = build_total_load(
@@ -2697,6 +2699,7 @@ class GeneratorClusters:
                     self.settings["growth_scenario"],
                     keep_regions,
                     self.settings.get("region_aggregations", {}) or {},
+                    self.settings.get("efs_path"),
                 )
             self.demand_response_profiles[resource] = dr_profile
             # Add hourly profile to demand response rows
