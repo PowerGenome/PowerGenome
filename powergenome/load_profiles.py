@@ -230,6 +230,10 @@ def make_final_load_curves(
 
     final_load_curves = final_load_curves.astype(int)
 
+    # change order to match model regions
+    model_regions = settings.get("model_regions")
+    final_load_curves = final_load_curves[model_regions]
+
     return final_load_curves
 
 
