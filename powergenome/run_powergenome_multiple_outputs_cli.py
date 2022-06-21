@@ -396,6 +396,9 @@ def main():
                 if _settings.get("emission_policies_fn"):
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
+                else:
+                    energy_share_req = None
+                    co2_cap = None
                 min_cap = min_cap_req(_settings)
                 max_cap = max_cap_req(_settings)
 
