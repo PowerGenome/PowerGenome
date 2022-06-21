@@ -370,7 +370,7 @@ def AddElectrification(
     subsector_ts_dfs = {}
     for name, (sector, subsector) in running_sectors.items():
         subsector_ts_dfs[name] = create_subsector_ts(
-            sector, subsector, year, scenario_stock
+            sector, subsector, year, scenario_stock, path_in
         )
 
     # Res_SPH = pd.read_parquet(
