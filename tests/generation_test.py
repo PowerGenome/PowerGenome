@@ -730,3 +730,24 @@ def test_hydro_energy_to_power():
     assert df.equals(df_hydro_ratio[df.columns])
     hydro_ratio = pd.Series([2, 0, 0, 1, 0, 0, 1.2])
     assert hydro_ratio.equals(df_hydro_ratio["Hydro_Energy_to_Power_Ratio"])
+
+
+def test_usr_tx(tmp_path):
+    settings = {
+        "input_folder": tmp_path,
+        "user_transmission_constraints_fn": "usr_tx.csv",
+        "model_regions": ["A", "B", "C"],
+    }
+
+    usr_tx = pd.DataFrame(
+        data={
+            "region_from": ["A", "C", "C"],
+            "region_to": ["B", "A", "B"],
+            "nonfirm_ttc_mw": [100, 200, 300],
+        }
+    )
+    usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
+
+    tx_constraints = agg_transmission_constraints(pg_engine, settings=settings)
+
+    assert tx_constraints["Line_Max_Flow_MW"].to_list() == [100, 200, 300]
