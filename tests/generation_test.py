@@ -82,12 +82,16 @@ logger.addHandler(handler)
 # pg_engine = sqlalchemy.create_engine(
 #     "sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3")
 # )
-
+if os.name == "nt":
+    # if user is using a windows system
+    sql_prefix = "sqlite:///"
+else:
+    sql_prefix = "sqlite:////"
 pudl_engine, pudl_out, pg_engine = init_pudl_connection(
     start_year=2018,
     end_year=2020,
-    pudl_db="sqlite:////" + str(DATA_PATHS["test_data"] / "pudl_test_data.db"),
-    pg_db="sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3"),
+    pudl_db=sql_prefix + str(DATA_PATHS["test_data"] / "pudl_test_data.db"),
+    pg_db=sql_prefix + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3"),
 )
 
 
