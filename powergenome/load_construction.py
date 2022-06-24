@@ -145,7 +145,7 @@ def load_region_pop_frac(
     # how much state load should be distributed to GenXRegion
     pop_cols = ["ipm_region", "state", "state_prop"]
     if (path_in / fn).suffix == ".csv":
-        pop = pd.read_csv(path_in / fn, columns=pop_cols)
+        pop = pd.read_csv(path_in / fn, usecols=pop_cols)
     elif (path_in / fn).suffix == ".parquet":
         pop = pd.read_parquet(path_in / fn, columns=pop_cols)
     pop["state"] = pop["state"].map(us_state_abbrev)
