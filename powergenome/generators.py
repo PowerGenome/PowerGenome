@@ -1398,6 +1398,19 @@ def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
         user_regions = gpd.read_file(
             Path(settings["input_folder"]) / settings["user_region_geodata_fn"]
         )
+        try:
+            # The rest of PowerGenome uses the column "IPM_Region" for the name of
+            # the region. Eventually, it may be worth it to go through the model
+            # and rename this column to something more generic.
+            user_regions = user_regions.rename(
+                columns={"name": "IPM_Region"}, errors="raise"
+            )
+        except KeyError:
+            logger.warning(
+                "The user supplied region geodata file does not include the "
+                "property 'name' for any of the region polygons! User region "
+                "geodata can not be appropriately mapped to model regions."
+            )
         user_regions = user_regions.to_crs(ipm_regions.crs)
         ipm_regions = ipm_regions.append(user_regions)
     # ipm_regions = gpd.read_file(IPM_SHAPEFILE_PATH)
