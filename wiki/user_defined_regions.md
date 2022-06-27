@@ -8,7 +8,7 @@ However, a user can use custom regions by supplying the extra files and paramete
 ### `user_region_geodata_fn`
 
 A geojson or shapefile with the boundaries of each custom region.
-The name of each region is stored as a property in the geojson/shapefile under the key "name".
+The name of each region is stored as a property in the geojson/shapefile under the key "region".
 While a CRS (Coordinate Reference System) is needed, a specific CRS is not required.
 
 ```json
@@ -47,7 +47,7 @@ While a CRS (Coordinate Reference System) is needed, a specific CRS is not requi
 
 ### `plant_region_map_fn`
 
-A CSV file that maps user supplied regions to generators listed in [EIA860m](https://www.eia.gov/electricity/data/eia860m/) (stored in `PowerGenome/data/eia/860m/{month}_generator{year}.xlsx`).
+A CSV file that maps user supplied regions to generators listed in the PUDL database or [EIA 860m](https://www.eia.gov/electricity/data/eia860m/) (stored in `PowerGenome/data/eia/860m/{month}_generator{year}.xlsx`).
 The columns of the user supplied CSV file should be "plant_id_eia" and "region".
 Map applicable Generators' EIA plant ID (called "Plant ID" in the EIA860m) to the corresponding region.
 
@@ -94,7 +94,7 @@ User defined regions must be incorporated into the settings file used for a run 
   - List the desired user regions. These model regions can also be aggregated in `region_aggregations`.
 
 - `distributed_gen_method`/`distributed_gen_values`
-  
+
   - Specify distributed generation parameters.
     Distributed generation profiles for each user region can be described in `distributed_gen_profiles_fn`.
 
