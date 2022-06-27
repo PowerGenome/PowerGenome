@@ -63,7 +63,7 @@ Map applicable Generators' EIA plant ID (called "Plant ID" in the EIA860m) to th
 A CSV file that describes the hourly user_region_al load for each region.
 Each column is the timeseries load for each combination of model year, electrification scenario and region.
 The first row is the year corresponding to the column's load.
-The second row is the "electrification scenario", which corresponds to the "electrification" column in `scenario_definitions_fn`.
+The second row is the "electrification scenario", which corresponds to the "electrification" column in `scenario_definitions_fn`[^1].
 (This allows the user to choose different loads profile for each scenario.)
 The third row is the region name, and the subsequent 8760 rows are the load values for that year, electrification scenario, and region.
 
@@ -116,3 +116,5 @@ User defined regions must be incorporated into the settings file used for a run 
 - `aeo_fuel_region_map`
   - Map user defined regions to AEO fuel regions.
     See PowerGenome settings file for valid regions.
+
+[^1]: Values from the "electrification" column in `scenario_definitions_fn` will be copied into the settings dictionary of each scenario under the parameter "electricication". As a user you can either include the column in your scenario definitions file or add a parameter to the settings file(s) and control the value within your `settings_management` section.
