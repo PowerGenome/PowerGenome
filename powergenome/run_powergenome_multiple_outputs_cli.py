@@ -12,7 +12,6 @@ import powergenome
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import (
     GeneratorClusters,
-    load_ipm_shapefile,
     add_fuel_labels,
     add_genx_model_tags,
 )
@@ -51,6 +50,7 @@ from powergenome.util import (
     update_dictionary,
     write_case_settings_file,
     write_results_file,
+    load_ipm_shapefile,
 )
 
 if not sys.warnoptions:

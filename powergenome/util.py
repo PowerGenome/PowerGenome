@@ -7,6 +7,7 @@ import subprocess
 from typing import Dict, Tuple, Union
 
 import pandas as pd
+import geopandas as gpd
 import pudl
 import requests
 import sqlalchemy as sa
@@ -16,7 +17,7 @@ import yaml
 from ruamel.yaml import YAML
 from pathlib import Path
 
-from powergenome.params import SETTINGS
+from powergenome.params import IPM_GEOJSON_PATH, SETTINGS
 
 logger = logging.getLogger(__name__)
 
@@ -734,3 +735,45 @@ def remove_feb_29(df: pd.DataFrame) -> pd.DataFrame:
     df.index.name = idx_name
 
     return df.drop(columns=["datetime"])
+
+
+def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
+    """
+    Load the shapefile of IPM regions
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined parameters from a settings YAML file. This is where any region
+        aggregations would be defined.
+
+    Returns
+    -------
+    geodataframe
+        Regions to use in the study with the matching geometry for each.
+    """
+    keep_regions, region_agg_map = regions_to_keep(settings)
+
+    ipm_regions = gpd.read_file(path)
+    ipm_regions = ipm_regions.rename(columns={"IPM_Region": "region"})
+
+    if settings.get("user_region_geodata_fn"):
+        logger.info("Appending user regions to IPM Regions")
+        user_regions = gpd.read_file(
+            Path(settings["input_folder"]) / settings["user_region_geodata_fn"]
+        )
+        if "region" not in user_regions.columns:
+            raise KeyError(
+                "The user supplied region geodata file does not include the "
+                "property 'region' for any of the region polygons! User region "
+                "geodata can not be appropriately mapped to model regions."
+            )
+        user_regions = user_regions.to_crs(ipm_regions.crs)
+        ipm_regions = ipm_regions.append(user_regions)
+
+    model_regions_gdf = ipm_regions.loc[ipm_regions["region"].isin(keep_regions)]
+    model_regions_gdf = map_agg_region_names(
+        model_regions_gdf, region_agg_map, "region", "model_region"
+    ).reset_index(drop=True)
+
+    return model_regions_gdf

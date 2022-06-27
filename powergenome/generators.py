@@ -49,6 +49,7 @@ from powergenome.util import (
     snake_case_col,
     regions_to_keep,
     snake_case_str,
+    load_ipm_shapefile,
 )
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
@@ -376,7 +377,6 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
         model_hydro_gdf = model_hydro_gdf.to_crs(model_regions_gdf.crs)
 
     model_hydro_gdf = gpd.sjoin(model_regions_gdf, model_hydro_gdf)
-    model_hydro_gdf = model_hydro_gdf.rename(columns={"IPM_Region": "region"})
 
     keep_cols = ["plant_id_eia", "region"]
     return model_hydro_gdf.loc[:, keep_cols]
@@ -1374,42 +1374,6 @@ def add_genx_model_tags(df, settings):
     return df
 
 
-def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
-    """
-    Load the shapefile of IPM regions
-
-    Parameters
-    ----------
-    settings : dict
-        User-defined parameters from a settings YAML file. This is where any region
-        aggregations would be defined.
-
-    Returns
-    -------
-    geodataframe
-        Regions to use in the study with the matching geometry for each.
-    """
-    keep_regions, region_agg_map = regions_to_keep(settings)
-
-    ipm_regions = gpd.read_file(IPM_GEOJSON_PATH)
-
-    if settings.get("user_region_geodata_fn"):
-        logger.info("Appending user regions to IPM Regions")
-        user_regions = gpd.read_file(
-            Path(settings["input_folder"]) / settings["user_region_geodata_fn"]
-        )
-        user_regions = user_regions.to_crs(ipm_regions.crs)
-        ipm_regions = ipm_regions.append(user_regions)
-    # ipm_regions = gpd.read_file(IPM_SHAPEFILE_PATH)
-
-    model_regions_gdf = ipm_regions.loc[ipm_regions["IPM_Region"].isin(keep_regions)]
-    model_regions_gdf = map_agg_region_names(
-        model_regions_gdf, region_agg_map, "IPM_Region", "model_region"
-    ).reset_index(drop=True)
-
-    return model_regions_gdf
-
-
 def download_860m(settings: dict) -> pd.ExcelFile:
     """Load the entire 860m file into memory as an ExcelFile object.
 
@@ -1625,7 +1589,7 @@ def label_gen_region(
     if gdf.crs != model_regions_gdf.crs:
         gdf = gdf.to_crs(model_regions_gdf.crs)
 
-    gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), gdf)
+    gdf = gpd.sjoin(model_regions_gdf.drop(columns="region"), gdf)
 
     return gdf
 
