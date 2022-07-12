@@ -772,7 +772,7 @@ def single_generator_row(
     cols = ["technology", "cost_case", "tech_detail"] + numeric_cols
     row = pd.DataFrame([technology, cost_case, tech_detail] + s.to_list(), index=cols).T
 
-    row["Cap_size"] = size_mw
+    row["Cap_Size"] = size_mw
 
     return row
 
@@ -859,7 +859,7 @@ def add_modified_atb_generators(
         Row or rows of modified ATB resources. Each row includes the colums:
         ['technology', 'cost_case', 'tech_detail', 'basis_year', 'fixed_o_m_mw',
        'fixed_o_m_mwh', 'variable_o_m_mwh', 'capex', 'capex_mwh', 'cf', 'fuel',
-       'lcoe', 'o_m', 'wacc_real', 'heat_rate', 'Cap_size'].
+       'lcoe', 'o_m', 'wacc_real', 'heat_rate', 'Cap_Size'].
     """
 
     # copy settings so popped keys aren't removed permenantly
@@ -933,7 +933,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         ['technology', 'basis_year', 'Fixed_OM_Cost_per_MWyr',
        'Fixed_OM_Cost_per_MWhyr', 'Var_OM_Cost_per_MWh', 'capex', 'capex_mwh',
        'Inv_Cost_per_MWyr', 'Inv_Cost_per_MWhyr', 'Heat_Rate_MMBTU_per_MWh',
-       'Cap_size', 'region']
+       'Cap_Size', 'region']
     """
     logger.info("Creating new resources for each region.")
     new_gen_types = settings["atb_new_gen"]
@@ -1074,22 +1074,6 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         cap_rec_years=new_gen_df["cap_recovery_years"],
     )
 
-    keep_cols = [
-        "technology",
-        "basis_year",
-        "Fixed_OM_Cost_per_MWyr",
-        "Fixed_OM_Cost_per_MWhyr",
-        "Var_OM_Cost_per_MWh",
-        "capex_mw",
-        "capex_mwh",
-        "Inv_Cost_per_MWyr",
-        "Inv_Cost_per_MWhyr",
-        "Heat_Rate_MMBTU_per_MWh",
-        "Cap_size",
-        "cap_recovery_years",
-        "wacc_real",
-    ]
-    new_gen_df = new_gen_df[keep_cols]
     # Set no capacity limit on new resources that aren't renewables.
     new_gen_df["Max_Cap_MW"] = -1
     new_gen_df["Max_Cap_MWh"] = -1
@@ -1195,7 +1179,7 @@ def add_renewables_clusters(
         df["region"] == region
     )
     cdfs = []
-    if region in settings.get("region_aggregations", {}):
+    if region in (settings.get("region_aggregations", {}) or {}):
         ipm_regions = settings.get("region_aggregations", {})[region]
         ipm_regions.append(region)  # Add model region, sometimes listed in RG file
     else:
@@ -1310,8 +1294,8 @@ def load_user_defined_techs(settings: dict) -> pd.DataFrame:
         user_techs["tech_detail"] = ""
     if "cost_case" not in user_techs.columns:
         user_techs["cost_case"] = ""
-    if "Cap_size" not in user_techs.columns:
-        user_techs["Cap_size"] = 1
+    if "Cap_Size" not in user_techs.columns:
+        user_techs["Cap_Size"] = 1
 
     if "dollar_year" in user_techs.columns:
         for idx, row in user_techs.iterrows():
@@ -1337,7 +1321,7 @@ def load_user_defined_techs(settings: dict) -> pd.DataFrame:
         "variable_o_m_mwh",
         "wacc_real",
         "heat_rate",
-        "Cap_size",
+        "Cap_Size",
         "dollar_year",
     ]
 

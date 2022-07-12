@@ -91,10 +91,13 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
     }
 
     growth_scenario = settings.get("growth_scenario", "REF2020")
+    load_aeo_year = settings.get("load_eia_aeo_year") or settings.get(
+        "eia_aeo_year", 2020
+    )
     load_growth_dict = {
         ipm_region: get_aeo_load(
             region=future_region_map[ipm_region],
-            aeo_year=settings.get("eia_aeo_year", 2020),
+            aeo_year=load_aeo_year,
             scenario_series=growth_scenario,
         ).set_index("year")
         for ipm_region in keep_regions
@@ -226,6 +229,17 @@ def make_final_load_curves(
         final_load_curves = load_curves_dr
 
     final_load_curves = final_load_curves.astype(int)
+
+    # change order to match model regions
+    model_regions = settings.get("model_regions")
+    if not all(r in final_load_curves.columns for r in model_regions):
+        missing_regions = set(final_load_curves.columns) - set(model_regions)
+        logger.warning(
+            "You have supplied regional load in an external file, but the load for some "
+            f"regions is missing. The regions {missing_regions} are not included in the file. "
+            "The load for these regions will not be included in output files."
+        )
+    final_load_curves = final_load_curves.reindex(columns=model_regions)
 
     return final_load_curves
 

@@ -12,7 +12,6 @@ import powergenome
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import (
     GeneratorClusters,
-    load_ipm_shapefile,
     add_fuel_labels,
     add_genx_model_tags,
 )
@@ -22,6 +21,7 @@ from powergenome.GenX import (
     create_policy_req,
     create_regional_cap_res,
     fix_min_power_values,
+    hydro_energy_to_power,
     min_cap_req,
     max_cap_req,
     reduce_time_domain,
@@ -50,6 +50,7 @@ from powergenome.util import (
     update_dictionary,
     write_case_settings_file,
     write_results_file,
+    load_ipm_shapefile,
 )
 
 if not sys.warnoptions:
@@ -158,7 +159,12 @@ def main():
     settings = load_settings(path=args.settings_file)
 
     # Copy the settings file to results folder
-    shutil.copy(args.settings_file, out_folder)
+    if Path(args.settings_file).is_file():
+        shutil.copy(args.settings_file, out_folder)
+    else:
+        shutil.copytree(
+            args.settings_file, out_folder / "pg_settings", dirs_exist_ok=True
+        )
 
     logger.info("Initiating PUDL connections")
 
@@ -177,7 +183,7 @@ def main():
         "region_id_epaipm"
     ]
     all_valid_regions = ipm_regions.tolist() + list(
-        settings.get("region_aggregations", {})
+        settings.get("region_aggregations", {}) or {}
     )
     good_regions = [region in all_valid_regions for region in settings["model_regions"]]
 
@@ -247,6 +253,11 @@ def main():
 
                     gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
                     gen_clusters = add_misc_gen_values(gen_clusters, _settings)
+                    gen_clusters = hydro_energy_to_power(
+                        gen_clusters,
+                        _settings.get("hydro_factor"),
+                        _settings.get("regional_hydro_factor", {}),
+                    )
 
                     # Save existing resources that aren't demand response for use in
                     # other cases
@@ -257,16 +268,8 @@ def main():
                     )
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
-                    gen_variability.columns = (
-                        gen_clusters["region"]
-                        + "_"
-                        + gen_clusters["Resource"]
-                        + "_"
-                        + gen_clusters["cluster"].astype(str)
-                    )
-                    gens = calculate_partial_CES_values(
-                        gen_clusters, fuels, _settings
-                    ).pipe(fix_min_power_values, gen_variability)
+                    gen_variability.columns = gen_clusters["Resource"]
+                    gens = fix_min_power_values(gen_clusters, gen_variability)
                     for col in _settings["generator_columns"]:
                         if col not in gens.columns:
                             gens[col] = 0
@@ -297,6 +300,11 @@ def main():
 
                     gen_clusters = gc.create_all_generators()
                     gen_clusters = add_misc_gen_values(gen_clusters, _settings)
+                    gen_clusters = hydro_energy_to_power(
+                        gen_clusters,
+                        _settings.get("hydro_factor"),
+                        _settings.get("regional_hydro_factor"),
+                    )
                     gen_clusters = set_int_cols(gen_clusters)
                     gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
 
@@ -307,16 +315,8 @@ def main():
                     )
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
-                    gen_variability.columns = (
-                        gen_clusters["region"]
-                        + "_"
-                        + gen_clusters["Resource"]
-                        + "_"
-                        + gen_clusters["cluster"].astype(str)
-                    )
-                    gens = calculate_partial_CES_values(
-                        gen_clusters, fuels, _settings
-                    ).pipe(fix_min_power_values, gen_variability)
+                    gen_variability.columns = gen_clusters["Resource"]
+                    gens = fix_min_power_values(gen_clusters, gen_variability)
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
                         df=remove_fuel_gen_scenario_name(
@@ -396,6 +396,9 @@ def main():
                 if _settings.get("emission_policies_fn"):
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
+                else:
+                    energy_share_req = None
+                    co2_cap = None
                 min_cap = min_cap_req(_settings)
                 max_cap = max_cap_req(_settings)
 

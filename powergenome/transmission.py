@@ -38,9 +38,17 @@ def agg_transmission_constraints(
             / settings["user_transmission_constraints_fn"]
         )
 
+        # user constraints are needed bidirectionaly
         transmission_constraints_table = pd.concat(
-            [transmission_constraints_table, user_tx_constraints]
+            [
+                transmission_constraints_table,
+                user_tx_constraints,
+                user_tx_constraints.rename(
+                    columns={"region_from": "region_to", "region_to": "region_from"}
+                ),
+            ]
         )
+
     # Settings has a dictionary of lists for regional aggregations. Need
     # to reverse this to use in a map method.
     region_agg_map = reverse_dict_of_lists(settings.get(settings_agg_key))

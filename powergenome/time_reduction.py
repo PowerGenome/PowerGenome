@@ -169,7 +169,7 @@ def kmeans_time_clustering(
     EachClusterRepPoint = [None] * num_clusters
 
     # creating a dataframe for storing the mapping between representative time period and the entire year
-    time_series_mapping = pd.DataFrame(columns=["Period_Index", "Rep_Period"])
+    time_series_mapping = pd.DataFrame(columns=["Period_Index", "Rep_Period_Index"])
 
     for k in range(num_clusters):
         # Number of points in kth cluster (i.e. label=0)
@@ -195,21 +195,24 @@ def kmeans_time_clustering(
                         "Period_Index": int(
                             ClusteringInputDF.loc[:, model.labels_ == k].columns[j][1:]
                         ),
-                        "Rep_Period": k + 1,
+                        "Rep_Period_Index": k + 1,
                     },
                     index=[0],
                 ),
                 ignore_index=True,
             )
-
-    # appending the week representing peak load
-    time_series_mapping = time_series_mapping.append(
-        pd.DataFrame(
-            {"Period_Index": int(GroupingwithPeakLoad[0][1:]), "Rep_Period": k + 2},
-            index=[0],
-        ),
-        ignore_index=True,
-    )
+    if include_peak_day:
+        # appending the week representing peak load
+        time_series_mapping = time_series_mapping.append(
+            pd.DataFrame(
+                {
+                    "Period_Index": int(GroupingwithPeakLoad[0][1:]),
+                    "Rep_Period_Index": k + 2,
+                },
+                index=[0],
+            ),
+            ignore_index=True,
+        )
 
     # same CSV file that will be used in GenX
     time_series_mapping = time_series_mapping.sort_values(by=["Period_Index"])
@@ -221,7 +224,6 @@ def kmeans_time_clustering(
         dayOfYear = days_in_group * Period_Index
         d = datetime.datetime.strptime("{} {}".format(dayOfYear, 2011), "%j %Y")
         time_series_mapping["Month"][Period_Index - 1] = d.month
-    time_series_mapping["Rep_Period_Index"] = time_series_mapping["Month"]
 
     # Storing selected groupings in a new data frame with appropriate dimensions
     # (E.g. load in GW)
@@ -338,6 +340,10 @@ def kmeans_time_clustering(
     # renewable_df = renewable_df.drop(columns=["GrpWeight"])
     # renewable_df.insert(loc=0, column="Resource", value=renewable_df.index + 1)
     # renewable_df.to_csv("renewables_time_reduced.csv", index=False)
+    rep_period_map = {i + 1: int(p[1:]) for i, p in enumerate(EachClusterRepPoint)}
+    time_series_mapping["Rep_Period"] = time_series_mapping["Rep_Period_Index"].map(
+        rep_period_map
+    )
     EachClusterRepPoint = pd.DataFrame(EachClusterRepPoint, columns=["slot"])
     return (
         {

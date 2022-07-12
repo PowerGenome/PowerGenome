@@ -2,10 +2,12 @@ import collections
 from copy import deepcopy
 import itertools
 import logging
+import re
 import subprocess
 from typing import Dict, Tuple, Union
 
 import pandas as pd
+import geopandas as gpd
 import pudl
 import requests
 import sqlalchemy as sa
@@ -15,17 +17,38 @@ import yaml
 from ruamel.yaml import YAML
 from pathlib import Path
 
-from powergenome.params import SETTINGS
+from powergenome.params import IPM_GEOJSON_PATH, SETTINGS
 
 logger = logging.getLogger(__name__)
 
 
 def load_settings(path: Union[str, Path]) -> dict:
+    """Load a YAML file or a dictionary of YAML files with settings parameters
 
-    with open(path, "r") as f:
-        #     settings = yaml.safe_load(f)
-        yaml = YAML(typ="safe")
-        settings = yaml.load(f)
+    Parameters
+    ----------
+    path : Union[str, Path]
+        Name of the settings file or folder
+
+    Returns
+    -------
+    dict
+        All parameters listed in the YAML file(s)
+    """
+
+    path = Path(path)
+    if path.is_file():
+        with open(path, "r") as f:
+            #     settings = yaml.safe_load(f)
+            yaml = YAML(typ="safe")
+            settings = yaml.load(f)
+    elif path.is_dir():
+        settings = {}
+        for sf in path.glob("*.yml"):
+            yaml = YAML(typ="safe")
+            s = yaml.load(sf)
+            if s:
+                settings.update(s)
 
     return settings
 
@@ -228,24 +251,31 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
             " Remove the duplicates and try again."
         )
 
-    if settings.get("eia_aeo_year"):
-        aeo_year = settings["eia_aeo_year"]
+    if settings.get("eia_aeo_year") or settings.get("fuel_eia_aeo_year"):
+        fuel_aeo_year = settings.get("fuel_eia_aeo_year") or settings.get(
+            "eia_aeo_year"
+        )
         for k, v in settings.get("eia_series_scenario_names", {}).items():
-            if "REF" in v and str(aeo_year) not in v:
+            if "REF" in v and str(fuel_aeo_year) not in v:
                 logger.warning(
                     "The settings EIA fuel scenario (eia_series_scenario_names) key "
                     f"{k} has a value of {v}, which does not match the aeo data year "
-                    f"{aeo_year}. It has been changed to REF{aeo_year}."
+                    f"{fuel_aeo_year}. It has been changed to REF{fuel_aeo_year}."
                 )
-                settings["eia_series_scenario_names"][k] = f"REF{aeo_year}"
+                settings["eia_series_scenario_names"][k] = f"REF{fuel_aeo_year}"
+
+    if settings.get("eia_aeo_year") or settings.get("load_eia_aeo_year"):
+        load_aeo_year = settings.get("load_eia_aeo_year") or settings.get(
+            "eia_aeo_year"
+        )
         growth_scenario = settings.get("growth_scenario", "")
-        if "REF" in growth_scenario and str(aeo_year) not in growth_scenario:
+        if "REF" in growth_scenario and str(load_aeo_year) not in growth_scenario:
             logger.warning(
                 "The settings EIA demand growth scenario (growth_scenario) key "
                 f"value is {growth_scenario}, which does not match the aeo data year "
-                f"{aeo_year}. It has been changed to REF{aeo_year}."
+                f"{load_aeo_year}. It has been changed to REF{load_aeo_year}."
             )
-            settings["growth_scenario"] = f"REF{aeo_year}"
+            settings["growth_scenario"] = f"REF{load_aeo_year}"
 
 
 def init_pudl_connection(
@@ -349,8 +379,8 @@ def snake_case_col(col: pd.Series) -> pd.Series:
 def snake_case_str(s: str) -> str:
     "Remove special characters and convert to snake case"
     clean = (
-        s.lower()
-        .replace(r"[^0-9a-zA-Z\-]+", " ", regex=True)
+        re.sub(r"[^0-9a-zA-Z\-]+", " ", s)
+        .lower()
         .replace("-", "")
         .strip()
         .replace(" ", "_")
@@ -705,3 +735,45 @@ def remove_feb_29(df: pd.DataFrame) -> pd.DataFrame:
     df.index.name = idx_name
 
     return df.drop(columns=["datetime"])
+
+
+def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
+    """
+    Load the shapefile of IPM regions
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined parameters from a settings YAML file. This is where any region
+        aggregations would be defined.
+
+    Returns
+    -------
+    geodataframe
+        Regions to use in the study with the matching geometry for each.
+    """
+    keep_regions, region_agg_map = regions_to_keep(settings)
+
+    ipm_regions = gpd.read_file(path)
+    ipm_regions = ipm_regions.rename(columns={"IPM_Region": "region"})
+
+    if settings.get("user_region_geodata_fn"):
+        logger.info("Appending user regions to IPM Regions")
+        user_regions = gpd.read_file(
+            Path(settings["input_folder"]) / settings["user_region_geodata_fn"]
+        )
+        if "region" not in user_regions.columns:
+            raise KeyError(
+                "The user supplied region geodata file does not include the "
+                "property 'region' for any of the region polygons! User region "
+                "geodata can not be appropriately mapped to model regions."
+            )
+        user_regions = user_regions.to_crs(ipm_regions.crs)
+        ipm_regions = ipm_regions.append(user_regions)
+
+    model_regions_gdf = ipm_regions.loc[ipm_regions["region"].isin(keep_regions)]
+    model_regions_gdf = map_agg_region_names(
+        model_regions_gdf, region_agg_map, "region", "model_region"
+    ).reset_index(drop=True)
+
+    return model_regions_gdf
