@@ -752,6 +752,60 @@ def test_usr_tx(tmp_path):
     )
     usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
 
-    tx_constraints = agg_transmission_constraints(pg_engine, settings=settings)
+    tx_constraints = agg_transmission_constraints(
+        pg_engine, settings=settings, tx_value_col="nonfirm_ttc_mw"
+    )
 
     assert tx_constraints["Line_Max_Flow_MW"].to_list() == [100, 200, 300]
+
+    usr_tx = pd.DataFrame(
+        data={
+            "region_from": ["A", "C", "C"],
+            "region_to": ["B", "A", "B"],
+            "firm_ttc_mw": [100, 200, 300],
+        }
+    )
+    usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
+
+    tx_constraints = agg_transmission_constraints(
+        pg_engine, settings=settings, tx_value_col="firm_ttc_mw"
+    )
+
+    assert tx_constraints["Line_Max_Flow_MW"].to_list() == [100, 200, 300]
+
+    usr_tx = pd.DataFrame(
+        data={
+            "region_from": ["A", "C", "C"],
+            "region_to": ["B", "A", "B"],
+            "nonfirm_ttc_mw": [100, 200, 300],
+        }
+    )
+    usr_tx = pd.concat(
+        [
+            usr_tx,
+            usr_tx.rename(
+                columns={"region_from": "region_to", "region_to": "region_from"}
+            ),
+        ]
+    )
+    usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
+
+    tx_constraints = agg_transmission_constraints(
+        pg_engine, settings=settings, tx_value_col="nonfirm_ttc_mw"
+    )
+
+    assert tx_constraints["Line_Max_Flow_MW"].to_list() == [100, 200, 300]
+
+    usr_tx = pd.DataFrame(
+        data={
+            "region_from": ["A", "C", "C", "A"],
+            "region_to": ["B", "A", "B", "B"],
+            "nonfirm_ttc_mw": [100, 200, 300, 50],
+        }
+    )
+    usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
+
+    with pytest.raises(KeyError):
+        agg_transmission_constraints(
+            pg_engine, settings=settings, tx_value_col="nonfirm_ttc_mw"
+        )
