@@ -741,6 +741,7 @@ def test_usr_tx(tmp_path):
         "input_folder": tmp_path,
         "user_transmission_constraints_fn": "usr_tx.csv",
         "model_regions": ["A", "B", "C"],
+        "tx_value_col": "nonfirm_ttc_mw",
     }
 
     usr_tx = pd.DataFrame(
@@ -752,9 +753,7 @@ def test_usr_tx(tmp_path):
     )
     usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
 
-    tx_constraints = agg_transmission_constraints(
-        pg_engine, settings=settings, tx_value_col="nonfirm_ttc_mw"
-    )
+    tx_constraints = agg_transmission_constraints(pg_engine, settings=settings)
 
     assert tx_constraints["Line_Max_Flow_MW"].to_list() == [100, 200, 300]
 
@@ -767,9 +766,8 @@ def test_usr_tx(tmp_path):
     )
     usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
 
-    tx_constraints = agg_transmission_constraints(
-        pg_engine, settings=settings, tx_value_col="firm_ttc_mw"
-    )
+    settings["tx_value_col"] = "firm_ttc_mw"
+    tx_constraints = agg_transmission_constraints(pg_engine, settings=settings)
 
     assert tx_constraints["Line_Max_Flow_MW"].to_list() == [100, 200, 300]
 
@@ -790,9 +788,8 @@ def test_usr_tx(tmp_path):
     )
     usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
 
-    tx_constraints = agg_transmission_constraints(
-        pg_engine, settings=settings, tx_value_col="nonfirm_ttc_mw"
-    )
+    settings["tx_value_col"] = "nonfirm_ttc_mw"
+    tx_constraints = agg_transmission_constraints(pg_engine, settings=settings)
 
     assert tx_constraints["Line_Max_Flow_MW"].to_list() == [100, 200, 300]
 
@@ -806,6 +803,4 @@ def test_usr_tx(tmp_path):
     usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
 
     with pytest.raises(KeyError):
-        agg_transmission_constraints(
-            pg_engine, settings=settings, tx_value_col="nonfirm_ttc_mw"
-        )
+        agg_transmission_constraints(pg_engine, settings=settings)
