@@ -596,7 +596,7 @@ def find_centroid(gdf):
     return centroid
 
 
-def regions_to_keep(settings: dict) -> Tuple[list, dict]:
+def regions_to_keep(settings: dict, IPM_only=False) -> Tuple[list, dict]:
     """Create a list of all IPM regions that are used in the model, either as single
     regions or as part of a user-defined model region. Also includes the aggregate
     regions defined by user.
@@ -606,6 +606,9 @@ def regions_to_keep(settings: dict) -> Tuple[list, dict]:
     settings : dict
         User-defined parameters from a settings YAML file with keys "model_regions" and
         "region_aggregations".
+    IPM_only : binary
+        Returned regions are only IPM regions if True. Other regions (custom user regions)
+        are not included.
 
     Returns
     -------
@@ -621,6 +624,16 @@ def regions_to_keep(settings: dict) -> Tuple[list, dict]:
         for x in settings["model_regions"] + list(region_agg_map)
         if x not in region_agg_map.values()
     ]
+
+    # Filter out non-IPM regions if IPM_only = True & user region data is supplied
+    if IPM_only and settings.get("user_region_geodata_fn") is not None:
+        ipm_regions = (
+            gpd.read_file(IPM_GEOJSON_PATH, ignore_geometry=True).squeeze().to_list()
+        )
+
+        keep_regions = [x for x in keep_regions if x in ipm_regions]
+        region_agg_map = {k: v for k, v in region_agg_map.items() if k in ipm_regions}
+
     return keep_regions, region_agg_map
 
 
