@@ -3,17 +3,81 @@ Hourly demand profiles
 """
 
 import logging
+from inspect import signature
 from pathlib import Path
-import pandas as pd
-import numpy as np
 
-from powergenome.util import regions_to_keep, reverse_dict_of_lists, remove_feb_29
-from powergenome.external_data import make_demand_response_profiles
+import numpy as np
+import pandas as pd
+
 from powergenome.eia_opendata import get_aeo_load
+from powergenome.external_data import make_demand_response_profiles
+from powergenome.util import regions_to_keep, remove_feb_29, reverse_dict_of_lists
 
 logger = logging.getLogger(__name__)
 
 
+def _filter_load_by_region(load_type):
+    """If regional load options are given, return the columns listed in
+    settings["regional_load_options"][load_type].
+
+    If settings["regional_load_options"] exists and settings["regional_load_options"][load_type]
+    is null, return None.
+
+    If settings["regional_load_options"] DNE, return the load profile if the load_type is VCE,
+    else return None. This makes VCE the default load type/source.
+    """
+
+    def pass_function_to_wrapper(func):
+        def wrapper(*args, **kwargs):
+            ## retrieve settings:
+            # if kwarg:
+            settings = kwargs.get("settings", None)
+            # if arg:
+            if settings is None:
+                settings_arg_position = list(signature(func).parameters).index(
+                    "settings"
+                )
+                settings = args[settings_arg_position]
+
+            regional_load_options = settings.get("regional_load_options")
+
+            if regional_load_options is not None:
+                regions = None
+                if load_type == regional_load_options:
+                    # if only one load profile sources are specified, use for all regions
+                    regions = settings.get("model_regions")
+                elif load_type in regional_load_options.keys():
+                    # if multiple load profiles sources are specified, find the proper regions
+                    regions = regional_load_options.get(load_type)
+
+                # pd.reindex will return the entire DataFrame if regions=None,
+                # We want the opposite; return None if regions = None
+                if regions is not None:
+                    load_profile = func(*args, **kwargs)
+                    load_profile = load_profile.reindex(columns=regions)
+                else:
+                    load_profile = None
+            else:
+                s = """
+                *****************************
+                Regional load data sources have not been specified or . Defaulting to VCE load data.
+                Check you settings file, and please specify the preferred source for load data 
+                (VCE, EFS, USR) either for each region or for the entire system.
+                *****************************
+                """
+                logger.warning(s)
+                load_profile = None
+                if load_type == "VCE":
+                    load_profile = func(*args, **kwargs)
+
+            return load_profile
+
+        return wrapper
+
+    return pass_function_to_wrapper
+
+
+@_filter_load_by_region("VCE")
 def make_load_curves(
     pg_engine,
     settings,
@@ -22,7 +86,7 @@ def make_load_curves(
 ):
     # IPM regions to keep. Regions not in this list will be dropped from the
     # dataframe
-    keep_regions, region_agg_map = regions_to_keep(settings)
+    keep_regions, region_agg_map = regions_to_keep(settings, IPM_only=True)
 
     # I'd rather use a sql query and only pull the regions of interest but
     # sqlalchemy doesn't allow table names to be parameterized.
@@ -69,7 +133,7 @@ def make_load_curves(
 
 
 def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
-    keep_regions, region_agg_map = regions_to_keep(settings)
+    keep_regions, region_agg_map = regions_to_keep(settings, IPM_only=True)
     hist_region_map = reverse_dict_of_lists(settings["historical_load_region_maps"])
     future_region_map = reverse_dict_of_lists(settings["future_load_region_map"])
 
@@ -171,20 +235,35 @@ def subtract_distributed_generation(load_curves, pg_engine, settings):
     return load_curves
 
 
+@_filter_load_by_region(load_type="USR")
 def load_usr_demand_profiles(settings):
-    "Temp function to load user-generated demand profiles"
-    from powergenome.external_data import make_usr_demand_profiles
+    """Temp function. Loads user demand profiles if the file name is provided, else returns None.
+    If only specified regions are to be used (settings["regional_load_options"]["USR"]), then
+    reindex to use only those regions. Else, returns all regions in the regional load file.
+    """
+    regional_load_fn = settings.get("regional_load_fn")
 
-    lp_path = settings["input_folder"] / settings["regional_load_fn"]
-    hourly_load_profiles = make_usr_demand_profiles(lp_path, settings)
+    if regional_load_fn is not None:
+        from powergenome.external_data import make_usr_demand_profiles
 
-    if len(hourly_load_profiles) == 8784:
-        remove_feb_29(hourly_load_profiles)
+        lp_path = settings["input_folder"] / regional_load_fn
+        hourly_load_profiles = make_usr_demand_profiles(lp_path, settings)
 
-    hourly_load_profiles.index.name = "time_index"
-    hourly_load_profiles.index = hourly_load_profiles.index + 1
+        if len(hourly_load_profiles) == 8784:
+            remove_feb_29(hourly_load_profiles)
 
-    return hourly_load_profiles
+        hourly_load_profiles.index.name = "time_index"
+        hourly_load_profiles.index = hourly_load_profiles.index + 1
+
+        regional_load_options = settings.get("regional_load_options")
+        if regional_load_options is not None:
+            cols = regional_load_options.get("USR")
+            hourly_load_profiles = hourly_load_profiles.reindex(columns=cols)
+
+        return hourly_load_profiles
+
+    else:
+        return None
 
 
 def make_final_load_curves(
@@ -193,43 +272,55 @@ def make_final_load_curves(
     pudl_table="load_curves_ferc",
     settings_agg_key="region_aggregations",
 ):
-    # Check if regional loads are supplied by the user
-    if settings.get("regional_load_fn"):
-        logger.info("Loading regional demand profiles from user")
-        load_curves_dr = load_usr_demand_profiles(settings)
-        if not settings.get("regional_load_includes_demand_response"):
-            if settings.get("demand_response_fn"):
-                logger.info("Adding DR profiles to user regional demand")
-                load_curves_dr = add_demand_response_resource_load(
-                    load_curves_dr, settings
-                )
-            else:
-                logger.warning(
-                    "The settings parameter 'regional_load_includes_demand_response' "
-                    f"is {settings.get('regional_load_includes_demand_response')}, so "
-                    "a filename is expected for 'demand_response_fn' in the settings "
-                    "file. No filename has been provided."
-                )
-    else:
-        load_curves_before_dg = make_load_curves(
-            pg_engine, settings, pudl_table, settings_agg_key
-        )
 
-        if settings.get("demand_response_fn"):
-            load_curves_dr = add_demand_response_resource_load(
-                load_curves_before_dg, settings
-            )
-        else:
-            load_curves_dr = load_curves_before_dg
+    user_load_curves = load_usr_demand_profiles(settings)
+
+    vce_load_curves = make_load_curves(
+        pg_engine, settings, pudl_table, settings_agg_key
+    )
+
+    efs_load_curves = None
+
+    try:
+        load_curves_before_dr = pd.concat(
+            [user_load_curves, vce_load_curves, efs_load_curves], axis=1
+        )
+    except ValueError:
+        raise ValueError("All load curves are null.")
+
+    # TODO add demand response properly
+    # if settings.get("regional_load_fn"):
+    #     logger.info("Loading regional demand profiles from user")
+    #     user_load_curves = load_usr_demand_profiles(settings)
+    #     if not settings.get("regional_load_includes_demand_response"):
+    #         if settings.get("demand_response_fn"):
+    #             logger.info("Adding DR profiles to user regional demand")
+    #             user_load_curves = add_demand_response_resource_load(
+    #                 user_load_curves, settings
+    #             )
+    #         else:
+    #             logger.warning(
+    #                 "The settings parameter 'regional_load_includes_demand_response' "
+    #                 f"is {settings.get('regional_load_includes_demand_response')}, so "
+    #                 "a filename is expected for 'demand_response_fn' in the settings "
+    #                 "file. No filename has been provided."
+    #             )
+
+    if settings.get("demand_response_fn"):
+        load_curves_before_dg = add_demand_response_resource_load(
+            load_curves_before_dr, settings
+        )
+    else:
+        load_curves_before_dg = load_curves_before_dr
 
     if settings.get("distributed_gen_profiles_fn") and not settings.get(
         "dg_as_resource"
     ):
         final_load_curves = subtract_distributed_generation(
-            load_curves_dr, pg_engine, settings
+            load_curves_before_dg, pg_engine, settings
         )
     else:
-        final_load_curves = load_curves_dr
+        final_load_curves = load_curves_before_dg
 
     final_load_curves = final_load_curves.astype(int)
 
