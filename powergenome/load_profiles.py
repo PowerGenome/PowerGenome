@@ -181,6 +181,9 @@ def load_usr_demand_profiles(settings):
     if len(hourly_load_profiles) == 8784:
         remove_feb_29(hourly_load_profiles)
 
+    hourly_load_profiles.index.name = "time_index"
+    hourly_load_profiles.index = hourly_load_profiles.index + 1
+
     return hourly_load_profiles
 
 
