@@ -596,7 +596,9 @@ def find_centroid(gdf):
     return centroid
 
 
-def regions_to_keep(settings: dict, IPM_only=False) -> Tuple[list, dict]:
+def regions_to_keep(
+    settings: dict, ipm_only=False, user_only=False
+) -> Tuple[list, dict]:
     """Create a list of all IPM regions that are used in the model, either as single
     regions or as part of a user-defined model region. Also includes the aggregate
     regions defined by user.
@@ -606,7 +608,7 @@ def regions_to_keep(settings: dict, IPM_only=False) -> Tuple[list, dict]:
     settings : dict
         User-defined parameters from a settings YAML file with keys "model_regions" and
         "region_aggregations".
-    IPM_only : binary
+    ipm_only : binary
         Returned regions are only IPM regions if True. Other regions (custom user regions)
         are not included.
 
@@ -625,14 +627,27 @@ def regions_to_keep(settings: dict, IPM_only=False) -> Tuple[list, dict]:
         if x not in region_agg_map.values()
     ]
 
-    # Filter out non-IPM regions if IPM_only = True & user region data is supplied
-    if IPM_only and settings.get("user_region_geodata_fn") is not None:
-        ipm_regions = (
-            gpd.read_file(IPM_GEOJSON_PATH, ignore_geometry=True).squeeze().to_list()
+    # consider `if settings.get("user_region_geodata_fn") is not None:` around this block?
+    if ipm_only and user_only:
+        logger.warning(
+            "Both `ipm_only` and `user_only` are set to True. "
+            "This is likely a bug in the code. Returning all model regions."
         )
+    elif ipm_only or user_only:
+        # there is probably a better way to store this somewhere rather than read the file
+        # each time, which could save a few seconds.
+        ipm_regions = gpd.read_file(IPM_GEOJSON_PATH, ignore_geometry=True)[
+            "IPM_Region"
+        ].to_list()
+        if ipm_only:
+            regions_whitelist = ipm_regions
+        elif user_only:
+            regions_whitelist = set(settings.get("model_regions")) - set(ipm_regions)
 
-        keep_regions = [x for x in keep_regions if x in ipm_regions]
-        region_agg_map = {k: v for k, v in region_agg_map.items() if k in ipm_regions}
+        keep_regions = [x for x in keep_regions if x in regions_whitelist]
+        region_agg_map = {
+            k: v for k, v in region_agg_map.items() if k in regions_whitelist
+        }
 
     return keep_regions, region_agg_map
 

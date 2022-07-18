@@ -23,8 +23,8 @@ def _filter_load_by_region(load_type):
     If settings["regional_load_options"] exists and settings["regional_load_options"][load_type]
     is null, return None.
 
-    If settings["regional_load_options"] DNE, return the load profile if the load_type is VCE,
-    else return None. This makes VCE the default load type/source.
+    If settings["regional_load_options"] DNE, return the load profile if the load_type is FERC,
+    else return None. This makes FERC the default load type/source.
     """
 
     def pass_function_to_wrapper(func):
@@ -60,14 +60,14 @@ def _filter_load_by_region(load_type):
             else:
                 s = """
                 *****************************
-                Regional load data sources have not been specified or . Defaulting to VCE load data.
+                Regional load data sources have not been specified or . Defaulting to FERC load data.
                 Check you settings file, and please specify the preferred source for load data 
-                (VCE, EFS, USR) either for each region or for the entire system.
+                (FERC, EFS, USER) either for each region or for the entire system.
                 *****************************
                 """
                 logger.warning(s)
                 load_profile = None
-                if load_type == "VCE":
+                if load_type == "FERC":
                     load_profile = func(*args, **kwargs)
 
             return load_profile
@@ -77,7 +77,7 @@ def _filter_load_by_region(load_type):
     return pass_function_to_wrapper
 
 
-@_filter_load_by_region("VCE")
+@_filter_load_by_region("FERC")
 def make_load_curves(
     pg_engine,
     settings,
@@ -86,7 +86,7 @@ def make_load_curves(
 ):
     # IPM regions to keep. Regions not in this list will be dropped from the
     # dataframe
-    keep_regions, region_agg_map = regions_to_keep(settings, IPM_only=True)
+    keep_regions, region_agg_map = regions_to_keep(settings, ipm_only=True)
 
     # I'd rather use a sql query and only pull the regions of interest but
     # sqlalchemy doesn't allow table names to be parameterized.
@@ -133,7 +133,7 @@ def make_load_curves(
 
 
 def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
-    keep_regions, region_agg_map = regions_to_keep(settings, IPM_only=True)
+    keep_regions, region_agg_map = regions_to_keep(settings, ipm_only=True)
     hist_region_map = reverse_dict_of_lists(settings["historical_load_region_maps"])
     future_region_map = reverse_dict_of_lists(settings["future_load_region_map"])
 
@@ -235,10 +235,10 @@ def subtract_distributed_generation(load_curves, pg_engine, settings):
     return load_curves
 
 
-@_filter_load_by_region(load_type="USR")
+@_filter_load_by_region(load_type="USER")
 def load_usr_demand_profiles(settings):
     """Temp function. Loads user demand profiles if the file name is provided, else returns None.
-    If only specified regions are to be used (settings["regional_load_options"]["USR"]), then
+    If only specified regions are to be used (settings["regional_load_options"]["USER"]), then
     reindex to use only those regions. Else, returns all regions in the regional load file.
     """
     regional_load_fn = settings.get("regional_load_fn")
@@ -257,7 +257,7 @@ def load_usr_demand_profiles(settings):
 
         regional_load_options = settings.get("regional_load_options")
         if regional_load_options is not None:
-            cols = regional_load_options.get("USR")
+            cols = regional_load_options.get("USER")
             hourly_load_profiles = hourly_load_profiles.reindex(columns=cols)
 
         return hourly_load_profiles
@@ -275,7 +275,7 @@ def make_final_load_curves(
 
     user_load_curves = load_usr_demand_profiles(settings)
 
-    vce_load_curves = make_load_curves(
+    ferc_load_curves = make_load_curves(
         pg_engine, settings, pudl_table, settings_agg_key
     )
 
@@ -283,7 +283,7 @@ def make_final_load_curves(
 
     try:
         load_curves_before_dr = pd.concat(
-            [user_load_curves, vce_load_curves, efs_load_curves], axis=1
+            [user_load_curves, ferc_load_curves, efs_load_curves], axis=1
         )
     except ValueError:
         raise ValueError("All load curves are null.")
