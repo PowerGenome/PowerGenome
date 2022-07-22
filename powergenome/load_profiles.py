@@ -25,8 +25,8 @@ def filter_load_by_region(load_source):  # "decorator factory"
     If settings["regional_load_source"] exists and settings["regional_load_source"][load_source]
     is null, return None.
 
-    If settings["regional_load_source"] DNE, return the load profile if the load_source is FERC,
-    else return None. This makes FERC the default load type/source.
+    If settings["regional_load_source"] DNE, return the load profile if the load_source is EFS,
+    else return None. This makes EFS the default load type/source.
     """
 
     def decorator(func):
@@ -61,7 +61,7 @@ def filter_load_by_region(load_source):  # "decorator factory"
                     load_profile = None
             else:
                 load_profile = None
-                if load_source == "FERC":
+                if load_source == "EFS":
                     load_profile = func(*args, **kwargs)
 
             return load_profile
@@ -448,14 +448,14 @@ def make_final_load_curves(
     if load_sources is None:
         s = """
         *****************************
-        Regional load data sources have not been specified. Defaulting to FERC load data.
+        Regional load data sources have not been specified. Defaulting to EFS load data.
         Check you settings file, and please specify the preferred source for load data
         (FERC, EFS, USER) either for each region or for the entire system with the setting
         "regional_load_source".
         *****************************
         """
         logger.warning(s)
-        load_sources = {"FERC": "load_curves_ferc", "EFS": "load_curves_nrel_efs"}
+        load_sources = {"EFS": "load_curves_nrel_efs"}
 
     # `filter_load_by_region` is a decorator factory that generates a decorator
     # when given the parameter `load_source`. This decorator creates a wrapper
