@@ -482,7 +482,9 @@ def load_usr_demand_profiles(settings):
             remove_feb_29(hourly_load_profiles)
 
         hourly_load_profiles.index.name = "time_index"
-        hourly_load_profiles.index = hourly_load_profiles.index + 1
+        hourly_load_profiles.index = pd.RangeIndex(
+            start=1, stop=len(hourly_load_profiles) + 1, step=1
+        )
 
         regional_load_sources = settings.get("regional_load_source")
         if regional_load_sources is not None:
@@ -551,6 +553,17 @@ def make_final_load_curves(
         for load_source, load_table in load_sources.items()
     ]
     load_curves_before_dr.append(user_load_curves)
+    if not all(
+        [
+            len(load_curves_before_dr[0].index.intersection(df.index))
+            == load_curves_before_dr[0].shape[0]
+            for df in load_curves_before_dr
+            if df is not None
+        ]
+    ):
+        raise ValueError(
+            "One or more of your load curve data sources does not have a matching time index."
+        )
 
     try:
         load_curves_before_dr = pd.concat(load_curves_before_dr, axis=1)
