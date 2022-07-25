@@ -48,7 +48,10 @@ def filter_load_by_region(load_source):  # "decorator factory"
                 if load_source == regional_load_sources:
                     # if only one load profile sources are specified, use for all regions
                     regions = settings.get("model_regions")
-                elif load_source in regional_load_sources.keys():
+                elif (
+                    isinstance(regional_load_sources, dict)
+                    and load_source in regional_load_sources.keys()
+                ):
                     # if multiple load profiles sources are specified, find the proper regions
                     regions = regional_load_sources.get(load_source)
 
