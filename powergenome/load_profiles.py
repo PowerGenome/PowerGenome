@@ -265,31 +265,30 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
             if "sector" in df.columns:
                 for sector, _df in df.groupby("sector"):
                     hist_demand_start = {
-                        ipm_region: get_aeo_load(
-                            region=hist_region_map[ipm_region],
+                        region: get_aeo_load(
+                            region=hist_region_map[region],
                             aeo_year=year + 2,
                             scenario_series=f"REF{year+2}",
                             sector=aeo_sector_map[sector],
                         )
                         .set_index("year")
                         .loc[year, "demand"]
-                        for ipm_region in keep_regions
+                        for region in keep_regions
                     }
                     hist_demand_end = {
-                        ipm_region: get_aeo_load(
-                            region=hist_region_map[ipm_region],
+                        region: get_aeo_load(
+                            region=hist_region_map[region],
                             aeo_year=2019,
                             scenario_series="REF2019",
                             sector=aeo_sector_map[sector],
                         )
                         .set_index("year")
                         .loc[2019, "demand"]
-                        for ipm_region in keep_regions
+                        for region in keep_regions
                     }
                     growth_factor = {
-                        ipm_region: hist_demand_end[ipm_region]
-                        / hist_demand_start[ipm_region]
-                        for ipm_region in keep_regions
+                        region: hist_demand_end[region] / hist_demand_start[region]
+                        for region in keep_regions
                     }
 
                     years_growth = 2019 - year
@@ -304,29 +303,28 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
             else:
                 hist_demand_start = {
-                    ipm_region: get_aeo_load(
-                        region=hist_region_map[ipm_region],
+                    region: get_aeo_load(
+                        region=hist_region_map[region],
                         aeo_year=year + 2,
                         scenario_series=f"REF{year+2}",
                     )
                     .set_index("year")
                     .loc[year, "demand"]
-                    for ipm_region in keep_regions
+                    for region in keep_regions
                 }
                 hist_demand_end = {
-                    ipm_region: get_aeo_load(
-                        region=hist_region_map[ipm_region],
+                    region: get_aeo_load(
+                        region=hist_region_map[region],
                         aeo_year=2019,
                         scenario_series="REF2019",
                     )
                     .set_index("year")
                     .loc[2019, "demand"]
-                    for ipm_region in keep_regions
+                    for region in keep_regions
                 }
                 growth_factor = {
-                    ipm_region: hist_demand_end[ipm_region]
-                    / hist_demand_start[ipm_region]
-                    for ipm_region in keep_regions
+                    region: hist_demand_end[region] / hist_demand_start[region]
+                    for region in keep_regions
                 }
 
                 years_growth = 2019 - year
@@ -352,29 +350,28 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         if "sector" in df.columns:
             for sector, _df in df.groupby("sector"):
                 load_growth_dict = {
-                    ipm_region: get_aeo_load(
-                        region=future_region_map[ipm_region],
+                    region: get_aeo_load(
+                        region=future_region_map[region],
                         aeo_year=load_aeo_year,
                         scenario_series=growth_scenario,
                         sector=aeo_sector_map[sector],
                     ).set_index("year")
-                    for ipm_region in keep_regions
+                    for region in keep_regions
                 }
 
                 load_growth_start_map = {
-                    ipm_region: _df.loc[year, "demand"]
-                    for ipm_region, _df in load_growth_dict.items()
+                    region: _df.loc[year, "demand"]
+                    for region, _df in load_growth_dict.items()
                 }
 
                 load_growth_end_map = {
-                    ipm_region: _df.loc[settings["model_year"], "demand"]
-                    for ipm_region, _df in load_growth_dict.items()
+                    region: _df.loc[settings["model_year"], "demand"]
+                    for region, _df in load_growth_dict.items()
                 }
 
                 growth_factor = {
-                    ipm_region: load_growth_end_map[ipm_region]
-                    / load_growth_start_map[ipm_region]
-                    for ipm_region in keep_regions
+                    region: load_growth_end_map[region] / load_growth_start_map[region]
+                    for region in keep_regions
                 }
 
                 years_growth = settings["model_year"] - year
@@ -386,28 +383,27 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
                 df_list.append(_df)
         else:
             load_growth_dict = {
-                ipm_region: get_aeo_load(
-                    region=future_region_map[ipm_region],
+                region: get_aeo_load(
+                    region=future_region_map[region],
                     aeo_year=load_aeo_year,
                     scenario_series=growth_scenario,
                 ).set_index("year")
-                for ipm_region in keep_regions
+                for region in keep_regions
             }
 
             load_growth_start_map = {
-                ipm_region: _df.loc[year, "demand"]
-                for ipm_region, _df in load_growth_dict.items()
+                region: _df.loc[year, "demand"]
+                for region, _df in load_growth_dict.items()
             }
 
             load_growth_end_map = {
-                ipm_region: _df.loc[settings["model_year"], "demand"]
-                for ipm_region, _df in load_growth_dict.items()
+                region: _df.loc[settings["model_year"], "demand"]
+                for region, _df in load_growth_dict.items()
             }
 
             growth_factor = {
-                ipm_region: load_growth_end_map[ipm_region]
-                / load_growth_start_map[ipm_region]
-                for ipm_region in keep_regions
+                region: load_growth_end_map[region] / load_growth_start_map[region]
+                for region in keep_regions
             }
 
             years_growth = settings["model_year"] - year
