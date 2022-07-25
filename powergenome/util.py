@@ -4,7 +4,7 @@ import itertools
 import logging
 import re
 import subprocess
-from typing import Dict, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import pandas as pd
 import geopandas as gpd
@@ -343,7 +343,20 @@ def init_pudl_connection(
     return pudl_engine, pudl_out, pg_engine
 
 
-def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, str]:
+def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, List[str]]:
+    """Reverse the mapping in a dictionary of lists so each list item maps to the key
+
+    Parameters
+    ----------
+    d : Dict[str, List[str]]
+        A dictionary with string keys and lists of strings.
+
+    Returns
+    -------
+    Dict[str, str]
+        A reverse mapped dictionary where the item of each list becomes a key and the
+        original keys are mapped as values.
+    """
     if isinstance(d, collections.abc.Mapping):
         rev = {v: k for k in d for v in d[k]}
     else:
@@ -352,8 +365,34 @@ def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, str]:
 
 
 def map_agg_region_names(
-    df: pd.DataFrame, region_agg_map: dict, original_col_name: str, new_col_name: str
+    df: pd.DataFrame,
+    region_agg_map: Dict[str, List[str]],
+    original_col_name: str,
+    new_col_name: str,
 ) -> pd.DataFrame:
+    """Add a column that maps original region names to aggregated model region names.
+
+    A dataframe with un-aggregated region names (e.g. EPA IPM regions) will have a new
+    column added. Aggregated model region names will be used in the new column. If a
+    model region is not part of an aggregation it will be left as-is in the new column.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Original dataframe with column 'original_col_name'
+    region_agg_map : Dict[str, List[str]]
+        Mapping of model region names (keys) to a list of aggregated base regions
+    original_col_name : str
+        Name of the original column with region names.
+    new_col_name : str
+        Name for the column with mapped model region values.
+
+    Returns
+    -------
+    pd.DataFrame
+        A modified version of the original dataframe with the new column "new_col_name"
+        that has values of model regions.
+    """
 
     df[new_col_name] = df.loc[:, original_col_name]
 
@@ -737,7 +776,7 @@ def remove_feb_29(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=["datetime"])
 
 
-def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
+def load_ipm_shapefile(settings: dict, path: Union[str, Path] = IPM_GEOJSON_PATH):
     """
     Load the shapefile of IPM regions
 
@@ -746,6 +785,9 @@ def load_ipm_shapefile(settings, path=IPM_GEOJSON_PATH):
     settings : dict
         User-defined parameters from a settings YAML file. This is where any region
         aggregations would be defined.
+    path : Union[str, Path]
+        Path, loction, or URL of the IPM shapefile/geojson to load. Default value is
+        a simplified geojson stored in the PowerGenome data folder.
 
     Returns
     -------
