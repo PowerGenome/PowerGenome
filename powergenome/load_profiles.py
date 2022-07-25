@@ -485,6 +485,11 @@ def load_usr_demand_profiles(settings):
         regional_load_sources = settings.get("regional_load_source")
         if regional_load_sources is not None:
             cols = regional_load_sources.get("USER")
+            if not all([col in hourly_load_profiles.columns for col in cols]):
+                raise KeyError(
+                    f"One or more of the regions {cols} is not included in your "
+                    f"user-supplied load curves file {regional_load_fn}."
+                )
             hourly_load_profiles = hourly_load_profiles.reindex(columns=cols)
 
         return hourly_load_profiles
