@@ -45,6 +45,7 @@ from powergenome.generators import (
     group_technologies,
     label_retirement_year,
     label_small_hydro,
+    load_demand_response_efs_profile,
     unit_generator_heat_rates,
     load_860m,
     GeneratorClusters,
@@ -741,40 +742,64 @@ def test_hydro_energy_to_power():
     assert hydro_ratio.equals(df_hydro_ratio["Hydro_Energy_to_Power_Ratio"])
 
 
-def test_efs_load(CA_AZ_settings):
+def test_efs_flex_demand():
+    flex_demand = load_demand_response_efs_profile(
+        resource="trans_light_duty",
+        electrification_stock_fn="EFS_STOCK_AGG.parquet",
+        model_year=2034,
+        electrification_scenario="REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT",
+        model_regions=["WECC_AZ", "WEC_BANC", "WEC_CALN"],
+        region_aggregations={"CA_N": ["WEC_BANC", "WEC_CALN"]},
+        path_in=DATA_PATHS["test_data"] / "efs",
+    )
 
-    settings = CA_AZ_settings.copy()
-    settings["model_regions"] = ["WECC_AZ"]
-    settings.pop("demand_response_fn")
-    settings["electrification_stock_fn"] = "EFS_STOCK_AGG.parquet"
-    settings[
+    assert set(flex_demand.columns) == set(["WECC_AZ", "CA_N"])
+    assert flex_demand.isnull().any().any() == False
+    assert flex_demand.min().min() >= 0
+
+    with pytest.raises(ValueError):
+        load_demand_response_efs_profile(
+            resource="trans_light_duty",
+            electrification_stock_fn="EFS_STOCK_AGG.parquet",
+            model_year=2034,
+            electrification_scenario="REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY",
+            model_regions=["WECC_AZ", "WEC_BANC", "WEC_CALN"],
+            region_aggregations={"CA_N": ["WEC_BANC", "WEC_CALN"]},
+            path_in=DATA_PATHS["test_data"] / "efs",
+        )
+
+
+def test_flex_resources(CA_AZ_settings):
+    CA_AZ_settings["model_year"] = 2035
+    CA_AZ_settings["model_first_planning_year"] = 2030
+    CA_AZ_settings["electrification_stock_fn"] = "EFS_STOCK_AGG.parquet"
+    CA_AZ_settings[
         "electrification_scenario"
     ] = "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
-    settings["demand_response_resources"]["2030"] = {
-        "LDV_MW": {
-            "fraction_shiftable": 0.8,
-            "parameter_values": {"Max_DSM_delay": 5, "DR": 2},
+    CA_AZ_settings.pop("demand_response_fn")
+    CA_AZ_settings["flexible_demand_resources"] = {
+        2035: {
+            "trans_light_duty": {
+                "fraction_shiftable": 0.8,
+                "parameter_values": {"Max_DSM_delay": 5, "DR": 2},
+            },
+            "res_water_heat": {
+                "fraction_shiftable": 0.1,
+                "parameter_values": {"Max_DSM_delay": 2, "DR": 2},
+            },
         }
     }
-    settings["model_year"] = 2030
-    settings["model_first_planning_year"] = 2025
+    CA_AZ_settings["atb_new_gen"] = []
+    CA_AZ_settings["renewables_clusters"] = None
+    CA_AZ_settings["additional_technologies_fn"] = None
+    CA_AZ_settings["modified_atb_new_gen"] = None
+    CA_AZ_settings["atb_modifiers"] = None
 
-    keep_regions, region_agg_map = regions_to_keep(
-        settings["model_regions"], settings.get("region_aggregations", {}) or {}
+    gc = GeneratorClusters(
+        pudl_engine, pudl_out, pg_engine, CA_AZ_settings, current_gens=False
     )
-    elec_kwargs = {
-        "future_load_region_map": settings["future_load_region_map"],
-        "eia_aeo_year": settings["eia_aeo_year"],
-        "growth_scenario": settings["growth_scenario"],
-        "path_in": DATA_PATHS["test_data"] / "efs",
-    }
+    flex_resources = gc.create_new_generators()
 
-    total_load = build_total_load(
-        settings.get("electrification_stock_fn"),
-        settings["model_year"],
-        settings.get("electrification_scenario"),
-        keep_regions,
-        settings.get("extra_outputs"),
-        **elec_kwargs,
-    )
-    load_curves_dr = FilterTotalProfile(settings, total_load)
+    assert len(flex_resources) == 6
+    non_null_cols = ["profile", "Max_DSM_delay", "DR"]
+    assert flex_resources[non_null_cols].isnull().any().any() == False

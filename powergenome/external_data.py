@@ -80,7 +80,7 @@ def demand_response_resource_capacity(df, resource_name, settings):
     """
 
     year = settings["model_year"]
-    fraction_shiftable = settings["demand_response_resources"][year][resource_name][
+    fraction_shiftable = settings["flexible_demand_resources"][year][resource_name][
         "fraction_shiftable"
     ]
 

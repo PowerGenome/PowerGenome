@@ -220,12 +220,15 @@ def fetch_atb_costs(
             atb_costs[col] = 0
 
     atb_target_year = settings["target_usd_year"]
-    atb_costs[usd_columns] = atb_costs.apply(
-        lambda row: inflation_price_adjustment(
-            row[usd_columns], base_year=row["dollar_year"], target_year=atb_target_year
-        ),
-        axis=1,
-    )
+    if not atb_costs.empty:
+        atb_costs[usd_columns] = atb_costs.apply(
+            lambda row: inflation_price_adjustment(
+                row[usd_columns],
+                base_year=row["dollar_year"],
+                target_year=atb_target_year,
+            ),
+            axis=1,
+        )
 
     if any("PV" in tech for tech in tech_list) and atb_year == 2019:
         print("Inflating ATB 2019 PV costs from DC to AC")
@@ -950,13 +953,18 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         atb_hr, on=["technology", "tech_detail", "cost_case", "basis_year"], how="left"
     )
 
-    new_gen_df = pd.concat(
-        [
-            single_generator_row(atb_costs_hr, new_gen, model_year_range)
-            for new_gen in new_gen_types
-        ],
-        ignore_index=True,
-    )
+    if new_gen_types:
+        new_gen_df = pd.concat(
+            [
+                single_generator_row(atb_costs_hr, new_gen, model_year_range)
+                for new_gen in new_gen_types
+            ],
+            ignore_index=True,
+        )
+    else:
+        new_gen_df = pd.DataFrame(
+            columns=["region", "technology", "tech_detail", "cost_case"]
+        )
     # Add user-defined technologies
     # This should probably be separate from ATB techs, and the regional cost multipliers
     # should be its own function.
@@ -1056,78 +1064,85 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
     new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
 
-    for tech, years in (settings.get("alt_atb_cap_recovery_years") or {}).items():
-        new_gen_df.loc[
-            new_gen_df["technology"].str.lower().str.contains(tech.lower()),
-            "cap_recovery_years",
-        ] = years
+    if new_gen_df.empty:
+        results = new_gen_df.copy()
+    else:
+        for tech, years in (settings.get("alt_atb_cap_recovery_years") or {}).items():
+            new_gen_df.loc[
+                new_gen_df["technology"].str.lower().str.contains(tech.lower()),
+                "cap_recovery_years",
+            ] = years
 
-    new_gen_df["Inv_Cost_per_MWyr"] = investment_cost_calculator(
-        capex=new_gen_df["capex_mw"],
-        wacc=new_gen_df["wacc_real"],
-        cap_rec_years=new_gen_df["cap_recovery_years"],
-    )
+        new_gen_df["Inv_Cost_per_MWyr"] = investment_cost_calculator(
+            capex=new_gen_df["capex_mw"],
+            wacc=new_gen_df["wacc_real"],
+            cap_rec_years=new_gen_df["cap_recovery_years"],
+        )
 
-    new_gen_df["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
-        capex=new_gen_df["capex_mwh"],
-        wacc=new_gen_df["wacc_real"],
-        cap_rec_years=new_gen_df["cap_recovery_years"],
-    )
+        new_gen_df["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
+            capex=new_gen_df["capex_mwh"],
+            wacc=new_gen_df["wacc_real"],
+            cap_rec_years=new_gen_df["cap_recovery_years"],
+        )
 
-    # Set no capacity limit on new resources that aren't renewables.
-    new_gen_df["Max_Cap_MW"] = -1
-    new_gen_df["Max_Cap_MWh"] = -1
-    regional_cost_multipliers = pd.read_csv(
-        DATA_PATHS["cost_multipliers"]
-        / settings.get("cost_multiplier_fn", "AEO_2020_regional_cost_corrections.csv"),
-        index_col=0,
-    )
-    if settings.get("user_regional_cost_multiplier_fn"):
-        user_cost_multipliers = pd.read_csv(
-            Path(settings["input_folder"])
-            / settings["user_regional_cost_multiplier_fn"],
+        # Set no capacity limit on new resources that aren't renewables.
+        new_gen_df["Max_Cap_MW"] = -1
+        new_gen_df["Max_Cap_MWh"] = -1
+        regional_cost_multipliers = pd.read_csv(
+            DATA_PATHS["cost_multipliers"]
+            / settings.get(
+                "cost_multiplier_fn", "AEO_2020_regional_cost_corrections.csv"
+            ),
             index_col=0,
         )
-        regional_cost_multipliers = pd.concat(
-            [regional_cost_multipliers, user_cost_multipliers], axis=1
+        if settings.get("user_regional_cost_multiplier_fn"):
+            user_cost_multipliers = pd.read_csv(
+                Path(settings["input_folder"])
+                / settings["user_regional_cost_multiplier_fn"],
+                index_col=0,
+            )
+            regional_cost_multipliers = pd.concat(
+                [regional_cost_multipliers, user_cost_multipliers], axis=1
+            )
+        rev_mult_region_map = reverse_dict_of_lists(
+            settings["cost_multiplier_region_map"]
         )
-    rev_mult_region_map = reverse_dict_of_lists(settings["cost_multiplier_region_map"])
-    rev_mult_tech_map = reverse_dict_of_lists(
-        settings["cost_multiplier_technology_map"]
-    )
-    df_list = []
-    for region in regions:
-        _df = new_gen_df.copy()
-        _df["region"] = region
-        _df = regional_capex_multiplier(
-            _df,
-            region,
-            rev_mult_region_map,
-            rev_mult_tech_map,
-            regional_cost_multipliers,
+        rev_mult_tech_map = reverse_dict_of_lists(
+            settings["cost_multiplier_technology_map"]
         )
-        _df = add_renewables_clusters(_df, region, settings)
+        df_list = []
+        for region in regions:
+            _df = new_gen_df.copy()
+            _df["region"] = region
+            _df = regional_capex_multiplier(
+                _df,
+                region,
+                rev_mult_region_map,
+                rev_mult_tech_map,
+                regional_cost_multipliers,
+            )
+            _df = add_renewables_clusters(_df, region, settings)
 
-        if region in (settings.get("new_gen_not_available") or {}):
-            techs = settings["new_gen_not_available"][region]
-            for tech in techs:
-                _df = _df.loc[~_df["technology"].str.contains(tech), :]
+            if region in (settings.get("new_gen_not_available") or {}):
+                techs = settings["new_gen_not_available"][region]
+                for tech in techs:
+                    _df = _df.loc[~_df["technology"].str.contains(tech), :]
 
-        df_list.append(_df)
+            df_list.append(_df)
 
-    results = pd.concat(df_list, ignore_index=True, sort=False)
+        results = pd.concat(df_list, ignore_index=True, sort=False)
 
-    int_cols = [
-        "Fixed_OM_Cost_per_MWyr",
-        "Fixed_OM_Cost_per_MWhyr",
-        "Inv_Cost_per_MWyr",
-        "Inv_Cost_per_MWhyr",
-        "cluster",
-    ]
-    int_cols = [c for c in int_cols if c in results.columns]
-    results = results.fillna(0)
-    results[int_cols] = results[int_cols].astype(int)
-    results["Var_OM_Cost_per_MWh"] = results["Var_OM_Cost_per_MWh"].astype(float)
+        int_cols = [
+            "Fixed_OM_Cost_per_MWyr",
+            "Fixed_OM_Cost_per_MWhyr",
+            "Inv_Cost_per_MWyr",
+            "Inv_Cost_per_MWhyr",
+            "cluster",
+        ]
+        int_cols = [c for c in int_cols if c in results.columns]
+        results = results.fillna(0)
+        results[int_cols] = results[int_cols].astype(int)
+        results["Var_OM_Cost_per_MWh"] = results["Var_OM_Cost_per_MWh"].astype(float)
 
     return results
 
@@ -1184,7 +1199,7 @@ def add_renewables_clusters(
         ipm_regions.append(region)  # Add model region, sometimes listed in RG file
     else:
         ipm_regions = [region]
-    for scenario in settings.get("renewables_clusters", []):
+    for scenario in settings.get("renewables_clusters", []) or []:
         if scenario["region"] != region:
             continue
         # Match cluster technology to NREL ATB technologies

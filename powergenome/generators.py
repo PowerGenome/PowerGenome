@@ -2490,40 +2490,68 @@ def load_demand_response_efs_profile(
     electrification_stock_fn: str,
     model_year: int,
     electrification_scenario: str,
-    extra_outputs_fn: Path,
-    future_load_region_map: dict,
-    eia_aeo_year: str,
-    growth_scenario: str,
     model_regions: list,
     region_aggregations: dict = {},
     path_in: Path = None,
 ) -> pd.DataFrame:
-    from powergenome.load_construction import build_total_load
+    """Load the demand profile of a single flexible resource in all model regions.
+
+    Parameters
+    ----------
+    resource : str
+        Name of the flexible resource.
+    electrification_stock_fn : str
+        Name of the data file with stock values for each year.
+    model_year : int
+        Planning period or model year. Used to select stock values for flexible resources
+        and their demand profiles.
+    electrification_scenario : str
+        Name of a scenario from the stock data file.
+    model_regions : list
+        Names of the model regions, including those that are aggregated from multiple
+        base regions.
+    region_aggregations : dict, optional
+        A list of base regions for each aggregated model region, by default {}. For
+        example, {"CA_N": ["WEC_BANC", "WEC_CALN"]}.
+    path_in : Path, optional
+        Folder where stock and incremental factor (profile) data are located, by default
+        None.
+
+    Returns
+    -------
+    pd.DataFrame
+        Flexible demand profiles for the selected resource in each model region. Column
+        names are model regions.
+    Raises
+    ------
+    KeyError
+        The resource is not a valid name.
+    """
+    from powergenome.load_construction import electrification_profiles
 
     keep_regions, region_agg_map = regions_to_keep(model_regions, region_aggregations)
-    elec_kwargs = {
-        "future_load_region_map": future_load_region_map,
-        "eia_aeo_year": eia_aeo_year,
-        "growth_scenario": growth_scenario,
-        "path_in": path_in,
-    }
+    elec_profiles = electrification_profiles(
+        stock_fn=electrification_stock_fn,
+        year=model_year,
+        elec_scenario=electrification_scenario,
+        regions=keep_regions,
+        path_in=path_in,
+    )
 
-    total_load = build_total_load(
-        electrification_stock_fn,
-        model_year,
-        electrification_scenario,
-        keep_regions,
-        extra_outputs_fn,
-        **elec_kwargs,
-    )
-    dr_profile = total_load.loc[:, ["localhourid", "ipm_region", resource]].pivot(
-        index="localhourid", columns="ipm_region"
-    )
+    if resource not in elec_profiles.resource.unique():
+        raise KeyError(
+            f"No profile was available for the flexible resource '{resource}' specified "
+            "in your settings file under 'flexible_demand_resources'. Available "
+            f"resources include: {list(elec_profiles.resource.unique())}."
+        )
+    dr_profile = elec_profiles.loc[
+        elec_profiles["resource"] == resource, ["time_index", "region", "load_mw"]
+    ].pivot(index="time_index", columns="region")
     dr_profile.columns = dr_profile.columns.droplevel()
-    for mod_r, ipm_regs in region_aggregations.items():
-        ipm_regs = [r for r in ipm_regs if r != mod_r]
-        dr_profile[mod_r] = dr_profile[ipm_regs].sum(axis=1)
-        dr_profile = dr_profile.drop(columns=ipm_regs)
+    for model_region, base_regs in region_aggregations.items():
+        base_regs = [r for r in base_regs if r != model_region]
+        dr_profile[model_region] = dr_profile[base_regs].sum(axis=1)
+        dr_profile = dr_profile.drop(columns=base_regs)
 
     return dr_profile
 
@@ -2652,17 +2680,27 @@ class GeneratorClusters:
         df_list = []
         self.demand_response_profiles = {}
 
-        if not self.settings.get("demand_response_resources"):
+        if not self.settings.get("flexible_demand_resources"):
             logger.warning(
                 "A demand response file is included in extra inputs but the parameter "
-                "`demand_response_resources` is not in the settings file. No demand "
+                "`flexible_demand_resources` is not in the settings file. No demand "
                 "response resources will be included with the generators."
             )
             return pd.DataFrame()
-
-        for resource, parameters in self.settings["demand_response_resources"][
-            year
-        ].items():
+        if year not in self.settings["flexible_demand_resources"].keys():
+            logger.warning(
+                f"The model year {year} is not included in your 'flexible_demand_resources' "
+                "parameter. No flexible demand resources will be included for this "
+                "planning period."
+            )
+        if self.settings["flexible_demand_resources"][year] is None:
+            logger.warning(
+                f"Your 'flexible_demand_resources' settings parameter has the value 'None' "
+                "for this planning period. No flexible demand resources will be included."
+            )
+        for resource, parameters in (
+            self.settings["flexible_demand_resources"].get(year, {}).items()
+        ):
 
             _df = pd.DataFrame(
                 index=self.settings["model_regions"],
@@ -2684,6 +2722,13 @@ class GeneratorClusters:
                     self.settings["demand_response"],
                 )
             elif self.settings.get("electrification_stock_fn"):
+                if not self.settings.get("electrification_scenario"):
+                    logger.warning(
+                        "You have provided a parameter value for 'electrification_stock_fn' "
+                        "but not 'electrification_scenario'. No flexible demand resources "
+                        "can be included without a valid electrification scenario."
+                    )
+                    pass
                 keep_regions, region_agg_map = regions_to_keep(
                     self.settings["model_regions"],
                     self.settings.get("region_aggregations", {}) or {},
@@ -2693,10 +2738,6 @@ class GeneratorClusters:
                     self.settings.get("electrification_stock_fn"),
                     self.settings["model_year"],
                     self.settings.get("electrification_scenario"),
-                    self.settings.get("extra_outputs"),
-                    self.settings["future_load_region_map"],
-                    self.settings["eia_aeo_year"],
-                    self.settings["growth_scenario"],
                     keep_regions,
                     self.settings.get("region_aggregations", {}) or {},
                     self.settings.get("efs_path"),
@@ -2704,9 +2745,9 @@ class GeneratorClusters:
             self.demand_response_profiles[resource] = dr_profile
             # Add hourly profile to demand response rows
             dr_cf = dr_profile / dr_profile.max()
-            dr_regions = dr_cf.columns
+            dr_regions = [r for r in dr_cf.columns if r in _df.index]
             _df = _df.loc[dr_regions, :]
-            _df["profile"] = list(dr_cf.values.T)
+            _df["profile"] = list(dr_cf[dr_regions].values.T)
 
             dr_capacity = demand_response_resource_capacity(
                 dr_profile, resource, self.settings
@@ -2723,9 +2764,9 @@ class GeneratorClusters:
             if not parameters.get("parameter_values"):
                 logger.warning(
                     "No model parameter values are provided in the settings file for "
-                    f"the demand response resource '{resource}'. If another DR resource"
+                    f"the flexible demand resource '{resource}'. If another resource"
                     " has values under "
-                    "`demand_response_resource.<year>.<DR_type>.parameter_values`, "
+                    "`flexible_demand_resource.<year>.<resource_type>.parameter_values`, "
                     f"those columns will have a value of 0 for '{resource}'."
                 )
             for col, value in parameters.get("parameter_values", {}).items():
@@ -3248,34 +3289,37 @@ class GeneratorClusters:
             self.atb_costs, self.atb_hr, self.settings
         )
 
-        self.new_generators = (
-            self.new_generators.pipe(startup_fuel, self.settings)
-            .pipe(add_fuel_labels, self.fuel_prices, self.settings)
-            .pipe(startup_nonfuel_costs, self.settings)
-            .pipe(add_genx_model_tags, self.settings)
-        )
-
-        if self.sort_gens:
-            logger.info("Sorting new resources alphabetically.")
-            self.new_generators = self.new_generators.sort_values(
-                ["region", "technology"]
+        if not self.new_generators.empty:
+            self.new_generators = (
+                self.new_generators.pipe(startup_fuel, self.settings)
+                .pipe(add_fuel_labels, self.fuel_prices, self.settings)
+                .pipe(startup_nonfuel_costs, self.settings)
+                .pipe(add_genx_model_tags, self.settings)
             )
 
-        if self.settings.get("capacity_limit_spur_fn"):
+            if self.sort_gens:
+                logger.info("Sorting new resources alphabetically.")
+                self.new_generators = self.new_generators.sort_values(
+                    ["region", "technology"]
+                )
+
+            if self.settings.get("capacity_limit_spur_fn"):
+                self.new_generators = self.new_generators.pipe(
+                    add_resource_max_cap_spur, self.settings
+                )
+            else:
+                logger.warning("No settings parameter for max capacity/spur file")
             self.new_generators = self.new_generators.pipe(
-                add_resource_max_cap_spur, self.settings
-            )
-        else:
-            logger.warning("No settings parameter for max capacity/spur file")
-        self.new_generators = self.new_generators.pipe(
-            calculate_transmission_inv_cost, self.settings, self.offshore_spur_costs
-        ).pipe(add_transmission_inv_cost, self.settings)
+                calculate_transmission_inv_cost, self.settings, self.offshore_spur_costs
+            ).pipe(add_transmission_inv_cost, self.settings)
 
         if self.settings.get("demand_response_fn") or self.settings.get(
             "electrification_stock_fn"
         ):
             dr_rows = self.create_demand_response_gen_rows()
-            self.new_generators = pd.concat([self.new_generators, dr_rows], sort=False)
+            self.new_generators = pd.concat(
+                [self.new_generators, dr_rows], sort=False, ignore_index=True
+            )
         if "cluster" not in self.new_generators.columns:
             self.new_generators["cluster"] = 1
         self.new_generators["Resource"] = (
