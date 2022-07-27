@@ -23,7 +23,6 @@ from powergenome.eia_opendata import add_user_fuel_prices
 from powergenome.external_data import make_generator_variability
 
 from powergenome.fuels import fuel_cost_table
-from powergenome.load_construction import FilterTotalProfile, build_total_load
 
 CWD = Path.cwd()
 # os.environ["RESOURCE_GROUPS"] = str(CWD / "data" / "resource_groups_base")
@@ -794,6 +793,7 @@ def test_flex_resources(CA_AZ_settings):
     CA_AZ_settings["additional_technologies_fn"] = None
     CA_AZ_settings["modified_atb_new_gen"] = None
     CA_AZ_settings["atb_modifiers"] = None
+    CA_AZ_settings["efs_path"] = DATA_PATHS["test_data"] / "efs"
 
     gc = GeneratorClusters(
         pudl_engine, pudl_out, pg_engine, CA_AZ_settings, current_gens=False
