@@ -591,30 +591,30 @@ def make_final_load_curves(
             load_curves_before_dr, settings
         )
     elif settings.get("electrification_stock_fn") and settings.get(
-            "electrification_scenario"
-        ):
+        "electrification_scenario"
+    ):
 
-            keep_regions, region_agg_map = regions_to_keep(
-                settings["model_regions"], settings.get("region_aggregations", {}) or {}
-            )
+        keep_regions, region_agg_map = regions_to_keep(
+            settings["model_regions"], settings.get("region_aggregations", {}) or {}
+        )
 
-            flex_profiles = electrification_profiles(
-                settings.get("electrification_stock_fn"),
-                settings["model_year"],
-                settings.get("electrification_scenario"),
-                keep_regions,
+        flex_profiles = electrification_profiles(
+            settings.get("electrification_stock_fn"),
+            settings["model_year"],
+            settings.get("electrification_scenario"),
+            keep_regions,
+        )
+        flex_profiles = map_agg_region_names(
+            flex_profiles, region_agg_map, "region", "model_region"
+        )
+        for region in load_curves_before_dg.columns:
+            region_flex_load = (
+                flex_profiles.query("model_region==@region")
+                .groupby("time_index")["load_mw"]
+                .sum()
             )
-            flex_profiles = map_agg_region_names(
-                flex_profiles, region_agg_map, "region", "model_region"
-            )
-            for region in load_curves_before_dg.columns:
-                region_flex_load = (
-                    flex_profiles.query("model_region==@region")
-                    .groupby("time_index")["load_mw"]
-                    .sum()
-                )
-                if not region_flex_load.empty:
-                    load_curves_before_dg[region] += region_flex_load["load_mw"]
+            if not region_flex_load.empty:
+                load_curves_before_dg[region] += region_flex_load["load_mw"]
     else:
         load_curves_before_dg = load_curves_before_dr
 
