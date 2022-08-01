@@ -228,7 +228,7 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         Tidy dataframe of load curves with columns "region", "load_mw", and optionally
         "sector".
     settings : dict
-        User settings parameters. Should include "historical_load_region_maps",
+        User settings parameters. Should include "historical_load_region_map",
         "future_load_region_map", and "model_year". Optional parameters include
         "aeo_sector_map" (mapping load sectors to AEO API sector names), and
         "alt_growth_rate" (either single growth rates for each region or sector-level
@@ -241,8 +241,10 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         Modified version of input dataframe to account for load growth from base year
         to model planning year.
     """
-    keep_regions, region_agg_map = regions_to_keep(settings)
-    hist_region_map = reverse_dict_of_lists(settings["historical_load_region_maps"])
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations")
+    )
+    hist_region_map = reverse_dict_of_lists(settings["historical_load_region_map"])
     future_region_map = reverse_dict_of_lists(settings["future_load_region_map"])
     aeo_sector_map = settings.get("aeo_sector_map")
     if not settings.get("aeo_sector_map"):
@@ -591,30 +593,30 @@ def make_final_load_curves(
             load_curves_before_dr, settings
         )
     elif settings.get("electrification_stock_fn") and settings.get(
-            "electrification_scenario"
-        ):
+        "electrification_scenario"
+    ):
 
-            keep_regions, region_agg_map = regions_to_keep(
-                settings["model_regions"], settings.get("region_aggregations", {}) or {}
-            )
+        keep_regions, region_agg_map = regions_to_keep(
+            settings["model_regions"], settings.get("region_aggregations", {}) or {}
+        )
 
-            flex_profiles = electrification_profiles(
-                settings.get("electrification_stock_fn"),
-                settings["model_year"],
-                settings.get("electrification_scenario"),
-                keep_regions,
+        flex_profiles = electrification_profiles(
+            settings.get("electrification_stock_fn"),
+            settings["model_year"],
+            settings.get("electrification_scenario"),
+            keep_regions,
+        )
+        flex_profiles = map_agg_region_names(
+            flex_profiles, region_agg_map, "region", "model_region"
+        )
+        for region in load_curves_before_dg.columns:
+            region_flex_load = (
+                flex_profiles.query("model_region==@region")
+                .groupby("time_index")["load_mw"]
+                .sum()
             )
-            flex_profiles = map_agg_region_names(
-                flex_profiles, region_agg_map, "region", "model_region"
-            )
-            for region in load_curves_before_dg.columns:
-                region_flex_load = (
-                    flex_profiles.query("model_region==@region")
-                    .groupby("time_index")["load_mw"]
-                    .sum()
-                )
-                if not region_flex_load.empty:
-                    load_curves_before_dg[region] += region_flex_load["load_mw"]
+            if not region_flex_load.empty:
+                load_curves_before_dg[region] += region_flex_load["load_mw"]
     else:
         load_curves_before_dg = load_curves_before_dr
 
