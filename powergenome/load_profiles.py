@@ -9,9 +9,14 @@ import pandas as pd
 import numpy as np
 from joblib import Memory
 import sqlalchemy
-from powergenome.load_construction import build_total_load
+from powergenome.load_construction import electrification_profiles
 
-from powergenome.util import regions_to_keep, reverse_dict_of_lists, remove_feb_29
+from powergenome.util import (
+    map_agg_region_names,
+    regions_to_keep,
+    reverse_dict_of_lists,
+    remove_feb_29,
+)
 from powergenome.external_data import make_demand_response_profiles
 from powergenome.eia_opendata import get_aeo_load
 from powergenome.params import DATA_PATHS
@@ -362,30 +367,28 @@ def make_final_load_curves(
         elif settings.get("electrification_stock_fn") and settings.get(
             "electrification_scenario"
         ):
-            from powergenome.load_construction import (
-                AddElectrification,
-                FilterTotalProfile,
-            )
 
             keep_regions, region_agg_map = regions_to_keep(
                 settings["model_regions"], settings.get("region_aggregations", {}) or {}
             )
-            elec_kwargs = {
-                "future_load_region_map": settings["future_load_region_map"],
-                "eia_aeo_year": settings["eia_aeo_year"],
-                "growth_scenario": settings["growth_scenario"],
-                "path_in": settings.get("efs_path"),
-            }
 
-            total_load = build_total_load(
+            flex_profiles = electrification_profiles(
                 settings.get("electrification_stock_fn"),
                 settings["model_year"],
                 settings.get("electrification_scenario"),
                 keep_regions,
-                settings.get("extra_outputs"),
-                **elec_kwargs,
             )
-            load_curves_dr = FilterTotalProfile(settings, total_load)
+            flex_profiles = map_agg_region_names(
+                flex_profiles, region_agg_map, "region", "model_region"
+            )
+            for region in load_curves_before_dg.columns:
+                region_flex_load = (
+                    flex_profiles.query("model_region==@region")
+                    .groupby("time_index")["load_mw"]
+                    .sum()
+                )
+                if not region_flex_load.empty:
+                    load_curves_before_dg[region] += region_flex_load["load_mw"]
         else:
             load_curves_dr = load_curves_before_dg
 
