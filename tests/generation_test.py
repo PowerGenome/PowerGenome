@@ -309,6 +309,32 @@ def test_demand_curve(test_settings):
     make_load_curves(pg_engine, test_settings)
 
 
+def test_alt_table_load_sources(CA_AZ_settings):
+    # Test with a single non-default load table
+    CA_AZ_settings["load_source_table_name"] = {
+        # "EFS": "load_curves_nrel_efs",
+        "FERC": "load_curves_ferc",
+    }
+    CA_AZ_settings["regional_load_source"] = "FERC"
+    make_final_load_curves(pg_engine, CA_AZ_settings)
+
+
+def test_combined_load_sources(CA_AZ_settings):
+    # Test with a combination of user and database load sources
+    CA_AZ_settings["regional_load_fn"] = "test_regional_load_profiles.csv"
+    CA_AZ_settings["load_source_table_name"] = {"EFS": "load_curves_nrel_efs"}
+    CA_AZ_settings["regional_load_source"] = {
+        "USER": ["CA_N", "CA_S"],
+        "EFS": ["WECC_AZ"],
+    }
+    CA_AZ_settings["load_source_table_name"] = {
+        "EFS": "load_curves_nrel_efs",
+        "FERC": "load_curves_ferc",
+    }
+    CA_AZ_settings["electrification"] = "reference"
+    make_final_load_curves(pg_engine, CA_AZ_settings)
+
+
 def test_check_settings(test_settings):
     check_settings(test_settings, pg_engine)
 
