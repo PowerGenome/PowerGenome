@@ -70,35 +70,60 @@ distributed_gen_values:
 # Distribution loss used when subtracting distributed generation from total load.
 avg_distribution_loss: 0.0453
 
+# Electrification scenarios are supplied in two files. EFS_STOCK_AGG.parquet has scenarios
+# from the NREL Electrification Futures Study (EFS). SCENARIO_STOCK.parquet has scenarios
+# from the Princeton Net Zero study. The scenario name will depend on which source you
+# use. The NREL EFS scenarios include:
+
+# HIGH ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT
+# MEDIUM ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT
+# REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT
+
+# The Princeton Net Zero scenarios include:
+
+# current_policy
+# stated_policy
+# deep_decarbonization
+# moderate_decarbonization
+
+# The type of flexible loads that can be included as flexible demand resources are:
+
+# res_space_heat_cool (residential water heating)
+# res_water_heat (commercial water heating)
+# comm_space_heat_cool (residential space heating)
+# comm_water_heat (commercial space heating)
+# trans_light_duty (light duty vehicles)
+# trans_medium_duty (medium duty vehicles)
+# trans_heavy_duty (heavy duty vehicles)
+# trans_bus (transit buses)
 
 electrification_stock_fn: EFS_STOCK_AGG.parquet  # SCENARIO_STOCK.parquet
 electrification_scenario: REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT # current_policy
-# Name of the DSM resource, fraction of load that can be shifted, and number of hours
-# that it can be shifted
-demand_response_resources:
+# # Name of the flexible resource, fraction of load that can be shifted, and model-specific
+# # parameters that will be applied to each resource.
+flexible_demand_resources:
   2030:
-    LDV_MW:
+    trans_light_duty:
       fraction_shiftable: 0.8
       parameter_values:
         Max_DSM_delay: 5
         DR: 2
-    Res_WH_MW:
+    res_water_heat:
       fraction_shiftable: 0.1
       parameter_values:
         Max_DSM_delay: 2
         DR: 2
   2045:
-    LDV_MW:
+    trans_light_duty:
       fraction_shiftable: 0.8
       parameter_values:
         Max_DSM_delay: 5
         DR: 2
-    Res_WH_MW:
+    res_water_heat:
       fraction_shiftable: 0.25
       parameter_values:
         Max_DSM_delay: 2
         DR: 2
-# demand_response: 'moderate'
 
 # Transmission financial information to calculate annual investment costs
 # capex_mw_mile: Capital cost per MW-mile for all (numeric) or each model region (dict).

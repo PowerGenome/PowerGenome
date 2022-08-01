@@ -3,6 +3,7 @@
 This file provides documentation of each parameter in the current version of PowerGenome. It attempts to provide a comprehensive description of the data type and purpose of every parameter.
 
 ## Model regions and planning periods
+
 These parameters are used to define the regions that will be included in a model - including if/how IPM regions should be aggregated into model regions - and the planning period years.
 
 ### model_regions
@@ -42,6 +43,7 @@ type: List[int]
 description: Integer values. The first year in each planning period. These are combined with the values from `model_year` to define the range of years for each planning period. Cost values (capex, fuel cost, etc) are the average of values from all years within a planning period.
 
 ## Time reduction
+
 PowerGenome can reduce hourly demand/generation data to a series of time periods/slices. These parameters control how many periods will be used, how many days each period should be, if the day with peak demand should be included, and if/how much demand should be weighted relative to generation profiles when selecting representative time periods.
 
 ### reduce_time_domain
@@ -75,6 +77,7 @@ type: int
 description: Demand and variable generation profiles are scaled from 0-1 before calculating clusters. Demand profiles are then multiplied by this parameter. Values greater than 1 will weight demand more heavily than variable generation profiles.
 
 ## Multi-scenario/period and user-input parameters
+
 Users need to supply additional information about scenarios and some data that are not yet included in PowerGenome. These parameters point to where those files are located (relative to the settings file).
 
 ### input_folder
@@ -107,7 +110,7 @@ description: Pointer to a csv file with normalized hourly generation profiles fo
 
 type: str
 
-description: Pointer to a csv file with hourly (not normalized) profiles for demand response resources in each region/year/scenario. The top four rows are 1) the name of the DR resource (matching key values in the settings parameter `demand_response_resources`), 2) the model year, 3) the scenario name (scenarios are selected using the `demand_response` settings parameter), and 4) the model region from `model_regions`.
+description: Pointer to a csv file with hourly (not normalized) profiles for demand response resources in each region/year/scenario. The top four rows are 1) the name of the DR resource (matching key values in the settings parameter `flexible_demand_resources`), 2) the model year, 3) the scenario name (scenarios are selected using the `demand_response` settings parameter), and 4) the model region from `model_regions`.
 
 ### emission_policies_fn
 
@@ -173,7 +176,7 @@ type: float
 
 description: Distribution level line-loss is used when subtracting distributed generation from total load. Total load is load at the transmission network, so it includes distribution line loss.
 
-### demand_response_resources
+### flexible_demand_resources
 
 type: dict
 
@@ -241,6 +244,7 @@ type: str
 description: The capacity of a generator is given in terms of `capacity_mw`, `winter_capacity_mw`, or `summer_capacity_mw`, representing the reported nameplate, winter, and summer capacity. Use one of these three values to determine the total capacity available in each resource cluster. Summer is usually the lowest value, and nameplate the highest.
 
 ## Classify some hydro units as "small"
+
 Some regions treat small hydroelectric generators differently for RPS eligibility, or you may want to model them as run-of-river. These parameters are used to rename some hydro resources as "Small Hydroelectic".
 
 ### small_hydro
@@ -262,6 +266,7 @@ type: list(str)
 description: Regions from `model_regions` that will have hydroelectric generators split into small and conventional. Regions not listed here will not have small hydro split out.
 
 ## Clustering existing generators
+
 PowerGenome is set up to cluster existing generating units within regions. These parameters determine how units are clustered within each region.
 
 In addition to clustering units within a technology, users can group several technologies together. This is most useful to combine several technologies with only a few units and little capacity.
@@ -309,6 +314,7 @@ type: dict
 description: Keys are model regions, values are a list with names of EIA technologies that should not be grouped into the `tech_groups` categories within that region. Exclude or set as None (~) if not used.
 
 example:
+
 ```
 regional_no_grouping:
   CA_S:
@@ -328,7 +334,7 @@ type: list
 
 description: The years of data to use when calculating capacity factors for each technology cluster.
 
-### alt_year_filters:
+### alt_year_filters
 
 type: dict
 
@@ -375,6 +381,7 @@ type: Dict[str, Dict[str, Dict[str, Union[int, float, str]]]]
 description: This parameter lets you set different tag values in specific regions. Potential use cases may include changing RPS eligibility or disallowing retirement (or new build) of a technology for a single region.
 
 ## New generating resources from NREL ATB
+
 ATB resources are identified using the *technology*, *tech detail*, and *cost case* with a string format of `<technology>_<tech detail>_<cost case>`.
 
 ### atb_financial_case
@@ -414,6 +421,7 @@ type: Dict[str, Dict[str, Union[str, list]]]
 description: This parameter modifies parameters for ATB technologies in-place (keeping the same name). Top-level keys are user names for each resource and are not used by PowerGenome. Below the top level, a dictionary with the ATB `technology` and `tech_detail` will also include keys of column names that should be modified. The values for each of these keys is a list, where the first value is a string operator name (`add`, `mul`, `truediv`, or `sub`) and the second value is the numeric value.
 
 Valid column names are
+
 - `Var_OM_cost_per_MWh`
 - `Fixed_OM_cost_per_MWyr`
 - `Fixed_OM_cost_per_MWhyr`
@@ -445,6 +453,7 @@ description: This is a mapping of EIA technology names to ATB technology strings
 type: List[list]
 
 description: This controls the types of ATB new generation that are included in the generators dataframe. Each resource is specified as a list:
+
 - technology
 - tech detail
 - cost case
@@ -467,6 +476,7 @@ description: NREL ATB PV costs are provided on a DC basis. This parameter multip
 type: List[dict]
 
 description: Specify the type of new-build resource (`utilitypv`, `landbasedwind`, or `offshorewind`), maximum capacity (MW), number of clusters, and maximum LCOE (optional) in a model region. The required keys in each dictionary are:
+
 - `region`
 - `technology`
 - `max_clusters`
