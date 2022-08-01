@@ -84,12 +84,16 @@ logger.addHandler(handler)
 # pg_engine = sqlalchemy.create_engine(
 #     "sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3")
 # )
-
+if os.name == "nt":
+    # if user is using a windows system
+    sql_prefix = "sqlite:///"
+else:
+    sql_prefix = "sqlite:////"
 pudl_engine, pudl_out, pg_engine = init_pudl_connection(
     start_year=2018,
     end_year=2020,
-    pudl_db="sqlite:////" + str(DATA_PATHS["test_data"] / "pudl_test_data.db"),
-    pg_db="sqlite:////" + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3"),
+    pudl_db=sql_prefix + str(DATA_PATHS["test_data"] / "pudl_test_data.db"),
+    pg_db=sql_prefix + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3"),
 )
 
 
@@ -305,6 +309,32 @@ def test_agg_transmission_constraints(test_settings):
 
 def test_demand_curve(test_settings):
     make_load_curves(pg_engine, test_settings)
+
+
+def test_alt_table_load_sources(CA_AZ_settings):
+    # Test with a single non-default load table
+    CA_AZ_settings["load_source_table_name"] = {
+        # "EFS": "load_curves_nrel_efs",
+        "FERC": "load_curves_ferc",
+    }
+    CA_AZ_settings["regional_load_source"] = "FERC"
+    make_final_load_curves(pg_engine, CA_AZ_settings)
+
+
+def test_combined_load_sources(CA_AZ_settings):
+    # Test with a combination of user and database load sources
+    CA_AZ_settings["regional_load_fn"] = "test_regional_load_profiles.csv"
+    CA_AZ_settings["load_source_table_name"] = {"EFS": "load_curves_nrel_efs"}
+    CA_AZ_settings["regional_load_source"] = {
+        "USER": ["CA_N", "CA_S"],
+        "EFS": ["WECC_AZ"],
+    }
+    CA_AZ_settings["load_source_table_name"] = {
+        "EFS": "load_curves_nrel_efs",
+        "FERC": "load_curves_ferc",
+    }
+    CA_AZ_settings["electrification"] = "reference"
+    make_final_load_curves(pg_engine, CA_AZ_settings)
 
 
 def test_check_settings(test_settings):
@@ -803,3 +833,73 @@ def test_flex_resources(CA_AZ_settings):
     assert len(flex_resources) == 6
     non_null_cols = ["profile", "Max_DSM_delay", "DR"]
     assert flex_resources[non_null_cols].isnull().any().any() == False
+
+
+def test_usr_tx(tmp_path):
+    settings = {
+        "input_folder": tmp_path,
+        "user_transmission_constraints_fn": "usr_tx.csv",
+        "model_regions": ["A", "B", "C"],
+        "tx_value_col": "nonfirm_ttc_mw",
+    }
+
+    usr_tx = pd.DataFrame(
+        data={
+            "region_from": ["A", "C", "C"],
+            "region_to": ["B", "A", "B"],
+            "nonfirm_ttc_mw": [100, 200, 300],
+        }
+    )
+    usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
+
+    tx_constraints = agg_transmission_constraints(pg_engine, settings=settings)
+
+    assert tx_constraints["Line_Max_Flow_MW"].to_list() == [100, 200, 300]
+
+    usr_tx = pd.DataFrame(
+        data={
+            "region_from": ["A", "C", "C"],
+            "region_to": ["B", "A", "B"],
+            "firm_ttc_mw": [100, 200, 300],
+        }
+    )
+    usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
+
+    settings["tx_value_col"] = "firm_ttc_mw"
+    tx_constraints = agg_transmission_constraints(pg_engine, settings=settings)
+
+    assert tx_constraints["Line_Max_Flow_MW"].to_list() == [100, 200, 300]
+
+    usr_tx = pd.DataFrame(
+        data={
+            "region_from": ["A", "C", "C"],
+            "region_to": ["B", "A", "B"],
+            "nonfirm_ttc_mw": [100, 200, 300],
+        }
+    )
+    usr_tx = pd.concat(
+        [
+            usr_tx,
+            usr_tx.rename(
+                columns={"region_from": "region_to", "region_to": "region_from"}
+            ),
+        ]
+    )
+    usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
+
+    settings["tx_value_col"] = "nonfirm_ttc_mw"
+    tx_constraints = agg_transmission_constraints(pg_engine, settings=settings)
+
+    assert tx_constraints["Line_Max_Flow_MW"].to_list() == [100, 200, 300]
+
+    usr_tx = pd.DataFrame(
+        data={
+            "region_from": ["A", "C", "C", "A"],
+            "region_to": ["B", "A", "B", "B"],
+            "nonfirm_ttc_mw": [100, 200, 300, 50],
+        }
+    )
+    usr_tx.to_csv(tmp_path / "usr_tx.csv", index=False)
+
+    with pytest.raises(KeyError):
+        agg_transmission_constraints(pg_engine, settings=settings)

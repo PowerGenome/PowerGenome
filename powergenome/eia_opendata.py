@@ -258,7 +258,10 @@ def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFram
 
 
 def get_aeo_load(
-    region: str, aeo_year: Union[str, numeric], scenario_series: str
+    region: str,
+    aeo_year: Union[str, numeric],
+    scenario_series: str,
+    sector: str = "ELEP",
 ) -> pd.DataFrame:
     """Find the electricity demand in a single AEO region. Use EIA API if data has not
     been previously saved.
@@ -295,7 +298,7 @@ def get_aeo_load(
     API_KEY = SETTINGS["EIA_API_KEY"]
 
     SERIES_ID = (
-        f"AEO.{aeo_year}.{scenario_series}.CNSM_NA_ELEP_NA_ELC_NA_{region}_BLNKWH.A"
+        f"AEO.{aeo_year}.{scenario_series}.CNSM_NA_{sector}_NA_ELC_NA_{region}_BLNKWH.A"
     )
 
     df = load_aeo_series(SERIES_ID, API_KEY, columns=["year", "demand"])

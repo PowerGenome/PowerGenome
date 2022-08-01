@@ -12,7 +12,6 @@ import powergenome
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import (
     GeneratorClusters,
-    load_ipm_shapefile,
     add_fuel_labels,
     add_genx_model_tags,
 )
@@ -51,6 +50,7 @@ from powergenome.util import (
     update_dictionary,
     write_case_settings_file,
     write_results_file,
+    load_ipm_shapefile,
 )
 
 if not sys.warnoptions:
@@ -257,7 +257,7 @@ def main():
                     gen_clusters = hydro_energy_to_power(
                         gen_clusters,
                         _settings.get("hydro_factor"),
-                        _settings.get("regional_hydro_factor"),
+                        _settings.get("regional_hydro_factor", {}),
                     )
 
                     # Save existing resources that aren't demand response for use in
@@ -398,6 +398,9 @@ def main():
                 if _settings.get("emission_policies_fn"):
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
+                else:
+                    energy_share_req = None
+                    co2_cap = None
                 min_cap = min_cap_req(_settings)
                 max_cap = max_cap_req(_settings)
 
