@@ -257,7 +257,7 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
     if "sector" in load_curves.columns:
         load_sectors = set(load_curves.sector.unique())
         aeo_sectors = set(aeo_sector_map)
-        if not all([s in load_sectors for s in aeo_sectors]):
+        if not all([s in aeo_sectors for s in load_sectors]):
             missing_sectors = list(load_sectors - aeo_sectors)
             logger.warning(
                 "*********************\n"
@@ -552,7 +552,7 @@ def make_final_load_curves(
         s = """
         *****************************
         Regional load data sources have not been specified. Defaulting to EFS load data.
-        Check you settings file, and please specify the preferred source for load data
+        Check your settings file, and please specify the preferred source for load data
         (FERC, EFS, USER) either for each region or for the entire system with the setting
         "regional_load_source".
         *****************************
@@ -595,7 +595,7 @@ def make_final_load_curves(
     elif settings.get("electrification_stock_fn") and settings.get(
         "electrification_scenario"
     ):
-
+        load_curves_before_dg = load_curves_before_dr.copy()
         keep_regions, region_agg_map = regions_to_keep(
             settings["model_regions"], settings.get("region_aggregations", {}) or {}
         )
@@ -616,7 +616,7 @@ def make_final_load_curves(
                 .sum()
             )
             if not region_flex_load.empty:
-                load_curves_before_dg[region] += region_flex_load["load_mw"]
+                load_curves_before_dg[region] += region_flex_load
     else:
         load_curves_before_dg = load_curves_before_dr
 

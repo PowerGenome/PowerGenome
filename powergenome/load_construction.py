@@ -199,18 +199,27 @@ def electrification_profiles(
     Returns
     -------
     pd.DataFrame
-        Columns include "time_index", "region"
+        Columns include "time_index", "region", "load_mw", and "resource".
 
     Raises
     ------
+    KeyError
+        No "EFS_DATA" key is included in the .env file.
+    FileNotFoundError
+        The "EFS_DATA" or "path_in" folder does not exist.
     ValueError
-        _description_
+        The "electrificication_scenario" parameter does not match scenarios in the stock
+        file.
     """
     if not path_in:
         try:
             path_in = Path(SETTINGS["EFS_DATA"])
         except TypeError:
-            logger.warning("The variable 'EFS_DATA' is not included in your .env file.")
+            raise KeyError("The variable 'EFS_DATA' is not included in your .env file.")
+    if not path_in.is_dir():
+        raise FileNotFoundError(
+            f"The folder with EFS/flexible demand data ({str(path_in)}) was not found."
+        )
 
     pop_files = path_in.glob("*pop_weight*")
     newest_pop_file = max(pop_files, key=os.path.getctime)
