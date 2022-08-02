@@ -389,8 +389,16 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
                 years_growth = settings["model_year"] - year
                 for region, rate in (settings.get("alt_growth_rate") or {}).items():
-                    if isinstance(rate, dict) and rate.get(sector):
-                        growth_factor[region] = (1 + rate["sector"]) ** years_growth
+                    if isinstance(rate, dict):
+                        if rate.get(sector):
+                            growth_factor[region] = (1 + rate["sector"]) ** years_growth
+                        else:
+                            raise KeyError(
+                                f"You specified a sector specific alt_growth_rate for the "
+                                f"region '{region}'. The demand data has a sector {sector}, "
+                                f"which you did not specify a rate for. Without a sector "
+                                "specific growth rate the demand will not be increased."
+                            )
                 for region in keep_regions:
                     _df.loc[_df["region"] == region, "load_mw"] *= growth_factor[region]
                 df_list.append(_df)

@@ -152,10 +152,7 @@ def test_settings():
 @pytest.fixture(scope="module")
 def CA_AZ_settings():
     settings = load_settings(
-        DATA_PATHS["powergenome"].parent
-        / "example_systems"
-        / "CA_AZ"
-        / "test_settings_atb2020.yml"
+        DATA_PATHS["powergenome"].parent / "example_systems" / "CA_AZ" / "settings"
     )
     settings["input_folder"] = Path(
         DATA_PATHS["powergenome"].parent
@@ -198,7 +195,7 @@ def test_load_single_settings():
         DATA_PATHS["powergenome"].parent
         / "example_systems"
         / "CA_AZ"
-        / "test_settings_atb2020.yml"
+        / "combined_settings.yml"
     )
 
 

@@ -13,6 +13,7 @@ model_tag_names:
   - STOR
   - FLEX
   - HYDRO
+  - LDS
   - Commit
   - ESR_1
   - ESR_2
