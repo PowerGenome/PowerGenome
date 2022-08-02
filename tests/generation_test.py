@@ -50,7 +50,11 @@ from powergenome.generators import (
     GeneratorClusters,
     energy_storage_mwh,
 )
-from powergenome.load_profiles import make_final_load_curves, make_load_curves
+from powergenome.load_profiles import (
+    add_load_growth,
+    make_final_load_curves,
+    make_load_curves,
+)
 from powergenome.params import DATA_PATHS  # , SETTINGS
 from powergenome.transmission import (
     agg_transmission_constraints,
@@ -903,3 +907,61 @@ def test_usr_tx(tmp_path):
 
     with pytest.raises(KeyError):
         agg_transmission_constraints(pg_engine, settings=settings)
+
+
+def test_load_growth(CA_AZ_settings):
+    data = {
+        "year": [2019] * 3,
+        "region": ["WECC_AZ"] * 3,
+        "time_index": [1] * 3,
+        "sector": ["commercial", "residential", "industrial"],
+        "load_mw": [1, 1, 1],
+    }
+
+    load_curves = pd.DataFrame(data)
+
+    load_curves = add_load_growth(load_curves, CA_AZ_settings)
+
+    assert all(load_curves["load_mw"] > 1)
+
+    data = {
+        "year": [2017] * 3,
+        "region": ["WECC_AZ"] * 3,
+        "time_index": [1] * 3,
+        "sector": ["commercial", "residential", "industrial"],
+        "load_mw": [1, 1, 1],
+    }
+
+    load_curves_2 = pd.DataFrame(data)
+
+    load_curves_2 = add_load_growth(load_curves_2, CA_AZ_settings)
+
+    assert all(load_curves["load_mw"] < load_curves_2["load_mw"])
+
+    data = {
+        "year": [2019] * 3,
+        "region": ["WECC_AZ"] * 3,
+        "time_index": [1] * 3,
+        "load_mw": [1, 1, 1],
+    }
+
+    load_curves_3 = pd.DataFrame(data)
+
+    load_curves_3 = add_load_growth(load_curves_3, CA_AZ_settings)
+
+    assert all(load_curves_3["load_mw"] > 1)
+    assert load_curves_3.iloc[0, -1] == load_curves_3.iloc[1, -1]
+
+    data = {
+        "year": [2017] * 3,
+        "region": ["WECC_AZ"] * 3,
+        "time_index": [1] * 3,
+        "load_mw": [1, 1, 1],
+    }
+
+    load_curves_4 = pd.DataFrame(data)
+
+    load_curves_4 = add_load_growth(load_curves_4, CA_AZ_settings)
+
+    assert load_curves_4.iloc[0, -1] == load_curves_4.iloc[1, -1]
+    assert all(load_curves_3["load_mw"] < load_curves_4["load_mw"])

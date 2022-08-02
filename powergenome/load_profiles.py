@@ -348,7 +348,7 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
                     df.loc[df["region"] == region, "load_mw"] *= growth_factor[region]
                 old_aeo_list.append(df)
 
-            load_curves = pd.concat(old_aeo_list, ignore_index=True)
+            df = pd.concat(old_aeo_list, ignore_index=True)
 
             # Reset the "year" variable to 2019, which is where load data should be adjusted
             # to at this point.
