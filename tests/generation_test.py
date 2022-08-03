@@ -55,7 +55,7 @@ from powergenome.load_profiles import (
     make_final_load_curves,
     make_load_curves,
 )
-from powergenome.params import DATA_PATHS  # , SETTINGS
+from powergenome.params import DATA_PATHS, SETTINGS  # , SETTINGS
 from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
@@ -319,6 +319,7 @@ def test_alt_table_load_sources(CA_AZ_settings):
         "FERC": "load_curves_ferc",
     }
     CA_AZ_settings["regional_load_source"] = "FERC"
+    CA_AZ_settings["EFS_DATA"] = DATA_PATHS["test_data"] / "efs"
     make_final_load_curves(pg_engine, CA_AZ_settings)
 
 
@@ -334,7 +335,7 @@ def test_combined_load_sources(CA_AZ_settings):
         "EFS": "load_curves_nrel_efs",
         "FERC": "load_curves_ferc",
     }
-    CA_AZ_settings["electrification"] = "reference"
+    CA_AZ_settings["EFS_DATA"] = DATA_PATHS["test_data"] / "efs"
     make_final_load_curves(pg_engine, CA_AZ_settings)
 
 
@@ -366,6 +367,7 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
         }
     }
     CA_AZ_settings["modified_atb_new_gen"]["NGCCS100"]["heat_rate"] = 7.5
+    CA_AZ_settings["EFS_DATA"] = DATA_PATHS["test_data"] / "efs"
     gc = GeneratorClusters(
         pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=False
     )
@@ -806,7 +808,6 @@ def test_flex_resources(CA_AZ_settings):
     CA_AZ_settings[
         "electrification_scenario"
     ] = "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
-    CA_AZ_settings.pop("demand_response_fn")
     CA_AZ_settings["flexible_demand_resources"] = {
         2035: {
             "trans_light_duty": {

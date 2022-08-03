@@ -613,6 +613,7 @@ def make_final_load_curves(
             settings["model_year"],
             settings.get("electrification_scenario"),
             keep_regions,
+            settings.get("EFS_DATA"),
         )
         flex_profiles = map_agg_region_names(
             flex_profiles, region_agg_map, "region", "model_region"

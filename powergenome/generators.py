@@ -2702,7 +2702,7 @@ class GeneratorClusters:
                     self.settings.get("electrification_scenario"),
                     keep_regions,
                     self.settings.get("region_aggregations", {}) or {},
-                    self.settings.get("efs_path"),
+                    self.settings.get("EFS_DATA"),
                 )
             self.demand_response_profiles[resource] = dr_profile
             # Add hourly profile to demand response rows

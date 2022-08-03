@@ -160,7 +160,7 @@ def agg_transmission_constraints(
         (transmission_constraints_table.region_from.isin(keep_regions))
         & (transmission_constraints_table.region_to.isin(keep_regions)),
         :,
-    ].drop(columns="id")
+    ].drop(columns="id", errors="ignore")
 
     logger.info("Map and aggregate region names for transmission constraints")
     for col in ["region_from", "region_to"]:
