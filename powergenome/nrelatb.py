@@ -89,11 +89,19 @@ def fetch_atb_costs(
         "fixed_o_m_mwh",
     )
     # add_pv_wacc = True
+    cols = ["technology", "tech_detail", "financial_case", "cost_case", "atb_year"]
+    valid_inputs = db_col_values(pg_engine, "technology_costs_nrelatb", cols)
     for tech in techs + mod_techs:
         tech, tech_detail, cost_case, _ = tech
         # if tech == "UtilityPV":
         #     add_pv_wacc = False
-
+        tech_params = [tech, tech_detail, fin_case, cost_case, atb_year]
+        for param in tech_params:
+            if param not in valid_inputs:
+                raise ValueError(
+                    f"When getting technology costs, the parameter {param} does not have "
+                    "a valid matching value in the database table."
+                )
         s = f"""
         SELECT technology, tech_detail, cost_case, parameter, basis_year, parameter_value, dollar_year
         from technology_costs_nrelatb
@@ -253,6 +261,37 @@ def fetch_atb_costs(
         atb_costs = atb_costs.reset_index()
 
     return atb_costs
+
+
+def db_col_values(
+    engine: sqlalchemy.engine, table: str, cols: List[str]
+) -> List[Union[str, int]]:
+    """Find all distinct values in one or more columns of a database table.
+
+    This function can be used to check user inputs that are applied as filters against
+    existing table values to reduce the risk of SQL injection attacks. All distinct
+    values are returned in a single list for simplicity.
+
+    Parameters
+    ----------
+    engine : sqlalchemy.engine
+        Connection engine to the database.
+    table : str
+        Name of the database table.
+    cols : List[str]
+        Name of the column(s) to check.
+
+    Returns
+    -------
+    List[Union[str, int]]
+        All distinct values from the database table column(s).
+    """
+    valid_inputs = []
+    for col in cols:
+        s = f"SELECT DISTINCT {col} from {table}"
+        valid_inputs.extend(pd.read_sql_query(s, engine)[col].to_list())
+
+    return valid_inputs
 
 
 def fetch_atb_offshore_spur_costs(

@@ -23,6 +23,7 @@ from powergenome.eia_opendata import add_user_fuel_prices
 from powergenome.external_data import make_generator_variability
 
 from powergenome.fuels import fuel_cost_table
+from powergenome.nrelatb import db_col_values
 
 CWD = Path.cwd()
 # os.environ["RESOURCE_GROUPS"] = str(CWD / "data" / "resource_groups_base")
@@ -963,3 +964,8 @@ def test_load_growth(CA_AZ_settings):
 
     assert load_curves_4.iloc[0, -1] == load_curves_4.iloc[1, -1]
     assert all(load_curves_3["load_mw"] < load_curves_4["load_mw"])
+
+
+def test_db_col_values():
+    values = db_col_values(pg_engine, "technology_costs_nrelatb", ["technology"])
+    assert "NaturalGas" in values
