@@ -23,6 +23,7 @@ from powergenome.eia_opendata import add_user_fuel_prices
 from powergenome.external_data import make_generator_variability
 
 from powergenome.fuels import fuel_cost_table
+from powergenome.nrelatb import db_col_values
 
 CWD = Path.cwd()
 # os.environ["RESOURCE_GROUPS"] = str(CWD / "data" / "resource_groups_base")
