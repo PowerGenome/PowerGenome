@@ -23,6 +23,7 @@ from powergenome.eia_opendata import add_user_fuel_prices
 from powergenome.external_data import make_generator_variability
 
 from powergenome.fuels import fuel_cost_table
+from powergenome.nrelatb import db_col_values
 
 CWD = Path.cwd()
 # os.environ["RESOURCE_GROUPS"] = str(CWD / "data" / "resource_groups_base")
@@ -830,3 +831,8 @@ def test_usr_tx(tmp_path):
 
     with pytest.raises(KeyError):
         agg_transmission_constraints(pg_engine, settings=settings)
+
+
+def test_db_col_values():
+    values = db_col_values(pg_engine, "technology_costs_nrelatb", ["technology"])
+    assert "NaturalGas" in values
