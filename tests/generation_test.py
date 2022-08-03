@@ -830,3 +830,8 @@ def test_usr_tx(tmp_path):
 
     with pytest.raises(KeyError):
         agg_transmission_constraints(pg_engine, settings=settings)
+
+
+def test_db_col_values():
+    values = db_col_values(pg_engine, "technology_costs_nrelatb", ["technology"])
+    assert "NaturalGas" in values
