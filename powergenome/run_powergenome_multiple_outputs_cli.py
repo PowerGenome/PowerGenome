@@ -225,7 +225,8 @@ def main():
             case_folder = (
                 out_folder / f"{year}" / f"{case_id}_{year}_{_settings['case_name']}"
             )
-
+            _settings["extra_outputs"] = case_folder / "extra_outputs"
+            _settings["extra_outputs"].mkdir(parents=True, exist_ok=True)
             if i == 0:
                 if args.gens:
                     gc = GeneratorClusters(
@@ -347,6 +348,7 @@ def main():
                     file_name="Load_data.csv",
                     include_index=False,
                 )
+
                 write_results_file(
                     df=reduced_resource_profile,
                     folder=case_folder,

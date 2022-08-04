@@ -11,9 +11,15 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
+from powergenome.load_construction import electrification_profiles
 from powergenome.eia_opendata import get_aeo_load
 from powergenome.external_data import make_demand_response_profiles
-from powergenome.util import regions_to_keep, remove_feb_29, reverse_dict_of_lists
+from powergenome.util import (
+    map_agg_region_names,
+    regions_to_keep,
+    reverse_dict_of_lists,
+    remove_feb_29,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +125,9 @@ def make_load_curves(
     """
     # IPM regions to keep. Regions not in this list will be dropped from the
     # dataframe
-    keep_regions, region_agg_map = regions_to_keep(settings)
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations")
+    )
 
     # I'd rather use a sql query and only pull the regions of interest but
     # sqlalchemy doesn't allow table names to be parameterized.
@@ -220,7 +228,7 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         Tidy dataframe of load curves with columns "region", "load_mw", and optionally
         "sector".
     settings : dict
-        User settings parameters. Should include "historical_load_region_maps",
+        User settings parameters. Should include "historical_load_region_map",
         "future_load_region_map", and "model_year". Optional parameters include
         "aeo_sector_map" (mapping load sectors to AEO API sector names), and
         "alt_growth_rate" (either single growth rates for each region or sector-level
@@ -233,8 +241,10 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         Modified version of input dataframe to account for load growth from base year
         to model planning year.
     """
-    keep_regions, region_agg_map = regions_to_keep(settings)
-    hist_region_map = reverse_dict_of_lists(settings["historical_load_region_maps"])
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations")
+    )
+    hist_region_map = reverse_dict_of_lists(settings["historical_load_region_map"])
     future_region_map = reverse_dict_of_lists(settings["future_load_region_map"])
     aeo_sector_map = settings.get("aeo_sector_map")
     if not settings.get("aeo_sector_map"):
@@ -247,7 +257,7 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
     if "sector" in load_curves.columns:
         load_sectors = set(load_curves.sector.unique())
         aeo_sectors = set(aeo_sector_map)
-        if not all([s in load_sectors for s in aeo_sectors]):
+        if not all([s in aeo_sectors for s in load_sectors]):
             missing_sectors = list(load_sectors - aeo_sectors)
             logger.warning(
                 "*********************\n"
@@ -338,7 +348,7 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
                     df.loc[df["region"] == region, "load_mw"] *= growth_factor[region]
                 old_aeo_list.append(df)
 
-            load_curves = pd.concat(old_aeo_list, ignore_index=True)
+            df = pd.concat(old_aeo_list, ignore_index=True)
 
             # Reset the "year" variable to 2019, which is where load data should be adjusted
             # to at this point.
@@ -379,8 +389,16 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
                 years_growth = settings["model_year"] - year
                 for region, rate in (settings.get("alt_growth_rate") or {}).items():
-                    if isinstance(rate, dict) and rate.get(sector):
-                        growth_factor[region] = (1 + rate["sector"]) ** years_growth
+                    if isinstance(rate, dict):
+                        if rate.get(sector):
+                            growth_factor[region] = (1 + rate["sector"]) ** years_growth
+                        else:
+                            raise KeyError(
+                                f"You specified a sector specific alt_growth_rate for the "
+                                f"region '{region}'. The demand data has a sector {sector}, "
+                                f"which you did not specify a rate for. Without a sector "
+                                "specific growth rate the demand will not be increased."
+                            )
                 for region in keep_regions:
                     _df.loc[_df["region"] == region, "load_mw"] *= growth_factor[region]
                 df_list.append(_df)
@@ -428,13 +446,17 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
 def add_demand_response_resource_load(load_curves, settings):
 
     dr_path = Path(settings["input_folder"]) / settings["demand_response_fn"]
-    dr_types = settings["demand_response_resources"][settings["model_year"]].keys()
+    dr_types = settings["flexible_demand_resources"][settings["model_year"]].keys()
 
-    dr_curves = make_demand_response_profiles(dr_path, list(dr_types)[0], settings)
+    dr_curves = make_demand_response_profiles(
+        dr_path, list(dr_types)[0], settings["model_year"], settings["demand_response"]
+    )
 
     if len(dr_types) > 1:
         for dr in dr_types[1:]:
-            _dr_curves = make_demand_response_profiles(dr_path, dr, settings)
+            _dr_curves = make_demand_response_profiles(
+                dr_path, dr, settings["model_year"], settings["demand_response"]
+            )
             dr_curves = dr_curves + _dr_curves
 
     for col in dr_curves.columns:
@@ -538,7 +560,7 @@ def make_final_load_curves(
         s = """
         *****************************
         Regional load data sources have not been specified. Defaulting to EFS load data.
-        Check you settings file, and please specify the preferred source for load data
+        Check your settings file, and please specify the preferred source for load data
         (FERC, EFS, USER) either for each region or for the entire system with the setting
         "regional_load_source".
         *****************************
@@ -578,6 +600,32 @@ def make_final_load_curves(
         load_curves_before_dg = add_demand_response_resource_load(
             load_curves_before_dr, settings
         )
+    elif settings.get("electrification_stock_fn") and settings.get(
+        "electrification_scenario"
+    ):
+        load_curves_before_dg = load_curves_before_dr.copy()
+        keep_regions, region_agg_map = regions_to_keep(
+            settings["model_regions"], settings.get("region_aggregations", {}) or {}
+        )
+
+        flex_profiles = electrification_profiles(
+            settings.get("electrification_stock_fn"),
+            settings["model_year"],
+            settings.get("electrification_scenario"),
+            keep_regions,
+            settings.get("EFS_DATA"),
+        )
+        flex_profiles = map_agg_region_names(
+            flex_profiles, region_agg_map, "region", "model_region"
+        )
+        for region in load_curves_before_dg.columns:
+            region_flex_load = (
+                flex_profiles.query("model_region==@region")
+                .groupby("time_index")["load_mw"]
+                .sum()
+            )
+            if not region_flex_load.empty:
+                load_curves_before_dg[region] += region_flex_load
     else:
         load_curves_before_dg = load_curves_before_dr
 

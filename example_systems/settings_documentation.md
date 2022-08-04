@@ -3,6 +3,7 @@
 This file provides documentation of each parameter in the current version of PowerGenome. It attempts to provide a comprehensive description of the data type and purpose of every parameter.
 
 ## Model regions and planning periods
+
 These parameters are used to define the regions that will be included in a model - including if/how IPM regions should be aggregated into model regions - and the planning period years.
 
 ### model_regions
@@ -34,7 +35,6 @@ type: Dict[str, Dict[str, float]]
 
 description: A nested dictionary of capacity reserve constraints for model regions. The top-level keys are of form `CapRes_<num>`. The next level of keys are model regions, with values equal to the capacity reserve requirements.
 
-
 ### cap_res_network_derate_default
 
 type: float
@@ -55,6 +55,7 @@ type: List[int]
 description: Integer values. The first year in each planning period. These are combined with the values from `model_year` to define the range of years for each planning period. Cost values (capex, fuel cost, etc) are the average of values from all years within a planning period.
 
 ## Time reduction
+
 PowerGenome can reduce hourly demand/generation data to a series of time periods/slices. These parameters control how many periods will be used, how many days each period should be, if the day with peak demand should be included, and if/how much demand should be weighted relative to generation profiles when selecting representative time periods.
 
 ### reduce_time_domain
@@ -88,6 +89,7 @@ type: int
 description: Demand and variable generation profiles are scaled from 0-1 before calculating clusters. Demand profiles are then multiplied by this parameter. Values greater than 1 will weight demand more heavily than variable generation profiles.
 
 ## Multi-scenario/period and user-input parameters
+
 Users need to supply additional information about scenarios and some data that are not yet included in PowerGenome. These parameters point to where those files are located (relative to the settings file).
 
 ### input_folder
@@ -120,7 +122,7 @@ description: Pointer to a csv file with normalized hourly generation profiles fo
 
 type: str
 
-description: Pointer to a csv file with hourly (not normalized) profiles for demand response resources in each region/year/scenario. The top four rows are 1) the name of the DR resource (matching key values in the settings parameter `demand_response_resources`), 2) the model year, 3) the scenario name (scenarios are selected using the `demand_response` settings parameter), and 4) the model region from `model_regions`.
+description: Pointer to a csv file with hourly (not normalized) profiles for demand response resources in each region/year/scenario. The top four rows are 1) the name of the DR resource (matching key values in the settings parameter `flexible_demand_resources`), 2) the model year, 3) the scenario name (scenarios are selected using the `demand_response` settings parameter), and 4) the model region from `model_regions`.
 
 ### emission_policies_fn
 
@@ -192,7 +194,7 @@ type: float
 
 description: Distribution level line-loss is used when subtracting distributed generation from total load. Total load is load at the transmission network, so it includes distribution line loss.
 
-### demand_response_resources
+### flexible_demand_resources
 
 type: dict
 
@@ -260,6 +262,7 @@ type: str
 description: The capacity of a generator is given in terms of `capacity_mw`, `winter_capacity_mw`, or `summer_capacity_mw`, representing the reported nameplate, winter, and summer capacity. Use one of these three values to determine the total capacity available in each resource cluster. Summer is usually the lowest value, and nameplate the highest.
 
 ## Classify some hydro units as "small"
+
 Some regions treat small hydroelectric generators differently for RPS eligibility, or you may want to model them as run-of-river. These parameters are used to rename some hydro resources as "Small Hydroelectic".
 
 ### small_hydro
@@ -281,6 +284,7 @@ type: list(str)
 description: Regions from `model_regions` that will have hydroelectric generators split into small and conventional. Regions not listed here will not have small hydro split out.
 
 ## Clustering existing generators
+
 PowerGenome is set up to cluster existing generating units within regions. These parameters determine how units are clustered within each region.
 
 In addition to clustering units within a technology, users can group several technologies together. This is most useful to combine several technologies with only a few units and little capacity.
@@ -328,6 +332,7 @@ type: dict
 description: Keys are model regions, values are a list with names of EIA technologies that should not be grouped into the `tech_groups` categories within that region. Exclude or set as None (~) if not used.
 
 example:
+
 ```
 regional_no_grouping:
   CA_S:
@@ -347,7 +352,7 @@ type: list
 
 description: The years of data to use when calculating capacity factors for each technology cluster.
 
-### alt_year_filters:
+### alt_year_filters
 
 type: dict
 
@@ -409,6 +414,7 @@ type: Dict[str, Dict[str, Union[int, float, str]]]
 description: This parameter specifies minimum capacity requirements. The top-level key (of format `MinCapTag_<*>`) is a model tag linking individual resources to a requirement. The next level of the nested dictionary has keys `description` and `min_mw`, specifying a short description of the capacity requirement and how many MWs are needed to satisfy it.
 
 ## New generating resources from NREL ATB
+
 ATB resources are identified using the *technology*, *tech detail*, and *cost case* with a string format of `<technology>_<tech detail>_<cost case>`.
 
 ### atb_data_year
@@ -448,6 +454,7 @@ type: Dict[str, Dict[str, Union[str, Union[list, float]]]
 description: This parameter modifies parameters for ATB technologies in-place (keeping the same name). Top-level keys are user names for each resource and are not used by PowerGenome. Below the top level, a dictionary with the ATB `technology` and `tech_detail` will also include keys of column names that should be modified. The values for each of these keys is either 1) a list, where the first value is a string operator name (`add`, `mul`, `truediv`, or `sub`) and the second value is the numeric value, or 2) a numeric value (`int` or `float`) that will directly replace the ATB value.
 
 Valid column names are
+
 - `Var_OM_Cost_per_MWh`
 - `Fixed_OM_Cost_per_MWyr`
 - `Fixed_OM_Cost_per_MWhyr`
@@ -479,6 +486,7 @@ description: This is a mapping of EIA technology names to ATB technology strings
 type: List[list]
 
 description: This controls the types of ATB new generation that are included in the generators dataframe. Each resource is specified as a list:
+
 - technology
 - tech detail
 - cost case
@@ -495,6 +503,7 @@ description: Not all resources are available in all regions. The top-level keys 
 type: List[dict]
 
 description: Specify the type of new-build resource (`utilitypv`, `landbasedwind`, or `offshorewind`), maximum capacity (MW), number of clusters, and maximum LCOE (optional) in a model region. The required keys in each dictionary are:
+
 - `region`
 - `technology`
 - `max_clusters`
@@ -506,7 +515,7 @@ The optional key `max_lcoe` can be used as a rough cost-cutoff. It uses a pre-ca
 
 Technologies that have additional characteristics need to have those parameters specified in the dictionary. An example of this is `offshorewind`, where the parameters `turbine_type` (`fixed` or `floating`) and `pref_site` (`0` or `1`) must be included. `pref_site` is a boolean variable indicating if the project site is included in a BOEM lease area or an NREL study of Pacific floating wind.
 
-### cost_multiplier_fn:
+### cost_multiplier_fn
 
 type: str
 
@@ -617,6 +626,7 @@ description: This is where users can define their own fuel types that aren't inc
 type: Dict[str, int]
 
 description: The dollar year of price data for each user fuel. Only a single value is allowed, unlike the regional option in `user_fuel_prices`. If no dollar year is given for a user fuel the price will not be modified to match `target_usd_year`.
+
 ### ccs_fuel_map
 
 type: Dict[str, str]

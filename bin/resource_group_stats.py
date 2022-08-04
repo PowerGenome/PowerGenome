@@ -87,7 +87,9 @@ def main():
 
     if args.settings_file:
         settings = load_settings(args.settings_file)
-        keep_regions, region_agg_map = regions_to_keep(settings)
+        keep_regions, region_agg_map = regions_to_keep(
+            settings["model_regions"], settings.get("region_aggregations")
+        )
     else:
         settings = {}
 

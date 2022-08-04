@@ -121,7 +121,7 @@ energy_storage_duration:
 
 # Generator cost data from NREL ATB
 
-atb_data_year: 2021
+atb_data_year: 2022
 atb_financial_case: Market
 atb_cap_recovery_years: 20
 
@@ -135,7 +135,7 @@ alt_atb_cap_recovery_years:
   Nuclear: 40
 
 # The year of NREL ATB data to use for matching existing generators (O&M costs)
-atb_existing_year: 2019
+atb_existing_year: 2020
 
 # ****UPDATE WITH ATB2021*****
 # ATB 2021 uses data from NETL for fossil fuel technologies, so it is no longer necessary

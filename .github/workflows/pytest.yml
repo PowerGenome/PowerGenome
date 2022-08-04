@@ -3,7 +3,7 @@ name: pytest
 on: [push]
 
 jobs:
-  build-linux:
+  build:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -15,8 +15,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v2
+    - uses: conda-incubator/setup-miniconda@v2
       with:
         python-version: 3.9
     - name: mamba
@@ -35,17 +34,6 @@ jobs:
         conda config --show-sources
         conda config --show
         printenv | sort
-
-    # - name: Add conda to system path
-    #   run: |
-    #     # $CONDA is an environment variable pointing to the root of the miniconda directory
-    #     echo $CONDA/bin >> $GITHUB_PATH
-    # - name: install mamba
-    #   run: |
-    #     conda install mamba -n base -c conda-forge
-    # - name: Install dependencies
-    #   run: |
-    #     mamba env update --file environment.yml --name base
     - name: install powergenome
       run: |
         pip install -e .
@@ -66,4 +54,4 @@ jobs:
         pip install pytest-cov
         pytest --cov=powergenome tests/ --cov-report=xml
     - name: Upload test coverage report to CodeCov
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3

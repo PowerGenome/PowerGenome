@@ -1,5 +1,6 @@
 import collections
 from copy import deepcopy
+import functools
 import itertools
 import logging
 import re
@@ -16,6 +17,7 @@ from flatten_dict import flatten
 import yaml
 from ruamel.yaml import YAML
 from pathlib import Path
+from frozendict import frozendict
 
 from powergenome.params import IPM_GEOJSON_PATH, SETTINGS
 
@@ -50,6 +52,24 @@ def load_settings(path: Union[str, Path]) -> dict:
             if s:
                 settings.update(s)
 
+    return fix_param_names(settings)
+
+
+def fix_param_names(settings: dict) -> dict:
+
+    fix_params = {
+        "historical_load_region_maps": "historical_load_region_map",
+        "demand_response_resources": "flexible_demand_resources",
+    }
+    for k, v in fix_params.items():
+        if k in settings:
+            settings[v] = settings[k]
+            s = f"""
+            The settings parameter named {k} has been changed to {v}. Please correct it in
+            your settings file.
+
+            """
+            logger.warning(s)
     return settings
 
 
@@ -596,7 +616,9 @@ def find_centroid(gdf):
     return centroid
 
 
-def regions_to_keep(settings: dict) -> Tuple[list, dict]:
+def regions_to_keep(
+    model_regions: List[str], region_aggregations: dict = {}
+) -> Tuple[list, dict]:
     """Create a list of all IPM regions that are used in the model, either as single
     regions or as part of a user-defined model region. Also includes the aggregate
     regions defined by user.
@@ -613,12 +635,12 @@ def regions_to_keep(settings: dict) -> Tuple[list, dict]:
         All of the IPM regions and user defined model regions.
     """
     # Settings has a dictionary of lists for regional aggregations.
-    region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations"))
+    region_agg_map = reverse_dict_of_lists(region_aggregations)
 
     # IPM regions to keep - single in model_regions plus those aggregated by the user
     keep_regions = [
         x
-        for x in settings["model_regions"] + list(region_agg_map)
+        for x in model_regions + list(region_agg_map)
         if x not in region_agg_map.values()
     ]
     return keep_regions, region_agg_map
@@ -794,7 +816,9 @@ def load_ipm_shapefile(settings: dict, path: Union[str, Path] = IPM_GEOJSON_PATH
     geodataframe
         Regions to use in the study with the matching geometry for each.
     """
-    keep_regions, region_agg_map = regions_to_keep(settings)
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations", {}) or {}
+    )
 
     ipm_regions = gpd.read_file(path)
     ipm_regions = ipm_regions.rename(columns={"IPM_Region": "region"})
@@ -819,3 +843,35 @@ def load_ipm_shapefile(settings: dict, path: Union[str, Path] = IPM_GEOJSON_PATH
     ).reset_index(drop=True)
 
     return model_regions_gdf
+
+
+def deep_freeze(thing):
+    """
+    https://stackoverflow.com/a/66729248/3393071
+    """
+    from collections.abc import Collection, Mapping, Hashable
+    from frozendict import frozendict
+
+    if thing is None or isinstance(thing, str):
+        return thing
+    elif isinstance(thing, Mapping):
+        return frozendict({k: deep_freeze(v) for k, v in thing.items()})
+    elif isinstance(thing, Collection):
+        return tuple(deep_freeze(i) for i in thing)
+    elif not isinstance(thing, Hashable):
+        raise TypeError(f"unfreezable type: '{type(thing)}'")
+    else:
+        return thing
+
+
+def deep_freeze_args(func):
+    """
+    https://stackoverflow.com/a/66729248/3393071
+    """
+    import functools
+
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        return func(*deep_freeze(args), **deep_freeze(kwargs))
+
+    return wrapped

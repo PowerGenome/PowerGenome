@@ -1,6 +1,6 @@
 # Flexible loads associated with increased electrification can be included using data
 # from NREL's EFS study (described below) or using user input files. This case study
-# uses input files rather than the EFS data. The
+# uses EFS data.
 
 
 # Electrification scenarios are supplied in two files. EFS_STOCK_AGG.parquet has scenarios
@@ -19,27 +19,46 @@
 # deep_decarbonization
 # moderate_decarbonization
 
-# The type of flexible loads that can be included as demand response resources are:
+# The type of flexible loads that can be included as flexible demand resources (with hourly
+# profiles from NREL EFS data) are:
 
-# Res_WH_MW (residential water heating)
-# Com_WH_MW (commercial water heating)
-# Res_SPH_MW (residential space heating)
-# Com_SPH_MW (commercial space heating)
-# LDV_MW (light duty vehicles)
-# MDV_MW (medium duty vehicles)
-# HDV_MW (heavy duty vehicles)
+# res_space_heat_cool (residential water heating)
+# res_water_heat (commercial water heating)
+# comm_space_heat_cool (residential space heating)
+# comm_water_heat (commercial space heating)
+# trans_light_duty (light duty vehicles)
+# trans_medium_duty (medium duty vehicles)
+# trans_heavy_duty (heavy duty vehicles)
+# trans_bus (transit buses)
 
 
-electrification_stock_fn: ~ # EFS_STOCK_AGG.parquet  # SCENARIO_STOCK.parquet
-electrification_scenario: ~ # REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT # current_policy
+electrification_stock_fn: EFS_STOCK_AGG.parquet  # SCENARIO_STOCK.parquet
+electrification_scenario: REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT # current_policy
 # Name of the flexible resource, fraction of load that can be shifted, and model-specific
 # parameters that will be applied to each resource.
-demand_response_resources:
+flexible_demand_resources:
   2030:
-    heat_load_shifting:
-      fraction_shiftable: 0.35
+    trans_light_duty:
+      fraction_shiftable: 0.8
       parameter_values:
-        Max_Flexible_Demand_Delay: 4
+        Max_Flexible_Demand_Delay: 5
         FLEX: 1
         Flexible_Demand_Energy_Eff: 1
-demand_response: 'moderate'
+    res_water_heat:
+      fraction_shiftable: 0.1
+      parameter_values:
+        Max_Flexible_Demand_Delay: 2
+        FLEX: 1
+        Flexible_Demand_Energy_Eff: 1
+  2045:
+    trans_light_duty:
+      fraction_shiftable: 0.8
+      parameter_values:
+        Max_Flexible_Demand_Delay: 5
+        FLEX: 1
+    res_water_heat:
+      fraction_shiftable: 0.25
+      parameter_values:
+        Max_Flexible_Demand_Delay: 2
+        FLEX: 1
+        Flexible_Demand_Energy_Eff: 1

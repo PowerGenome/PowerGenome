@@ -12,7 +12,9 @@ from powergenome.price_adjustment import inflation_price_adjustment
 logger = logging.getLogger(__name__)
 
 
-def make_demand_response_profiles(path, resource_name, settings):
+def make_demand_response_profiles(
+    path: Path, resource_name: str, year: int, scenario: str
+) -> pd.DataFrame:
     """Read files with DR profiles across years and scenarios. Return the hourly
     load profiles for a single resource in the model year.
 
@@ -22,17 +24,17 @@ def make_demand_response_profiles(path, resource_name, settings):
         Where to load the file from
     resource_name : str
         Name of of the demand response resource
-    settings : dict
-        User-defined parameters from a settings file
+    year : int
+        Year of data to use from the user demand response file
+    scenario : str
+        Name of scenario to use from the user demand response file
 
     Returns
     -------
     DataFrame
-        8760 hourly profiles of DR load for each region where the resource is available.
+        Hourly profiles of DR load for each region where the resource is available.
         Column names are the regions plus 'scenario'.
     """
-    year = settings["model_year"]
-    scenario = settings["demand_response"]
 
     df = pd.read_csv(path, header=[0, 1, 2, 3])
 
@@ -78,7 +80,7 @@ def demand_response_resource_capacity(df, resource_name, settings):
     """
 
     year = settings["model_year"]
-    fraction_shiftable = settings["demand_response_resources"][year][resource_name][
+    fraction_shiftable = settings["flexible_demand_resources"][year][resource_name][
         "fraction_shiftable"
     ]
 
