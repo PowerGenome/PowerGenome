@@ -6,7 +6,7 @@
 [![pytest](https://github.com/PowerGenome/PowerGenome/actions/workflows/pytest.yml/badge.svg)](https://github.com/PowerGenome/PowerGenome/actions/workflows/pytest.yml)
 [![codecov](https://codecov.io/gh/PowerGenome/PowerGenome/branch/master/graph/badge.svg?token=7KJYLE3jOW)](https://codecov.io/gh/PowerGenome/PowerGenome)
 
-**Note:** The code and data for PowerGenome are under active development and some changes may break existing functions. Keep up to date with major code and data releases by joining [PowerGenome on groups.io](https://groups.io/g/powergenome). And check out the growing documentation on the [Wiki](https://github.com/PowerGenome/PowerGenome/wiki) for helpful background information.
+**Note:** The code and data for PowerGenome are under active development and some changes may break existing functions. Keep up to date with major code and data releases by joining [PowerGenome on groups.io](https://groups.io/g/powergenome). And **check out the growing documentation on the [Wiki](https://github.com/PowerGenome/PowerGenome/wiki)** for helpful background information.
 
 Power system optimization models can be used to explore the cost and emission implications of different regulations in future energy systems. One of the most difficult parts of running these models is assembling all the data. A typical model will define several regions, each of which need data such as:
 
@@ -99,7 +99,7 @@ Keeping project folders separate from the cloned `PowerGenome` folder will also 
 
 ### Example systems
 
-A few example systems are included under `PowerGenome/example_systems`. Each system has a settings file (`settings.yml`) and a folder with extra user inputs (`extra_inputs`). The different example systems are not meant to be accurate for real-world analysis, so please do not blindly use the external data files included with them in your own studies!
+A few example systems are included under `PowerGenome/example_systems`. Each system has settings files in a folder (`settings`) and a folder with extra user inputs (`extra_inputs`). The different example systems are not meant to be accurate for real-world analysis, so please do not blindly use the external data files included with them in your own studies!
 
 ### Settings
 
@@ -116,7 +116,7 @@ The outputs are all formatted for GenX we hope to make the data formatting code 
 Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). Examples of how to load data in this way are included in `PowerGenome/notebooks`. To run from the command line, navigate to a project folder that contains a settings file and extra inputs (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome_multiple` with flags for the settings file name and where the results should be saved. Since the `powergenome` package is installed in the `powergenome` conda environment, you can run the command line function from anywhere on your computer (not just within the cloned `PowerGenome` folder).
 
 ```sh
-run_powergenome_multiple --settings_file test_settings.yml --results_folder test_system
+run_powergenome_multiple --settings_file settings --results_folder test_system
 ```
 
 The command line arguments `--settings_file` and `--results_folder` can be shortened to `-sf` and `-rf` respectively. For all options, run:
