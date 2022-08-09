@@ -446,7 +446,9 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
 def add_demand_response_resource_load(load_curves, settings):
 
     dr_path = Path(settings["input_folder"]) / settings["demand_response_fn"]
-    dr_types = settings["flexible_demand_resources"][settings["model_year"]].keys()
+    dr_types = list(
+        settings["flexible_demand_resources"][settings["model_year"]].keys()
+    )
 
     dr_curves = make_demand_response_profiles(
         dr_path, list(dr_types)[0], settings["model_year"], settings["demand_response"]
