@@ -579,6 +579,7 @@ def make_final_load_curves(
         for load_source, load_table in load_sources.items()
     ]
     load_curves_before_dr.append(user_load_curves)
+    load_curves_before_dr = [df for df in load_curves_before_dr if df is not None]
     if not all(
         [
             len(load_curves_before_dr[0].index.intersection(df.index))
