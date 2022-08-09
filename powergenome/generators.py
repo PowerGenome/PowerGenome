@@ -3256,7 +3256,6 @@ class GeneratorClusters:
                 self.new_generators.pipe(startup_fuel, self.settings)
                 .pipe(add_fuel_labels, self.fuel_prices, self.settings)
                 .pipe(startup_nonfuel_costs, self.settings)
-                .pipe(add_genx_model_tags, self.settings)
             )
 
             if self.sort_gens:
@@ -3282,6 +3281,7 @@ class GeneratorClusters:
             self.new_generators = pd.concat(
                 [self.new_generators, dr_rows], sort=False, ignore_index=True
             )
+        self.new_generators = add_genx_model_tags(self.new_generators, self.settings)
         if "cluster" not in self.new_generators.columns:
             self.new_generators["cluster"] = 1
         self.new_generators["Resource"] = (
