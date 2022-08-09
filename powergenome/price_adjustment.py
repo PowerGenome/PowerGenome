@@ -192,7 +192,7 @@ def inflation_price_adjustment(
     target_year = int(target_year)
 
     cpi_data = load_cpi_data()
-    if cpi_data["year"].max() < target_year:
+    if cpi_data["year"].max() < max(target_year, base_year):
         logger.info("Updating CPI data")
         cpi_data = load_cpi_data(reload_data=True, kwargs={"end_year": target_year})
         if cpi_data["year"].max() < target_year:
