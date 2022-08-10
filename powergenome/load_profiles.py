@@ -557,47 +557,51 @@ def make_final_load_curves(
     logger.info("Loading load curves")
     user_load_curves = load_usr_demand_profiles(settings)
 
-    load_sources = settings.get("load_source_table_name")
-    if load_sources is None:
-        s = """
-        *****************************
-        Regional load data sources have not been specified. Defaulting to EFS load data.
-        Check your settings file, and please specify the preferred source for load data
-        (FERC, EFS, USER) either for each region or for the entire system with the setting
-        "regional_load_source".
-        *****************************
-        """
-        logger.warning(s)
-        load_sources = {"EFS": "load_curves_nrel_efs"}
+    if all([r in user_load_curves.columns for r in settings["model_regions"]]):
+        load_curves_before_dr = user_load_curves
 
-    # `filter_load_by_region` is a decorator factory that generates a decorator
-    # when given the parameter `load_source`. This decorator creates a wrapper
-    # for the function `make_load_curves`, which is passed the args from the final
-    # parentheses.
-    load_curves_before_dr = [
-        filter_load_by_region(load_source)(make_load_curves)(
-            pg_engine, settings, load_table
-        )
-        for load_source, load_table in load_sources.items()
-    ]
-    load_curves_before_dr.append(user_load_curves)
-    load_curves_before_dr = [df for df in load_curves_before_dr if df is not None]
-    if not all(
-        [
-            len(load_curves_before_dr[0].index.intersection(df.index))
-            == load_curves_before_dr[0].shape[0]
-            for df in load_curves_before_dr
-            if df is not None
+    else:
+        load_sources = settings.get("load_source_table_name")
+        if load_sources is None:
+            s = """
+            *****************************
+            Regional load data sources have not been specified. Defaulting to EFS load data.
+            Check your settings file, and please specify the preferred source for load data
+            (FERC, EFS, USER) either for each region or for the entire system with the setting
+            "regional_load_source".
+            *****************************
+            """
+            logger.warning(s)
+            load_sources = {"EFS": "load_curves_nrel_efs"}
+
+        # `filter_load_by_region` is a decorator factory that generates a decorator
+        # when given the parameter `load_source`. This decorator creates a wrapper
+        # for the function `make_load_curves`, which is passed the args from the final
+        # parentheses.
+        load_curves_before_dr = [
+            filter_load_by_region(load_source)(make_load_curves)(
+                pg_engine, settings, load_table
+            )
+            for load_source, load_table in load_sources.items()
         ]
-    ):
-        raise ValueError(
-            "One or more of your load curve data sources does not have a matching time index."
-        )
+        load_curves_before_dr.append(user_load_curves)
+        load_curves_before_dr = [df for df in load_curves_before_dr if df is not None]
+        if not all(
+            [
+                len(load_curves_before_dr[0].index.intersection(df.index))
+                == load_curves_before_dr[0].shape[0]
+                for df in load_curves_before_dr
+                if df is not None
+            ]
+        ):
+            raise ValueError(
+                "One or more of your load curve data sources does not have a matching time index."
+            )
 
-    try:
-        load_curves_before_dr = pd.concat(load_curves_before_dr, axis=1)
-    except ValueError:
-        raise ValueError("All load curves are null.")
+        try:
+            load_curves_before_dr = pd.concat(load_curves_before_dr, axis=1)
+        except ValueError:
+            raise ValueError("All load curves are null.")
 
     if settings.get("demand_response_fn"):
         load_curves_before_dg = add_demand_response_resource_load(
