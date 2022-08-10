@@ -557,7 +557,9 @@ def make_final_load_curves(
     logger.info("Loading load curves")
     user_load_curves = load_usr_demand_profiles(settings)
 
-    if all([r in user_load_curves.columns for r in settings["model_regions"]]):
+    if user_load_curves is not None and all(
+        [r in user_load_curves.columns for r in settings["model_regions"]]
+    ):
         load_curves_before_dr = user_load_curves
 
     else:
