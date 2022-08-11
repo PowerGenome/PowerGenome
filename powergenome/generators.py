@@ -1300,6 +1300,7 @@ def calc_unit_cluster_values(
             "Var_OM_Cost_per_MWh": wm,
         }
     )
+    df_values.index = df_values["cluster"].values
     if df_values["heat_rate_mmbtu_mwh"].isnull().values.any():
         print(df)
         print(df_values)
