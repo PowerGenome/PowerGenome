@@ -76,6 +76,8 @@ planned_col_map = {
     "Planned Operation Month": "planned_operating_month",
     "Planned Operation Year": "planned_operating_year",
     "Status": "operational_status",
+    "Nameplate Energy Capacity (MWh)": "capacity_mwh",
+    "DC Net Capacity (MW)": "dc_net_capacity_mw",
     "County": "county",
     "Latitude": "latitude",
     "Longitude": "longitude",
@@ -1232,6 +1234,7 @@ def group_units(df, settings):
     grouped_units = df_copy.groupby(by).agg(
         {
             settings["capacity_col"]: "sum",
+            "capacity_mwh": "sum",
             "minimum_load_mw": "sum",
             "heat_rate_mmbtu_mwh": "mean",
             "Fixed_OM_Cost_per_MWyr": "mean",
@@ -1296,6 +1299,7 @@ def calc_unit_cluster_values(
     df_values = df.groupby("cluster").agg(
         {
             capacity_col: "mean",
+            "capacity_mwh": wm,
             "minimum_load_mw": "mean",
             "heat_rate_mmbtu_mwh": wm,
             "Fixed_OM_Cost_per_MWyr": wm,
@@ -1678,6 +1682,7 @@ def import_new_generators(
         "technology_description",
         "generator_id",
         settings["capacity_col"],
+        "capacity_mwh",
         "minimum_load_mw",
         "operational_status_code",
         "heat_rate_mmbtu_mwh",
@@ -1686,7 +1691,7 @@ def import_new_generators(
         "state",
     ]
 
-    return new_operating.loc[:, keep_cols]
+    return new_operating.reindex(columns=keep_cols)
 
 
 def import_proposed_generators(
@@ -2378,7 +2383,8 @@ def energy_storage_mwh(
     pd.DataFrame
         Modified dataframe with energy storage values
     """
-    all_regions = df["region"].unique()
+    region_col = [c for c in df.columns if "region" in c.lower()][0]
+    all_regions = df[region_col].unique()
     for tech, val in energy_storage_duration.items():
         if isinstance(val, dict):
             tech_regions = val.keys()
@@ -2403,14 +2409,16 @@ def energy_storage_mwh(
                     )
                 df.loc[
                     (snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)))
-                    & (df["region"] == region),
+                    & (df["region"] == region)
+                    & ~(df[energy_col] > 0),
                     energy_col,
                 ] = (
                     df[cap_col] * v
                 )
         else:
             df.loc[
-                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
+                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech))
+                & ~(df[energy_col] > 0),
                 energy_col,
             ] = (
                 df[cap_col] * val
@@ -2517,6 +2525,30 @@ def load_demand_response_efs_profile(
         dr_profile = dr_profile.drop(columns=base_regs)
 
     return dr_profile
+
+
+def add_860m_storage_mwh(
+    gen_df: pd.DataFrame, operating_860m: pd.DataFrame, storage_techs: List[str] = None
+) -> pd.DataFrame:
+    idx_cols = ["plant_id_eia", "generator_id"]
+    gen_df = gen_df.set_index(idx_cols)
+
+    if not storage_techs:
+        storage_techs = [
+            "Batteries",
+            "Natural Gas with Compressed Air Storage",
+            "Flywheels",
+        ]
+
+    storage_860m = operating_860m.loc[
+        operating_860m.technology_description.isin(storage_techs), :
+    ].set_index(idx_cols)
+    gen_df.loc[storage_860m.index, "capacity_mwh"] = storage_860m["capacity_mwh"]
+    # gen_df = pd.merge(
+    #     gen_df, storage_860m[idx_cols + ["capacity_mwh"]], how="left", on=idx_cols
+    # )
+
+    return gen_df.reset_index()
 
 
 class GeneratorClusters:
@@ -2907,6 +2939,19 @@ class GeneratorClusters:
         # Create a pudl unit id based on plant and generator id where one doesn't exist.
         # This is used later to match the cluster numbers to plants
         self.units_model.reset_index(inplace=True)
+        self.units_model = add_860m_storage_mwh(
+            self.units_model,
+            self.new_860m_gens.reset_index(),
+            storage_techs=["Batteries"],
+        )
+        if self.settings.get("energy_storage_duration"):
+            self.units_model = energy_storage_mwh(
+                self.units_model,
+                self.settings["energy_storage_duration"],
+                "technology_description",
+                self.settings["capacity_col"],
+                "capacity_mwh",
+            )
         self.units_model.loc[self.units_model.unit_id_pudl.isnull(), "unit_id_pudl"] = (
             self.units_model.loc[
                 self.units_model.unit_id_pudl.isnull(), "plant_id_eia"
@@ -3143,14 +3188,6 @@ class GeneratorClusters:
         if self.settings.get("derate_capacity"):
             self.results["unmodified_existing_cap_mw"] = (
                 self.results["unmodified_cap_size"] * self.results["num_units"]
-            )
-        if self.settings.get("energy_storage_duration"):
-            self.results = energy_storage_mwh(
-                self.results,
-                self.settings["energy_storage_duration"],
-                "technology",
-                "Existing_Cap_MW",
-                "Existing_Cap_MWh",
             )
 
         if self.settings.get("region_wind_pv_cap_fn"):

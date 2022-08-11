@@ -38,6 +38,7 @@ num_clusters:
   Hydroelectric Pumped Storage: 1
   Biomass: 1
   Other_peaker: 1
+  Batteries: 1
 
 
 # Group these technologies
@@ -177,7 +178,7 @@ atb_battery_wacc: UtilityPV
 # Format for ATB is <technology>_<tech_detail>, all are Mid cost case
 # Might want to change this to list format like the new generators below
 eia_atb_tech_map:
-  Battery: Battery_*
+  Batteries: Battery_*
   Biomass: Biopower_Dedicated
   Solar Thermal without Energy Storage: CSP_Class1
   Conventional Steam Coal: Coal_newAvgCF
@@ -338,7 +339,7 @@ cost_multiplier_technology_map:
 
 # PROPOSED GENERATOR VARIABLES
 
-eia_860m_fn: september_generator2021.xlsx
+eia_860m_fn: june_generator2022.xlsx
 
 # The status codes below exclude plants where regulatory approvals have not been
 # initiated or received. "Other" is also excluded.
