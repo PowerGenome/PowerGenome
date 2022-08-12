@@ -1109,3 +1109,34 @@ def hydro_energy_to_power(
             ] = avg_inflow.where(avg_inflow > 1, 1)
     df["Hydro_Energy_to_Power_Ratio"] = df["Hydro_Energy_to_Power_Ratio"].fillna(0)
     return df
+
+
+def rename_gen_cols(
+    df: pd.DataFrame, rename_cols: Dict[str, str] = None
+) -> pd.DataFrame:
+    """Rename columns in the generators data file.
+
+    By default the only rename so far is "existing_mwh" to "Existing_Cap_MWh".
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Final dataframe of generating resources.
+    rename_cols : Dict[str, str], optional
+        Additional rename pairs, by default None
+
+    Returns
+    -------
+    pd.DataFrame
+        Identical to input dataframe except for renamed columns.
+    """
+
+    rename = {
+        "capacity_mwh": "Existing_Cap_MWh",
+    }
+    if rename_cols:
+        rename.update(rename_cols)
+
+    df = df.rename(columns=rename, errors="ignore")
+
+    return df

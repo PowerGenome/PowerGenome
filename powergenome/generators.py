@@ -51,6 +51,7 @@ from powergenome.util import (
     snake_case_str,
     load_ipm_shapefile,
 )
+from powergenome.GenX import rename_gen_cols
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
 from xlrd import XLRDError
@@ -3274,6 +3275,8 @@ class GeneratorClusters:
                 utc_offset=self.settings.get("utc_offset", 0),
             )
             self.results["profile"][i] = clusters["profile"][0]
+
+        self.results = rename_gen_cols(self.results)
 
         return self.results
 
