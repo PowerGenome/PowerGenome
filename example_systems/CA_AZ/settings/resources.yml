@@ -119,6 +119,10 @@ regional_hydro_factor:
 # name is contained in the dataframe technology name.
 energy_storage_duration:
   Hydroelectric Pumped Storage: 15.5
+  Batteries:
+    CA_S: 4
+    CA_N: 4
+    WECC_AZ: 2
 
 # Generator cost data from NREL ATB
 
