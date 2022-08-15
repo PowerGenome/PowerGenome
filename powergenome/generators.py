@@ -2946,11 +2946,14 @@ class GeneratorClusters:
         # Create a pudl unit id based on plant and generator id where one doesn't exist.
         # This is used later to match the cluster numbers to plants
         self.units_model.reset_index(inplace=True)
-        self.units_model = add_860m_storage_mwh(
-            self.units_model,
-            self.new_860m_gens.reset_index(),
-            storage_techs=["Batteries"],
-        )
+        if self.supplement_with_860m:
+            self.units_model = add_860m_storage_mwh(
+                self.units_model,
+                self.new_860m_gens.reset_index(),
+                storage_techs=["Batteries"],
+            )
+        else:
+            self.units_model["capacity_mwh"] = 0
         if self.settings.get("energy_storage_duration"):
             self.units_model = energy_storage_mwh(
                 self.units_model,
