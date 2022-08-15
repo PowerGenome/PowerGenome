@@ -1301,7 +1301,7 @@ def calc_unit_cluster_values(
     df_values = df.groupby("cluster", as_index=False).agg(
         {
             capacity_col: "mean",
-            "capacity_mwh": wm,
+            "capacity_mwh": "sum",
             "minimum_load_mw": "mean",
             "heat_rate_mmbtu_mwh": wm,
             "Fixed_OM_Cost_per_MWyr": wm,
