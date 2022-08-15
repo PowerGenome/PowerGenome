@@ -63,6 +63,7 @@ from powergenome.transmission import (
 )
 from powergenome.util import (
     build_scenario_settings,
+    find_region_col,
     init_pudl_connection,
     check_settings,
     load_settings,
@@ -969,3 +970,22 @@ def test_load_growth(CA_AZ_settings):
 def test_db_col_values():
     values = db_col_values(pg_engine, "technology_costs_nrelatb", ["technology"])
     assert "NaturalGas" in values
+
+
+def test_find_region_col():
+
+    df = pd.DataFrame(columns=["A", "Region", "C"])
+    region_col = find_region_col(df.columns)
+    assert region_col == "Region"
+
+    df = pd.DataFrame(columns=["A", "model_region", "C"])
+    region_col = find_region_col(df.columns)
+    assert region_col == "model_region"
+
+    with pytest.raises(ValueError):
+        df = pd.DataFrame(columns=["A", "model_region", "region"])
+        region_col = find_region_col(df.columns)
+
+    with pytest.raises(ValueError):
+        df = pd.DataFrame(columns=["A", "B", "C"])
+        region_col = find_region_col(df.columns)

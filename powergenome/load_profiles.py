@@ -15,6 +15,7 @@ from powergenome.load_construction import electrification_profiles
 from powergenome.eia_opendata import get_aeo_load
 from powergenome.external_data import make_demand_response_profiles
 from powergenome.util import (
+    find_region_col,
     map_agg_region_names,
     regions_to_keep,
     reverse_dict_of_lists,
@@ -80,19 +81,6 @@ def filter_load_by_region(load_source):  # "decorator factory"
     return decorator
 
 
-def find_region_col(cols: List[str]) -> str:
-    region_cols = [c for c in cols if "region" in c]
-    if len(region_cols) == 1:
-        return region_cols[0]
-    elif len(region_cols) > 1:
-        raise KeyError(
-            "Found more than one table column that contains the string 'region'. "
-            f"The matching columns found are {region_cols}."
-        )
-    else:
-        raise KeyError("No table columns contain the required string 'region'.")
-
-
 def make_load_curves(
     pg_engine: sa.engine.base.Engine,
     settings: dict,
@@ -139,7 +127,8 @@ def make_load_curves(
             "database specified in your .env file."
         )
     table_cols = [c["name"] for c in inst.get_columns(pg_table)]
-    region_col = find_region_col(table_cols)
+    context = f"Load curves table ({pg_table} in database {pg_engine}."
+    region_col = find_region_col(table_cols, context)
     if "sector" in table_cols or "subsector" in table_cols:
         if settings.get("electrification_stock_fn") and settings.get(
             "electrification_scenario"

@@ -44,6 +44,7 @@ from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_eia_technology
 from powergenome.util import (
     download_save,
+    find_region_col,
     map_agg_region_names,
     reverse_dict_of_lists,
     snake_case_col,
@@ -2384,14 +2385,19 @@ def energy_storage_mwh(
     pd.DataFrame
         Modified dataframe with energy storage values
     """
-    region_col = [c for c in df.columns if "region" in c.lower()][0]
+    context = "Setting energy storage MWh in existing generators."
+    region_col = find_region_col(df.columns, context)
     all_regions = df[region_col].unique()
+
+    if energy_col not in df.columns:
+        df[energy_col] = 0
+
     for tech, val in energy_storage_duration.items():
         if isinstance(val, dict):
             tech_regions = val.keys()
             model_tech_regions = df.loc[
                 snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
-                "region",
+                region_col,
             ].to_list()
             if not all(r in tech_regions for r in model_tech_regions):
                 missing_regions = [
@@ -2410,7 +2416,7 @@ def energy_storage_mwh(
                     )
                 df.loc[
                     (snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)))
-                    & (df["region"] == region)
+                    & (df[region_col] == region)
                     & ~(df[energy_col] > 0),
                     energy_col,
                 ] = (
