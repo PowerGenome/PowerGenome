@@ -18,33 +18,47 @@ logger = logging.getLogger(__name__)
 numeric = Union[int, float]
 
 
-def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.DataFrame:
-    """Load EIA AEO data either from file (if it exists) or from the API.
+def load_aeo_series(
+    aeo_year: int, aeo_scenario: str, series_id: str, api_key: str, columns: list = None
+) -> pd.DataFrame:
+    """Load EIA AEO data either from file (if it exists) or from v2 of the API.
+
+    Data are saved to disk if loaded from the API.
 
     Parameters
     ----------
+    aeo_year : int
+        Year of AEO data
+    aeo_scenario : str
+        Name of the AEO scenario
     series_id : str
-        The AEO API series ID that uniquely identifies the data request.
+        ID of the series
     api_key : str
-        A valid API key for EIA's open data portal
-    columns : list
-        The expected output dataframe columns
+        User API key for EIA open data portal
+    columns : list, optional
+        Data columns to include in the output, by default None (return all)
 
     Returns
     -------
     pd.DataFrame
-        Data from EIA's AEO via their open data API.
+        AEO scenario data from EIA's open data API
+
+    Raises
+    ------
+    requests.HTTPError
+        The API request failed for some reason.
     """
     data_dir = DATA_PATHS["eia"] / "open_data"
     data_dir.mkdir(exist_ok=True)
-    if not (data_dir / f"{series_id}.csv").exists():
-        url = f"https://api.eia.gov/series/?series_id={series_id}&api_key={api_key}&out=json"
+    fn = f"{aeo_year}_{aeo_scenario.lower()}_{series_id}.csv"
+    if not (data_dir / fn).exists():
+        url = f"https://api.eia.gov/v2/aeo/{aeo_year}/data/?api_key={api_key}&facets[scenario][]={aeo_scenario.lower()}&facets[seriesId][]={series_id}&data[]=value"
         r = requests.get(url)
+        if int(r.status_code) not in (200, 201):
+            raise requests.HTTPError(r.json())
 
         try:
-            df = pd.DataFrame(
-                r.json()["series"][0]["data"], columns=columns, dtype=float
-            )
+            df = pd.DataFrame(r.json()["response"]["data"])
         except KeyError:
             print(
                 "There was an error creating a dataframe from your EIA AEO data request. "
@@ -52,10 +66,11 @@ def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.Da
                 "correct. The data returned from EIA's API is: \n"
                 f"{r.json()}"
             )
-        df.to_csv(data_dir / f"{series_id}.csv", index=False)
+        df.to_csv(data_dir / fn, index=False)
     else:
-        df = pd.read_csv(data_dir / f"{series_id}.csv")
-
+        df = pd.read_csv(data_dir / fn)
+    if columns:
+        df = df[columns]
     return df
 
 
@@ -146,10 +161,19 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
         fuel_name, fuel_series = fuel
         scenario_name, scenario_series = scenario
 
-        SERIES_ID = f"AEO.{aeo_year}.{scenario_series}.PRCE_REAL_ELEP_NA_{fuel_series}_NA_{region_series}_Y13DLRPMMBTU.A"
+        SERIES_ID = f"prce_real_elep_NA_{fuel_series.lower()}_NA_{region_series.lower()}_y13dlrpmmbtu"
 
-        df = load_aeo_series(
-            series_id=SERIES_ID, api_key=API_KEY, columns=["year", "price"]
+        df = (
+            load_aeo_series(
+                aeo_year=aeo_year,
+                aeo_scenario=scenario_series.lower(),
+                series_id=SERIES_ID,
+                api_key=API_KEY,
+                columns=["period", "value"],
+            )
+            .rename(columns={"period": "year", "value": "price"})
+            .sort_values("year")
+            .reset_index(drop=True)
         )
         df["fuel"] = fuel_name
         df["region"] = region_name
@@ -297,11 +321,20 @@ def get_aeo_load(
 
     API_KEY = SETTINGS["EIA_API_KEY"]
 
-    SERIES_ID = (
-        f"AEO.{aeo_year}.{scenario_series}.CNSM_NA_{sector}_NA_ELC_NA_{region}_BLNKWH.A"
-    )
+    SERIES_ID = f"cnsm_NA_{sector.lower()}_NA_elc_NA_{region.lower()}_blnkwh"
 
-    df = load_aeo_series(SERIES_ID, API_KEY, columns=["year", "demand"])
+    df = (
+        load_aeo_series(
+            aeo_year=aeo_year,
+            aeo_scenario=scenario_series,
+            series_id=SERIES_ID,
+            api_key=API_KEY,
+            columns=["period", "value"],
+        )
+        .rename(columns={"period": "year", "value": "demand"})
+        .sort_values("year")
+        .reset_index(drop=True)
+    )
     df["year"] = df["year"].astype(int)
 
     return df
