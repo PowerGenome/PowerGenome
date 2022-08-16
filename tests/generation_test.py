@@ -6,6 +6,7 @@ from pathlib import Path
 from powergenome.GenX import (
     RESOURCE_TAGS,
     add_cap_res_network,
+    add_misc_gen_values,
     check_resource_tags,
     create_policy_req,
     create_regional_cap_res,
@@ -63,6 +64,7 @@ from powergenome.transmission import (
 )
 from powergenome.util import (
     build_scenario_settings,
+    find_region_col,
     init_pudl_connection,
     check_settings,
     load_settings,
@@ -370,9 +372,14 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
     CA_AZ_settings["modified_atb_new_gen"]["NGCCS100"]["heat_rate"] = 7.5
     CA_AZ_settings["EFS_DATA"] = DATA_PATHS["test_data"] / "efs"
     gc = GeneratorClusters(
-        pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=False
+        pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=True
     )
     all_gens = gc.create_all_generators()
+    all_gens = add_misc_gen_values(all_gens, CA_AZ_settings)
+
+    assert (
+        all_gens.loc[all_gens["Resource"] == "CA_N_biomass_1", "Eff_Up"].values[0] == 1
+    )
     assert np.allclose(
         all_gens.query("technology.str.contains('NaturalGas_CCCCS', case=False)")[
             "Heat_Rate_MMBTU_per_MWh"
@@ -385,6 +392,13 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
         ].mean(),
         7.5,
     )
+    # Capacity in existing clusters should be > 0
+    assert all(gc.results["Existing_Cap_MW"] > 0)
+    batteries = gc.results.query("technology == 'Batteries'")
+
+    # Battery energy capacity should be larger than battery power capacity
+    assert all(batteries["Existing_Cap_MWh"] > batteries["Existing_Cap_MW"])
+
     gen_variability = make_generator_variability(all_gens)
     assert (gen_variability >= 0).all().all()
 
@@ -969,3 +983,22 @@ def test_load_growth(CA_AZ_settings):
 def test_db_col_values():
     values = db_col_values(pg_engine, "technology_costs_nrelatb", ["technology"])
     assert "NaturalGas" in values
+
+
+def test_find_region_col():
+
+    df = pd.DataFrame(columns=["A", "Region", "C"])
+    region_col = find_region_col(df.columns)
+    assert region_col == "Region"
+
+    df = pd.DataFrame(columns=["A", "model_region", "C"])
+    region_col = find_region_col(df.columns)
+    assert region_col == "model_region"
+
+    with pytest.raises(ValueError):
+        df = pd.DataFrame(columns=["A", "model_region", "region"])
+        region_col = find_region_col(df.columns)
+
+    with pytest.raises(ValueError):
+        df = pd.DataFrame(columns=["A", "B", "C"])
+        region_col = find_region_col(df.columns)
