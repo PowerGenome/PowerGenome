@@ -133,7 +133,7 @@ def load_cpi_data(reload_data: bool = False, **kwargs) -> pd.DataFrame:
             if k == "end_year":
                 end_year = v
         cpi_data = get_cpi_data(start_year, end_year)
-        cpi_data.to_csv(DATA_PATHS["cpi_data"], index=False)
+        cpi_data.to_csv(DATA_PATHS["cpi_data"], index=False, float_format="%g")
     else:
         cpi_data = pd.read_csv(DATA_PATHS["cpi_data"])
 
