@@ -10,6 +10,7 @@ from pathlib import Path
 
 from powergenome.util import (
     deep_freeze_args,
+    find_region_col,
     snake_case_col,
 )
 from powergenome.params import DATA_PATHS, SETTINGS
@@ -91,7 +92,8 @@ def load_region_pop_frac(
     elif (path_in / fn).suffix == ".parquet":
         pop = pd.read_parquet(path_in / fn)
     pop["state"] = pop["state"].map(us_state_abbrev)
-    region_col = [c for c in pop.columns if "region" in c][0]
+    context = "Loading region population fraction file for EFS load construction."
+    region_col = find_region_col(pop.columns, context)
     pop = pop.rename(columns={region_col: "region"})
     pop_cols = ["region", "state", "state_prop"]
     return pop[pop_cols]

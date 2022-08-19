@@ -6,6 +6,7 @@ import logging
 import re
 import subprocess
 from typing import Dict, List, Tuple, Union
+from collections.abc import Iterable
 
 import pandas as pd
 import geopandas as gpd
@@ -875,3 +876,57 @@ def deep_freeze_args(func):
         return func(*deep_freeze(args), **deep_freeze(kwargs))
 
     return wrapped
+
+
+def find_region_col(cols: Union[pd.Index, Iterable], context: str = None) -> str:
+    """Find the column name that identifies regions.
+
+    DataFrame, geospatial objects, etc might have different names for the region column.
+    To retain some flexibility, only require that the region column has the string
+    "region" in it (case insensitive).
+
+    Raise an error if more than one column contains the string "region". If `context` is
+    provided, include it in the error message for users.
+
+    Parameters
+    ----------
+    cols : Iterable[str]
+        DataFrame columns or other iterable sequence.
+    context : str, optional
+        Information about the sequence of names that can help a user understand what
+        type of object might have multiple names containing "region", by default None
+
+    Returns
+    -------
+    str
+        Name of the column that identifies regions.
+
+    Raises
+    ------
+    ValueError
+        More than one column contains the string "region".
+    ValueError
+        No column contains the string "region".
+    """
+
+    region_col = [c for c in cols if "region" in c.lower()]
+    if len(region_col) > 1:
+        s = (
+            "When attempting to identify the appropriate region columns, more than one "
+            f"column in this dataframe includes the string 'region' ({region_col})."
+        )
+        if context:
+            s += f"\n\nContext: {context}"
+
+        raise ValueError(s)
+    elif len(region_col) == 0:
+        s = (
+            "No columns contain the required string 'region'. The DataFrame columns "
+            f"are ({cols})."
+        )
+        if context:
+            s += f"\n\nContext: {context}"
+
+        raise ValueError(s)
+    else:
+        return region_col[0]

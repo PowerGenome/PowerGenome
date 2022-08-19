@@ -44,6 +44,7 @@ from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_eia_technology
 from powergenome.util import (
     download_save,
+    find_region_col,
     map_agg_region_names,
     reverse_dict_of_lists,
     snake_case_col,
@@ -51,6 +52,7 @@ from powergenome.util import (
     snake_case_str,
     load_ipm_shapefile,
 )
+from powergenome.GenX import rename_gen_cols
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
 from xlrd import XLRDError
@@ -76,6 +78,8 @@ planned_col_map = {
     "Planned Operation Month": "planned_operating_month",
     "Planned Operation Year": "planned_operating_year",
     "Status": "operational_status",
+    "Nameplate Energy Capacity (MWh)": "capacity_mwh",
+    "DC Net Capacity (MW)": "dc_net_capacity_mw",
     "County": "county",
     "Latitude": "latitude",
     "Longitude": "longitude",
@@ -1232,6 +1236,7 @@ def group_units(df, settings):
     grouped_units = df_copy.groupby(by).agg(
         {
             settings["capacity_col"]: "sum",
+            "capacity_mwh": "sum",
             "minimum_load_mw": "sum",
             "heat_rate_mmbtu_mwh": "mean",
             "Fixed_OM_Cost_per_MWyr": "mean",
@@ -1296,6 +1301,7 @@ def calc_unit_cluster_values(
     df_values = df.groupby("cluster", as_index=False).agg(
         {
             capacity_col: "mean",
+            "capacity_mwh": "sum",
             "minimum_load_mw": "mean",
             "heat_rate_mmbtu_mwh": wm,
             "Fixed_OM_Cost_per_MWyr": wm,
@@ -1678,6 +1684,7 @@ def import_new_generators(
         "technology_description",
         "generator_id",
         settings["capacity_col"],
+        "capacity_mwh",
         "minimum_load_mw",
         "operational_status_code",
         "heat_rate_mmbtu_mwh",
@@ -1686,7 +1693,7 @@ def import_new_generators(
         "state",
     ]
 
-    return new_operating.loc[:, keep_cols]
+    return new_operating.reindex(columns=keep_cols)
 
 
 def import_proposed_generators(
@@ -2378,13 +2385,39 @@ def energy_storage_mwh(
     pd.DataFrame
         Modified dataframe with energy storage values
     """
-    all_regions = df["region"].unique()
+    context = "Setting energy storage MWh in existing generators."
+    region_col = find_region_col(df.columns, context)
+    all_regions = df[region_col].unique()
+
+    if energy_col not in df.columns:
+        df[energy_col] = 0
+
+    storage_techs = list(df.loc[df[energy_col] > 0, tech_col].unique())
+    partial_storage = list(
+        df.loc[
+            (df[tech_col].isin(storage_techs)) & ~(df[energy_col] > 0),
+            tech_col,
+        ].unique()
+    )
+    missing_techs = [t for t in partial_storage if t not in energy_storage_duration]
+    if missing_techs:
+        logger.warning(
+            "\n\n**************************\n"
+            f"The storage technology(ies) {missing_techs} have some existing generators "
+            "with energy capacity (MWh) values and some where the energy capacity is "
+            "missing. You have not included these technologies in the settings parameter "
+            "'energy_storage_duration', which is used to fill missing energy capacity "
+            "data.\n\nNOTE: This is not a comprehensive list of technologies that *should* "
+            "be included in 'energy_storage_duration'. Technologies without any existing "
+            "energy capacity data might also be missing.\n"
+            "**************************\n"
+        )
     for tech, val in energy_storage_duration.items():
         if isinstance(val, dict):
             tech_regions = val.keys()
             model_tech_regions = df.loc[
                 snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
-                "region",
+                region_col,
             ].to_list()
             if not all(r in tech_regions for r in model_tech_regions):
                 missing_regions = [
@@ -2403,14 +2436,16 @@ def energy_storage_mwh(
                     )
                 df.loc[
                     (snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)))
-                    & (df["region"] == region),
+                    & (df[region_col] == region)
+                    & ~(df[energy_col] > 0),
                     energy_col,
                 ] = (
                     df[cap_col] * v
                 )
         else:
             df.loc[
-                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
+                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech))
+                & ~(df[energy_col] > 0),
                 energy_col,
             ] = (
                 df[cap_col] * val
@@ -2517,6 +2552,30 @@ def load_demand_response_efs_profile(
         dr_profile = dr_profile.drop(columns=base_regs)
 
     return dr_profile
+
+
+def add_860m_storage_mwh(
+    gen_df: pd.DataFrame, operating_860m: pd.DataFrame, storage_techs: List[str] = None
+) -> pd.DataFrame:
+    idx_cols = ["plant_id_eia", "generator_id"]
+    gen_df = gen_df.set_index(idx_cols)
+
+    if not storage_techs:
+        storage_techs = [
+            "Batteries",
+            "Natural Gas with Compressed Air Storage",
+            "Flywheels",
+        ]
+
+    storage_860m = operating_860m.loc[
+        operating_860m.technology_description.isin(storage_techs), :
+    ].set_index(idx_cols)
+    gen_df.loc[storage_860m.index, "capacity_mwh"] = storage_860m["capacity_mwh"]
+    # gen_df = pd.merge(
+    #     gen_df, storage_860m[idx_cols + ["capacity_mwh"]], how="left", on=idx_cols
+    # )
+
+    return gen_df.reset_index()
 
 
 class GeneratorClusters:
@@ -2907,6 +2966,33 @@ class GeneratorClusters:
         # Create a pudl unit id based on plant and generator id where one doesn't exist.
         # This is used later to match the cluster numbers to plants
         self.units_model.reset_index(inplace=True)
+        if self.supplement_with_860m:
+            self.units_model = add_860m_storage_mwh(
+                self.units_model,
+                self.new_860m_gens.reset_index(),
+                storage_techs=["Batteries"],
+            )
+        else:
+            self.units_model["capacity_mwh"] = 0
+        if self.settings.get("energy_storage_duration"):
+            self.units_model = energy_storage_mwh(
+                self.units_model,
+                self.settings["energy_storage_duration"],
+                "technology_description",
+                self.settings["capacity_col"],
+                "capacity_mwh",
+            )
+        else:
+            logger.warning(
+                "\n\n*******************************\n"
+                "The parameter 'energy_storage_duration' is not included in your settings "
+                "file. This parameter converts MW to energy capacity (MWh) for existing "
+                "generators where data is otherwise not available. For example, EIA-860m "
+                "generally does not have MWh for battery storage units installed in the "
+                "current calendar year. The energy capacity of existing storage clusters "
+                "may be incorrect if you do not include this parameter!\n"
+                "*******************************\n"
+            )
         self.units_model.loc[self.units_model.unit_id_pudl.isnull(), "unit_id_pudl"] = (
             self.units_model.loc[
                 self.units_model.unit_id_pudl.isnull(), "plant_id_eia"
@@ -3144,14 +3230,6 @@ class GeneratorClusters:
             self.results["unmodified_existing_cap_mw"] = (
                 self.results["unmodified_cap_size"] * self.results["num_units"]
             )
-        if self.settings.get("energy_storage_duration"):
-            self.results = energy_storage_mwh(
-                self.results,
-                self.settings["energy_storage_duration"],
-                "technology",
-                "Existing_Cap_MW",
-                "Existing_Cap_MWh",
-            )
 
         if self.settings.get("region_wind_pv_cap_fn"):
             from powergenome.external_data import overwrite_wind_pv_capacity
@@ -3237,6 +3315,8 @@ class GeneratorClusters:
                 utc_offset=self.settings.get("utc_offset", 0),
             )
             self.results["profile"][i] = clusters["profile"][0]
+
+        self.results = rename_gen_cols(self.results)
 
         return self.results
 
