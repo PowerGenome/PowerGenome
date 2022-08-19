@@ -69,6 +69,7 @@ model_tag_values:
     UtilityPV: 1
   STOR:
     Battery: 1
+    Batteries: 1
     Hydroelectric Pumped Storage: 1
   FLEX:
     ev_load_shifting: 1

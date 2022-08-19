@@ -2392,6 +2392,26 @@ def energy_storage_mwh(
     if energy_col not in df.columns:
         df[energy_col] = 0
 
+    storage_techs = list(df.loc[df[energy_col] > 0, tech_col].unique())
+    partial_storage = list(
+        df.loc[
+            (df[tech_col].isin(storage_techs)) & ~(df[energy_col] > 0),
+            tech_col,
+        ].unique()
+    )
+    missing_techs = [t for t in partial_storage if t not in energy_storage_duration]
+    if missing_techs:
+        logger.warning(
+            "\n\n**************************\n"
+            f"The storage technology(ies) {missing_techs} have some existing generators "
+            "with energy capacity (MWh) values and some where the energy capacity is "
+            "missing. You have not included these technologies in the settings parameter "
+            "'energy_storage_duration', which is used to fill missing energy capacity "
+            "data.\n\nNOTE: This is not a comprehensive list of technologies that *should* "
+            "be included in 'energy_storage_duration'. Technologies without any existing "
+            "energy capacity data might also be missing.\n"
+            "**************************\n"
+        )
     for tech, val in energy_storage_duration.items():
         if isinstance(val, dict):
             tech_regions = val.keys()
@@ -2961,6 +2981,17 @@ class GeneratorClusters:
                 "technology_description",
                 self.settings["capacity_col"],
                 "capacity_mwh",
+            )
+        else:
+            logger.warning(
+                "\n\n*******************************\n"
+                "The parameter 'energy_storage_duration' is not included in your settings "
+                "file. This parameter converts MW to energy capacity (MWh) for existing "
+                "generators where data is otherwise not available. For example, EIA-860m "
+                "generally does not have MWh for battery storage units installed in the "
+                "current calendar year. The energy capacity of existing storage clusters "
+                "may be incorrect if you do not include this parameter!\n"
+                "*******************************\n"
             )
         self.units_model.loc[self.units_model.unit_id_pudl.isnull(), "unit_id_pudl"] = (
             self.units_model.loc[
