@@ -2025,6 +2025,8 @@ def add_fuel_labels(df, fuel_prices, settings):
     """
 
     df["Fuel"] = np.nan
+    # This variable is called eia_tech but it can be any tech name or a mapping from
+    # EIA technologies through to other techs via "eia_atb_tech_map"
     for eia_tech, fuel in (settings.get("tech_fuel_map") or {}).items():
         try:
             if eia_tech == "Natural Gas Steam Turbine":
@@ -2098,7 +2100,8 @@ def add_fuel_labels(df, fuel_prices, settings):
                 ), f"{fuel_name} doesn't show up in {model_year}"
 
                 df.loc[
-                    (df["technology"] == eia_tech) & df["region"].isin(model_regions),
+                    (df["technology"].str.contains(eia_tech, case=False))
+                    & df["region"].isin(model_regions),
                     "Fuel",
                 ] = fuel_name
 
@@ -2128,14 +2131,13 @@ def add_fuel_labels(df, fuel_prices, settings):
                 for region in settings["user_fuel_price"][ccs_base_name].keys():
                     ccs_fuel_name = ("_").join([region, ccs_fuel])
                     df.loc[
-                        (df["technology"].str.contains(ccs_tech))
-                        & df["region"].isin(model_regions),
+                        (df["technology"].str.contains(ccs_tech, case=False))
+                        & (df["region"] == region),
                         "Fuel",
                     ] = ccs_fuel_name
             else:
                 df.loc[
-                    (df["technology"].str.contains(ccs_tech))
-                    & df["region"].isin(model_regions),
+                    (df["technology"].str.contains(ccs_tech, case=False)),
                     "Fuel",
                 ] = ccs_fuel
         else:
