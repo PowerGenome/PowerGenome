@@ -1,12 +1,28 @@
 "Test functions related to fuel assignment, price, and emissions"
 
+import logging
 import os
 import numpy as np
+import pytest
 
+import powergenome
+from powergenome.eia_opendata import fetch_fuel_prices
 from powergenome.fuels import add_user_fuel_prices, add_carbon_tax, fuel_cost_table
 from powergenome.generators import GeneratorClusters
 from powergenome.params import DATA_PATHS
 from powergenome.util import init_pudl_connection
+
+logger = logging.getLogger(powergenome.__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter(
+    # More extensive test-like formatter...
+    "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s",
+    # This is the datetime format string.
+    "%Y-%m-%d %H:%M:%S",
+)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 if os.name == "nt":
     # if user is using a windows system
@@ -21,7 +37,8 @@ pudl_engine, pudl_out, pg_engine = init_pudl_connection(
 )
 
 
-def test_fuel_labels_and_prices():
+@pytest.fixture(scope="module")
+def fuel_settings():
     settings = {
         "modified_atb_new_gen": {
             "ZCF_CombinedCycle1": {
@@ -108,8 +125,12 @@ def test_fuel_labels_and_prices():
         },
         "ccs_disposal_cost": 25,
     }
+    return settings
 
-    df_base = add_user_fuel_prices(settings)
+
+def test_fuel_labels_and_prices(fuel_settings):
+
+    df_base = add_user_fuel_prices(fuel_settings)
 
     for fuel in [
         "S_VACA_biomass",
@@ -119,8 +140,8 @@ def test_fuel_labels_and_prices():
     ]:
         assert fuel in df_base["full_fuel_name"].unique()
 
-    settings["target_usd_year"] = 2020
-    df_inflate = add_user_fuel_prices(settings)
+    fuel_settings["target_usd_year"] = 2020
+    df_inflate = add_user_fuel_prices(fuel_settings)
     assert (
         df_base.loc[df_base["fuel"] == "biomass", "price"].mean()
         < df_inflate.loc[df_inflate["fuel"] == "biomass", "price"].mean()
@@ -131,21 +152,49 @@ def test_fuel_labels_and_prices():
     )
 
     gc = GeneratorClusters(
-        pudl_engine, pudl_out, pg_engine, settings, current_gens=False
+        pudl_engine, pudl_out, pg_engine, fuel_settings, current_gens=False
     )
     gens = gc.create_new_generators()
     assert gens["Fuel"].isna().any() == False
     assert gens["Fuel"].str.contains("ccs", case=False).any() == True
 
-    fuel_table = fuel_cost_table(gc.fuel_prices, gens, settings)
+    fuel_table = fuel_cost_table(gc.fuel_prices, gens, fuel_settings)
     for r in ["PJM_Dom", "S_VACA"]:
         assert (
             fuel_table.loc[0, f"{r}_biomass"]
-            == settings["fuel_emission_factors"]["biomass"]
+            == fuel_settings["fuel_emission_factors"]["biomass"]
         )
         assert np.allclose(
             fuel_table.loc[0, f"{r}_biomass_ccs"],
-            settings["fuel_emission_factors"]["biomass"]
-            * (1 - settings["ccs_capture_rate"]["biomass_ccs"]),
+            fuel_settings["fuel_emission_factors"]["biomass"]
+            * (1 - fuel_settings["ccs_capture_rate"]["biomass_ccs"]),
         )
     assert (fuel_table.loc[1:, :] == 0).any().any() == False
+
+
+def test_fetch_fuel_price_errors(fuel_settings, caplog):
+    aeo_year = fuel_settings.pop("fuel_eia_aeo_year")
+    with pytest.raises(KeyError):
+        fetch_fuel_prices(fuel_settings)
+
+    fuel_settings["eia_aeo_year"] = {"bad": "value"}
+    with pytest.raises(TypeError):
+        fetch_fuel_prices(fuel_settings)
+
+    fuel_settings["eia_aeo_year"] = aeo_year
+
+    eia_series_scenario_names = fuel_settings.pop("eia_series_scenario_names")
+    with pytest.raises(KeyError):
+        fetch_fuel_prices(fuel_settings)
+
+    fuel_settings["eia_series_scenario_names"] = eia_series_scenario_names
+    caplog.set_level(logging.WARNING)
+    fetch_fuel_prices(fuel_settings)
+    assert "Unable to inflate fuel prices" in caplog.text
+
+    eia_series_region_names = fuel_settings.pop("eia_series_region_names")
+    eia_series_fuel_names = fuel_settings.pop("eia_series_fuel_names")
+
+    fetch_fuel_prices(fuel_settings)
+    assert "EIA fuel region names were not found" in caplog.text
+    assert "EIA fuel names were not found" in caplog.text
