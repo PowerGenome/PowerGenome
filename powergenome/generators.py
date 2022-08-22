@@ -2029,6 +2029,11 @@ def add_fuel_labels(df, fuel_prices, settings):
     DataFrame
         Same as input, but with a new column "Fuel" that is either the name of the
         corresponding fuel (coal, natural_gas, uranium, or distillate) or "None".
+
+    Raises
+    ------
+    KeyError
+        The model region is not mapped to a fuel region in 'aeo_fuel_region_map'
     """
 
     df["Fuel"] = np.nan
@@ -2157,9 +2162,16 @@ def add_fuel_labels(df, fuel_prices, settings):
             )
 
     # Replace AEO region name with model region in cases where users are modifying AEO price
-    model_aeo_region_map = reverse_dict_of_lists(settings["aeo_fuel_region_map"])
+    model_aeo_region_map = reverse_dict_of_lists(
+        settings.get("aeo_fuel_region_map", {})
+    )
     for region, adj in (settings.get("regional_fuel_adjustments", {}) or {}).items():
-        aeo_region = model_aeo_region_map[region]
+        aeo_region = model_aeo_region_map.get(region)
+        if not aeo_region:
+            raise KeyError(
+                f"There is no mapping of the model region {region} to an AEO fuel region "
+                "in the settings parameter 'aeo_fuel_region_map'."
+            )
         if isinstance(adj, list):
             # Replace the aeo region name with model region for all resources
             df.loc[
