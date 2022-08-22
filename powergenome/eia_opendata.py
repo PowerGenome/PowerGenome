@@ -36,7 +36,7 @@ def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.Da
         Data from EIA's AEO via their open data API.
     """
     data_dir = DATA_PATHS["eia"] / "open_data"
-    data_dir.mkdir(exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
     if not (data_dir / f"{series_id}.csv").exists():
         url = f"https://api.eia.gov/series/?series_id={series_id}&api_key={api_key}&out=json"
         r = requests.get(url)
@@ -83,6 +83,16 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
         All fuel price data from AEO for the product of regions, fuels, and scenarios
         included in the settings dictionary.
 
+    Raises
+    ------
+    KeyError
+        The settings parameter "eia_series_scenario_names" is missing.
+    KeyError
+        The AEO data year is not specified by either of the settings parameters
+        "fuel_eia_aeo_year" or "eia_aeo_year".
+    TypeError
+        The parameter value of "fuel_eia_aeo_year" or "eia_aeo_year" is not an integer.
+
     Examples
     --------
     Prepare the settings dictionary
@@ -119,6 +129,50 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
         aeo_year = settings.get("fuel_eia_aeo_year")
     else:
         aeo_year = settings.get("eia_aeo_year")
+
+    if not aeo_year:
+        raise KeyError(
+            "The parameter 'fuel_eia_aeo_year' is not in your settings files. This is a "
+            "required settings parameter when using fuel price data from EIA's AEO."
+        )
+    if not isinstance(aeo_year, int):
+        raise TypeError(
+            "The settings parameter 'fuel_eia_aeo_year' (or 'eia_aeo_year') must be an "
+            f"integer, representing the AEO data year. Your parameter is {aeo_year}."
+        )
+    if not settings.get("eia_series_region_names"):
+        logger.warning(
+            "EIA fuel region names were not found in the settings ('eia_series_region_names'). "
+            "Applying default values."
+        )
+        settings["eia_series_region_names"] = dict(
+            mountain="MTN",
+            pacific="PCF",
+            west_south_central="WSC",
+            east_south_central="ESC",
+            south_atlantic="SOATL",
+            west_north_central="WNC",
+            east_north_central="ENC",
+            middle_atlantic="MDATL",
+            new_england="NEENGL",
+        )
+    if not settings.get("eia_series_fuel_names"):
+        settings["eia_series_fuel_names"] = {
+            "coal": "STC",
+            "naturalgas": "NG",
+            "distillate": "DFO",
+            "uranium": "U",
+        }
+        logger.warning(
+            "EIA fuel names were not found in the settings ('eia_series_fuel_names'). "
+            "Applying default values:\n\n"
+            f"{settings['eia_series_fuel_names']}"
+        )
+    if not settings.get("eia_series_scenario_names"):
+        raise KeyError(
+            "The settings parameter 'eia_series_scenario_names' is missing. This mapping "
+            "of AEO scenario API names (e.g. REF2020) to plain english is required."
+        )
 
     fuel_price_cases = product(
         settings.get("eia_series_region_names", {}).items(),
@@ -291,10 +345,6 @@ def get_aeo_load(
     3  2047  472.314972
     4  2046  466.875671
     """
-
-    data_dir = DATA_PATHS["eia"] / "open_data"
-    data_dir.mkdir(exist_ok=True)
-
     API_KEY = SETTINGS["EIA_API_KEY"]
 
     SERIES_ID = (
