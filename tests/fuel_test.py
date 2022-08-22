@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 import powergenome
-from powergenome.eia_opendata import fetch_fuel_prices
+from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
 from powergenome.fuels import add_user_fuel_prices, add_carbon_tax, fuel_cost_table
 from powergenome.generators import GeneratorClusters
 from powergenome.params import DATA_PATHS
@@ -198,3 +198,103 @@ def test_fetch_fuel_price_errors(fuel_settings, caplog):
     fetch_fuel_prices(fuel_settings)
     assert "EIA fuel region names were not found" in caplog.text
     assert "EIA fuel names were not found" in caplog.text
+
+
+def test_regional_fuel_price_mod(fuel_settings):
+    fuel_prices = fetch_fuel_prices(fuel_settings)
+    mod_fuel_prices = modify_fuel_prices(
+        fuel_prices,
+        fuel_settings["aeo_fuel_region_map"],
+        fuel_settings.get("regional_fuel_adjustments"),
+    )
+    assert np.allclose(fuel_prices["price"].values, mod_fuel_prices["price"].values)
+
+    fuel_settings["regional_fuel_adjustments"] = {
+        "S_VACA": ["mul", 2],
+        "PJM_Dom": {"naturalgas": ["add", 1]},
+    }
+
+    mod_fuel_prices = modify_fuel_prices(
+        fuel_prices,
+        fuel_settings["aeo_fuel_region_map"],
+        fuel_settings.get("regional_fuel_adjustments"),
+    )
+    assert np.isclose(
+        fuel_prices.query("region == 'south_atlantic'")["price"].mean(),
+        mod_fuel_prices.query("region == 'S_VACA'")["price"].mean() / 2,
+    )
+
+    assert np.isclose(
+        fuel_prices.query("region == 'south_atlantic' and fuel == 'naturalgas'")[
+            "price"
+        ].mean(),
+        mod_fuel_prices.query("region == 'PJM_Dom' and fuel == 'naturalgas'")[
+            "price"
+        ].mean()
+        - 1,
+    )
+
+    fuel_settings["regional_fuel_adjustments"] = {
+        "S_VACA": ["mul", 2],
+        "PJM_Dom": {"coal": ["add", 1]},
+    }
+    with pytest.raises(KeyError):
+        modify_fuel_prices(
+            fuel_prices,
+            fuel_settings["aeo_fuel_region_map"],
+            fuel_settings.get("regional_fuel_adjustments"),
+        )
+
+    fuel_settings["regional_fuel_adjustments"] = {
+        "S_VACA": ["mul", 2],
+        "PJM_Dom": {"coal": 1},
+    }
+    with pytest.raises(KeyError):
+        modify_fuel_prices(
+            fuel_prices,
+            fuel_settings["aeo_fuel_region_map"],
+            fuel_settings.get("regional_fuel_adjustments"),
+        )
+    fuel_settings["regional_fuel_adjustments"] = {
+        "S_VACA": 1,
+        "PJM_Dom": {"coal": 1},
+    }
+    with pytest.raises(TypeError):
+        modify_fuel_prices(
+            fuel_prices,
+            fuel_settings["aeo_fuel_region_map"],
+            fuel_settings.get("regional_fuel_adjustments"),
+        )
+
+    fuel_settings["regional_fuel_adjustments"] = {
+        "S_VACA": ["mul", 2],
+        "PJM_Dom": {"naturalgas": ["add", 1]},
+    }
+    with pytest.raises(KeyError):
+        modify_fuel_prices(
+            fuel_prices,
+            None,
+            fuel_settings.get("regional_fuel_adjustments"),
+        )
+
+    fuel_settings["regional_fuel_adjustments"] = {
+        "S_VACA": ["mul", 2],
+        "PJM_Dom": {"naturalga": ["add", 1]},
+    }
+    with pytest.raises(KeyError):
+        modify_fuel_prices(
+            fuel_prices,
+            fuel_settings["aeo_fuel_region_map"],
+            fuel_settings.get("regional_fuel_adjustments"),
+        )
+
+    fuel_settings["regional_fuel_adjustments"] = {
+        "S_VACA": ["mul", 2],
+        "PJM_Dom": {"naturalgas": ["ad", 1]},
+    }
+    with pytest.raises(KeyError):
+        modify_fuel_prices(
+            fuel_prices,
+            fuel_settings["aeo_fuel_region_map"],
+            fuel_settings.get("regional_fuel_adjustments"),
+        )
