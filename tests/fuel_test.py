@@ -298,3 +298,17 @@ def test_regional_fuel_price_mod(fuel_settings):
             fuel_settings["aeo_fuel_region_map"],
             fuel_settings.get("regional_fuel_adjustments"),
         )
+
+
+def test_regional_mod_fuel_labels(fuel_settings):
+    fuel_settings["regional_fuel_adjustments"] = {
+        "S_VACA": ["mul", 2],
+        "PJM_Dom": {"naturalgas": ["add", 1]},
+    }
+    fuel_settings["target_usd_year"] = 2020
+    gc = GeneratorClusters(
+        pudl_engine, pudl_out, pg_engine, fuel_settings, current_gens=False
+    )
+    gens = gc.create_new_generators()
+    assert "S_VACA_reference_naturalgas" in gens.Fuel.values
+    assert "PJM_Dom_reference_naturalgas" in gens.Fuel.values

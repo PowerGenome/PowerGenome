@@ -20,7 +20,7 @@ from powergenome.cluster_method import (
     cluster_kmeans,
     weighted_ownership_by_unit,
 )
-from powergenome.eia_opendata import fetch_fuel_prices
+from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
 from powergenome.external_data import (
     make_demand_response_profiles,
     demand_response_resource_capacity,
@@ -2156,6 +2156,44 @@ def add_fuel_labels(df, fuel_prices, settings):
                 "or `user_fuel_prices`."
             )
 
+    # Replace AEO region name with model region in cases where users are modifying AEO price
+    model_aeo_region_map = reverse_dict_of_lists(settings["aeo_fuel_region_map"])
+    for region, adj in (settings.get("regional_fuel_adjustments", {}) or {}).items():
+        aeo_region = model_aeo_region_map[region]
+        if isinstance(adj, list):
+            # Replace the aeo region name with model region for all resources
+            df.loc[
+                (df["Fuel"].str.contains(aeo_region))
+                & (df["Fuel"].notna())
+                & (df["region"].str.lower() == region.lower()),
+                "Fuel",
+            ] = df.loc[
+                (df["Fuel"].str.contains(aeo_region))
+                & (df["Fuel"].notna())
+                & (df["region"].str.lower() == region.lower()),
+                "Fuel",
+            ].str.replace(
+                aeo_region, region
+            )
+        if isinstance(adj, dict):
+            # Replace the aeo region name with model region only for select fuels
+            for fuel, op in adj.items():
+                df.loc[
+                    (df["Fuel"].str.contains(aeo_region))
+                    & (df["Fuel"].str.contains(fuel))
+                    & (df["Fuel"].notna())
+                    & (df["region"].str.lower() == region.lower()),
+                    "Fuel",
+                ] = df.loc[
+                    (df["Fuel"].str.contains(aeo_region))
+                    & (df["Fuel"].str.contains(fuel))
+                    & (df["Fuel"].notna())
+                    & (df["region"].str.lower() == region.lower()),
+                    "Fuel",
+                ].str.replace(
+                    aeo_region, region
+                )
+
     df.loc[df["Fuel"].isna(), "Fuel"] = "None"
 
     return df
@@ -2663,7 +2701,11 @@ class GeneratorClusters:
             # self.utilities_eia = load_utilities_eia(self.pudl_engine)
         else:
             self.existing_resources = pd.DataFrame()
-        self.fuel_prices = fetch_fuel_prices(self.settings)
+        self.fuel_prices = fetch_fuel_prices(self.settings).pipe(
+            modify_fuel_prices,
+            self.settings.get("aeo_fuel_region_map"),
+            self.settings.get("regional_fuel_adjustments"),
+        )
         self.atb_hr = fetch_atb_heat_rates(self.pg_engine, self.settings)
         self.coal_fgd = pd.read_csv(DATA_PATHS["coal_fgd"])
 
