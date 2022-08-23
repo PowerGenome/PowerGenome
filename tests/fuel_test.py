@@ -37,7 +37,7 @@ pudl_engine, pudl_out, pg_engine = init_pudl_connection(
 )
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def fuel_settings():
     settings = {
         "modified_atb_new_gen": {
