@@ -580,7 +580,10 @@ def network_reinforcement_cost(
     )
 
     # Average the costs per mile between origin and destination regions
-    line_capex = (origin_region_cost + dest_region_cost) / 2
+    transmission["line_capex_mw-mile"] = (origin_region_cost + dest_region_cost) / 2
+    transmission["line_capex_mw"] = (
+        transmission["line_capex_mw-mile"] * transmission["distance_mile"]
+    )
     line_wacc = (
         settings.get("transmission_investment_cost", {}).get("tx", {}).get("wacc")
     )
@@ -592,11 +595,13 @@ def network_reinforcement_cost(
             "wacc. See the `test_settings.yml` file for an "
             "example."
         )
+    transmission["wacc_real"] = line_wacc
     line_inv_period = (
         settings.get("transmission_investment_cost", {})
         .get("tx", {})
         .get("investment_years")
     )
+    transmission["cap_recovery_years"] = line_inv_period
     if not line_inv_period:
         raise KeyError(
             "No value for the transmission investment period is included in the settings."
@@ -604,8 +609,10 @@ def network_reinforcement_cost(
             "investment_years. See the `test_settings.yml` file for an example."
         )
     line_inv_cost = (
-        investment_cost_calculator(line_capex, line_wacc, line_inv_period)
-        * transmission["distance_mile"]
+        investment_cost_calculator(
+            transmission["line_capex_mw"], line_wacc, line_inv_period
+        )
+        # * transmission["distance_mile"]
     )
 
     transmission["Line_Reinforcement_Cost_per_MWyr"] = line_inv_cost.round(0)

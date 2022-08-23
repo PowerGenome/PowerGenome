@@ -842,6 +842,7 @@ def regional_capex_multiplier(
     region_map: Dict[str, str],
     tech_map: Dict[str, str],
     regional_multipliers: pd.DataFrame,
+    capex_cols: List[str] = ["capex_mw", "capex_mwh"],
 ) -> pd.DataFrame:
 
     cost_region = region_map[region]
@@ -868,8 +869,8 @@ def regional_capex_multiplier(
     0, which will lead to annual investment costs of $0.
         """
             logger.warning(s)
-    df["Inv_Cost_per_MWyr"] *= df["technology"].map(tech_multiplier_map)
-    df["Inv_Cost_per_MWhyr"] *= df["technology"].map(tech_multiplier_map)
+    for col in capex_cols:
+        df[col] *= df["technology"].map(tech_multiplier_map)
     df["regional_cost_multiplier"] = df["technology"].map(tech_multiplier_map)
 
     return df
@@ -1112,21 +1113,8 @@ def atb_new_generators(atb_costs, atb_hr, settings):
                 "cap_recovery_years",
             ] = years
 
-        new_gen_df["Inv_Cost_per_MWyr"] = investment_cost_calculator(
-            capex=new_gen_df["capex_mw"],
-            wacc=new_gen_df["wacc_real"],
-            cap_rec_years=new_gen_df["cap_recovery_years"],
-        )
-
-        new_gen_df["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
-            capex=new_gen_df["capex_mwh"],
-            wacc=new_gen_df["wacc_real"],
-            cap_rec_years=new_gen_df["cap_recovery_years"],
-        )
-
-        # Set no capacity limit on new resources that aren't renewables.
-        new_gen_df["Max_Cap_MW"] = -1
-        new_gen_df["Max_Cap_MWh"] = -1
+        new_gen_df["base_capex_mw"] = new_gen_df["capex_mw"].copy()
+        new_gen_df["base_capex_mwh"] = new_gen_df["capex_mwh"].copy()
         regional_cost_multipliers = pd.read_csv(
             DATA_PATHS["cost_multipliers"]
             / settings.get(
@@ -1149,6 +1137,11 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         rev_mult_tech_map = reverse_dict_of_lists(
             settings["cost_multiplier_technology_map"]
         )
+
+        # Set no capacity limit on new resources that aren't renewables.
+        new_gen_df["Max_Cap_MW"] = -1
+        new_gen_df["Max_Cap_MWh"] = -1
+
         df_list = []
         for region in regions:
             _df = new_gen_df.copy()
@@ -1170,6 +1163,18 @@ def atb_new_generators(atb_costs, atb_hr, settings):
             df_list.append(_df)
 
         results = pd.concat(df_list, ignore_index=True, sort=False)
+
+        results["Inv_Cost_per_MWyr"] = investment_cost_calculator(
+            capex=results["capex_mw"],
+            wacc=results["wacc_real"],
+            cap_rec_years=results["cap_recovery_years"],
+        )
+
+        results["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
+            capex=results["capex_mwh"],
+            wacc=results["wacc_real"],
+            cap_rec_years=results["cap_recovery_years"],
+        )
 
         int_cols = [
             "Fixed_OM_Cost_per_MWyr",
