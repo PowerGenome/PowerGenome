@@ -853,9 +853,10 @@ def regional_capex_multiplier(
 
     tech_multiplier_map = {}
     for atb_tech, eia_tech in tech_map.items():
-        if df["technology"].str.contains(atb_tech).sum() > 0:
+        if df["technology"].str.contains(atb_tech, case=False).sum() > 0:
             full_atb_tech = df.loc[
-                df["technology"].str.contains(atb_tech).idxmax(), "technology"
+                df["technology"].str.contains(atb_tech, case=False).idxmax(),
+                "technology",
             ]
             tech_multiplier_map[full_atb_tech] = tech_multiplier.at[eia_tech]
         if df["technology"].str.contains(atb_tech).sum() > 1:
