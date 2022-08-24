@@ -61,7 +61,7 @@ def fuel_settings():
             },
             "biopower_ccs": {
                 "new_technology": "Biopower",
-                "new_tech_detail": "DedicatedCCS",
+                "new_tech_detail": "CCS",
                 "new_cost_case": "Moderate",
                 "atb_technology": "Biopower",
                 "atb_tech_detail": "Dedicated",
@@ -104,7 +104,7 @@ def fuel_settings():
             "NaturalGas": "naturalgas",
         },
         "ccs_fuel_map": {
-            "biopower_dedicatedccs": "biomass_ccs",
+            "biopower_ccs": "biomass_ccs",
             "naturalgas_ccccs": "naturalgas_ccs90",
         },
         "ccs_capture_rate": {"biomass_ccs": 0.9, "naturalgas_ccs90": 0.9},
@@ -116,8 +116,13 @@ def fuel_settings():
             "PJMD": ["PJM_Dom"],
         },
         "cost_multiplier_technology_map": {
-            "Biomass": ["Biopower_Dedicated"],
-            "CC - multi shaft": ["ZeroCarbon_CCAvgCF", "ZCF_CCAvgCF"],
+            "Biomass": ["Biopower_Dedicated", "biopower_ccs"],
+            "CC - multi shaft": [
+                "ZeroCarbon_CCAvgCF",
+                "ZCF_CCAvgCF",
+                "naturalgas_ct",
+                "naturalgas_ccccs",
+            ],
         },
         "fuel_emission_factors": {
             "biomass": 0.1,  # Dummy value for biomass
