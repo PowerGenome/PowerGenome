@@ -5,7 +5,7 @@ Hourly demand profiles
 import logging
 from inspect import signature
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
