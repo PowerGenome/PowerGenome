@@ -265,13 +265,13 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
         )
         while year < load_aeo_year - 1:
             year, df = grow_historical_load(
-                settings,
-                keep_regions,
-                hist_region_map,
-                future_region_map,
-                aeo_sector_map,
-                year,
-                df,
+                df=df,
+                year=year,
+                keep_regions=keep_regions,
+                hist_region_map=hist_region_map,
+                future_region_map=future_region_map,
+                aeo_sector_map=aeo_sector_map,
+                alt_growth_rate=settings.get("alt_growth_rate"),
             )
 
         df_list = []
