@@ -267,6 +267,7 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
             year, df = grow_historical_load(
                 df=df,
                 year=year,
+                aeo_data_year=load_aeo_year,
                 keep_regions=keep_regions,
                 hist_region_map=hist_region_map,
                 future_region_map=future_region_map,
@@ -361,16 +362,20 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
 def grow_historical_load(
     df: pd.DataFrame,
     year: int,
+    aeo_data_year: int,
     keep_regions: List[str],
     hist_region_map: Dict[str, str],
     future_region_map: Dict[str, str],
     aeo_sector_map: Dict[str, str] = None,
     alt_growth_rate: Dict[str, float] = None,
 ) -> Tuple[int, pd.DataFrame]:
-    """Grow historical load by one year using EIA AEO data.
+    """Grow historical load up to either 2019 or the year before "aeo_data_year".
 
-    Use a single AEO data year to grow load from year Y - 1 to year Y. Because the AEO
-    EMM regions changed from AEO2019 to AEO2020, two different region maps are needed.
+    If the data year is less than 2019 than use "hist_region_map" to grow load to 2019.
+    Otherwise use "future_region_map" to grow load from the data year to the the year
+    before "aeo_data_year". This two step process is needed ecause the AEO EMM regions
+    changed from AEO2019 to AEO2020.
+
     The function returns both the modified input dataframe and an updated "year"
     parameter.
 
@@ -381,6 +386,8 @@ def grow_historical_load(
         Can also include the column "sector" with load disaggregated by sector.
     year : int
         Basis year of the load data.
+    aeo_data_year : int
+        Year of AEO data that will be used to grow load out to future planning periods.
     keep_regions : List[str]
         Regions that are included in the model. Only load from these regions is modified.
     hist_region_map : Dict[str, str]
@@ -402,13 +409,16 @@ def grow_historical_load(
     """
 
     old_aeo_list = []
-    # Growth rate up through 2018. New EMM regions were available in AEO2020,
-    # covering through the year 2019
-    # This is probably slow but serves as a good start
     if year < 2019:
         region_map = hist_region_map
+        start_aeo_year = year + 2
+        end_aeo_year = 2019
+        end_data_year = 2019
     else:
         region_map = future_region_map
+        start_aeo_year = year + 1
+        end_aeo_year = aeo_data_year
+        end_data_year = end_aeo_year - 1
     if "sector" in df.columns:
         if not aeo_sector_map:
             raise KeyError(
@@ -419,8 +429,8 @@ def grow_historical_load(
             hist_demand_start = {
                 region: get_aeo_load(
                     region=region_map[region],
-                    aeo_year=year + 1,
-                    scenario_series=f"REF{year+1}",
+                    aeo_year=start_aeo_year,
+                    scenario_series=f"REF{start_aeo_year}",
                     sector=aeo_sector_map[sector],
                 )
                 .set_index("year")
@@ -431,12 +441,12 @@ def grow_historical_load(
             hist_demand_end = {
                 region: get_aeo_load(
                     region=region_map[region],
-                    aeo_year=year + 1,
-                    scenario_series=f"REF{year+1}",
+                    aeo_year=end_aeo_year,
+                    scenario_series=f"REF{end_aeo_year}",
                     sector=aeo_sector_map[sector],
                 )
                 .set_index("year")
-                .loc[year + 1, "demand"]
+                .loc[end_data_year, "demand"]
                 for region in keep_regions
             }
             growth_factor = {
@@ -456,8 +466,8 @@ def grow_historical_load(
         hist_demand_start = {
             region: get_aeo_load(
                 region=region_map[region],
-                aeo_year=year + 1,
-                scenario_series=f"REF{year+1}",
+                aeo_year=start_aeo_year,
+                scenario_series=f"REF{start_aeo_year}",
             )
             .set_index("year")
             .loc[year, "demand"]
@@ -466,11 +476,11 @@ def grow_historical_load(
         hist_demand_end = {
             region: get_aeo_load(
                 region=region_map[region],
-                aeo_year=year + 1,
-                scenario_series=f"REF{year+1}",
+                aeo_year=end_aeo_year,
+                scenario_series=f"REF{end_aeo_year}",
             )
             .set_index("year")
-            .loc[year + 1, "demand"]
+            .loc[end_data_year, "demand"]
             for region in keep_regions
         }
         growth_factor = {
@@ -488,9 +498,7 @@ def grow_historical_load(
 
     df = pd.concat(old_aeo_list, ignore_index=True)
 
-    # Reset the "year" variable to Y + 1, which is where load data should be adjusted
-    # to at this point.
-    year += 1
+    year = end_data_year
     return year, df
 
 

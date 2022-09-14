@@ -18,24 +18,31 @@ def test_grow_historical_load():
         "B": "TRE",
     }
     keep_regions = ["A", "B"]
-    start_year = 2019
-    end_year, load_2020 = grow_historical_load(
+    start_year = 2012
+    load_aeo_year = 2022
+    end_year, load_2019 = grow_historical_load(
         base_load_df.copy(),
         start_year,
+        load_aeo_year,
         keep_regions,
         hist_region_map,
         future_region_map,
     )
 
     assert end_year > start_year
-    assert not base_load_df.equals(load_2020)
+    assert not base_load_df.equals(load_2019)
 
     end_year, load_2021 = grow_historical_load(
-        load_2020.copy(), end_year, keep_regions, hist_region_map, future_region_map
+        load_2019.copy(),
+        end_year,
+        load_aeo_year,
+        keep_regions,
+        hist_region_map,
+        future_region_map,
     )
 
     assert end_year == 2021
-    assert not load_2021.equals(load_2020)
+    assert not load_2021.equals(load_2019)
 
     aeo_sector_map = {
         "commercial": "COMM",
@@ -58,24 +65,26 @@ def test_grow_historical_load():
         "B": "TRE",
     }
     keep_regions = ["A", "B"]
-    start_year = 2019
-    end_year, load_2020_sector = grow_historical_load(
+    start_year = 2013
+    end_year, load_2019_sector = grow_historical_load(
         base_load_df.copy(),
         start_year,
+        load_aeo_year,
         keep_regions,
         hist_region_map,
         future_region_map,
         aeo_sector_map,
     )
 
-    assert not load_2020_sector.equals(load_2020)
+    assert not load_2019_sector.equals(load_2019)
 
     assert end_year > start_year
-    assert not base_load_df.equals(load_2020_sector)
+    assert not base_load_df.equals(load_2019_sector)
 
     end_year, load_2021_sector = grow_historical_load(
-        load_2020_sector.copy(),
+        load_2019_sector.copy(),
         end_year,
+        load_aeo_year,
         keep_regions,
         hist_region_map,
         future_region_map,
@@ -83,4 +92,4 @@ def test_grow_historical_load():
     )
 
     assert end_year == 2021
-    assert not load_2021_sector.equals(load_2020_sector)
+    assert not load_2021_sector.equals(load_2019_sector)
