@@ -598,9 +598,12 @@ def make_final_load_curves(
             raise ValueError("All load curves are null.")
 
     if settings.get("demand_response_fn"):
-        load_curves_before_dg = add_demand_response_resource_load(
-            load_curves_before_dr, settings
-        )
+        if settings.get("regional_load_includes_demand_response"):
+            load_curves_before_dg = load_curves_before_dr
+        else:
+            load_curves_before_dg = add_demand_response_resource_load(
+                load_curves_before_dr, settings
+            )
     elif settings.get("electrification_stock_fn") and settings.get(
         "electrification_scenario"
     ):
