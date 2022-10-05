@@ -199,9 +199,9 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     Returns
     -------
     DataFrame
-        Modified dataframe with the new column "Start_fuel_MMBTU_per_MW".
+        Modified dataframe with the new column "Start_Fuel_MMBTU_per_MW".
     """
-    df["Start_fuel_MMBTU_per_MW"] = 0
+    df["Start_Fuel_MMBTU_per_MW"] = 0
     for eia_tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
         if not isinstance(settings["eia_atb_tech_map"][eia_tech], list):
             settings["eia_atb_tech_map"][eia_tech] = [
@@ -211,10 +211,10 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         atb_tech = settings["eia_atb_tech_map"][eia_tech]
         atb_tech.append(eia_tech)
         for tech in atb_tech:
-            df.loc[df["technology"] == tech, "Start_fuel_MMBTU_per_MW"] = fuel_use
+            df.loc[df["technology"] == tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
             df.loc[
                 df["technology"].str.contains(tech, case=False),
-                "Start_fuel_MMBTU_per_MW",
+                "Start_Fuel_MMBTU_per_MW",
             ] = fuel_use
 
     return df
