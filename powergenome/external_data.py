@@ -4,7 +4,7 @@ import logging
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 from powergenome.util import snake_case_col, remove_feb_29
 from powergenome.price_adjustment import inflation_price_adjustment
@@ -465,3 +465,122 @@ def make_usr_demand_profiles(path, settings):
     scenario_df = df.loc[:, idx[str(year), scenario]]
 
     return scenario_df
+
+
+def load_user_tx_costs(
+    path: Path, model_regions: List[str], target_usd_year: int = None
+) -> pd.DataFrame:
+    """Load a user data file with cost and line loss of each interregional transmission
+    line. Map the region names to zones (z1 to zM) and adjust the total cost columns
+    to the dollar year specified in settings.
+
+    Parameters
+    ----------
+    path : Path
+        Path to the CSV file, which should have columns "start_region", "dest_region",
+        "total_interconnect_annuity_mw", "total_interconnect_cost_mw", and "dollar_year".
+    model_regions : List[str]
+        List of model region names. Should be sorted to match order in other functions.
+    target_usd_year : int, optional
+        Desired final dollar year of cost columns, by default None. If None, no adjustment
+        is made.
+
+    Returns
+    -------
+    pd.DataFrame
+        Cost and line loss of each potential transmission line between model regions.
+        Contains columns "start_region", "dest_region", "zone_1", "zone_2",
+        "total_interconnect_annuity_mw", "total_interconnect_cost_mw", "dollar_year",
+        and "adjusted_dollar_year".
+    """
+    df = pd.read_csv(path)
+
+    zones = model_regions
+    zone_num_map = {
+        zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
+    }
+    df["zone_1"] = df["start_region"].map(zone_num_map)
+    df["zone_2"] = df["dest_region"].map(zone_num_map)
+
+    if target_usd_year:
+        adjusted_annuities = []
+        adjusted_costs = []
+        for row in df.itertuples():
+            adj_annuity = inflation_price_adjustment(
+                row.total_interconnect_annuity_mw, row.dollar_year, target_usd_year
+            )
+            adjusted_annuities.append(adj_annuity)
+
+            adj_cost = inflation_price_adjustment(
+                row.total_interconnect_cost_mw, row.dollar_year, target_usd_year
+            )
+            adjusted_costs.append(adj_cost)
+        df["total_interconnect_annuity_mw"] = adjusted_annuities
+        df["total_interconnect_cost_mw"] = adjusted_costs
+        df["adjusted_dollar_year"] = target_usd_year
+
+    return df
+
+
+def insert_user_tx_costs(tx_df: pd.DataFrame, user_costs: pd.DataFrame) -> pd.DataFrame:
+    """Insert costs and line loss from the user. Can include more lines than were in the
+    original transmission dataframe to create lines with zero existing capacity.
+
+    Parameters
+    ----------
+    tx_df : pd.DataFrame
+        Dataframe of interregional transmission lines created by PG. Must have the column
+        "Network_Lines" (integer from 1 to N), a column for each network zone (z1 to zM),
+        "Line_Max_Flow_MW", "Line_Min_Flow_MW", and "transmission_path_name".
+    user_costs : pd.DataFrame
+        Dataframe of costs and line loss created by the user. Should have columns
+        "zone_1" and "zone_2" (possible values are z1 through zM), "total_interconnect_annuity_mw",
+        "total_interconnect_cost_mw", and "total_line_loss_frac". Cost values should
+        already be adjusted to the desired dollar year.
+
+    Returns
+    -------
+    pd.DataFrame
+        Supplemented interregional transmission lines
+    """
+
+    unused_lines = []
+    for row in user_costs.itertuples():
+        line_row = tx_df.loc[(tx_df[row.zone_1] != 0) & (tx_df[row.zone_2] != 0), :]
+        assert not len(line_row) > 1
+
+        if line_row.empty:
+            unused_lines.append(row)
+        tx_df.loc[
+            line_row.index, "Line_Reinforcement_Cost_per_MWyr"
+        ] = row.total_interconnect_annuity_mw
+        tx_df.loc[
+            line_row.index, "Line_Reinforcement_Cost_per_MW"
+        ] = row.total_interconnect_cost_mw
+        tx_df.loc[line_row.index, "Line_Loss_Percentage"] = row.total_line_loss_frac
+
+    unused_line_df = pd.DataFrame(unused_lines)
+    unused_line_df = unused_line_df.rename(
+        columns={
+            "total_interconnect_annuity_mw": "Line_Reinforcement_Cost_per_MWyr",
+            "total_interconnect_cost_mw": "Line_Reinforcement_Cost_per_MW",
+            "total_line_loss_frac": "Line_Loss_Percentage",
+        }
+    )
+
+    zone_cols = [c for c in tx_df.columns if c[0] == "z"]
+    unused_line_df[zone_cols] = 0
+    for idx, row in unused_line_df.iterrows():
+        unused_line_df.loc[idx, row["zone_1"]] = 1
+        unused_line_df.loc[idx, row["zone_2"]] = -1
+        unused_line_df.loc[
+            idx, "transmission_path_name"
+        ] = f"{row.start_region}_to_{row.dest_region}"
+
+    cols = [c for c in tx_df.columns if c in unused_line_df.columns]
+    tx_df = pd.concat([tx_df, unused_line_df[cols]], ignore_index=True)
+    tx_df["Network_Lines"] = range(1, len(tx_df) + 1)
+    tx_df["Line_Max_Flow_MW"] = tx_df["Line_Max_Flow_MW"].fillna(0)
+    tx_df["Line_Min_Flow_MW"] = tx_df["Line_Max_Flow_MW"].fillna(0)
+
+    return tx_df
