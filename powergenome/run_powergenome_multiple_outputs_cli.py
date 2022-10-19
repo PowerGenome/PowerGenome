@@ -5,7 +5,6 @@ import shutil
 import sys
 from datetime import datetime as dt
 from pathlib import Path
-import time
 
 import pandas as pd
 
@@ -136,7 +135,7 @@ def parse_command_line(argv):
 
 
 def main():
-    t_start = time.time()
+
     args = parse_command_line(sys.argv)
     cwd = Path.cwd()
 
@@ -225,9 +224,7 @@ def main():
 
     i = 0
     model_regions_gdf = None
-    print(f"Time before running first set of inputs is {t_start - time.time():.1f}")
     for year in scenario_settings:
-        t_start = time.time()
         for case_id, _settings in scenario_settings[year].items():
             case_folder = (
                 out_folder / f"{year}" / f"{case_id}_{year}_{_settings['case_name']}"
@@ -245,35 +242,26 @@ def main():
                         sort_gens=args.sort_gens,
                     )
                     gen_clusters = gc.create_all_generators()
-                    t_mid = time.time()
+                    if args.fuel and args.gens:
+                        fuels = fuel_cost_table(
+                            fuel_costs=gc.fuel_prices,
+                            generators=gc.all_resources,
+                            settings=_settings,
+                        )
+                        fuels.index.name = "Time_Index"
+                        write_results_file(
+                            df=remove_fuel_scenario_name(fuels, _settings),
+                            folder=case_folder,
+                            file_name="Fuels_data.csv",
+                            include_index=True,
+                        )
 
-                    # if args.fuel and args.gens:
-
-                    #     fuels = fuel_cost_table(
-                    #         fuel_costs=gc.fuel_prices,
-                    #         generators=gc.all_resources,
-                    #         settings=_settings,
-                    #     )
-                    #     fuels.index.name = "Time_Index"
-                    #     write_results_file(
-                    #         df=remove_fuel_scenario_name(fuels, _settings),
-                    #         folder=case_folder,
-                    #         file_name="Fuels_data.csv",
-                    #         include_index=True,
-                    #     )
-                    #     t_fuel_end = time.time()
-                    #     print(
-                    #         f"Time to create fuel (first time?) is {t_mid - t_fuel_end:.1f}"
-                    #     )
                     gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
                     gen_clusters = add_misc_gen_values(gen_clusters, _settings)
                     gen_clusters = hydro_energy_to_power(
                         gen_clusters,
                         _settings.get("hydro_factor"),
                         _settings.get("regional_hydro_factor", {}),
-                    )
-                    print(
-                        f"Time to create all generators is {t_start - time.time():.1f}"
                     )
 
                     # Save existing resources that aren't demand response for use in
@@ -283,7 +271,6 @@ def main():
                     logger.info(
                         f"\nFinished first round with year {year} scenario {case_id}\n"
                     )
-                    t_gen_var_start = time.time()
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
                     gen_variability.columns = gen_clusters["Resource"]
@@ -304,9 +291,6 @@ def main():
                         file_name="Generators_data.csv",
                         include_index=False,
                     )
-                    print(
-                        f"Time to create gen variability is {t_gen_var_start - time.time():.1f}"
-                    )
 
                     i += 1
                 if args.transmission:
@@ -314,7 +298,6 @@ def main():
                         model_regions_gdf = load_ipm_shapefile(_settings)
 
             else:
-                t_gen_start = time.time()
                 logger.info(f"\nStarting year {year} scenario {case_id}\n")
                 if args.gens:
 
@@ -330,11 +313,11 @@ def main():
                     gen_clusters = set_int_cols(gen_clusters)
                     gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
 
-                    # fuels = fuel_cost_table(
-                    #     fuel_costs=gc.fuel_prices,
-                    #     generators=gc.all_resources,
-                    #     settings=_settings,
-                    # )
+                    fuels = fuel_cost_table(
+                        fuel_costs=gc.fuel_prices,
+                        generators=gc.all_resources,
+                        settings=_settings,
+                    )
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
                     gen_variability.columns = gen_clusters["Resource"]
@@ -351,12 +334,8 @@ def main():
                         file_name="Generators_data.csv",
                         include_index=False,
                     )
-                    print(
-                        f"Time to create all generators is {t_gen_start - time.time():.1f}"
-                    )
 
             if args.load:
-                t_load_start = time.time()
                 load = make_final_load_curves(pg_engine=pg_engine, settings=_settings)
                 load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
 
@@ -395,10 +374,8 @@ def main():
                         file_name="Representative_Period.csv",
                         include_index=False,
                     )
-                print(f"Time to create load is {t_load_start - time.time():.1f}")
 
             if args.transmission:
-                t_tx_start = time.time()
                 model_regions_gdf = gc.model_regions_gdf
                 if _settings.get("user_transmission_costs"):
                     user_tx_costs = load_user_tx_costs(
@@ -449,8 +426,6 @@ def main():
                     file_name="Network.csv",
                     include_index=False,
                 )
-                print(f"Time to create network is {t_tx_start - time.time():.1f}")
-                t_policies_start = time.time()
                 if energy_share_req is not None:
                     write_results_file(
                         df=energy_share_req,
@@ -488,11 +463,8 @@ def main():
                         file_name="Maximum_capacity_limit.csv",
                         include_index=False,
                     )
-                print(
-                    f"Time to create all policy files is {t_policies_start - time.time():.1f}"
-                )
+
             if args.fuel and args.gens:
-                t_fuel_start = time.time()
                 fuels = fuel_cost_table(
                     fuel_costs=gc.fuel_prices,
                     generators=gc.all_resources,
@@ -507,9 +479,6 @@ def main():
                     folder=case_folder,
                     file_name="Fuels_data.csv",
                     include_index=True,
-                )
-                print(
-                    f"Time to create fuel (second time?) is {t_fuel_start - time.time():.1f}"
                 )
             if _settings.get("reserves_fn"):
                 shutil.copy(
