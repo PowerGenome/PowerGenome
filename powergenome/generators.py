@@ -3393,7 +3393,7 @@ class GeneratorClusters:
         )
 
         self.new_generators = atb_new_generators(
-            self.atb_costs, self.atb_hr, self.settings
+            self.atb_costs, self.atb_hr, self.settings, self.cluster_builder
         )
 
         if not self.new_generators.empty:

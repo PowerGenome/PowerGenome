@@ -15,7 +15,7 @@ import sqlalchemy
 
 from powergenome.params import DATA_PATHS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.resource_clusters import map_nrel_atb_technology
+from powergenome.resource_clusters import ClusterBuilder, map_nrel_atb_technology
 from powergenome.util import reverse_dict_of_lists
 
 idx = pd.IndexSlice
@@ -1018,7 +1018,7 @@ def add_modified_atb_generators(
     return mod_gens
 
 
-def atb_new_generators(atb_costs, atb_hr, settings):
+def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
     """Add rows for new generators in each region
 
     Parameters
@@ -1032,6 +1032,8 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         The technology, tech_detail, and heat_rate of new generators from ATB.
     settings : dict
         User-defined parameters from a settings file
+    cluster_builder : ClusterBuilder
+        ClusterBuilder object. Reuse to save time. None by default.
 
     Returns
     -------
@@ -1225,7 +1227,7 @@ def atb_new_generators(atb_costs, atb_hr, settings):
                 rev_mult_tech_map,
                 regional_cost_multipliers,
             )
-            _df = add_renewables_clusters(_df, region, settings)
+            _df = add_renewables_clusters(_df, region, settings, cluster_builder)
 
             if region in (settings.get("new_gen_not_available") or {}):
                 techs = settings["new_gen_not_available"][region]
@@ -1252,7 +1254,10 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
 
 def add_renewables_clusters(
-    df: pd.DataFrame, region: str, settings: dict
+    df: pd.DataFrame,
+    region: str,
+    settings: dict,
+    cluster_builder: ClusterBuilder = None,
 ) -> pd.DataFrame:
     """
     Add renewables clusters
@@ -1270,6 +1275,8 @@ def add_renewables_clusters(
         Dictionary with the following keys:
             - `renewables_clusters`: Determines the clusters built for the region.
             - `region_aggregations`: Maps the model region to IPM regions.
+    cluster_builder
+        ClusterBuilder object. Reuse to save time. None by default.
 
     Returns
     -------
@@ -1324,7 +1331,8 @@ def add_renewables_clusters(
         # region not an argument to ClusterBuilder.get_clusters()
         scenario = scenario.copy()
         scenario.pop("region")
-        cluster_builder = build_resource_clusters(settings.get("RESOURCE_GROUPS"))
+        if not cluster_builder:
+            cluster_builder = build_resource_clusters(settings.get("RESOURCE_GROUPS"))
         clusters = (
             cluster_builder.get_clusters(
                 **scenario,
