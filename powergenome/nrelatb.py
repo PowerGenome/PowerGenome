@@ -436,18 +436,55 @@ def atb_fixed_var_om_existing(
         },
     }
 
-    df_list = []
+    # Load all atb O&M values at once rather than querying the db thousands of times
+    nems_o_m_techs = [
+        "Combined Cycle",
+        "Combustion Turbine",
+        "Coal",
+        "Steam Turbine",
+        "Hydroelectric",
+        "Geothermal",
+        "Nuclear",
+    ]
+    atb_techs = [
+        (tech, tech_detail)
+        for k, (tech, tech_detail) in techs.items()
+        if tech not in nems_o_m_techs
+    ]
+    s = f"""
+        select technology, tech_detail, parameter, AVG(parameter_value) as parameter_value
+        from technology_costs_nrelatb
+        where
+            basis_year == ?
+            AND financial_case == "Market"
+            AND cost_case in ("Mid", "Moderate")
+            AND atb_year == ?
+            AND parameter in ("variable_o_m_mwh", "fixed_o_m_mw", "fixed_o_m_mwh")
+            AND
+                ({' OR '.join(["(technology==? and tech_detail==?)"]*len(atb_techs))})
+            GROUP BY technology, tech_detail, parameter
+        """
+    params = [existing_year, settings["atb_data_year"]] + [
+        item for sublist in atb_techs for item in sublist
+    ]
+    atb_om = pd.read_sql_query(
+        s,
+        pg_engine,
+        params=params,
+        index_col=["technology", "tech_detail", "parameter"],
+    )
     atb_hr_df = atb_hr_df.set_index(
         ["technology", "tech_detail", "basis_year"]
     ).sort_index()
-    grouped_results = results.reset_index().groupby(
-        ["plant_id_eia", "technology"], as_index=False
-    )
+
+    df_list = []
+    grouped_results = results.reset_index().groupby(["technology"], as_index=False)
     for group, _df in grouped_results:
 
         calc_om(
             _df,
             atb_hr_df,
+            atb_om,
             settings,
             pg_engine,
             coal_fgd_df,
@@ -473,9 +510,11 @@ def atb_fixed_var_om_existing(
         mod_results.loc[
             mod_results["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
         ] = mod_results["Fixed_OM_Cost_per_MWyr"].mean()
-    # mod_results = mod_results.sort_values(["model_region", "technology", "cluster"])
     mod_results.loc[:, "Fixed_OM_Cost_per_MWyr"] = mod_results.loc[
         :, "Fixed_OM_Cost_per_MWyr"
+    ].astype(int)
+    mod_results.loc[:, "Fixed_OM_Cost_per_MWhyr"] = mod_results.loc[
+        :, "Fixed_OM_Cost_per_MWhyr"
     ].astype(int)
     mod_results.loc[:, "Var_OM_Cost_per_MWh"] = mod_results.loc[
         :, "Var_OM_Cost_per_MWh"
@@ -485,24 +524,27 @@ def atb_fixed_var_om_existing(
 
 
 def calc_om(
-    _df: pd.DataFrame,
+    df: pd.DataFrame,
     atb_hr_df: pd.DataFrame,
+    atb_om_df: pd.DataFrame,
     settings: dict,
     pg_engine: sqlalchemy.engine.base.Engine,
     coal_fgd_df: pd.DataFrame,
     existing_year: int,
     techs: Dict[str, List[str]],
     simple_o_m: Dict[str, float],
-    group: Tuple[int, str],
+    group: str,
 ) -> pd.DataFrame:
-    """Calculate fixed and variable O&M for a plant/technology combination
+    """Calculate fixed and variable O&M for a single technology.
 
     Parameters
     ----------
-    _df : pd.DataFrame
+    df : pd.DataFrame
         Units of generators at a single plant
     atb_hr_df : pd.DataFrame
         Heat rate data from NREL ATB
+    atb_om_df : pd.DataFrame
+        O&M costs from NREL ATB
     settings : dict
         User-defined parameters from a settings file
     pg_engine : sqlalchemy.engine.base.Engine
@@ -515,8 +557,8 @@ def calc_om(
         Mapping of EIA technology name (key) to the ATB technology, tech_detail (value)
     simple_o_m : Dict[str, float]
         Mapping of simple O&M costs used by some generators (not dependent on size/age)
-    group : Tuple[int, str]
-        The plant ID and EIA technology name
+    group : str
+        The EIA technology name
 
     Returns
     -------
@@ -531,8 +573,8 @@ def calc_om(
         _description_
     """
     target_usd_year = settings["target_usd_year"]
-    plant_id, eia_tech = group
-    existing_hr = _df["heat_rate_mmbtu_mwh"].mean()
+    eia_tech = group
+
     try:
         atb_tech, tech_detail = techs[eia_tech]
     except KeyError:
@@ -564,240 +606,234 @@ def calc_om(
     except (ValueError, TypeError, KeyError):
         # Not all technologies have a heat rate. If they don't, just set both values
         # to 10.34 (33% efficiency)
-        existing_hr = 10.34
+        df["heat_rate_mmbtu_mwh"] = 10.34
         new_build_hr = 10.34
+
+    try:
+        atb_var_om_mwh = atb_om_df.loc[
+            (atb_tech, tech_detail, "variable_o_m_mwh"), "parameter_value"
+        ]
+    except KeyError:
+        atb_var_om_mwh = 0
 
     nems_o_m_techs = [
         "Combined Cycle",
         "Combustion Turbine",
         "Coal",
         "Steam Turbine",
-        "Hydroelectric",
-        "Geothermal",
+        # "Hydroelectric",
+        # "Geothermal",
         "Nuclear",
     ]
-    atb_om_techs = set(nems_o_m_techs) - set(["Nuclear", "Combustion Turbine"])
-    if not any(t in eia_tech for t in atb_om_techs):
-        try:
-            s = f"""
-                    select parameter_value
-                    from technology_costs_nrelatb
-                    where
-                        technology == "{atb_tech}"
-                        AND tech_detail == "{tech_detail}"
-                        AND basis_year == "{existing_year}"
-                        AND financial_case == "Market"
-                        AND cost_case in ("Mid", "Moderate")
-                        AND atb_year == "{settings['atb_data_year']}"
-                        AND parameter == "variable_o_m_mwh"
-                    """
-            atb_var_om_mwh = pg_engine.execute(s).fetchall()[0][0]
-        except IndexError:
-            atb_var_om_mwh = 0
 
     if any(t in eia_tech for t in nems_o_m_techs):
-        # Change CC and CT O&M to EIA NEMS values, which are much higher for CCs and
-        # lower for CTs than a heat rate & linear mulitpler correction to the ATB
-        # values.
-        # Add natural gas steam turbine O&M.
-        # Also using the new values for coal plants, assuming 40-50 yr age and half
-        # FGD
-        # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
-        # logger.info(f"Using NEMS values for {eia_tech} fixed/variable O&M")
-
-        if "Combined Cycle" in eia_tech:
+        df_list = []
+        for plant_id, _df in df.groupby("plant_id_eia", as_index=False):
+            # Change CC and CT O&M to EIA NEMS values, which are much higher for CCs and
+            # lower for CTs than a heat rate & linear mulitpler correction to the ATB
+            # values.
+            # Add natural gas steam turbine O&M.
+            # Also using the new values for coal plants, assuming 40-50 yr age and half
+            # FGD
             # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
-            assert not _df[settings["capacity_col"]].isnull().all()
-            plant_capacity = _df[settings["capacity_col"]].sum()
-            if plant_capacity < 500:
-                fixed = 15.62 * 1000
-                variable = 4.31
-            elif 500 <= plant_capacity < 1000:
-                fixed = 9.27 * 1000
-                variable = 3.42
-            else:
-                fixed = 11.68 * 1000
-                variable = 3.37
+            # logger.info(f"Using NEMS values for {eia_tech} fixed/variable O&M")
 
-            _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
-                fixed, 2017, target_usd_year
-            )
-            _df["Var_OM_Cost_per_MWh"] = inflation_price_adjustment(
-                variable, 2017, target_usd_year
-            )
+            if "Combined Cycle" in eia_tech:
+                # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
+                assert not _df[settings["capacity_col"]].isnull().all()
+                plant_capacity = _df[settings["capacity_col"]].sum()
+                if plant_capacity < 500:
+                    fixed = 15.62 * 1000
+                    variable = 4.31
+                elif 500 <= plant_capacity < 1000:
+                    fixed = 9.27 * 1000
+                    variable = 3.42
+                else:
+                    fixed = 11.68 * 1000
+                    variable = 3.37
 
-        if "Combustion Turbine" in eia_tech:
-            # need to adjust the EIA fixed/variable costs because they have no
-            # variable cost per MWh for existing CTs but they do have per MWh for
-            # new build. Assume $11/MWh from new-build and 4% CF:
-            # (11*8760*0.04/1000)=$3.85/kW-yr. Scale the new-build variable
-            # (~$11/MWh) by relative heat rate and subtract a /kW-yr value as
-            # calculated above from the FOM.
-            # Based on conversation with Jesse J. on Dec 20, 2019.
-            plant_capacity = _df[settings["capacity_col"]].sum()
-            op, op_value = (
-                settings.get("atb_modifiers", {})
-                .get("ngct", {})
-                .get("Var_OM_Cost_per_MWh", (None, None))
-            )
+                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
+                    fixed, 2017, target_usd_year
+                )
+                _df["Var_OM_Cost_per_MWh"] = inflation_price_adjustment(
+                    variable, 2017, target_usd_year
+                )
 
-            if op:
-                f = operator.attrgetter(op)
-                atb_var_om_mwh = f(operator)(atb_var_om_mwh, op_value)
+            if "Combustion Turbine" in eia_tech:
+                # need to adjust the EIA fixed/variable costs because they have no
+                # variable cost per MWh for existing CTs but they do have per MWh for
+                # new build. Assume $11/MWh from new-build and 4% CF:
+                # (11*8760*0.04/1000)=$3.85/kW-yr. Scale the new-build variable
+                # (~$11/MWh) by relative heat rate and subtract a /kW-yr value as
+                # calculated above from the FOM.
+                # Based on conversation with Jesse J. on Dec 20, 2019.
+                plant_capacity = _df[settings["capacity_col"]].sum()
+                op, op_value = (
+                    settings.get("atb_modifiers", {})
+                    .get("ngct", {})
+                    .get("Var_OM_Cost_per_MWh", (None, None))
+                )
 
-            variable = atb_var_om_mwh  # * (existing_hr / new_build_hr)
+                if op:
+                    f = operator.attrgetter(op)
+                    atb_var_om_mwh = f(operator)(atb_var_om_mwh, op_value)
 
-            if plant_capacity < 100:
-                annual_capex = 9.0 * 1000
-                fixed = annual_capex + 5.96 * 1000
-            elif 100 <= plant_capacity <= 300:
-                annual_capex = 6.18 * 1000
-                fixed = annual_capex + 6.43 * 1000
-            else:
-                annual_capex = 6.95 * 1000
-                fixed = annual_capex + 3.99 * 1000
+                variable = atb_var_om_mwh  # * (existing_hr / new_build_hr)
 
-            fixed = fixed - (variable * 8760 * 0.04)
+                if plant_capacity < 100:
+                    annual_capex = 9.0 * 1000
+                    fixed = annual_capex + 5.96 * 1000
+                elif 100 <= plant_capacity <= 300:
+                    annual_capex = 6.18 * 1000
+                    fixed = annual_capex + 6.43 * 1000
+                else:
+                    annual_capex = 6.95 * 1000
+                    fixed = annual_capex + 3.99 * 1000
 
-            _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
-                fixed, 2017, target_usd_year
-            )
-            _df["Var_OM_Cost_per_MWh"] = inflation_price_adjustment(
-                variable, 2017, target_usd_year
-            )
+                fixed = fixed - (variable * 8760 * 0.04)
 
-        if "Natural Gas Steam Turbine" in eia_tech:
-            # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
-            assert not _df[settings["capacity_col"]].isnull().all()
-            plant_capacity = _df[settings["capacity_col"]].sum()
-            if plant_capacity < 500:
-                annual_capex = 18.86 * 1000
-                fixed = annual_capex + 29.73 * 1000
-            elif 500 <= plant_capacity < 1000:
-                annual_capex = 11.57 * 1000
-                fixed = annual_capex + 17.98 * 1000
-            else:
-                annual_capex = 10.82 * 1000
-                fixed = annual_capex + 14.51 * 1000
+                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
+                    fixed, 2017, target_usd_year
+                )
+                _df["Var_OM_Cost_per_MWh"] = inflation_price_adjustment(
+                    variable, 2017, target_usd_year
+                )
 
-            _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
-                fixed, 2017, target_usd_year
-            )
-            _df["Var_OM_Cost_per_MWh"] = simple_o_m["Natural Gas Steam Turbine"][
-                "variable_o_m_mwh"
-            ]
+            if "Natural Gas Steam Turbine" in eia_tech:
+                # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
+                assert not _df[settings["capacity_col"]].isnull().all()
+                plant_capacity = _df[settings["capacity_col"]].sum()
+                if plant_capacity < 500:
+                    annual_capex = 18.86 * 1000
+                    fixed = annual_capex + 29.73 * 1000
+                elif 500 <= plant_capacity < 1000:
+                    annual_capex = 11.57 * 1000
+                    fixed = annual_capex + 17.98 * 1000
+                else:
+                    annual_capex = 10.82 * 1000
+                    fixed = annual_capex + 14.51 * 1000
 
-        if "Coal" in eia_tech:
-            assert not _df[settings["capacity_col"]].isnull().all()
-            plant_capacity = _df[settings["capacity_col"]].sum()
+                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
+                    fixed, 2017, target_usd_year
+                )
+                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Natural Gas Steam Turbine"][
+                    "variable_o_m_mwh"
+                ]
 
-            age = settings["model_year"] - _df.operating_date.dt.year
-            try:
-                age = age.fillna(age.mean())
-            except:
-                age = age.fillna(40)
-            gen_ids = _df["generator_id"].to_list()
-            fgd = coal_fgd_df.query(
-                "plant_id_eia == @plant_id & generator_id in @gen_ids"
-            )["fgd"].values
-            if not np.any(fgd):
-                gen_ids = [g.lstrip("0") for g in gen_ids]
+            if "Coal" in eia_tech:
+                assert not _df[settings["capacity_col"]].isnull().all()
+                plant_capacity = _df[settings["capacity_col"]].sum()
+
+                age = settings["model_year"] - _df.operating_date.dt.year
+                try:
+                    age = age.fillna(age.mean())
+                except:
+                    age = age.fillna(40)
+                gen_ids = _df["generator_id"].to_list()
                 fgd = coal_fgd_df.query(
                     "plant_id_eia == @plant_id & generator_id in @gen_ids"
                 )["fgd"].values
-            if not np.any(fgd):
-                # If FGD isn't found, use average of with/without FGD
-                fgd = np.ones_like(age) * 0.5
+                if not np.any(fgd):
+                    gen_ids = [g.lstrip("0") for g in gen_ids]
+                    fgd = coal_fgd_df.query(
+                        "plant_id_eia == @plant_id & generator_id in @gen_ids"
+                    )["fgd"].values
+                if not np.any(fgd):
+                    # If FGD isn't found, use average of with/without FGD
+                    fgd = np.ones_like(age) * 0.5
 
-                # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
-            annual_capex = (16.53 + (0.126 * age) + (5.68 * fgd)) * 1000
+                    # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
+                annual_capex = (16.53 + (0.126 * age) + (5.68 * fgd)) * 1000
 
-            if plant_capacity < 500:
-                fixed = 44.21 * 1000
-            elif 500 <= plant_capacity < 1000:
-                fixed = 34.02 * 1000
-            elif 1000 <= plant_capacity < 2000:
-                fixed = 28.52 * 1000
-            else:
-                fixed = 33.27 * 1000
+                if plant_capacity < 500:
+                    fixed = 44.21 * 1000
+                elif 500 <= plant_capacity < 1000:
+                    fixed = 34.02 * 1000
+                elif 1000 <= plant_capacity < 2000:
+                    fixed = 28.52 * 1000
+                else:
+                    fixed = 33.27 * 1000
 
-            _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
-                fixed + annual_capex, 2017, target_usd_year
-            )
-            _df["Var_OM_Cost_per_MWh"] = simple_o_m["Coal"]["variable_o_m_mwh"]
-        if "Hydroelectric" in eia_tech:
-            _df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Conventional Hydroelectric"][
-                "fixed_o_m_mw"
-            ]
-            _df["Var_OM_Cost_per_MWh"] = simple_o_m["Conventional Hydroelectric"][
-                "variable_o_m_mwh"
-            ]
-        if "Geothermal" in eia_tech:
-            _df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Geothermal"]["fixed_o_m_mw"]
-            _df["Var_OM_Cost_per_MWh"] = simple_o_m["Geothermal"]["variable_o_m_mwh"]
-        if "Pumped" in eia_tech:
-            _df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Pumped Hydro"]["fixed_o_m_mw"]
-            _df["Var_OM_Cost_per_MWh"] = simple_o_m["Pumped Hydro"]["variable_o_m_mwh"]
-        if "Nuclear" in eia_tech:
-            num_units = len(_df)
-            plant_capacity = _df[settings["capacity_col"]].sum()
+                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
+                    fixed + annual_capex, 2017, target_usd_year
+                )
+                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Coal"]["variable_o_m_mwh"]
 
-            # Operating costs for different size/num units in 2016 INL report
-            # "Economic and Market Challenges Facing the U.S. Nuclear Fleet"
-            # https://gain.inl.gov/Shared%20Documents/Economics-Nuclear-Fleet.pdf,
-            # table 1. Average of the two costs are used in each case.
-            # The costs in that report include fuel and VOM. Assume $0.66/mmbtu
-            # and $2.32/MWh plus 90% CF (ATB 2020) to get the costs below.
-            # The INL report doesn't give a dollar year for costs, assume 2015.
-            if num_units == 1 and plant_capacity < 900:
-                fixed = 315000
-            elif num_units == 1 and plant_capacity >= 900:
-                fixed = 252000
-            else:
-                fixed = 177000
-                # age = (settings["model_year"] - _df.operating_date.dt.year).values
-                # age = age.fillna(age.mean())
-                # age = age.fillna(40)
-                # EIA, 2020, "Assumptions to Annual Energy Outlook, Electricity Market Module,"
-                # Available: https://www.eia.gov/outlooks/aeo/assumptions/pdf/electricity.pdf
-                # fixed = np.ones_like(age)
-                # fixed[age < 30] *= 27 * 1000
-                # fixed[age >= 30] *= (27+37) * 1000
+            if "Nuclear" in eia_tech:
+                num_units = len(_df)
+                plant_capacity = _df[settings["capacity_col"]].sum()
 
-            _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
-                fixed, 2015, target_usd_year
-            )
+                # Operating costs for different size/num units in 2016 INL report
+                # "Economic and Market Challenges Facing the U.S. Nuclear Fleet"
+                # https://gain.inl.gov/Shared%20Documents/Economics-Nuclear-Fleet.pdf,
+                # table 1. Average of the two costs are used in each case.
+                # The costs in that report include fuel and VOM. Assume $0.66/mmbtu
+                # and $2.32/MWh plus 90% CF (ATB 2020) to get the costs below.
+                # The INL report doesn't give a dollar year for costs, assume 2015.
+                if num_units == 1 and plant_capacity < 900:
+                    fixed = 315000
+                elif num_units == 1 and plant_capacity >= 900:
+                    fixed = 252000
+                else:
+                    fixed = 177000
+                    # age = (settings["model_year"] - _df.operating_date.dt.year).values
+                    # age = age.fillna(age.mean())
+                    # age = age.fillna(40)
+                    # EIA, 2020, "Assumptions to Annual Energy Outlook, Electricity Market Module,"
+                    # Available: https://www.eia.gov/outlooks/aeo/assumptions/pdf/electricity.pdf
+                    # fixed = np.ones_like(age)
+                    # fixed[age < 30] *= 27 * 1000
+                    # fixed[age >= 30] *= (27+37) * 1000
 
-            # If nuclear heat rates are NaN, set them to new build value
-            _df.loc[
-                _df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"
-            ] = new_build_hr
-            _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (
-                _df["heat_rate_mmbtu_mwh"].mean() / new_build_hr
-            )
+                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
+                    fixed, 2015, target_usd_year
+                )
 
+                # If nuclear heat rates are NaN, set them to new build value
+                _df.loc[
+                    _df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"
+                ] = new_build_hr
+                _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (
+                    _df["heat_rate_mmbtu_mwh"].mean() / new_build_hr
+                )
+
+            df_list.append(_df)
+
+        return pd.concat(df_list, ignore_index=True)
+
+    elif "Hydroelectric" in eia_tech:
+        df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Conventional Hydroelectric"][
+            "fixed_o_m_mw"
+        ]
+        df["Var_OM_Cost_per_MWh"] = simple_o_m["Conventional Hydroelectric"][
+            "variable_o_m_mwh"
+        ]
+    elif "Geothermal" in eia_tech:
+        df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Geothermal"]["fixed_o_m_mw"]
+        df["Var_OM_Cost_per_MWh"] = simple_o_m["Geothermal"]["variable_o_m_mwh"]
+    elif "Pumped" in eia_tech:
+        df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Pumped Hydro"]["fixed_o_m_mw"]
+        df["Var_OM_Cost_per_MWh"] = simple_o_m["Pumped Hydro"]["variable_o_m_mwh"]
     else:
         try:
-            s = f"""
-                    select parameter_value
-                    from technology_costs_nrelatb
-                    where
-                        technology == "{atb_tech}"
-                        AND tech_detail == "{tech_detail}"
-                        AND basis_year == "{existing_year}"
-                        AND financial_case == "Market"
-                        AND cost_case in ("Mid", "Moderate")
-                        AND atb_year == "{settings['atb_data_year']}"
-                        AND parameter == "fixed_o_m_mw"
-                    """
-            atb_fixed_om_mw_yr = pg_engine.execute(s).fetchall()[0][0]
-        except IndexError:
-            # logger.warning(f"No fixed O&M for {atb_tech}")
+            atb_fixed_om_mw_yr = atb_om_df.loc[
+                (atb_tech, tech_detail, "fixed_o_m_mw"), "parameter_value"
+            ]
+        except KeyError:
             atb_fixed_om_mw_yr = 0
-        _df["Fixed_OM_Cost_per_MWyr"] = atb_fixed_om_mw_yr
-        _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (existing_hr / new_build_hr)
+        df["Fixed_OM_Cost_per_MWyr"] = atb_fixed_om_mw_yr
+        df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (
+            df["heat_rate_mmbtu_mwh"] / new_build_hr
+        )
+    if atb_tech == "Battery":
+        atb_fixed_om_mwh = atb_om_df.loc[
+            (atb_tech, tech_detail, "fixed_o_m_mwh"), "parameter_value"
+        ]
+        df["Fixed_OM_Cost_per_MWhyr"] = atb_fixed_om_mwh
+    else:
+        df["Fixed_OM_Cost_per_MWhyr"] = 0
 
-    return _df
+    return df
 
 
 def single_generator_row(
