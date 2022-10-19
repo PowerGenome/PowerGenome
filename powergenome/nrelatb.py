@@ -572,6 +572,9 @@ def calc_om(
     KeyError
         _description_
     """
+    df[
+        "Fixed_OM_Cost_per_MWhyr"
+    ] = 0  # set up front, add values for batteries where appropriate
     target_usd_year = settings["target_usd_year"]
     eia_tech = group
 
@@ -830,8 +833,6 @@ def calc_om(
             (atb_tech, tech_detail, "fixed_o_m_mwh"), "parameter_value"
         ]
         df["Fixed_OM_Cost_per_MWhyr"] = atb_fixed_om_mwh
-    else:
-        df["Fixed_OM_Cost_per_MWhyr"] = 0
 
     return df
 
