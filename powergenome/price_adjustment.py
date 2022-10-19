@@ -2,6 +2,7 @@
 Adjust price/cost from one year to another
 """
 
+from functools import lru_cache
 import logging
 
 import requests
@@ -105,6 +106,7 @@ def get_cpi_data(start_year: int = 1980, end_year: int = None) -> pd.DataFrame:
     return annual_cpi
 
 
+@lru_cache()
 def load_cpi_data(
     reload_data: bool = False, data_path: Path = None, **kwargs
 ) -> pd.DataFrame:

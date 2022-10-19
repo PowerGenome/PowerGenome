@@ -408,6 +408,34 @@ def atb_fixed_var_om_existing(
             atb = [atb]
         techs[eia] = atb[0].split("_")
 
+    target_usd_year = settings["target_usd_year"]
+    simple_o_m = {
+        "Natural Gas Steam Turbine": {
+            "variable_o_m_mwh": inflation_price_adjustment(1.0, 2017, target_usd_year)
+        },
+        "Coal": {
+            "variable_o_m_mwh": inflation_price_adjustment(1.78, 2017, target_usd_year)
+        },
+        "Conventional Hydroelectric": {
+            "fixed_o_m_mw": inflation_price_adjustment(
+                44.56 * 1000, 2017, target_usd_year
+            ),
+            "variable_o_m_mwh": 0,
+        },
+        "Geothermal": {
+            "fixed_o_m_mw": inflation_price_adjustment(
+                198.04 * 1000, 2017, target_usd_year
+            ),
+            "variable_o_m_mwh": 0,
+        },
+        "Pumped Hydro": {
+            "fixed_o_m_mw": inflation_price_adjustment(
+                (23.63 + 14.83) * 1000, 2017, target_usd_year
+            ),
+            "variable_o_m_mwh": 0,
+        },
+    }
+
     df_list = []
     atb_hr_df = atb_hr_df.set_index(
         ["technology", "tech_detail", "basis_year"]
@@ -425,6 +453,7 @@ def atb_fixed_var_om_existing(
             coal_fgd_df,
             existing_year,
             techs,
+            simple_o_m,
             group,
         )
 
@@ -456,8 +485,52 @@ def atb_fixed_var_om_existing(
 
 
 def calc_om(
-    _df, atb_hr_df, settings, pg_engine, coal_fgd_df, existing_year, techs, group
-):
+    _df: pd.DataFrame,
+    atb_hr_df: pd.DataFrame,
+    settings: dict,
+    pg_engine: sqlalchemy.engine.base.Engine,
+    coal_fgd_df: pd.DataFrame,
+    existing_year: int,
+    techs: Dict[str, List[str]],
+    simple_o_m: Dict[str, float],
+    group: Tuple[int, str],
+) -> pd.DataFrame:
+    """Calculate fixed and variable O&M for a plant/technology combination
+
+    Parameters
+    ----------
+    _df : pd.DataFrame
+        Units of generators at a single plant
+    atb_hr_df : pd.DataFrame
+        Heat rate data from NREL ATB
+    settings : dict
+        User-defined parameters from a settings file
+    pg_engine : sqlalchemy.engine.base.Engine
+        Connection to the PowerGenome database
+    coal_fgd_df : pd.DataFrame
+        Table showing if a coal generating unit has FGD control technology
+    existing_year : int
+        Year of ATB to use as a proxy for existing plants
+    techs : Dict[str, List[str]]
+        Mapping of EIA technology name (key) to the ATB technology, tech_detail (value)
+    simple_o_m : Dict[str, float]
+        Mapping of simple O&M costs used by some generators (not dependent on size/age)
+    group : Tuple[int, str]
+        The plant ID and EIA technology name
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified copy of input with fixed and variable O&M costs
+
+    Raises
+    ------
+    KeyError
+        _description_
+    KeyError
+        _description_
+    """
+    target_usd_year = settings["target_usd_year"]
     plant_id, eia_tech = group
     existing_hr = _df["heat_rate_mmbtu_mwh"].mean()
     try:
@@ -493,40 +566,6 @@ def calc_om(
         # to 10.34 (33% efficiency)
         existing_hr = 10.34
         new_build_hr = 10.34
-    try:
-        s = f"""
-                select parameter_value
-                from technology_costs_nrelatb
-                where
-                    technology == "{atb_tech}"
-                    AND tech_detail == "{tech_detail}"
-                    AND basis_year == "{existing_year}"
-                    AND financial_case == "Market"
-                    AND cost_case in ("Mid", "Moderate")
-                    AND atb_year == "{settings['atb_data_year']}"
-                    AND parameter == "variable_o_m_mwh"
-                """
-        atb_var_om_mwh = pg_engine.execute(s).fetchall()[0][0]
-    except IndexError:
-        atb_var_om_mwh = 0
-
-    try:
-        s = f"""
-                select parameter_value
-                from technology_costs_nrelatb
-                where
-                    technology == "{atb_tech}"
-                    AND tech_detail == "{tech_detail}"
-                    AND basis_year == "{existing_year}"
-                    AND financial_case == "Market"
-                    AND cost_case in ("Mid", "Moderate")
-                    AND atb_year == "{settings['atb_data_year']}"
-                    AND parameter == "fixed_o_m_mw"
-                """
-        atb_fixed_om_mw_yr = pg_engine.execute(s).fetchall()[0][0]
-    except IndexError:
-        # logger.warning(f"No fixed O&M for {atb_tech}")
-        atb_fixed_om_mw_yr = 0
 
     nems_o_m_techs = [
         "Combined Cycle",
@@ -537,6 +576,25 @@ def calc_om(
         "Geothermal",
         "Nuclear",
     ]
+    atb_om_techs = set(nems_o_m_techs) - set(["Nuclear", "Combustion Turbine"])
+    if not any(t in eia_tech for t in atb_om_techs):
+        try:
+            s = f"""
+                    select parameter_value
+                    from technology_costs_nrelatb
+                    where
+                        technology == "{atb_tech}"
+                        AND tech_detail == "{tech_detail}"
+                        AND basis_year == "{existing_year}"
+                        AND financial_case == "Market"
+                        AND cost_case in ("Mid", "Moderate")
+                        AND atb_year == "{settings['atb_data_year']}"
+                        AND parameter == "variable_o_m_mwh"
+                    """
+            atb_var_om_mwh = pg_engine.execute(s).fetchall()[0][0]
+        except IndexError:
+            atb_var_om_mwh = 0
+
     if any(t in eia_tech for t in nems_o_m_techs):
         # Change CC and CT O&M to EIA NEMS values, which are much higher for CCs and
         # lower for CTs than a heat rate & linear mulitpler correction to the ATB
@@ -546,37 +604,6 @@ def calc_om(
         # FGD
         # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
         # logger.info(f"Using NEMS values for {eia_tech} fixed/variable O&M")
-        target_usd_year = settings["target_usd_year"]
-        simple_o_m = {
-            "Natural Gas Steam Turbine": {
-                "variable_o_m_mwh": inflation_price_adjustment(
-                    1.0, 2017, target_usd_year
-                )
-            },
-            "Coal": {
-                "variable_o_m_mwh": inflation_price_adjustment(
-                    1.78, 2017, target_usd_year
-                )
-            },
-            "Conventional Hydroelectric": {
-                "fixed_o_m_mw": inflation_price_adjustment(
-                    44.56 * 1000, 2017, target_usd_year
-                ),
-                "variable_o_m_mwh": 0,
-            },
-            "Geothermal": {
-                "fixed_o_m_mw": inflation_price_adjustment(
-                    198.04 * 1000, 2017, target_usd_year
-                ),
-                "variable_o_m_mwh": 0,
-            },
-            "Pumped Hydro": {
-                "fixed_o_m_mw": inflation_price_adjustment(
-                    (23.63 + 14.83) * 1000, 2017, target_usd_year
-                ),
-                "variable_o_m_mwh": 0,
-            },
-        }
 
         if "Combined Cycle" in eia_tech:
             # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
@@ -750,8 +777,27 @@ def calc_om(
             )
 
     else:
+        try:
+            s = f"""
+                    select parameter_value
+                    from technology_costs_nrelatb
+                    where
+                        technology == "{atb_tech}"
+                        AND tech_detail == "{tech_detail}"
+                        AND basis_year == "{existing_year}"
+                        AND financial_case == "Market"
+                        AND cost_case in ("Mid", "Moderate")
+                        AND atb_year == "{settings['atb_data_year']}"
+                        AND parameter == "fixed_o_m_mw"
+                    """
+            atb_fixed_om_mw_yr = pg_engine.execute(s).fetchall()[0][0]
+        except IndexError:
+            # logger.warning(f"No fixed O&M for {atb_tech}")
+            atb_fixed_om_mw_yr = 0
         _df["Fixed_OM_Cost_per_MWyr"] = atb_fixed_om_mw_yr
         _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (existing_hr / new_build_hr)
+
+    return _df
 
 
 def single_generator_row(
