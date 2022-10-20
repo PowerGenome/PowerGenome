@@ -6,6 +6,7 @@ from pathlib import Path
 from powergenome.GenX import (
     RESOURCE_TAGS,
     add_cap_res_network,
+    add_misc_gen_values,
     check_resource_tags,
     create_policy_req,
     create_regional_cap_res,
@@ -63,6 +64,7 @@ from powergenome.transmission import (
 )
 from powergenome.util import (
     build_scenario_settings,
+    find_region_col,
     init_pudl_connection,
     check_settings,
     load_settings,
@@ -370,9 +372,14 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
     CA_AZ_settings["modified_atb_new_gen"]["NGCCS100"]["heat_rate"] = 7.5
     CA_AZ_settings["EFS_DATA"] = DATA_PATHS["test_data"] / "efs"
     gc = GeneratorClusters(
-        pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=False
+        pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=True
     )
     all_gens = gc.create_all_generators()
+    all_gens = add_misc_gen_values(all_gens, CA_AZ_settings)
+
+    assert (
+        all_gens.loc[all_gens["Resource"] == "CA_N_biomass_1", "Eff_Up"].values[0] == 1
+    )
     assert np.allclose(
         all_gens.query("technology.str.contains('NaturalGas_CCCCS', case=False)")[
             "Heat_Rate_MMBTU_per_MWh"
@@ -385,6 +392,13 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
         ].mean(),
         7.5,
     )
+    # Capacity in existing clusters should be > 0
+    assert all(gc.results["Existing_Cap_MW"] > 0)
+    batteries = gc.results.query("technology == 'Batteries'")
+
+    # Battery energy capacity should be larger than battery power capacity
+    assert all(batteries["Existing_Cap_MWh"] > batteries["Existing_Cap_MW"])
+
     gen_variability = make_generator_variability(all_gens)
     assert (gen_variability >= 0).all().all()
 
@@ -609,102 +623,6 @@ def test_check_resource_tags():
     df = pd.DataFrame(data)
 
     check_resource_tags(df)
-
-
-def test_add_user_fuel_prices():
-    settings = {
-        # "user_fuel_price": {"biomass": {"SC_VACA": 10, "PJM_DOM": 5}, "ZCF": 15},
-        "modified_atb_new_gen": {
-            "ZCF_CombinedCycle1": {
-                "new_technology": "ZCF",
-                "new_tech_detail": "CCAvgCF",
-                "new_cost_case": "Advanced",
-                "atb_technology": "NaturalGas",
-                "atb_tech_detail": "CCAvgCF",
-                "atb_cost_case": "Advanced",
-                "size_mw": 500,
-            },
-            "ZCF_CombinedCycle2": {
-                "new_technology": "ZeroCarbon",
-                "new_tech_detail": "CCAvgCF",
-                "new_cost_case": "Advanced",
-                "atb_technology": "NaturalGas",
-                "atb_tech_detail": "CCAvgCF",
-                "atb_cost_case": "Advanced",
-                "size_mw": 500,
-            },
-        },
-        "eia_atb_tech_map": {
-            "Biomass": ["Biopower_Dedicated"],
-            "Zero Carbon": ["ZCF"],
-        },
-        "atb_new_gen": [["Biopower", "Dedicated", "Moderate", 100]],
-        "atb_data_year": 2020,
-        "atb_cap_recovery_years": 20,
-        "eia_series_scenario_names": {"reference": "REF2021"},
-        "user_fuel_price": {
-            "zerocarbonfuel1": 14,
-            "zerocarbonfuel2": 10,
-            "biomass": {"S_VACA": 10, "PJM_DOM": 5},
-        },
-        "user_fuel_usd_year": {
-            "zerocarbonfuel1": 2020,
-            "zerocarbonfuel2": 2020,
-            "biomass": 2019,
-        },
-        "tech_fuel_map": {
-            "ZeroCarbon_CCAvgCF_Advanced": "zerocarbonfuel1",
-            "Zero Carbon": "zerocarbonfuel2",
-            "Biomass": "biomass",
-        },
-        "model_regions": ["S_VACA", "PJM_DOM"],
-        "model_year": 2040,
-        "model_first_planning_year": 2035,
-        "cost_multiplier_region_map": {
-            "SRCA": ["S_VACA"],
-            "PJMD": ["PJM_DOM"],
-        },
-        "cost_multiplier_technology_map": {
-            "Biomass": ["Biopower_Dedicated"],
-            "CC - multi shaft": ["ZeroCarbon_CCAvgCF", "ZCF_CCAvgCF"],
-        },
-        "fuel_emission_factors": {"biomass": 0.001},  # Dummy value
-    }
-
-    df_base = add_user_fuel_prices(settings)
-
-    for fuel in [
-        "S_VACA_biomass",
-        "PJM_DOM_biomass",
-        "zerocarbonfuel1",
-        "zerocarbonfuel2",
-    ]:
-        assert fuel in df_base["full_fuel_name"].unique()
-
-    settings["target_usd_year"] = 2020
-    df_inflate = add_user_fuel_prices(settings)
-    assert (
-        df_base.loc[df_base["fuel"] == "biomass", "price"].mean()
-        < df_inflate.loc[df_inflate["fuel"] == "biomass", "price"].mean()
-    )
-    assert np.allclose(
-        df_base.loc[df_base["fuel"] == "zerocarbonfuel1", "price"].mean(),
-        df_inflate.loc[df_inflate["fuel"] == "zerocarbonfuel1", "price"].mean(),
-    )
-
-    gc = GeneratorClusters(
-        pudl_engine, pudl_out, pg_engine, settings, current_gens=False
-    )
-    gens = gc.create_new_generators()
-    assert gens["Fuel"].isna().any() == False
-
-    fuel_table = fuel_cost_table(gc.fuel_prices, gens, settings)
-    for r in ["PJM_DOM", "S_VACA"]:
-        assert (
-            fuel_table.loc[0, f"{r}_biomass"]
-            == settings["fuel_emission_factors"]["biomass"]
-        )
-    assert (fuel_table.loc[1:, :] == 0).any().any() == False
 
 
 def test_storage_duration(caplog):
@@ -958,3 +876,22 @@ def test_load_growth(CA_AZ_settings):
 def test_db_col_values():
     values = db_col_values(pg_engine, "technology_costs_nrelatb", ["technology"])
     assert "NaturalGas" in values
+
+
+def test_find_region_col():
+
+    df = pd.DataFrame(columns=["A", "Region", "C"])
+    region_col = find_region_col(df.columns)
+    assert region_col == "Region"
+
+    df = pd.DataFrame(columns=["A", "model_region", "C"])
+    region_col = find_region_col(df.columns)
+    assert region_col == "model_region"
+
+    with pytest.raises(ValueError):
+        df = pd.DataFrame(columns=["A", "model_region", "region"])
+        region_col = find_region_col(df.columns)
+
+    with pytest.raises(ValueError):
+        df = pd.DataFrame(columns=["A", "B", "C"])
+        region_col = find_region_col(df.columns)

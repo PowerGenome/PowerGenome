@@ -5,6 +5,7 @@ Load data from EIA's Open Data API. Requires an api key, which should be include
 
 from itertools import product
 import logging
+import operator
 from typing import Union
 
 import pandas as pd
@@ -12,6 +13,7 @@ import requests
 
 from powergenome.params import SETTINGS, DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
+from powergenome.util import reverse_dict_of_lists
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,7 @@ def load_aeo_series(
         The API request failed for some reason.
     """
     data_dir = DATA_PATHS["eia"] / "open_data"
-    data_dir.mkdir(exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
     fn = f"{aeo_year}_{aeo_scenario.lower()}_{series_id}.csv"
     if not (data_dir / fn).exists():
         url = f"https://api.eia.gov/v2/aeo/{aeo_year}/data/?api_key={api_key}&facets[scenario][]={aeo_scenario.lower()}&facets[seriesId][]={series_id}&data[]=value"
@@ -98,6 +100,16 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
         All fuel price data from AEO for the product of regions, fuels, and scenarios
         included in the settings dictionary.
 
+    Raises
+    ------
+    KeyError
+        The settings parameter "eia_series_scenario_names" is missing.
+    KeyError
+        The AEO data year is not specified by either of the settings parameters
+        "fuel_eia_aeo_year" or "eia_aeo_year".
+    TypeError
+        The parameter value of "fuel_eia_aeo_year" or "eia_aeo_year" is not an integer.
+
     Examples
     --------
     Prepare the settings dictionary
@@ -134,6 +146,50 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
         aeo_year = settings.get("fuel_eia_aeo_year")
     else:
         aeo_year = settings.get("eia_aeo_year")
+
+    if not aeo_year:
+        raise KeyError(
+            "The parameter 'fuel_eia_aeo_year' is not in your settings files. This is a "
+            "required settings parameter when using fuel price data from EIA's AEO."
+        )
+    if not isinstance(aeo_year, int):
+        raise TypeError(
+            "The settings parameter 'fuel_eia_aeo_year' (or 'eia_aeo_year') must be an "
+            f"integer, representing the AEO data year. Your parameter is {aeo_year}."
+        )
+    if not settings.get("eia_series_region_names"):
+        logger.warning(
+            "EIA fuel region names were not found in the settings ('eia_series_region_names'). "
+            "Applying default values."
+        )
+        settings["eia_series_region_names"] = dict(
+            mountain="MTN",
+            pacific="PCF",
+            west_south_central="WSC",
+            east_south_central="ESC",
+            south_atlantic="SOATL",
+            west_north_central="WNC",
+            east_north_central="ENC",
+            middle_atlantic="MDATL",
+            new_england="NEENGL",
+        )
+    if not settings.get("eia_series_fuel_names"):
+        settings["eia_series_fuel_names"] = {
+            "coal": "STC",
+            "naturalgas": "NG",
+            "distillate": "DFO",
+            "uranium": "U",
+        }
+        logger.warning(
+            "EIA fuel names were not found in the settings ('eia_series_fuel_names'). "
+            "Applying default values:\n\n"
+            f"{settings['eia_series_fuel_names']}"
+        )
+    if not settings.get("eia_series_scenario_names"):
+        raise KeyError(
+            "The settings parameter 'eia_series_scenario_names' is missing. This mapping "
+            "of AEO scenario API names (e.g. REF2020) to plain english is required."
+        )
 
     fuel_price_cases = product(
         settings.get("eia_series_region_names", {}).items(),
@@ -205,6 +261,119 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
             )
 
     return final
+
+
+def modify_fuel_prices(
+    prices: pd.DataFrame,
+    aeo_fuel_region_map: dict,
+    regional_fuel_adjustments: dict = None,
+) -> pd.DataFrame:
+    """Modify the AEO fuel prices by model region or fuel within a model region.
+
+    Parameters
+    ----------
+    prices : pd.DataFrame
+        Fuel prices from AEO, with columns ['year', 'price', 'fuel', 'region', 'scenario',
+        'full_fuel_name']
+    aeo_fuel_region_map : dict
+        Mapping of AEO census division fuel names to lists of model regions
+    regional_fuel_adjustments : dict, optional
+        Modifications of fuel prices by region or fuel within region, by default None
+
+    Returns
+    -------
+    pd.DataFrame
+        Full input dataframe with modified copies for model regions and fuels specified
+        in `regional_fuel_adjustments`.
+
+    Raises
+    ------
+    KeyError
+        The required parameter 'aeo_fuel_region_map' is missing
+    KeyError
+        One or more model regions having fuel prices modified is not in `aeo_fuel_region_map`
+    KeyError
+        Invalid operator type
+    KeyError
+        Invalid fuel name
+    KeyError
+        Invalid operator type
+    TypeError
+        Fuel price modifiers are not a list or a dictionary of lists
+    """
+
+    if not regional_fuel_adjustments:
+        return prices
+
+    if not aeo_fuel_region_map:
+        raise KeyError("The required parameter 'aeo_fuel_region_map' is missing.")
+
+    allowed_operators = ["add", "mul", "truediv", "sub"]
+    model_regions = list(regional_fuel_adjustments)
+    model_aeo_region_map = reverse_dict_of_lists(aeo_fuel_region_map)
+    if not all(r in model_aeo_region_map for r in model_regions):
+        raise KeyError(
+            "All model regions listed in the settings parameter 'regional_fuel_adjustments' "
+            "should also be included in `aeo_fuel_region_map`. One or more regions was "
+            "not found."
+        )
+
+    df_list = []
+    for region, adj in regional_fuel_adjustments.items():
+        aeo_region = model_aeo_region_map[region]
+        if isinstance(adj, list):
+            op, op_value = adj
+            if op not in allowed_operators:
+                raise KeyError(
+                    f"The regional fuel price adjustment for {region} needs a valid "
+                    f"operator from the list\n{allowed_operators}\n"
+                    "in the format [<operator>, <value>].\n"
+                )
+            f = operator.attrgetter(op)
+            df = prices.loc[prices["region"] == aeo_region, :]
+            df.loc[:, "region"] = region
+            df.loc[:, "price"] = f(operator)(df["price"], op_value)
+            df.loc[:, "full_fuel_name"] = df["full_fuel_name"].str.replace(
+                aeo_region, region
+            )
+            df_list.append(df)
+        elif isinstance(adj, dict):
+            for fuel, op_list in adj.items():
+                if fuel not in prices["fuel"].unique():
+                    raise KeyError(
+                        f"The fuel '{fuel}' is listed under the region {region} in your settings "
+                        "parameter 'regional_fuel_adjustments'. There was no AEO fuel "
+                        "price fetched for this fuel so it cannot be modified."
+                    )
+                op, op_value = op_list
+                if op not in allowed_operators:
+                    raise KeyError(
+                        f"The regional fuel price adjustment for '{fuel}' in {region} "
+                        f"needs to be an operator from the list {allowed_operators}. "
+                        f"You supplied '{op}', which is not a valid operator."
+                    )
+                f = operator.attrgetter(op)
+                df = prices.loc[
+                    (prices["region"] == aeo_region) & (prices["fuel"] == fuel.lower()),
+                    :,
+                ]
+                df.loc[:, "region"] = region
+                df.loc[:, "price"] = f(operator)(df["price"], op_value)
+                df.loc[:, "full_fuel_name"] = df["full_fuel_name"].str.replace(
+                    aeo_region, region
+                )
+                df_list.append(df)
+        else:
+            raise TypeError(
+                "Fuel price modifiers in the settings parameter 'regional_fuel_adjustments' "
+                "must be a list of the form '[<op>, <value>]', or a similar list for a "
+                "specific fuel. "
+                f"Your value look like '{adj}' for region '{region}'."
+            )
+
+    mod_prices = pd.concat([prices] + df_list, ignore_index=True, sort=False)
+
+    return mod_prices
 
 
 def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFrame:
@@ -315,10 +484,6 @@ def get_aeo_load(
     3  2047  472.314972
     4  2046  466.875671
     """
-
-    data_dir = DATA_PATHS["eia"] / "open_data"
-    data_dir.mkdir(exist_ok=True)
-
     API_KEY = SETTINGS["EIA_API_KEY"]
 
     SERIES_ID = f"cnsm_NA_{sector.lower()}_NA_elc_NA_{region.lower()}_blnkwh"

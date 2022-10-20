@@ -71,6 +71,7 @@ model_tag_values:
     UtilityPV: 1
     Offshore Wind Turbine: 1
   STOR:
+    Batteries: 1
     Battery: 1
     Hydroelectric Pumped Storage: 1
   FLEX:

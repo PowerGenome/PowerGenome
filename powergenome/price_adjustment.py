@@ -105,7 +105,9 @@ def get_cpi_data(start_year: int = 1980, end_year: int = None) -> pd.DataFrame:
     return annual_cpi
 
 
-def load_cpi_data(reload_data: bool = False, **kwargs) -> pd.DataFrame:
+def load_cpi_data(
+    reload_data: bool = False, data_path: Path = None, **kwargs
+) -> pd.DataFrame:
     """Load BLS CPI data from CSV file if it exists and `reload_data` is False, otherwise
     get it from the API and write results to file.
 
@@ -113,6 +115,9 @@ def load_cpi_data(reload_data: bool = False, **kwargs) -> pd.DataFrame:
     ----------
     reload_data : bool, optional
         If data should be reloaded from the BLS API, by default False
+    data_path: Path, option
+        Path to CSV file where CPI data is stored or will be saved, by default None. If
+        None, use DATA_PATHS["cpi_data"] from the params module.
     **kwargs: optional
         Optional keyword arguments for the function `get_cpi_data`. Only used if
         `reload_data` is True or the CPI data file doesn't already exist.
@@ -122,9 +127,10 @@ def load_cpi_data(reload_data: bool = False, **kwargs) -> pd.DataFrame:
     pd.DataFrame
         Annual averages of BLS CPI. If data are reloaded then the results will be
     """
-
-    if reload_data or not DATA_PATHS["cpi_data"].exists():
-        DATA_PATHS["cpi_data"].parent.mkdir(exist_ok=True)
+    if not data_path:
+        data_path = DATA_PATHS["cpi_data"]
+    if reload_data or not data_path.exists():
+        data_path.parent.mkdir(exist_ok=True)
         start_year = 1980
         end_year = None
         for k, v in kwargs.items():
@@ -133,9 +139,9 @@ def load_cpi_data(reload_data: bool = False, **kwargs) -> pd.DataFrame:
             if k == "end_year":
                 end_year = v
         cpi_data = get_cpi_data(start_year, end_year)
-        cpi_data.to_csv(DATA_PATHS["cpi_data"], index=False)
+        cpi_data.to_csv(data_path, index=False, float_format="%g")
     else:
-        cpi_data = pd.read_csv(DATA_PATHS["cpi_data"])
+        cpi_data = pd.read_csv(data_path)
 
     return cpi_data
 
@@ -144,6 +150,7 @@ def inflation_price_adjustment(
     price: Union[int, float, pd.Series, pd.DataFrame, np.ndarray],
     base_year: int,
     target_year: int,
+    **kwargs,
 ) -> float:
     """Convert costs from one dollar-year to another dollar-year using BLS annual CPI data.
 
@@ -156,6 +163,8 @@ def inflation_price_adjustment(
         The original data dollar-year
     target_year : int
         The target dollar-year
+    **kwargs : optional
+        Optional keyword arguments for the function `load_cpi_data`.
 
     Returns
     -------
@@ -190,11 +199,13 @@ def inflation_price_adjustment(
 
     base_year = int(base_year)
     target_year = int(target_year)
-
-    cpi_data = load_cpi_data()
+    data_path = kwargs.pop("data_path", None)
+    reload_data = kwargs.pop("reload_data", False)
+    cpi_data = load_cpi_data(reload_data=reload_data, data_path=data_path)
     if cpi_data["year"].max() < max(target_year, base_year):
         logger.info("Updating CPI data")
-        cpi_data = load_cpi_data(reload_data=True, kwargs={"end_year": target_year})
+        kwargs.update({"end_year": target_year})
+        cpi_data = load_cpi_data(reload_data=True, data_path=data_path, kwargs=kwargs)
         if cpi_data["year"].max() < target_year:
             raise ValueError(
                 f"CPI data are only available through {cpi_data['year'].max()}. Your target year is "
@@ -202,7 +213,8 @@ def inflation_price_adjustment(
             )
     if cpi_data["year"].min() > base_year:
         logger.info("Updating CPI data")
-        cpi_data = load_cpi_data(reload_data=True, kwargs={"start_year": base_year})
+        kwargs.update({"start_year": base_year})
+        cpi_data = load_cpi_data(reload_data=True, data_path=data_path, kwargs=kwargs)
         if cpi_data["year"].min() > base_year:
             raise ValueError(
                 f"CPI data only start in year {cpi_data['year'].min()}. Your base year is "

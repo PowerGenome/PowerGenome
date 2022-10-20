@@ -21,10 +21,10 @@
 # The type of flexible loads that can be included as flexible demand resources (with hourly
 # profiles from NREL EFS data) are:
 
-# res_space_heat_cool (residential water heating)
-# res_water_heat (commercial water heating)
-# comm_space_heat_cool (residential space heating)
-# comm_water_heat (commercial space heating)
+# res_space_heat_cool (residential space heating and cooling)
+# res_water_heat (residential water heating)
+# comm_space_heat_cool (commercial space heating and cooling)
+# comm_water_heat (commercial water heating)
 # trans_light_duty (light duty vehicles)
 # trans_medium_duty (medium duty vehicles)
 # trans_heavy_duty (heavy duty vehicles)
