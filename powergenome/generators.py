@@ -1246,8 +1246,9 @@ def group_units(df, settings):
             "capacity_mwh": "sum",
             "minimum_load_mw": "sum",
             "heat_rate_mmbtu_mwh": "mean",
-            "Fixed_OM_Cost_per_MWyr": "mean",
-            "Var_OM_Cost_per_MWh": "mean",
+            "fixed_o_m_mw": "mean",
+            "fixed_o_m_mwh": "mean",
+            "variable_o_m_mwh": "mean",
         }
     )
     grouped_units = grouped_units.replace([np.inf, -np.inf], np.nan)
@@ -1311,8 +1312,9 @@ def calc_unit_cluster_values(
             "capacity_mwh": "sum",
             "minimum_load_mw": "mean",
             "heat_rate_mmbtu_mwh": wm,
-            "Fixed_OM_Cost_per_MWyr": wm,
-            "Var_OM_Cost_per_MWh": wm,
+            "fixed_o_m_mw": wm,
+            "fixed_o_m_mwh": wm,
+            "variable_o_m_mwh": wm,
         }
     )
     df_values.index = df_values["cluster"].values
@@ -1325,9 +1327,7 @@ def calc_unit_cluster_values(
     df_values["heat_rate_mmbtu_mwh_std"] = df.groupby("cluster").agg(
         {"heat_rate_mmbtu_mwh": "std"}
     )
-    df_values["fixed_o_m_mw_std"] = df.groupby("cluster").agg(
-        {"Fixed_OM_Cost_per_MWyr": "std"}
-    )
+    df_values["fixed_o_m_mw_std"] = df.groupby("cluster").agg({"fixed_o_m_mw": "std"})
 
     df_values["Min_Power"] = df_values["minimum_load_mw"] / df_values[capacity_col]
 
@@ -3152,7 +3152,7 @@ class GeneratorClusters:
                     continue
                 if num_clusters[region][tech] > 0:
                     cluster_cols = [
-                        "Fixed_OM_Cost_per_MWyr",
+                        "fixed_o_m_mw",
                         # "Var_OM_Cost_per_MWh",
                         # "minimum_load_mw",
                         "heat_rate_mmbtu_mwh",

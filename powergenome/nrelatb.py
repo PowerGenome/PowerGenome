@@ -396,7 +396,7 @@ def atb_fixed_var_om_existing(
     -------
     DataFrame
         Same as incoming "results" dataframe but with new columns
-        "Fixed_OM_Cost_per_MWyr" and "Var_OM_Cost_per_MWh"
+        "fixed_o_m_mw" and "variable_o_m_mwh"
     """
     logger.info("Adding fixed and variable O&M for existing plants")
 
@@ -499,26 +499,22 @@ def atb_fixed_var_om_existing(
     mod_results = pd.concat(df_list, ignore_index=True)
 
     # Fill na FOM values, first by technology and then across all techs
-    if not mod_results.loc[mod_results["Fixed_OM_Cost_per_MWyr"].isna()].empty:
+    if not mod_results.loc[mod_results["fixed_o_m_mw"].isna()].empty:
         df_list = []
         for tech, _df in mod_results.groupby("technology"):
-            _df.loc[
-                _df["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
-            ] = _df["Fixed_OM_Cost_per_MWyr"].mean()
+            _df.loc[_df["fixed_o_m_mw"].isna(), "fixed_o_m_mw"] = _df[
+                "fixed_o_m_mw"
+            ].mean()
             df_list.append(_df)
         mod_results = pd.concat(df_list, ignore_index=True)
         mod_results.loc[
-            mod_results["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
-        ] = mod_results["Fixed_OM_Cost_per_MWyr"].mean()
-    mod_results.loc[:, "Fixed_OM_Cost_per_MWyr"] = mod_results.loc[
-        :, "Fixed_OM_Cost_per_MWyr"
-    ].astype(int)
-    mod_results.loc[:, "Fixed_OM_Cost_per_MWhyr"] = mod_results.loc[
-        :, "Fixed_OM_Cost_per_MWhyr"
-    ].astype(int)
-    mod_results.loc[:, "Var_OM_Cost_per_MWh"] = mod_results.loc[
-        :, "Var_OM_Cost_per_MWh"
-    ]
+            mod_results["fixed_o_m_mw"].isna(), "fixed_o_m_mw"
+        ] = mod_results["fixed_o_m_mw"].mean()
+    mod_results.loc[:, "fixed_o_m_mw"] = mod_results.loc[:, "fixed_o_m_mw"].astype(int)
+    mod_results.loc[:, "fixed_o_m_mwh"] = mod_results.loc[:, "fixed_o_m_mwh"].astype(
+        int
+    )
+    mod_results.loc[:, "variable_o_m_mwh"] = mod_results.loc[:, "variable_o_m_mwh"]
 
     return mod_results
 
@@ -572,7 +568,7 @@ def calc_om(
     KeyError
         _description_
     """
-    df["Fixed_OM_Cost_per_MWhyr"] = 0
+    df["fixed_o_m_mwh"] = 0
     target_usd_year = settings["target_usd_year"]
     eia_tech = group
 
@@ -653,10 +649,10 @@ def calc_om(
                     fixed = 11.68 * 1000
                     variable = 3.37
 
-                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
+                _df["fixed_o_m_mw"] = inflation_price_adjustment(
                     fixed, 2017, target_usd_year
                 )
-                _df["Var_OM_Cost_per_MWh"] = inflation_price_adjustment(
+                _df["variable_o_m_mwh"] = inflation_price_adjustment(
                     variable, 2017, target_usd_year
                 )
 
@@ -672,7 +668,7 @@ def calc_om(
                 op, op_value = (
                     settings.get("atb_modifiers", {})
                     .get("ngct", {})
-                    .get("Var_OM_Cost_per_MWh", (None, None))
+                    .get("variable_o_m_mwh", (None, None))
                 )
 
                 if op:
@@ -693,10 +689,10 @@ def calc_om(
 
                 fixed = fixed - (variable * 8760 * 0.04)
 
-                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
+                _df["fixed_o_m_mw"] = inflation_price_adjustment(
                     fixed, 2017, target_usd_year
                 )
-                _df["Var_OM_Cost_per_MWh"] = inflation_price_adjustment(
+                _df["variable_o_m_mwh"] = inflation_price_adjustment(
                     variable, 2017, target_usd_year
                 )
 
@@ -714,10 +710,10 @@ def calc_om(
                     annual_capex = 10.82 * 1000
                     fixed = annual_capex + 14.51 * 1000
 
-                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
+                _df["fixed_o_m_mw"] = inflation_price_adjustment(
                     fixed, 2017, target_usd_year
                 )
-                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Natural Gas Steam Turbine"][
+                _df["variable_o_m_mwh"] = simple_o_m["Natural Gas Steam Turbine"][
                     "variable_o_m_mwh"
                 ]
 
@@ -755,10 +751,10 @@ def calc_om(
                 else:
                     fixed = 33.27 * 1000
 
-                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
+                _df["fixed_o_m_mw"] = inflation_price_adjustment(
                     fixed + annual_capex, 2017, target_usd_year
                 )
-                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Coal"]["variable_o_m_mwh"]
+                _df["variable_o_m_mwh"] = simple_o_m["Coal"]["variable_o_m_mwh"]
 
             if "Nuclear" in eia_tech:
                 num_units = len(_df)
@@ -786,7 +782,7 @@ def calc_om(
                     # fixed[age < 30] *= 27 * 1000
                     # fixed[age >= 30] *= (27+37) * 1000
 
-                _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
+                _df["fixed_o_m_mw"] = inflation_price_adjustment(
                     fixed, 2015, target_usd_year
                 )
 
@@ -794,7 +790,7 @@ def calc_om(
                 _df.loc[
                     _df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"
                 ] = new_build_hr
-                _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (
+                _df["variable_o_m_mwh"] = atb_var_om_mwh * (
                     _df["heat_rate_mmbtu_mwh"].mean() / new_build_hr
                 )
 
@@ -803,18 +799,16 @@ def calc_om(
         return pd.concat(df_list, ignore_index=True)
 
     elif "Hydroelectric" in eia_tech:
-        df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Conventional Hydroelectric"][
-            "fixed_o_m_mw"
-        ]
-        df["Var_OM_Cost_per_MWh"] = simple_o_m["Conventional Hydroelectric"][
+        df["fixed_o_m_mw"] = simple_o_m["Conventional Hydroelectric"]["fixed_o_m_mw"]
+        df["variable_o_m_mwh"] = simple_o_m["Conventional Hydroelectric"][
             "variable_o_m_mwh"
         ]
     elif "Geothermal" in eia_tech:
-        df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Geothermal"]["fixed_o_m_mw"]
-        df["Var_OM_Cost_per_MWh"] = simple_o_m["Geothermal"]["variable_o_m_mwh"]
+        df["fixed_o_m_mw"] = simple_o_m["Geothermal"]["fixed_o_m_mw"]
+        df["variable_o_m_mwh"] = simple_o_m["Geothermal"]["variable_o_m_mwh"]
     elif "Pumped" in eia_tech:
-        df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Pumped Hydro"]["fixed_o_m_mw"]
-        df["Var_OM_Cost_per_MWh"] = simple_o_m["Pumped Hydro"]["variable_o_m_mwh"]
+        df["fixed_o_m_mw"] = simple_o_m["Pumped Hydro"]["fixed_o_m_mw"]
+        df["variable_o_m_mwh"] = simple_o_m["Pumped Hydro"]["variable_o_m_mwh"]
     else:
         try:
             atb_fixed_om_mw_yr = atb_om_df.loc[
@@ -822,15 +816,15 @@ def calc_om(
             ]
         except KeyError:
             atb_fixed_om_mw_yr = 0
-        df["Fixed_OM_Cost_per_MWyr"] = atb_fixed_om_mw_yr
-        df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (
+        df["fixed_o_m_mw"] = atb_fixed_om_mw_yr
+        df["variable_o_m_mwh"] = atb_var_om_mwh * (
             df["heat_rate_mmbtu_mwh"] / new_build_hr
         )
     if atb_tech == "Battery":
         atb_fixed_om_mwh = atb_om_df.loc[
             (atb_tech, tech_detail, "fixed_o_m_mwh"), "parameter_value"
         ]
-        df["Fixed_OM_Cost_per_MWhyr"] = atb_fixed_om_mwh
+        df["fixed_o_m_mwh"] = atb_fixed_om_mwh
 
     return df
 
