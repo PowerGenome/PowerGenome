@@ -141,10 +141,17 @@ def fill_missing_tech_descriptions(
     start_len = len(df)
     df = df.sort_values(by=date_col)
     df_list = []
-    for _, _df in df.groupby(["plant_id_eia", "generator_id"], as_index=False):
+    missing_tech_plants = df.loc[df["technology_description"].isna(), :]
+    if missing_tech_plants.empty:
+        return df
+
+    df = df.drop(index=missing_tech_plants.index)
+    for _, _df in missing_tech_plants.groupby(
+        ["plant_id_eia", "generator_id"], as_index=False
+    ):
         _df["technology_description"].fillna(method="bfill", inplace=True)
         df_list.append(_df)
-    results = pd.concat(df_list, ignore_index=True, sort=False)
+    results = pd.concat([df, pd.concat(df_list, ignore_index=True, sort=False)])
 
     if df.loc[df["technology_description"].isnull(), :].empty is False:
         logger.warning("Failed to fill some technology names.")
@@ -2671,6 +2678,9 @@ class GeneratorClusters:
         self.model_regions_gdf = load_ipm_shapefile(self.settings)
         self.weighted_unit_hr = None
         self.supplement_with_860m = supplement_with_860m
+        self.cluster_builder = build_resource_clusters(
+            self.settings.get("RESOURCE_GROUPS")
+        )
 
         if self.current_gens:
             self.data_years = self.settings["data_years"]
@@ -2882,9 +2892,10 @@ class GeneratorClusters:
         dataframe
 
         """
+        if self.gens_860.technology_description.isna().any():
+            self.gens_860 = fill_missing_tech_descriptions(self.gens_860)
         self.gens_860_model = (
-            self.gens_860.pipe(fill_missing_tech_descriptions)
-            .pipe(
+            self.gens_860.pipe(
                 supplement_generator_860_data,
                 self.gens_entity,
                 self.bga,
@@ -3340,10 +3351,7 @@ class GeneratorClusters:
                 # EIA technology not supported
                 continue
             params.update({"existing": True})
-            cluster_builder = build_resource_clusters(
-                self.settings.get("RESOURCE_GROUPS")
-            )
-            groups = cluster_builder.find_groups(**params)
+            groups = self.cluster_builder.find_groups(**params)
             if not groups:
                 # No matching resource groups
                 continue
@@ -3385,7 +3393,7 @@ class GeneratorClusters:
         )
 
         self.new_generators = atb_new_generators(
-            self.atb_costs, self.atb_hr, self.settings
+            self.atb_costs, self.atb_hr, self.settings, self.cluster_builder
         )
 
         if not self.new_generators.empty:
