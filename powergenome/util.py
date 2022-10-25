@@ -158,7 +158,7 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
     pg_engine : sa.engine
         Connection to the PG sqlite database.
     """
-    if settings.get("atb_data_year"):
+    if settings.get("atb_data_year") and pg_engine:
         check_atb_scenario(settings, pg_engine)
     ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
         "region_id_epaipm"
@@ -322,36 +322,41 @@ def init_pudl_connection(
         object for quickly accessing parts of the database. `pudl_out` is used
         to access unit heat rates.
     """
+    pg_engine = None
+    pudl_engine = None
+    pudl_out = None
     if not pudl_db:
-        pudl_db = SETTINGS["PUDL_DB"]
+        pudl_db = SETTINGS.get("PUDL_DB")
     if not pg_db:
         if SETTINGS.get("PG_DB"):
-            pg_db = SETTINGS["PG_DB"]
+            pg_db = SETTINGS.get("PG_DB")
         else:
             logger.warning(
                 "No path to a `PG_DB` database was provided or found in the .env file. Using "
                 "the `PUDL_DB` path instead."
             )
-            pg_db = SETTINGS["PUDL_DB"]
-    pudl_engine = sa.create_engine(pudl_db)
-    if start_year is not None:
-        start_year = pd.to_datetime(start_year, format="%Y")
-    if end_year is not None:
-        end_year = pd.to_datetime(end_year + 1, format="%Y")
-    """
-    pudl_out = pudl.output.pudltabl.PudlTabl(
-        freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
-        #freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year, ds=""
-    )
-    """
-    pudl_out = pudl.output.pudltabl.PudlTabl(
-        freq=freq,
-        pudl_engine=pudl_engine,
-        start_date=start_year,
-        end_date=end_year,
-        ds=pudl.workspace.datastore.Datastore(),
-    )
-    pg_engine = sa.create_engine(pg_db)
+            pg_db = SETTINGS.get("PUDL_DB")
+    if pudl_db:
+        pudl_engine = sa.create_engine(pudl_db)
+        if start_year is not None:
+            start_year = pd.to_datetime(start_year, format="%Y")
+        if end_year is not None:
+            end_year = pd.to_datetime(end_year + 1, format="%Y")
+        """
+        pudl_out = pudl.output.pudltabl.PudlTabl(
+            freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
+            #freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year, ds=""
+        )
+        """
+        pudl_out = pudl.output.pudltabl.PudlTabl(
+            freq=freq,
+            pudl_engine=pudl_engine,
+            start_date=start_year,
+            end_date=end_year,
+            ds=pudl.workspace.datastore.Datastore(),
+        )
+    if pg_db:
+        pg_engine = sa.create_engine(pg_db)
     # if SETTINGS.get("PG_DB"):
     #     pg_engine = sa.create_engine(SETTINGS["PG_DB"])
     # else:

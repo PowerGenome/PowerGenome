@@ -73,7 +73,7 @@ def fetch_atb_costs(
     all_rows = []
     wacc_rows = []
     tech_list = []
-    techs = settings["atb_new_gen"]
+    techs = settings.get("atb_new_gen", []) or []
     mod_techs = []
     if settings.get("modified_atb_new_gen"):
         for _, m in settings.get("modified_atb_new_gen").items():
@@ -1039,7 +1039,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
        'Cap_Size', 'region']
     """
     logger.info("Creating new resources for each region.")
-    new_gen_types = settings["atb_new_gen"]
+    new_gen_types = settings.get("atb_new_gen", []) or []
     model_year = settings["model_year"]
     try:
         first_planning_year = settings["model_first_planning_year"]
