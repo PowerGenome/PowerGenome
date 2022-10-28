@@ -37,7 +37,6 @@ from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
-    load_transmission_constraints,
 )
 from powergenome.nrelatb import atb_fixed_var_om_existing
 from powergenome.external_data import (

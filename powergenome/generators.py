@@ -214,18 +214,21 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         Modified dataframe with the new column "Start_Fuel_MMBTU_per_MW".
     """
     df["Start_Fuel_MMBTU_per_MW"] = 0
-    for eia_tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
-        if not isinstance(settings["eia_atb_tech_map"][eia_tech], list):
-            settings["eia_atb_tech_map"][eia_tech] = [
-                settings["eia_atb_tech_map"][eia_tech]
-            ]
+    eia_atb_tech_map = settings.get("eia_atb_tech_map", {})
+    for tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
+        tech_list = [tech]
+        if tech in eia_atb_tech_map:
+            if not isinstance(settings["eia_atb_tech_map"][tech], list):
+                settings["eia_atb_tech_map"][tech] = [
+                    settings["eia_atb_tech_map"][tech]
+                ]
 
-        atb_tech = settings["eia_atb_tech_map"][eia_tech]
-        atb_tech.append(eia_tech)
-        for tech in atb_tech:
-            df.loc[df["technology"] == tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
+            atb_tech = settings["eia_atb_tech_map"][tech]
+            tech_list.extend(atb_tech)
+        for _tech in tech_list:
+            df.loc[df["technology"] == _tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
             df.loc[
-                df["technology"].str.contains(tech, case=False),
+                df["technology"].str.contains(_tech, case=False),
                 "Start_Fuel_MMBTU_per_MW",
             ] = fuel_use
 
@@ -2720,6 +2723,17 @@ class GeneratorClusters:
 
         if self.pg_engine:
             self.atb_hr = fetch_atb_heat_rates(self.pg_engine, self.settings)
+        else:
+            self.atb_hr = pd.DataFrame(
+                columns=[
+                    "technology",
+                    "tech_detail",
+                    "cost_case",
+                    "basis_year",
+                    "heat_rate",
+                    "atb_year",
+                ]
+            )
 
     def fill_na_heat_rates(self, s):
         """Fill null heat rate values with the median of the series. Not many null
@@ -3445,21 +3459,27 @@ class GeneratorClusters:
                 # Resource group has no profiles
                 continue
             if row.region in (self.settings.get("region_aggregations", {}) or {}):
-                ipm_regions = self.settings.get("region_aggregations", {})[row.region]
+                regions = self.settings.get("region_aggregations", {})[row.region]
             else:
-                ipm_regions = [row.region]
+                regions = [row.region]
             metadata = group.metadata.read()
-            if not metadata["ipm_region"].isin(ipm_regions).any():
+            region_col = find_region_col(metadata.columns)
+            if not metadata[region_col].isin(regions).any():
                 # Resource group has no resources in selected IPM regions
                 continue
             clusters = group.get_clusters(
-                ipm_regions=ipm_regions,
+                regions=regions,
                 max_clusters=1,
                 utc_offset=self.settings.get("utc_offset", 0),
             )
             self.results["profile"][i] = clusters["profile"][0]
 
-        self.results = rename_gen_cols(self.results)
+        rename_cols = {
+            "fixed_o_m_mw": "Fixed_OM_Cost_per_MWy",
+            "fixed_o_m_mwh": "Fixed_OM_Cost_per_MWhy",
+            "variable_o_m_mwh": "Var_OM_Cost_per_MWh",
+        }
+        self.results = rename_gen_cols(self.results, rename_cols)
 
         return self.results
 

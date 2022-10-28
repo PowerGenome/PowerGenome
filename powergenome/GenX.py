@@ -24,7 +24,7 @@ INT_COLS = [
     "Fixed_OM_Cost_per_MWyr",
     "Inv_Cost_per_MWhyr",
     "Fixed_OM_Cost_per_MWhyr",
-    "Line_Reinforcement_Cost_per_MW_yr",
+    "Line_Reinforcement_Cost_per_MWyr",
     "Up_Time",
     "Down_Time",
 ]

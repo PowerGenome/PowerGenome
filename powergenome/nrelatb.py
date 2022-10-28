@@ -54,6 +54,21 @@ def fetch_atb_costs(
        'basis_year', 'tech_detail', 'fixed_o_m_mw', 'variable_o_m_mwh', 'capex', 'cf',
        'fuel', 'lcoe', 'wacc_real']
     """
+    if not settings.get("atb_new_gen") and not settings.get("modified_atb_new_gen"):
+        cols = [
+            "technology",
+            "tech_detail",
+            "cost_case",
+            "dollar_year",
+            "basis_year",
+            "capex_mw",
+            "capex_mwh",
+            "fixed_o_m_mw",
+            "fixed_o_m_mwh",
+            "variable_o_m_mwh",
+            "wacc_real",
+        ]
+        return pd.DataFrame(columns=cols)
     logger.info("Loading NREL ATB data")
 
     col_names = [
@@ -905,7 +920,13 @@ def regional_capex_multiplier(
     tech_map: Dict[str, str],
     regional_multipliers: pd.DataFrame,
 ) -> pd.DataFrame:
-
+    # Map the original region and technology names to themselves. Lets a user omit
+    # the settings parameters cost_multiplier_region_map and cost_multiplier_technology_map
+    # if the data file matches regions and technologies in the study.
+    for r in regional_multipliers.index:
+        region_map[r] = r
+    for tech in regional_multipliers.columns:
+        tech_map[tech] = tech
     cost_region = region_map[region]
     tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
     avg_multiplier = tech_multiplier.mean()
@@ -1015,7 +1036,13 @@ def add_modified_atb_generators(
     return mod_gens
 
 
-def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
+def atb_new_generators(
+    atb_costs: pd.DataFrame,
+    atb_hr: pd.DataFrame,
+    user_tech: pd.DataFrame,
+    settings: Dict,
+    cluster_builder: ClusterBuilder = None,
+) -> pd.DataFrame:
     """Add rows for new generators in each region
 
     Parameters
@@ -1027,6 +1054,8 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         'wacc_real']
     atb_hr : DataFrame
         The technology, tech_detail, and heat_rate of new generators from ATB.
+    user_tech : pd.DataFrame
+        Combined cost and heat rate parameters specified by a user.
     settings : dict
         User-defined parameters from a settings file
     cluster_builder : ClusterBuilder
@@ -1068,23 +1097,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         new_gen_df = pd.DataFrame(
             columns=["region", "technology", "tech_detail", "cost_case"]
         )
-    # Add user-defined technologies
-    # This should probably be separate from ATB techs, and the regional cost multipliers
-    # should be its own function.
-    if settings.get("additional_technologies_fn"):
-        if isinstance(settings.get("additional_new_gen"), list):
-            # user_costs, user_hr = load_user_defined_techs(settings)
-            user_tech = load_user_defined_techs(settings)
-            # new_gen_df = pd.concat([new_gen_df, user_costs], ignore_index=True, sort=False)
-            new_gen_df = pd.concat(
-                [new_gen_df, user_tech], ignore_index=True, sort=False
-            )
-            # atb_hr = pd.concat([atb_hr, user_hr], ignore_index=True, sort=False)
-        else:
-            logger.warning(
-                "A filename for additional technologies was included but no technologies"
-                " were specified in the settings file."
-            )
+    new_gen_df = pd.concat([new_gen_df, user_tech], ignore_index=True, sort=False)
 
     if settings.get("modified_atb_new_gen"):
         modified_gens = add_modified_atb_generators(
@@ -1191,14 +1204,27 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         # Set no capacity limit on new resources that aren't renewables.
         new_gen_df["Max_Cap_MW"] = -1
         new_gen_df["Max_Cap_MWh"] = -1
-        regional_cost_multipliers = pd.read_csv(
-            DATA_PATHS["cost_multipliers"]
-            / settings.get(
+        cost_mult_path = settings["input_folder"] / settings.get(
+            "cost_multiplier_fn", "AEO_2020_regional_cost_corrections.csv"
+        )
+        if not cost_mult_path.exists():
+            cost_mult_path = DATA_PATHS["cost_multipliers"] / settings.get(
                 "cost_multiplier_fn", "AEO_2020_regional_cost_corrections.csv"
-            ),
+            )
+        regional_cost_multipliers = pd.read_csv(
+            cost_mult_path,
             index_col=0,
         )
         if settings.get("user_regional_cost_multiplier_fn"):
+            if (
+                settings["user_regional_cost_multiplier_fn"]
+                == settings["cost_multiplier_fn"]
+            ):
+                logger.warning(
+                    "The parameters 'cost_multiplier_fn' and 'user_regional_cost_multiplier_fn' "
+                    "are identical. Only data from 'cost_multiplier_fn' will be used "
+                    "for regional cost differences of new generators."
+                )
             user_cost_multipliers = pd.read_csv(
                 Path(settings["input_folder"])
                 / settings["user_regional_cost_multiplier_fn"],
@@ -1208,10 +1234,10 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
                 [regional_cost_multipliers, user_cost_multipliers], axis=1
             )
         rev_mult_region_map = reverse_dict_of_lists(
-            settings["cost_multiplier_region_map"]
+            settings.get("cost_multiplier_region_map", {}) or {}
         )
         rev_mult_tech_map = reverse_dict_of_lists(
-            settings["cost_multiplier_technology_map"]
+            settings.get("cost_multiplier_technology_map", {}) or {}
         )
         df_list = []
         for region in regions:
@@ -1333,7 +1359,7 @@ def add_renewables_clusters(
         clusters = (
             cluster_builder.get_clusters(
                 **scenario,
-                ipm_regions=ipm_regions,
+                regions=regions,
                 existing=False,
                 utc_offset=settings.get("utc_offset", 0),
             )
@@ -1388,6 +1414,10 @@ def load_user_defined_techs(settings: dict) -> pd.DataFrame:
     pd.DataFrame
         A dataframe of user-defined resources with cost and heat rate columns.
     """
+    cpi_data_path = None
+    if settings.get("cpi_data_fn"):
+        cpi_data_path = settings["input_folder"] / settings["cpi_data_fn"]
+
     if isinstance(settings["additional_technologies_fn"], collections.abc.Mapping):
         fn = settings["additional_technologies_fn"][settings["model_year"]]
     else:
@@ -1431,7 +1461,10 @@ def load_user_defined_techs(settings: dict) -> pd.DataFrame:
                 "variable_o_m_mwh",
             ]:
                 user_techs.loc[idx, col] = inflation_price_adjustment(
-                    row[col], row["dollar_year"], settings["target_usd_year"]
+                    row[col],
+                    row["dollar_year"],
+                    settings["target_usd_year"],
+                    data_path=cpi_data_path,
                 )
 
     cols = [
