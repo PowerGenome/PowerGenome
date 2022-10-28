@@ -555,19 +555,20 @@ def load_usr_demand_profiles(settings):
     regional_load_fn = settings.get("regional_load_fn")
 
     if regional_load_fn is not None:
-        from powergenome.external_data import make_usr_demand_profiles
+        from powergenome.external_data import make_usr_demand_profiles_tidy
 
         lp_path = settings["input_folder"] / regional_load_fn
-        hourly_load_profiles = make_usr_demand_profiles(lp_path, settings)
+        hourly_load_profiles = make_usr_demand_profiles_tidy(
+            lp_path, settings["model_year"]
+        )
 
         if len(hourly_load_profiles) == 8784:
             remove_feb_29(hourly_load_profiles)
 
-        hourly_load_profiles.index.name = "time_index"
-        hourly_load_profiles.index = pd.RangeIndex(
-            start=1, stop=len(hourly_load_profiles) + 1, step=1
-        )
-
+        # hourly_load_profiles.index.name = "time_index"
+        # hourly_load_profiles.index = pd.RangeIndex(
+        #     start=1, stop=len(hourly_load_profiles) + 1, step=1
+        # )
         regional_load_sources = settings.get("regional_load_source")
         if regional_load_sources is not None:
             if regional_load_sources == "USER":

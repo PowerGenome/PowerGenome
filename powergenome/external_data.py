@@ -448,6 +448,28 @@ def overwrite_wind_pv_capacity(df, settings):
     return df
 
 
+def make_usr_demand_profiles_tidy(path: Path, model_year: int) -> pd.DataFrame:
+    """Load user demand profiles from a tidy file
+
+    Parameters
+    ----------
+    path : Path
+        File path
+    model_year : int
+        Year of demand data to pull
+
+    Returns
+    -------
+    pd.DataFrame
+        Single year of demand data in wide format with index of time_index
+    """
+    df = pd.read_csv(path)
+    df = df.loc[df["year"] == model_year, :]
+    wide_df = df.pivot(index="time_index", columns="region", values="load_mw")
+
+    return wide_df
+
+
 def make_usr_demand_profiles(path, settings):
     idx = pd.IndexSlice
     year = settings["model_year"]
