@@ -37,6 +37,7 @@ from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
+    load_transmission_constraints,
 )
 from powergenome.nrelatb import atb_fixed_var_om_existing
 from powergenome.external_data import (
@@ -380,9 +381,18 @@ def main():
 
             if args.transmission:
                 model_regions_gdf = gc.model_regions_gdf
-                if _settings.get("user_transmission_costs"):
+                if _settings.get("user_transmission_costs_fn"):
+                    cpi_data_path = None
+                    if settings.get("cpi_data_fn"):
+                        cpi_data_path = (
+                            _settings["input_folder"] / _settings["cpi_data_fn"]
+                        )
                     user_tx_costs = load_user_tx_costs(
-                        _settings["extra_inputs"] / _settings["user_transmission_costs"]
+                        path=_settings["input_folder"]
+                        / _settings["user_transmission_costs_fn"],
+                        model_regions=_settings["model_regions"],
+                        target_usd_year=_settings.get("target_usd_year"),
+                        cpi_data_path=cpi_data_path,
                     )
                     transmission = agg_transmission_constraints(
                         pg_engine=pg_engine, settings=_settings

@@ -467,6 +467,48 @@ def make_usr_demand_profiles(path, settings):
     return scenario_df
 
 
+def load_user_tx_capacity(path: Path, tx_value_col: str = None) -> pd.DataFrame:
+    """Load user data file with transmission capacity/constraints
+
+    Parameters
+    ----------
+    path : Path
+        File path
+    tx_value_col : str, optional
+        Name of the column with MW capacity, by default None
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe with columns "region_from", "region_to" and a column with capacity.
+
+    Raises
+    ------
+    KeyError
+        The specified capacity column is not in the data file
+    KeyError
+        The table has duplicate lines between regions
+    """
+    if not tx_value_col:
+        tx_value_col = "firm_ttc_mw"
+    user_tx_constraints = pd.read_csv(path)
+    if tx_value_col not in user_tx_constraints.columns:
+        raise KeyError(
+            f"There is no column {tx_value_col} in the user supplied transmission capacity table"
+        )
+    if user_tx_constraints.duplicated(subset=["region_from", "region_to"]).any():
+        dup_lines = user_tx_constraints.loc[
+            user_tx_constraints.duplicated(subset=["region_from", "region_to"]),
+            ["region_from", "region_to"],
+        ]
+
+        raise KeyError(
+            "The user transmission table has duplicate lines. This table should only have unique lines.\n",
+            dup_lines,
+        )
+    return user_tx_constraints
+
+
 def load_user_tx_costs(
     path: Path, model_regions: List[str], target_usd_year: int = None
 ) -> pd.DataFrame:
@@ -499,8 +541,8 @@ def load_user_tx_costs(
     zone_num_map = {
         zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
-    df["zone_1"] = df["start_region"].map(zone_num_map)
-    df["zone_2"] = df["dest_region"].map(zone_num_map)
+    df["zone_1"] = df["region_from"].map(zone_num_map)
+    df["zone_2"] = df["region_to"].map(zone_num_map)
 
     if target_usd_year:
         adjusted_annuities = []

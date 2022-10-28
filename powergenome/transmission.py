@@ -11,6 +11,7 @@ import pandas as pd
 import sqlalchemy as sa
 
 from powergenome.util import map_agg_region_names, reverse_dict_of_lists, find_centroid
+from powergenome.external_data import load_user_tx_capacity
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +22,155 @@ def agg_transmission_constraints(
     pg_table: str = "transmission_single_epaipm",
     settings_agg_key: str = "region_aggregations",
 ) -> pd.DataFrame:
-    """Aggregate transmission constraints/capacity between model regions
+    """Load and aggregate transmission constraints from database and/or user files.
 
     Model regions can consist of one or more individual regions. When two or more regions
     are in a model region, the transmission capacity between individual regions is
     combined.
 
     Values in a user transmission table will override the database transmission table.
+
+    Parameters
+    ----------
+    pg_engine : sa.engine.base.Engine
+        Engine connecting to a database with transmission data. If None, no attempt
+        at db connection is made.
+    settings : dict
+        Contains parameters such as the model regions and region aggregation. If the
+        parameter "user_transmission_constraints_fn" is present it will load and aggregate
+        the user transmission constraints.
+    pg_table : str, optional
+        Database table with tx constraint data, by default "transmission_single_epaipm"
+    settings_agg_key : str, optional
+        Key in the settings file that maps aggreagted regions, by default "region_aggregations"
+
+    Returns
+    -------
+    pd.DataFrame
+        Transmission constraint/capacity between model regions
+    """
+    tx_value_col = settings.get("tx_value_col")
+    if not tx_value_col:
+        logger.warning(
+            "No transmission value column (e.g. firm vs non-firm) was specified in the "
+            "settings. The column 'firm_ttc_mw' will be used as a default. This is a change "
+            "from previous versions of PG, where 'nonfirm_ttc_mw' was used. Firm transmission "
+            "capacity is lower or equal to non-firm capacity."
+        )
+        tx_value_col = "firm_ttc_mw"
+    if pg_engine is not None:
+        pg_tx = db_transmission_constraints(
+            pg_engine, settings, pg_table, settings_agg_key
+        )
+    else:
+        pg_tx = pd.DataFrame()
+
+    if settings.get("user_transmission_constraints_fn"):
+        path = settings["input_folder"] / settings["user_transmission_constraints_fn"]
+        user_tx = load_user_tx_capacity(path, settings.get("tx_value_col"))
+    else:
+        user_tx = pd.DataFrame()
+
+    zones = settings["model_regions"]
+    zone_num_map = {
+        zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
+    }
+
+    combos = list(itertools.combinations(zones, 2))
+    reverse_combos = [(combo[-1], combo[0]) for combo in combos]
+    transmission_constraints_table = pd.concat([pg_tx, user_tx])
+    # Settings has a dictionary of lists for regional aggregations. Need
+    # to reverse this to use in a map method.
+    region_agg_map = reverse_dict_of_lists(settings.get(settings_agg_key))
+
+    # IPM regions to keep. Regions not in this list will be dropped from the
+    # dataframe
+    keep_regions = [
+        x
+        for x in settings["model_regions"] + list(region_agg_map)
+        if x not in region_agg_map.values()
+    ]
+
+    # Create new column "model_region_from"  and "model_region_to" with labels that
+    # we're using for aggregated regions
+    transmission_constraints_table = transmission_constraints_table.loc[
+        (transmission_constraints_table.region_from.isin(keep_regions))
+        & (transmission_constraints_table.region_to.isin(keep_regions)),
+        :,
+    ].drop(columns="id", errors="ignore")
+
+    logger.info("Map and aggregate region names for transmission constraints")
+    for col in ["region_from", "region_to"]:
+        model_col = "model_" + col
+
+        transmission_constraints_table = map_agg_region_names(
+            df=transmission_constraints_table,
+            region_agg_map=region_agg_map,
+            original_col_name=col,
+            new_col_name=model_col,
+        )
+
+    keep_cols = ["model_region_from", "model_region_to", tx_value_col]
+    drop_cols = [
+        c for c in transmission_constraints_table.columns if c not in keep_cols
+    ]
+    transmission_constraints_table.drop(columns=drop_cols, inplace=True)
+    transmission_constraints_table = transmission_constraints_table.groupby(
+        ["model_region_from", "model_region_to"]
+    ).sum()
+
+    # Build the final output dataframe
+    logger.info(
+        "Build a new transmission constraints dataframe with a single line between "
+        "regions"
+    )
+    tc_joined = pd.DataFrame(
+        columns=["Network_Lines"] + zones + ["Line_Max_Flow_MW", "Line_Min_Flow_MW"],
+        index=transmission_constraints_table.reindex(combos).dropna().index,
+        data=0,
+    )
+
+    if tc_joined.empty:
+        logger.info(f"No transmission lines exist between model regions {combos}")
+        tc_joined["transmission_path_name"] = None
+        tc_joined.rename(columns=zone_num_map, inplace=True)
+        return tc_joined.reset_index(drop=True)
+
+    tc_joined["Network_Lines"] = range(1, len(tc_joined) + 1)
+    tc_joined["Line_Max_Flow_MW"] = transmission_constraints_table.reindex(
+        combos
+    ).dropna()
+
+    reverse_tc = transmission_constraints_table.reindex(reverse_combos).dropna() * -1
+
+    if reverse_tc.empty:
+        tc_joined["Line_Min_Flow_MW"] = tc_joined["Line_Max_Flow_MW"] * -1
+    else:
+        reverse_tc.index = tc_joined.index
+        tc_joined["Line_Min_Flow_MW"] = reverse_tc
+
+    for idx, _ in tc_joined.iterrows():
+        tc_joined.loc[idx, idx[0]] = 1
+        tc_joined.loc[idx, idx[-1]] = -1
+
+    tc_joined.rename(columns=zone_num_map, inplace=True)
+    tc_joined = tc_joined.reset_index()
+    tc_joined["transmission_path_name"] = (
+        tc_joined["model_region_from"] + "_to_" + tc_joined["model_region_to"]
+    )
+    # tc_joined = tc_joined.set_index("Transmission Path Name")
+    tc_joined.drop(columns=["model_region_from", "model_region_to"], inplace=True)
+
+    return tc_joined
+
+
+def db_transmission_constraints(
+    pg_engine: sa.engine.base.Engine,
+    settings: dict,
+    pg_table: str = "transmission_single_epaipm",
+    settings_agg_key: str = "region_aggregations",
+) -> pd.DataFrame:
+    """Load transmission constraints/capacity between regions from a database
 
     Parameters
     ----------
@@ -99,128 +242,7 @@ def agg_transmission_constraints(
             "The transmission table has duplicate lines. This table should only have unique lines.\n",
             dup_lines,
         )
-    if settings.get("user_transmission_constraints_fn"):
-        user_tx_constraints = pd.read_csv(
-            Path(settings["input_folder"])
-            / settings["user_transmission_constraints_fn"]
-        )
-        if tx_value_col not in user_tx_constraints.columns:
-            raise KeyError(
-                f"There is no column {tx_value_col} in the user supplied transmission capacity table"
-            )
-        if user_tx_constraints.duplicated(subset=["region_from", "region_to"]).any():
-            dup_lines = user_tx_constraints.loc[
-                user_tx_constraints.duplicated(subset=["region_from", "region_to"]),
-                ["region_from", "region_to"],
-            ]
-
-            raise KeyError(
-                "The user transmission table has duplicate lines. This table should only have unique lines.\n",
-                dup_lines,
-            )
-
-        # user constraints are needed bidirectionaly
-        transmission_constraints_table = pd.concat(
-            [
-                transmission_constraints_table,
-                user_tx_constraints,
-                user_tx_constraints.rename(
-                    columns={"region_from": "region_to", "region_to": "region_from"}
-                ),
-            ]
-        )
-
-        if transmission_constraints_table.duplicated(
-            subset=["region_from", "region_to"]
-        ).any():
-            logger.warning(
-                "The user transmission capacity table duplicates values from the "
-                "database. Database values will be discarded in favor of user values."
-            )
-
-        transmission_constraints_table = transmission_constraints_table.drop_duplicates(
-            keep="last"
-        )
-
-    # Settings has a dictionary of lists for regional aggregations. Need
-    # to reverse this to use in a map method.
-    region_agg_map = reverse_dict_of_lists(settings.get(settings_agg_key))
-
-    # IPM regions to keep. Regions not in this list will be dropped from the
-    # dataframe
-    keep_regions = [
-        x
-        for x in settings["model_regions"] + list(region_agg_map)
-        if x not in region_agg_map.values()
-    ]
-
-    # Create new column "model_region_from"  and "model_region_to" with labels that
-    # we're using for aggregated regions
-    transmission_constraints_table = transmission_constraints_table.loc[
-        (transmission_constraints_table.region_from.isin(keep_regions))
-        & (transmission_constraints_table.region_to.isin(keep_regions)),
-        :,
-    ].drop(columns="id", errors="ignore")
-
-    logger.info("Map and aggregate region names for transmission constraints")
-    for col in ["region_from", "region_to"]:
-        model_col = "model_" + col
-
-        transmission_constraints_table = map_agg_region_names(
-            df=transmission_constraints_table,
-            region_agg_map=region_agg_map,
-            original_col_name=col,
-            new_col_name=model_col,
-        )
-
-    keep_cols = ["model_region_from", "model_region_to", tx_value_col]
-    drop_cols = [
-        c for c in transmission_constraints_table.columns if c not in keep_cols
-    ]
-    transmission_constraints_table.drop(columns=drop_cols, inplace=True)
-    transmission_constraints_table = transmission_constraints_table.groupby(
-        ["model_region_from", "model_region_to"]
-    ).sum()
-
-    # Build the final output dataframe
-    logger.info(
-        "Build a new transmission constraints dataframe with a single line between "
-        "regions"
-    )
-    tc_joined = pd.DataFrame(
-        columns=["Network_Lines"] + zones + ["Line_Max_Flow_MW", "Line_Min_Flow_MW"],
-        index=transmission_constraints_table.reindex(combos).dropna().index,
-        data=0,
-    )
-
-    if tc_joined.empty:
-        logger.info(f"No transmission lines exist between model regions {combos}")
-        tc_joined["transmission_path_name"] = None
-        tc_joined.rename(columns=zone_num_map, inplace=True)
-        return tc_joined.reset_index(drop=True)
-
-    tc_joined["Network_Lines"] = range(1, len(tc_joined) + 1)
-    tc_joined["Line_Max_Flow_MW"] = transmission_constraints_table.reindex(
-        combos
-    ).dropna()
-
-    reverse_tc = transmission_constraints_table.reindex(reverse_combos).dropna() * -1
-    reverse_tc.index = tc_joined.index
-    tc_joined["Line_Min_Flow_MW"] = reverse_tc
-
-    for idx, _ in tc_joined.iterrows():
-        tc_joined.loc[idx, idx[0]] = 1
-        tc_joined.loc[idx, idx[-1]] = -1
-
-    tc_joined.rename(columns=zone_num_map, inplace=True)
-    tc_joined = tc_joined.reset_index()
-    tc_joined["transmission_path_name"] = (
-        tc_joined["model_region_from"] + "_to_" + tc_joined["model_region_to"]
-    )
-    # tc_joined = tc_joined.set_index("Transmission Path Name")
-    tc_joined.drop(columns=["model_region_from", "model_region_to"], inplace=True)
-
-    return tc_joined
+    return transmission_constraints_table
 
 
 def haversine(lon1, lat1, lon2, lat2, units="mile"):
