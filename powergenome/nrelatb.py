@@ -1303,10 +1303,10 @@ def add_renewables_clusters(
     )
     cdfs = []
     if region in (settings.get("region_aggregations", {}) or {}):
-        ipm_regions = settings.get("region_aggregations", {})[region]
-        ipm_regions.append(region)  # Add model region, sometimes listed in RG file
+        regions = settings.get("region_aggregations", {})[region]
+        regions.append(region)  # Add model region, sometimes listed in RG file
     else:
-        ipm_regions = [region]
+        regions = [region]
     for scenario in settings.get("renewables_clusters", []) or []:
         if scenario["region"] != region:
             continue

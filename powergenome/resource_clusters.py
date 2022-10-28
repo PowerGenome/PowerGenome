@@ -26,7 +26,7 @@ MERGE = {
         "m_popden",
     ],
     "weight": CAPACITY,
-    "uniques": ["ipm_region", "metro_id"],
+    "uniques": ["ipm_region", "region", "metro_id"],
 }
 NREL_ATB_TECHNOLOGY_MAP = {
     ("utilitypv", None): {"technology": "utilitypv"},
@@ -354,7 +354,7 @@ class ResourceGroup:
 
         - `id`: int
           Resource identifier, unique within the group.
-        - `ipm_region` : str
+        - `region` : str
           IPM region to which the resource delivers power.
         - `mw` : float
           Maximum resource capacity in MW.
@@ -398,7 +398,7 @@ class ResourceGroup:
 
         - uniques:
 
-            - `ipm_region`
+            - `region`
             - `metro_id`
 
     profiles
@@ -420,13 +420,13 @@ class ResourceGroup:
     Examples
     --------
     >>> group = {'technology': 'utilitypv'}
-    >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['A', 'A'], 'mw': [1, 2]})
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['A', 'A'], 'mw': [1, 2]})
     >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> rg = ResourceGroup(group, metadata, profiles)
     >>> rg.test_metadata()
     >>> rg.test_profiles()
     >>> rg.get_clusters(max_clusters=1)
-           ipm_region  mw                                            profile
+           region  mw                                            profile
     (1, 0)          A   3  [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, ...
     """
 
@@ -479,7 +479,7 @@ class ResourceGroup:
             Resource metadata missing required keys.
         """
         columns = self.metadata.columns
-        required = ["ipm_region", "id", "mw"]
+        required = ["region", "id", "mw"]
         if self.group.get("tree"):
             required.extend(["parent_id", "level", self.group["tree"]])
         missing = [key for key in required if key not in columns]
@@ -512,7 +512,7 @@ class ResourceGroup:
 
     def get_clusters(
         self,
-        ipm_regions: Iterable[str] = None,
+        regions: Iterable[str] = None,
         min_capacity: float = None,
         max_clusters: int = None,
         max_lcoe: float = None,
@@ -526,9 +526,9 @@ class ResourceGroup:
 
         Parameters
         ----------
-        ipm_regions
-            IPM regions in which to select resources.
-            If `None`, all IPM regions are selected.
+        regions
+            Regions in which to select resources.
+            If `None`, all regions are selected.
         min_capacity
             Minimum total capacity (MW). Resources are selected,
             from lowest to highest levelized cost of energy (lcoe),
@@ -557,10 +557,16 @@ class ResourceGroup:
         ValueError
             No resources found or selected.
         """
+        from powergenome.util import find_region_col
+
         df = self.metadata.read().set_index("id")
-        if ipm_regions is not None:
-            # Filter by IPM region
-            df = df[df["ipm_region"].isin(ipm_regions)]
+        context = (
+            "This happened when loading one of the resource groups metadata files."
+        )
+        region_col = find_region_col(df.columns, context)
+        if regions is not None:
+            # Filter by region
+            df = df[df[region_col].isin(regions)]
         if sub_region is not None:
             df = df.loc[df[self.group["sub_region"]] == sub_region, :]
         if cap_multiplier is not None:
@@ -574,8 +580,8 @@ class ResourceGroup:
                 f"""
                 No resources for the group
                 {group_info}
-                were found in the model region containing IPM Regions
-                {ipm_regions}
+                were found in the model region containing Regions
+                {regions}
             """
             )
         # Sort resources by lcoe (ascending) or capacity (descending)
@@ -656,33 +662,33 @@ class ClusterBuilder:
 
     >>> groups = []
     >>> group = {'technology': 'utilitypv'}
-    >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['A', 'A'], 'mw': [1, 2]})
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['A', 'A'], 'mw': [1, 2]})
     >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> groups.append(ResourceGroup(group, metadata, profiles))
     >>> group = {'technology': 'utilitypv', 'existing': True}
-    >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['B', 'B'], 'mw': [1, 2]})
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['B', 'B'], 'mw': [1, 2]})
     >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> groups.append(ResourceGroup(group, metadata, profiles))
     >>> builder = ClusterBuilder(groups)
 
     Compute resource clusters.
 
-    >>> builder.get_clusters(ipm_regions=['A'], max_clusters=1,
+    >>> builder.get_clusters(regions=['A'], max_clusters=1,
     ...     technology='utilitypv', existing=False)
-          ids ipm_region  mw  ...         profile technology  existing
+          ids region  mw  ...         profile technology  existing
     0  (1, 0)          A   3  [0.3, 0.3, 0.3, ...  utilitypv     False
-    >>> builder.get_clusters(ipm_regions=['B'], min_capacity=2,
+    >>> builder.get_clusters(regions=['B'], min_capacity=2,
     ...     technology='utilitypv', existing=True)
-        ids ipm_region  mw  ...         profile technology  existing
+        ids region  mw  ...         profile technology  existing
     0  (1,)          B   2  [0.4, 0.4, 0.4, ...  utilitypv      True
 
     Errors arise if search criteria is either ambiguous or results in an empty result.
 
-    >>> builder.get_clusters(ipm_regions=['A'], technology='utilitypv')
+    >>> builder.get_clusters(regions=['A'], technology='utilitypv')
     Traceback (most recent call last):
       ...
     ValueError: Parameters match multiple resource groups: [{...}, {...}]
-    >>> builder.get_clusters(ipm_regions=['B'], technology='utilitypv', existing=False)
+    >>> builder.get_clusters(regions=['B'], technology='utilitypv', existing=False)
     Traceback (most recent call last):
       ...
     ValueError: No resources found or selected
@@ -732,7 +738,7 @@ class ClusterBuilder:
 
     def get_clusters(
         self,
-        ipm_regions: Iterable[str] = None,
+        regions: Iterable[str] = None,
         min_capacity: float = None,
         max_clusters: int = None,
         max_lcoe: float = None,
@@ -752,7 +758,7 @@ class ClusterBuilder:
 
         Parameters
         ----------
-        ipm_regions
+        regions
         min_capacity
         max_clusters
         max_lcoe
@@ -776,7 +782,7 @@ class ClusterBuilder:
         return (
             groups[0]
             .get_clusters(
-                ipm_regions=ipm_regions,
+                regions=regions,
                 min_capacity=min_capacity,
                 max_clusters=max_clusters,
                 max_lcoe=max_lcoe,
@@ -1390,6 +1396,9 @@ def get_merge_columns(merge: dict, df: pd.DataFrame = None) -> list:
         + (merge.get("means") or [])
         + (merge.get("uniques") or [])
     )
+    # import pdb
+
+    # pdb.set_trace()
     if len(columns) > len(set(columns)):
         raise ValueError("Column names duplicated in merge")
     if df is not None:
