@@ -38,6 +38,7 @@ from powergenome.nrelatb import (
     fetch_atb_heat_rates,
     fetch_atb_offshore_spur_costs,
     investment_cost_calculator,
+    load_user_defined_techs,
 )
 from powergenome.params import (
     DATA_PATHS,
@@ -3469,9 +3470,26 @@ class GeneratorClusters:
         self.atb_costs = fetch_atb_costs(
             self.pg_engine, self.settings, self.offshore_spur_costs
         )
+        # Add user-defined technologies
+        # This should probably be separate from ATB techs, and the regional cost multipliers
+        # should be its own function.
+        if self.settings.get("additional_technologies_fn"):
+            if isinstance(self.settings.get("additional_new_gen"), list):
+                self.user_tech = load_user_defined_techs(self.settings)
+            else:
+                logger.warning(
+                    "A filename for additional technologies was included but no technologies"
+                    " were specified in the settings file."
+                )
+        else:
+            self.user_tech = pd.DataFrame()
 
         self.new_generators = atb_new_generators(
-            self.atb_costs, self.atb_hr, self.settings, self.cluster_builder
+            self.atb_costs,
+            self.atb_hr,
+            self.user_tech,
+            self.settings,
+            self.cluster_builder,
         )
 
         if not self.new_generators.empty:
