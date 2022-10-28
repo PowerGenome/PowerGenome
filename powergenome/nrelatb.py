@@ -287,9 +287,10 @@ def db_col_values(
         All distinct values from the database table column(s).
     """
     valid_inputs = []
-    for col in cols:
-        s = f"SELECT DISTINCT {col} from {table}"
-        valid_inputs.extend(pd.read_sql_query(s, engine)[col].to_list())
+    if engine is not None:
+        for col in cols:
+            s = f"SELECT DISTINCT {col} from {table}"
+            valid_inputs.extend(pd.read_sql_query(s, engine)[col].to_list())
 
     return valid_inputs
 
@@ -313,6 +314,8 @@ def fetch_atb_offshore_spur_costs(
         Total offshore spur line capex from ATB for each technology/tech_detail/
         basis_year/cost_case combination.
     """
+    if not pg_engine:
+        return None
     spur_costs = pd.read_sql_table("offshore_spur_costs_nrelatb", pg_engine)
     spur_costs = spur_costs.loc[spur_costs["atb_year"] == settings["atb_data_year"], :]
 

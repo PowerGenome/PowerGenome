@@ -183,19 +183,22 @@ def main():
     # Make sure everything in model_regions is either an aggregate region
     # or an IPM region. Will need to change this once we start using non-IPM
     # regions.
-    ipm_regions = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
-        "region_id_epaipm"
-    ]
-    all_valid_regions = ipm_regions.tolist() + list(
-        settings.get("region_aggregations", {}) or {}
-    )
-    good_regions = [region in all_valid_regions for region in settings["model_regions"]]
-
-    if not all(good_regions):
-        logger.warning(
-            "One or more model regions is not valid. Check to make sure all regions "
-            "are either in IPM or region_aggregations in the settings YAML file."
+    if pg_engine:
+        ipm_regions = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
+            "region_id_epaipm"
+        ]
+        all_valid_regions = ipm_regions.tolist() + list(
+            settings.get("region_aggregations", {}) or {}
         )
+        good_regions = [
+            region in all_valid_regions for region in settings["model_regions"]
+        ]
+
+        if not all(good_regions):
+            logger.warning(
+                "One or more model regions is not valid. Check to make sure all regions "
+                "are either in IPM or region_aggregations in the settings YAML file."
+            )
 
     # Sort zones in the settings to make sure they are correctly sorted everywhere.
     settings["model_regions"] = sorted(settings["model_regions"])

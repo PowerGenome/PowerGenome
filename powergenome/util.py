@@ -158,6 +158,9 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
     pg_engine : sa.engine
         Connection to the PG sqlite database.
     """
+    if not pg_engine:
+        return None
+
     if settings.get("atb_data_year") and pg_engine:
         check_atb_scenario(settings, pg_engine)
     ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
@@ -505,7 +508,7 @@ def update_dictionary(d: dict, u: dict) -> dict:
 
 def remove_fuel_scenario_name(df, settings):
     _df = df.copy()
-    scenarios = settings["eia_series_scenario_names"].keys()
+    scenarios = (settings.get("eia_series_scenario_names", {}) or {}).keys()
     for s in scenarios:
         _df.columns = _df.columns.str.replace(f"_{s}", "")
 
@@ -514,7 +517,7 @@ def remove_fuel_scenario_name(df, settings):
 
 def remove_fuel_gen_scenario_name(df, settings):
     _df = df.copy()
-    scenarios = settings["eia_series_scenario_names"].keys()
+    scenarios = (settings.get("eia_series_scenario_names", {}) or {}).keys()
     for s in scenarios:
         _df["Fuel"] = _df["Fuel"].str.replace(f"_{s}", "")
 
