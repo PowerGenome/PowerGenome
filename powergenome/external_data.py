@@ -118,7 +118,9 @@ def add_resource_max_cap_spur(
         capacity for a resource. Copies of a resource within a region should have a
         cluster name to uniquely identify them.
     """
-
+    cpi_data_path = None
+    if settings.get("cpi_data_fn"):
+        cpi_data_path = settings["input_folder"] / settings["cpi_data_fn"]
     defaults = {
         "cluster": 1,
         "spur_miles": 0,
@@ -164,7 +166,10 @@ def add_resource_max_cap_spur(
         f"{settings['target_usd_year']}"
     )
     new_resource_df["interconnect_annuity"] = inflation_price_adjustment(
-        new_resource_df["interconnect_annuity"], 2017, settings["target_usd_year"]
+        new_resource_df["interconnect_annuity"],
+        2017,
+        settings["target_usd_year"],
+        data_path=cpi_data_path,
     )
     return new_resource_df
 
@@ -532,7 +537,10 @@ def load_user_tx_capacity(path: Path, tx_value_col: str = None) -> pd.DataFrame:
 
 
 def load_user_tx_costs(
-    path: Path, model_regions: List[str], target_usd_year: int = None
+    path: Path,
+    model_regions: List[str],
+    target_usd_year: int = None,
+    cpi_data_path: Path = None,
 ) -> pd.DataFrame:
     """Load a user data file with cost and line loss of each interregional transmission
     line. Map the region names to zones (z1 to zM) and adjust the total cost columns
@@ -571,12 +579,18 @@ def load_user_tx_costs(
         adjusted_costs = []
         for row in df.itertuples():
             adj_annuity = inflation_price_adjustment(
-                row.total_interconnect_annuity_mw, row.dollar_year, target_usd_year
+                row.total_interconnect_annuity_mw,
+                row.dollar_year,
+                target_usd_year,
+                data_path=cpi_data_path,
             )
             adjusted_annuities.append(adj_annuity)
 
             adj_cost = inflation_price_adjustment(
-                row.total_interconnect_cost_mw, row.dollar_year, target_usd_year
+                row.total_interconnect_cost_mw,
+                row.dollar_year,
+                target_usd_year,
+                data_path=cpi_data_path,
             )
             adjusted_costs.append(adj_cost)
         df["total_interconnect_annuity_mw"] = adjusted_annuities

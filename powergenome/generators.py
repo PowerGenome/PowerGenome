@@ -253,6 +253,9 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
     vom_costs = settings.get("startup_vom_costs_mw", {})
     vom_usd_year = settings.get("startup_vom_costs_usd_year")
+    cpi_data_path = None
+    if settings.get("cpi_data_fn"):
+        cpi_data_path = settings["input_folder"] / settings["cpi_data_fn"]
 
     if target_usd_year and vom_usd_year:
         logger.info(
@@ -260,7 +263,10 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         )
         for key, cost in vom_costs.items():
             vom_costs[key] = inflation_price_adjustment(
-                price=cost, base_year=vom_usd_year, target_year=target_usd_year
+                price=cost,
+                base_year=vom_usd_year,
+                target_year=target_usd_year,
+                data_path=cpi_data_path,
             )
 
     startup_type = settings.get("startup_costs_type")
@@ -276,6 +282,7 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
                 price=cost,
                 base_year=startup_costs_usd_year,
                 target_year=target_usd_year,
+                data_path=cpi_data_path,
             )
 
     df["Start_Cost_per_MW"] = 0
