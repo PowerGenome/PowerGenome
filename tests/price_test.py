@@ -29,3 +29,14 @@ def test_inflate_price(tmp_path):
     p = pd.Series([1, 10])
     p2 = inflation_price_adjustment(p, first_year, last_year)
     assert all(p2 > p)
+
+
+def test_user_cpi(tmp_path):
+    cpi_data_path = tmp_path / "cpi_data.csv"
+    data = {"year": range(2000, 2022), "value": range(1, 23)}
+    cpi_data = pd.DataFrame(data)
+    cpi_data.to_csv(cpi_data_path, index=False)
+
+    p = 10
+    p2 = inflation_price_adjustment(p, 2000, 2010, data_path=cpi_data_path)
+    assert p2 > p
