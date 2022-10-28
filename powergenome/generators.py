@@ -20,7 +20,11 @@ from powergenome.cluster_method import (
     cluster_kmeans,
     weighted_ownership_by_unit,
 )
-from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
+from powergenome.eia_opendata import (
+    fetch_fuel_prices,
+    modify_fuel_prices,
+    add_user_fuel_prices,
+)
 from powergenome.external_data import (
     make_demand_response_profiles,
     demand_response_resource_capacity,
@@ -2695,10 +2699,14 @@ class GeneratorClusters:
             self.settings.get("RESOURCE_GROUPS")
         )
 
-        self.fuel_prices = fetch_fuel_prices(self.settings).pipe(
-            modify_fuel_prices,
-            self.settings.get("aeo_fuel_region_map"),
-            self.settings.get("regional_fuel_adjustments"),
+        self.fuel_prices = (
+            fetch_fuel_prices(self.settings)
+            .pipe(
+                modify_fuel_prices,
+                self.settings.get("aeo_fuel_region_map"),
+                self.settings.get("regional_fuel_adjustments"),
+            )
+            .pipe(add_user_fuel_prices, self.settings)
         )
         self.coal_fgd = pd.read_csv(DATA_PATHS["coal_fgd"])
 

@@ -125,12 +125,15 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
     "target_usd_year" and "aeo_fuel_usd_year" exist and are valid integers.
     ************
     """
-    API_KEY = SETTINGS["EIA_API_KEY"]
+    API_KEY = SETTINGS.get("EIA_API_KEY")
 
     if settings.get("fuel_eia_aeo_year"):
         aeo_year = settings.get("fuel_eia_aeo_year")
     else:
         aeo_year = settings.get("eia_aeo_year")
+
+    if not aeo_year:
+        return pd.DataFrame()
 
     if not aeo_year:
         raise KeyError(
@@ -352,11 +355,15 @@ def modify_fuel_prices(
     return mod_prices
 
 
-def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFrame:
+def add_user_fuel_prices(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     """Add user fuel prices to a dataframe of user prices from AEO (or elsewhere)
 
     Parameters
     ----------
+    df : pd.DataFrame
+        A dataframe with fuel prices from AEO (or elsewhere). Should
+        have columns ["year", "price", "fuel", "region", "scenario", "full_fuel_name"].
+        If None, will only return the user prices.
     settings : dict
         If adding user prices, should have the key "user_fuel_price" with value of a
         dictionary matching user fuel names and prices. Prices can either be a single
@@ -372,9 +379,7 @@ def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFram
         prices will be corrected to the correct USD year. "user_fuel_usd_year" should
         be a dictionary with fuel name: USD year pairings. Only fuels included in this
         dictionary will have their prices changed to the target USD year.
-    df : pd.DataFrame, optional
-        A dataframe with fuel prices from AEO (or elsewhere), by default None. Should
-        have columns ["year", "price", "fuel", "region", "scenario", "full_fuel_name"]
+
 
     Returns
     -------
