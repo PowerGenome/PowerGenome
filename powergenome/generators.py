@@ -1839,6 +1839,7 @@ def import_proposed_generators(
         "minimum_load_mw",
         "operational_status_code",
         "heat_rate_mmbtu_mwh",
+        "planned_operating_year",
         "retirement_year",
     ]
 
@@ -3018,6 +3019,18 @@ class GeneratorClusters:
                 settings=self.settings,
                 model_regions_gdf=self.model_regions_gdf,
             )
+            # Add new/proposed generators to plant_region_map
+            self.plant_region_map = pd.concat(
+                [
+                    self.plant_region_map,
+                    self.proposed_gens.reset_index()[
+                        ["plant_id_eia", "model_region"]
+                    ].drop_duplicates(),
+                    self.new_860m_gens.reset_index()[
+                        ["plant_id_eia", "model_region"]
+                    ].drop_duplicates(),
+                ]
+            )
             # embed()
             logger.info(
                 f"Proposed gen technologies are "
@@ -3262,7 +3275,9 @@ class GeneratorClusters:
         # Calculate average capacity factors
         if type(self.settings.get("capacity_factor_techs")) is list:
             self.capacity_factors = gentype_region_capacity_factor(
-                self.pudl_engine, self.plant_region_map, self.settings
+                self.pudl_engine,
+                self.units_model[["plant_id_eia", "model_region"]],
+                self.settings,
             )
 
             self.results = pd.merge(
