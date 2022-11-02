@@ -500,6 +500,7 @@ def reduce_time_domain(
             ],
             axis=1,
         )
+        resource_profiles.index = time_index
 
         return resource_profiles, load_output, None, None
 
