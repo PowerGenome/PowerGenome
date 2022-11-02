@@ -17,6 +17,7 @@ MERGE = {
     "means": [
         "lcoe",
         "interconnect_annuity",
+        "interconnect_capex_mw",
         "offshore_spur_miles",
         "spur_miles",
         "tx_miles",
