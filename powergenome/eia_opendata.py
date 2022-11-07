@@ -134,7 +134,7 @@ def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.Da
                 columns=["year", "price"],
             )
         except FileNotFoundError:
-            read_eia_api(series_id, api_key, columns)
+            df = read_eia_api(series_id, api_key, columns)
             return df
 
     df = pd.read_csv(data_dir / f"{series_id}.csv")
