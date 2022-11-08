@@ -71,11 +71,12 @@ model_tag_values:
     UtilityPV: 1
     Offshore Wind Turbine: 1
   STOR:
+    Batteries: 1
     Battery: 1
     Hydroelectric Pumped Storage: 1
   FLEX:
-    ev_load_shifting: 1
-    heat_load_shifting: 1
+    trans_light_duty: 1
+    res_water_heat: 1
   HYDRO:
     Conventional Hydroelectric: 1
     Hydropower: 1

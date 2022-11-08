@@ -17,6 +17,7 @@ MERGE = {
     "means": [
         "lcoe",
         "interconnect_annuity",
+        "interconnect_capex_mw",
         "offshore_spur_miles",
         "spur_miles",
         "tx_miles",
@@ -309,7 +310,7 @@ class Table:
             cache = columns is None
         read_columns = None if cache else columns
         if self.format == "csv":
-            df = pd.read_csv(self.path, usecols=read_columns)
+            df = pd.read_csv(self.path, usecols=read_columns, dtype={"metro_id": str})
         elif self.format == "parquet":
             df = self._dataset.read(columns=read_columns).to_pandas()
         if cache:

@@ -69,9 +69,11 @@ model_tag_values:
     UtilityPV: 1
   STOR:
     Battery: 1
+    Batteries: 1
     Hydroelectric Pumped Storage: 1
   FLEX:
-    ev_load_shifting: 1
+    res_water_heat: 1
+    trans_light_duty: 1
   HYDRO:
     Conventional Hydroelectric: 1
     Hydropower: 1
@@ -132,6 +134,7 @@ model_tag_values:
     Small Hydroelectric: -1
     UtilityPV: 1
     Nuclear_Nuclear: 1
+    Hydroelectric Pumped Storage: -1
   Hydro_level:
     Conventional Hydroelectric: 0.5
   CapRes_1:
@@ -216,7 +219,6 @@ model_tag_values:
 regional_tag_values:
   CA_S:
     New_Build:
-      Hydroelectric Pumped Storage: 1
       Nuclear: 0
     MinCapTag_2:
       UtilityPV: 1

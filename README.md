@@ -22,7 +22,7 @@ The goal of PowerGenome is to let a user make all of these choices in a settings
 
 ## Data
 
-PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. The data are accessed through a combination of sqlite databases, CSV files, and parquet data files. EIA data on existing generating units are already compiled into a [single sqlite database](https://doi.org/10.5281/zenodo.3653158) (see instructions for using it below). A [second sqlite database](https://drive.google.com/file/d/1LM0ShpM69yLhZX9ScyVDmVBjC3iyyEg4/view?usp=sharing) has tables with new resource costs from NREL ATB, transmission constraints between IPM regions from EIA, and hourly demand within each IPM region from FERC. There are also a few data files stored in this repository:
+PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. The data are accessed through a combination of sqlite databases, CSV files, and parquet data files. EIA data on existing generating units are already compiled into a [single sqlite database](https://doi.org/10.5281/zenodo.3653158) (see instructions for using it below). A [second sqlite database](https://drive.google.com/file/d/1LCB0uwnx6VHrmHQDPH2huLHU6fKXb7kG/view?usp=sharing) has tables with new resource costs from NREL ATB, transmission constraints between IPM regions from EIA, and hourly demand within each IPM region from FERC. There are also a few data files stored in this repository:
 
 - Regional cost multipliers for individual technologies developed by EIA (`data/cost_multipliers/AEO_2020_regional_cost_corrections.csv`).
 - A simplified geojson version of EPA's shapefile for IPM regions (`data/ipm_regions_simple.geojson`).

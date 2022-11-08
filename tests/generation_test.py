@@ -47,6 +47,7 @@ from powergenome.generators import (
     label_retirement_year,
     label_small_hydro,
     load_demand_response_efs_profile,
+    remove_leading_zero,
     unit_generator_heat_rates,
     load_860m,
     GeneratorClusters,
@@ -486,30 +487,19 @@ def test_existing_gen_profiles():
         capacity_col="capacity_mw",
         num_clusters={tech: 2 for tech in technologies},
         retirement_ages={tech: 200 for tech in technologies},
-        atb_data_year=2021,
-        atb_existing_year=2019,
-        fuel_eia_aeo_year=2020,
+        atb_data_year=2022,
+        atb_existing_year=2020,
+        fuel_eia_aeo_year=2022,
         load_eia_aeo_year=2020,
-        aeo_fuel_usd_year=2019,
+        aeo_fuel_usd_year=2021,
         eia_series_region_names={
             "mountain": "MTN",
-            "pacific": "PCF",
-            "west_south_central": "WSC",
-            "east_south_central": "ESC",
-            "south_atlantic": "SOATL",
-            "west_north_central": "WNC",
-            "east_north_central": "ENC",
-            "middle_atlantic": "MDATL",
-            "new_england": "NEENGL",
         },
         eia_series_fuel_names={
-            "coal": "STC",
             "naturalgas": "NG",
-            "distillate": "DFO",
-            "uranium": "U",
         },
         eia_series_scenario_names={
-            "reference": "REF2020",
+            "reference": "REF2022",
         },
         aeo_fuel_scenarios={
             "coal": "reference",
@@ -634,102 +624,6 @@ def test_check_resource_tags():
     df = pd.DataFrame(data)
 
     check_resource_tags(df)
-
-
-def test_add_user_fuel_prices():
-    settings = {
-        # "user_fuel_price": {"biomass": {"SC_VACA": 10, "PJM_DOM": 5}, "ZCF": 15},
-        "modified_atb_new_gen": {
-            "ZCF_CombinedCycle1": {
-                "new_technology": "ZCF",
-                "new_tech_detail": "CCAvgCF",
-                "new_cost_case": "Advanced",
-                "atb_technology": "NaturalGas",
-                "atb_tech_detail": "CCAvgCF",
-                "atb_cost_case": "Advanced",
-                "size_mw": 500,
-            },
-            "ZCF_CombinedCycle2": {
-                "new_technology": "ZeroCarbon",
-                "new_tech_detail": "CCAvgCF",
-                "new_cost_case": "Advanced",
-                "atb_technology": "NaturalGas",
-                "atb_tech_detail": "CCAvgCF",
-                "atb_cost_case": "Advanced",
-                "size_mw": 500,
-            },
-        },
-        "eia_atb_tech_map": {
-            "Biomass": ["Biopower_Dedicated"],
-            "Zero Carbon": ["ZCF"],
-        },
-        "atb_new_gen": [["Biopower", "Dedicated", "Moderate", 100]],
-        "atb_data_year": 2020,
-        "atb_cap_recovery_years": 20,
-        "eia_series_scenario_names": {"reference": "REF2021"},
-        "user_fuel_price": {
-            "zerocarbonfuel1": 14,
-            "zerocarbonfuel2": 10,
-            "biomass": {"S_VACA": 10, "PJM_DOM": 5},
-        },
-        "user_fuel_usd_year": {
-            "zerocarbonfuel1": 2020,
-            "zerocarbonfuel2": 2020,
-            "biomass": 2019,
-        },
-        "tech_fuel_map": {
-            "ZeroCarbon_CCAvgCF_Advanced": "zerocarbonfuel1",
-            "Zero Carbon": "zerocarbonfuel2",
-            "Biomass": "biomass",
-        },
-        "model_regions": ["S_VACA", "PJM_DOM"],
-        "model_year": 2040,
-        "model_first_planning_year": 2035,
-        "cost_multiplier_region_map": {
-            "SRCA": ["S_VACA"],
-            "PJMD": ["PJM_DOM"],
-        },
-        "cost_multiplier_technology_map": {
-            "Biomass": ["Biopower_Dedicated"],
-            "CC - multi shaft": ["ZeroCarbon_CCAvgCF", "ZCF_CCAvgCF"],
-        },
-        "fuel_emission_factors": {"biomass": 0.001},  # Dummy value
-    }
-
-    df_base = add_user_fuel_prices(settings)
-
-    for fuel in [
-        "S_VACA_biomass",
-        "PJM_DOM_biomass",
-        "zerocarbonfuel1",
-        "zerocarbonfuel2",
-    ]:
-        assert fuel in df_base["full_fuel_name"].unique()
-
-    settings["target_usd_year"] = 2020
-    df_inflate = add_user_fuel_prices(settings)
-    assert (
-        df_base.loc[df_base["fuel"] == "biomass", "price"].mean()
-        < df_inflate.loc[df_inflate["fuel"] == "biomass", "price"].mean()
-    )
-    assert np.allclose(
-        df_base.loc[df_base["fuel"] == "zerocarbonfuel1", "price"].mean(),
-        df_inflate.loc[df_inflate["fuel"] == "zerocarbonfuel1", "price"].mean(),
-    )
-
-    gc = GeneratorClusters(
-        pudl_engine, pudl_out, pg_engine, settings, current_gens=False
-    )
-    gens = gc.create_new_generators()
-    assert gens["Fuel"].isna().any() == False
-
-    fuel_table = fuel_cost_table(gc.fuel_prices, gens, settings)
-    for r in ["PJM_DOM", "S_VACA"]:
-        assert (
-            fuel_table.loc[0, f"{r}_biomass"]
-            == settings["fuel_emission_factors"]["biomass"]
-        )
-    assert (fuel_table.loc[1:, :] == 0).any().any() == False
 
 
 def test_storage_duration(caplog):
@@ -1002,3 +896,14 @@ def test_find_region_col():
     with pytest.raises(ValueError):
         df = pd.DataFrame(columns=["A", "B", "C"])
         region_col = find_region_col(df.columns)
+
+
+def test_remove_leading_zeros():
+    s = "01"
+    assert remove_leading_zero(s) == "1"
+
+    i = 1
+    assert remove_leading_zero(i) == 1
+
+    s = "GEN1"
+    assert remove_leading_zero(s) == "GEN1"
