@@ -16,7 +16,7 @@ import sqlalchemy
 from powergenome.params import DATA_PATHS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import ClusterBuilder, map_nrel_atb_technology
-from powergenome.util import reverse_dict_of_lists
+from powergenome.util import reverse_dict_of_lists, remove_leading_zero
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
@@ -735,7 +735,7 @@ def calc_om(
                     "plant_id_eia == @plant_id & generator_id in @gen_ids"
                 )["fgd"].values
                 if not np.any(fgd):
-                    gen_ids = [g.lstrip("0") for g in gen_ids]
+                    gen_ids = [remove_leading_zero(g) for g in gen_ids]
                     fgd = coal_fgd_df.query(
                         "plant_id_eia == @plant_id & generator_id in @gen_ids"
                     )["fgd"].values

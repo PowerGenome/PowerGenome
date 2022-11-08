@@ -51,6 +51,7 @@ from powergenome.util import (
     regions_to_keep,
     snake_case_str,
     load_ipm_shapefile,
+    remove_leading_zero,
 )
 from powergenome.GenX import rename_gen_cols
 from scipy.stats import iqr
@@ -1651,31 +1652,6 @@ def label_gen_region(
     gdf = gpd.sjoin(model_regions_gdf.drop(columns="region"), gdf)
 
     return gdf
-
-
-def remove_leading_zero(id: Union[str, int]) -> Union[str, int]:
-    """Remove leading zero from IDs that are otherwise integers.
-
-    There is a discrepency between some generator IDs in PUDL and 860m where they are
-    listed with a leading zero in one and an integer in the other. To better match,
-    strip zeros from IDs that would be an integer without them.
-
-    Parameters
-    ----------
-    id : Union[str, int]
-        An integer or string identifier
-
-    Returns
-    -------
-    Union[str, int]
-        Either the original ID (if integer or non-numeric string) or an integer version
-        of the ID with leading zeros removed
-    """
-    if isinstance(id, int):
-        return id
-    elif id.isnumeric():
-        id = int(id.strip("0"))
-    return id
 
 
 def import_new_generators(
