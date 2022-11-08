@@ -1504,6 +1504,7 @@ def clean_860m_sheet(
     )
     df = df.dropna(how="all")
     df = df.rename(columns=planned_col_map)
+    df["plant_id_eia"] = df["plant_id_eia"].astype("Int64")
 
     if sheet_name in ["Operating", "Planned"]:
         df.loc[:, "operational_status_code"] = df.loc[:, "operational_status"].map(
@@ -1514,6 +1515,7 @@ def clean_860m_sheet(
         df = df.loc[
             df["operational_status_code"].isin(settings["proposed_status_included"]), :
         ]
+    df.columns = snake_case_col(df.columns)
 
     return df
 
@@ -1551,6 +1553,10 @@ def load_860m(settings: dict) -> Dict[str, pd.DataFrame]:
         pkl_path = DATA_PATHS["eia_860m"] / f"{fn_name}_{name}.pkl"
         if pkl_path.exists():
             data_dict[name] = pd.read_pickle(pkl_path)
+            data_dict[name]["plant_id_eia"] = data_dict[name]["plant_id_eia"].astype(
+                "Int64"
+            )
+            data_dict[name].columns = snake_case_col(data_dict[name].columns)
         else:
             if eia_860m_excelfile is None:
                 eia_860m_excelfile = download_860m(settings)
@@ -1613,13 +1619,64 @@ def label_gen_region(
     return gdf
 
 
+def remove_leading_zero(id: Union[str, int]) -> Union[str, int]:
+    """Remove leading zero from IDs that are otherwise integers.
+
+    There is a discrepency between some generator IDs in PUDL and 860m where they are
+    listed with a leading zero in one and an integer in the other. To better match,
+    strip zeros from IDs that would be an integer without them.
+
+    Parameters
+    ----------
+    id : Union[str, int]
+        An integer or string identifier
+
+    Returns
+    -------
+    Union[str, int]
+        Either the original ID (if integer or non-numeric string) or an integer version
+        of the ID with leading zeros removed
+    """
+    if isinstance(id, int):
+        return id
+    elif id.isnumeric():
+        id = int(id.strip("0"))
+    return id
+
+
 def import_new_generators(
     operating_860m: pd.DataFrame,
     gens_860: pd.DataFrame,
     settings: dict,
     model_regions_gdf: gpd.GeoDataFrame,
 ) -> pd.DataFrame:
+    """Find the set of generating units in 860m that are not in the annual 860 data.
 
+    This is especially important for new wind, solar, and battery units, which are built
+    on short timelines. Format the data for inclusion with other existing existing units.
+
+    Parameters
+    ----------
+    operating_860m : pd.DataFrame
+        Operating generators from EIA 860m.
+    gens_860 : pd.DataFrame
+        The set of operating units from other sources (e.g. annual 860 data in PUDL).
+    settings : dict
+        Requires the parameter "model_regions". Optional parameters include
+        "proposed_gen_heat_rates", "proposed_min_load", "capacity_col", "group_technologies",
+        and "retirement_ages".
+    model_regions_gdf : gpd.GeoDataFrame
+        Geospatial representation of the model regions. Used to assign generators to
+        model regions.
+
+    Returns
+    -------
+    pd.DataFrame
+        Set of operating generators that were not already in the gens_860 dataframe
+    """
+    operating_860m["generator_id"] = operating_860m["generator_id"].apply(
+        remove_leading_zero
+    )
     gens_860_id = list(zip(gens_860["plant_id_eia"], gens_860["generator_id"]))
     operating_860m_id = zip(
         operating_860m["plant_id_eia"], operating_860m["generator_id"]
@@ -1631,7 +1688,7 @@ def import_new_generators(
     )
     new_operating.loc[:, "heat_rate_mmbtu_mwh"] = new_operating.loc[
         :, "technology_description"
-    ].map(settings["proposed_gen_heat_rates"])
+    ].map(settings.get("proposed_gen_heat_rates", {}) or {})
 
     # The default EIA heat rate for non-thermal technologies is 9.21
     new_operating.loc[
@@ -1639,8 +1696,10 @@ def import_new_generators(
     ] = 9.21
 
     new_operating.loc[:, "minimum_load_mw"] = (
-        new_operating["technology_description"].map(settings["proposed_min_load"])
-        * new_operating[settings["capacity_col"]]
+        new_operating["technology_description"].map(
+            settings.get("proposed_min_load", {}) or {}
+        )
+        * new_operating[settings.get("capacity_col", "capacity_mw")]
     )
 
     # Assume anything else being built at scale is wind/solar and will have a Min_power
@@ -1655,7 +1714,7 @@ def import_new_generators(
     label_retirement_year(
         df=new_operating,
         settings=settings,
-        age_col="Operating Year",
+        age_col="operating_year",
         add_additional_retirements=False,
     )
     if (
@@ -1668,7 +1727,8 @@ def import_new_generators(
             .to_numpy()
         )
         plant_capacity = new_operating.loc[
-            new_operating["technology_description"].isnull(), settings["capacity_col"]
+            new_operating["technology_description"].isnull(),
+            settings.get("capacity_col", "capacity_mw"),
         ].sum()
 
         logger.warning(
@@ -1690,13 +1750,13 @@ def import_new_generators(
         "model_region",
         "technology_description",
         "generator_id",
-        settings["capacity_col"],
+        settings.get("capacity_col", "capacity_mw"),
         "capacity_mwh",
         "minimum_load_mw",
         "operational_status_code",
         "heat_rate_mmbtu_mwh",
         "retirement_year",
-        "Operating Year",
+        "operating_year",
         "state",
     ]
 
@@ -3073,6 +3133,9 @@ class GeneratorClusters:
                 "may be incorrect if you do not include this parameter!\n"
                 "*******************************\n"
             )
+        self.units_model["plant_id_eia"] = self.units_model["plant_id_eia"].astype(
+            "Int64"
+        )
         self.units_model.loc[self.units_model.unit_id_pudl.isnull(), "unit_id_pudl"] = (
             self.units_model.loc[
                 self.units_model.unit_id_pudl.isnull(), "plant_id_eia"
