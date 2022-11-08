@@ -944,6 +944,40 @@ def remove_future_retirements_860m(df, retired_860m):
     return not_retired_df
 
 
+def update_operating_date_860m(
+    df: pd.DataFrame, operating_860m: pd.DataFrame
+) -> pd.DataFrame:
+    """Update the operating date of EIA generators using data from 860m.
+
+    When the "operating_date" of a generator is nan, fill with operating year data
+    from 860m.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data on existing EIA generating units. Must have columns "plant_id_eia",
+        "generator_id", and "operating_date".
+    operating_860m : pd.DataFrame
+        A dataframe of operating generating units from EIA 860m. Must have columns
+        "plant_id_eia", "generator_id", and "operating_year".
+
+    Returns
+    -------
+    pd.DataFrame
+        The original "df" dataframe with missing operating dates filled using the operating
+        year from 860m.
+    """
+    df = df.set_index(["plant_id_eia", "generator_id"])
+    operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
+    no_op_date = df.loc[df["operating_date"].isna(), :].index
+    df.loc[no_op_date, "operating_date"] = pd.to_datetime(
+        operating_860m.reindex(no_op_date).dropna(how="all")["operating_year"],
+        format="%Y",
+    )
+
+    return df.reset_index()
+
+
 def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
     """
     Load generation and fuel data for each plant. EIA-923 provides these values for
@@ -2973,6 +3007,7 @@ class GeneratorClusters:
                 self.settings.get("tech_groups", {}) or {},
                 self.settings.get("regional_no_grouping", {}) or {},
             )
+            .pipe(update_operating_date_860m, self.operating_860m.copy())
         )
         self.gens_860_model = self.gens_860_model.pipe(
             modify_cc_prime_mover_code, self.gens_860_model
