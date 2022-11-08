@@ -51,6 +51,7 @@ from powergenome.util import (
     regions_to_keep,
     snake_case_str,
     load_ipm_shapefile,
+    remove_leading_zero,
 )
 from powergenome.GenX import rename_gen_cols
 from scipy.stats import iqr
@@ -944,6 +945,40 @@ def remove_future_retirements_860m(df, retired_860m):
     return not_retired_df
 
 
+def update_operating_date_860m(
+    df: pd.DataFrame, operating_860m: pd.DataFrame
+) -> pd.DataFrame:
+    """Update the operating date of EIA generators using data from 860m.
+
+    When the "operating_date" of a generator is nan, fill with operating year data
+    from 860m.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data on existing EIA generating units. Must have columns "plant_id_eia",
+        "generator_id", and "operating_date".
+    operating_860m : pd.DataFrame
+        A dataframe of operating generating units from EIA 860m. Must have columns
+        "plant_id_eia", "generator_id", and "operating_year".
+
+    Returns
+    -------
+    pd.DataFrame
+        The original "df" dataframe with missing operating dates filled using the operating
+        year from 860m.
+    """
+    df = df.set_index(["plant_id_eia", "generator_id"])
+    operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
+    no_op_date = df.loc[df["operating_date"].isna(), :].index
+    df.loc[no_op_date, "operating_date"] = pd.to_datetime(
+        operating_860m.reindex(no_op_date).dropna(how="all")["operating_year"],
+        format="%Y",
+    )
+
+    return df.reset_index()
+
+
 def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
     """
     Load generation and fuel data for each plant. EIA-923 provides these values for
@@ -1504,6 +1539,7 @@ def clean_860m_sheet(
     )
     df = df.dropna(how="all")
     df = df.rename(columns=planned_col_map)
+    df["plant_id_eia"] = df["plant_id_eia"].astype("Int64")
 
     if sheet_name in ["Operating", "Planned"]:
         df.loc[:, "operational_status_code"] = df.loc[:, "operational_status"].map(
@@ -1514,6 +1550,7 @@ def clean_860m_sheet(
         df = df.loc[
             df["operational_status_code"].isin(settings["proposed_status_included"]), :
         ]
+    df.columns = snake_case_col(df.columns)
 
     return df
 
@@ -1551,6 +1588,10 @@ def load_860m(settings: dict) -> Dict[str, pd.DataFrame]:
         pkl_path = DATA_PATHS["eia_860m"] / f"{fn_name}_{name}.pkl"
         if pkl_path.exists():
             data_dict[name] = pd.read_pickle(pkl_path)
+            data_dict[name]["plant_id_eia"] = data_dict[name]["plant_id_eia"].astype(
+                "Int64"
+            )
+            data_dict[name].columns = snake_case_col(data_dict[name].columns)
         else:
             if eia_860m_excelfile is None:
                 eia_860m_excelfile = download_860m(settings)
@@ -1619,7 +1660,33 @@ def import_new_generators(
     settings: dict,
     model_regions_gdf: gpd.GeoDataFrame,
 ) -> pd.DataFrame:
+    """Find the set of generating units in 860m that are not in the annual 860 data.
 
+    This is especially important for new wind, solar, and battery units, which are built
+    on short timelines. Format the data for inclusion with other existing existing units.
+
+    Parameters
+    ----------
+    operating_860m : pd.DataFrame
+        Operating generators from EIA 860m.
+    gens_860 : pd.DataFrame
+        The set of operating units from other sources (e.g. annual 860 data in PUDL).
+    settings : dict
+        Requires the parameter "model_regions". Optional parameters include
+        "proposed_gen_heat_rates", "proposed_min_load", "capacity_col", "group_technologies",
+        and "retirement_ages".
+    model_regions_gdf : gpd.GeoDataFrame
+        Geospatial representation of the model regions. Used to assign generators to
+        model regions.
+
+    Returns
+    -------
+    pd.DataFrame
+        Set of operating generators that were not already in the gens_860 dataframe
+    """
+    operating_860m["generator_id"] = operating_860m["generator_id"].apply(
+        remove_leading_zero
+    )
     gens_860_id = list(zip(gens_860["plant_id_eia"], gens_860["generator_id"]))
     operating_860m_id = zip(
         operating_860m["plant_id_eia"], operating_860m["generator_id"]
@@ -1631,7 +1698,7 @@ def import_new_generators(
     )
     new_operating.loc[:, "heat_rate_mmbtu_mwh"] = new_operating.loc[
         :, "technology_description"
-    ].map(settings["proposed_gen_heat_rates"])
+    ].map(settings.get("proposed_gen_heat_rates", {}) or {})
 
     # The default EIA heat rate for non-thermal technologies is 9.21
     new_operating.loc[
@@ -1639,8 +1706,10 @@ def import_new_generators(
     ] = 9.21
 
     new_operating.loc[:, "minimum_load_mw"] = (
-        new_operating["technology_description"].map(settings["proposed_min_load"])
-        * new_operating[settings["capacity_col"]]
+        new_operating["technology_description"].map(
+            settings.get("proposed_min_load", {}) or {}
+        )
+        * new_operating[settings.get("capacity_col", "capacity_mw")]
     )
 
     # Assume anything else being built at scale is wind/solar and will have a Min_power
@@ -1655,7 +1724,7 @@ def import_new_generators(
     label_retirement_year(
         df=new_operating,
         settings=settings,
-        age_col="Operating Year",
+        age_col="operating_year",
         add_additional_retirements=False,
     )
     if (
@@ -1668,7 +1737,8 @@ def import_new_generators(
             .to_numpy()
         )
         plant_capacity = new_operating.loc[
-            new_operating["technology_description"].isnull(), settings["capacity_col"]
+            new_operating["technology_description"].isnull(),
+            settings.get("capacity_col", "capacity_mw"),
         ].sum()
 
         logger.warning(
@@ -1690,13 +1760,13 @@ def import_new_generators(
         "model_region",
         "technology_description",
         "generator_id",
-        settings["capacity_col"],
+        settings.get("capacity_col", "capacity_mw"),
         "capacity_mwh",
         "minimum_load_mw",
         "operational_status_code",
         "heat_rate_mmbtu_mwh",
         "retirement_year",
-        "Operating Year",
+        "operating_year",
         "state",
     ]
 
@@ -2913,6 +2983,7 @@ class GeneratorClusters:
                 self.settings.get("tech_groups", {}) or {},
                 self.settings.get("regional_no_grouping", {}) or {},
             )
+            .pipe(update_operating_date_860m, self.operating_860m.copy())
         )
         self.gens_860_model = self.gens_860_model.pipe(
             modify_cc_prime_mover_code, self.gens_860_model
@@ -3073,6 +3144,9 @@ class GeneratorClusters:
                 "may be incorrect if you do not include this parameter!\n"
                 "*******************************\n"
             )
+        self.units_model["plant_id_eia"] = self.units_model["plant_id_eia"].astype(
+            "Int64"
+        )
         self.units_model.loc[self.units_model.unit_id_pudl.isnull(), "unit_id_pudl"] = (
             self.units_model.loc[
                 self.units_model.unit_id_pudl.isnull(), "plant_id_eia"

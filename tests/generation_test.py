@@ -47,6 +47,7 @@ from powergenome.generators import (
     label_retirement_year,
     label_small_hydro,
     load_demand_response_efs_profile,
+    remove_leading_zero,
     unit_generator_heat_rates,
     load_860m,
     GeneratorClusters,
@@ -895,3 +896,14 @@ def test_find_region_col():
     with pytest.raises(ValueError):
         df = pd.DataFrame(columns=["A", "B", "C"])
         region_col = find_region_col(df.columns)
+
+
+def test_remove_leading_zeros():
+    s = "01"
+    assert remove_leading_zero(s) == "1"
+
+    i = 1
+    assert remove_leading_zero(i) == 1
+
+    s = "GEN1"
+    assert remove_leading_zero(s) == "GEN1"
