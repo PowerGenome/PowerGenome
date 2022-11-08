@@ -900,7 +900,7 @@ def test_find_region_col():
 
 def test_remove_leading_zeros():
     s = "01"
-    assert remove_leading_zero(s) == 1
+    assert remove_leading_zero(s) == "1"
 
     i = 1
     assert remove_leading_zero(i) == 1
