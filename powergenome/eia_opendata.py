@@ -89,6 +89,8 @@ def read_eia_api(series_id: str, api_key: str, columns: list = None):
 
     try:
         df = pd.DataFrame(r.json()["series"][0]["data"], columns=columns, dtype=float)
+        df.to_csv(data_dir / f"{series_id}.csv", index=False)
+        return df
     except KeyError:
         print(
             "There was an error creating a dataframe from your EIA AEO data request. "
@@ -96,8 +98,6 @@ def read_eia_api(series_id: str, api_key: str, columns: list = None):
             "correct. The data returned from EIA's API is: \n"
             f"{r.json()}"
         )
-    df.to_csv(data_dir / f"{series_id}.csv", index=False)
-    return df
 
 
 def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.DataFrame:
