@@ -10,18 +10,99 @@ from typing import Union
 
 import pandas as pd
 import requests
+import zipfile
 
 from powergenome.params import SETTINGS, DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.util import reverse_dict_of_lists
+from powergenome.util import download_save, reverse_dict_of_lists
 
 logger = logging.getLogger(__name__)
 
 numeric = Union[int, float]
 
 
+def download_bulk_file(fn: str):
+    """Download and unzip a bulk data file from EIA
+
+    Parameters
+    ----------
+    fn : str
+        Name of the bulk data file
+    """
+    if ".zip" not in fn:
+        fn = f"{fn}.zip"
+    url = f"https://api.eia.gov/bulk/{fn}"
+
+    save_path = DATA_PATHS["eia"] / "bulk_files"
+    if not (save_path / fn).exists():
+        download_save(url, save_path / fn)
+
+
+def extract_bulk_series(aeo_year: int, name_str: str, columns: list = None):
+    """Extract relevant data series from an AEO bulk data file.
+
+    Parameters
+    ----------
+    aeo_year : int
+        Year of AEO data
+    name_str : str
+        String match for something in the "name" field of the JSON
+    columns : list, optional
+        Names for columns in the dataframe written to file, by default None
+    """
+    bulk_data_dir = DATA_PATHS["eia"] / "bulk_files"
+    save_data_dir = DATA_PATHS["eia"] / "open_data"
+    save_data_dir.mkdir(exist_ok=True)
+    fn = f"AEO{aeo_year}.zip"
+    df = pd.read_json(bulk_data_dir / fn, lines=True)
+    df = df.dropna(subset=["series_id"])
+    filtered_df = df.query("name.str.contains(@name_str)")
+    for row in filtered_df.itertuples():
+        series = row.series_id
+        _df = pd.DataFrame(row.data, columns=columns)
+        _df.to_csv(save_data_dir / f"{series}.csv", index=False, float_format="%g")
+
+
+def read_eia_api(series_id: str, api_key: str, columns: list = None):
+    """Load EIA AEO data from the API and write it to file
+
+    Parameters
+    ----------
+    series_id : str
+        The AEO API series ID that uniquely identifies the data request.
+    api_key : str
+        A valid API key for EIA's open data portal
+    columns : list
+        The expected output dataframe columns
+
+    Returns
+    -------
+    pd.DataFrame
+        Data from EIA's AEO via their open data API.
+    """
+    data_dir = DATA_PATHS["eia"] / "open_data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    url = (
+        f"https://api.eia.gov/series/?series_id={series_id}&api_key={api_key}&out=json"
+    )
+    r = requests.get(url)
+
+    try:
+        df = pd.DataFrame(r.json()["series"][0]["data"], columns=columns, dtype=float)
+        df.to_csv(data_dir / f"{series_id}.csv", index=False)
+        return df
+    except KeyError:
+        print(
+            "There was an error creating a dataframe from your EIA AEO data request. "
+            f"The constructed series ID is {series_id}. Check to make sure it looks "
+            "correct. The data returned from EIA's API is: \n"
+            f"{r.json()}"
+        )
+
+
 def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.DataFrame:
-    """Load EIA AEO data either from file (if it exists) or from the API.
+    """Load EIA AEO data either from file (if it exists) from a bulk download file or
+    from the API.
 
     Parameters
     ----------
@@ -40,23 +121,23 @@ def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.Da
     data_dir = DATA_PATHS["eia"] / "open_data"
     data_dir.mkdir(parents=True, exist_ok=True)
     if not (data_dir / f"{series_id}.csv").exists():
-        url = f"https://api.eia.gov/series/?series_id={series_id}&api_key={api_key}&out=json"
-        r = requests.get(url)
-
         try:
-            df = pd.DataFrame(
-                r.json()["series"][0]["data"], columns=columns, dtype=float
+            year = series_id.split(".")[1]
+            fn = f"AEO{year}.zip"
+            download_bulk_file(fn)
+            extract_bulk_series(
+                aeo_year=year, name_str="Electricity Demand", columns=["year", "demand"]
             )
-        except KeyError:
-            print(
-                "There was an error creating a dataframe from your EIA AEO data request. "
-                f"The constructed series ID is {series_id}. Check to make sure it looks "
-                "correct. The data returned from EIA's API is: \n"
-                f"{r.json()}"
+            extract_bulk_series(
+                aeo_year=year,
+                name_str="Energy Prices : Electric Power",
+                columns=["year", "price"],
             )
-        df.to_csv(data_dir / f"{series_id}.csv", index=False)
-    else:
-        df = pd.read_csv(data_dir / f"{series_id}.csv")
+        except FileNotFoundError:
+            df = read_eia_api(series_id, api_key, columns)
+            return df
+
+    df = pd.read_csv(data_dir / f"{series_id}.csv")
 
     return df
 
