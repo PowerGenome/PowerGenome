@@ -878,7 +878,7 @@ def deep_freeze_args(func):
     return wrapped
 
 
-def find_region_col(cols: Union[pd.Index, Iterable], context: str = None) -> str:
+def find_region_col(cols: Union[pd.Index, List[str]], context: str = None) -> str:
     """Find the column name that identifies regions.
 
     DataFrame, geospatial objects, etc might have different names for the region column.
