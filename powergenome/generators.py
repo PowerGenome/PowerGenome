@@ -970,7 +970,7 @@ def update_operating_date_860m(
     """
     df = df.set_index(["plant_id_eia", "generator_id"])
     operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
-    no_op_date = df.loc[df["operating_date"].isna(), :].index
+    no_op_date = set(df.loc[df["operating_date"].isna(), :].index)
     df.loc[no_op_date, "operating_date"] = pd.to_datetime(
         operating_860m.reindex(no_op_date).dropna(how="all")["operating_year"],
         format="%Y",
@@ -1943,6 +1943,13 @@ def gentype_region_capacity_factor(
         A dataframe with the capacity factor of every selected technology
     """
     data_years = [str(y) for y in settings["data_years"]]
+    data_years.extend(settings.get("capacity_factor_default_year_filter", []))
+    if type(settings.get("alt_year_filters")) is dict:
+        for tech, value in settings["alt_year_filters"].items():
+            if isinstance(value, list):
+                data_years.extend(value)
+            else:
+                data_years.append(value)
     cap_col = settings["capacity_col"]
 
     # Include standby (SB) generators since they are in our capacity totals

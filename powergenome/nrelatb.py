@@ -481,7 +481,7 @@ def atb_fixed_var_om_existing(
     grouped_results = results.reset_index().groupby(["technology"], as_index=False)
     for group, _df in grouped_results:
 
-        calc_om(
+        _df = calc_om(
             _df,
             atb_hr_df,
             atb_om,
