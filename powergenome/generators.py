@@ -726,7 +726,7 @@ def supplement_generator_860_data(
        'energy_source_code_2', 'minimum_load_mw', 'operational_status_code',
        'planned_new_capacity_mw', 'switch_oil_gas', 'technology_description',
        'time_cold_shutdown_full_load_code', 'model_region', 'prime_mover_code',
-       'operating_date', 'boiler_id', 'unit_id_eia', 'unit_id_pudl',
+       'operating_date', 'boiler_id', 'unit_id_eia', 'unit_id_pudl', 'unit_id_pg,
        'retirement_year']
     """
 
@@ -787,31 +787,31 @@ def supplement_generator_860_data(
         )
         .merge(bga[bga_cols], on=["plant_id_eia", "generator_id"], how="left")
     )
-
-    gens_860_model.loc[gens_860_model.unit_id_pudl.isnull(), "unit_id_pudl"] = (
-        gens_860_model.loc[gens_860_model.unit_id_pudl.isnull(), "plant_id_eia"].astype(
+    gens_860_model["unit_id_pg"] = gens_860_model.loc[:, "unit_id_pudl"]
+    gens_860_model.loc[gens_860_model.unit_id_pg.isnull(), "unit_id_pg"] = (
+        gens_860_model.loc[gens_860_model.unit_id_pg.isnull(), "plant_id_eia"].astype(
             str
         )
         + "_"
-        + gens_860_model.loc[
-            gens_860_model.unit_id_pudl.isnull(), "generator_id"
-        ].astype(str)
+        + gens_860_model.loc[gens_860_model.unit_id_pg.isnull(), "generator_id"].astype(
+            str
+        )
     ).to_numpy()
 
     # Where summer/winter capacity values are missing set equal to nameplate capacity,
     # but only if all generators within a unit are missing the capacity value
     check_units = gens_860_model.loc[
         gens_860_model[settings["capacity_col"]].isna()
-    ].groupby(["plant_id_eia", "unit_id_pudl"])
+    ].groupby(["plant_id_eia", "unit_id_pg"])
     for (plant_id, unit_id), _df in check_units:
         if _df[settings["capacity_col"]].isna().all():
             gens_860_model.loc[
                 (gens_860_model["plant_id_eia"] == plant_id)
-                & (gens_860_model["unit_id_pudl"] == unit_id),
+                & (gens_860_model["unit_id_pg"] == unit_id),
                 settings["capacity_col"],
             ] = gens_860_model.loc[
                 (gens_860_model["plant_id_eia"] == plant_id)
-                & (gens_860_model["unit_id_pudl"] == unit_id),
+                & (gens_860_model["unit_id_pg"] == unit_id),
                 "capacity_mw",
             ]
 
@@ -1233,7 +1233,7 @@ def unit_generator_heat_rates(pudl_out, data_years):
     -------
     dataframe, dict
         A dataframe of heat rates for each pudl unit (columsn are ['plant_id_eia',
-        'unit_id_pudl', 'heat_rate_mmbtu_mwh']).
+        'unit_id_pg', 'heat_rate_mmbtu_mwh']).
     """
 
     # Load the pre-calculated PUDL unit heat rates for selected years.
@@ -1263,7 +1263,7 @@ def group_units(df, settings):
         rate for each.
     """
 
-    by = ["plant_id_eia", "unit_id_pudl"]
+    by = ["plant_id_eia", "unit_id_pg"]
     # add a unit code (plant plus generator code) in cases where one doesn't exist
     df_copy = df.reset_index()
 
@@ -3010,17 +3010,17 @@ class GeneratorClusters:
             )
         else:
             logger.info("Using unit heat rates from previous round.")
-        self.weighted_unit_hr["unit_id_pudl"] = self.weighted_unit_hr[
+        self.weighted_unit_hr["unit_id_pg"] = self.weighted_unit_hr[
             "unit_id_pudl"
         ].astype("object")
 
         # Merge the PUDL calculated heat rate data and set the index for easy
         # mapping using plant/prime mover heat rates from 923
-        hr_cols = ["plant_id_eia", "unit_id_pudl", "heat_rate_mmbtu_mwh"]
+        hr_cols = ["plant_id_eia", "unit_id_pg", "heat_rate_mmbtu_mwh"]
         idx = ["plant_id_eia", "prime_mover_code", "energy_source_code_1"]
         self.units_model = self.gens_860_model.merge(
             self.weighted_unit_hr[hr_cols],
-            on=["plant_id_eia", "unit_id_pudl"],
+            on=["plant_id_eia", "unit_id_pg"],
             how="left",
         ).set_index(idx)
 
@@ -3156,13 +3156,13 @@ class GeneratorClusters:
         self.units_model["plant_id_eia"] = self.units_model["plant_id_eia"].astype(
             "Int64"
         )
-        self.units_model.loc[self.units_model.unit_id_pudl.isnull(), "unit_id_pudl"] = (
+        self.units_model.loc[self.units_model.unit_id_pg.isnull(), "unit_id_pg"] = (
             self.units_model.loc[
-                self.units_model.unit_id_pudl.isnull(), "plant_id_eia"
+                self.units_model.unit_id_pg.isnull(), "plant_id_eia"
             ].astype(str)
             + "_"
             + self.units_model.loc[
-                self.units_model.unit_id_pudl.isnull(), "generator_id"
+                self.units_model.unit_id_pg.isnull(), "generator_id"
             ].astype(str)
         ).values
         self.units_model.set_index(idx, inplace=True)
@@ -3312,8 +3312,8 @@ class GeneratorClusters:
                 _df["plant_id_eia"] = (
                     grouped.reset_index().groupby("cluster")["plant_id_eia"].apply(list)
                 )
-                _df["unit_id_pudl"] = (
-                    grouped.reset_index().groupby("cluster")["unit_id_pudl"].apply(list)
+                _df["unit_id_pg"] = (
+                    grouped.reset_index().groupby("cluster")["unit_id_pg"].apply(list)
                 )
 
                 self.cluster_list.append(_df)
@@ -3323,7 +3323,7 @@ class GeneratorClusters:
         self.all_units = pd.merge(
             self.units_model.reset_index(),
             self.all_units,
-            on=["plant_id_eia", "unit_id_pudl"],
+            on=["plant_id_eia", "unit_id_pg"],
             how="left",
         ).merge(
             self.plants_860[["plant_id_eia", "utility_id_eia"]],
