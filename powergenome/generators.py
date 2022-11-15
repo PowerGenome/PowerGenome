@@ -2012,12 +2012,16 @@ def gentype_region_capacity_factor(
     """
     generation = pd.read_sql_query(sql, pudl_engine, parse_dates={"report_date": "%Y"})
 
+    if pudl.__version__ > "0.5.0":
+        by = ["plant_id_eia"]
+    else:
+        by = {"plant_id_eia": "eia"}
     capacity_factor = pudl.helpers.clean_merge_asof(
         generation,
         plant_tech_cap,
         left_on="report_date",
         right_on="report_date",
-        by={"plant_id_eia": "eia"},
+        by=by,
     )
 
     if settings.get("group_technologies"):
