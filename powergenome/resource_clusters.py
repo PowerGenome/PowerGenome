@@ -1392,7 +1392,9 @@ def get_merge_columns(merge: dict, df: pd.DataFrame = None) -> list:
         + (merge.get("uniques") or [])
     )
     if len(columns) > len(set(columns)):
-        raise ValueError("Column names duplicated in merge")
+        visited = set()
+        dup = [x for x in columns if x in visited or (visited.add(x) or False)]
+        raise ValueError(f"Column names {dup} duplicated in merge")
     if df is not None:
         return [x for x in df if x in columns]
     return columns
