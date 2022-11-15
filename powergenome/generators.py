@@ -1070,14 +1070,8 @@ def modify_cc_prime_mover_code(df, gens_860):
         Modified 923 dataframe where prime mover codes at CC generators that don't have
         a PUDL unit id are modified from CA and CT to CC.
     """
-    cc_without_pudl_id = gens_860.loc[
-        (gens_860["unit_id_pudl"].isnull())
-        & (gens_860["technology_description"] == "Natural Gas Fired Combined Cycle"),
-        "plant_id_eia",
-    ]
     df.loc[
-        (df["plant_id_eia"].isin(cc_without_pudl_id))
-        & (df["prime_mover_code"].isin(["CA", "CT"])),
+        (df["prime_mover_code"].isin(["CA", "CT"])),
         "prime_mover_code",
     ] = "CC"
 
@@ -3054,19 +3048,23 @@ class GeneratorClusters:
             self.prime_mover_hr_map
         )
 
-        # Set heat rates < 5 or > 35 mmbtu/MWh to nan. Don't change heat rates of 0,
+        # Set heat rates < 6.36 (ATB NGCC) or > 35 mmbtu/MWh to nan. Don't change heat rates of 0,
         # which is when there is positive generation and no fuel use (pumped storage)
         self.units_model.loc[
             (
-                (self.units_model.heat_rate_mmbtu_mwh < 5)
-                & (self.units_model.heat_rate_mmbtu_mwh != 0)
+                (self.units_model.heat_rate_mmbtu_mwh < 6.36)
+                & ~(
+                    self.units_model.technology_description.str.contains(
+                        "pumped", case=False
+                    )
+                )
             )
             | (self.units_model.heat_rate_mmbtu_mwh > 35),
             "heat_rate_mmbtu_mwh",
         ] = np.nan
 
         # Fill any null heat rate values for each tech
-        for tech in self.units_model["technology_description"]:
+        for tech in self.units_model["technology_description"].unique():
             self.units_model.loc[
                 self.units_model.technology_description == tech, "heat_rate_mmbtu_mwh"
             ] = self.fill_na_heat_rates(
