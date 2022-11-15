@@ -53,6 +53,8 @@ def load_settings(path: Union[str, Path]) -> dict:
             if s:
                 settings.update(s)
 
+    if settings.get("input_folder"):
+        settings["input_folder"] = path.parent / settings["input_folder"]
     return fix_param_names(settings)
 
 
@@ -337,7 +339,7 @@ def init_pudl_connection(
     if start_year is not None:
         start_year = pd.to_datetime(start_year, format="%Y")
     if end_year is not None:
-        end_year = pd.to_datetime(end_year + 1, format="%Y")
+        end_year = pd.to_datetime(end_year, format="%Y")
     """
     pudl_out = pudl.output.pudltabl.PudlTabl(
         freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
@@ -693,13 +695,25 @@ def build_scenario_settings(
         A nested dictionary. The first set of keys are the planning years, the second
         set of keys are the case ID values associated with each case.
     """
-
-    model_planning_period_dict = {
-        year: (start_year, year)
-        for year, start_year in zip(
-            settings["model_year"], settings["model_first_planning_year"]
+    if settings.get("model_periods"):
+        model_planning_period_dict = {
+            year: (start_year, year) for (start_year, year) in settings["model_periods"]
+        }
+    elif isinstance(settings.get("model_year"), list) and isinstance(
+        settings.get("model_first_planning_year"), list
+    ):
+        model_planning_period_dict = {
+            year: (start_year, year)
+            for year, start_year in zip(
+                settings["model_year"], settings["model_first_planning_year"]
+            )
+        }
+    else:
+        raise KeyError(
+            "To build a dictionary of scenario settings your settings file should include "
+            "either the key 'model_periods' (a list of 2-element lists) or the keys "
+            "'model_year' and 'model_first_planning_year' (each a list of years)."
         )
-    }
 
     case_id_name_map = build_case_id_name_map(settings)
 
