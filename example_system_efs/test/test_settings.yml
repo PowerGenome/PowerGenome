@@ -20,13 +20,13 @@ case_id_description_fn: test_case_id_description.csv # Match the case_id with lo
 scenario_definitions_fn: test_scenario_inputs_short.csv # Define policy/cost scenarios for each case
 # scenario_definitions_fn: test_scenario_inputs.csv # Define policy/cost scenarios for each case
 distributed_gen_profiles_fn: test_dg_profiles.csv # Hourly profiles of distributed gen by region
-demand_response_fn: test_ev_load_shifting.csv # Load profiles of DR resources by model_year and scenario
+# demand_response_fn: test_ev_load_shifting.csv # Load profiles of DR resources by model_year and scenario
 emission_policies_fn: test_rps_ces_emission_limits.csv # Emission policies for each model_year/region/case_id
 capacity_limit_spur_fn: test_resource_capacity_spur.csv # Max capacity and spur line distance for each renewable resource
-# region_wind_pv_cap_fn: existing_wind_pv_capacity.csv # Only use if your data is more up-to-date than PUDL
+region_wind_pv_cap_fn: existing_wind_pv_capacity.csv
 demand_segments_fn: test_demand_segments_voll.csv
 misc_gen_inputs_fn: test_misc_gen_inputs.csv
-genx_settings_folder: genx_settings
+genx_settings_fn: GenX_settings.yml # In the same folder as this file, not in "input_folder" subfolder
 reserves_fn: Reserves.csv
 # regional_load_fn: test_regional_load_profiles.csv #Externally provide load data
 
@@ -34,7 +34,7 @@ reserves_fn: Reserves.csv
 # loads, set this parameter to "true". If the regional hourly loads do not include
 # demand response - the DR should be added to the load profiles - set to "~" (None) or
 # "false".
-regional_load_includes_demand_response: true
+# regional_load_includes_demand_response: true
 
 
 # Time clustering/reduction parameters
@@ -66,31 +66,39 @@ distributed_gen_values:
     CA_N: 9788
     CA_S: 12618
 
-# Set this parameter to "true" if existing distributed generation in each region should
-# be represented as a resource rather than being subtracted from demand.
-dg_as_resource: true
 
 # Distribution loss used when subtracting distributed generation from total load.
 avg_distribution_loss: 0.0453
 
+
+electrification_stock_fn: EFS_STOCK_AGG.parquet  # SCENARIO_STOCK.parquet
+electrification_scenario: current_policy
 # Name of the DSM resource, fraction of load that can be shifted, and number of hours
 # that it can be shifted
 demand_response_resources:
   2030:
-    ev_load_shifting:
+    LDV_MW:
       fraction_shiftable: 0.8
       parameter_values:
-        Max_Flexible_Demand_Delay: 5
-        FLEX: 1
-        Flexible_Demand_Energy_Eff: 1
+        Max_DSM_delay: 5
+        DR: 2
+    Res_WH_MW:
+      fraction_shiftable: 0.1
+      parameter_values:
+        Max_DSM_delay: 2
+        DR: 2
   2045:
-    ev_load_shifting:
+    LDV_MW:
       fraction_shiftable: 0.8
       parameter_values:
-        Max_Flexible_Demand_Delay: 5
-        FLEX: 1
-        Flexible_Demand_Energy_Eff: 1
-demand_response: 'moderate'
+        Max_DSM_delay: 5
+        DR: 2
+    Res_WH_MW:
+      fraction_shiftable: 0.25
+      parameter_values:
+        Max_DSM_delay: 2
+        DR: 2
+# demand_response: 'moderate'
 
 # Transmission financial information to calculate annual investment costs
 # capex_mw_mile: Capital cost per MW-mile for all (numeric) or each model region (dict).
@@ -103,19 +111,19 @@ transmission_investment_cost:
       CA_N: 8775 # 2.5x the rest of WECC
       CA_S: 8775 # 2.5x the rest of WECC
       WECC_AZ: 3900
-    wacc: 0.044
+    wacc: 0.069
     investment_years: 60
   offshore_spur:
     # If missing, NREL ATB capex_mw_mile is used
     capex_mw_mile:
-    wacc: 0.044
+    wacc: 0.069
     investment_years: 60
   tx:
     capex_mw_mile:
       CA_N: 3037.5 # 2.5x the rest of WECC
       CA_S: 3037.5 # 2.5x the rest of WECC
       WECC_AZ: 1350
-    wacc: 0.044
+    wacc: 0.069
     investment_years: 60
 
 # Percent expansion in planning period above and beyond existing transmission
@@ -206,22 +214,22 @@ settings_management:
     renewable_capex:
       mid:
         atb_new_gen:
-          - [NaturalGas, CCCCSAvgCF, Conservative, 500] # ATB CCCCS conservative case represents current technology.
-          - [NaturalGas, CCAvgCF, Moderate, 500]
-          - [NaturalGas, CTAvgCF, Moderate, 100]
-          - [LandbasedWind, Class1, Moderate, 1]
-          - [OffShoreWind, Class10, Moderate, 1]
-          - [UtilityPV, Class1, Moderate, 1]
-          - [Battery, "*", Moderate, 1]
+          - [NaturalGas, CCCCSAvgCF, Mid, 500]
+          - [NaturalGas, CCAvgCF, Mid, 500]
+          - [NaturalGas, CTAvgCF, Mid, 100]
+          - [LandbasedWind, LTRG1, Mid, 1]
+          - [OffShoreWind, OTRG10, Mid, 1]
+          - [UtilityPV, LosAngeles, Mid, 1]
+          - [Battery, "*", Mid, 1]
       low:
         atb_new_gen:
-          - [NaturalGas, CCCCSAvgCF, Conservative, 500] # ATB CCCCS conservative case represents current technology.
-          - [NaturalGas, CCAvgCF, Moderate, 500]
-          - [NaturalGas, CTAvgCF, Moderate, 100]
-          - [LandbasedWind, Class1, Advanced, 1]
-          - [OffShoreWind, Class10, Advanced, 1]
-          - [UtilityPV, Class1, Advanced, 1]
-          - [Battery, "*", Advanced, 1]
+          - [NaturalGas, CCCCSAvgCF, Mid, 500]
+          - [NaturalGas, CCAvgCF, Mid, 500]
+          - [NaturalGas, CTAvgCF, Mid, 100]
+          - [LandbasedWind, LTRG1, Low, 1]
+          - [OffShoreWind, OTRG10, Low, 1]
+          - [UtilityPV, LosAngeles, Low, 1]
+          - [Battery, "*", Low, 1]
     nuclear_capex:
       mid:
         additional_new_gen:
@@ -323,22 +331,22 @@ settings_management:
     renewable_capex:
       mid:
         atb_new_gen:
-          - [NaturalGas, CCCCSAvgCF, Conservative, 500] # ATB CCCCS conservative case represents current technology.
-          - [NaturalGas, CCAvgCF, Moderate, 500]
-          - [NaturalGas, CTAvgCF, Moderate, 100]
-          - [LandbasedWind, Class1, Moderate, 1]
-          - [OffShoreWind, Class10, Moderate, 1]
-          - [UtilityPV, Class1, Moderate, 1]
-          - [Battery, "*", Moderate, 1]
+          - [NaturalGas, CCCCSAvgCF, Mid, 500]
+          - [NaturalGas, CCAvgCF, Mid, 500]
+          - [NaturalGas, CTAvgCF, Mid, 100]
+          - [LandbasedWind, LTRG1, Mid, 1]
+          - [OffShoreWind, OTRG10, Mid, 1]
+          - [UtilityPV, LosAngeles, Mid, 1]
+          - [Battery, "*", Mid, 1]
       low:
         atb_new_gen:
-          - [NaturalGas, CCCCSAvgCF, Conservative, 500] # ATB CCCCS conservative case represents current technology.
-          - [NaturalGas, CCAvgCF, Moderate, 500]
-          - [NaturalGas, CTAvgCF, Moderate, 100]
-          - [LandbasedWind, Class1, Advanced, 1]
-          - [OffShoreWind, Class10, Advanced, 1]
-          - [UtilityPV, Class1, Advanced, 1]
-          - [Battery, "*", Advanced, 1]
+          - [NaturalGas, CCCCSAvgCF, Mid, 500]
+          - [NaturalGas, CCAvgCF, Mid, 500]
+          - [NaturalGas, CTAvgCF, Mid, 100]
+          - [LandbasedWind, LTRG1, Low, 1]
+          - [OffShoreWind, OTRG10, Low, 1]
+          - [UtilityPV, LosAngeles, Low, 1]
+          - [Battery, "*", Low, 1]
     nuclear_capex:
       mid:
         additional_new_gen:
@@ -383,8 +391,7 @@ target_usd_year: 2017
 
 # HOURS OFFSET FROM UTC
 # All time profile data are stored in UTC. Provide an offset for the model timezone.
-# US East cost is UTC-5, Pacific is UTC-8
-utc_offset: -8
+utc_offset: -5
 
 # CAPACITY TYPE
 capacity_col: winter_capacity_mw
@@ -395,19 +402,6 @@ small_hydro_mw: 30
 small_hydro_regions:
   - CA_N
   - CA_S
-
-
-# Factors for calculating hydro energy to power ratio in GenX. The default factors is
-# numeric and will be applied to all regions. The regional factors are a dictionary mapping
-# model region names to specific regional factors. The factors are multiplied by average
-# annual inflow rates to determine the rated number of hours of reservoir hydro
-# storage at peak discharge power output.
-hydro_factor: 2
-
-regional_hydro_factor:
-  WECC_PNW: 4
-  WECC_N: 4
-
 
 # REGIONS
 # Select the regions and any regional aggregations that should be performed.
@@ -446,7 +440,7 @@ cap_res_network_derate_default: 0.95
 # Won't show up if not listed here (expand)
 cluster_method: kmeans
 
-# ** Any technologies not included in num_clusters will be omitted **
+
 num_clusters:
   Conventional Steam Coal: 1
   Natural Gas Fired Combined Cycle: 1
@@ -526,23 +520,8 @@ derate_techs:
   - Geothermal
 
 
-# Energy storge duration. Provide a default value for existing resources of a given type.
-# The value of 15.5 for pumped hydro comes from https://sandia.gov/ess-ssl/gesdb/public/statistics.html
-# Default value can be numeric or a dictionary of region: numeric values. Technology names
-# here and in the dataframe are both converted to snake case and matches are made if this
-# name is contained in the dataframe technology name.
-energy_storage_duration:
-  Hydroelectric Pumped Storage: 15.5
-
 # RETIREMENT AGES
 # The age at which each technolgy type is expected to retire
-# ********* IMPORTANT ****************
-# If you are running a myopic model with multiple planning periods, age-based retirements
-# between planning periods can change the units assigned to each cluster. In this situation
-# the heat rates and O&M of a cluster will change because of the units it contains.
-# Economic retirements of capacity from a cluster may not accurately represent the units
-# that should be retired. To avoid this, set all retirement ages to a large value
-# (e.g. 500).
 
 retirement_ages:
   Conventional Hydroelectric: 500
@@ -630,7 +609,6 @@ model_tag_values:
     Petroleum Coke: 1
     Petroleum Liquids: 1
     Wood/Wood Waste Biomass: 1
-    NaturalGas_: 1
   VRE:
     CSP: 1
     LandbasedWind: 1
@@ -647,6 +625,11 @@ model_tag_values:
     Solar Photovoltaic: 1
     Solar Thermal without Energy Storage: 1
     UtilityPV: 1
+  NDISP:
+    Biomass: 1
+    Geothermal: 1
+    Small Hydroelectric: 1
+    Wood/Wood Waste Biomass: 1
   STOR:
     Battery: 1
     Hydroelectric Pumped Storage: 1
@@ -706,12 +689,12 @@ model_tag_values:
     Conventional Hydroelectric: -1
     Geothermal: -1
     LandbasedWind: 1
-    NaturalGas: 1
+    Natural Gas: 1
     NGCCS100: 1
     OffshoreWind: 1
     Small Hydroelectric: -1
     UtilityPV: 1
-    Nuclear_Nuclear: 1
+    Nuclear_*: 1
   Hydro_level:
     Conventional Hydroelectric: 0.5
   CapRes_1:
@@ -782,12 +765,13 @@ model_tag_values:
     Battery: 0.95
     Hydroelectric Pumped Storage: 0.95
     ev_load_shifting: 0.95
+  Hydro_Energy_to_Power_Ratio:
+    Conventional Hydroelectric: 158.7301587
   MUST_RUN:
     Small Hydroelectric: 1
     Geothermal: 1
     Wood/Wood Waste Biomass: 1
     Biomass: 1
-    distributed_generation: 1
 
 # Tags for a technology in a specific region
 # Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>
@@ -815,7 +799,8 @@ MinCapReq:
 
 # Generator cost data from NREL ATB
 
-atb_data_year: 2021
+atb_data_year: 2020
+atb_cost_case: Mid
 atb_financial_case: Market
 atb_cap_recovery_years: 20
 
@@ -829,12 +814,9 @@ alt_atb_cap_recovery_years:
   Nuclear: 40
 
 # The year of NREL ATB data to use for matching existing generators (O&M costs)
-atb_existing_year: 2019
+atb_existing_year: 2018
+atb_usd_year: 2017 # From Capex figure in atb documentation https://atb.nrel.gov/electricity/2019/summary.html
 
-# ****UPDATE WITH ATB2021*****
-# ATB now uses data from NETL for fossil fuel technologies, so it is no longer necessary
-# to modify NGCT and NGCC technologies.
-# ****************************
 # ATB uses an average of conventional and advanced techs. We only want advanced. To use
 # standard ATB values set multipliers to 1.
 # Heat rate multipliers are an average of "heat rate" and "final heat rate" multipliers.
@@ -842,24 +824,20 @@ atb_existing_year: 2019
 # "technology" and "tech_detail" keys uniquely identifying the resource to be modified.
 # The 'ngct' dictionary is required for calculating existing CT variable O&M costs.
 atb_modifiers:
-  batteries:
-    technology: Battery
-    tech_detail: "*"
-    Var_OM_Cost_per_MWh: [add, 0.15]
-#   ngct:
-#     technology: NaturalGas
-#     tech_detail: CTAvgCF
-#     capex_mw: [mul, 0.76]
-#     Var_OM_Cost_per_MWh: [mul, 0.98]
-#     Fixed_OM_Cost_per_MWyr: [mul, 0.6]
-#     Heat_Rate_MMBTU_per_MWh: [mul, 1.04]
-#   ngcc:
-#     technology: NaturalGas
-#     tech_detail: CCAvgCF
-#     capex_mw: [mul, 0.89]
-#     Var_OM_Cost_per_MWh: [mul, 0.73]
-#     Fixed_OM_Cost_per_MWyr: [mul, 0.95]
-#     Heat_Rate_MMBTU_per_MWh: [mul, 0.98]
+  ngct:
+    technology: NaturalGas
+    tech_detail: CTAvgCF
+    capex_mw: [mul, 0.76]
+    Var_OM_Cost_per_MWh: [mul, 0.98]
+    Fixed_OM_Cost_per_MWyr: [mul, 0.6]
+    Heat_Rate_MMBTU_per_MWh: [mul, 1.04]
+  ngcc:
+    technology: NaturalGas
+    tech_detail: CCAvgCF
+    capex_mw: [mul, 0.89]
+    Var_OM_Cost_per_MWh: [mul, 0.73]
+    Fixed_OM_Cost_per_MWyr: [mul, 0.95]
+    Heat_Rate_MMBTU_per_MWh: [mul, 0.98]
 
 
 # Copy and modify an existing ATB new generator. This takes place BEFORE the ATB CC/CT
@@ -869,10 +847,10 @@ modified_atb_new_gen:
   NGCCS100:
     new_technology: NaturalGas
     new_tech_detail: CCS100
-    new_cost_case: Moderate
+    new_cost_case: Mid
     atb_technology: NaturalGas
     atb_tech_detail: CCCCSAvgCF
-    atb_cost_case: Conservative # ATB CCCCS conservative case represents current technology.
+    atb_cost_case: Mid
     size_mw: 500
     capex_mw: [add, 116000]
     heat_rate: [add, 0.365]
@@ -891,62 +869,56 @@ eia_atb_tech_map:
   Conventional Steam Coal: Coal_newAvgCF
   Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF #[NaturalGas_CCAvgCF, NETL_NGCC]
   Natural Gas Fired Combustion Turbine: NaturalGas_CTAvgCF
-  Other_peaker: NaturalGas_CTAvgCF
-  Natural Gas Internal Combustion Engine: NaturalGas_CTAvgCF
-  Landfill Gas: NaturalGas_CTAvgCF
-  Petroleum Liquids: NaturalGas_CTAvgCF
-  Municipal Solid Waste: Biopower_Dedicated
-  Other Waste Biomass: Biopower_Dedicated
-  Wood/Wood Waste Biomass: Biopower_Dedicated
-  Solar Photovoltaic: UtilityPV_Class1
+  Peaker: NaturalGas_CTAvgCF
+  Solar Photovoltaic: UtilityPV_LosAngeles
   Geothermal: Geothermal_HydroFlash # assume installed capacity is dominated by flash
 
   # Check head-height, which is difference between NSD2 and 4
   Conventional Hydroelectric: Hydropower_NSD4 # Large variability based on choice
   Hydroelectric Pumped Storage: Hydropower_NSD4 # Large variability based on choice
   Small Hydroelectric: Hydropower_NSD3 # Large variability based on choice
-  Onshore Wind Turbine: LandbasedWind_Class4 # All onshore wind is the same
-  Offshore Wind Turbine: OffShoreWind_Class10 # Mid-range of floating offshore wind
-  Nuclear: Nuclear_Nuclear
+  Onshore Wind Turbine: LandbasedWind_LTRG4 # All onshore wind is the same
+  Offshore Wind Turbine: OffShoreWind_OTRG10 # Mid-range of floating offshore wind
+  Nuclear: Nuclear_*
   Natural Gas Steam Turbine: Coal_newAvgCF # No gas steam turbines in ATB, using coal instead
   Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
 
-# Offshore wind in the west will be floating - Class10 maybe.
+# Offshore wind in the west will be floating - OTRG10 maybe.
 # Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
 atb_new_gen:
-  - [NaturalGas, CCCCSAvgCF, Conservative, 500] # ATB CCCCS conservative case represents current technology.
-  - [NaturalGas, CCAvgCF, Moderate, 500]
-  - [NaturalGas, CTAvgCF, Moderate, 100]
-  - [LandbasedWind, Class3, Moderate, 1]
-  - [OffShoreWind, Class10, Moderate, 1]
-  - [UtilityPV, Class1, Moderate, 1]
-  - [Battery, "*", Moderate, 1]
-  # - [Nuclear, Nuclear, Moderate, 500]
+  - [NaturalGas, CCCCSAvgCF, Mid, 500]
+  - [NaturalGas, CCAvgCF, Mid, 500]
+  - [NaturalGas, CTAvgCF, Mid, 100]
+  - [LandbasedWind, LTRG4, Mid, 1]
+  - [OffShoreWind, OTRG13, Mid, 1]
+  - [UtilityPV, LosAngeles, Mid, 1]
+  - [Battery, "*", Mid, 1]
+  # - [Nuclear, "*", Mid, 500]
 
 
 # Additional technologies can be specified in a csv file under data/additional_technologies
 # Provide the filename (no path needed) in the parameter below or "~" for none.
 # All technologies listed in the file will be included in the outputs unless they are
 # also included in "new_gen_not_available".
-additional_technologies_fn: AZ_additional_tech.csv #NETL_Additional_tech.csv
+additional_technologies_fn: AZ_additional_tech.csv
 
 additional_new_gen:
   - Nuclear_mid
+  # - NGCCS100_mid
 
 
-# Dictionary of lists with model region as key and ATB tech (string matching) in list.
-# It isn't necessary to include wind/solar resources here. If they aren't included in
-# the renewables_clusters parameter below, they won't be included in the final generators
-# dataframe.
+# Dictionary of lists with model region as key and ATB tech (string matching) in list
 new_gen_not_available:
-  # WECC_CO:
-  #   - OffShoreWind
-  # WECC_AZ:
-  #   - OffShoreWind
-  # WECC_NM:
-  #   - OffShoreWind
-  # WECC_SNV:
-  #   - OffShoreWind
+  WECC_CO:
+    - OffShoreWind
+  WECC_AZ:
+    - OffShoreWind
+  WECC_NM:
+    - OffShoreWind
+  WECC_SNV:
+    - OffShoreWind
+
+pv_ac_dc_ratio: 1.3
 
 renewables_clusters:
   - region: CA_N
@@ -1039,7 +1011,7 @@ cost_multiplier_technology_map:
   CC - multi shaft: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF]
   CC with 90% CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100, NaturalGas_CCS100, NaturalGas_CCS100_low,NaturalGas_CCS100_high]
   Fuel cells: []
-  Advanced nuclear: [Nuclear_Nuclear, Nuclear_mid, Nuclear_low, Nuclear_high]
+  Advanced nuclear: [Nuclear_*, Nuclear_mid, Nuclear_low, Nuclear_high]
   Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
   MSW - landfill gas: []
   Wind: [LandbasedWind]
@@ -1130,7 +1102,7 @@ historical_load_region_maps:
   RFCET: [PJM_WMAC, PJM_EMAC, PJM_SMAC, PJM_PENE, PJM_Dom]
   RFCMI: [MIS_LMI]
   RFCWT: [PJM_West, PJM_AP, PJM_ATSI, PJM_COMD]
-  SERCDLT: [MIS_WOTA, MIS_LA, MIS_AMSO, MIS_AR, MIS_D_MS]
+  SERCDLT: [MIS_WOTA, MIS_LA, MIS_AMSO, MIS_AR, MIS_MD_MS]
   SERCGW: [MIS_MO, S_D_AECI, MIS_IL, MIS_INKY]
   SERCSOES: [S_SOU]
   SERCCNT: [S_C_TVA, S_C_KY]
@@ -1185,18 +1157,9 @@ alt_growth_rate: ~
 
 # Need to make choices about fuel regions when user-defined regions cross AEO fuel regions
 # I'm putting WECC_NW in the rockies because the PNW doesn't use as much coal/gas
-# IPM regions are included here only as a guide. All user regions must be mapped to AEO regions.
 aeo_fuel_region_map:
-  mountain: [WECC_AZ, WECC_NM, WECC_CO, WECC_SNV, WECC_ID, WECC_WY, WECC_UT, WECC_NNV, WECC_NW]
-  pacific: [WECC_PNW, WEC_CALN, WEC_BANC, WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE, CA_N, CA_S]
-  west_south_central: [ERC_PHDL, ERC_REST, ERC_WEST, SPP_WEST, SPP_SPS, MIS_AMSO, MIS_WOTA, MIS_LA, MIS_AR]
-  east_south_central: [MIS_D_MS, S_C_TVA, S_C_KY]
-  south_atlantic: [FRCC, S_SOU, S_VACA, PJM_Dom, PJM_SMAC, PJM_AP]
-  west_north_central: [MIS_MAPP, SPP_WAUE, SPP_NEBR, MIS_MIDA, SPP_N, MIS_MNWI, MIS_IA, MIS_MO, S_D_AECI]
-  east_north_central: [MIS_WUMS, MIS_LMI, PJM_COMD, MIS_IL, MIS_INKY, PJM_West, PJM_ATSI]
-  middle_atlantic: [PJM_WMAC, PJM_EMAC, PJM_SMAC, PJM_PENE, NY_Z_A, NY_Z_B, NY_Z_C&E, NY_Z_D, NY_Z_F, NY_Z_G-I, NY_Z_J, NY_Z_K]
-  new_england: [NENG_ME, NENGREST, NENG_CT]
-
+  mountain: [WECC_AZ, WECC_NM, WECC_CO, WECC_SNV, WECC_NW]
+  pacific: [CA_N, CA_S]
 
 eia_series_region_names:
   mountain: MTN
@@ -1246,7 +1209,6 @@ tech_fuel_map:
   Natural Gas Steam Turbine: naturalgas
   Nuclear: uranium
   Petroleum Liquids: distillate
-  Other_peaker: naturalgas
 
 # The CCS fuel names (key values on right have to be in the format <fuel>_<ccslevel>,
 # where the fuel matches something from "aeo_fuel_scenarios" (above
@@ -1320,7 +1282,6 @@ new_build_startup_costs:
   NaturalGas_CT: gas_large_ct
   NaturalGas_CC: gas_cc
   NaturalGas_CCS100: gas_cc
-  Nuclear_Nuclear: nuclear
 
 
 ######################################################################################
@@ -1343,7 +1304,9 @@ generator_columns: [
             "MUST_RUN",
             "STOR",
             "FLEX",
-            "LDS",
+            # "HEAT",
+            # "NACC",
+            # "TRADER",
             "HYDRO",
             "ESR_1",
             "ESR_2",

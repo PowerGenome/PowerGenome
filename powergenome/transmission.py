@@ -67,7 +67,7 @@ def agg_transmission_constraints(
             "No transmission value column (e.g. firm vs non-firm) was specified in the "
             "settings. The column 'firm_ttc_mw' will be used as a default. This is a change "
             "from previous versions of PG, where 'nonfirm_ttc_mw' was used. Firm transmission "
-            "constraints are "
+            "capacity is lower or equal to non-firm capacity."
         )
         tx_value_col = "firm_ttc_mw"
     zones = settings["model_regions"]
@@ -160,7 +160,7 @@ def agg_transmission_constraints(
         (transmission_constraints_table.region_from.isin(keep_regions))
         & (transmission_constraints_table.region_to.isin(keep_regions)),
         :,
-    ].drop(columns="id")
+    ].drop(columns="id", errors="ignore")
 
     logger.info("Map and aggregate region names for transmission constraints")
     for col in ["region_from", "region_to"]:

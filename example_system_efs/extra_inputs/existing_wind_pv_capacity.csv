@@ -1,0 +1,110 @@
+﻿IPM_Region,nameplate_capacity_mw,plant_count,technology
+ERC_PHDL,4,1,Solar Photovoltaic
+ERC_REST,454.5,42,Solar Photovoltaic
+ERC_WEST,137.5,3,Solar Photovoltaic
+FRCC,2390,77,Solar Photovoltaic
+MIS_AMSO,54.6,3,Solar Photovoltaic
+MIS_AR,101.2,5,Solar Photovoltaic
+MIS_D_MS,211.5,5,Solar Photovoltaic
+MIS_IA,1.6,1,Solar Photovoltaic
+MIS_IL,11,4,Solar Photovoltaic
+MIS_INKY,201.6,53,Solar Photovoltaic
+MIS_LMI,132,24,Solar Photovoltaic
+MIS_MAPP,12.5,7,Solar Photovoltaic
+MIS_MIDA,34.3,16,Solar Photovoltaic
+MIS_MNWI,799.3,408,Solar Photovoltaic
+MIS_MO,12.7,5,Solar Photovoltaic
+MIS_WUMS,14.6,9,Solar Photovoltaic
+NENGREST,821.4,312,Solar Photovoltaic
+NENG_CT,374.6,115,Solar Photovoltaic
+NENG_ME,11.8,5,Solar Photovoltaic
+NY_Z_A,36,16,Solar Photovoltaic
+NY_Z_B,49.2,24,Solar Photovoltaic
+NY_Z_C&E,108.2,36,Solar Photovoltaic
+NY_Z_D,25.4,13,Solar Photovoltaic
+NY_Z_F,166.4,71,Solar Photovoltaic
+NY_Z_G-I,36.6,18,Solar Photovoltaic
+PJM_AP,2.5,2,Solar Photovoltaic
+PJM_ATSI,25.4,9,Solar Photovoltaic
+PJM_COMD,54.1,15,Solar Photovoltaic
+PJM_Dom,1639.1,124,Solar Photovoltaic
+PJM_EMAC,832.8,302,Solar Photovoltaic
+PJM_PENE,2,1,Solar Photovoltaic
+PJM_SMAC,248,67,Solar Photovoltaic
+PJM_WMAC,140.8,36,Solar Photovoltaic
+PJM_West,84,25,Solar Photovoltaic
+SPP_N,18.3,6,Solar Photovoltaic
+SPP_NEBR,17.1,6,Solar Photovoltaic
+SPP_SPS,1559.6,17,Solar Photovoltaic
+SPP_WAUE,98.4,32,Solar Photovoltaic
+SPP_WEST,46.5,12,Solar Photovoltaic
+S_C_KY,18.5,2,Solar Photovoltaic
+S_C_TVA,274.9,23,Solar Photovoltaic
+S_D_AECI,34,10,Solar Photovoltaic
+S_SOU,1114.2,42,Solar Photovoltaic
+S_VACA,4493.1,621,Solar Photovoltaic
+WECC_AZ,2017.8,107,Solar Photovoltaic
+WECC_CO,533.8,78,Solar Photovoltaic
+WECC_ID,251.5,14,Solar Photovoltaic
+WECC_IID,3110.2,90,Solar Photovoltaic
+WECC_MT,17,6,Solar Photovoltaic
+WECC_NM,987.4,77,Solar Photovoltaic
+WECC_NNV,264.9,28,Solar Photovoltaic
+WECC_PNW,209.9,35,Solar Photovoltaic
+WECC_SCE,4113.6,142,Solar Photovoltaic
+WECC_SNV,3261.2,88,Solar Photovoltaic
+WECC_UT,652.3,21,Solar Photovoltaic
+WECC_WY,59.3,15,Solar Photovoltaic
+WEC_CALN,2787.1,233,Solar Photovoltaic
+WEC_LADW,2165.9,315,Solar Photovoltaic
+WEC_SDGE,130.3,36,Solar Photovoltaic
+ERC_PHDL,8495.9,78,Onshore Wind Turbine
+ERC_REST,6979,39,Onshore Wind Turbine
+ERC_WEST,9450.5,57,Onshore Wind Turbine
+MIS_IA,3891.2,57,Onshore Wind Turbine
+MIS_IL,4478.5,30,Onshore Wind Turbine
+MIS_INKY,800.9,6,Onshore Wind Turbine
+MIS_LMI,2194.3,37,Onshore Wind Turbine
+MIS_MAPP,3239,44,Onshore Wind Turbine
+MIS_MIDA,3919.6,55,Onshore Wind Turbine
+MIS_MNWI,962.6,30,Onshore Wind Turbine
+MIS_MO,3.2,2,Onshore Wind Turbine
+MIS_WUMS,800.3,13,Onshore Wind Turbine
+NENGREST,145.8,46,Onshore Wind Turbine
+NENG_CT,6.5,2,Onshore Wind Turbine
+NENG_ME,1190.9,24,Onshore Wind Turbine
+NY_Z_A,520.8,7,Onshore Wind Turbine
+NY_Z_B,464.8,12,Onshore Wind Turbine
+NY_Z_C&E,477.9,8,Onshore Wind Turbine
+NY_Z_D,688.2,7,Onshore Wind Turbine
+NY_Z_F,159.6,8,Onshore Wind Turbine
+PJM_AP,1619.2,28,Onshore Wind Turbine
+PJM_ATSI,3.5,2,Onshore Wind Turbine
+PJM_COMD,1832.9,19,Onshore Wind Turbine
+PJM_Dom,208,1,Onshore Wind Turbine
+PJM_EMAC,11,3,Onshore Wind Turbine
+PJM_SMAC,3.2,1,Onshore Wind Turbine
+PJM_WMAC,357.3,5,Onshore Wind Turbine
+PJM_West,1029.4,28,Onshore Wind Turbine
+SPP_N,856.3,6,Onshore Wind Turbine
+SPP_NEBR,2563,40,Onshore Wind Turbine
+SPP_SPS,9255.8,72,Onshore Wind Turbine
+SPP_WAUE,6890.1,149,Onshore Wind Turbine
+SPP_WEST,8124.9,50,Onshore Wind Turbine
+S_C_TVA,28.8,4,Onshore Wind Turbine
+S_VACA,100.5,1,Onshore Wind Turbine
+WECC_AZ,257.3,4,Onshore Wind Turbine
+WECC_CO,2662,25,Onshore Wind Turbine
+WECC_ID,1696.3,38,Onshore Wind Turbine
+WECC_IID,265.4,1,Onshore Wind Turbine
+WECC_MT,811.5,16,Onshore Wind Turbine
+WECC_NM,967.8,9,Onshore Wind Turbine
+WECC_NNV,101.2,1,Onshore Wind Turbine
+WECC_PNW,5254,54,Onshore Wind Turbine
+WECC_SCE,4246.5,89,Onshore Wind Turbine
+WECC_SNV,10,1,Onshore Wind Turbine
+WECC_UT,1284.9,17,Onshore Wind Turbine
+WECC_WY,3089.7,39,Onshore Wind Turbine
+WEC_CALN,1327.6,32,Onshore Wind Turbine
+WEC_LADW,6.1,4,Onshore Wind Turbine
+WEC_SDGE,217.6,9,Onshore Wind Turbine

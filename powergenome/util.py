@@ -1,10 +1,12 @@
 import collections
 from copy import deepcopy
+import functools
 import itertools
 import logging
 import re
 import subprocess
 from typing import Dict, List, Tuple, Union
+from collections.abc import Iterable
 
 import pandas as pd
 import geopandas as gpd
@@ -16,6 +18,7 @@ from flatten_dict import flatten
 import yaml
 from ruamel.yaml import YAML
 from pathlib import Path
+from frozendict import frozendict
 
 from powergenome.params import IPM_GEOJSON_PATH, SETTINGS
 
@@ -50,6 +53,26 @@ def load_settings(path: Union[str, Path]) -> dict:
             if s:
                 settings.update(s)
 
+    if settings.get("input_folder"):
+        settings["input_folder"] = path.parent / settings["input_folder"]
+    return fix_param_names(settings)
+
+
+def fix_param_names(settings: dict) -> dict:
+
+    fix_params = {
+        "historical_load_region_maps": "historical_load_region_map",
+        "demand_response_resources": "flexible_demand_resources",
+    }
+    for k, v in fix_params.items():
+        if k in settings:
+            settings[v] = settings[k]
+            s = f"""
+            The settings parameter named {k} has been changed to {v}. Please correct it in
+            your settings file.
+
+            """
+            logger.warning(s)
     return settings
 
 
@@ -316,7 +339,7 @@ def init_pudl_connection(
     if start_year is not None:
         start_year = pd.to_datetime(start_year, format="%Y")
     if end_year is not None:
-        end_year = pd.to_datetime(end_year + 1, format="%Y")
+        end_year = pd.to_datetime(end_year, format="%Y")
     """
     pudl_out = pudl.output.pudltabl.PudlTabl(
         freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
@@ -596,7 +619,9 @@ def find_centroid(gdf):
     return centroid
 
 
-def regions_to_keep(settings: dict) -> Tuple[list, dict]:
+def regions_to_keep(
+    model_regions: List[str], region_aggregations: dict = {}
+) -> Tuple[list, dict]:
     """Create a list of all IPM regions that are used in the model, either as single
     regions or as part of a user-defined model region. Also includes the aggregate
     regions defined by user.
@@ -613,12 +638,12 @@ def regions_to_keep(settings: dict) -> Tuple[list, dict]:
         All of the IPM regions and user defined model regions.
     """
     # Settings has a dictionary of lists for regional aggregations.
-    region_agg_map = reverse_dict_of_lists(settings.get("region_aggregations"))
+    region_agg_map = reverse_dict_of_lists(region_aggregations)
 
     # IPM regions to keep - single in model_regions plus those aggregated by the user
     keep_regions = [
         x
-        for x in settings["model_regions"] + list(region_agg_map)
+        for x in model_regions + list(region_agg_map)
         if x not in region_agg_map.values()
     ]
     return keep_regions, region_agg_map
@@ -670,13 +695,25 @@ def build_scenario_settings(
         A nested dictionary. The first set of keys are the planning years, the second
         set of keys are the case ID values associated with each case.
     """
-
-    model_planning_period_dict = {
-        year: (start_year, year)
-        for year, start_year in zip(
-            settings["model_year"], settings["model_first_planning_year"]
+    if settings.get("model_periods"):
+        model_planning_period_dict = {
+            year: (start_year, year) for (start_year, year) in settings["model_periods"]
+        }
+    elif isinstance(settings.get("model_year"), list) and isinstance(
+        settings.get("model_first_planning_year"), list
+    ):
+        model_planning_period_dict = {
+            year: (start_year, year)
+            for year, start_year in zip(
+                settings["model_year"], settings["model_first_planning_year"]
+            )
+        }
+    else:
+        raise KeyError(
+            "To build a dictionary of scenario settings your settings file should include "
+            "either the key 'model_periods' (a list of 2-element lists) or the keys "
+            "'model_year' and 'model_first_planning_year' (each a list of years)."
         )
-    }
 
     case_id_name_map = build_case_id_name_map(settings)
 
@@ -794,7 +831,9 @@ def load_ipm_shapefile(settings: dict, path: Union[str, Path] = IPM_GEOJSON_PATH
     geodataframe
         Regions to use in the study with the matching geometry for each.
     """
-    keep_regions, region_agg_map = regions_to_keep(settings)
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations", {}) or {}
+    )
 
     ipm_regions = gpd.read_file(path)
     ipm_regions = ipm_regions.rename(columns={"IPM_Region": "region"})
@@ -819,3 +858,114 @@ def load_ipm_shapefile(settings: dict, path: Union[str, Path] = IPM_GEOJSON_PATH
     ).reset_index(drop=True)
 
     return model_regions_gdf
+
+
+def deep_freeze(thing):
+    """
+    https://stackoverflow.com/a/66729248/3393071
+    """
+    from collections.abc import Collection, Mapping, Hashable
+    from frozendict import frozendict
+
+    if thing is None or isinstance(thing, str):
+        return thing
+    elif isinstance(thing, Mapping):
+        return frozendict({k: deep_freeze(v) for k, v in thing.items()})
+    elif isinstance(thing, Collection):
+        return tuple(deep_freeze(i) for i in thing)
+    elif not isinstance(thing, Hashable):
+        raise TypeError(f"unfreezable type: '{type(thing)}'")
+    else:
+        return thing
+
+
+def deep_freeze_args(func):
+    """
+    https://stackoverflow.com/a/66729248/3393071
+    """
+    import functools
+
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        return func(*deep_freeze(args), **deep_freeze(kwargs))
+
+    return wrapped
+
+
+def find_region_col(cols: Union[pd.Index, List[str]], context: str = None) -> str:
+    """Find the column name that identifies regions.
+
+    DataFrame, geospatial objects, etc might have different names for the region column.
+    To retain some flexibility, only require that the region column has the string
+    "region" in it (case insensitive).
+
+    Raise an error if more than one column contains the string "region". If `context` is
+    provided, include it in the error message for users.
+
+    Parameters
+    ----------
+    cols : Iterable[str]
+        DataFrame columns or other iterable sequence.
+    context : str, optional
+        Information about the sequence of names that can help a user understand what
+        type of object might have multiple names containing "region", by default None
+
+    Returns
+    -------
+    str
+        Name of the column that identifies regions.
+
+    Raises
+    ------
+    ValueError
+        More than one column contains the string "region".
+    ValueError
+        No column contains the string "region".
+    """
+
+    region_col = [c for c in cols if "region" in c.lower()]
+    if len(region_col) > 1:
+        s = (
+            "When attempting to identify the appropriate region columns, more than one "
+            f"column in this dataframe includes the string 'region' ({region_col})."
+        )
+        if context:
+            s += f"\n\nContext: {context}"
+
+        raise ValueError(s)
+    elif len(region_col) == 0:
+        s = (
+            "No columns contain the required string 'region'. The DataFrame columns "
+            f"are ({cols})."
+        )
+        if context:
+            s += f"\n\nContext: {context}"
+
+        raise ValueError(s)
+    else:
+        return region_col[0]
+
+
+def remove_leading_zero(id: Union[str, int]) -> Union[str, int]:
+    """Remove leading zero from IDs that are otherwise integers.
+
+    There is a discrepency between some generator IDs in PUDL and 860m where they are
+    listed with a leading zero in one and an integer in the other. To better match,
+    strip zeros from IDs that would be an integer without them.
+
+    Parameters
+    ----------
+    id : Union[str, int]
+        An integer or string identifier
+
+    Returns
+    -------
+    Union[str, int]
+        Either the original ID (if integer or non-numeric string) or an integer version
+        of the ID with leading zeros removed
+    """
+    if isinstance(id, int):
+        return id
+    elif id.isnumeric():
+        id = id.strip("0")
+    return id

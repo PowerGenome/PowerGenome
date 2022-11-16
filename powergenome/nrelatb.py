@@ -15,8 +15,8 @@ import sqlalchemy
 
 from powergenome.params import DATA_PATHS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.resource_clusters import map_nrel_atb_technology
-from powergenome.util import reverse_dict_of_lists
+from powergenome.resource_clusters import ClusterBuilder, map_nrel_atb_technology
+from powergenome.util import reverse_dict_of_lists, remove_leading_zero
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
@@ -89,11 +89,19 @@ def fetch_atb_costs(
         "fixed_o_m_mwh",
     )
     # add_pv_wacc = True
+    cols = ["technology", "tech_detail", "financial_case", "cost_case", "atb_year"]
+    valid_inputs = db_col_values(pg_engine, "technology_costs_nrelatb", cols)
     for tech in techs + mod_techs:
         tech, tech_detail, cost_case, _ = tech
         # if tech == "UtilityPV":
         #     add_pv_wacc = False
-
+        tech_params = [tech, tech_detail, fin_case, cost_case, atb_year]
+        for param in tech_params:
+            if param not in valid_inputs:
+                raise ValueError(
+                    f"When getting technology costs, the parameter {param} does not have "
+                    "a valid matching value in the database table."
+                )
         s = f"""
         SELECT technology, tech_detail, cost_case, parameter, basis_year, parameter_value, dollar_year
         from technology_costs_nrelatb
@@ -220,12 +228,15 @@ def fetch_atb_costs(
             atb_costs[col] = 0
 
     atb_target_year = settings["target_usd_year"]
-    atb_costs[usd_columns] = atb_costs.apply(
-        lambda row: inflation_price_adjustment(
-            row[usd_columns], base_year=row["dollar_year"], target_year=atb_target_year
-        ),
-        axis=1,
-    )
+    if not atb_costs.empty:
+        atb_costs[usd_columns] = atb_costs.apply(
+            lambda row: inflation_price_adjustment(
+                row[usd_columns],
+                base_year=row["dollar_year"],
+                target_year=atb_target_year,
+            ),
+            axis=1,
+        )
 
     if any("PV" in tech for tech in tech_list) and atb_year == 2019:
         print("Inflating ATB 2019 PV costs from DC to AC")
@@ -250,6 +261,37 @@ def fetch_atb_costs(
         atb_costs = atb_costs.reset_index()
 
     return atb_costs
+
+
+def db_col_values(
+    engine: sqlalchemy.engine, table: str, cols: List[str]
+) -> List[Union[str, int]]:
+    """Find all distinct values in one or more columns of a database table.
+
+    This function can be used to check user inputs that are applied as filters against
+    existing table values to reduce the risk of SQL injection attacks. All distinct
+    values are returned in a single list for simplicity.
+
+    Parameters
+    ----------
+    engine : sqlalchemy.engine
+        Connection engine to the database.
+    table : str
+        Name of the database table.
+    cols : List[str]
+        Name of the column(s) to check.
+
+    Returns
+    -------
+    List[Union[str, int]]
+        All distinct values from the database table column(s).
+    """
+    valid_inputs = []
+    for col in cols:
+        s = f"SELECT DISTINCT {col} from {table}"
+        valid_inputs.extend(pd.read_sql_query(s, engine)[col].to_list())
+
+    return valid_inputs
 
 
 def fetch_atb_offshore_spur_costs(
@@ -360,103 +402,234 @@ def atb_fixed_var_om_existing(
 
     existing_year = settings["atb_existing_year"]
 
-    # ATB string is <technology>_<tech_detail>
-    # techs = {eia: atb.split("_") for eia, atb in techs.items()}
     techs = {}
     for eia, atb in settings["eia_atb_tech_map"].items():
         if not isinstance(atb, list):
             atb = [atb]
         techs[eia] = atb[0].split("_")
 
-    df_list = []
-    grouped_results = results.reset_index().groupby(
-        ["plant_id_eia", "technology"], as_index=False
+    target_usd_year = settings["target_usd_year"]
+    simple_o_m = {
+        "Natural Gas Steam Turbine": {
+            "variable_o_m_mwh": inflation_price_adjustment(1.0, 2017, target_usd_year)
+        },
+        "Coal": {
+            "variable_o_m_mwh": inflation_price_adjustment(1.78, 2017, target_usd_year)
+        },
+        "Conventional Hydroelectric": {
+            "fixed_o_m_mw": inflation_price_adjustment(
+                44.56 * 1000, 2017, target_usd_year
+            ),
+            "variable_o_m_mwh": 0,
+        },
+        "Geothermal": {
+            "fixed_o_m_mw": inflation_price_adjustment(
+                198.04 * 1000, 2017, target_usd_year
+            ),
+            "variable_o_m_mwh": 0,
+        },
+        "Pumped Hydro": {
+            "fixed_o_m_mw": inflation_price_adjustment(
+                (23.63 + 14.83) * 1000, 2017, target_usd_year
+            ),
+            "variable_o_m_mwh": 0,
+        },
+    }
+
+    # Load all atb O&M values at once rather than querying the db thousands of times
+    nems_o_m_techs = [
+        "Combined Cycle",
+        "Combustion Turbine",
+        "Coal",
+        "Steam Turbine",
+        "Hydroelectric",
+        "Geothermal",
+        "Nuclear",
+    ]
+    atb_techs = [
+        (tech, tech_detail)
+        for k, (tech, tech_detail) in techs.items()
+        if tech not in nems_o_m_techs
+    ]
+    s = f"""
+        select technology, tech_detail, parameter, AVG(parameter_value) as parameter_value
+        from technology_costs_nrelatb
+        where
+            basis_year == ?
+            AND financial_case == "Market"
+            AND cost_case in ("Mid", "Moderate")
+            AND atb_year == ?
+            AND parameter in ("variable_o_m_mwh", "fixed_o_m_mw", "fixed_o_m_mwh")
+            AND
+                ({' OR '.join(["(technology==? and tech_detail==?)"]*len(atb_techs))})
+            GROUP BY technology, tech_detail, parameter
+        """
+    params = [existing_year, settings["atb_data_year"]] + [
+        item for sublist in atb_techs for item in sublist
+    ]
+    atb_om = pd.read_sql_query(
+        s,
+        pg_engine,
+        params=params,
+        index_col=["technology", "tech_detail", "parameter"],
     )
+    atb_hr_df = atb_hr_df.set_index(
+        ["technology", "tech_detail", "basis_year"]
+    ).sort_index()
+
+    df_list = []
+    grouped_results = results.reset_index().groupby(["technology"], as_index=False)
     for group, _df in grouped_results:
 
-        plant_id, eia_tech = group
-        existing_hr = _df["heat_rate_mmbtu_mwh"].mean()
-        try:
-            atb_tech, tech_detail = techs[eia_tech]
-        except KeyError:
-            if eia_tech in settings.get("tech_groups", {}) or {}:
-                raise KeyError(
-                    f"{eia_tech} is defined in 'tech_groups' but doesn't have a "
-                    "corresponding ATB technology in 'eia_atb_tech_map'"
-                )
+        _df = calc_om(
+            _df,
+            atb_hr_df,
+            atb_om,
+            settings,
+            pg_engine,
+            coal_fgd_df,
+            existing_year,
+            techs,
+            simple_o_m,
+            group,
+        )
 
-            else:
-                raise KeyError(
-                    f"{eia_tech} doesn't have a corresponding ATB technology in "
-                    "'eia_atb_tech_map'"
-                )
+        df_list.append(_df)
 
-        try:
-            new_build_hr = atb_hr_df.query(
-                "technology==@atb_tech & tech_detail==@tech_detail"
-                "& basis_year==@existing_year"
-            )["heat_rate"].mean()
-            if not isinstance(new_build_hr, float):
-                logger.warning(
-                    "\n\n****************\nCAUTION!!!\n\n"
-                    f"The calculated new build heat rate for {atb_tech}, {tech_detail} "
-                    f"should be a single value but is {new_build_hr}. This could cause "
-                    f"issues with your variable O&M costs for {eia_tech}. Please report "
-                    "this as an issue on the PowerGenome repository.\n"
-                )
-        except (ValueError, TypeError):
-            # Not all technologies have a heat rate. If they don't, just set both values
-            # to 10.34 (33% efficiency)
-            existing_hr = 10.34
-            new_build_hr = 10.34
-        try:
-            s = f"""
-                select parameter_value
-                from technology_costs_nrelatb
-                where
-                    technology == "{atb_tech}"
-                    AND tech_detail == "{tech_detail}"
-                    AND basis_year == "{existing_year}"
-                    AND financial_case == "Market"
-                    AND cost_case in ("Mid", "Moderate")
-                    AND atb_year == "{settings['atb_data_year']}"
-                    AND parameter == "variable_o_m_mwh"
+    mod_results = pd.concat(df_list, ignore_index=True)
 
-                """
-            atb_var_om_mwh = pg_engine.execute(s).fetchall()[0][0]
-        except IndexError:
-            # logger.warning(f"No variable O&M for {atb_tech}")
-            atb_var_om_mwh = 0
+    # Fill na FOM values, first by technology and then across all techs
+    if not mod_results.loc[mod_results["Fixed_OM_Cost_per_MWyr"].isna()].empty:
+        df_list = []
+        for tech, _df in mod_results.groupby("technology"):
+            _df.loc[
+                _df["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
+            ] = _df["Fixed_OM_Cost_per_MWyr"].mean()
+            df_list.append(_df)
+        mod_results = pd.concat(df_list, ignore_index=True)
+        mod_results.loc[
+            mod_results["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
+        ] = mod_results["Fixed_OM_Cost_per_MWyr"].mean()
+    mod_results.loc[:, "Fixed_OM_Cost_per_MWyr"] = mod_results.loc[
+        :, "Fixed_OM_Cost_per_MWyr"
+    ].astype(int)
+    mod_results.loc[:, "Fixed_OM_Cost_per_MWhyr"] = mod_results.loc[
+        :, "Fixed_OM_Cost_per_MWhyr"
+    ].astype(int)
+    mod_results.loc[:, "Var_OM_Cost_per_MWh"] = mod_results.loc[
+        :, "Var_OM_Cost_per_MWh"
+    ]
 
-        try:
-            s = f"""
-                select parameter_value
-                from technology_costs_nrelatb
-                where
-                    technology == "{atb_tech}"
-                    AND tech_detail == "{tech_detail}"
-                    AND basis_year == "{existing_year}"
-                    AND financial_case == "Market"
-                    AND cost_case in ("Mid", "Moderate")
-                    AND atb_year == "{settings['atb_data_year']}"
-                    AND parameter == "fixed_o_m_mw"
+    return mod_results
 
-                """
-            atb_fixed_om_mw_yr = pg_engine.execute(s).fetchall()[0][0]
-        except IndexError:
-            # logger.warning(f"No fixed O&M for {atb_tech}")
-            atb_fixed_om_mw_yr = 0
 
-        nems_o_m_techs = [
-            "Combined Cycle",
-            "Combustion Turbine",
-            "Coal",
-            "Steam Turbine",
-            "Hydroelectric",
-            "Geothermal",
-            "Nuclear",
+def calc_om(
+    df: pd.DataFrame,
+    atb_hr_df: pd.DataFrame,
+    atb_om_df: pd.DataFrame,
+    settings: dict,
+    pg_engine: sqlalchemy.engine.base.Engine,
+    coal_fgd_df: pd.DataFrame,
+    existing_year: int,
+    techs: Dict[str, List[str]],
+    simple_o_m: Dict[str, float],
+    group: str,
+) -> pd.DataFrame:
+    """Calculate fixed and variable O&M for a single technology.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Units of generators at a single plant
+    atb_hr_df : pd.DataFrame
+        Heat rate data from NREL ATB
+    atb_om_df : pd.DataFrame
+        O&M costs from NREL ATB
+    settings : dict
+        User-defined parameters from a settings file
+    pg_engine : sqlalchemy.engine.base.Engine
+        Connection to the PowerGenome database
+    coal_fgd_df : pd.DataFrame
+        Table showing if a coal generating unit has FGD control technology
+    existing_year : int
+        Year of ATB to use as a proxy for existing plants
+    techs : Dict[str, List[str]]
+        Mapping of EIA technology name (key) to the ATB technology, tech_detail (value)
+    simple_o_m : Dict[str, float]
+        Mapping of simple O&M costs used by some generators (not dependent on size/age)
+    group : str
+        The EIA technology name
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified copy of input with fixed and variable O&M costs
+
+    Raises
+    ------
+    KeyError
+        _description_
+    KeyError
+        _description_
+    """
+    df["Fixed_OM_Cost_per_MWhyr"] = 0
+    target_usd_year = settings["target_usd_year"]
+    eia_tech = group
+
+    try:
+        atb_tech, tech_detail = techs[eia_tech]
+    except KeyError:
+        if eia_tech in settings.get("tech_groups", {}) or {}:
+            raise KeyError(
+                f"{eia_tech} is defined in 'tech_groups' but doesn't have a "
+                "corresponding ATB technology in 'eia_atb_tech_map'"
+            )
+
+        else:
+            raise KeyError(
+                f"{eia_tech} doesn't have a corresponding ATB technology in "
+                "'eia_atb_tech_map'"
+            )
+
+    try:
+        new_build_hr = atb_hr_df.loc[
+            (atb_tech, tech_detail, existing_year),
+            "heat_rate",
+        ].mean()
+        if not isinstance(new_build_hr, float):
+            logger.warning(
+                "\n\n****************\nCAUTION!!!\n\n"
+                f"The calculated new build heat rate for {atb_tech}, {tech_detail} "
+                f"should be a single value but is {new_build_hr}. This could cause "
+                f"issues with your variable O&M costs for {eia_tech}. Please report "
+                "this as an issue on the PowerGenome repository.\n"
+            )
+    except (ValueError, TypeError, KeyError):
+        # Not all technologies have a heat rate. If they don't, just set both values
+        # to 10.34 (33% efficiency)
+        df["heat_rate_mmbtu_mwh"] = 10.34
+        new_build_hr = 10.34
+
+    try:
+        atb_var_om_mwh = atb_om_df.loc[
+            (atb_tech, tech_detail, "variable_o_m_mwh"), "parameter_value"
         ]
-        if any(t in eia_tech for t in nems_o_m_techs):
+    except KeyError:
+        atb_var_om_mwh = 0
+
+    nems_o_m_techs = [
+        "Combined Cycle",
+        "Combustion Turbine",
+        "Coal",
+        "Steam Turbine",
+        # "Hydroelectric",
+        # "Geothermal",
+        "Nuclear",
+    ]
+
+    if any(t in eia_tech for t in nems_o_m_techs):
+        df_list = []
+        for plant_id, _df in df.groupby("plant_id_eia", as_index=False):
             # Change CC and CT O&M to EIA NEMS values, which are much higher for CCs and
             # lower for CTs than a heat rate & linear mulitpler correction to the ATB
             # values.
@@ -465,60 +638,6 @@ def atb_fixed_var_om_existing(
             # FGD
             # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
             # logger.info(f"Using NEMS values for {eia_tech} fixed/variable O&M")
-            target_usd_year = settings["target_usd_year"]
-            simple_o_m = {
-                "Combined Cycle": {
-                    # "fixed_o_m_mw": inflation_price_adjustment(
-                    #     13.08 * 1000, 2017, target_usd_year
-                    # ),
-                    # "variable_o_m_mwh": inflation_price_adjustment(
-                    #     3.91, 2017, target_usd_year
-                    # )
-                },
-                # "Combustion Turbine": {
-                #     # This includes both the Fixed O&M and Capex. Capex includes
-                #     # variable O&M, which is split out in the calculations below.
-                #     "fixed_o_m_mw": inflation_price_adjustment(
-                #         (5.33 + 6.90) * 1000, 2017, target_usd_year
-                #     ),
-                #     "variable_o_m_mwh": 0,
-                # },
-                "Natural Gas Steam Turbine": {
-                    # NEMS documenation splits capex and fixed O&M across 2 tables
-                    # "fixed_o_m_mw": inflation_price_adjustment(
-                    #     (15.96 + 24.68) * 1000, 2017, target_usd_year
-                    # ),
-                    "variable_o_m_mwh": inflation_price_adjustment(
-                        1.0, 2017, target_usd_year
-                    )
-                },
-                "Coal": {
-                    # "fixed_o_m_mw": inflation_price_adjustment(
-                    #     ((22.2 + 27.88) / 2 + 46.01) * 1000, 2017, target_usd_year
-                    # ),
-                    "variable_o_m_mwh": inflation_price_adjustment(
-                        1.78, 2017, target_usd_year
-                    )
-                },
-                "Conventional Hydroelectric": {
-                    "fixed_o_m_mw": inflation_price_adjustment(
-                        44.56 * 1000, 2017, target_usd_year
-                    ),
-                    "variable_o_m_mwh": 0,
-                },
-                "Geothermal": {
-                    "fixed_o_m_mw": inflation_price_adjustment(
-                        198.04 * 1000, 2017, target_usd_year
-                    ),
-                    "variable_o_m_mwh": 0,
-                },
-                "Pumped Hydro": {
-                    "fixed_o_m_mw": inflation_price_adjustment(
-                        (23.63 + 14.83) * 1000, 2017, target_usd_year
-                    ),
-                    "variable_o_m_mwh": 0,
-                },
-            }
 
             if "Combined Cycle" in eia_tech:
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
@@ -616,7 +735,7 @@ def atb_fixed_var_om_existing(
                     "plant_id_eia == @plant_id & generator_id in @gen_ids"
                 )["fgd"].values
                 if not np.any(fgd):
-                    gen_ids = [g.lstrip("0") for g in gen_ids]
+                    gen_ids = [remove_leading_zero(g) for g in gen_ids]
                     fgd = coal_fgd_df.query(
                         "plant_id_eia == @plant_id & generator_id in @gen_ids"
                     )["fgd"].values
@@ -624,7 +743,7 @@ def atb_fixed_var_om_existing(
                     # If FGD isn't found, use average of with/without FGD
                     fgd = np.ones_like(age) * 0.5
 
-                # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
+                    # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
                 annual_capex = (16.53 + (0.126 * age) + (5.68 * fgd)) * 1000
 
                 if plant_capacity < 500:
@@ -640,25 +759,7 @@ def atb_fixed_var_om_existing(
                     fixed + annual_capex, 2017, target_usd_year
                 )
                 _df["Var_OM_Cost_per_MWh"] = simple_o_m["Coal"]["variable_o_m_mwh"]
-            if "Hydroelectric" in eia_tech:
-                _df["Fixed_OM_Cost_per_MWyr"] = simple_o_m[
-                    "Conventional Hydroelectric"
-                ]["fixed_o_m_mw"]
-                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Conventional Hydroelectric"][
-                    "variable_o_m_mwh"
-                ]
-            if "Geothermal" in eia_tech:
-                _df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Geothermal"]["fixed_o_m_mw"]
-                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Geothermal"][
-                    "variable_o_m_mwh"
-                ]
-            if "Pumped" in eia_tech:
-                _df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Pumped Hydro"][
-                    "fixed_o_m_mw"
-                ]
-                _df["Var_OM_Cost_per_MWh"] = simple_o_m["Pumped Hydro"][
-                    "variable_o_m_mwh"
-                ]
+
             if "Nuclear" in eia_tech:
                 num_units = len(_df)
                 plant_capacity = _df[settings["capacity_col"]].sum()
@@ -676,14 +777,14 @@ def atb_fixed_var_om_existing(
                     fixed = 252000
                 else:
                     fixed = 177000
-                # age = (settings["model_year"] - _df.operating_date.dt.year).values
-                # age = age.fillna(age.mean())
-                # age = age.fillna(40)
-                # EIA, 2020, "Assumptions to Annual Energy Outlook, Electricity Market Module,"
-                # Available: https://www.eia.gov/outlooks/aeo/assumptions/pdf/electricity.pdf
-                # fixed = np.ones_like(age)
-                # fixed[age < 30] *= 27 * 1000
-                # fixed[age >= 30] *= (27+37) * 1000
+                    # age = (settings["model_year"] - _df.operating_date.dt.year).values
+                    # age = age.fillna(age.mean())
+                    # age = age.fillna(40)
+                    # EIA, 2020, "Assumptions to Annual Energy Outlook, Electricity Market Module,"
+                    # Available: https://www.eia.gov/outlooks/aeo/assumptions/pdf/electricity.pdf
+                    # fixed = np.ones_like(age)
+                    # fixed[age < 30] *= 27 * 1000
+                    # fixed[age >= 30] *= (27+37) * 1000
 
                 _df["Fixed_OM_Cost_per_MWyr"] = inflation_price_adjustment(
                     fixed, 2015, target_usd_year
@@ -697,35 +798,41 @@ def atb_fixed_var_om_existing(
                     _df["heat_rate_mmbtu_mwh"].mean() / new_build_hr
                 )
 
-        else:
-            _df["Fixed_OM_Cost_per_MWyr"] = atb_fixed_om_mw_yr
-            _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (existing_hr / new_build_hr)
-
-        df_list.append(_df)
-
-    mod_results = pd.concat(df_list, ignore_index=True)
-
-    # Fill na FOM values, first by technology and then across all techs
-    if not mod_results.loc[mod_results["Fixed_OM_Cost_per_MWyr"].isna()].empty:
-        df_list = []
-        for tech, _df in mod_results.groupby("technology"):
-            _df.loc[
-                _df["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
-            ] = _df["Fixed_OM_Cost_per_MWyr"].mean()
             df_list.append(_df)
-        mod_results = pd.concat(df_list, ignore_index=True)
-        mod_results.loc[
-            mod_results["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
-        ] = mod_results["Fixed_OM_Cost_per_MWyr"].mean()
-    # mod_results = mod_results.sort_values(["model_region", "technology", "cluster"])
-    mod_results.loc[:, "Fixed_OM_Cost_per_MWyr"] = mod_results.loc[
-        :, "Fixed_OM_Cost_per_MWyr"
-    ].astype(int)
-    mod_results.loc[:, "Var_OM_Cost_per_MWh"] = mod_results.loc[
-        :, "Var_OM_Cost_per_MWh"
-    ]
 
-    return mod_results
+        return pd.concat(df_list, ignore_index=True)
+
+    elif "Hydroelectric" in eia_tech:
+        df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Conventional Hydroelectric"][
+            "fixed_o_m_mw"
+        ]
+        df["Var_OM_Cost_per_MWh"] = simple_o_m["Conventional Hydroelectric"][
+            "variable_o_m_mwh"
+        ]
+    elif "Geothermal" in eia_tech:
+        df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Geothermal"]["fixed_o_m_mw"]
+        df["Var_OM_Cost_per_MWh"] = simple_o_m["Geothermal"]["variable_o_m_mwh"]
+    elif "Pumped" in eia_tech:
+        df["Fixed_OM_Cost_per_MWyr"] = simple_o_m["Pumped Hydro"]["fixed_o_m_mw"]
+        df["Var_OM_Cost_per_MWh"] = simple_o_m["Pumped Hydro"]["variable_o_m_mwh"]
+    else:
+        try:
+            atb_fixed_om_mw_yr = atb_om_df.loc[
+                (atb_tech, tech_detail, "fixed_o_m_mw"), "parameter_value"
+            ]
+        except KeyError:
+            atb_fixed_om_mw_yr = 0
+        df["Fixed_OM_Cost_per_MWyr"] = atb_fixed_om_mw_yr
+        df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (
+            df["heat_rate_mmbtu_mwh"] / new_build_hr
+        )
+    if atb_tech == "Battery":
+        atb_fixed_om_mwh = atb_om_df.loc[
+            (atb_tech, tech_detail, "fixed_o_m_mwh"), "parameter_value"
+        ]
+        df["Fixed_OM_Cost_per_MWhyr"] = atb_fixed_om_mwh
+
+    return df
 
 
 def single_generator_row(
@@ -911,7 +1018,7 @@ def add_modified_atb_generators(
     return mod_gens
 
 
-def atb_new_generators(atb_costs, atb_hr, settings):
+def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
     """Add rows for new generators in each region
 
     Parameters
@@ -925,6 +1032,8 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         The technology, tech_detail, and heat_rate of new generators from ATB.
     settings : dict
         User-defined parameters from a settings file
+    cluster_builder : ClusterBuilder
+        ClusterBuilder object. Reuse to save time. None by default.
 
     Returns
     -------
@@ -950,13 +1059,18 @@ def atb_new_generators(atb_costs, atb_hr, settings):
         atb_hr, on=["technology", "tech_detail", "cost_case", "basis_year"], how="left"
     )
 
-    new_gen_df = pd.concat(
-        [
-            single_generator_row(atb_costs_hr, new_gen, model_year_range)
-            for new_gen in new_gen_types
-        ],
-        ignore_index=True,
-    )
+    if new_gen_types:
+        new_gen_df = pd.concat(
+            [
+                single_generator_row(atb_costs_hr, new_gen, model_year_range)
+                for new_gen in new_gen_types
+            ],
+            ignore_index=True,
+        )
+    else:
+        new_gen_df = pd.DataFrame(
+            columns=["region", "technology", "tech_detail", "cost_case"]
+        )
     # Add user-defined technologies
     # This should probably be separate from ATB techs, and the regional cost multipliers
     # should be its own function.
@@ -1056,84 +1170,94 @@ def atb_new_generators(atb_costs, atb_hr, settings):
 
     new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
 
-    for tech, years in (settings.get("alt_atb_cap_recovery_years") or {}).items():
-        new_gen_df.loc[
-            new_gen_df["technology"].str.lower().str.contains(tech.lower()),
-            "cap_recovery_years",
-        ] = years
+    if new_gen_df.empty:
+        results = new_gen_df.copy()
+    else:
+        for tech, years in (settings.get("alt_atb_cap_recovery_years") or {}).items():
+            new_gen_df.loc[
+                new_gen_df["technology"].str.lower().str.contains(tech.lower()),
+                "cap_recovery_years",
+            ] = years
 
-    new_gen_df["Inv_Cost_per_MWyr"] = investment_cost_calculator(
-        capex=new_gen_df["capex_mw"],
-        wacc=new_gen_df["wacc_real"],
-        cap_rec_years=new_gen_df["cap_recovery_years"],
-    )
+        new_gen_df["Inv_Cost_per_MWyr"] = investment_cost_calculator(
+            capex=new_gen_df["capex_mw"],
+            wacc=new_gen_df["wacc_real"],
+            cap_rec_years=new_gen_df["cap_recovery_years"],
+        )
 
-    new_gen_df["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
-        capex=new_gen_df["capex_mwh"],
-        wacc=new_gen_df["wacc_real"],
-        cap_rec_years=new_gen_df["cap_recovery_years"],
-    )
+        new_gen_df["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
+            capex=new_gen_df["capex_mwh"],
+            wacc=new_gen_df["wacc_real"],
+            cap_rec_years=new_gen_df["cap_recovery_years"],
+        )
 
-    # Set no capacity limit on new resources that aren't renewables.
-    new_gen_df["Max_Cap_MW"] = -1
-    new_gen_df["Max_Cap_MWh"] = -1
-    regional_cost_multipliers = pd.read_csv(
-        DATA_PATHS["cost_multipliers"]
-        / settings.get("cost_multiplier_fn", "AEO_2020_regional_cost_corrections.csv"),
-        index_col=0,
-    )
-    if settings.get("user_regional_cost_multiplier_fn"):
-        user_cost_multipliers = pd.read_csv(
-            Path(settings["input_folder"])
-            / settings["user_regional_cost_multiplier_fn"],
+        # Set no capacity limit on new resources that aren't renewables.
+        new_gen_df["Max_Cap_MW"] = -1
+        new_gen_df["Max_Cap_MWh"] = -1
+        regional_cost_multipliers = pd.read_csv(
+            DATA_PATHS["cost_multipliers"]
+            / settings.get(
+                "cost_multiplier_fn", "AEO_2020_regional_cost_corrections.csv"
+            ),
             index_col=0,
         )
-        regional_cost_multipliers = pd.concat(
-            [regional_cost_multipliers, user_cost_multipliers], axis=1
+        if settings.get("user_regional_cost_multiplier_fn"):
+            user_cost_multipliers = pd.read_csv(
+                Path(settings["input_folder"])
+                / settings["user_regional_cost_multiplier_fn"],
+                index_col=0,
+            )
+            regional_cost_multipliers = pd.concat(
+                [regional_cost_multipliers, user_cost_multipliers], axis=1
+            )
+        rev_mult_region_map = reverse_dict_of_lists(
+            settings["cost_multiplier_region_map"]
         )
-    rev_mult_region_map = reverse_dict_of_lists(settings["cost_multiplier_region_map"])
-    rev_mult_tech_map = reverse_dict_of_lists(
-        settings["cost_multiplier_technology_map"]
-    )
-    df_list = []
-    for region in regions:
-        _df = new_gen_df.copy()
-        _df["region"] = region
-        _df = regional_capex_multiplier(
-            _df,
-            region,
-            rev_mult_region_map,
-            rev_mult_tech_map,
-            regional_cost_multipliers,
+        rev_mult_tech_map = reverse_dict_of_lists(
+            settings["cost_multiplier_technology_map"]
         )
-        _df = add_renewables_clusters(_df, region, settings)
+        df_list = []
+        for region in regions:
+            _df = new_gen_df.copy()
+            _df["region"] = region
+            _df = regional_capex_multiplier(
+                _df,
+                region,
+                rev_mult_region_map,
+                rev_mult_tech_map,
+                regional_cost_multipliers,
+            )
+            _df = add_renewables_clusters(_df, region, settings, cluster_builder)
 
-        if region in (settings.get("new_gen_not_available") or {}):
-            techs = settings["new_gen_not_available"][region]
-            for tech in techs:
-                _df = _df.loc[~_df["technology"].str.contains(tech), :]
+            if region in (settings.get("new_gen_not_available") or {}):
+                techs = settings["new_gen_not_available"][region]
+                for tech in techs:
+                    _df = _df.loc[~_df["technology"].str.contains(tech), :]
 
-        df_list.append(_df)
+            df_list.append(_df)
 
-    results = pd.concat(df_list, ignore_index=True, sort=False)
+        results = pd.concat(df_list, ignore_index=True, sort=False)
 
-    int_cols = [
-        "Fixed_OM_Cost_per_MWyr",
-        "Fixed_OM_Cost_per_MWhyr",
-        "Inv_Cost_per_MWyr",
-        "Inv_Cost_per_MWhyr",
-        "cluster",
-    ]
-    int_cols = [c for c in int_cols if c in results.columns]
-    results = results.fillna(0)
-    results[int_cols] = results[int_cols].astype(int)
-    results["Var_OM_Cost_per_MWh"] = results["Var_OM_Cost_per_MWh"].astype(float)
+        int_cols = [
+            "Fixed_OM_Cost_per_MWyr",
+            "Fixed_OM_Cost_per_MWhyr",
+            "Inv_Cost_per_MWyr",
+            "Inv_Cost_per_MWhyr",
+            "cluster",
+        ]
+        int_cols = [c for c in int_cols if c in results.columns]
+        results = results.fillna(0)
+        results[int_cols] = results[int_cols].astype(int)
+        results["Var_OM_Cost_per_MWh"] = results["Var_OM_Cost_per_MWh"].astype(float)
 
     return results
 
 
 def add_renewables_clusters(
-    df: pd.DataFrame, region: str, settings: dict
+    df: pd.DataFrame,
+    region: str,
+    settings: dict,
+    cluster_builder: ClusterBuilder = None,
 ) -> pd.DataFrame:
     """
     Add renewables clusters
@@ -1151,6 +1275,8 @@ def add_renewables_clusters(
         Dictionary with the following keys:
             - `renewables_clusters`: Determines the clusters built for the region.
             - `region_aggregations`: Maps the model region to IPM regions.
+    cluster_builder
+        ClusterBuilder object. Reuse to save time. None by default.
 
     Returns
     -------
@@ -1184,7 +1310,7 @@ def add_renewables_clusters(
         ipm_regions.append(region)  # Add model region, sometimes listed in RG file
     else:
         ipm_regions = [region]
-    for scenario in settings.get("renewables_clusters", []):
+    for scenario in settings.get("renewables_clusters", []) or []:
         if scenario["region"] != region:
             continue
         # Match cluster technology to NREL ATB technologies
@@ -1205,7 +1331,8 @@ def add_renewables_clusters(
         # region not an argument to ClusterBuilder.get_clusters()
         scenario = scenario.copy()
         scenario.pop("region")
-        cluster_builder = build_resource_clusters(settings.get("RESOURCE_GROUPS"))
+        if not cluster_builder:
+            cluster_builder = build_resource_clusters(settings.get("RESOURCE_GROUPS"))
         clusters = (
             cluster_builder.get_clusters(
                 **scenario,

@@ -14,7 +14,7 @@ from powergenome.external_data import (
 )
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.time_reduction import kmeans_time_clustering
-from powergenome.util import load_settings, snake_case_col
+from powergenome.util import find_region_col, load_settings, snake_case_col
 from powergenome.nrelatb import investment_cost_calculator
 
 logger = logging.getLogger(__name__)
@@ -237,6 +237,7 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     for cap_res in settings.get("regional_capacity_reserves", {}) or {}:
         cap_res_num = int(cap_res.split("_")[-1])  # the number of the capres constraint
         policy_nums.append(cap_res_num)
+        # TODO #179 fix reference to regional_capacity_reserves key of settings dict
         dest_regions = list(
             settings["regional_capacity_reserves"][cap_res].keys()
         )  # list of regions in the CapRes
@@ -353,9 +354,13 @@ def add_misc_gen_values(
     misc_values = pd.read_csv(path)
     misc_values[resource_col] = snake_case_col(misc_values[resource_col])
 
-    if "region" not in misc_values.columns.str.lower():
+    context = f"Assigning misc generator values from the user-supplied file {path}."
+    try:
+        region_col = find_region_col(misc_values.columns, context)
+    except ValueError:
+        region_col = "region"
         misc_values["region"] = "all"
-    regions = [r for r in misc_values["region"].unique() if r.lower() != "all"]
+    regions = [r for r in misc_values[region_col].unique() if r.lower() != "all"]
     wrong_regions = [r for r in regions if r not in settings["model_regions"]]
     if wrong_regions:
         raise ValueError(
@@ -364,11 +369,11 @@ def add_misc_gen_values(
         )
 
     for region in settings["model_regions"]:
-        _df = misc_values.loc[misc_values["region"].str.lower() == "all", :]
+        _df = misc_values.loc[misc_values[region_col].str.lower() == "all", :]
         _df.loc[:, "region"] = region
         misc_values = misc_values.append(_df)
 
-    misc_values = misc_values.loc[misc_values["region"].str.lower() != "all", :]
+    misc_values = misc_values.loc[misc_values[region_col].str.lower() != "all", :]
 
     resource_len = 0
     for tech, _df in misc_values.groupby(resource_col):
@@ -410,13 +415,13 @@ def add_misc_gen_values(
 
     misc_values = misc_values.reset_index(drop=True)
     value_cols = [
-        col for col in misc_values.columns if col not in ["region", resource_col]
+        col for col in misc_values.columns if col not in [region_col, resource_col]
     ]
 
     for idx, row in misc_values.iterrows():
         row_cols = row[value_cols].dropna().index
         gen_clusters.loc[
-            (gen_clusters["region"] == row["region"])
+            (gen_clusters["region"] == row[region_col])
             & (gen_clusters[resource_col].str.contains(row[resource_col], case=False)),
             row_cols,
         ] = row[row_cols].values
@@ -495,6 +500,7 @@ def reduce_time_domain(
             ],
             axis=1,
         )
+        resource_profiles.index = time_index
 
         return resource_profiles, load_output, None, None
 
@@ -1023,8 +1029,10 @@ def check_resource_tags(df: pd.DataFrame) -> pd.DataFrame:
         An unaltered version of the input dataframe.
     """
     tags = [t for t in RESOURCE_TAGS if t in df.columns]
-    if not (df[tags].sum(axis=1) == 1).all():
-        for idx, row in df.iterrows():
+    df_copy = df.loc[:, ["technology", "region"] + tags].copy()
+    df_copy[tags] = df_copy[tags].where(df_copy[tags] == 0, 1)
+    if not (df_copy[tags].sum(axis=1) == 1).all():
+        for idx, row in df_copy.iterrows():
             num_tags = row[tags].sum()
             if num_tags == 0:
                 logger.warning(
@@ -1036,7 +1044,7 @@ def check_resource_tags(df: pd.DataFrame) -> pd.DataFrame:
                     f"{RESOURCE_TAGS}\n"
                 )
             if num_tags > 1:
-                s = row[RESOURCE_TAGS]
+                s = row[tags]
                 _tags = list(s[s == 1].index)
                 logger.warning(
                     "\n*************************\n"
@@ -1105,4 +1113,35 @@ def hydro_energy_to_power(
                 (df["HYDRO"] == 1) & region_mask, "Hydro_Energy_to_Power_Ratio"
             ] = avg_inflow.where(avg_inflow > 1, 1)
     df["Hydro_Energy_to_Power_Ratio"] = df["Hydro_Energy_to_Power_Ratio"].fillna(0)
+    return df
+
+
+def rename_gen_cols(
+    df: pd.DataFrame, rename_cols: Dict[str, str] = None
+) -> pd.DataFrame:
+    """Rename columns in the generators data file.
+
+    By default the only rename so far is "existing_mwh" to "Existing_Cap_MWh".
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Final dataframe of generating resources.
+    rename_cols : Dict[str, str], optional
+        Additional rename pairs, by default None
+
+    Returns
+    -------
+    pd.DataFrame
+        Identical to input dataframe except for renamed columns.
+    """
+
+    rename = {
+        "capacity_mwh": "Existing_Cap_MWh",
+    }
+    if rename_cols:
+        rename.update(rename_cols)
+
+    df = df.rename(columns=rename, errors="ignore")
+
     return df

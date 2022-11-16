@@ -20,7 +20,7 @@ from powergenome.cluster_method import (
     cluster_kmeans,
     weighted_ownership_by_unit,
 )
-from powergenome.eia_opendata import fetch_fuel_prices
+from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
 from powergenome.external_data import (
     make_demand_response_profiles,
     demand_response_resource_capacity,
@@ -44,13 +44,16 @@ from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_eia_technology
 from powergenome.util import (
     download_save,
+    find_region_col,
     map_agg_region_names,
     reverse_dict_of_lists,
     snake_case_col,
     regions_to_keep,
     snake_case_str,
     load_ipm_shapefile,
+    remove_leading_zero,
 )
+from powergenome.GenX import rename_gen_cols
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
 from xlrd import XLRDError
@@ -76,6 +79,8 @@ planned_col_map = {
     "Planned Operation Month": "planned_operating_month",
     "Planned Operation Year": "planned_operating_year",
     "Status": "operational_status",
+    "Nameplate Energy Capacity (MWh)": "capacity_mwh",
+    "DC Net Capacity (MW)": "dc_net_capacity_mw",
     "County": "county",
     "Latitude": "latitude",
     "Longitude": "longitude",
@@ -137,10 +142,17 @@ def fill_missing_tech_descriptions(
     start_len = len(df)
     df = df.sort_values(by=date_col)
     df_list = []
-    for _, _df in df.groupby(["plant_id_eia", "generator_id"], as_index=False):
+    missing_tech_plants = df.loc[df["technology_description"].isna(), :]
+    if missing_tech_plants.empty:
+        return df
+
+    df = df.drop(index=missing_tech_plants.index)
+    for _, _df in missing_tech_plants.groupby(
+        ["plant_id_eia", "generator_id"], as_index=False
+    ):
         _df["technology_description"].fillna(method="bfill", inplace=True)
         df_list.append(_df)
-    results = pd.concat(df_list, ignore_index=True, sort=False)
+    results = pd.concat([df, pd.concat(df_list, ignore_index=True, sort=False)])
 
     if df.loc[df["technology_description"].isnull(), :].empty is False:
         logger.warning("Failed to fill some technology names.")
@@ -195,9 +207,9 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     Returns
     -------
     DataFrame
-        Modified dataframe with the new column "Start_fuel_MMBTU_per_MW".
+        Modified dataframe with the new column "Start_Fuel_MMBTU_per_MW".
     """
-    df["Start_fuel_MMBTU_per_MW"] = 0
+    df["Start_Fuel_MMBTU_per_MW"] = 0
     for eia_tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
         if not isinstance(settings["eia_atb_tech_map"][eia_tech], list):
             settings["eia_atb_tech_map"][eia_tech] = [
@@ -207,10 +219,10 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         atb_tech = settings["eia_atb_tech_map"][eia_tech]
         atb_tech.append(eia_tech)
         for tech in atb_tech:
-            df.loc[df["technology"] == tech, "Start_fuel_MMBTU_per_MW"] = fuel_use
+            df.loc[df["technology"] == tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
             df.loc[
                 df["technology"].str.contains(tech, case=False),
-                "Start_fuel_MMBTU_per_MW",
+                "Start_Fuel_MMBTU_per_MW",
             ] = fuel_use
 
     return df
@@ -437,7 +449,9 @@ def load_plant_region_map(
 
     # Settings has a dictionary of lists for regional aggregations. Need
     # to reverse this to use in a map method.
-    keep_regions, region_agg_map = regions_to_keep(settings)
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations")
+    )
 
     # Create a new column "model_region" with labels that we're using for aggregated
     # regions
@@ -712,7 +726,7 @@ def supplement_generator_860_data(
        'energy_source_code_2', 'minimum_load_mw', 'operational_status_code',
        'planned_new_capacity_mw', 'switch_oil_gas', 'technology_description',
        'time_cold_shutdown_full_load_code', 'model_region', 'prime_mover_code',
-       'operating_date', 'boiler_id', 'unit_id_eia', 'unit_id_pudl',
+       'operating_date', 'boiler_id', 'unit_id_eia', 'unit_id_pudl', 'unit_id_pg,
        'retirement_year']
     """
 
@@ -773,31 +787,31 @@ def supplement_generator_860_data(
         )
         .merge(bga[bga_cols], on=["plant_id_eia", "generator_id"], how="left")
     )
-
-    gens_860_model.loc[gens_860_model.unit_id_pudl.isnull(), "unit_id_pudl"] = (
-        gens_860_model.loc[gens_860_model.unit_id_pudl.isnull(), "plant_id_eia"].astype(
+    gens_860_model["unit_id_pg"] = gens_860_model.loc[:, "unit_id_pudl"]
+    gens_860_model.loc[gens_860_model.unit_id_pg.isnull(), "unit_id_pg"] = (
+        gens_860_model.loc[gens_860_model.unit_id_pg.isnull(), "plant_id_eia"].astype(
             str
         )
         + "_"
-        + gens_860_model.loc[
-            gens_860_model.unit_id_pudl.isnull(), "generator_id"
-        ].astype(str)
+        + gens_860_model.loc[gens_860_model.unit_id_pg.isnull(), "generator_id"].astype(
+            str
+        )
     ).to_numpy()
 
     # Where summer/winter capacity values are missing set equal to nameplate capacity,
     # but only if all generators within a unit are missing the capacity value
     check_units = gens_860_model.loc[
         gens_860_model[settings["capacity_col"]].isna()
-    ].groupby(["plant_id_eia", "unit_id_pudl"])
+    ].groupby(["plant_id_eia", "unit_id_pg"])
     for (plant_id, unit_id), _df in check_units:
         if _df[settings["capacity_col"]].isna().all():
             gens_860_model.loc[
                 (gens_860_model["plant_id_eia"] == plant_id)
-                & (gens_860_model["unit_id_pudl"] == unit_id),
+                & (gens_860_model["unit_id_pg"] == unit_id),
                 settings["capacity_col"],
             ] = gens_860_model.loc[
                 (gens_860_model["plant_id_eia"] == plant_id)
-                & (gens_860_model["unit_id_pudl"] == unit_id),
+                & (gens_860_model["unit_id_pg"] == unit_id),
                 "capacity_mw",
             ]
 
@@ -931,6 +945,40 @@ def remove_future_retirements_860m(df, retired_860m):
     return not_retired_df
 
 
+def update_operating_date_860m(
+    df: pd.DataFrame, operating_860m: pd.DataFrame
+) -> pd.DataFrame:
+    """Update the operating date of EIA generators using data from 860m.
+
+    When the "operating_date" of a generator is nan, fill with operating year data
+    from 860m.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data on existing EIA generating units. Must have columns "plant_id_eia",
+        "generator_id", and "operating_date".
+    operating_860m : pd.DataFrame
+        A dataframe of operating generating units from EIA 860m. Must have columns
+        "plant_id_eia", "generator_id", and "operating_year".
+
+    Returns
+    -------
+    pd.DataFrame
+        The original "df" dataframe with missing operating dates filled using the operating
+        year from 860m.
+    """
+    df = df.set_index(["plant_id_eia", "generator_id"])
+    operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
+    no_op_date = set(df.loc[df["operating_date"].isna(), :].index)
+    df.loc[no_op_date, "operating_date"] = pd.to_datetime(
+        operating_860m.reindex(no_op_date).dropna(how="all")["operating_year"],
+        format="%Y",
+    )
+
+    return df.reset_index()
+
+
 def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
     """
     Load generation and fuel data for each plant. EIA-923 provides these values for
@@ -1022,14 +1070,8 @@ def modify_cc_prime_mover_code(df, gens_860):
         Modified 923 dataframe where prime mover codes at CC generators that don't have
         a PUDL unit id are modified from CA and CT to CC.
     """
-    cc_without_pudl_id = gens_860.loc[
-        (gens_860["unit_id_pudl"].isnull())
-        & (gens_860["technology_description"] == "Natural Gas Fired Combined Cycle"),
-        "plant_id_eia",
-    ]
     df.loc[
-        (df["plant_id_eia"].isin(cc_without_pudl_id))
-        & (df["prime_mover_code"].isin(["CA", "CT"])),
+        (df["prime_mover_code"].isin(["CA", "CT"])),
         "prime_mover_code",
     ] = "CC"
 
@@ -1191,7 +1233,7 @@ def unit_generator_heat_rates(pudl_out, data_years):
     -------
     dataframe, dict
         A dataframe of heat rates for each pudl unit (columsn are ['plant_id_eia',
-        'unit_id_pudl', 'heat_rate_mmbtu_mwh']).
+        'unit_id_pg', 'heat_rate_mmbtu_mwh']).
     """
 
     # Load the pre-calculated PUDL unit heat rates for selected years.
@@ -1221,7 +1263,7 @@ def group_units(df, settings):
         rate for each.
     """
 
-    by = ["plant_id_eia", "unit_id_pudl"]
+    by = ["plant_id_eia", "unit_id_pg"]
     # add a unit code (plant plus generator code) in cases where one doesn't exist
     df_copy = df.reset_index()
 
@@ -1230,6 +1272,7 @@ def group_units(df, settings):
     grouped_units = df_copy.groupby(by).agg(
         {
             settings["capacity_col"]: "sum",
+            "capacity_mwh": "sum",
             "minimum_load_mw": "sum",
             "heat_rate_mmbtu_mwh": "mean",
             "Fixed_OM_Cost_per_MWyr": "mean",
@@ -1294,6 +1337,7 @@ def calc_unit_cluster_values(
     df_values = df.groupby("cluster", as_index=False).agg(
         {
             capacity_col: "mean",
+            "capacity_mwh": "sum",
             "minimum_load_mw": "mean",
             "heat_rate_mmbtu_mwh": wm,
             "Fixed_OM_Cost_per_MWyr": wm,
@@ -1472,11 +1516,14 @@ def clean_860m_sheet(
     # Find skiprows and skipfooters, which changes across 860m versions.
     # NEW: drop rows with all NaN because EIA added a blank row before the footer.
     sr = 0
+
     for idx, row in df.iterrows():
         if row.iloc[0] == "Entity ID":
             sr = idx + 1
             break
+
     sf = 0
+
     for idx in list(range(-10, 0)):
         if isinstance(df.iloc[idx, 0], str):
             sf = -idx
@@ -1486,6 +1533,7 @@ def clean_860m_sheet(
     )
     df = df.dropna(how="all")
     df = df.rename(columns=planned_col_map)
+    df["plant_id_eia"] = df["plant_id_eia"].astype("Int64")
 
     if sheet_name in ["Operating", "Planned"]:
         df.loc[:, "operational_status_code"] = df.loc[:, "operational_status"].map(
@@ -1496,6 +1544,7 @@ def clean_860m_sheet(
         df = df.loc[
             df["operational_status_code"].isin(settings["proposed_status_included"]), :
         ]
+    df.columns = snake_case_col(df.columns)
 
     return df
 
@@ -1533,6 +1582,10 @@ def load_860m(settings: dict) -> Dict[str, pd.DataFrame]:
         pkl_path = DATA_PATHS["eia_860m"] / f"{fn_name}_{name}.pkl"
         if pkl_path.exists():
             data_dict[name] = pd.read_pickle(pkl_path)
+            data_dict[name]["plant_id_eia"] = data_dict[name]["plant_id_eia"].astype(
+                "Int64"
+            )
+            data_dict[name].columns = snake_case_col(data_dict[name].columns)
         else:
             if eia_860m_excelfile is None:
                 eia_860m_excelfile = download_860m(settings)
@@ -1601,7 +1654,33 @@ def import_new_generators(
     settings: dict,
     model_regions_gdf: gpd.GeoDataFrame,
 ) -> pd.DataFrame:
+    """Find the set of generating units in 860m that are not in the annual 860 data.
 
+    This is especially important for new wind, solar, and battery units, which are built
+    on short timelines. Format the data for inclusion with other existing existing units.
+
+    Parameters
+    ----------
+    operating_860m : pd.DataFrame
+        Operating generators from EIA 860m.
+    gens_860 : pd.DataFrame
+        The set of operating units from other sources (e.g. annual 860 data in PUDL).
+    settings : dict
+        Requires the parameter "model_regions". Optional parameters include
+        "proposed_gen_heat_rates", "proposed_min_load", "capacity_col", "group_technologies",
+        and "retirement_ages".
+    model_regions_gdf : gpd.GeoDataFrame
+        Geospatial representation of the model regions. Used to assign generators to
+        model regions.
+
+    Returns
+    -------
+    pd.DataFrame
+        Set of operating generators that were not already in the gens_860 dataframe
+    """
+    operating_860m["generator_id"] = operating_860m["generator_id"].apply(
+        remove_leading_zero
+    )
     gens_860_id = list(zip(gens_860["plant_id_eia"], gens_860["generator_id"]))
     operating_860m_id = zip(
         operating_860m["plant_id_eia"], operating_860m["generator_id"]
@@ -1613,7 +1692,7 @@ def import_new_generators(
     )
     new_operating.loc[:, "heat_rate_mmbtu_mwh"] = new_operating.loc[
         :, "technology_description"
-    ].map(settings["proposed_gen_heat_rates"])
+    ].map(settings.get("proposed_gen_heat_rates", {}) or {})
 
     # The default EIA heat rate for non-thermal technologies is 9.21
     new_operating.loc[
@@ -1621,8 +1700,10 @@ def import_new_generators(
     ] = 9.21
 
     new_operating.loc[:, "minimum_load_mw"] = (
-        new_operating["technology_description"].map(settings["proposed_min_load"])
-        * new_operating[settings["capacity_col"]]
+        new_operating["technology_description"].map(
+            settings.get("proposed_min_load", {}) or {}
+        )
+        * new_operating[settings.get("capacity_col", "capacity_mw")]
     )
 
     # Assume anything else being built at scale is wind/solar and will have a Min_power
@@ -1637,7 +1718,7 @@ def import_new_generators(
     label_retirement_year(
         df=new_operating,
         settings=settings,
-        age_col="Operating Year",
+        age_col="operating_year",
         add_additional_retirements=False,
     )
     if (
@@ -1650,7 +1731,8 @@ def import_new_generators(
             .to_numpy()
         )
         plant_capacity = new_operating.loc[
-            new_operating["technology_description"].isnull(), settings["capacity_col"]
+            new_operating["technology_description"].isnull(),
+            settings.get("capacity_col", "capacity_mw"),
         ].sum()
 
         logger.warning(
@@ -1672,16 +1754,17 @@ def import_new_generators(
         "model_region",
         "technology_description",
         "generator_id",
-        settings["capacity_col"],
+        settings.get("capacity_col", "capacity_mw"),
+        "capacity_mwh",
         "minimum_load_mw",
         "operational_status_code",
         "heat_rate_mmbtu_mwh",
         "retirement_year",
-        "Operating Year",
+        "operating_year",
         "state",
     ]
 
-    return new_operating.loc[:, keep_cols]
+    return new_operating.reindex(columns=keep_cols)
 
 
 def import_proposed_generators(
@@ -1820,6 +1903,7 @@ def import_proposed_generators(
         "minimum_load_mw",
         "operational_status_code",
         "heat_rate_mmbtu_mwh",
+        "planned_operating_year",
         "retirement_year",
     ]
 
@@ -1853,6 +1937,13 @@ def gentype_region_capacity_factor(
         A dataframe with the capacity factor of every selected technology
     """
     data_years = [str(y) for y in settings["data_years"]]
+    data_years.extend(settings.get("capacity_factor_default_year_filter", []))
+    if type(settings.get("alt_year_filters")) is dict:
+        for tech, value in settings["alt_year_filters"].items():
+            if isinstance(value, list):
+                data_years.extend(value)
+            else:
+                data_years.append(value)
     cap_col = settings["capacity_col"]
 
     # Include standby (SB) generators since they are in our capacity totals
@@ -1915,12 +2006,16 @@ def gentype_region_capacity_factor(
     """
     generation = pd.read_sql_query(sql, pudl_engine, parse_dates={"report_date": "%Y"})
 
+    if pudl.__version__ > "0.5.0":
+        by = ["plant_id_eia"]
+    else:
+        by = {"plant_id_eia": "eia"}
     capacity_factor = pudl.helpers.clean_merge_asof(
         generation,
         plant_tech_cap,
         left_on="report_date",
         right_on="report_date",
-        by={"plant_id_eia": "eia"},
+        by=by,
     )
 
     if settings.get("group_technologies"):
@@ -2017,9 +2112,16 @@ def add_fuel_labels(df, fuel_prices, settings):
     DataFrame
         Same as input, but with a new column "Fuel" that is either the name of the
         corresponding fuel (coal, natural_gas, uranium, or distillate) or "None".
+
+    Raises
+    ------
+    KeyError
+        The model region is not mapped to a fuel region in 'aeo_fuel_region_map'
     """
 
     df["Fuel"] = np.nan
+    # This variable is called eia_tech but it can be any tech name or a mapping from
+    # EIA technologies through to other techs via "eia_atb_tech_map"
     for eia_tech, fuel in (settings.get("tech_fuel_map") or {}).items():
         try:
             if eia_tech == "Natural Gas Steam Turbine":
@@ -2093,7 +2195,8 @@ def add_fuel_labels(df, fuel_prices, settings):
                 ), f"{fuel_name} doesn't show up in {model_year}"
 
                 df.loc[
-                    (df["technology"] == eia_tech) & df["region"].isin(model_regions),
+                    (df["technology"].str.contains(eia_tech, case=False))
+                    & df["region"].isin(model_regions),
                     "Fuel",
                 ] = fuel_name
 
@@ -2123,14 +2226,13 @@ def add_fuel_labels(df, fuel_prices, settings):
                 for region in settings["user_fuel_price"][ccs_base_name].keys():
                     ccs_fuel_name = ("_").join([region, ccs_fuel])
                     df.loc[
-                        (df["technology"].str.contains(ccs_tech))
-                        & df["region"].isin(model_regions),
+                        (df["technology"].str.contains(ccs_tech, case=False))
+                        & (df["region"] == region),
                         "Fuel",
                     ] = ccs_fuel_name
             else:
                 df.loc[
-                    (df["technology"].str.contains(ccs_tech))
-                    & df["region"].isin(model_regions),
+                    (df["technology"].str.contains(ccs_tech, case=False)),
                     "Fuel",
                 ] = ccs_fuel
         else:
@@ -2141,6 +2243,51 @@ def add_fuel_labels(df, fuel_prices, settings):
                 "is optional. The <fuel name> should match a fuel from `aeo_fuel_scenarios' "
                 "or `user_fuel_prices`."
             )
+
+    # Replace AEO region name with model region in cases where users are modifying AEO price
+    model_aeo_region_map = reverse_dict_of_lists(
+        settings.get("aeo_fuel_region_map", {})
+    )
+    for region, adj in (settings.get("regional_fuel_adjustments", {}) or {}).items():
+        aeo_region = model_aeo_region_map.get(region)
+        if not aeo_region:
+            raise KeyError(
+                f"There is no mapping of the model region {region} to an AEO fuel region "
+                "in the settings parameter 'aeo_fuel_region_map'."
+            )
+        if isinstance(adj, list):
+            # Replace the aeo region name with model region for all resources
+            df.loc[
+                (df["Fuel"].str.contains(aeo_region))
+                & (df["Fuel"].notna())
+                & (df["region"].str.lower() == region.lower()),
+                "Fuel",
+            ] = df.loc[
+                (df["Fuel"].str.contains(aeo_region))
+                & (df["Fuel"].notna())
+                & (df["region"].str.lower() == region.lower()),
+                "Fuel",
+            ].str.replace(
+                aeo_region, region
+            )
+        if isinstance(adj, dict):
+            # Replace the aeo region name with model region only for select fuels
+            for fuel, op in adj.items():
+                df.loc[
+                    (df["Fuel"].str.contains(aeo_region))
+                    & (df["Fuel"].str.contains(fuel))
+                    & (df["Fuel"].notna())
+                    & (df["region"].str.lower() == region.lower()),
+                    "Fuel",
+                ] = df.loc[
+                    (df["Fuel"].str.contains(aeo_region))
+                    & (df["Fuel"].str.contains(fuel))
+                    & (df["Fuel"].notna())
+                    & (df["region"].str.lower() == region.lower()),
+                    "Fuel",
+                ].str.replace(
+                    aeo_region, region
+                )
 
     df.loc[df["Fuel"].isna(), "Fuel"] = "None"
 
@@ -2373,13 +2520,39 @@ def energy_storage_mwh(
     pd.DataFrame
         Modified dataframe with energy storage values
     """
-    all_regions = df["region"].unique()
+    context = "Setting energy storage MWh in existing generators."
+    region_col = find_region_col(df.columns, context)
+    all_regions = df[region_col].unique()
+
+    if energy_col not in df.columns:
+        df[energy_col] = 0
+
+    storage_techs = list(df.loc[df[energy_col] > 0, tech_col].unique())
+    partial_storage = list(
+        df.loc[
+            (df[tech_col].isin(storage_techs)) & ~(df[energy_col] > 0),
+            tech_col,
+        ].unique()
+    )
+    missing_techs = [t for t in partial_storage if t not in energy_storage_duration]
+    if missing_techs:
+        logger.warning(
+            "\n\n**************************\n"
+            f"The storage technology(ies) {missing_techs} have some existing generators "
+            "with energy capacity (MWh) values and some where the energy capacity is "
+            "missing. You have not included these technologies in the settings parameter "
+            "'energy_storage_duration', which is used to fill missing energy capacity "
+            "data.\n\nNOTE: This is not a comprehensive list of technologies that *should* "
+            "be included in 'energy_storage_duration'. Technologies without any existing "
+            "energy capacity data might also be missing.\n"
+            "**************************\n"
+        )
     for tech, val in energy_storage_duration.items():
         if isinstance(val, dict):
             tech_regions = val.keys()
             model_tech_regions = df.loc[
                 snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
-                "region",
+                region_col,
             ].to_list()
             if not all(r in tech_regions for r in model_tech_regions):
                 missing_regions = [
@@ -2398,14 +2571,16 @@ def energy_storage_mwh(
                     )
                 df.loc[
                     (snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)))
-                    & (df["region"] == region),
+                    & (df[region_col] == region)
+                    & ~(df[energy_col] > 0),
                     energy_col,
                 ] = (
                     df[cap_col] * v
                 )
         else:
             df.loc[
-                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
+                snake_case_col(df[tech_col]).str.contains(snake_case_str(tech))
+                & ~(df[energy_col] > 0),
                 energy_col,
             ] = (
                 df[cap_col] * val
@@ -2441,6 +2616,101 @@ def load_plants_860(
     )
 
     return plants
+
+
+def load_demand_response_efs_profile(
+    resource: str,
+    electrification_stock_fn: str,
+    model_year: int,
+    electrification_scenario: str,
+    model_regions: list,
+    region_aggregations: dict = {},
+    path_in: Path = None,
+) -> pd.DataFrame:
+    """Load the demand profile of a single flexible resource in all model regions.
+
+    Parameters
+    ----------
+    resource : str
+        Name of the flexible resource.
+    electrification_stock_fn : str
+        Name of the data file with stock values for each year.
+    model_year : int
+        Planning period or model year. Used to select stock values for flexible resources
+        and their demand profiles.
+    electrification_scenario : str
+        Name of a scenario from the stock data file.
+    model_regions : list
+        Names of the model regions, including those that are aggregated from multiple
+        base regions.
+    region_aggregations : dict, optional
+        A list of base regions for each aggregated model region, by default {}. For
+        example, {"CA_N": ["WEC_BANC", "WEC_CALN"]}.
+    path_in : Path, optional
+        Folder where stock and incremental factor (profile) data are located, by default
+        None.
+
+    Returns
+    -------
+    pd.DataFrame
+        Flexible demand profiles for the selected resource in each model region. Column
+        names are model regions.
+    Raises
+    ------
+    KeyError
+        The resource is not a valid name.
+    """
+    from powergenome.load_construction import electrification_profiles
+
+    keep_regions, region_agg_map = regions_to_keep(model_regions, region_aggregations)
+    elec_profiles = electrification_profiles(
+        stock_fn=electrification_stock_fn,
+        year=model_year,
+        elec_scenario=electrification_scenario,
+        regions=keep_regions,
+        path_in=path_in,
+    )
+
+    if resource not in elec_profiles.resource.unique():
+        raise KeyError(
+            f"No profile was available for the flexible resource '{resource}' specified "
+            "in your settings file under 'flexible_demand_resources'. Available "
+            f"resources include: {list(elec_profiles.resource.unique())}."
+        )
+    dr_profile = elec_profiles.loc[
+        elec_profiles["resource"] == resource, ["time_index", "region", "load_mw"]
+    ].pivot(index="time_index", columns="region")
+    dr_profile.columns = dr_profile.columns.droplevel()
+    for model_region, base_regs in region_aggregations.items():
+        base_regs = [r for r in base_regs if r != model_region]
+        dr_profile[model_region] = dr_profile[base_regs].sum(axis=1)
+        dr_profile = dr_profile.drop(columns=base_regs)
+
+    return dr_profile
+
+
+def add_860m_storage_mwh(
+    gen_df: pd.DataFrame, operating_860m: pd.DataFrame, storage_techs: List[str] = None
+) -> pd.DataFrame:
+    idx_cols = ["plant_id_eia", "generator_id"]
+    gen_df = gen_df.set_index(idx_cols)
+
+    if not storage_techs:
+        storage_techs = [
+            "Batteries",
+            "Natural Gas with Compressed Air Storage",
+            "Flywheels",
+        ]
+
+    storage_860m = operating_860m.loc[
+        operating_860m.technology_description.isin(storage_techs), :
+    ].set_index(idx_cols)
+    gen_df.loc[storage_860m.index, "capacity_mwh"] = storage_860m["capacity_mwh"]
+    # gen_df = pd.merge(
+    #     gen_df, storage_860m[idx_cols + ["capacity_mwh"]], how="left", on=idx_cols
+    # )
+
+    return gen_df.reset_index()
 
 
 class GeneratorClusters:
@@ -2484,6 +2754,9 @@ class GeneratorClusters:
         self.model_regions_gdf = load_ipm_shapefile(self.settings)
         self.weighted_unit_hr = None
         self.supplement_with_860m = supplement_with_860m
+        self.cluster_builder = build_resource_clusters(
+            self.settings.get("RESOURCE_GROUPS")
+        )
 
         if self.current_gens:
             self.data_years = self.settings["data_years"]
@@ -2526,7 +2799,11 @@ class GeneratorClusters:
             # self.utilities_eia = load_utilities_eia(self.pudl_engine)
         else:
             self.existing_resources = pd.DataFrame()
-        self.fuel_prices = fetch_fuel_prices(self.settings)
+        self.fuel_prices = fetch_fuel_prices(self.settings).pipe(
+            modify_fuel_prices,
+            self.settings.get("aeo_fuel_region_map"),
+            self.settings.get("regional_fuel_adjustments"),
+        )
         self.atb_hr = fetch_atb_heat_rates(self.pg_engine, self.settings)
         self.coal_fgd = pd.read_csv(DATA_PATHS["coal_fgd"])
 
@@ -2567,17 +2844,27 @@ class GeneratorClusters:
         df_list = []
         self.demand_response_profiles = {}
 
-        if not self.settings.get("demand_response_resources"):
+        if not self.settings.get("flexible_demand_resources"):
             logger.warning(
                 "A demand response file is included in extra inputs but the parameter "
-                "`demand_response_resources` is not in the settings file. No demand "
+                "`flexible_demand_resources` is not in the settings file. No demand "
                 "response resources will be included with the generators."
             )
             return pd.DataFrame()
-
-        for resource, parameters in self.settings["demand_response_resources"][
-            year
-        ].items():
+        if year not in self.settings["flexible_demand_resources"].keys():
+            logger.warning(
+                f"The model year {year} is not included in your 'flexible_demand_resources' "
+                "parameter. No flexible demand resources will be included for this "
+                "planning period."
+            )
+        if self.settings["flexible_demand_resources"][year] is None:
+            logger.warning(
+                f"Your 'flexible_demand_resources' settings parameter has the value 'None' "
+                "for this planning period. No flexible demand resources will be included."
+            )
+        for resource, parameters in (
+            self.settings["flexible_demand_resources"].get(year, {}).items()
+        ):
 
             _df = pd.DataFrame(
                 index=self.settings["model_regions"],
@@ -2586,19 +2873,45 @@ class GeneratorClusters:
             _df = _df.drop(columns="Resource")
             _df["technology"] = resource
             _df["region"] = self.settings["model_regions"]
-
-            dr_path = (
-                Path.cwd()
-                / self.settings["input_folder"]
-                / self.settings["demand_response_fn"]
-            )
-            dr_profile = make_demand_response_profiles(dr_path, resource, self.settings)
+            if self.settings.get("demand_response_fn"):
+                dr_path = (
+                    Path.cwd()
+                    / self.settings["input_folder"]
+                    / self.settings["demand_response_fn"]
+                )
+                dr_profile = make_demand_response_profiles(
+                    dr_path,
+                    resource,
+                    self.settings["model_year"],
+                    self.settings["demand_response"],
+                )
+            elif self.settings.get("electrification_stock_fn"):
+                if not self.settings.get("electrification_scenario"):
+                    logger.warning(
+                        "You have provided a parameter value for 'electrification_stock_fn' "
+                        "but not 'electrification_scenario'. No flexible demand resources "
+                        "can be included without a valid electrification scenario."
+                    )
+                    pass
+                keep_regions, region_agg_map = regions_to_keep(
+                    self.settings["model_regions"],
+                    self.settings.get("region_aggregations", {}) or {},
+                )
+                dr_profile = load_demand_response_efs_profile(
+                    resource,
+                    self.settings.get("electrification_stock_fn"),
+                    self.settings["model_year"],
+                    self.settings.get("electrification_scenario"),
+                    keep_regions,
+                    self.settings.get("region_aggregations", {}) or {},
+                    self.settings.get("EFS_DATA"),
+                )
             self.demand_response_profiles[resource] = dr_profile
             # Add hourly profile to demand response rows
             dr_cf = dr_profile / dr_profile.max()
-            dr_regions = dr_cf.columns
+            dr_regions = [r for r in dr_cf.columns if r in _df.index]
             _df = _df.loc[dr_regions, :]
-            _df["profile"] = list(dr_cf.values.T)
+            _df["profile"] = list(dr_cf[dr_regions].values.T)
 
             dr_capacity = demand_response_resource_capacity(
                 dr_profile, resource, self.settings
@@ -2615,9 +2928,9 @@ class GeneratorClusters:
             if not parameters.get("parameter_values"):
                 logger.warning(
                     "No model parameter values are provided in the settings file for "
-                    f"the demand response resource '{resource}'. If another DR resource"
+                    f"the flexible demand resource '{resource}'. If another resource"
                     " has values under "
-                    "`demand_response_resource.<year>.<DR_type>.parameter_values`, "
+                    "`flexible_demand_resource.<year>.<resource_type>.parameter_values`, "
                     f"those columns will have a value of 0 for '{resource}'."
                 )
             for col, value in parameters.get("parameter_values", {}).items():
@@ -2655,9 +2968,10 @@ class GeneratorClusters:
         dataframe
 
         """
+        if self.gens_860.technology_description.isna().any():
+            self.gens_860 = fill_missing_tech_descriptions(self.gens_860)
         self.gens_860_model = (
-            self.gens_860.pipe(fill_missing_tech_descriptions)
-            .pipe(
+            self.gens_860.pipe(
                 supplement_generator_860_data,
                 self.gens_entity,
                 self.bga,
@@ -2674,6 +2988,7 @@ class GeneratorClusters:
                 self.settings.get("tech_groups", {}) or {},
                 self.settings.get("regional_no_grouping", {}) or {},
             )
+            .pipe(update_operating_date_860m, self.operating_860m.copy())
         )
         self.gens_860_model = self.gens_860_model.pipe(
             modify_cc_prime_mover_code, self.gens_860_model
@@ -2695,17 +3010,17 @@ class GeneratorClusters:
             )
         else:
             logger.info("Using unit heat rates from previous round.")
-        self.weighted_unit_hr["unit_id_pudl"] = self.weighted_unit_hr[
+        self.weighted_unit_hr["unit_id_pg"] = self.weighted_unit_hr[
             "unit_id_pudl"
         ].astype("object")
 
         # Merge the PUDL calculated heat rate data and set the index for easy
         # mapping using plant/prime mover heat rates from 923
-        hr_cols = ["plant_id_eia", "unit_id_pudl", "heat_rate_mmbtu_mwh"]
+        hr_cols = ["plant_id_eia", "unit_id_pg", "heat_rate_mmbtu_mwh"]
         idx = ["plant_id_eia", "prime_mover_code", "energy_source_code_1"]
         self.units_model = self.gens_860_model.merge(
             self.weighted_unit_hr[hr_cols],
-            on=["plant_id_eia", "unit_id_pudl"],
+            on=["plant_id_eia", "unit_id_pg"],
             how="left",
         ).set_index(idx)
 
@@ -2733,19 +3048,23 @@ class GeneratorClusters:
             self.prime_mover_hr_map
         )
 
-        # Set heat rates < 5 or > 35 mmbtu/MWh to nan. Don't change heat rates of 0,
+        # Set heat rates < 6.36 (ATB NGCC) or > 35 mmbtu/MWh to nan. Don't change heat rates of 0,
         # which is when there is positive generation and no fuel use (pumped storage)
         self.units_model.loc[
             (
-                (self.units_model.heat_rate_mmbtu_mwh < 5)
-                & (self.units_model.heat_rate_mmbtu_mwh != 0)
+                (self.units_model.heat_rate_mmbtu_mwh < 6.36)
+                & ~(
+                    self.units_model.technology_description.str.contains(
+                        "pumped", case=False
+                    )
+                )
             )
             | (self.units_model.heat_rate_mmbtu_mwh > 35),
             "heat_rate_mmbtu_mwh",
         ] = np.nan
 
         # Fill any null heat rate values for each tech
-        for tech in self.units_model["technology_description"]:
+        for tech in self.units_model["technology_description"].unique():
             self.units_model.loc[
                 self.units_model.technology_description == tech, "heat_rate_mmbtu_mwh"
             ] = self.fill_na_heat_rates(
@@ -2780,6 +3099,18 @@ class GeneratorClusters:
                 settings=self.settings,
                 model_regions_gdf=self.model_regions_gdf,
             )
+            # Add new/proposed generators to plant_region_map
+            self.plant_region_map = pd.concat(
+                [
+                    self.plant_region_map,
+                    self.proposed_gens.reset_index()[
+                        ["plant_id_eia", "model_region"]
+                    ].drop_duplicates(),
+                    self.new_860m_gens.reset_index()[
+                        ["plant_id_eia", "model_region"]
+                    ].drop_duplicates(),
+                ]
+            )
             # embed()
             logger.info(
                 f"Proposed gen technologies are "
@@ -2795,13 +3126,43 @@ class GeneratorClusters:
         # Create a pudl unit id based on plant and generator id where one doesn't exist.
         # This is used later to match the cluster numbers to plants
         self.units_model.reset_index(inplace=True)
-        self.units_model.loc[self.units_model.unit_id_pudl.isnull(), "unit_id_pudl"] = (
+        if self.supplement_with_860m:
+            self.units_model = add_860m_storage_mwh(
+                self.units_model,
+                self.new_860m_gens.reset_index(),
+                storage_techs=["Batteries"],
+            )
+        else:
+            self.units_model["capacity_mwh"] = 0
+        if self.settings.get("energy_storage_duration"):
+            self.units_model = energy_storage_mwh(
+                self.units_model,
+                self.settings["energy_storage_duration"],
+                "technology_description",
+                self.settings["capacity_col"],
+                "capacity_mwh",
+            )
+        else:
+            logger.warning(
+                "\n\n*******************************\n"
+                "The parameter 'energy_storage_duration' is not included in your settings "
+                "file. This parameter converts MW to energy capacity (MWh) for existing "
+                "generators where data is otherwise not available. For example, EIA-860m "
+                "generally does not have MWh for battery storage units installed in the "
+                "current calendar year. The energy capacity of existing storage clusters "
+                "may be incorrect if you do not include this parameter!\n"
+                "*******************************\n"
+            )
+        self.units_model["plant_id_eia"] = self.units_model["plant_id_eia"].astype(
+            "Int64"
+        )
+        self.units_model.loc[self.units_model.unit_id_pg.isnull(), "unit_id_pg"] = (
             self.units_model.loc[
-                self.units_model.unit_id_pudl.isnull(), "plant_id_eia"
+                self.units_model.unit_id_pg.isnull(), "plant_id_eia"
             ].astype(str)
             + "_"
             + self.units_model.loc[
-                self.units_model.unit_id_pudl.isnull(), "generator_id"
+                self.units_model.unit_id_pg.isnull(), "generator_id"
             ].astype(str)
         ).values
         self.units_model.set_index(idx, inplace=True)
@@ -2951,8 +3312,8 @@ class GeneratorClusters:
                 _df["plant_id_eia"] = (
                     grouped.reset_index().groupby("cluster")["plant_id_eia"].apply(list)
                 )
-                _df["unit_id_pudl"] = (
-                    grouped.reset_index().groupby("cluster")["unit_id_pudl"].apply(list)
+                _df["unit_id_pg"] = (
+                    grouped.reset_index().groupby("cluster")["unit_id_pg"].apply(list)
                 )
 
                 self.cluster_list.append(_df)
@@ -2962,7 +3323,7 @@ class GeneratorClusters:
         self.all_units = pd.merge(
             self.units_model.reset_index(),
             self.all_units,
-            on=["plant_id_eia", "unit_id_pudl"],
+            on=["plant_id_eia", "unit_id_pg"],
             how="left",
         ).merge(
             self.plants_860[["plant_id_eia", "utility_id_eia"]],
@@ -2997,7 +3358,9 @@ class GeneratorClusters:
         # Calculate average capacity factors
         if type(self.settings.get("capacity_factor_techs")) is list:
             self.capacity_factors = gentype_region_capacity_factor(
-                self.pudl_engine, self.plant_region_map, self.settings
+                self.pudl_engine,
+                self.units_model[["plant_id_eia", "model_region"]],
+                self.settings,
             )
 
             self.results = pd.merge(
@@ -3031,14 +3394,6 @@ class GeneratorClusters:
         if self.settings.get("derate_capacity"):
             self.results["unmodified_existing_cap_mw"] = (
                 self.results["unmodified_cap_size"] * self.results["num_units"]
-            )
-        if self.settings.get("energy_storage_duration"):
-            self.results = energy_storage_mwh(
-                self.results,
-                self.settings["energy_storage_duration"],
-                "technology",
-                "Existing_Cap_MW",
-                "Existing_Cap_MWh",
             )
 
         if self.settings.get("region_wind_pv_cap_fn"):
@@ -3094,10 +3449,7 @@ class GeneratorClusters:
                 # EIA technology not supported
                 continue
             params.update({"existing": True})
-            cluster_builder = build_resource_clusters(
-                self.settings.get("RESOURCE_GROUPS")
-            )
-            groups = cluster_builder.find_groups(**params)
+            groups = self.cluster_builder.find_groups(**params)
             if not groups:
                 # No matching resource groups
                 continue
@@ -3126,6 +3478,8 @@ class GeneratorClusters:
             )
             self.results["profile"][i] = clusters["profile"][0]
 
+        self.results = rename_gen_cols(self.results)
+
         return self.results
 
     def create_new_generators(self):
@@ -3137,37 +3491,40 @@ class GeneratorClusters:
         )
 
         self.new_generators = atb_new_generators(
-            self.atb_costs, self.atb_hr, self.settings
+            self.atb_costs, self.atb_hr, self.settings, self.cluster_builder
         )
 
-        self.new_generators = (
-            self.new_generators.pipe(startup_fuel, self.settings)
-            .pipe(add_fuel_labels, self.fuel_prices, self.settings)
-            .pipe(startup_nonfuel_costs, self.settings)
-            .pipe(add_genx_model_tags, self.settings)
-        )
-
-        if self.sort_gens:
-            logger.info("Sorting new resources alphabetically.")
-            self.new_generators = self.new_generators.sort_values(
-                ["region", "technology"]
+        if not self.new_generators.empty:
+            self.new_generators = (
+                self.new_generators.pipe(startup_fuel, self.settings)
+                .pipe(add_fuel_labels, self.fuel_prices, self.settings)
+                .pipe(startup_nonfuel_costs, self.settings)
             )
 
-        if self.settings.get("capacity_limit_spur_fn"):
+            if self.sort_gens:
+                logger.info("Sorting new resources alphabetically.")
+                self.new_generators = self.new_generators.sort_values(
+                    ["region", "technology"]
+                )
+
+            if self.settings.get("capacity_limit_spur_fn"):
+                self.new_generators = self.new_generators.pipe(
+                    add_resource_max_cap_spur, self.settings
+                )
+            else:
+                logger.warning("No settings parameter for max capacity/spur file")
             self.new_generators = self.new_generators.pipe(
-                add_resource_max_cap_spur, self.settings
-            )
-        else:
-            logger.warning("No settings parameter for max capacity/spur file")
-        self.new_generators = self.new_generators.pipe(
-            calculate_transmission_inv_cost, self.settings, self.offshore_spur_costs
-        ).pipe(add_transmission_inv_cost, self.settings)
+                calculate_transmission_inv_cost, self.settings, self.offshore_spur_costs
+            ).pipe(add_transmission_inv_cost, self.settings)
 
-        if self.settings.get("demand_response_fn"):
-            dr_rows = self.create_demand_response_gen_rows().pipe(
-                add_genx_model_tags, self.settings
+        if self.settings.get("demand_response_fn") or self.settings.get(
+            "electrification_stock_fn"
+        ):
+            dr_rows = self.create_demand_response_gen_rows()
+            self.new_generators = pd.concat(
+                [self.new_generators, dr_rows], sort=False, ignore_index=True
             )
-            self.new_generators = pd.concat([self.new_generators, dr_rows], sort=False)
+        self.new_generators = add_genx_model_tags(self.new_generators, self.settings)
         if "cluster" not in self.new_generators.columns:
             self.new_generators["cluster"] = 1
         self.new_generators["Resource"] = (

@@ -38,6 +38,7 @@ num_clusters:
   Hydroelectric Pumped Storage: 1
   Biomass: 1
   Other_peaker: 1
+  Batteries: 1
 
 
 # Group these technologies
@@ -110,10 +111,11 @@ regional_hydro_factor: ~
 # name is contained in the dataframe technology name.
 energy_storage_duration:
   Hydroelectric Pumped Storage: 15.5
+  Batteries: 2
 
 # Generator cost data from NREL ATB
 
-atb_data_year: 2021
+atb_data_year: 2022
 atb_financial_case: Market
 atb_cap_recovery_years: 20
 
@@ -127,7 +129,7 @@ alt_atb_cap_recovery_years:
   Nuclear: 40
 
 # The year of NREL ATB data to use for matching existing generators (O&M costs)
-atb_existing_year: 2019
+atb_existing_year: 2020
 
 # ****UPDATE WITH ATB2021*****
 # ATB 2021 uses data from NETL for fossil fuel technologies, so it is no longer necessary
@@ -170,7 +172,7 @@ atb_battery_wacc: UtilityPV
 # Format for ATB is <technology>_<tech_detail>, all are Mid cost case
 # Might want to change this to list format like the new generators below
 eia_atb_tech_map:
-  Battery: Battery_*
+  Batteries: Battery_*
   Biomass: Biopower_Dedicated
   Solar Thermal without Energy Storage: CSP_Class1
   Conventional Steam Coal: Coal_newAvgCF
@@ -330,7 +332,7 @@ cost_multiplier_technology_map:
 
 # PROPOSED GENERATOR VARIABLES
 
-eia_860m_fn: september_generator2021.xlsx
+eia_860m_fn: june_generator2022.xlsx
 
 # The status codes below exclude plants where regulatory approvals have not been
 # initiated or received. "Other" is also excluded.

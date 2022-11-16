@@ -106,7 +106,13 @@ def adjust_ccs_fuels(ccs_fuel_row, settings):
     if base_fuel_name:
 
         # USD/tonne disposal
-        disposal_cost = settings["ccs_disposal_cost"]
+        disposal_cost = settings.get("ccs_disposal_cost")
+        if not disposal_cost:
+            logger.warning(
+                "You did not specify a CCS disposal cost, so it will be set to $0. "
+                "Set a non-zero value with the settings parameter 'ccs_disposal_cost'."
+            )
+        disposal_cost = 0
 
         capture_rate = settings["ccs_capture_rate"][base_fuel_name]
 

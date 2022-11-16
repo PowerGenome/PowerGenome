@@ -39,7 +39,11 @@ from powergenome.transmission import (
     transmission_line_distance,
 )
 from powergenome.nrelatb import atb_fixed_var_om_existing
-from powergenome.external_data import make_generator_variability
+from powergenome.external_data import (
+    insert_user_tx_costs,
+    load_user_tx_costs,
+    make_generator_variability,
+)
 from powergenome.util import (
     build_scenario_settings,
     check_settings,
@@ -225,7 +229,8 @@ def main():
             case_folder = (
                 out_folder / f"{year}" / f"{case_id}_{year}_{_settings['case_name']}"
             )
-
+            _settings["extra_outputs"] = case_folder / "extra_outputs"
+            _settings["extra_outputs"].mkdir(parents=True, exist_ok=True)
             if i == 0:
                 if args.gens:
                     gc = GeneratorClusters(
@@ -347,6 +352,7 @@ def main():
                     file_name="Load_data.csv",
                     include_index=False,
                 )
+
                 write_results_file(
                     df=reduced_resource_profile,
                     folder=case_folder,
@@ -371,19 +377,29 @@ def main():
 
             if args.transmission:
                 model_regions_gdf = gc.model_regions_gdf
-                transmission = (
-                    agg_transmission_constraints(
+                if _settings.get("user_transmission_costs"):
+                    user_tx_costs = load_user_tx_costs(
+                        _settings["extra_inputs"] / _settings["user_transmission_costs"]
+                    )
+                    transmission = agg_transmission_constraints(
                         pg_engine=pg_engine, settings=_settings
+                    ).pipe(insert_user_tx_costs, user_costs=user_tx_costs)
+                else:
+                    transmission = (
+                        agg_transmission_constraints(
+                            pg_engine=pg_engine, settings=_settings
+                        )
+                        .pipe(
+                            transmission_line_distance,
+                            ipm_shapefile=model_regions_gdf,
+                            settings=_settings,
+                            units="mile",
+                        )
+                        .pipe(network_line_loss, settings=_settings)
+                        .pipe(network_reinforcement_cost, settings=_settings)
                     )
-                    .pipe(
-                        transmission_line_distance,
-                        ipm_shapefile=model_regions_gdf,
-                        settings=_settings,
-                        units="mile",
-                    )
-                    .pipe(network_line_loss, settings=_settings)
-                    .pipe(network_max_reinforcement, settings=_settings)
-                    .pipe(network_reinforcement_cost, settings=_settings)
+                transmission = (
+                    transmission.pipe(network_max_reinforcement, settings=_settings)
                     .pipe(set_int_cols)
                     .pipe(round_col_values)
                     .pipe(add_cap_res_network, settings=_settings)

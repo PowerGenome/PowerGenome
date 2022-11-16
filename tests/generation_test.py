@@ -6,6 +6,7 @@ from pathlib import Path
 from powergenome.GenX import (
     RESOURCE_TAGS,
     add_cap_res_network,
+    add_misc_gen_values,
     check_resource_tags,
     create_policy_req,
     create_regional_cap_res,
@@ -23,6 +24,7 @@ from powergenome.eia_opendata import add_user_fuel_prices
 from powergenome.external_data import make_generator_variability
 
 from powergenome.fuels import fuel_cost_table
+from powergenome.nrelatb import db_col_values
 
 CWD = Path.cwd()
 # os.environ["RESOURCE_GROUPS"] = str(CWD / "data" / "resource_groups_base")
@@ -44,23 +46,31 @@ from powergenome.generators import (
     group_technologies,
     label_retirement_year,
     label_small_hydro,
+    load_demand_response_efs_profile,
+    remove_leading_zero,
     unit_generator_heat_rates,
     load_860m,
     GeneratorClusters,
     energy_storage_mwh,
 )
-from powergenome.load_profiles import make_final_load_curves, make_load_curves
-from powergenome.params import DATA_PATHS  # , SETTINGS
+from powergenome.load_profiles import (
+    add_load_growth,
+    make_final_load_curves,
+    make_load_curves,
+)
+from powergenome.params import DATA_PATHS, SETTINGS  # , SETTINGS
 from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
 )
 from powergenome.util import (
     build_scenario_settings,
+    find_region_col,
     init_pudl_connection,
     check_settings,
     load_settings,
     map_agg_region_names,
+    regions_to_keep,
     remove_fuel_scenario_name,
     reverse_dict_of_lists,
     write_results_file,
@@ -146,10 +156,7 @@ def test_settings():
 @pytest.fixture(scope="module")
 def CA_AZ_settings():
     settings = load_settings(
-        DATA_PATHS["powergenome"].parent
-        / "example_systems"
-        / "CA_AZ"
-        / "test_settings_atb2020.yml"
+        DATA_PATHS["powergenome"].parent / "example_systems" / "CA_AZ" / "settings"
     )
     settings["input_folder"] = Path(
         DATA_PATHS["powergenome"].parent
@@ -192,7 +199,7 @@ def test_load_single_settings():
         DATA_PATHS["powergenome"].parent
         / "example_systems"
         / "CA_AZ"
-        / "test_settings_atb2020.yml"
+        / "combined_settings.yml"
     )
 
 
@@ -309,6 +316,33 @@ def test_demand_curve(test_settings):
     make_load_curves(pg_engine, test_settings)
 
 
+def test_alt_table_load_sources(CA_AZ_settings):
+    # Test with a single non-default load table
+    CA_AZ_settings["load_source_table_name"] = {
+        # "EFS": "load_curves_nrel_efs",
+        "FERC": "load_curves_ferc",
+    }
+    CA_AZ_settings["regional_load_source"] = "FERC"
+    CA_AZ_settings["EFS_DATA"] = DATA_PATHS["test_data"] / "efs"
+    make_final_load_curves(pg_engine, CA_AZ_settings)
+
+
+def test_combined_load_sources(CA_AZ_settings):
+    # Test with a combination of user and database load sources
+    CA_AZ_settings["regional_load_fn"] = "test_regional_load_profiles.csv"
+    CA_AZ_settings["load_source_table_name"] = {"EFS": "load_curves_nrel_efs"}
+    CA_AZ_settings["regional_load_source"] = {
+        "USER": ["CA_N", "CA_S"],
+        "EFS": ["WECC_AZ"],
+    }
+    CA_AZ_settings["load_source_table_name"] = {
+        "EFS": "load_curves_nrel_efs",
+        "FERC": "load_curves_ferc",
+    }
+    CA_AZ_settings["EFS_DATA"] = DATA_PATHS["test_data"] / "efs"
+    make_final_load_curves(pg_engine, CA_AZ_settings)
+
+
 def test_check_settings(test_settings):
     check_settings(test_settings, pg_engine)
 
@@ -337,10 +371,16 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
         }
     }
     CA_AZ_settings["modified_atb_new_gen"]["NGCCS100"]["heat_rate"] = 7.5
+    CA_AZ_settings["EFS_DATA"] = DATA_PATHS["test_data"] / "efs"
     gc = GeneratorClusters(
-        pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=False
+        pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=True
     )
     all_gens = gc.create_all_generators()
+    all_gens = add_misc_gen_values(all_gens, CA_AZ_settings)
+
+    assert (
+        all_gens.loc[all_gens["Resource"] == "CA_N_biomass_1", "Eff_Up"].values[0] == 1
+    )
     assert np.allclose(
         all_gens.query("technology.str.contains('NaturalGas_CCCCS', case=False)")[
             "Heat_Rate_MMBTU_per_MWh"
@@ -353,6 +393,13 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
         ].mean(),
         7.5,
     )
+    # Capacity in existing clusters should be > 0
+    assert all(gc.results["Existing_Cap_MW"] > 0)
+    batteries = gc.results.query("technology == 'Batteries'")
+
+    # Battery energy capacity should be larger than battery power capacity
+    assert all(batteries["Existing_Cap_MWh"] > batteries["Existing_Cap_MW"])
+
     gen_variability = make_generator_variability(all_gens)
     assert (gen_variability >= 0).all().all()
 
@@ -440,30 +487,19 @@ def test_existing_gen_profiles():
         capacity_col="capacity_mw",
         num_clusters={tech: 2 for tech in technologies},
         retirement_ages={tech: 200 for tech in technologies},
-        atb_data_year=2021,
-        atb_existing_year=2019,
-        fuel_eia_aeo_year=2020,
+        atb_data_year=2022,
+        atb_existing_year=2020,
+        fuel_eia_aeo_year=2022,
         load_eia_aeo_year=2020,
-        aeo_fuel_usd_year=2019,
+        aeo_fuel_usd_year=2021,
         eia_series_region_names={
             "mountain": "MTN",
-            "pacific": "PCF",
-            "west_south_central": "WSC",
-            "east_south_central": "ESC",
-            "south_atlantic": "SOATL",
-            "west_north_central": "WNC",
-            "east_north_central": "ENC",
-            "middle_atlantic": "MDATL",
-            "new_england": "NEENGL",
         },
         eia_series_fuel_names={
-            "coal": "STC",
             "naturalgas": "NG",
-            "distillate": "DFO",
-            "uranium": "U",
         },
         eia_series_scenario_names={
-            "reference": "REF2020",
+            "reference": "REF2022",
         },
         aeo_fuel_scenarios={
             "coal": "reference",
@@ -582,101 +618,12 @@ def test_check_resource_tags():
 
     check_resource_tags(df)
 
+    # Check something that should pass
+    cols = ["region", "technology"] + RESOURCE_TAGS
+    data = [pd.Series(["a", "b", 2] + [0] * (len(RESOURCE_TAGS) - 1), index=cols)]
+    df = pd.DataFrame(data)
 
-def test_add_user_fuel_prices():
-    settings = {
-        # "user_fuel_price": {"biomass": {"SC_VACA": 10, "PJM_DOM": 5}, "ZCF": 15},
-        "modified_atb_new_gen": {
-            "ZCF_CombinedCycle1": {
-                "new_technology": "ZCF",
-                "new_tech_detail": "CCAvgCF",
-                "new_cost_case": "Low",
-                "atb_technology": "NaturalGas",
-                "atb_tech_detail": "CCAvgCF",
-                "atb_cost_case": "Low",
-                "size_mw": 500,
-            },
-            "ZCF_CombinedCycle2": {
-                "new_technology": "ZeroCarbon",
-                "new_tech_detail": "CCAvgCF",
-                "new_cost_case": "Low",
-                "atb_technology": "NaturalGas",
-                "atb_tech_detail": "CCAvgCF",
-                "atb_cost_case": "Low",
-                "size_mw": 500,
-            },
-        },
-        "eia_atb_tech_map": {
-            "Biomass": ["Biopower_Dedicated"],
-            "Zero Carbon": ["ZCF"],
-        },
-        "atb_new_gen": [["Biopower", "Dedicated", "Mid", 100]],
-        "atb_data_year": 2020,
-        "atb_cap_recovery_years": 20,
-        "eia_series_scenario_names": {"reference": "REF2021"},
-        "user_fuel_price": {
-            "zerocarbonfuel1": 14,
-            "zerocarbonfuel2": 10,
-            "biomass": {"S_VACA": 10, "PJM_DOM": 5},
-        },
-        "user_fuel_usd_year": {
-            "zerocarbonfuel1": 2020,
-            "zerocarbonfuel2": 2020,
-            "biomass": 2019,
-        },
-        "tech_fuel_map": {
-            "ZeroCarbon_CCAvgCF_Low": "zerocarbonfuel1",
-            "Zero Carbon": "zerocarbonfuel2",
-            "Biomass": "biomass",
-        },
-        "model_regions": ["S_VACA", "PJM_DOM"],
-        "model_year": 2040,
-        "model_first_planning_year": 2035,
-        "cost_multiplier_region_map": {
-            "SRCA": ["S_VACA"],
-            "PJMD": ["PJM_DOM"],
-        },
-        "cost_multiplier_technology_map": {
-            "Biomass": ["Biopower_Dedicated"],
-            "CC - multi shaft": ["ZeroCarbon_CCAvgCF", "ZCF_CCAvgCF"],
-        },
-        "fuel_emission_factors": {"biomass": 0.001},  # Dummy value
-    }
-
-    df_base = add_user_fuel_prices(settings)
-
-    for fuel in [
-        "S_VACA_biomass",
-        "PJM_DOM_biomass",
-        "zerocarbonfuel1",
-        "zerocarbonfuel2",
-    ]:
-        assert fuel in df_base["full_fuel_name"].unique()
-
-    settings["target_usd_year"] = 2020
-    df_inflate = add_user_fuel_prices(settings)
-    assert (
-        df_base.loc[df_base["fuel"] == "biomass", "price"].mean()
-        < df_inflate.loc[df_inflate["fuel"] == "biomass", "price"].mean()
-    )
-    assert np.allclose(
-        df_base.loc[df_base["fuel"] == "zerocarbonfuel1", "price"].mean(),
-        df_inflate.loc[df_inflate["fuel"] == "zerocarbonfuel1", "price"].mean(),
-    )
-
-    gc = GeneratorClusters(
-        pudl_engine, pudl_out, pg_engine, settings, current_gens=False
-    )
-    gens = gc.create_new_generators()
-    assert gens["Fuel"].isna().any() == False
-
-    fuel_table = fuel_cost_table(gc.fuel_prices, gens, settings)
-    for r in ["PJM_DOM", "S_VACA"]:
-        assert (
-            fuel_table.loc[0, f"{r}_biomass"]
-            == settings["fuel_emission_factors"]["biomass"]
-        )
-    assert (fuel_table.loc[1:, :] == 0).any().any() == False
+    check_resource_tags(df)
 
 
 def test_storage_duration(caplog):
@@ -734,6 +681,69 @@ def test_hydro_energy_to_power():
     assert df.equals(df_hydro_ratio[df.columns])
     hydro_ratio = pd.Series([2, 0, 0, 1, 0, 0, 1.2])
     assert hydro_ratio.equals(df_hydro_ratio["Hydro_Energy_to_Power_Ratio"])
+
+
+def test_efs_flex_demand():
+    flex_demand = load_demand_response_efs_profile(
+        resource="trans_light_duty",
+        electrification_stock_fn="EFS_STOCK_AGG.parquet",
+        model_year=2034,
+        electrification_scenario="REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT",
+        model_regions=["WECC_AZ", "WEC_BANC", "WEC_CALN"],
+        region_aggregations={"CA_N": ["WEC_BANC", "WEC_CALN"]},
+        path_in=DATA_PATHS["test_data"] / "efs",
+    )
+
+    assert set(flex_demand.columns) == set(["WECC_AZ", "CA_N"])
+    assert flex_demand.isnull().any().any() == False
+    assert flex_demand.min().min() >= 0
+
+    with pytest.raises(ValueError):
+        load_demand_response_efs_profile(
+            resource="trans_light_duty",
+            electrification_stock_fn="EFS_STOCK_AGG.parquet",
+            model_year=2034,
+            electrification_scenario="REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY",
+            model_regions=["WECC_AZ", "WEC_BANC", "WEC_CALN"],
+            region_aggregations={"CA_N": ["WEC_BANC", "WEC_CALN"]},
+            path_in=DATA_PATHS["test_data"] / "efs",
+        )
+
+
+def test_flex_resources(CA_AZ_settings):
+    CA_AZ_settings["model_year"] = 2035
+    CA_AZ_settings["model_first_planning_year"] = 2030
+    CA_AZ_settings["electrification_stock_fn"] = "EFS_STOCK_AGG.parquet"
+    CA_AZ_settings[
+        "electrification_scenario"
+    ] = "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
+    CA_AZ_settings["flexible_demand_resources"] = {
+        2035: {
+            "trans_light_duty": {
+                "fraction_shiftable": 0.8,
+                "parameter_values": {"Max_DSM_delay": 5, "DR": 2},
+            },
+            "res_water_heat": {
+                "fraction_shiftable": 0.1,
+                "parameter_values": {"Max_DSM_delay": 2, "DR": 2},
+            },
+        }
+    }
+    CA_AZ_settings["atb_new_gen"] = []
+    CA_AZ_settings["renewables_clusters"] = None
+    CA_AZ_settings["additional_technologies_fn"] = None
+    CA_AZ_settings["modified_atb_new_gen"] = None
+    CA_AZ_settings["atb_modifiers"] = None
+    CA_AZ_settings["efs_path"] = DATA_PATHS["test_data"] / "efs"
+
+    gc = GeneratorClusters(
+        pudl_engine, pudl_out, pg_engine, CA_AZ_settings, current_gens=False
+    )
+    flex_resources = gc.create_new_generators()
+
+    assert len(flex_resources) == 6
+    non_null_cols = ["profile", "Max_DSM_delay", "DR"]
+    assert flex_resources[non_null_cols].isnull().any().any() == False
 
 
 def test_usr_tx(tmp_path):
@@ -804,3 +814,96 @@ def test_usr_tx(tmp_path):
 
     with pytest.raises(KeyError):
         agg_transmission_constraints(pg_engine, settings=settings)
+
+
+def test_load_growth(CA_AZ_settings):
+    data = {
+        "year": [2019] * 3,
+        "region": ["WECC_AZ"] * 3,
+        "time_index": [1] * 3,
+        "sector": ["commercial", "residential", "industrial"],
+        "load_mw": [1, 1, 1],
+    }
+
+    load_curves = pd.DataFrame(data)
+
+    load_curves = add_load_growth(load_curves, CA_AZ_settings)
+
+    assert all(load_curves["load_mw"] > 1)
+
+    data = {
+        "year": [2017] * 3,
+        "region": ["WECC_AZ"] * 3,
+        "time_index": [1] * 3,
+        "sector": ["commercial", "residential", "industrial"],
+        "load_mw": [1, 1, 1],
+    }
+
+    load_curves_2 = pd.DataFrame(data)
+
+    load_curves_2 = add_load_growth(load_curves_2, CA_AZ_settings)
+
+    assert all(load_curves["load_mw"] < load_curves_2["load_mw"])
+
+    data = {
+        "year": [2019] * 3,
+        "region": ["WECC_AZ"] * 3,
+        "time_index": [1] * 3,
+        "load_mw": [1, 1, 1],
+    }
+
+    load_curves_3 = pd.DataFrame(data)
+
+    load_curves_3 = add_load_growth(load_curves_3, CA_AZ_settings)
+
+    assert all(load_curves_3["load_mw"] > 1)
+    assert load_curves_3.iloc[0, -1] == load_curves_3.iloc[1, -1]
+
+    data = {
+        "year": [2017] * 3,
+        "region": ["WECC_AZ"] * 3,
+        "time_index": [1] * 3,
+        "load_mw": [1, 1, 1],
+    }
+
+    load_curves_4 = pd.DataFrame(data)
+
+    load_curves_4 = add_load_growth(load_curves_4, CA_AZ_settings)
+
+    assert load_curves_4.iloc[0, -1] == load_curves_4.iloc[1, -1]
+    assert all(load_curves_3["load_mw"] < load_curves_4["load_mw"])
+
+
+def test_db_col_values():
+    values = db_col_values(pg_engine, "technology_costs_nrelatb", ["technology"])
+    assert "NaturalGas" in values
+
+
+def test_find_region_col():
+
+    df = pd.DataFrame(columns=["A", "Region", "C"])
+    region_col = find_region_col(df.columns)
+    assert region_col == "Region"
+
+    df = pd.DataFrame(columns=["A", "model_region", "C"])
+    region_col = find_region_col(df.columns)
+    assert region_col == "model_region"
+
+    with pytest.raises(ValueError):
+        df = pd.DataFrame(columns=["A", "model_region", "region"])
+        region_col = find_region_col(df.columns)
+
+    with pytest.raises(ValueError):
+        df = pd.DataFrame(columns=["A", "B", "C"])
+        region_col = find_region_col(df.columns)
+
+
+def test_remove_leading_zeros():
+    s = "01"
+    assert remove_leading_zero(s) == "1"
+
+    i = 1
+    assert remove_leading_zero(i) == 1
+
+    s = "GEN1"
+    assert remove_leading_zero(s) == "GEN1"

@@ -17,6 +17,7 @@ MERGE = {
     "means": [
         "lcoe",
         "interconnect_annuity",
+        "interconnect_capex_mw",
         "offshore_spur_miles",
         "spur_miles",
         "tx_miles",
@@ -309,7 +310,7 @@ class Table:
             cache = columns is None
         read_columns = None if cache else columns
         if self.format == "csv":
-            df = pd.read_csv(self.path, usecols=read_columns)
+            df = pd.read_csv(self.path, usecols=read_columns, dtype={"metro_id": str})
         elif self.format == "parquet":
             df = self._dataset.read(columns=read_columns).to_pandas()
         if cache:
@@ -1391,7 +1392,9 @@ def get_merge_columns(merge: dict, df: pd.DataFrame = None) -> list:
         + (merge.get("uniques") or [])
     )
     if len(columns) > len(set(columns)):
-        raise ValueError("Column names duplicated in merge")
+        visited = set()
+        dup = [x for x in columns if x in visited or (visited.add(x) or False)]
+        raise ValueError(f"Column names {dup} duplicated in merge")
     if df is not None:
         return [x for x in df if x in columns]
     return columns
