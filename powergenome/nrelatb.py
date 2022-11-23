@@ -12,11 +12,12 @@ from typing import Dict, List, Tuple, Union
 import numpy as np
 import pandas as pd
 import sqlalchemy
+from powergenome.cluster.renewables import assign_site_cluster, calc_cluster_values
 
 from powergenome.params import DATA_PATHS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.resource_clusters import ClusterBuilder, map_nrel_atb_technology
-from powergenome.util import reverse_dict_of_lists, remove_leading_zero
+from powergenome.resource_clusters import ClusterBuilder, Table, map_nrel_atb_technology
+from powergenome.util import reverse_dict_of_lists, remove_leading_zero, snake_case_col
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
@@ -1216,6 +1217,15 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         rev_mult_tech_map = reverse_dict_of_lists(
             settings["cost_multiplier_technology_map"]
         )
+
+        if settings.get("precluster_renewables") is False:
+            renew_data, profile_paths, site_map = load_renewable_site_data(
+                cluster_builder
+            )
+        else:
+            renew_data = {}
+            profile_paths = {}
+            site_map = {}
         df_list = []
         for region in regions:
             _df = new_gen_df.copy()
@@ -1227,7 +1237,15 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
                 rev_mult_tech_map,
                 regional_cost_multipliers,
             )
-            _df = add_renewables_clusters(_df, region, settings, cluster_builder)
+            _df = add_renewables_clusters(
+                _df,
+                region,
+                settings,
+                cluster_builder,
+                renew_data,
+                profile_paths,
+                site_map,
+            )
 
             if region in (settings.get("new_gen_not_available") or {}):
                 techs = settings["new_gen_not_available"][region]
@@ -1253,11 +1271,36 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
     return results
 
 
+def load_renewable_site_data(cluster_builder: ClusterBuilder):
+    renew_data = {}
+    profile_paths = {}
+    site_map = {}
+    for g in cluster_builder.groups:
+        tech = g.group["technology"]
+        data = g.metadata.read(cache=True)
+        data.columns = snake_case_col(data.columns)
+        data["region"] = data.loc[:, "metro_region"]
+        data["mw"] = data.loc[:, "cpa_mw"]
+        data = data.loc[data["mw"] > 0, :]
+        renew_data[tech] = data
+        profile_paths[tech] = Path(g.group["profiles"])
+        if g.group.get("site_map"):
+            table = Table(profile_paths[tech].parent / g.group["site_map"])
+            cols = table.columns
+            df = table.read().set_index(cols[0])
+            site_map[tech] = df[df.columns[0]]
+
+    return renew_data, profile_paths, site_map
+
+
 def add_renewables_clusters(
     df: pd.DataFrame,
     region: str,
     settings: dict,
     cluster_builder: ClusterBuilder = None,
+    renew_data: dict = None,
+    profile_paths: dict = None,
+    site_map: dict = None,
 ) -> pd.DataFrame:
     """
     Add renewables clusters
@@ -1293,6 +1336,8 @@ def add_renewables_clusters(
     ValueError
         Renewables clusters match multiple NREL ATB technologies.
     """
+    if not cluster_builder:
+        cluster_builder = build_resource_clusters(settings.get("RESOURCE_GROUPS"))
     if not df["technology"].is_unique:
         raise ValueError(
             f"NREL ATB technologies are not unique: {df['technology'].to_list()}"
@@ -1328,22 +1373,35 @@ def add_renewables_clusters(
                 f"Renewables clusters match multiple NREL ATB technologies: {scenario}"
             )
         technology = technologies[0]
-        # region not an argument to ClusterBuilder.get_clusters()
         scenario = scenario.copy()
-        scenario.pop("region")
-        if not cluster_builder:
-            cluster_builder = build_resource_clusters(settings.get("RESOURCE_GROUPS"))
-        clusters = (
-            cluster_builder.get_clusters(
-                **scenario,
-                ipm_regions=ipm_regions,
-                existing=False,
+        if renew_data:
+            data = assign_site_cluster(
+                renew_data,
+                profile_paths,
+                site_map,
                 utc_offset=settings.get("utc_offset", 0),
+                **scenario,
             )
-            .rename(columns={"mw": "Max_Cap_MW"})
-            .assign(technology=technology, region=region)
-        )
-        clusters["cluster"] = range(1, 1 + len(clusters))
+            clusters = (
+                data.groupby("cluster")
+                .apply(calc_cluster_values)
+                .rename(columns={"mw": "Max_Cap_MW"})
+                .assign(technology=technology, region=region)
+            )
+        # region not an argument to ClusterBuilder.get_clusters()
+        else:
+            scenario.pop("region")
+            clusters = (
+                cluster_builder.get_clusters(
+                    **scenario,
+                    ipm_regions=ipm_regions,
+                    existing=False,
+                    utc_offset=settings.get("utc_offset", 0),
+                )
+                .rename(columns={"mw": "Max_Cap_MW"})
+                .assign(technology=technology, region=region)
+            )
+            clusters["cluster"] = range(1, 1 + len(clusters))
         if scenario.get("min_capacity"):
             # Warn if total capacity less than expected
             capacity = clusters["Max_Cap_MW"].sum()
@@ -1354,14 +1412,14 @@ def add_renewables_clusters(
                     + f" less than minimum ({capacity} < {scenario['min_capacity']} MW)"
                 )
         row = df[df["technology"] == technology].to_dict("records")[0]
-        new_tech_name = "_".join(
-            [
-                str(v)
-                for k, v in scenario.items()
-                if k not in ["region", "technology", "max_clusters", "min_capacity"]
-            ]
-        )
-        clusters["technology"] = clusters["technology"] + "_" + new_tech_name
+        # new_tech_name = "_".join(
+        #     [
+        #         str(v)
+        #         for k, v in scenario.items()
+        #         if k not in ["region", "technology", "max_clusters", "min_capacity"]
+        #     ]
+        # )
+        # clusters["technology"] = clusters["technology"] + "_" + new_tech_name
         kwargs = {k: v for k, v in row.items() if k not in clusters}
         cdfs.append(clusters.assign(**kwargs))
     return pd.concat([df[~mask]] + cdfs, sort=False)
