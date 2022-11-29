@@ -16,7 +16,12 @@ from powergenome.cluster.renewables import assign_site_cluster, calc_cluster_val
 
 from powergenome.params import DATA_PATHS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.resource_clusters import ClusterBuilder, Table, map_nrel_atb_technology
+from powergenome.resource_clusters import (
+    ClusterBuilder,
+    ResourceGroup,
+    Table,
+    map_nrel_atb_technology,
+)
 from powergenome.util import reverse_dict_of_lists, remove_leading_zero, snake_case_col
 
 idx = pd.IndexSlice
@@ -1218,14 +1223,6 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
             settings["cost_multiplier_technology_map"]
         )
 
-        if settings.get("precluster_renewables") is False:
-            renew_data, profile_paths, site_map = load_renewable_site_data(
-                cluster_builder
-            )
-        else:
-            renew_data = {}
-            profile_paths = {}
-            site_map = {}
         df_list = []
         for region in regions:
             _df = new_gen_df.copy()
@@ -1242,9 +1239,6 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
                 region,
                 settings,
                 cluster_builder,
-                renew_data,
-                profile_paths,
-                site_map,
             )
 
             if region in (settings.get("new_gen_not_available") or {}):
@@ -1271,26 +1265,25 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
     return results
 
 
-def load_renewable_site_data(cluster_builder: ClusterBuilder):
-    renew_data = {}
-    profile_paths = {}
-    site_map = {}
-    for g in cluster_builder.groups:
-        tech = g.group["technology"]
-        data = g.metadata.read(cache=True)
-        data.columns = snake_case_col(data.columns)
-        data["region"] = data.loc[:, "metro_region"]
-        data["mw"] = data.loc[:, "cpa_mw"]
-        data = data.loc[data["mw"] > 0, :]
-        renew_data[tech] = data
-        profile_paths[tech] = Path(g.group["profiles"])
-        if g.group.get("site_map"):
-            table = Table(profile_paths[tech].parent / g.group["site_map"])
-            cols = table.columns
-            df = table.read().set_index(cols[0])
-            site_map[tech] = df[df.columns[0]]
+def load_resource_group_data(
+    rg: ResourceGroup,
+) -> Tuple[pd.DataFrame, Union[pd.Series, None]]:
 
-    return renew_data, profile_paths, site_map
+    data = rg.metadata.read(cache=True)
+    data.columns = snake_case_col(data.columns)
+    data["region"] = data.loc[:, "metro_region"]
+    data["mw"] = data.loc[:, "cpa_mw"]
+    data = data.loc[data["mw"] > 0, :]
+    profile_path = Path(rg.group["profiles"])
+    if rg.group.get("site_map"):
+        table = Table(profile_path.parent / rg.group["site_map"])
+        cols = table.columns
+        df = table.read().set_index(cols[0])
+        site_map = df[df.columns[0]]
+    else:
+        site_map = None
+
+    return data, site_map
 
 
 def add_renewables_clusters(
@@ -1298,9 +1291,6 @@ def add_renewables_clusters(
     region: str,
     settings: dict,
     cluster_builder: ClusterBuilder = None,
-    renew_data: dict = None,
-    profile_paths: dict = None,
-    site_map: dict = None,
 ) -> pd.DataFrame:
     """
     Add renewables clusters
@@ -1351,10 +1341,10 @@ def add_renewables_clusters(
     )
     cdfs = []
     if region in (settings.get("region_aggregations", {}) or {}):
-        ipm_regions = settings.get("region_aggregations", {})[region]
-        ipm_regions.append(region)  # Add model region, sometimes listed in RG file
+        regions = settings.get("region_aggregations", {})[region]
+        regions.append(region)  # Add model region, sometimes listed in RG file
     else:
-        ipm_regions = [region]
+        regions = [region]
     for scenario in settings.get("renewables_clusters", []) or []:
         if scenario["region"] != region:
             continue
@@ -1374,16 +1364,31 @@ def add_renewables_clusters(
             )
         technology = technologies[0]
         scenario = scenario.copy()
-        if renew_data:
+        scenario.pop("region")
+        if settings.get("precluster_renewables") is False:
+            drop_keys = ["min_capacity", "filter", "bin", "group", "cluster"]
+            resource_groups = cluster_builder.find_groups(
+                existing=False,
+                **dict([(k, v) for k, v in scenario.items() if k not in drop_keys]),
+            )
+            if not resource_groups:
+                raise ValueError(
+                    f"Parameters do not match any resource groups: {kwargs}"
+                )
+            if len(resource_groups) > 1:
+                meta = [rg.group for rg in resource_groups]
+                raise ValueError(f"Parameters match multiple resource groups: {meta}")
+            renew_data, site_map = load_resource_group_data(resource_groups[0])
             data = assign_site_cluster(
-                renew_data,
-                profile_paths,
-                site_map,
+                renew_data=renew_data,
+                profile_path=resource_groups[0].group.get("profiles"),
+                regions=regions,
+                site_map=site_map,
                 utc_offset=settings.get("utc_offset", 0),
                 **scenario,
             )
             clusters = (
-                data.groupby("cluster")
+                data.groupby("cluster", as_index=False)
                 .apply(calc_cluster_values)
                 .rename(columns={"mw": "Max_Cap_MW"})
                 .assign(technology=technology, region=region)
@@ -1394,7 +1399,7 @@ def add_renewables_clusters(
             clusters = (
                 cluster_builder.get_clusters(
                     **scenario,
-                    ipm_regions=ipm_regions,
+                    ipm_regions=regions,
                     existing=False,
                     utc_offset=settings.get("utc_offset", 0),
                 )

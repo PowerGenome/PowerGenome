@@ -3,14 +3,14 @@ Flexible methods to cluster/aggregate renewable projects
 """
 
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Any, List, Union
 
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 from sklearn.cluster import AgglomerativeClustering
 
-from powergenome.resource_clusters import ClusterBuilder, Table, MERGE
+from powergenome.resource_clusters import MERGE
 
 
 def load_site_profiles(path: Path, site_ids: List[str]) -> pd.DataFrame:
@@ -26,7 +26,7 @@ def value_bin(
     data: pd.DataFrame,
     feature: str,
     bins: int,
-):
+) -> pd.DataFrame:
     _data = data.copy()
     labels = pd.cut(_data[feature], bins=bins)
     _data[f"{feature}_bin"] = labels
@@ -34,7 +34,7 @@ def value_bin(
     return _data
 
 
-def agg_cluster_profile(s: pd.Series, n_clusters: int):
+def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
     clust = AgglomerativeClustering(n_clusters=n_clusters).fit(
         np.array([x for x in s.values])
     )
@@ -42,7 +42,7 @@ def agg_cluster_profile(s: pd.Series, n_clusters: int):
     return labels
 
 
-def agg_cluster_other(s: pd.Series, n_clusters: int):
+def agg_cluster_other(s: pd.Series, n_clusters: int) -> pd.DataFrame:
     clust = AgglomerativeClustering(n_clusters=n_clusters).fit(s.values.reshape(-1, 1))
     labels = clust.labels_
     return labels
@@ -50,7 +50,7 @@ def agg_cluster_other(s: pd.Series, n_clusters: int):
 
 def agglomerative_cluster_binned(
     data: pd.DataFrame, by: Union[str, List[str]], feature: str, n_clusters: int
-):
+) -> pd.DataFrame:
 
     if feature == "profile":
         func = agg_cluster_profile
@@ -76,7 +76,9 @@ def agglomerative_cluster_binned(
     return df
 
 
-def agglomerative_cluster_no_bin(data: pd.DataFrame, feature: str, n_clusters: int):
+def agglomerative_cluster_no_bin(
+    data: pd.DataFrame, feature: str, n_clusters: int
+) -> pd.DataFrame:
     if data.empty:
         return data
     _data = data.copy()
@@ -95,7 +97,7 @@ def agglomerative_cluster_no_bin(data: pd.DataFrame, feature: str, n_clusters: i
     return _data
 
 
-def agglomerative_cluster(binned: bool, data: pd.DataFrame, **kwargs):
+def agglomerative_cluster(binned: bool, data: pd.DataFrame, **kwargs) -> pd.DataFrame:
     kwargs.pop("method")
     if binned:
         return agglomerative_cluster_binned(data, **kwargs)
@@ -105,7 +107,7 @@ def agglomerative_cluster(binned: bool, data: pd.DataFrame, **kwargs):
 
 def value_filter(
     data: pd.DataFrame, feature: str, max_value: float = None, min_value: float = None
-):
+) -> pd.DataFrame:
     df = data.copy()
     if max_value:
         df = df.loc[df[feature] <= max_value, :]
@@ -135,7 +137,7 @@ def calc_cluster_values(
     sums: List[str] = MERGE["sums"],
     means: List[str] = MERGE["means"],
     weight: str = MERGE["weight"],
-):
+) -> pd.DataFrame:
     sums = [s for s in sums if s in df.columns]
     means = [m for m in means if m in df.columns]
     assert weight in df.columns
@@ -156,6 +158,7 @@ def calc_cluster_values(
     profile /= df["weight"].sum()
 
     _df["profile"] = [profile]
+    _df["cluster"] = df["cluster"].values[0]
 
     return _df
 
@@ -164,24 +167,19 @@ CLUSTER_FUNCS = {"agglomerative": agglomerative_cluster}
 
 
 def assign_site_cluster(
-    renew_data: Dict[str, pd.DataFrame],
-    profile_paths: Dict[str, Path],
-    site_map: Dict[str, pd.DataFrame],
-    technology: str,
-    region: str,
+    renew_data: pd.DataFrame,
+    profile_path: Path,
+    regions: List[str],
+    site_map: pd.DataFrame = None,
     min_capacity: int = None,
     filter: List[dict] = None,
     bin: List[dict] = None,
     group: List[str] = None,
     cluster: List[dict] = None,
     utc_offset: int = 0,
-):
-    if technology not in renew_data.keys():
-        raise KeyError(
-            "No JSON file pointing to resource metadata or generation profiles was "
-            f"found for the technology {technology}"
-        )
-    data = renew_data[technology].loc[renew_data[technology]["region"] == region, :]
+    **kwargs: Any,
+) -> pd.DataFrame:
+    data = renew_data.loc[renew_data["region"].isin(regions), :]
 
     for filt in filter or []:
         data = value_filter(
@@ -192,15 +190,14 @@ def assign_site_cluster(
         )
     if min_capacity:
         data = min_capacity_mw(data, min_cap=min_capacity)
-    if technology in site_map.keys():
-        site_ids = [str(site_map[technology].loc[i]) for i in data["cpa_id"]]
+    if site_map is not None:
+        site_ids = [str(site_map.loc[i]) for i in data["cpa_id"]]
     else:
         site_ids = [str(i) for i in data["cpa_id"]]
-    cpa_profiles = load_site_profiles(
-        profile_paths[technology], site_ids=list(set(site_ids))
-    )
-    profiles = [np.roll(cpa_profiles[site].values, utc_offset) for site in site_ids]
-    data["profile"] = profiles
+    if profile_path is not None:
+        cpa_profiles = load_site_profiles(profile_path, site_ids=list(set(site_ids)))
+        profiles = [np.roll(cpa_profiles[site].values, utc_offset) for site in site_ids]
+        data["profile"] = profiles
 
     bin_features = []
     for bin in bin or []:
