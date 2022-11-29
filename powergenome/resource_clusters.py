@@ -4,6 +4,7 @@ import json
 import os
 import re
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -442,7 +443,7 @@ class ResourceGroup:
         for key in ["metadata", "profiles"]:
             if self.group.get(key):
                 # Convert relative paths (relative to group file) to absolute paths
-                self.group[key] = os.path.abspath(os.path.join(path, self.group[key]))
+                self.group[key] = Path(path) / self.group[key]
         required = ["technology"]
         if metadata is None:
             required.append("metadata")
