@@ -25,10 +25,31 @@ def load_site_profiles(path: Path, site_ids: List[str]) -> pd.DataFrame:
 def value_bin(
     data: pd.DataFrame,
     feature: str,
-    bins: int,
+    bins: Union[int, List[float]] = None,
+    q: Union[int, List[float]] = None,
 ) -> pd.DataFrame:
     _data = data.copy()
-    labels = pd.cut(_data[feature], bins=bins)
+    if not feature:
+        raise KeyError(
+            "One of your renewables_clusters uses the 'bin' option but doesn't include "
+            "the 'feature' argument. You must specify a numeric feature (column) to "
+            "split the renewable sites into bins."
+        )
+    if not data[feature].dtype.kind in "iufc":
+        raise TypeError(
+            f"You specified the feature '{feature}' to bin one of your renewables_clusters. "
+            f"'{feature}' is not a numeric column. Binning requires a numeric column."
+        )
+    if q:
+        labels = pd.qcut(_data[feature], q=q)
+    elif bins:
+        labels = pd.cut(_data[feature], bins=bins)
+    else:
+        raise KeyError(
+            "One of your renewables_clusters uses the 'bin' option but doesn't include "
+            "either the 'bins' or 'q' argument. One of these is required to bin sites "
+            "by a numeric feature."
+        )
     _data[f"{feature}_bin"] = labels
 
     return _data
@@ -201,7 +222,7 @@ def assign_site_cluster(
 
     bin_features = []
     for b in bin or []:
-        feature = b["feature"]
+        feature = b.get("feature")
         bin_features.append(f"{feature}_bin")
         data = value_bin(data, feature, b["bins"])
 
