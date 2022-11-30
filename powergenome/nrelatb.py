@@ -1393,6 +1393,14 @@ def add_renewables_clusters(
                 .rename(columns={"mw": "Max_Cap_MW"})
                 .assign(technology=technology, region=region)
             )
+            if settings.get("extra_outputs"):
+                bin_cols = [c for c in data.columns if c.endswith("_bin")]
+                group_cols = scenario.get("group", [])
+                cols = ["cpa_id"] + bin_cols + group_cols + ["cluster"]
+                fn = f"{region}_{technology}_site_cluster_assignments.csv"
+                data.loc[:, cols].to_csv(
+                    Path(settings["extra_outputs"]) / fn, index=False
+                )
         # region not an argument to ClusterBuilder.get_clusters()
         else:
             scenario.pop("region")
