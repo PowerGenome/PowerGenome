@@ -200,10 +200,10 @@ def assign_site_cluster(
         data["profile"] = profiles
 
     bin_features = []
-    for bin in bin or []:
-        feature = bin["feature"]
+    for b in bin or []:
+        feature = b["feature"]
         bin_features.append(f"{feature}_bin")
-        data = value_bin(data, feature, bin["num_bins"])
+        data = value_bin(data, feature, b["num_bins"])
 
     group_by = bin_features + (group or [])
     prev_feature_cluster_col = None
