@@ -1,7 +1,7 @@
 """
 Flexible methods to cluster/aggregate renewable projects
 """
-
+import logging
 from pathlib import Path
 from typing import Any, List, Union
 
@@ -11,6 +11,8 @@ import pyarrow.parquet as pq
 from sklearn.cluster import AgglomerativeClustering
 
 from powergenome.resource_clusters import MERGE
+
+logger = logging.getLogger(__name__)
 
 
 def load_site_profiles(path: Path, site_ids: List[str]) -> pd.DataFrame:
@@ -23,36 +25,25 @@ def load_site_profiles(path: Path, site_ids: List[str]) -> pd.DataFrame:
 
 
 def value_bin(
-    data: pd.DataFrame,
-    feature: str,
+    s: pd.Series,
     bins: Union[int, List[float]] = None,
     q: Union[int, List[float]] = None,
 ) -> pd.DataFrame:
-    _data = data.copy()
-    if not feature:
-        raise KeyError(
-            "One of your renewables_clusters uses the 'bin' option but doesn't include "
-            "the 'feature' argument. You must specify a numeric feature (column) to "
-            "split the renewable sites into bins."
-        )
-    if not data[feature].dtype.kind in "iufc":
-        raise TypeError(
-            f"You specified the feature '{feature}' to bin one of your renewables_clusters. "
-            f"'{feature}' is not a numeric column. Binning requires a numeric column."
-        )
+    if s.empty:
+        return []
     if q:
-        labels = pd.qcut(_data[feature], q=q)
+        labels = pd.qcut(s, q=q, duplicates="drop", labels=False)
     elif bins:
-        labels = pd.cut(_data[feature], bins=bins)
+        labels = pd.cut(s, bins=bins, duplicates="drop")
     else:
-        raise KeyError(
+        logger.warning(
             "One of your renewables_clusters uses the 'bin' option but doesn't include "
             "either the 'bins' or 'q' argument. One of these is required to bin sites "
-            "by a numeric feature."
+            "by a numeric feature. No binning will be performed on this group of sites."
         )
-    _data[f"{feature}_bin"] = labels
+        labels = np.ones_like(s)
 
-    return _data
+    return labels
 
 
 def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
@@ -211,6 +202,8 @@ def assign_site_cluster(
         )
     if min_capacity:
         data = min_capacity_mw(data, min_cap=min_capacity)
+    if data.empty:
+        return data
     if site_map is not None:
         site_ids = [str(site_map.loc[i]) for i in data["cpa_id"]]
     else:
@@ -223,8 +216,25 @@ def assign_site_cluster(
     bin_features = []
     for b in bin or []:
         feature = b.get("feature")
+        if not feature:
+            raise KeyError(
+                "One of your renewables_clusters uses the 'bin' option but doesn't include "
+                "the 'feature' argument. You must specify a numeric feature (column) to "
+                "split the renewable sites into bins."
+            )
+        if feature not in data.columns:
+            raise KeyError(
+                "One of your renewables_clusters uses the 'bin' option and includes the "
+                f"feature argument '{feature}', which is not in the renewable site data. The "
+                "feature must be one of the columns in your renewable site data file."
+            )
+        if not data[feature].dtype.kind in "iufc":
+            raise TypeError(
+                f"You specified the feature '{feature}' to bin one of your renewables_clusters. "
+                f"'{feature}' is not a numeric column. Binning requires a numeric column."
+            )
         bin_features.append(f"{feature}_bin")
-        data = value_bin(data, feature, b["bins"])
+        data[f"{feature}_bin"] = value_bin(data[feature], b.get("bins"), b.get("q"))
 
     group_by = bin_features + (group or [])
     prev_feature_cluster_col = None
