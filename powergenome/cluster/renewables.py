@@ -200,10 +200,11 @@ def assign_site_cluster(
             max_value=filt.get("max"),
             min_value=filt.get("min"),
         )
+    if data.empty:
+        data["cluster"] = []
+        return data
     if min_capacity:
         data = min_capacity_mw(data, min_cap=min_capacity)
-    if data.empty:
-        return data
     if site_map is not None:
         site_ids = [str(site_map.loc[i]) for i in data["cpa_id"]]
     else:
