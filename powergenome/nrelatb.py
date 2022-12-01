@@ -1367,13 +1367,16 @@ def add_renewables_clusters(
         scenario.pop("region")
         if settings.get("precluster_renewables") is False:
             drop_keys = ["min_capacity", "filter", "bin", "group", "cluster"]
+            group_kwargs = dict(
+                [(k, v) for k, v in scenario.items() if k not in drop_keys]
+            )
             resource_groups = cluster_builder.find_groups(
                 existing=False,
-                **dict([(k, v) for k, v in scenario.items() if k not in drop_keys]),
+                **group_kwargs,
             )
             if not resource_groups:
                 raise ValueError(
-                    f"Parameters do not match any resource groups: {kwargs}"
+                    f"Parameters do not match any resource groups: {group_kwargs}"
                 )
             if len(resource_groups) > 1:
                 meta = [rg.group for rg in resource_groups]
