@@ -31,3 +31,4 @@ dependencies:
     - flatten-dict
     - ruamel.yaml
     - frozendict
+    - hypothesis[pandas]

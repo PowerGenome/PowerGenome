@@ -47,6 +47,25 @@ def value_bin(
 
 
 def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
+    if s.empty:
+        return []
+    if len(s) == 1:
+        return [1]
+    if n_clusters <= 0:
+        logger.warning(
+            f"You have entered a n_clusters parameter that is less than or equal to 0 "
+            "in the settings parameter renewables_clusters. n_clusters must be >= 1. "
+            "Manually setting n_clusters to 1 in this case."
+        )
+        n_clusters = 1
+    if n_clusters > len(s):
+        logger.warning(
+            f"You have entered a n_clusters parameter that is greater than the number of "
+            "renewable sites for one grouping in the settings parameter renewables_clusters."
+            "Manually setting n_clusters to the number of renewable sites in this case."
+        )
+        n_clusters = len(s)
+
     clust = AgglomerativeClustering(n_clusters=n_clusters).fit(
         np.array([x for x in s.values])
     )
@@ -55,6 +74,24 @@ def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
 
 
 def agg_cluster_other(s: pd.Series, n_clusters: int) -> pd.DataFrame:
+    if s.empty:
+        return []
+    if len(s) == 1:
+        return [1]
+    if n_clusters <= 0:
+        logger.warning(
+            f"You have entered a n_clusters parameter that is less than or equal to 0 "
+            "in the settings parameter renewables_clusters. n_clusters must be >= 1. "
+            "Manually setting n_clusters to 1 in this case."
+        )
+        n_clusters = 1
+    if n_clusters > len(s):
+        logger.warning(
+            f"You have entered a n_clusters parameter that is greater than the number of "
+            "renewable sites for one grouping in the settings parameter renewables_clusters."
+            "Manually setting n_clusters to the number of renewable sites in this case."
+        )
+        n_clusters = len(s)
     clust = AgglomerativeClustering(n_clusters=n_clusters).fit(s.values.reshape(-1, 1))
     labels = clust.labels_
     return labels
@@ -63,6 +100,9 @@ def agg_cluster_other(s: pd.Series, n_clusters: int) -> pd.DataFrame:
 def agglomerative_cluster_binned(
     data: pd.DataFrame, by: Union[str, List[str]], feature: str, n_clusters: int
 ) -> pd.DataFrame:
+    if data.empty:
+        data["cluster"] = []
+        return data
 
     if feature == "profile":
         func = agg_cluster_profile
@@ -92,6 +132,7 @@ def agglomerative_cluster_no_bin(
     data: pd.DataFrame, feature: str, n_clusters: int
 ) -> pd.DataFrame:
     if data.empty:
+        data["cluster"] = []
         return data
     _data = data.copy()
     if feature == "profile":
@@ -134,6 +175,16 @@ def min_capacity_mw(
     min_cap: int = None,
     cap_col: str = "mw",
 ) -> pd.DataFrame:
+    if "lcoe" not in data.columns:
+        logger.warning(
+            "You have selected a minimum capacity for one of the renewables_clusters "
+            "groups. This feature is only available if the column 'lcoe' is included in "
+            "your data file on renewable sites. No 'lcoe' column has been found, so all "
+            "sites will be included in the final clusters."
+        )
+        return data
+    if min_cap is None:
+        return data
 
     _df = data.sort_values("lcoe")
     mask = np.ones(len(_df), dtype=bool)
