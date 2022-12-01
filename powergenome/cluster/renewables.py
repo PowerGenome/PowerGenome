@@ -291,6 +291,9 @@ def assign_site_cluster(
     group_by = bin_features + (group or [])
     prev_feature_cluster_col = None
     for clust in cluster or []:
+        if "mw_per_cluster" in clust and clust.get("n_clusters") is None:
+            clust["n_clusters"] = int(data["mw"].sum() / clust["mw_per_cluster"]) + 1
+
         if "cluster" in data.columns and prev_feature_cluster_col:
             data = data.rename(columns={"cluster": prev_feature_cluster_col})
         if group_by:
