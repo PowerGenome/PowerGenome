@@ -1406,7 +1406,6 @@ def add_renewables_clusters(
                 )
         # region not an argument to ClusterBuilder.get_clusters()
         else:
-            scenario.pop("region")
             clusters = (
                 cluster_builder.get_clusters(
                     **scenario,
