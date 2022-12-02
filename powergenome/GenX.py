@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List
 import pandas as pd
+import numpy as np
 
 from powergenome.external_data import (
     load_policy_scenarios,
@@ -417,14 +418,27 @@ def add_misc_gen_values(
     value_cols = [
         col for col in misc_values.columns if col not in [region_col, resource_col]
     ]
-
+    for c in value_cols:
+        if c not in gen_clusters.columns:
+            gen_clusters[c] = np.nan
     for idx, row in misc_values.iterrows():
         row_cols = row[value_cols].dropna().index
-        gen_clusters.loc[
+        if not gen_clusters.loc[
             (gen_clusters["region"] == row[region_col])
             & (gen_clusters[resource_col].str.contains(row[resource_col], case=False)),
-            row_cols,
-        ] = row[row_cols].values
+            :,
+        ].empty:
+            for col, value in row[value_cols].dropna().items():
+                gen_clusters.loc[
+                    (gen_clusters["region"] == row[region_col])
+                    & (
+                        gen_clusters[resource_col].str.contains(
+                            row[resource_col], case=False
+                        )
+                    )
+                    & (gen_clusters[col].isna()),
+                    col,
+                ] = value
     return gen_clusters
 
 
