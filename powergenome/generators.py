@@ -968,11 +968,16 @@ def update_operating_date_860m(
         The original "df" dataframe with missing operating dates filled using the operating
         year from 860m.
     """
-    df = df.set_index(["plant_id_eia", "generator_id"])
-    operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
-    no_op_date = set(df.loc[df["operating_date"].isna(), :].index)
-    df.loc[no_op_date, "operating_date"] = pd.to_datetime(
-        operating_860m.reindex(no_op_date).dropna(how="all")["operating_year"],
+    no_op_date = df.loc[df["operating_date"].isna(), :]
+    no_op_date = pd.merge(
+        no_op_date,
+        operating_860m[["plant_id_eia", "generator_id", "operating_year"]],
+        on=["plant_id_eia", "generator_id"],
+        how="left",
+    )
+
+    df.loc[no_op_date.index, "operating_date"] = pd.to_datetime(
+        no_op_date["operating_year"],
         format="%Y",
     )
 
@@ -2683,8 +2688,10 @@ def load_demand_response_efs_profile(
     dr_profile.columns = dr_profile.columns.droplevel()
     for model_region, base_regs in region_aggregations.items():
         base_regs = [r for r in base_regs if r != model_region]
-        dr_profile[model_region] = dr_profile[base_regs].sum(axis=1)
-        dr_profile = dr_profile.drop(columns=base_regs)
+        dr_profile[model_region] = dr_profile.reindex(
+            columns=base_regs, fill_value=0
+        ).sum(axis=1)
+        dr_profile = dr_profile.drop(columns=base_regs, errors="ignore")
 
     return dr_profile
 
