@@ -134,9 +134,10 @@ def parse_command_line(argv):
     return arguments
 
 
-def main():
+def main(**kwargs):
 
     args = parse_command_line(sys.argv)
+    args.__dict__.update(kwargs)
     cwd = Path.cwd()
 
     out_folder = cwd / args.results_folder
