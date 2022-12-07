@@ -247,7 +247,7 @@ def assign_site_cluster(
     for filt in filter or []:
         data = value_filter(
             data=data,
-            feature=filt["feature"],
+            feature=filt["feature"].lower(),
             max_value=filt.get("max"),
             min_value=filt.get("min"),
         )
@@ -285,10 +285,11 @@ def assign_site_cluster(
                 f"You specified the feature '{feature}' to bin one of your renewables_clusters. "
                 f"'{feature}' is not a numeric column. Binning requires a numeric column."
             )
+        feature = feature.lower()
         bin_features.append(f"{feature}_bin")
         data[f"{feature}_bin"] = value_bin(data[feature], b.get("bins"), b.get("q"))
 
-    group_by = bin_features + (group or [])
+    group_by = bin_features + ([g.lower() for g in group or []])
     prev_feature_cluster_col = None
     for clust in cluster or []:
         if "mw_per_cluster" in clust and clust.get("n_clusters") is None:

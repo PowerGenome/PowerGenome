@@ -1398,7 +1398,7 @@ def add_renewables_clusters(
             )
             if settings.get("extra_outputs"):
                 bin_cols = [c for c in data.columns if c.endswith("_bin")]
-                group_cols = scenario.get("group", [])
+                group_cols = [g.lower() for g in scenario.get("group", [])]
                 cols = ["cpa_id"] + bin_cols + group_cols + ["cluster"]
                 fn = f"{region}_{technology}_site_cluster_assignments.csv"
                 data.loc[:, cols].to_csv(
