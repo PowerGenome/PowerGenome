@@ -543,7 +543,9 @@ def insert_user_tx_costs(tx_df: pd.DataFrame, user_costs: pd.DataFrame) -> pd.Da
     pd.DataFrame
         Supplemented interregional transmission lines
     """
-
+    if tx_df.empty:
+        return tx_df
+    user_costs = user_costs.dropna(subset=["zone_1", "zone_2"], how="any")
     unused_lines = []
     for row in user_costs.itertuples():
         line_row = tx_df.loc[(tx_df[row.zone_1] != 0) & (tx_df[row.zone_2] != 0), :]

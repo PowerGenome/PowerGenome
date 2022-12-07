@@ -379,7 +379,10 @@ def main():
                 model_regions_gdf = gc.model_regions_gdf
                 if _settings.get("user_transmission_costs"):
                     user_tx_costs = load_user_tx_costs(
-                        _settings["extra_inputs"] / _settings["user_transmission_costs"]
+                        _settings["input_folder"]
+                        / _settings["user_transmission_costs"],
+                        _settings["model_regions"],
+                        _settings.get("target_usd_year"),
                     )
                     transmission = agg_transmission_constraints(
                         pg_engine=pg_engine, settings=_settings
