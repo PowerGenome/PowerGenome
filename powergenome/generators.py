@@ -968,20 +968,24 @@ def update_operating_date_860m(
         The original "df" dataframe with missing operating dates filled using the operating
         year from 860m.
     """
-    no_op_date = df.loc[df["operating_date"].isna(), :]
+    _df = df.set_index(["plant_id_eia", "generator_id"])
+    _operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
+    no_op_date = _df.loc[_df["operating_date"].isna(), :]
     no_op_date = pd.merge(
         no_op_date,
-        operating_860m[["plant_id_eia", "generator_id", "operating_year"]],
-        on=["plant_id_eia", "generator_id"],
+        _operating_860m["operating_year"],
+        left_index=True,
+        right_index=True,
         how="left",
+        validate="1:1",
     )
 
-    df.loc[no_op_date.index, "operating_date"] = pd.to_datetime(
-        no_op_date["operating_year"],
+    _df.loc[no_op_date.index, "operating_date"] = pd.to_datetime(
+        no_op_date.loc[no_op_date["operating_year"].notna(), "operating_year"],
         format="%Y",
     )
 
-    return df.reset_index()
+    return _df.reset_index()
 
 
 def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
