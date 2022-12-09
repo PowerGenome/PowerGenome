@@ -880,7 +880,7 @@ def remove_canceled_860m(df, canceled_860m):
     if not canceled.empty:
         assert len(df) == len(canceled) + len(not_canceled_df)
 
-    return not_canceled_df
+    return not_canceled_df.reset_index(drop=True)
 
 
 def remove_retired_860m(df, retired_860m):
@@ -911,7 +911,7 @@ def remove_retired_860m(df, retired_860m):
     if not retired.empty:
         assert len(df) == len(retired) + len(not_retired_df)
 
-    return not_retired_df
+    return not_retired_df.reset_index(drop=True)
 
 
 def remove_future_retirements_860m(df, retired_860m):
