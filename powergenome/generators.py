@@ -879,7 +879,7 @@ def remove_canceled_860m(df, canceled_860m):
     if not canceled.empty:
         assert len(df) == len(canceled) + len(not_canceled_df)
 
-    return not_canceled_df
+    return not_canceled_df.reset_index(drop=True)
 
 
 def remove_retired_860m(df, retired_860m):
@@ -910,7 +910,7 @@ def remove_retired_860m(df, retired_860m):
     if not retired.empty:
         assert len(df) == len(retired) + len(not_retired_df)
 
-    return not_retired_df
+    return not_retired_df.reset_index(drop=True)
 
 
 def remove_future_retirements_860m(df, retired_860m):
@@ -973,17 +973,18 @@ def update_operating_date_860m(
     no_op_date["id"] = no_op_date.index
     no_op_date = pd.merge(
         no_op_date,
-        operating_860m[["plant_id_eia", "generator_id", "operating_year"]],
-        on=["plant_id_eia", "generator_id"],
+        _operating_860m["operating_year"],
+        left_index=True,
+        right_index=True,
         how="left",
     ).set_index("id")
 
-    df.loc[no_op_date.index, "operating_date"] = pd.to_datetime(
-        no_op_date["operating_year"],
+    _df.loc[no_op_date.index, "operating_date"] = pd.to_datetime(
+        no_op_date.loc[no_op_date["operating_year"].notna(), "operating_year"],
         format="%Y",
     )
 
-    return df.reset_index()
+    return _df.reset_index()
 
 
 def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
