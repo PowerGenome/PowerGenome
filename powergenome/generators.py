@@ -957,7 +957,6 @@ def update_operating_date_860m(
     df : pd.DataFrame
         Data on existing EIA generating units. Must have columns "plant_id_eia",
         "generator_id", and "operating_date".
-        GABE NOTE: suggest labeling if the index is meaningful. My guess is no.
     operating_860m : pd.DataFrame
         A dataframe of operating generating units from EIA 860m. Must have columns
         "plant_id_eia", "generator_id", and "operating_year".
@@ -973,18 +972,19 @@ def update_operating_date_860m(
     no_op_date["id"] = no_op_date.index
     no_op_date = pd.merge(
         no_op_date,
-        _operating_860m["operating_year"],
+        operating_860m["operating_year"],
         left_index=True,
         right_index=True,
         how="left",
     ).set_index("id")
 
-    _df.loc[no_op_date.index, "operating_date"] = pd.to_datetime(
-        no_op_date.loc[no_op_date["operating_year"].notna(), "operating_year"],
+    no_op_date = no_op_date.loc[no_op_date["operating_year"].notna(), :]
+    df.loc[no_op_date.index, "operating_date"] = pd.to_datetime(
+        no_op_date["operating_year"],
         format="%Y",
     )
 
-    return _df.reset_index()
+    return df.reset_index()
 
 
 def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
