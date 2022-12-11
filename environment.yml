@@ -23,6 +23,7 @@ dependencies:
   - conda-forge::flatten-dict
   - conda-forge::ruamel.yaml
   - conda-forge::frozendict
+  - conda-forge::hypothesis
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona
