@@ -453,8 +453,7 @@ def load_plant_region_map(
         settings["model_regions"], settings.get("region_aggregations")
     )
 
-    # Create a new column "model_region" with labels that we're using for aggregated
-    # regions
+    # Create a new column "model_region" with labels that we're using for aggregated regions
 
     model_region_map_df = region_map_df.loc[
         region_map_df.region.isin(keep_regions), :
@@ -958,6 +957,7 @@ def update_operating_date_860m(
     df : pd.DataFrame
         Data on existing EIA generating units. Must have columns "plant_id_eia",
         "generator_id", and "operating_date".
+        GABE NOTE: suggest labeling if the index is meaningful. My guess is no.
     operating_860m : pd.DataFrame
         A dataframe of operating generating units from EIA 860m. Must have columns
         "plant_id_eia", "generator_id", and "operating_year".
@@ -968,13 +968,15 @@ def update_operating_date_860m(
         The original "df" dataframe with missing operating dates filled using the operating
         year from 860m.
     """
+
     no_op_date = df.loc[df["operating_date"].isna(), :]
+    no_op_date["id"] = no_op_date.index
     no_op_date = pd.merge(
         no_op_date,
         operating_860m[["plant_id_eia", "generator_id", "operating_year"]],
         on=["plant_id_eia", "generator_id"],
         how="left",
-    )
+    ).set_index("id")
 
     df.loc[no_op_date.index, "operating_date"] = pd.to_datetime(
         no_op_date["operating_year"],
