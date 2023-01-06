@@ -453,8 +453,7 @@ def load_plant_region_map(
         settings["model_regions"], settings.get("region_aggregations")
     )
 
-    # Create a new column "model_region" with labels that we're using for aggregated
-    # regions
+    # Create a new column "model_region" with labels that we're using for aggregated regions
 
     model_region_map_df = region_map_df.loc[
         region_map_df.region.isin(keep_regions), :
@@ -775,10 +774,16 @@ def supplement_generator_860_data(
     # In this merge of the three dataframes we're trying to label each generator with
     # the model region it is part of, the prime mover and operating date, and the
     # PUDL unit codes (where they exist).
+
+    # drop duplicate rows of model_region_map
+    mapping = model_region_map.drop(columns="region").drop_duplicates()
+    # drop duplicate mappings for the same ID
+    mapping = mapping.loc[~mapping.plant_id_eia.duplicated(), :]
+
     gens_860_model = (
         pd.merge(
             gens_860[gen_cols],
-            model_region_map.drop(columns="region"),
+            mapping,
             on="plant_id_eia",
             how="inner",
         )
@@ -968,6 +973,7 @@ def update_operating_date_860m(
         The original "df" dataframe with missing operating dates filled using the operating
         year from 860m.
     """
+
     _df = df.set_index(["plant_id_eia", "generator_id"])
     _operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
     no_op_date = _df.loc[_df["operating_date"].isna(), :]
@@ -2801,9 +2807,13 @@ class GeneratorClusters:
 
             self.eia_860m = load_860m(self.settings)
             self.operating_860m = self.eia_860m["operating"]
+            self.operating_860m = self.remove_860_duplicates(self.operating_860m)
             self.planned_860m = self.eia_860m["planned"]
+            self.planned_860m = self.remove_860_duplicates(self.planned_860m)
             self.canceled_860m = self.eia_860m["canceled"]
+            self.canceled_860m = self.remove_860_duplicates(self.canceled_860m)
             self.retired_860m = self.eia_860m["retired"]
+            self.retired_860m = self.remove_860_duplicates(self.retired_860m)
 
             # self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
             self.plants_860 = load_plants_860(self.pudl_engine, self.data_years)
@@ -2841,6 +2851,15 @@ class GeneratorClusters:
         # df["heat_rate_mmbtu_mwh"].fillna(median_hr, inplace=True)
 
         # return df
+
+    def remove_860_duplicates(self, df_860: pd.DataFrame()) -> pd.DataFrame():
+        """
+        Remove rows from an EIA 860 DF that contain a duplicate plant-generator pairing.
+        """
+        df = df_860.copy(deep=True)
+        df = df.set_index(["plant_id_eia", "generator_id"])
+        df = df.loc[~df.index.duplicated(), :].reset_index()
+        return df
 
     def create_demand_response_gen_rows(self):
         """Create rows for demand response/management resources to include in the

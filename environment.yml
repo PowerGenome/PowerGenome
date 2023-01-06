@@ -3,9 +3,9 @@ channels:
   - conda-forge
   # - defaults
 dependencies:
-  - python>=3.8 # Remove for tox.ini & setup.py
+  - python=3.10 # Remove for tox.ini & setup.py
   - pip
-  - conda-forge::catalystcoop.pudl=0.5
+  - conda-forge::catalystcoop.pudl=0.6
   - jupyterlab
   - black
   - pytest
@@ -19,16 +19,14 @@ dependencies:
   - conda-forge::nb_conda_kernels
   - fastparquet
   - pandas=1.3.*
+  - conda-forge::python-dotenv
+  - conda-forge::flatten-dict
+  - conda-forge::ruamel.yaml
+  - conda-forge::frozendict
+  - conda-forge::hypothesis[pandas]
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona
   - conda-forge::geopandas
   - conda-forge::shapely
   - conda-forge::descartes
-
-  - pip:
-    - python-dotenv
-    - flatten-dict
-    - ruamel.yaml
-    - frozendict
-    - hypothesis[pandas]

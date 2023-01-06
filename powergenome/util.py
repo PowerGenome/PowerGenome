@@ -52,6 +52,10 @@ def load_settings(path: Union[str, Path]) -> dict:
             s = yaml.load(sf)
             if s:
                 settings.update(s)
+    else:
+        raise FileNotFoundError(
+            "Path is not recognized. Check that your path is valid."
+        )
 
     if settings.get("input_folder"):
         settings["input_folder"] = path.parent / settings["input_folder"]
