@@ -242,6 +242,91 @@ def assign_site_cluster(
     utc_offset: int = 0,
     **kwargs: Any,
 ) -> pd.DataFrame:
+    """Use settings options to group individual renewable sites.
+
+    Sites are located within a model region that may be a collection of base regions.
+    Site metadata such as the cpa_id and any numeric or categorial features (e.g.
+    interconnection cost or the name of a geographic subregion that the site is located
+    in) are specified in `renew_data`. Based on the user settings, the full list of
+    sites in a region is filtered (numeric), binned (numeric), grouped(categorical), and
+    clustered (numeric).
+
+    Parameters
+    ----------
+    renew_data : pd.DataFrame
+        Data on each renewable site. Must contain columns "cpa_id", "region", and either
+        "interconnect_annuity" or "interconnect_capex_mw". Other columns are numeric or
+        categorical features. Example columns might be a geographic location such as county
+        (categorical), or the capacity factor (numeric).
+    profile_path : Path
+        Path to a parquet or CSV file with generation profiles. Column names should
+        either correspond to the "cpa_id" from `renew_data` or mapped IDs from `site_map`.
+    regions : List[str]
+        The regions from "region" column of `renew_data` that will be used.
+    site_map : pd.DataFrame, optional
+        An optional mapping of `cpa_id` to the column names in the generation profile file,
+        by default None
+    min_capacity : int, optional
+        A minimum amount of capacity to include, by default None. Can only be used if
+        the column "lcoe" is included in `renew_data`. Sites are sorted based on lcoe
+        and the least cost sites that satisfy the minimum capacity are retained.
+    filter : List[dict], optional
+        A list of filter parameters, by default None. Each dictionary should have the keys
+        "feature" and at least one of "min" and "max". Only sites in `renew_data` with
+        values that satisfy the min/max parameters for the specified features are retained.
+    bin : List[dict], optional
+        A list of binning parameters, by default None. Each dictionary should have the keys
+        "feature" and either "bins" or "q". "bins" and "q" are input parameters to the
+        Pandas functions `cut` and `qcut` -- they can be integers or a list of bin edge
+        values.
+    group : List[str], optional
+        A list of categorical features in `renew_data` to group the sites, by default None.
+    cluster : List[dict], optional
+        A list of clustering parameters, by default None. Each dictionary should have the
+        keys "feature", "method", and "n_clusters". Supported methods are "agglomerative".
+        The feature should either be a column from `renew_data` or "profile" (use the
+        generation profiles as a feature).
+    utc_offset : int, optional
+        Hours offset from UTC, by default 0. Generation data will be shifted from UTC
+        by this value.
+
+    Returns
+    -------
+    pd.DataFrame
+        The renewable sites included in the study with a column "cluster". Other columns
+        for binning and grouping may also be included.
+
+    Raises
+    ------
+    KeyError
+        The key "feature" is not included in a "bin" set of parameters
+    KeyError
+        The feature is not included in `renew_data`
+    TypeError
+        The feature specified by a "bin" set of parameters is not numeric.
+
+    Examples
+    --------
+    This is an example of the YAML settings.
+
+    renewables_clusters:
+    - region: ISNE
+        technology: landbasedwind
+        min_capacity: 10000
+        filter:
+          - feature: lcoe
+            max: 100
+        bin:
+          - feature: interconnect_annuity
+            bins: 3 # This can be an integer or list of bin edges
+            # q: [0, .25, .5, .75, 1.] # Integer number of quantiles (e.g. quartiles) or list of quantile edges
+        group:
+          - state
+        cluster:
+          - feature: profile
+            method: agglomerative
+            n_clusters: 2
+    """
     data = renew_data.loc[renew_data["region"].isin(regions), :]
 
     for filt in filter or []:
