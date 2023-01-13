@@ -207,7 +207,7 @@ def inflation_price_adjustment(
     if cpi_data["year"].max() < max(target_year, base_year):
         logger.info("Updating CPI data")
         kwargs.update({"end_year": target_year})
-        cpi_data = load_cpi_data(reload_data=True, data_path=data_path, kwargs=kwargs)
+        cpi_data = load_cpi_data(reload_data=True, data_path=data_path, **kwargs)
         if cpi_data["year"].max() < target_year:
             raise ValueError(
                 f"CPI data are only available through {cpi_data['year'].max()}. Your target year is "
@@ -216,7 +216,7 @@ def inflation_price_adjustment(
     if cpi_data["year"].min() > base_year:
         logger.info("Updating CPI data")
         kwargs.update({"start_year": base_year})
-        cpi_data = load_cpi_data(reload_data=True, data_path=data_path, kwargs=kwargs)
+        cpi_data = load_cpi_data(reload_data=True, data_path=data_path, **kwargs)
         if cpi_data["year"].min() > base_year:
             raise ValueError(
                 f"CPI data only start in year {cpi_data['year'].min()}. Your base year is "
