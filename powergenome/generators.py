@@ -1687,17 +1687,18 @@ def import_new_generators(
     pd.DataFrame
         Set of operating generators that were not already in the gens_860 dataframe
     """
-    operating_860m["generator_id"] = operating_860m["generator_id"].apply(
+    _operating_860m = operating_860m.copy()
+    _operating_860m["generator_id"] = _operating_860m["generator_id"].apply(
         remove_leading_zero
     )
     gens_860_id = list(zip(gens_860["plant_id_eia"], gens_860["generator_id"]))
     operating_860m_id = zip(
-        operating_860m["plant_id_eia"], operating_860m["generator_id"]
+        _operating_860m["plant_id_eia"], _operating_860m["generator_id"]
     )
 
     new_mask = [g not in gens_860_id for g in operating_860m_id]
     new_operating = label_gen_region(
-        operating_860m.loc[new_mask, :], settings, model_regions_gdf
+        _operating_860m.loc[new_mask, :], settings, model_regions_gdf
     )
     new_operating.loc[:, "heat_rate_mmbtu_mwh"] = new_operating.loc[
         :, "technology_description"
