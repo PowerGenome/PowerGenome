@@ -880,7 +880,7 @@ def remove_canceled_860m(df, canceled_860m):
     if not canceled.empty:
         assert len(df) == len(canceled) + len(not_canceled_df)
 
-    return not_canceled_df
+    return not_canceled_df.reset_index(drop=True)
 
 
 def remove_retired_860m(df, retired_860m):
@@ -911,7 +911,7 @@ def remove_retired_860m(df, retired_860m):
     if not retired.empty:
         assert len(df) == len(retired) + len(not_retired_df)
 
-    return not_retired_df
+    return not_retired_df.reset_index(drop=True)
 
 
 def remove_future_retirements_860m(df, retired_860m):
@@ -968,15 +968,24 @@ def update_operating_date_860m(
         The original "df" dataframe with missing operating dates filled using the operating
         year from 860m.
     """
-    df = df.set_index(["plant_id_eia", "generator_id"])
-    operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
-    no_op_date = set(df.loc[df["operating_date"].isna(), :].index)
-    df.loc[no_op_date, "operating_date"] = pd.to_datetime(
-        operating_860m.reindex(no_op_date).dropna(how="all")["operating_year"],
+    _df = df.set_index(["plant_id_eia", "generator_id"])
+    _operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
+    no_op_date = _df.loc[_df["operating_date"].isna(), :]
+    no_op_date = pd.merge(
+        no_op_date,
+        _operating_860m["operating_year"],
+        left_index=True,
+        right_index=True,
+        how="left",
+        validate="1:1",
+    )
+
+    _df.loc[no_op_date.index, "operating_date"] = pd.to_datetime(
+        no_op_date.loc[no_op_date["operating_year"].notna(), "operating_year"],
         format="%Y",
     )
 
-    return df.reset_index()
+    return _df.reset_index()
 
 
 def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
@@ -1678,17 +1687,18 @@ def import_new_generators(
     pd.DataFrame
         Set of operating generators that were not already in the gens_860 dataframe
     """
-    operating_860m["generator_id"] = operating_860m["generator_id"].apply(
+    _operating_860m = operating_860m.copy()
+    _operating_860m["generator_id"] = _operating_860m["generator_id"].apply(
         remove_leading_zero
     )
     gens_860_id = list(zip(gens_860["plant_id_eia"], gens_860["generator_id"]))
     operating_860m_id = zip(
-        operating_860m["plant_id_eia"], operating_860m["generator_id"]
+        _operating_860m["plant_id_eia"], _operating_860m["generator_id"]
     )
 
     new_mask = [g not in gens_860_id for g in operating_860m_id]
     new_operating = label_gen_region(
-        operating_860m.loc[new_mask, :], settings, model_regions_gdf
+        _operating_860m.loc[new_mask, :], settings, model_regions_gdf
     )
     new_operating.loc[:, "heat_rate_mmbtu_mwh"] = new_operating.loc[
         :, "technology_description"
@@ -2683,8 +2693,10 @@ def load_demand_response_efs_profile(
     dr_profile.columns = dr_profile.columns.droplevel()
     for model_region, base_regs in region_aggregations.items():
         base_regs = [r for r in base_regs if r != model_region]
-        dr_profile[model_region] = dr_profile[base_regs].sum(axis=1)
-        dr_profile = dr_profile.drop(columns=base_regs)
+        dr_profile[model_region] = dr_profile.reindex(
+            columns=base_regs, fill_value=0
+        ).sum(axis=1)
+        dr_profile = dr_profile.drop(columns=base_regs, errors="ignore")
 
     return dr_profile
 
