@@ -1828,8 +1828,9 @@ def import_proposed_generators(
     #     planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
 
     # planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
-
-    planned_gdf = label_gen_region(planned, settings, model_regions_gdf)
+    _planned = planned.copy()
+    _planned["generator_id"] = _planned["generator_id"].apply(remove_leading_zero)
+    planned_gdf = label_gen_region(_planned, settings, model_regions_gdf)
 
     # Add planned additions from the settings file
     additional_planned = settings.get("additional_planned") or []
@@ -3122,7 +3123,7 @@ class GeneratorClusters:
                         ["plant_id_eia", "model_region"]
                     ].drop_duplicates(),
                 ]
-            )
+            ).drop_duplicates(subset=["plant_id_eia", "model_region"])
             # embed()
             logger.info(
                 f"Proposed gen technologies are "
