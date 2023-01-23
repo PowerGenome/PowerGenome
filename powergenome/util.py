@@ -59,8 +59,90 @@ def load_settings(path: Union[str, Path]) -> dict:
 
     if settings.get("input_folder"):
         settings["input_folder"] = path.parent / settings["input_folder"]
+    
+    settings = apply_all_tag_to_regions(settings)
+    
     return fix_param_names(settings)
 
+def apply_all_tag_to_regions(settings):
+
+    settings_all = dict()
+    all_regions = settings["model_regions"]
+
+    # Keeps a list of which regions should be modified by "all" (are not specifically tagged)
+    techs_tagged_w_all = []
+    techs_tagged_by_region = dict()
+    
+    i = 0
+    to_delete = []
+
+    # These are the keys in settings which will not be used to determine whether 'all' should apply to that region
+    identifier_keys = ["technology", "pref_site", "turbine_type"]
+
+    for d in settings["renewables_clusters"]:
+        
+        if "region" not in d:
+            raise KeyError (
+                "Entry missing 'region' tag."
+            )
+
+        reg = d["region"]
+
+        keys = sorted(d.keys())
+        tech = ""
+        for key in keys:
+            if key in identifier_keys:
+                if tech != "":
+                    tech += "_"
+                tech += str(d[key])
+
+        if reg == "all":
+            
+            settings_all[tech] = d
+
+            if "technology" not in d:
+                raise KeyError (
+                    f"""Entry for {reg} missing 'technology' tag."""
+                )
+    
+            if tech in techs_tagged_w_all:
+                s = f"""
+                Multiple 'all' tags applied to technology {tech}. Only last one will be used.
+                """
+                logger.warning(s)
+
+            else:
+
+                techs_tagged_w_all.append(tech)
+            
+            to_delete.append(i)
+        
+        else:
+
+            # Update the dict stating that this technology is specified for this region
+            if tech in techs_tagged_by_region:
+                techs_tagged_by_region[tech].append(reg)
+            else:
+                techs_tagged_by_region[tech] = [reg]
+        
+        # Keeps track of the "all" tags so that they can be deleted later in the function
+        i += 1
+
+    for i in reversed(to_delete):
+
+        del settings["renewables_clusters"][i]
+
+    for tech in techs_tagged_w_all:
+
+        for reg in all_regions:
+            if reg not in techs_tagged_by_region[tech]:
+
+                temp_entry = settings_all[tech].copy()
+                temp_entry["region"] = reg 
+
+                settings["renewables_clusters"].append(temp_entry)
+
+    return settings
 
 def fix_param_names(settings: dict) -> dict:
 
