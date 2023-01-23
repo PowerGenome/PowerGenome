@@ -65,7 +65,30 @@ def load_settings(path: Union[str, Path]) -> dict:
     return fix_param_names(settings)
 
 
-def apply_all_tag_to_regions(settings):
+def apply_all_tag_to_regions(settings: dict) -> dict:
+    """Make copies of renewables_clusters dicts with region "all"
+
+    If a renewables clustering object doesn't already existing for a region/technology
+    then make a copy for use. This is helpful with large numbers of regions when
+    the clustering parameters can be applied everywhere.
+
+    Parameters
+    ----------
+    settings : dict
+        All user-specified settings from YAML files
+
+    Returns
+    -------
+    dict
+        Copy of the input settings with renewables_clusters objects for all regions
+
+    Raises
+    ------
+    KeyError
+        The dictionary is missing the tag "region"
+    KeyError
+        The dictionary with region "all" is missing the tag "technology"
+    """
 
     settings_all = dict()
     all_regions = settings["model_regions"]
