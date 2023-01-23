@@ -2770,6 +2770,7 @@ class GeneratorClusters:
         self.cluster_builder = build_resource_clusters(
             self.settings.get("RESOURCE_GROUPS")
         )
+        self.units_model = None
 
         if self.current_gens:
             self.data_years = self.settings["data_years"]
@@ -2981,204 +2982,215 @@ class GeneratorClusters:
         dataframe
 
         """
-        if self.gens_860.technology_description.isna().any():
-            self.gens_860 = fill_missing_tech_descriptions(self.gens_860)
-        self.gens_860_model = (
-            self.gens_860.pipe(
-                supplement_generator_860_data,
-                self.gens_entity,
-                self.bga,
-                self.plant_region_map,
-                self.settings,
+        if self.units_model is None:
+            if self.gens_860.technology_description.isna().any():
+                self.gens_860 = fill_missing_tech_descriptions(self.gens_860)
+            self.gens_860_model = (
+                self.gens_860.pipe(
+                    supplement_generator_860_data,
+                    self.gens_entity,
+                    self.bga,
+                    self.plant_region_map,
+                    self.settings,
+                )
+                .pipe(remove_canceled_860m, self.canceled_860m)
+                .pipe(remove_retired_860m, self.retired_860m)
+                .pipe(
+                    label_retirement_year,
+                    self.settings,
+                    add_additional_retirements=True,
+                )
+                .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
+                .pipe(
+                    group_technologies,
+                    self.settings.get("group_technologies"),
+                    self.settings.get("tech_groups", {}) or {},
+                    self.settings.get("regional_no_grouping", {}) or {},
+                )
+                .pipe(update_operating_date_860m, self.operating_860m.copy())
             )
-            .pipe(remove_canceled_860m, self.canceled_860m)
-            .pipe(remove_retired_860m, self.retired_860m)
-            .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
-            .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
-            .pipe(
-                group_technologies,
-                self.settings.get("group_technologies"),
-                self.settings.get("tech_groups", {}) or {},
-                self.settings.get("regional_no_grouping", {}) or {},
+            self.gens_860_model = self.gens_860_model.pipe(
+                modify_cc_prime_mover_code, self.gens_860_model
             )
-            .pipe(update_operating_date_860m, self.operating_860m.copy())
-        )
-        self.gens_860_model = self.gens_860_model.pipe(
-            modify_cc_prime_mover_code, self.gens_860_model
-        )
-        self.gens_860_model.drop_duplicates(inplace=True)
+            self.gens_860_model.drop_duplicates(inplace=True)
 
-        self.annual_gen_hr_923 = (
-            self.gen_923.pipe(modify_cc_prime_mover_code, self.gens_860_model)
-            .pipe(group_gen_by_year_fuel_primemover)
-            .pipe(add_923_heat_rate)
-        )
-
-        # Add heat rates to the data we already have from 860
-        logger.info("Loading heat rate data for units and generator/fuel combinations")
-        self.prime_mover_hr_map = plant_pm_heat_rates(self.annual_gen_hr_923)
-        if self.weighted_unit_hr is None:
-            self.weighted_unit_hr = unit_generator_heat_rates(
-                self.pudl_out, self.data_years
+            self.annual_gen_hr_923 = (
+                self.gen_923.pipe(modify_cc_prime_mover_code, self.gens_860_model)
+                .pipe(group_gen_by_year_fuel_primemover)
+                .pipe(add_923_heat_rate)
             )
-        else:
-            logger.info("Using unit heat rates from previous round.")
-        self.weighted_unit_hr["unit_id_pg"] = self.weighted_unit_hr[
-            "unit_id_pudl"
-        ].astype("object")
 
-        # Merge the PUDL calculated heat rate data and set the index for easy
-        # mapping using plant/prime mover heat rates from 923
-        hr_cols = ["plant_id_eia", "unit_id_pg", "heat_rate_mmbtu_mwh"]
-        idx = ["plant_id_eia", "prime_mover_code", "energy_source_code_1"]
-        self.units_model = self.gens_860_model.merge(
-            self.weighted_unit_hr[hr_cols],
-            on=["plant_id_eia", "unit_id_pg"],
-            how="left",
-        ).set_index(idx)
+            # Add heat rates to the data we already have from 860
+            logger.info(
+                "Loading heat rate data for units and generator/fuel combinations"
+            )
+            self.prime_mover_hr_map = plant_pm_heat_rates(self.annual_gen_hr_923)
+            if self.weighted_unit_hr is None:
+                self.weighted_unit_hr = unit_generator_heat_rates(
+                    self.pudl_out, self.data_years
+                )
+            else:
+                logger.info("Using unit heat rates from previous round.")
+            self.weighted_unit_hr["unit_id_pg"] = self.weighted_unit_hr[
+                "unit_id_pudl"
+            ].astype("object")
 
-        logger.info(
-            f"Units model technologies are "
-            f"{self.units_model.technology_description.unique().tolist()}"
-        )
-        # print(units_model.head())
+            # Merge the PUDL calculated heat rate data and set the index for easy
+            # mapping using plant/prime mover heat rates from 923
+            hr_cols = ["plant_id_eia", "unit_id_pg", "heat_rate_mmbtu_mwh"]
+            idx = ["plant_id_eia", "prime_mover_code", "energy_source_code_1"]
+            self.units_model = self.gens_860_model.merge(
+                self.weighted_unit_hr[hr_cols],
+                on=["plant_id_eia", "unit_id_pg"],
+                how="left",
+            ).set_index(idx)
 
-        logger.info(
-            "Assigning technology/fuel heat rates where unit heat rates are not "
-            "available"
-        )
-        self.units_model.loc[
-            self.units_model.heat_rate_mmbtu_mwh.isnull(), "heat_rate_mmbtu_mwh"
-        ] = self.units_model.loc[
-            self.units_model.heat_rate_mmbtu_mwh.isnull()
-        ].index.map(
-            self.prime_mover_hr_map
-        )
+            logger.info(
+                f"Units model technologies are "
+                f"{self.units_model.technology_description.unique().tolist()}"
+            )
+            # print(units_model.head())
 
-        self.units_model.loc[
-            self.units_model.heat_rate_mmbtu_mwh > 35, "heat_rate_mmbtu_mwh"
-        ] = self.units_model.loc[self.units_model.heat_rate_mmbtu_mwh > 35].index.map(
-            self.prime_mover_hr_map
-        )
+            logger.info(
+                "Assigning technology/fuel heat rates where unit heat rates are not "
+                "available"
+            )
+            self.units_model.loc[
+                self.units_model.heat_rate_mmbtu_mwh.isnull(), "heat_rate_mmbtu_mwh"
+            ] = self.units_model.loc[
+                self.units_model.heat_rate_mmbtu_mwh.isnull()
+            ].index.map(
+                self.prime_mover_hr_map
+            )
 
-        # Set heat rates < 6.36 (ATB NGCC) or > 35 mmbtu/MWh to nan. Don't change heat rates of 0,
-        # which is when there is positive generation and no fuel use (pumped storage)
-        self.units_model.loc[
-            (
-                (self.units_model.heat_rate_mmbtu_mwh < 6.36)
-                & ~(
-                    self.units_model.technology_description.str.contains(
-                        "pumped", case=False
+            self.units_model.loc[
+                self.units_model.heat_rate_mmbtu_mwh > 35, "heat_rate_mmbtu_mwh"
+            ] = self.units_model.loc[
+                self.units_model.heat_rate_mmbtu_mwh > 35
+            ].index.map(
+                self.prime_mover_hr_map
+            )
+
+            # Set heat rates < 6.36 (ATB NGCC) or > 35 mmbtu/MWh to nan. Don't change heat rates of 0,
+            # which is when there is positive generation and no fuel use (pumped storage)
+            self.units_model.loc[
+                (
+                    (self.units_model.heat_rate_mmbtu_mwh < 6.36)
+                    & ~(
+                        self.units_model.technology_description.str.contains(
+                            "pumped", case=False
+                        )
                     )
                 )
-            )
-            | (self.units_model.heat_rate_mmbtu_mwh > 35),
-            "heat_rate_mmbtu_mwh",
-        ] = np.nan
+                | (self.units_model.heat_rate_mmbtu_mwh > 35),
+                "heat_rate_mmbtu_mwh",
+            ] = np.nan
 
-        # Fill any null heat rate values for each tech
-        for tech in self.units_model["technology_description"].unique():
-            self.units_model.loc[
-                self.units_model.technology_description == tech, "heat_rate_mmbtu_mwh"
-            ] = self.fill_na_heat_rates(
+            # Fill any null heat rate values for each tech
+            for tech in self.units_model["technology_description"].unique():
                 self.units_model.loc[
                     self.units_model.technology_description == tech,
                     "heat_rate_mmbtu_mwh",
-                ]
-            )
-        # assert (
-        #     self.units_model["heat_rate_mmbtu_mwh"].isnull().any() is False
-        # ), "There are still some null heat rate values"
-        # from IPython import embed
+                ] = self.fill_na_heat_rates(
+                    self.units_model.loc[
+                        self.units_model.technology_description == tech,
+                        "heat_rate_mmbtu_mwh",
+                    ]
+                )
+            # assert (
+            #     self.units_model["heat_rate_mmbtu_mwh"].isnull().any() is False
+            # ), "There are still some null heat rate values"
+            # from IPython import embed
 
-        # embed()
-        logger.info(
-            f"Units model technologies are "
-            f"{self.units_model.technology_description.unique().tolist()}"
-        )
-        if self.supplement_with_860m:
-            logger.info(
-                f"Before adding proposed generators, {len(self.units_model)} units with "
-                f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
-            )
-            self.proposed_gens = import_proposed_generators(
-                planned=self.planned_860m,
-                settings=self.settings,
-                model_regions_gdf=self.model_regions_gdf,
-            )
-            self.new_860m_gens = import_new_generators(
-                operating_860m=self.operating_860m,
-                gens_860=self.gens_860_model,
-                settings=self.settings,
-                model_regions_gdf=self.model_regions_gdf,
-            )
-            # Add new/proposed generators to plant_region_map
-            self.plant_region_map = pd.concat(
-                [
-                    self.plant_region_map,
-                    self.proposed_gens.reset_index()[
-                        ["plant_id_eia", "model_region"]
-                    ].drop_duplicates(),
-                    self.new_860m_gens.reset_index()[
-                        ["plant_id_eia", "model_region"]
-                    ].drop_duplicates(),
-                ]
-            ).drop_duplicates(subset=["plant_id_eia", "model_region"])
             # embed()
             logger.info(
-                f"Proposed gen technologies are "
-                f"{self.proposed_gens.technology_description.unique().tolist()}"
+                f"Units model technologies are "
+                f"{self.units_model.technology_description.unique().tolist()}"
             )
-            logger.info(
-                f"{self.proposed_gens[self.settings['capacity_col']].sum()} MW proposed"
-            )
-            self.units_model = pd.concat(
-                [self.proposed_gens, self.units_model, self.new_860m_gens], sort=False
-            )
+            if self.supplement_with_860m:
+                logger.info(
+                    f"Before adding proposed generators, {len(self.units_model)} units with "
+                    f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
+                )
+                self.proposed_gens = import_proposed_generators(
+                    planned=self.planned_860m,
+                    settings=self.settings,
+                    model_regions_gdf=self.model_regions_gdf,
+                )
+                self.new_860m_gens = import_new_generators(
+                    operating_860m=self.operating_860m,
+                    gens_860=self.gens_860_model,
+                    settings=self.settings,
+                    model_regions_gdf=self.model_regions_gdf,
+                )
+                # Add new/proposed generators to plant_region_map
+                self.plant_region_map = pd.concat(
+                    [
+                        self.plant_region_map,
+                        self.proposed_gens.reset_index()[
+                            ["plant_id_eia", "model_region"]
+                        ].drop_duplicates(),
+                        self.new_860m_gens.reset_index()[
+                            ["plant_id_eia", "model_region"]
+                        ].drop_duplicates(),
+                    ]
+                ).drop_duplicates(subset=["plant_id_eia", "model_region"])
+                # embed()
+                logger.info(
+                    f"Proposed gen technologies are "
+                    f"{self.proposed_gens.technology_description.unique().tolist()}"
+                )
+                logger.info(
+                    f"{self.proposed_gens[self.settings['capacity_col']].sum()} MW proposed"
+                )
+                self.units_model = pd.concat(
+                    [self.proposed_gens, self.units_model, self.new_860m_gens],
+                    sort=False,
+                )
 
-        # Create a pudl unit id based on plant and generator id where one doesn't exist.
-        # This is used later to match the cluster numbers to plants
-        self.units_model.reset_index(inplace=True)
-        if self.supplement_with_860m:
-            self.units_model = add_860m_storage_mwh(
-                self.units_model,
-                self.new_860m_gens.reset_index(),
-                storage_techs=["Batteries"],
+            # Create a pudl unit id based on plant and generator id where one doesn't exist.
+            # This is used later to match the cluster numbers to plants
+            self.units_model.reset_index(inplace=True)
+            if self.supplement_with_860m:
+                self.units_model = add_860m_storage_mwh(
+                    self.units_model,
+                    self.new_860m_gens.reset_index(),
+                    storage_techs=["Batteries"],
+                )
+            else:
+                self.units_model["capacity_mwh"] = 0
+            if self.settings.get("energy_storage_duration"):
+                self.units_model = energy_storage_mwh(
+                    self.units_model,
+                    self.settings["energy_storage_duration"],
+                    "technology_description",
+                    self.settings["capacity_col"],
+                    "capacity_mwh",
+                )
+            else:
+                logger.warning(
+                    "\n\n*******************************\n"
+                    "The parameter 'energy_storage_duration' is not included in your settings "
+                    "file. This parameter converts MW to energy capacity (MWh) for existing "
+                    "generators where data is otherwise not available. For example, EIA-860m "
+                    "generally does not have MWh for battery storage units installed in the "
+                    "current calendar year. The energy capacity of existing storage clusters "
+                    "may be incorrect if you do not include this parameter!\n"
+                    "*******************************\n"
+                )
+            self.units_model["plant_id_eia"] = self.units_model["plant_id_eia"].astype(
+                "Int64"
             )
-        else:
-            self.units_model["capacity_mwh"] = 0
-        if self.settings.get("energy_storage_duration"):
-            self.units_model = energy_storage_mwh(
-                self.units_model,
-                self.settings["energy_storage_duration"],
-                "technology_description",
-                self.settings["capacity_col"],
-                "capacity_mwh",
-            )
-        else:
-            logger.warning(
-                "\n\n*******************************\n"
-                "The parameter 'energy_storage_duration' is not included in your settings "
-                "file. This parameter converts MW to energy capacity (MWh) for existing "
-                "generators where data is otherwise not available. For example, EIA-860m "
-                "generally does not have MWh for battery storage units installed in the "
-                "current calendar year. The energy capacity of existing storage clusters "
-                "may be incorrect if you do not include this parameter!\n"
-                "*******************************\n"
-            )
-        self.units_model["plant_id_eia"] = self.units_model["plant_id_eia"].astype(
-            "Int64"
-        )
-        self.units_model.loc[self.units_model.unit_id_pg.isnull(), "unit_id_pg"] = (
-            self.units_model.loc[
-                self.units_model.unit_id_pg.isnull(), "plant_id_eia"
-            ].astype(str)
-            + "_"
-            + self.units_model.loc[
-                self.units_model.unit_id_pg.isnull(), "generator_id"
-            ].astype(str)
-        ).values
-        self.units_model.set_index(idx, inplace=True)
+            self.units_model.loc[self.units_model.unit_id_pg.isnull(), "unit_id_pg"] = (
+                self.units_model.loc[
+                    self.units_model.unit_id_pg.isnull(), "plant_id_eia"
+                ].astype(str)
+                + "_"
+                + self.units_model.loc[
+                    self.units_model.unit_id_pg.isnull(), "generator_id"
+                ].astype(str)
+            ).values
+            self.units_model.set_index(idx, inplace=True)
 
         logger.info("Calculating plant O&M costs")
         techs = self.settings["num_clusters"].keys()
