@@ -22,7 +22,12 @@ from powergenome.resource_clusters import (
     Table,
     map_nrel_atb_technology,
 )
-from powergenome.util import reverse_dict_of_lists, remove_leading_zero, snake_case_col
+from powergenome.util import (
+    apply_all_tag_to_regions,
+    reverse_dict_of_lists,
+    remove_leading_zero,
+    snake_case_col,
+)
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
@@ -1224,6 +1229,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         )
 
         df_list = []
+        settings = apply_all_tag_to_regions(settings)
         for region in regions:
             _df = new_gen_df.copy()
             _df["region"] = region
