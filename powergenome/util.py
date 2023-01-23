@@ -103,7 +103,7 @@ def apply_all_tag_to_regions(settings: dict) -> dict:
     # These are the keys in settings which will not be used to determine whether 'all' should apply to that region
     identifier_keys = ["technology", "pref_site", "turbine_type"]
 
-    for d in settings["renewables_clusters"]:
+    for d in settings.get("renewables_clusters", {}) or {}:
 
         if "region" not in d:
             raise KeyError("Entry missing 'region' tag.")
@@ -118,7 +118,7 @@ def apply_all_tag_to_regions(settings: dict) -> dict:
                     tech += "_"
                 tech += str(d[key])
 
-        if reg == "all":
+        if reg.lower() == "all":
 
             settings_all[tech] = d
 
