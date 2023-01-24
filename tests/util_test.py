@@ -90,3 +90,8 @@ def test_apply_all_tag_to_regions(caplog):
     settings["renewables_clusters"].append(d)
     with pytest.raises(KeyError):
         apply_all_tag_to_regions(settings)
+
+    settings = {"model_regions": ["a", "b", "c"], "renewables_clusters": None}
+    apply_all_tag_to_regions(settings)
+    settings = {"model_regions": ["a", "b", "c"]}
+    apply_all_tag_to_regions(settings)
