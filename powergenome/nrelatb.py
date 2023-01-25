@@ -643,7 +643,7 @@ def calc_om(
 
     if any(t in eia_tech for t in nems_o_m_techs):
         df_list = []
-        for plant_id, _df in df.groupby("plant_id_eia", as_index=False):
+        for plant_id, _df in df.groupby("plant_id", as_index=False):
             # Change CC and CT O&M to EIA NEMS values, which are much higher for CCs and
             # lower for CTs than a heat rate & linear mulitpler correction to the ATB
             # values.
@@ -746,12 +746,12 @@ def calc_om(
                     age = age.fillna(40)
                 gen_ids = _df["generator_id"].to_list()
                 fgd = coal_fgd_df.query(
-                    "plant_id_eia == @plant_id & generator_id in @gen_ids"
+                    "plant_id == @plant_id & generator_id in @gen_ids"
                 )["fgd"].values
                 if not np.any(fgd):
                     gen_ids = [g.lstrip("0") for g in gen_ids]
                     fgd = coal_fgd_df.query(
-                        "plant_id_eia == @plant_id & generator_id in @gen_ids"
+                        "plant_id == @plant_id & generator_id in @gen_ids"
                     )["fgd"].values
                 if not np.any(fgd):
                     # If FGD isn't found, use average of with/without FGD

@@ -1251,7 +1251,7 @@ def group_units(df, settings):
 
     by = ["plant_id", "unit_id"]
     # add a unit code (plant plus generator code) in cases where one doesn't exist
-    df_copy = df.reset_index()
+    df_copy = df.copy()
 
     # All units should have the same heat rate so taking the mean will just keep the
     # same value.
@@ -2713,6 +2713,7 @@ class GeneratorClusters:
         self.cluster_builder = build_resource_clusters(
             self.settings.get("RESOURCE_GROUPS")
         )
+        self.units_model = None
 
         self.fuel_prices = (
             fetch_fuel_prices(self.settings)
@@ -2723,7 +2724,9 @@ class GeneratorClusters:
             )
             .pipe(add_user_fuel_prices, self.settings)
         )
-        self.coal_fgd = pd.read_csv(DATA_PATHS["coal_fgd"])
+        self.coal_fgd = pd.read_csv(DATA_PATHS["coal_fgd"]).rename(
+            columns={"plant_id_eia": "plant_id"}
+        )
 
         if self.pg_engine:
             self.atb_hr = fetch_atb_heat_rates(self.pg_engine, self.settings)
@@ -2879,7 +2882,7 @@ class GeneratorClusters:
         return dr_rows
 
     def load_eia_generators(self, plant_region_map_table="plant_region_map_epaipm"):
-        if self.current_gens:
+        if self.current_gens and self.units_model is None:
             self.data_years = self.settings["data_years"]
 
             self.gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
@@ -3098,21 +3101,16 @@ class GeneratorClusters:
                 self.units_model.unit_id_pudl.isnull(), "generator_id"
             ].astype(str)
         ).values
-        self.units_model.set_index(idx, inplace=True)
-
-        logger.info("Calculating plant O&M costs")
-        techs = self.settings["num_clusters"].keys()
-        self.units_model = (
-            self.units_model.rename(columns={"technology_description": "technology"})
-            .query("technology.isin(@techs).values")
-            .pipe(
-                atb_fixed_var_om_existing,
-                self.atb_hr,
-                self.settings,
-                self.pg_engine,
-                self.coal_fgd,
-            )
+        self.units_model = self.units_model.rename(
+            columns={
+                "plant_id_eia": "plant_id",
+                "unit_id_pudl": "unit_id",
+                "technology_description": "technology",
+            }
         )
+        # self.units_model.set_index(
+        #     ["plant_id", "prime_mover_code", "energy_source_code_1"], inplace=True
+        # )
 
         # logger.info(
         #     f"After adding proposed, units model technologies are "
@@ -3123,9 +3121,11 @@ class GeneratorClusters:
             f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
         )
 
-        self.units_model = self.units_model.rename(
-            columns={"plant_id_eia": "plant_id", "unit_id_pudl": "unit_id"}
-        )
+        # self.units_model = self.units_model.rename(
+        #     columns={
+        #         "technology_description": "technology",
+        #     }
+        # )
 
         if type(self.settings.get("capacity_factor_techs")) is list:
             self.capacity_factors = gentype_region_capacity_factor(
@@ -3139,6 +3139,22 @@ class GeneratorClusters:
                 ],
                 on=["model_region", "technology"],
                 how="left",
+            )
+
+    def add_existing_o_m(self):
+        if self.units_model is not None:
+            logger.info("Calculating plant O&M costs")
+            techs = self.settings["num_clusters"].keys()
+            self.units_model = (
+                self.units_model.reset_index()
+                .query("technology.isin(@techs).values")
+                .pipe(
+                    atb_fixed_var_om_existing,
+                    self.atb_hr,
+                    self.settings,
+                    self.pg_engine,
+                    self.coal_fgd,
+                )
             )
 
     def create_region_technology_clusters(self, return_retirement_capacity=False):
@@ -3190,6 +3206,7 @@ class GeneratorClusters:
 
         else:
             self.load_eia_generators()
+            self.add_existing_o_m()
 
         techs = list(self.settings["num_clusters"])
 
