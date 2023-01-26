@@ -1700,6 +1700,9 @@ def import_new_generators(
     new_operating = label_gen_region(
         _operating_860m.loc[new_mask, :], settings, model_regions_gdf
     )
+    new_operating = new_operating.drop_duplicates(
+        subset=["plant_id_eia", "generator_id"]
+    )
     new_operating.loc[:, "heat_rate_mmbtu_mwh"] = new_operating.loc[
         :, "technology_description"
     ].map(settings.get("proposed_gen_heat_rates", {}) or {})
@@ -1831,6 +1834,7 @@ def import_proposed_generators(
     _planned = planned.copy()
     _planned["generator_id"] = _planned["generator_id"].apply(remove_leading_zero)
     planned_gdf = label_gen_region(_planned, settings, model_regions_gdf)
+    planned_gdf = planned_gdf.drop_duplicates(subset=["plant_id_eia", "generator_id"])
 
     # Add planned additions from the settings file
     additional_planned = settings.get("additional_planned") or []
