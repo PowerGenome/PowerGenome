@@ -936,7 +936,7 @@ def min_cap_req(settings: dict) -> pd.DataFrame:
     min_mw = []
 
     # if settings.get("MinCapReq"):
-    for cap_tag, values in settings.get("MinCapReq", {}).items():
+    for cap_tag, values in (settings.get("MinCapReq", {}) or {}).items():
         if cap_tag not in settings.get("model_tag_names", []):
             raise KeyError(
                 f"The minimum capacity tag {cap_tag} is listed in the settings "
@@ -996,7 +996,7 @@ def max_cap_req(settings: dict) -> pd.DataFrame:
     max_mw = []
 
     # if settings.get("MaxCapReq"):
-    for cap_tag, values in settings.get("MaxCapReq", {}).items():
+    for cap_tag, values in (settings.get("MaxCapReq", {}) or {}).items():
         if cap_tag not in settings.get("model_tag_names", []):
             raise KeyError(
                 f"The maximum capacity tag {cap_tag} is listed in the settings "
