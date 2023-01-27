@@ -68,6 +68,14 @@ def agg_transmission_constraints(
     if settings.get("user_transmission_constraints_fn"):
         path = settings["input_folder"] / settings["user_transmission_constraints_fn"]
         user_tx = load_user_tx_capacity(path, settings.get("tx_value_col"))
+        user_tx = pd.concat(
+            [
+                user_tx,
+                user_tx.rename(
+                    columns={"region_from": "region_to", "region_to": "region_from"}
+                ),
+            ]
+        )
     else:
         user_tx = pd.DataFrame()
 
