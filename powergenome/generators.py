@@ -2640,8 +2640,10 @@ def load_demand_response_efs_profile(
     dr_profile.columns = dr_profile.columns.droplevel()
     for model_region, base_regs in region_aggregations.items():
         base_regs = [r for r in base_regs if r != model_region]
-        dr_profile[model_region] = dr_profile[base_regs].sum(axis=1)
-        dr_profile = dr_profile.drop(columns=base_regs)
+        dr_profile[model_region] = dr_profile.reindex(
+            columns=base_regs, fill_value=0
+        ).sum(axis=1)
+        dr_profile = dr_profile.drop(columns=base_regs, errors="ignore")
 
     return dr_profile
 
