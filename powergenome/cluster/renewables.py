@@ -28,13 +28,48 @@ def value_bin(
     s: pd.Series,
     bins: Union[int, List[float]] = None,
     q: Union[int, List[float]] = None,
-) -> pd.DataFrame:
+    weights: pd.Series = None,
+) -> pd.Series:
+    """Create a series of bin labels to split feature values
+    Feature data can be split into bins based directly on values using pandas.cut, or
+    quantiles of the data using pandas.qcut. If both "q" and "weights" are passed then
+    a weighted quantile will be calculated.
+    Parameters
+    ----------
+    s : pd.Series
+        Data values for a feature
+    bins : Union[int, List[float]], optional
+        Integer number of equal-width bins or the bin edges to use, by default None
+    q : Union[int, List[float]], optional
+        Integer number of quantile bins or the quantile bin edges to use, by default None
+    weights : pd.Series, optional
+        Optional weight of each feature data point, only used in conjunction with "q",
+        by default None
+    Returns
+    -------
+    pd.Series
+        Labels for each data point in the feature
+    """
     if s.empty:
         return []
     if q:
-        labels = pd.qcut(s, q=q, duplicates="drop", labels=False)
+        if weights is None:
+            labels = pd.qcut(s, q=q, duplicates="drop", labels=False)
+        elif isinstance(q, int):  # Calc feature values of bin edges from quantiles
+            q_vals = np.linspace(0, 1, q + 1)
+            bins = [w_quantile(s, weights, _q) for _q in q_vals]
+            labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
+        elif isinstance(q, list):
+            bins = [w_quantile(s, weights, _q) for _q in q]
+            labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
+        else:
+            raise TypeError(
+                "One of your renewables_clusters uses both the 'q' option and 'weights' "
+                f"but 'q' is not an integer or a list. Instead, 'q' is: \n\n{q}"
+            )
+
     elif bins:
-        labels = pd.cut(s, bins=bins, duplicates="drop")
+        labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
     else:
         logger.warning(
             "One of your renewables_clusters uses the 'bin' option but doesn't include "
@@ -44,6 +79,32 @@ def value_bin(
         labels = np.ones_like(s)
 
     return labels
+
+
+def w_quantile(x: pd.Series, weights: pd.Series, q: float) -> float:
+    """Calculate feature value at a quantile given both features and weights
+    Parameters
+    ----------
+    x : pd.Series
+        Value of feature data
+    weights : pd.Series
+        Weight of each data point
+    q : float
+        Quantile value from 0 to 1
+    Returns
+    -------
+    float
+        Data value corresponding to the quantile, accounting for weights
+    """
+    x = pd.concat([x, weights], axis=1)
+    xsort = x.sort_values(x.columns[0], ignore_index=True)
+    p = q * x[x.columns[1]].sum()
+    pop = xsort.loc[0, xsort.columns[1]]
+    i = 0
+    while pop < p:
+        pop = pop + xsort.loc[i + 1, xsort.columns[1]]
+        i = i + 1
+    return xsort.loc[i, xsort.columns[0]]
 
 
 def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
@@ -243,14 +304,12 @@ def assign_site_cluster(
     **kwargs: Any,
 ) -> pd.DataFrame:
     """Use settings options to group individual renewable sites.
-
     Sites are located within a model region that may be a collection of base regions.
     Site metadata such as the cpa_id and any numeric or categorial features (e.g.
     interconnection cost or the name of a geographic subregion that the site is located
     in) are specified in `renew_data`. Based on the user settings, the full list of
     sites in a region is filtered (numeric), binned (numeric), grouped(categorical), and
     clustered (numeric).
-
     Parameters
     ----------
     renew_data : pd.DataFrame
@@ -289,13 +348,11 @@ def assign_site_cluster(
     utc_offset : int, optional
         Hours offset from UTC, by default 0. Generation data will be shifted from UTC
         by this value.
-
     Returns
     -------
     pd.DataFrame
         The renewable sites included in the study with a column "cluster". Other columns
         for binning and grouping may also be included.
-
     Raises
     ------
     KeyError
@@ -304,11 +361,9 @@ def assign_site_cluster(
         The feature is not included in `renew_data`
     TypeError
         The feature specified by a "bin" set of parameters is not numeric.
-
     Examples
     --------
     This is an example of the YAML settings.
-
     renewables_clusters:
     - region: ISNE
         technology: landbasedwind
@@ -372,13 +427,31 @@ def assign_site_cluster(
             )
         feature = feature.lower()
         bin_features.append(f"{feature}_bin")
-        data[f"{feature}_bin"] = value_bin(data[feature], b.get("bins"), b.get("q"))
+        weights = b.get("weights")
+        if weights and weights not in data.columns:
+            raise KeyError(
+                "One of your renewables_clusters uses the 'bin' option and includes the "
+                f"'weights' argument '{weights}', which is not in the renewable site data. The "
+                "weights must be one of the columns in your renewable site data file."
+            )
+        data[f"{feature}_bin"] = value_bin(
+            data[feature], b.get("bins"), b.get("q"), weights=weights
+        )
+
+        if "mw_per_bin" in b:
+            if b.get("bins") is not None:
+                logger.warning("Overwriting 'bins' based on mw_bin_size")
+            b["bins"] = int(data["mw"].sum() / b["mw_per_bin"]) + 1
+            del b["mw_per_bin"]
 
     group_by = bin_features + ([g.lower() for g in group or []])
     prev_feature_cluster_col = None
     for clust in cluster or []:
-        if "mw_per_cluster" in clust and clust.get("n_clusters") is None:
+        if "mw_per_cluster" in clust:
+            if clust.get("n_clusters") is not None:
+                logger.warning("Overwriting 'n_clusters' based on mw_cluster_size")
             clust["n_clusters"] = int(data["mw"].sum() / clust["mw_per_cluster"]) + 1
+            del clust["mw_per_cluster"]
 
         if "cluster" in data.columns and prev_feature_cluster_col:
             data = data.rename(columns={"cluster": prev_feature_cluster_col})
