@@ -139,6 +139,7 @@ def w_quantile(x: pd.Series, weights: pd.Series, q: float) -> float:
     weights.loc[(weights > 0) & (weights < 0.001)] = 0.001
     x = pd.concat([x, weights], axis=1)
     xsort = x.sort_values(x.columns[0], ignore_index=True)
+    xsort = xsort.loc[xsort[xsort.columns[1]] > 0, :].reset_index(drop=True)
     p = q * xsort.iloc[:, 1].sum()
     pop = xsort.iloc[0, 1]
     i = 0
