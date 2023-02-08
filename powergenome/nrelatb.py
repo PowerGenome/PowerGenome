@@ -491,7 +491,6 @@ def atb_fixed_var_om_existing(
     df_list = []
     grouped_results = results.reset_index().groupby(["technology"], as_index=False)
     for group, _df in grouped_results:
-
         _df = calc_om(
             _df,
             atb_hr_df,
@@ -919,7 +918,6 @@ def regional_capex_multiplier(
     tech_map: Dict[str, str],
     regional_multipliers: pd.DataFrame,
 ) -> pd.DataFrame:
-
     cost_region = region_map[region]
     tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
     avg_multiplier = tech_multiplier.mean()
@@ -1274,7 +1272,6 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
 def load_resource_group_data(
     rg: ResourceGroup,
 ) -> Tuple[pd.DataFrame, Union[pd.Series, None]]:
-
     data = rg.metadata.read(cache=True)
     data.columns = snake_case_col(data.columns)
     data["region"] = data.loc[:, "metro_region"]
@@ -1371,7 +1368,16 @@ def add_renewables_clusters(
         technology = technologies[0]
         scenario = scenario.copy()
         scenario.pop("region")
-        if settings.get("precluster_renewables") is False:
+
+        # Assume not preclustering renewables unless set to True in settings or the
+        # old parameters are used.
+        precluster = False
+        precluster_keys = ["max_clusters", "max_lcoe"]
+        if settings.get("precluster_renewables") is True:
+            precluster = True
+        if any([k in precluster_keys for k in scenario.keys()]):
+            precluster = True
+        if precluster is False:
             drop_keys = ["min_capacity", "filter", "bin", "group", "cluster"]
             group_kwargs = dict(
                 [(k, v) for k, v in scenario.items() if k not in drop_keys]

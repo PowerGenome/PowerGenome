@@ -31,9 +31,11 @@ def value_bin(
     weights: pd.Series = None,
 ) -> pd.Series:
     """Create a series of bin labels to split feature values
+
     Feature data can be split into bins based directly on values using pandas.cut, or
     quantiles of the data using pandas.qcut. If both "q" and "weights" are passed then
     a weighted quantile will be calculated.
+
     Parameters
     ----------
     s : pd.Series
@@ -45,6 +47,7 @@ def value_bin(
     weights : pd.Series, optional
         Optional weight of each feature data point, only used in conjunction with "q",
         by default None
+
     Returns
     -------
     pd.Series
@@ -52,14 +55,24 @@ def value_bin(
     """
     if s.empty:
         return []
+    # if all values are very close pandas will give a binning error
+    if np.allclose(s.mean(), s.max()):
+        return np.ones_like(s)
     if q:
+        if q == 1:
+            return np.ones_like(s)
         if weights is None:
             labels = pd.qcut(s, q=q, duplicates="drop", labels=False)
-        elif isinstance(q, int):  # Calc feature values of bin edges from quantiles
+            return labels
+        elif (weights == 0).all():
+            weights = pd.Series(np.ones_like(weights))
+
+        if isinstance(q, int):  # Calc feature values of bin edges from quantiles
             q_vals = np.linspace(0, 1, q + 1)
             bins = [w_quantile(s, weights, _q) for _q in q_vals]
             labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
         elif isinstance(q, list):
+            q.sort()
             bins = [w_quantile(s, weights, _q) for _q in q]
             labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
         else:
@@ -69,7 +82,30 @@ def value_bin(
             )
 
     elif bins:
-        labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
+        if isinstance(bins, list):
+            bins.sort()
+            if bins[0] > s.min():
+                logger.warning(
+                    f"The minimum bin value in one of your renewables_clusters is "
+                    f"{bins[0]}, which is greater than the minimum value of the data series. "
+                    f"The min bin edge is being set to {s.min()}"
+                )
+                bins[0] = s.min()
+
+            if bins[-1] < s.max():
+                logger.warning(
+                    f"The maximum bin value in one of your renewables_clusters is "
+                    f"{bins[-1]}, which is less than the maximum value of the data series. "
+                    f"The max bin edge is being set to {s.max()}"
+                )
+                bins[-1] = s.max()
+
+            labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
+        else:
+            if bins == 1:
+                return np.ones_like(s)
+            else:
+                labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
     else:
         logger.warning(
             "One of your renewables_clusters uses the 'bin' option but doesn't include "
@@ -83,6 +119,7 @@ def value_bin(
 
 def w_quantile(x: pd.Series, weights: pd.Series, q: float) -> float:
     """Calculate feature value at a quantile given both features and weights
+
     Parameters
     ----------
     x : pd.Series
@@ -91,17 +128,22 @@ def w_quantile(x: pd.Series, weights: pd.Series, q: float) -> float:
         Weight of each data point
     q : float
         Quantile value from 0 to 1
+
     Returns
     -------
     float
         Data value corresponding to the quantile, accounting for weights
     """
+    if weights.sum() == 0:
+        weights += 0.1
+    weights.loc[(weights > 0) & (weights < 0.001)] = 0.001
     x = pd.concat([x, weights], axis=1)
     xsort = x.sort_values(x.columns[0], ignore_index=True)
-    p = q * x[x.columns[1]].sum()
-    pop = xsort.loc[0, xsort.columns[1]]
+    p = q * xsort.iloc[:, 1].sum()
+    pop = xsort.iloc[0, 1]
     i = 0
-    while pop < p:
+    idx_max = xsort.index.max()
+    while pop < p and i < idx_max:
         pop = pop + xsort.loc[i + 1, xsort.columns[1]]
         i = i + 1
     return xsort.loc[i, xsort.columns[0]]
