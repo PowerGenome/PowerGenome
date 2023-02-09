@@ -104,7 +104,6 @@ def apply_all_tag_to_regions(settings: dict) -> dict:
     identifier_keys = ["technology", "pref_site", "turbine_type"]
 
     for d in settings.get("renewables_clusters", []) or []:
-
         if "region" not in d:
             raise KeyError("Entry missing 'region' tag.")
 
@@ -127,7 +126,6 @@ def apply_all_tag_to_regions(settings: dict) -> dict:
             techs_tagged_by_region[tech] = [reg]
 
         if reg.lower() == "all":
-
             settings_all[tech] = d
 
             if "technology" not in d:
@@ -140,7 +138,6 @@ def apply_all_tag_to_regions(settings: dict) -> dict:
                 logger.warning(s)
 
             else:
-
                 techs_tagged_w_all.append(tech)
 
             to_delete.append(i)
@@ -149,14 +146,11 @@ def apply_all_tag_to_regions(settings: dict) -> dict:
         i += 1
 
     for i in reversed(to_delete):
-
         del settings["renewables_clusters"][i]
 
     for tech in techs_tagged_w_all:
-
         for reg in all_regions:
             if reg not in techs_tagged_by_region[tech]:
-
                 temp_entry = settings_all[tech].copy()
                 temp_entry["region"] = reg
 
@@ -166,7 +160,6 @@ def apply_all_tag_to_regions(settings: dict) -> dict:
 
 
 def fix_param_names(settings: dict) -> dict:
-
     fix_params = {
         "historical_load_region_maps": "historical_load_region_map",
         "demand_response_resources": "flexible_demand_resources",
@@ -547,18 +540,18 @@ def snake_case_col(col: pd.Series) -> pd.Series:
 
 def snake_case_str(s: str) -> str:
     "Remove special characters and convert to snake case"
-    clean = (
-        re.sub(r"[^0-9a-zA-Z\-]+", " ", s)
-        .lower()
-        .replace("-", "")
-        .strip()
-        .replace(" ", "_")
-    )
-    return clean
+    if s:
+        clean = (
+            re.sub(r"[^0-9a-zA-Z\-]+", " ", s)
+            .lower()
+            .replace("-", "")
+            .strip()
+            .replace(" ", "_")
+        )
+        return clean
 
 
 def get_git_hash():
-
     try:
         git_head_hash = (
             subprocess.check_output(["git", "rev-parse", "HEAD"])

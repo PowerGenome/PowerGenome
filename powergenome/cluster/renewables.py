@@ -11,6 +11,7 @@ import pyarrow.parquet as pq
 from sklearn.cluster import AgglomerativeClustering
 
 from powergenome.resource_clusters import MERGE
+from powergenome.util import snake_case_str
 
 logger = logging.getLogger(__name__)
 
@@ -430,7 +431,7 @@ def assign_site_cluster(
     for filt in filter or []:
         data = value_filter(
             data=data,
-            feature=filt["feature"].lower(),
+            feature=snake_case_str(filt["feature"]),
             max_value=filt.get("max"),
             min_value=filt.get("min"),
         )
@@ -450,7 +451,7 @@ def assign_site_cluster(
 
     bin_features = []
     for b in bin or []:
-        feature = b.get("feature")
+        feature = snake_case_str(b.get("feature"))
         if not feature:
             raise KeyError(
                 "One of your renewables_clusters uses the 'bin' option but doesn't include "
@@ -468,9 +469,8 @@ def assign_site_cluster(
                 f"You specified the feature '{feature}' to bin one of your renewables_clusters. "
                 f"'{feature}' is not a numeric column. Binning requires a numeric column."
             )
-        feature = feature.lower()
         bin_features.append(f"{feature}_bin")
-        weights = b.get("weights")
+        weights = snake_case_str(b.get("weights"))
         if weights and weights not in data.columns:
             raise KeyError(
                 "One of your renewables_clusters uses the 'bin' option and includes the "
@@ -491,9 +491,10 @@ def assign_site_cluster(
             data[feature], b.get("bins"), b.get("q"), weights=weights
         )
 
-    group_by = bin_features + ([g.lower() for g in group or []])
+    group_by = bin_features + ([snake_case_str(g) for g in group or []])
     prev_feature_cluster_col = None
     for clust in cluster or []:
+        clust["feature"] = snake_case_str(clust["feature"])
         if "mw_per_cluster" in clust:
             if clust.get("n_clusters") is not None:
                 logger.warning("Overwriting 'n_clusters' based on mw_cluster_size")
