@@ -331,7 +331,11 @@ def calc_cluster_values(
     return _df
 
 
-CLUSTER_FUNCS = {"agglomerative": agglomerative_cluster}
+CLUSTER_FUNCS = {
+    "agglomerative": agglomerative_cluster,
+    "agg": agglomerative_cluster,
+    "hierarchical": agglomerative_cluster,
+}
 
 
 def assign_site_cluster(
