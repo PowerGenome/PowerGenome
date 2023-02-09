@@ -477,15 +477,19 @@ def assign_site_cluster(
                 f"'weights' argument '{weights}', which is not in the renewable site data. The "
                 "weights must be one of the columns in your renewable site data file."
             )
-        data[f"{feature}_bin"] = value_bin(
-            data[feature], b.get("bins"), b.get("q"), weights=weights
-        )
-
         if "mw_per_bin" in b:
             if b.get("bins") is not None:
                 logger.warning("Overwriting 'bins' based on mw_bin_size")
             b["bins"] = int(data["mw"].sum() / b["mw_per_bin"]) + 1
             del b["mw_per_bin"]
+        if "mw_per_q" in b:
+            if b.get("q") is not None:
+                logger.warning("Overwriting 'bins' based on mw_bin_size")
+            b["q"] = int(data["mw"].sum() / b["mw_per_q"]) + 1
+            del b["mw_per_q"]
+        data[f"{feature}_bin"] = value_bin(
+            data[feature], b.get("bins"), b.get("q"), weights=weights
+        )
 
     group_by = bin_features + ([g.lower() for g in group or []])
     prev_feature_cluster_col = None
