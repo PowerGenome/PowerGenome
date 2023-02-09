@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 from sklearn.cluster import AgglomerativeClustering
+from statsmodels.stats.weightstats import DescrStatsW
 
 from powergenome.resource_clusters import MERGE
 from powergenome.util import snake_case_str
@@ -69,18 +70,11 @@ def value_bin(
             weights = pd.Series(np.ones_like(weights))
 
         if isinstance(q, int):  # Calc feature values of bin edges from quantiles
-            q_vals = np.linspace(0, 1, q + 1)
-            bins = [w_quantile(s, weights, _q) for _q in q_vals]
-            labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
-        elif isinstance(q, list):
-            q.sort()
-            bins = [w_quantile(s, weights, _q) for _q in q]
-            labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
-        else:
-            raise TypeError(
-                "One of your renewables_clusters uses both the 'q' option and 'weights' "
-                f"but 'q' is not an integer or a list. Instead, 'q' is: \n\n{q}"
-            )
+            q = np.linspace(0, 1, q + 1)
+        q.sort()
+        wq = DescrStatsW(data=s, weights=weights)
+        bins = wq.quantile(probs=q, return_pandas=False)
+        labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
 
     elif bins:
         if isinstance(bins, list):
@@ -116,39 +110,6 @@ def value_bin(
         labels = np.ones_like(s)
 
     return labels
-
-
-def w_quantile(x: pd.Series, weights: pd.Series, q: float) -> float:
-    """Calculate feature value at a quantile given both features and weights
-
-    Parameters
-    ----------
-    x : pd.Series
-        Value of feature data
-    weights : pd.Series
-        Weight of each data point
-    q : float
-        Quantile value from 0 to 1
-
-    Returns
-    -------
-    float
-        Data value corresponding to the quantile, accounting for weights
-    """
-    if weights.sum() == 0:
-        weights += 0.1
-    weights.loc[(weights > 0) & (weights < 0.001)] = 0.001
-    x = pd.concat([x, weights], axis=1)
-    xsort = x.sort_values(x.columns[0], ignore_index=True)
-    xsort = xsort.loc[xsort[xsort.columns[1]] > 0, :].reset_index(drop=True)
-    p = q * xsort.iloc[:, 1].sum()
-    pop = xsort.iloc[0, 1]
-    i = 0
-    idx_max = xsort.index.max()
-    while pop < p and i < idx_max:
-        pop = pop + xsort.loc[i + 1, xsort.columns[1]]
-        i = i + 1
-    return xsort.loc[i, xsort.columns[0]]
 
 
 def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
