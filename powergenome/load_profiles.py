@@ -10,6 +10,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
+from powergenome.distributed_gen import distributed_gen_profiles
 
 from powergenome.load_construction import electrification_profiles
 from powergenome.eia_opendata import get_aeo_load
@@ -503,7 +504,6 @@ def grow_historical_load(
 
 
 def add_demand_response_resource_load(load_curves, settings):
-
     dr_path = Path(settings["input_folder"]) / settings["demand_response_fn"]
     dr_types = list(
         settings["flexible_demand_resources"][settings["model_year"]].keys()
@@ -533,7 +533,6 @@ def add_demand_response_resource_load(load_curves, settings):
 
 
 def subtract_distributed_generation(load_curves, pg_engine, settings):
-
     dg_profiles = make_distributed_gen_profiles(pg_engine, settings)
     dg_profiles.index = dg_profiles.index + 1
 
@@ -735,8 +734,6 @@ def make_distributed_gen_profiles(pg_engine, settings):
 
     Parameters
     ----------
-    dg_profiles_path : path-like
-        Where to load the file from
     pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas. Needed to create base load profiles.
     settings : dict
@@ -755,6 +752,32 @@ def make_distributed_gen_profiles(pg_engine, settings):
     """
 
     year = settings["model_year"]
+
+    if settings.get("distributed_gen_fn"):
+        scenario = settings.get("distributed_gen_scenario")
+        path_in = settings.get("")
+        if settings.get("region_aggregations"):
+            regions = [
+                r
+                for r in settings["model_regions"]
+                if r not in settings["region_aggregations"].keys()
+            ]
+            regions.extend(
+                list(reverse_dict_of_lists(settings["region_aggregations"]).keys())
+            )
+        else:
+            regions = settings["model_regions"]
+
+        dg_profiles = distributed_gen_profiles(
+            settings.get("distributed_gen_fn"),
+            settings["model_year"],
+            scenario,
+            regions,
+            settings.get("DISTRIBUTED_GEN_DATA"),
+            settings.get("region_aggregations"),
+        )
+        return dg_profiles
+
     dg_profiles_path = (
         Path(settings["input_folder"]) / settings["distributed_gen_profiles_fn"]
     )
