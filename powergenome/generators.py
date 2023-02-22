@@ -1159,7 +1159,6 @@ def calculate_weighted_heat_rate(heat_rate_df):
     """
 
     def w_hr(df):
-
         weighted_hr = np.average(
             df["heat_rate_mmbtu_mwh"], weights=df["net_generation_mwh"]
         )
@@ -1636,7 +1635,6 @@ def import_new_generators(
     settings: dict,
     model_regions_gdf: gpd.GeoDataFrame,
 ) -> pd.DataFrame:
-
     gens_860_id = list(zip(gens_860["plant_id_eia"], gens_860["generator_id"]))
     operating_860m_id = zip(
         operating_860m["plant_id_eia"], operating_860m["generator_id"]
@@ -2567,7 +2565,6 @@ def load_plants_860(
 
 
 def load_user_generators(path: Path) -> pd.DataFrame:
-
     gens_df = pd.read_csv(
         path, parse_dates=["operating_date", "planned_retirement_date"]
     )
@@ -2802,7 +2799,6 @@ class GeneratorClusters:
         for resource, parameters in (
             self.settings["flexible_demand_resources"].get(year, {}).items()
         ):
-
             _df = pd.DataFrame(
                 index=self.settings["model_regions"],
                 columns=list(self.settings["generator_columns"]) + ["profile"],
@@ -3300,7 +3296,6 @@ class GeneratorClusters:
                     region in alt_cluster_method
                     and tech in alt_cluster_method[region]["technology_description"]
                 ):
-
                     grouped = cluster_by_owner(
                         df,
                         self.weighted_ownership,
@@ -3579,9 +3574,10 @@ class GeneratorClusters:
         return self.new_generators
 
     def create_all_generators(self):
-
         if self.current_gens:
             self.existing_resources = self.create_region_technology_clusters()
+        else:
+            self.existing_resources = pd.DataFrame()
 
         self.new_resources = self.create_new_generators()
 
