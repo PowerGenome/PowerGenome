@@ -3493,8 +3493,8 @@ class GeneratorClusters:
             self.results["profile"][i] = clusters["profile"][0]
 
         rename_cols = {
-            "fixed_o_m_mw": "Fixed_OM_Cost_per_MWy",
-            "fixed_o_m_mwh": "Fixed_OM_Cost_per_MWhy",
+            "fixed_o_m_mw": "Fixed_OM_Cost_per_MWyr",
+            "fixed_o_m_mwh": "Fixed_OM_Cost_per_MWhyr",
             "variable_o_m_mwh": "Var_OM_Cost_per_MWh",
         }
         self.results = rename_gen_cols(self.results, rename_cols)
