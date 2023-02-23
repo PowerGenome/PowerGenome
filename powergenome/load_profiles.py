@@ -503,7 +503,6 @@ def grow_historical_load(
 
 
 def add_demand_response_resource_load(load_curves, settings):
-
     dr_path = Path(settings["input_folder"]) / settings["demand_response_fn"]
     dr_types = list(
         settings["flexible_demand_resources"][settings["model_year"]].keys()
@@ -533,7 +532,6 @@ def add_demand_response_resource_load(load_curves, settings):
 
 
 def subtract_distributed_generation(load_curves, pg_engine, settings):
-
     dg_profiles = make_distributed_gen_profiles(pg_engine, settings)
     dg_profiles.index = dg_profiles.index + 1
 

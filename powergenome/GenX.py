@@ -431,7 +431,6 @@ def add_misc_gen_values(
 def reduce_time_domain(
     resource_profiles, load_profiles, settings, variable_resources_only=True
 ):
-
     demand_segments = load_demand_segments(settings)
 
     if settings.get("reduce_time_domain"):
@@ -788,7 +787,6 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
 
 
 def check_min_power_against_variability(gen_clusters, resource_profile):
-
     min_gen_levels = resource_profile.min()
 
     assert len(min_gen_levels) == len(
@@ -816,7 +814,6 @@ def check_min_power_against_variability(gen_clusters, resource_profile):
 
 
 def calc_emissions_ces_level(network_df, load_df, settings):
-
     # load_cols = [col for col in load_df.columns if "Load" in col]
     total_load = load_df.sum().sum()
 

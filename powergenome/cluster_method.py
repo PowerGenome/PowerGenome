@@ -6,13 +6,11 @@ from sklearn import cluster, preprocessing
 
 
 def build_cluster_method_dict(settings):
-
     cluster_method_dict = {}
 
     for region in settings["model_regions"]:
         cluster_method_dict[region] = {}
         if region not in settings["cluster_by_owner_regions"]:
-
             for tech in settings["num_clusters"]:
                 cluster_method_dict[region][tech] = cluster_kmeans
         else:
@@ -27,7 +25,6 @@ def build_cluster_method_dict(settings):
 def cluster_kmeans(
     grouped: pd.DataFrame, region: str, tech: str, settings: dict
 ) -> pd.DataFrame:
-
     if region in settings.get("alt_num_clusters", {}):
         # if tech in settings["alt_num_clusters"][region]:
         n_clusters = settings["alt_num_clusters"][region].get(tech)
@@ -44,7 +41,6 @@ def cluster_kmeans(
 
 
 def cluster_by_owner(grouped_units, weighted_ownership, plants, region, tech, settings):
-
     # I'm doing this by generator right now, but don't have generator info in the inputs.
     # Can calculate weighted percent ownership by pudl unit and use that in here.
 
@@ -152,7 +148,6 @@ def cluster_by_owner(grouped_units, weighted_ownership, plants, region, tech, se
 
 
 def weighted_ownership_by_unit(units_model, gens_860, ownership, settings):
-
     owner_cols = [
         "utility_id_eia",
         "plant_id_eia",
@@ -183,7 +178,6 @@ def weighted_ownership_by_unit(units_model, gens_860, ownership, settings):
     )
 
     def w_ownership(df, capacity_col):
-
         weighted_ownership = np.average(df["fraction_owned"], weights=df[capacity_col])
         return weighted_ownership
 

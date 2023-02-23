@@ -129,7 +129,6 @@ def fuel_settings():
 
 
 def test_fuel_labels_and_prices(fuel_settings):
-
     df_base = add_user_fuel_prices(fuel_settings)
 
     for fuel in [

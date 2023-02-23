@@ -126,7 +126,6 @@ def kmeans_time_clustering(
 
     # Creating the dataframe with concatenated columns
     for j in range(num_data_points):
-
         if j == 1:  # Store  variable names for the concatenated column
             ConcatenatedRowNames = norm_tseries.loc[HourlyGroupings[j + 1], :].melt(
                 id_vars=None

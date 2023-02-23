@@ -1182,7 +1182,6 @@ def calculate_weighted_heat_rate(heat_rate_df):
     """
 
     def w_hr(df):
-
         weighted_hr = np.average(
             df["heat_rate_mmbtu_mwh"], weights=df["net_generation_mwh"]
         )
@@ -2882,7 +2881,6 @@ class GeneratorClusters:
         for resource, parameters in (
             self.settings["flexible_demand_resources"].get(year, {}).items()
         ):
-
             _df = pd.DataFrame(
                 index=self.settings["model_regions"],
                 columns=list(self.settings["generator_columns"]) + ["profile"],
@@ -3297,7 +3295,6 @@ class GeneratorClusters:
                     region in alt_cluster_method
                     and tech in alt_cluster_method[region]["technology_description"]
                 ):
-
                     grouped = cluster_by_owner(
                         df,
                         self.weighted_ownership,
@@ -3555,7 +3552,6 @@ class GeneratorClusters:
         return self.new_generators
 
     def create_all_generators(self):
-
         if self.current_gens:
             self.existing_resources = self.create_region_technology_clusters()
 
