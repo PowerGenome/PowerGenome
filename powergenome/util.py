@@ -59,7 +59,6 @@ def load_settings(path: Union[str, Path]) -> dict:
 
 
 def fix_param_names(settings: dict) -> dict:
-
     fix_params = {
         "historical_load_region_maps": "historical_load_region_map",
         "demand_response_resources": "flexible_demand_resources",
@@ -451,7 +450,6 @@ def snake_case_str(s: str) -> str:
 
 
 def get_git_hash():
-
     try:
         git_head_hash = (
             subprocess.check_output(["git", "rev-parse", "HEAD"])

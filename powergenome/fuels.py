@@ -104,7 +104,6 @@ def adjust_ccs_fuels(ccs_fuel_row, settings):
         if ccs_fuel in ccs_fuel_row["Fuel"]:
             base_fuel_name = ccs_fuel
     if base_fuel_name:
-
         # USD/tonne disposal
         disposal_cost = settings.get("ccs_disposal_cost")
         if not disposal_cost:
@@ -128,7 +127,6 @@ def adjust_ccs_fuels(ccs_fuel_row, settings):
 
 
 def add_carbon_tax(fuel_df, settings):
-
     ctax = settings.get("carbon_tax") or 0
 
     fuel_df.loc[:, "Cost_per_MMBtu"] = fuel_df.loc[:, "Cost_per_MMBtu"] + (
