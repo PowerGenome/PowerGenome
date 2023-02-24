@@ -759,10 +759,13 @@ def supplement_generator_860_data(
             "technology_description",
             "time_cold_shutdown_full_load_code",
             "planned_retirement_date",
+            "prime_mover_code",
         ]
     )
+    gen_cols = [c for c in gen_cols if c in gens_860]
 
     entity_cols = ["plant_id_eia", "generator_id", "prime_mover_code", "operating_date"]
+    entity_cols = [c for c in entity_cols if c in gens_entity]
 
     bga_cols = [
         "plant_id_eia",
