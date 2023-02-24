@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def load_region_pop_frac(
     path_in: Path,
-    fn: str = "ipm_reeds_pop_weight_20230210.csv",
+    fn: str = "ipm_state_pop_weight_20220329.csv",
 ) -> pd.DataFrame:
     if (path_in / fn).suffix == ".csv":
         pop = pd.read_csv(path_in / fn)
@@ -48,11 +48,20 @@ def interp_dg(df: pd.DataFrame, year1: int, year2: int, target_year: int) -> pd.
     pd.Series
         Interpolated values.
     """
-    w1 = 1 / abs(target_year - year1)
-    w2 = 1 / abs(year2 - target_year)
+    if year1 > year2:
+        year1, year2 = year2, year1
+
     s1 = df.loc[df["year"] == year1, :].set_index("time_index")["region_distpv_mwh"]
     s2 = df.loc[df["year"] == year2, :].set_index("time_index")["region_distpv_mwh"]
-    return ((s1 * w1) + (s2 * w2)) / (w1 + w2)
+
+    if year1 < target_year < year2:
+        w1 = 1 / abs(target_year - year1)
+        w2 = 1 / abs(year2 - target_year)
+        return ((s1 * w1) + (s2 * w2)) / (w1 + w2)
+    elif year1 == target_year:
+        return s1
+    elif year2 == target_year:
+        return s2
 
 
 @deep_freeze_args
@@ -153,8 +162,8 @@ def distributed_gen_profiles(
         valid_scenarios = list(full_df.scenario.unique())
         if scenario not in valid_scenarios:
             raise ValueError(
-                f"Your 'electrification_scenario' parameter value '{scenario}' was not "
-                f"found in the 'electrification_stock_fn' file '{profile_fn}'. Valid "
+                f"Your 'distributed_gen_scenario' parameter value '{scenario}' was not "
+                f"found in the 'distributed_gen_fn' file '{profile_fn}'. Valid "
                 f"scenarios are: {valid_scenarios}."
             )
     if not set(dg_regions) == set(scenario_profile["region"].unique()):
@@ -205,7 +214,7 @@ def distributed_gen_profiles(
             "distributed generation data in this/these region(s)."
         )
 
-    for k, v in region_aggregations.items() or {}:
+    for k, v in (region_aggregations or {}).items():
         scenario_profile.loc[scenario_profile["region"].isin(v), "region"] = k
 
     scenario_profile["region_distpv_mwh"] = (
