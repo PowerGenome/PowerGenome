@@ -1182,7 +1182,6 @@ def calculate_weighted_heat_rate(heat_rate_df):
     """
 
     def w_hr(df):
-
         weighted_hr = np.average(
             df["heat_rate_mmbtu_mwh"], weights=df["net_generation_mwh"]
         )
@@ -1700,6 +1699,9 @@ def import_new_generators(
     new_operating = label_gen_region(
         _operating_860m.loc[new_mask, :], settings, model_regions_gdf
     )
+    new_operating = new_operating.drop_duplicates(
+        subset=["plant_id_eia", "generator_id"]
+    )
     new_operating.loc[:, "heat_rate_mmbtu_mwh"] = new_operating.loc[
         :, "technology_description"
     ].map(settings.get("proposed_gen_heat_rates", {}) or {})
@@ -1828,8 +1830,10 @@ def import_proposed_generators(
     #     planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
 
     # planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
-
-    planned_gdf = label_gen_region(planned, settings, model_regions_gdf)
+    _planned = planned.copy()
+    _planned["generator_id"] = _planned["generator_id"].apply(remove_leading_zero)
+    planned_gdf = label_gen_region(_planned, settings, model_regions_gdf)
+    planned_gdf = planned_gdf.drop_duplicates(subset=["plant_id_eia", "generator_id"])
 
     # Add planned additions from the settings file
     additional_planned = settings.get("additional_planned") or []
@@ -2877,7 +2881,6 @@ class GeneratorClusters:
         for resource, parameters in (
             self.settings["flexible_demand_resources"].get(year, {}).items()
         ):
-
             _df = pd.DataFrame(
                 index=self.settings["model_regions"],
                 columns=list(self.settings["generator_columns"]) + ["profile"],
@@ -3122,7 +3125,7 @@ class GeneratorClusters:
                         ["plant_id_eia", "model_region"]
                     ].drop_duplicates(),
                 ]
-            )
+            ).drop_duplicates(subset=["plant_id_eia", "model_region"])
             # embed()
             logger.info(
                 f"Proposed gen technologies are "
@@ -3292,7 +3295,6 @@ class GeneratorClusters:
                     region in alt_cluster_method
                     and tech in alt_cluster_method[region]["technology_description"]
                 ):
-
                     grouped = cluster_by_owner(
                         df,
                         self.weighted_ownership,
@@ -3550,7 +3552,6 @@ class GeneratorClusters:
         return self.new_generators
 
     def create_all_generators(self):
-
         if self.current_gens:
             self.existing_resources = self.create_region_technology_clusters()
 

@@ -431,7 +431,6 @@ def add_misc_gen_values(
 def reduce_time_domain(
     resource_profiles, load_profiles, settings, variable_resources_only=True
 ):
-
     demand_segments = load_demand_segments(settings)
 
     if settings.get("reduce_time_domain"):
@@ -788,7 +787,6 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
 
 
 def check_min_power_against_variability(gen_clusters, resource_profile):
-
     min_gen_levels = resource_profile.min()
 
     assert len(min_gen_levels) == len(
@@ -816,7 +814,6 @@ def check_min_power_against_variability(gen_clusters, resource_profile):
 
 
 def calc_emissions_ces_level(network_df, load_df, settings):
-
     # load_cols = [col for col in load_df.columns if "Load" in col]
     total_load = load_df.sum().sum()
 
@@ -923,7 +920,7 @@ def min_cap_req(settings: dict) -> pd.DataFrame:
     min_mw = []
 
     # if settings.get("MinCapReq"):
-    for cap_tag, values in settings.get("MinCapReq", {}).items():
+    for cap_tag, values in (settings.get("MinCapReq", {}) or {}).items():
         if cap_tag not in settings.get("model_tag_names", []):
             raise KeyError(
                 f"The minimum capacity tag {cap_tag} is listed in the settings "
@@ -983,7 +980,7 @@ def max_cap_req(settings: dict) -> pd.DataFrame:
     max_mw = []
 
     # if settings.get("MaxCapReq"):
-    for cap_tag, values in settings.get("MaxCapReq", {}).items():
+    for cap_tag, values in (settings.get("MaxCapReq", {}) or {}).items():
         if cap_tag not in settings.get("model_tag_names", []):
             raise KeyError(
                 f"The maximum capacity tag {cap_tag} is listed in the settings "

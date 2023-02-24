@@ -880,7 +880,6 @@ def test_db_col_values():
 
 
 def test_find_region_col():
-
     df = pd.DataFrame(columns=["A", "Region", "C"])
     region_col = find_region_col(df.columns)
     assert region_col == "Region"

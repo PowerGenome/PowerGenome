@@ -26,7 +26,6 @@ else:
 
 
 def resource_summary(df: pd.DataFrame) -> pd.DataFrame:
-
     # Loop though metros and only include base (highest number level) clusters, which
     # include all capacity.
     region_list = []
@@ -44,7 +43,6 @@ def resource_summary(df: pd.DataFrame) -> pd.DataFrame:
 
 df_list = []
 for m_f in meta_files:
-
     resource = m_f.stem.split("_")[resource_position]
     if resource == "existing":
         continue

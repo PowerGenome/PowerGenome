@@ -135,7 +135,6 @@ def parse_command_line(argv):
 
 
 def main(**kwargs):
-
     args = parse_command_line(sys.argv)
     args.__dict__.update(kwargs)
     cwd = Path.cwd()
@@ -206,7 +205,7 @@ def main(**kwargs):
         zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
 
-    input_folder = cwd / settings["input_folder"]
+    input_folder = Path(args.settings_file).parent / settings["input_folder"]
     settings["input_folder"] = input_folder
 
     scenario_definitions = pd.read_csv(
@@ -301,7 +300,6 @@ def main(**kwargs):
             else:
                 logger.info(f"\nStarting year {year} scenario {case_id}\n")
                 if args.gens:
-
                     gc.settings = _settings
 
                     gen_clusters = gc.create_all_generators()
@@ -380,7 +378,9 @@ def main(**kwargs):
                 model_regions_gdf = gc.model_regions_gdf
                 if _settings.get("user_transmission_costs"):
                     user_tx_costs = load_user_tx_costs(
-                        _settings["extra_inputs"] / _settings["user_transmission_costs"]
+                        _settings["input_folder"]
+                        / _settings["user_transmission_costs"],
+                        _settings["model_regions"],
                     )
                     transmission = agg_transmission_constraints(
                         pg_engine=pg_engine, settings=_settings
