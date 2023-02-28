@@ -2643,6 +2643,7 @@ def load_demand_response_efs_profile(
     model_regions: list,
     region_aggregations: dict = {},
     path_in: Path = None,
+    utc_offset: int = None,
 ) -> pd.DataFrame:
     """Load the demand profile of a single flexible resource in all model regions.
 
@@ -2666,6 +2667,9 @@ def load_demand_response_efs_profile(
     path_in : Path, optional
         Folder where stock and incremental factor (profile) data are located, by default
         None.
+    utc_offset: int, optional
+        Number of hours that should be shifted from the default UTC time that data are
+        stored in.
 
     Returns
     -------
@@ -2705,6 +2709,9 @@ def load_demand_response_efs_profile(
         ).sum(axis=1)
         dr_profile = dr_profile.drop(columns=base_regs, errors="ignore")
 
+    if utc_offset:
+        for col in dr_profile.columns:
+            dr_profile[col] = np.roll(dr_profile[col].values, utc_offset)
     return dr_profile
 
 
@@ -2923,6 +2930,7 @@ class GeneratorClusters:
                     keep_regions,
                     self.settings.get("region_aggregations", {}) or {},
                     self.settings.get("EFS_DATA"),
+                    self.settings.get("utc_offset"),
                 )
             self.demand_response_profiles[resource] = dr_profile
             # Add hourly profile to demand response rows
