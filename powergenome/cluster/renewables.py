@@ -116,7 +116,7 @@ def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
     if s.empty:
         return []
     if len(s) == 1:
-        return [1]
+        return np.array([0])
     if n_clusters <= 0:
         logger.warning(
             f"You have entered a n_clusters parameter that is less than or equal to 0 "
@@ -143,7 +143,7 @@ def agg_cluster_other(s: pd.Series, n_clusters: int) -> pd.DataFrame:
     if s.empty:
         return []
     if len(s) == 1:
-        return [1]
+        return np.array([0])
     if n_clusters <= 0:
         logger.warning(
             f"You have entered a n_clusters parameter that is less than or equal to 0 "
@@ -179,15 +179,10 @@ def agglomerative_cluster_binned(
     df_list = []
     first_label = 0
     for _, _df in grouped:
-        if len(_df) == 1:
-            labels = 1
-            labels += first_label
-            _df["cluster"] = labels
-        else:
-            labels = func(_df[feature], min(n_clusters, len(_df)))
-            labels += first_label
-            first_label = max(labels) + 1
-            _df["cluster"] = labels
+        labels = func(_df[feature], min(n_clusters, len(_df)))
+        labels += first_label
+        first_label = max(labels) + 1
+        _df["cluster"] = labels
         df_list.append(_df)
     df = pd.concat(df_list)
 
