@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 from sklearn.cluster import AgglomerativeClustering
-from statsmodels.stats.weightstats import DescrStatsW
 
 from powergenome.resource_clusters import MERGE
 from powergenome.util import snake_case_str
@@ -55,6 +54,14 @@ def value_bin(
     pd.Series
         Labels for each data point in the feature
     """
+    try:
+        from statsmodels.stats.weightstats import DescrStatsW
+    except ModuleNotFoundError as e:
+        logger.error(
+            "\n\nThe package 'statsmodels' must be installed for weighted quantile calculations. "
+            "Install it using mamba, pip, or conda, then try again.\n\n"
+        )
+        raise ModuleNotFoundError(e)
     if s.empty:
         return []
     # if all values are very close pandas will give a binning error
