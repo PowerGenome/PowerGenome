@@ -17,6 +17,7 @@ from powergenome.generators import (
 )
 from powergenome.GenX import (
     add_cap_res_network,
+    add_co2_costs_to_o_m,
     check_resource_tags,
     create_policy_req,
     create_regional_cap_res,
@@ -274,7 +275,9 @@ def main(**kwargs):
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
                     gen_variability.columns = gen_clusters["Resource"]
-                    gens = fix_min_power_values(gen_clusters, gen_variability)
+                    gens = fix_min_power_values(gen_clusters, gen_variability).pipe(
+                        add_co2_costs_to_o_m
+                    )
                     for col in _settings["generator_columns"]:
                         if col not in gens.columns:
                             gens[col] = 0
@@ -320,7 +323,9 @@ def main(**kwargs):
                     gen_variability = make_generator_variability(gen_clusters)
                     gen_variability.index.name = "Time_Index"
                     gen_variability.columns = gen_clusters["Resource"]
-                    gens = fix_min_power_values(gen_clusters, gen_variability)
+                    gens = fix_min_power_values(gen_clusters, gen_variability).pipe(
+                        add_co2_costs_to_o_m
+                    )
                     cols = [c for c in _settings["generator_columns"] if c in gens]
                     write_results_file(
                         df=remove_fuel_gen_scenario_name(
