@@ -26,6 +26,14 @@ def merge_co2_pipeline_costs(
     Data come from an external file. Filters from the settings are used to select the
     data that will be merged.
 
+    An example of the YAML settings parameter would be:
+
+    co2_pipeline_filters:
+      - technology: NaturalGas
+        tech_detail: CCCCSAvgCF
+        with_backbone: false
+        percentile: 25
+
     Parameters
     ----------
     df : pd.DataFrame
