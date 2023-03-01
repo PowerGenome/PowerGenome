@@ -20,6 +20,7 @@ from powergenome.cluster_method import (
     cluster_kmeans,
     weighted_ownership_by_unit,
 )
+from powergenome.co2_pipeline_cost import merge_co2_pipeline_costs
 from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
 from powergenome.external_data import (
     make_demand_response_profiles,
@@ -3560,6 +3561,20 @@ class GeneratorClusters:
         self.all_resources = pd.concat(
             [self.existing_resources, self.new_resources], ignore_index=True, sort=False
         )
+
+        # Add CO2 pipeline and disposal costs from file
+        if self.settings.get("co2_pipeline_filters") and self.settings.get(
+            "co2_pipeline_cost_fn"
+        ):
+            self.all_resources = merge_co2_pipeline_costs(
+                self.all_resources,
+                self.settings["co2_pipeline_filters"],
+                self.settings.get("region_aggregations"),
+                self.settings["input_folder"]
+                / self.settings.get("co2_pipeline_cost_fn"),
+                self.settings["fuel_emission_factors"],
+                self.settings.get("target_usd_year"),
+            )
 
         self.all_resources = self.all_resources.round(3)
         self.all_resources["Cap_Size"] = self.all_resources["Cap_Size"]
