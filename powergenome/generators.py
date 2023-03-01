@@ -20,6 +20,7 @@ from powergenome.cluster_method import (
     cluster_kmeans,
     weighted_ownership_by_unit,
 )
+from powergenome.co2_pipeline_cost import merge_co2_pipeline_costs
 from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
 from powergenome.external_data import (
     make_demand_response_profiles,
@@ -973,7 +974,6 @@ def update_operating_date_860m(
         The original "df" dataframe with missing operating dates filled using the operating
         year from 860m.
     """
-
     _df = df.set_index(["plant_id_eia", "generator_id"])
     _operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
     no_op_date = _df.loc[_df["operating_date"].isna(), :]
@@ -1188,7 +1188,6 @@ def calculate_weighted_heat_rate(heat_rate_df):
     """
 
     def w_hr(df):
-
         weighted_hr = np.average(
             df["heat_rate_mmbtu_mwh"], weights=df["net_generation_mwh"]
         )
@@ -1706,6 +1705,9 @@ def import_new_generators(
     new_operating = label_gen_region(
         _operating_860m.loc[new_mask, :], settings, model_regions_gdf
     )
+    new_operating = new_operating.drop_duplicates(
+        subset=["plant_id_eia", "generator_id"]
+    )
     new_operating.loc[:, "heat_rate_mmbtu_mwh"] = new_operating.loc[
         :, "technology_description"
     ].map(settings.get("proposed_gen_heat_rates", {}) or {})
@@ -1834,8 +1836,10 @@ def import_proposed_generators(
     #     planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
 
     # planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
-
-    planned_gdf = label_gen_region(planned, settings, model_regions_gdf)
+    _planned = planned.copy()
+    _planned["generator_id"] = _planned["generator_id"].apply(remove_leading_zero)
+    planned_gdf = label_gen_region(_planned, settings, model_regions_gdf)
+    planned_gdf = planned_gdf.drop_duplicates(subset=["plant_id_eia", "generator_id"])
 
     # Add planned additions from the settings file
     additional_planned = settings.get("additional_planned") or []
@@ -2642,6 +2646,7 @@ def load_demand_response_efs_profile(
     model_regions: list,
     region_aggregations: dict = {},
     path_in: Path = None,
+    utc_offset: int = None,
 ) -> pd.DataFrame:
     """Load the demand profile of a single flexible resource in all model regions.
 
@@ -2665,6 +2670,9 @@ def load_demand_response_efs_profile(
     path_in : Path, optional
         Folder where stock and incremental factor (profile) data are located, by default
         None.
+    utc_offset: int, optional
+        Number of hours that should be shifted from the default UTC time that data are
+        stored in.
 
     Returns
     -------
@@ -2704,6 +2712,9 @@ def load_demand_response_efs_profile(
         ).sum(axis=1)
         dr_profile = dr_profile.drop(columns=base_regs, errors="ignore")
 
+    if utc_offset:
+        for col in dr_profile.columns:
+            dr_profile[col] = np.roll(dr_profile[col].values, utc_offset)
     return dr_profile
 
 
@@ -2896,7 +2907,6 @@ class GeneratorClusters:
         for resource, parameters in (
             self.settings["flexible_demand_resources"].get(year, {}).items()
         ):
-
             _df = pd.DataFrame(
                 index=self.settings["model_regions"],
                 columns=list(self.settings["generator_columns"]) + ["profile"],
@@ -2936,6 +2946,7 @@ class GeneratorClusters:
                     keep_regions,
                     self.settings.get("region_aggregations", {}) or {},
                     self.settings.get("EFS_DATA"),
+                    self.settings.get("utc_offset"),
                 )
             self.demand_response_profiles[resource] = dr_profile
             # Add hourly profile to demand response rows
@@ -3141,7 +3152,7 @@ class GeneratorClusters:
                         ["plant_id_eia", "model_region"]
                     ].drop_duplicates(),
                 ]
-            )
+            ).drop_duplicates(subset=["plant_id_eia", "model_region"])
             # embed()
             logger.info(
                 f"Proposed gen technologies are "
@@ -3311,7 +3322,6 @@ class GeneratorClusters:
                     region in alt_cluster_method
                     and tech in alt_cluster_method[region]["technology_description"]
                 ):
-
                     grouped = cluster_by_owner(
                         df,
                         self.weighted_ownership,
@@ -3570,7 +3580,6 @@ class GeneratorClusters:
         return self.new_generators
 
     def create_all_generators(self):
-
         if self.current_gens:
             self.existing_resources = self.create_region_technology_clusters()
 
@@ -3579,6 +3588,20 @@ class GeneratorClusters:
         self.all_resources = pd.concat(
             [self.existing_resources, self.new_resources], ignore_index=True, sort=False
         )
+
+        # Add CO2 pipeline and disposal costs from file
+        if self.settings.get("co2_pipeline_filters") and self.settings.get(
+            "co2_pipeline_cost_fn"
+        ):
+            self.all_resources = merge_co2_pipeline_costs(
+                self.all_resources,
+                self.settings["co2_pipeline_filters"],
+                self.settings.get("region_aggregations"),
+                self.settings["input_folder"]
+                / self.settings.get("co2_pipeline_cost_fn"),
+                self.settings["fuel_emission_factors"],
+                self.settings.get("target_usd_year"),
+            )
 
         self.all_resources = self.all_resources.round(3)
         self.all_resources["Cap_Size"] = self.all_resources["Cap_Size"]

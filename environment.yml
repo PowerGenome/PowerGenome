@@ -25,6 +25,7 @@ dependencies:
   - conda-forge::ruamel.yaml
   - conda-forge::frozendict
   - conda-forge::hypothesis[pandas]
+  - numpy=1.23.*
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona

@@ -112,7 +112,6 @@ def parse_command_line(argv):
 
 
 def main():
-
     args = parse_command_line(sys.argv)
 
     out_folder = DATA_PATHS["results"] / args.results_folder

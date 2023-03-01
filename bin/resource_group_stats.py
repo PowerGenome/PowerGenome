@@ -41,7 +41,6 @@ LCOE_BIN_EDGES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 125, 150, 175, 200
 
 
 def resource_summary(df: pd.DataFrame, sub_region: str = None) -> pd.DataFrame:
-
     # Loop though metros and only include base (highest number level) clusters, which
     # include all capacity.
     by = ["ipm_region", "metro_id"]
@@ -95,7 +94,6 @@ def main():
 
     df_list = []
     for m_f in meta_files:
-
         resource = m_f.stem.split("_")[resource_position]
         # from IPython import embed
 

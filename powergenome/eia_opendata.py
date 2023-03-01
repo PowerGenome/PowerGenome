@@ -21,13 +21,15 @@ logger = logging.getLogger(__name__)
 numeric = Union[int, float]
 
 
-def download_bulk_file(fn: str):
+def download_bulk_file(fn: str, retry: bool = False):
     """Download and unzip a bulk data file from EIA
 
     Parameters
     ----------
     fn : str
         Name of the bulk data file
+    retry : bool
+        If True, redo the download/save
     """
     if ".zip" not in fn:
         fn = f"{fn}.zip"
@@ -35,6 +37,8 @@ def download_bulk_file(fn: str):
 
     save_path = DATA_PATHS["eia"] / "bulk_files"
     if not (save_path / fn).exists():
+        download_save(url, save_path / fn)
+    elif retry:
         download_save(url, save_path / fn)
 
 
@@ -100,7 +104,9 @@ def read_eia_api(series_id: str, api_key: str, columns: list = None):
         )
 
 
-def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.DataFrame:
+def load_aeo_series(
+    series_id: str, api_key: str, columns: list = None, retry_bulk: bool = False
+) -> pd.DataFrame:
     """Load EIA AEO data either from file (if it exists) from a bulk download file or
     from the API.
 
@@ -133,9 +139,22 @@ def load_aeo_series(series_id: str, api_key: str, columns: list = None) -> pd.Da
                 name_str="Energy Prices : Electric Power",
                 columns=["year", "price"],
             )
-        except FileNotFoundError:
-            df = read_eia_api(series_id, api_key, columns)
-            return df
+        except (FileNotFoundError, zipfile.BadZipFile):
+            try:
+                download_bulk_file(fn, retry=True)
+                extract_bulk_series(
+                    aeo_year=year,
+                    name_str="Electricity Demand",
+                    columns=["year", "demand"],
+                )
+                extract_bulk_series(
+                    aeo_year=year,
+                    name_str="Energy Prices : Electric Power",
+                    columns=["year", "price"],
+                )
+            except (FileNotFoundError, zipfile.BadZipFile):
+                df = read_eia_api(series_id, api_key, columns)
+                return df
 
     df = pd.read_csv(data_dir / f"{series_id}.csv")
 

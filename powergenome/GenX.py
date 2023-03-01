@@ -431,7 +431,6 @@ def add_misc_gen_values(
 def reduce_time_domain(
     resource_profiles, load_profiles, settings, variable_resources_only=True
 ):
-
     demand_segments = load_demand_segments(settings)
 
     if settings.get("reduce_time_domain"):
@@ -788,7 +787,6 @@ def calculate_partial_CES_values(gen_clusters, fuels, settings):
 
 
 def check_min_power_against_variability(gen_clusters, resource_profile):
-
     min_gen_levels = resource_profile.min()
 
     assert len(min_gen_levels) == len(
@@ -816,7 +814,6 @@ def check_min_power_against_variability(gen_clusters, resource_profile):
 
 
 def calc_emissions_ces_level(network_df, load_df, settings):
-
     # load_cols = [col for col in load_df.columns if "Load" in col]
     total_load = load_df.sum().sum()
 
@@ -983,7 +980,7 @@ def max_cap_req(settings: dict) -> pd.DataFrame:
     max_mw = []
 
     # if settings.get("MaxCapReq"):
-    for cap_tag, values in settings.get("MaxCapReq", {}).items():
+    for cap_tag, values in (settings.get("MaxCapReq", {}) or {}).items():
         if cap_tag not in settings.get("model_tag_names", []):
             raise KeyError(
                 f"The maximum capacity tag {cap_tag} is listed in the settings "
@@ -1143,5 +1140,32 @@ def rename_gen_cols(
         rename.update(rename_cols)
 
     df = df.rename(columns=rename, errors="ignore")
+
+    return df
+
+
+def add_co2_costs_to_o_m(df: pd.DataFrame) -> pd.DataFrame:
+    """Add CO2 pipeline annuity/FOM to fixed O&M and cost per MWh to variable O&M
+    using the column names for GenX
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Generators dataframe. May include columns "co2_cost_mwh", "co2_pipeline_annuity_mw",
+        and "co2_o_m_mw". Must include columns "Var_OM_Cost_per_MWh",
+        "Inv_Cost_per_MWyr", and "Fixed_OM_Cost_per_MWyr"
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified version of original df with CO2 pipeline annuity/O&M added to plant
+        costs
+    """
+    if "co2_cost_mwh" in df.columns:
+        df["Var_OM_Cost_per_MWh"] += df["co2_cost_mwh"]
+    if "co2_pipeline_annuity_mw" in df.columns:
+        df["Inv_Cost_per_MWyr"] += df["co2_pipeline_annuity_mw"]
+    if "co2_o_m_mw" in df.columns:
+        df["Fixed_OM_Cost_per_MWyr"] += df["co2_o_m_mw"]
 
     return df
