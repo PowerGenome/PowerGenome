@@ -9,8 +9,10 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 from sklearn.cluster import AgglomerativeClustering
+from statsmodels.stats.weightstats import DescrStatsW
 
 from powergenome.resource_clusters import MERGE
+from powergenome.util import snake_case_str
 
 logger = logging.getLogger(__name__)
 
@@ -68,18 +70,11 @@ def value_bin(
             weights = pd.Series(np.ones_like(weights))
 
         if isinstance(q, int):  # Calc feature values of bin edges from quantiles
-            q_vals = np.linspace(0, 1, q + 1)
-            bins = [w_quantile(s, weights, _q) for _q in q_vals]
-            labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
-        elif isinstance(q, list):
-            q.sort()
-            bins = [w_quantile(s, weights, _q) for _q in q]
-            labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
-        else:
-            raise TypeError(
-                "One of your renewables_clusters uses both the 'q' option and 'weights' "
-                f"but 'q' is not an integer or a list. Instead, 'q' is: \n\n{q}"
-            )
+            q = np.linspace(0, 1, q + 1)
+        q.sort()
+        wq = DescrStatsW(data=s, weights=weights)
+        bins = wq.quantile(probs=q, return_pandas=False)
+        labels = pd.cut(s, bins=bins, duplicates="drop", include_lowest=True)
 
     elif bins:
         if isinstance(bins, list):
@@ -115,38 +110,6 @@ def value_bin(
         labels = np.ones_like(s)
 
     return labels
-
-
-def w_quantile(x: pd.Series, weights: pd.Series, q: float) -> float:
-    """Calculate feature value at a quantile given both features and weights
-
-    Parameters
-    ----------
-    x : pd.Series
-        Value of feature data
-    weights : pd.Series
-        Weight of each data point
-    q : float
-        Quantile value from 0 to 1
-
-    Returns
-    -------
-    float
-        Data value corresponding to the quantile, accounting for weights
-    """
-    if weights.sum() == 0:
-        weights += 0.1
-    weights.loc[(weights > 0) & (weights < 0.001)] = 0.001
-    x = pd.concat([x, weights], axis=1)
-    xsort = x.sort_values(x.columns[0], ignore_index=True)
-    p = q * xsort.iloc[:, 1].sum()
-    pop = xsort.iloc[0, 1]
-    i = 0
-    idx_max = xsort.index.max()
-    while pop < p and i < idx_max:
-        pop = pop + xsort.loc[i + 1, xsort.columns[1]]
-        i = i + 1
-    return xsort.loc[i, xsort.columns[0]]
 
 
 def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
@@ -329,7 +292,11 @@ def calc_cluster_values(
     return _df
 
 
-CLUSTER_FUNCS = {"agglomerative": agglomerative_cluster}
+CLUSTER_FUNCS = {
+    "agglomerative": agglomerative_cluster,
+    "agg": agglomerative_cluster,
+    "hierarchical": agglomerative_cluster,
+}
 
 
 def assign_site_cluster(
@@ -346,14 +313,12 @@ def assign_site_cluster(
     **kwargs: Any,
 ) -> pd.DataFrame:
     """Use settings options to group individual renewable sites.
-
     Sites are located within a model region that may be a collection of base regions.
     Site metadata such as the cpa_id and any numeric or categorial features (e.g.
     interconnection cost or the name of a geographic subregion that the site is located
     in) are specified in `renew_data`. Based on the user settings, the full list of
     sites in a region is filtered (numeric), binned (numeric), grouped(categorical), and
     clustered (numeric).
-
     Parameters
     ----------
     renew_data : pd.DataFrame
@@ -392,13 +357,11 @@ def assign_site_cluster(
     utc_offset : int, optional
         Hours offset from UTC, by default 0. Generation data will be shifted from UTC
         by this value.
-
     Returns
     -------
     pd.DataFrame
         The renewable sites included in the study with a column "cluster". Other columns
         for binning and grouping may also be included.
-
     Raises
     ------
     KeyError
@@ -407,11 +370,9 @@ def assign_site_cluster(
         The feature is not included in `renew_data`
     TypeError
         The feature specified by a "bin" set of parameters is not numeric.
-
     Examples
     --------
     This is an example of the YAML settings.
-
     renewables_clusters:
     - region: ISNE
         technology: landbasedwind
@@ -435,7 +396,7 @@ def assign_site_cluster(
     for filt in filter or []:
         data = value_filter(
             data=data,
-            feature=filt["feature"].lower(),
+            feature=snake_case_str(filt["feature"]),
             max_value=filt.get("max"),
             min_value=filt.get("min"),
         )
@@ -455,7 +416,7 @@ def assign_site_cluster(
 
     bin_features = []
     for b in bin or []:
-        feature = b.get("feature")
+        feature = snake_case_str(b.get("feature"))
         if not feature:
             raise KeyError(
                 "One of your renewables_clusters uses the 'bin' option but doesn't include "
@@ -473,24 +434,37 @@ def assign_site_cluster(
                 f"You specified the feature '{feature}' to bin one of your renewables_clusters. "
                 f"'{feature}' is not a numeric column. Binning requires a numeric column."
             )
-        feature = feature.lower()
         bin_features.append(f"{feature}_bin")
-        weights = b.get("weights")
+        weights = snake_case_str(b.get("weights"))
         if weights and weights not in data.columns:
             raise KeyError(
                 "One of your renewables_clusters uses the 'bin' option and includes the "
                 f"'weights' argument '{weights}', which is not in the renewable site data. The "
                 "weights must be one of the columns in your renewable site data file."
             )
+        if "mw_per_bin" in b:
+            if b.get("bins") is not None:
+                logger.warning("Overwriting 'bins' based on mw_bin_size")
+            b["bins"] = int(data["mw"].sum() / b["mw_per_bin"]) + 1
+            del b["mw_per_bin"]
+        if "mw_per_q" in b:
+            if b.get("q") is not None:
+                logger.warning("Overwriting 'bins' based on mw_bin_size")
+            b["q"] = int(data["mw"].sum() / b["mw_per_q"]) + 1
+            del b["mw_per_q"]
         data[f"{feature}_bin"] = value_bin(
             data[feature], b.get("bins"), b.get("q"), weights=weights
         )
 
-    group_by = bin_features + ([g.lower() for g in group or []])
+    group_by = bin_features + ([snake_case_str(g) for g in group or []])
     prev_feature_cluster_col = None
     for clust in cluster or []:
-        if "mw_per_cluster" in clust and clust.get("n_clusters") is None:
+        clust["feature"] = snake_case_str(clust["feature"])
+        if "mw_per_cluster" in clust:
+            if clust.get("n_clusters") is not None:
+                logger.warning("Overwriting 'n_clusters' based on mw_cluster_size")
             clust["n_clusters"] = int(data["mw"].sum() / clust["mw_per_cluster"]) + 1
+            del clust["mw_per_cluster"]
 
         if "cluster" in data.columns and prev_feature_cluster_col:
             data = data.rename(columns={"cluster": prev_feature_cluster_col})

@@ -8,7 +8,6 @@ from powergenome.cluster.renewables import (
     agg_cluster_profile,
     agglomerative_cluster_binned,
     agglomerative_cluster_no_bin,
-    w_quantile,
 )
 
 import hypothesis
@@ -104,19 +103,3 @@ def test_fuzz_agglomerative_cluster_binned(data, feature, by, n_clusters):
     agglomerative_cluster_binned(
         data=data, by=by, feature=feature, n_clusters=n_clusters
     )
-
-
-@given(q=st.floats(min_value=0, max_value=1), data=st.data())
-def test_fuzz_w_quantile(q, data):
-    strategy = series(
-        elements=st.floats(min_value=-100, max_value=100),
-        index=range_indexes(min_size=10, max_size=10),
-    )
-    x = data.draw(strategy)
-    # pandas binning breaks with very small values. Allow 0 but nothing smaller than 0.01
-    x.loc[(abs(x) > 0) & (abs(x) < 0.01)] = 0.01
-    w = data.draw(strategy).abs()
-    w_quantile(x, w, q)
-
-    top_value = w_quantile(x, w, 1)
-    assert top_value == x.loc[w > 0].max()
