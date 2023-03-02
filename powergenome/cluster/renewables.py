@@ -399,6 +399,7 @@ def assign_site_cluster(
             max: 100
         bin:
           - feature: interconnect_annuity
+            weights: mw
             bins: 3 # This can be an integer or list of bin edges
             # q: [0, .25, .5, .75, 1.] # Integer number of quantiles (e.g. quartiles) or list of quantile edges
         group:
@@ -451,27 +452,39 @@ def assign_site_cluster(
                 f"You specified the feature '{feature}' to bin one of your renewables_clusters. "
                 f"'{feature}' is not a numeric column. Binning requires a numeric column."
             )
-        bin_features.append(f"{feature}_bin")
-        weights = snake_case_str(b.get("weights"))
-        if weights and weights not in data.columns:
+
+        weights_col = snake_case_str(b.get("weights"))
+        if weights_col and weights_col not in data.columns:
             raise KeyError(
                 "One of your renewables_clusters uses the 'bin' option and includes the "
-                f"'weights' argument '{weights}', which is not in the renewable site data. The "
-                "weights must be one of the columns in your renewable site data file."
+                f"'weights' argument '{weights_col}', which is not in the renewable site data. The "
+                "weights must be one of the columns in your renewable site data file.\n\n"
+                "NOTE: Use the parameter 'mw' to weight by capacity."
             )
-        if "mw_per_bin" in b:
-            if b.get("bins") is not None:
-                logger.warning("Overwriting 'bins' based on mw_bin_size")
-            b["bins"] = int(data["mw"].sum() / b["mw_per_bin"]) + 1
-            del b["mw_per_bin"]
-        if "mw_per_q" in b:
-            if b.get("q") is not None:
-                logger.warning("Overwriting 'bins' based on mw_bin_size")
-            b["q"] = int(data["mw"].sum() / b["mw_per_q"]) + 1
-            del b["mw_per_q"]
-        data[f"{feature}_bin"] = value_bin(
-            data[feature], b.get("bins"), b.get("q"), weights=weights
-        )
+        elif weights_col:
+            weights = data[weights_col]
+        else:
+            weights = None
+
+        if not bin_features:
+            b = num_bins_from_capacity(data, b)
+            data[f"{feature}_bin"] = value_bin(
+                data[feature], b.get("bins"), b.get("q"), weights=weights
+            )
+        else:
+            df_list = []
+            for _, _df in data.groupby(bin_features[-1]):
+                _b = num_bins_from_capacity(_df, b.copy())
+                _weights = None
+                if weights is not None:
+                    _weights = _df[weights_col]
+
+                _df[f"{feature}_bin"] = value_bin(
+                    _df[feature], _b.get("bins"), b.get("q"), weights=_weights
+                )
+                df_list.append(_df)
+            data = pd.concat(df_list, ignore_index=True)
+        bin_features.append(f"{feature}_bin")
 
     group_by = bin_features + ([snake_case_str(g) for g in group or []])
     prev_feature_cluster_col = None
@@ -514,3 +527,18 @@ def assign_site_cluster(
             data["cluster"] = range(1, len(data) + 1)
 
     return data
+
+
+def num_bins_from_capacity(data, b):
+    if "mw_per_bin" in b:
+        if b.get("bins") is not None:
+            logger.warning("Overwriting 'bins' based on mw_per_bin")
+        b["bins"] = int(data["mw"].sum() / b["mw_per_bin"]) + 1
+        del b["mw_per_bin"]
+    if "mw_per_q" in b:
+        if b.get("q") is not None:
+            logger.warning("Overwriting 'q' based on mw_per_q")
+        b["q"] = int(data["mw"].sum() / b["mw_per_q"]) + 1
+        del b["mw_per_q"]
+
+    return b
