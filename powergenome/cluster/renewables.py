@@ -178,7 +178,10 @@ def agg_cluster_other(s: pd.Series, n_clusters: int) -> pd.DataFrame:
 
 
 def agglomerative_cluster_binned(
-    data: pd.DataFrame, by: Union[str, List[str]], feature: str, n_clusters: int
+    data: pd.DataFrame,
+    by: Union[str, List[str]],
+    feature: str,
+    n_clusters: Union[int, pd.Series, dict],
 ) -> pd.DataFrame:
     if data.empty:
         data["cluster"] = []
@@ -192,12 +195,17 @@ def agglomerative_cluster_binned(
     grouped = data.groupby(by)
     df_list = []
     first_label = 0
+    if isinstance(n_clusters, int):
+        _n_clusters = n_clusters
     for _, _df in grouped:
-        labels = func(_df[feature], min(n_clusters, len(_df)))
-        labels += first_label
-        first_label = max(labels) + 1
-        _df["cluster"] = labels
-        df_list.append(_df)
+        if not _df.empty:
+            if not isinstance(n_clusters, int):
+                _n_clusters = n_clusters[_]
+            labels = func(_df[feature], min(_n_clusters, len(_df)))
+            labels += first_label
+            first_label = max(labels) + 1
+            _df["cluster"] = labels
+            df_list.append(_df)
     df = pd.concat(df_list)
 
     return df
@@ -472,7 +480,14 @@ def assign_site_cluster(
         if "mw_per_cluster" in clust:
             if clust.get("n_clusters") is not None:
                 logger.warning("Overwriting 'n_clusters' based on mw_cluster_size")
-            clust["n_clusters"] = int(data["mw"].sum() / clust["mw_per_cluster"]) + 1
+            if not group_by:
+                clust["n_clusters"] = (
+                    int(data["mw"].sum() / clust["mw_per_cluster"]) + 1
+                )
+            else:
+                clust["n_clusters"] = (
+                    data.groupby(group_by)["mw"].sum() / clust["mw_per_cluster"]
+                ).astype(int) + 1
             del clust["mw_per_cluster"]
 
         if "cluster" in data.columns and prev_feature_cluster_col:
