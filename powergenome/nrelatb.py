@@ -1400,8 +1400,19 @@ def add_renewables_clusters(
                 meta = [rg.group for rg in resource_groups]
                 raise ValueError(f"Parameters match multiple resource groups: {meta}")
             renew_data, site_map = load_resource_group_data(resource_groups[0])
+
+            feature_keys = ["filter", "bin", "cluster"]
+            feature_cols = []
+            for k in feature_keys:
+                for d in scenario.get(k, []):
+                    if d.get("feature"):
+                        if (
+                            d["feature"] in renew_data.columns
+                            and d["feature"] not in feature_cols
+                        ):
+                            feature_cols.append(snake_case_str(d["feature"]))
             data = assign_site_cluster(
-                renew_data=renew_data,
+                renew_data=renew_data[feature_cols + ["cpa_id", "mw", "region"]],
                 profile_path=resource_groups[0].group.get("profiles"),
                 regions=regions,
                 site_map=site_map,
