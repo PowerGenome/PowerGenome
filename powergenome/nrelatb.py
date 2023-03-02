@@ -8,6 +8,7 @@ import logging
 import operator
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
+from joblib import Parallel, delayed
 
 import numpy as np
 import pandas as pd
@@ -27,6 +28,7 @@ from powergenome.util import (
     reverse_dict_of_lists,
     remove_leading_zero,
     snake_case_col,
+    snake_case_str,
 )
 
 idx = pd.IndexSlice
@@ -1229,29 +1231,19 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
 
         df_list = []
         settings = apply_all_tag_to_regions(settings)
-        for region in regions:
-            _df = new_gen_df.copy()
-            _df["region"] = region
-            _df = regional_capex_multiplier(
-                _df,
-                region,
-                rev_mult_region_map,
-                rev_mult_tech_map,
-                regional_cost_multipliers,
-            )
-            _df = add_renewables_clusters(
-                _df,
-                region,
+
+        df_list = Parallel(n_jobs=settings.get("clustering_n_jobs", 1))(
+            delayed(parallel_region_renewables)(
                 settings,
                 cluster_builder,
+                new_gen_df,
+                regional_cost_multipliers,
+                rev_mult_region_map,
+                rev_mult_tech_map,
+                region,
             )
-
-            if region in (settings.get("new_gen_not_available") or {}):
-                techs = settings["new_gen_not_available"][region]
-                for tech in techs:
-                    _df = _df.loc[~_df["technology"].str.contains(tech), :]
-
-            df_list.append(_df)
+            for region in regions
+        )
 
         results = pd.concat(df_list, ignore_index=True, sort=False)
 
@@ -1270,13 +1262,42 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
     return results
 
 
+def parallel_region_renewables(
+    settings,
+    cluster_builder,
+    new_gen_df,
+    regional_cost_multipliers,
+    rev_mult_region_map,
+    rev_mult_tech_map,
+    region,
+):
+    _df = new_gen_df.copy()
+    _df["region"] = region
+    _df = regional_capex_multiplier(
+        _df,
+        region,
+        rev_mult_region_map,
+        rev_mult_tech_map,
+        regional_cost_multipliers,
+    )
+    _df = add_renewables_clusters(
+        _df,
+        region,
+        settings,
+        cluster_builder,
+    )
+
+    return _df
+
+
 def load_resource_group_data(
     rg: ResourceGroup,
 ) -> Tuple[pd.DataFrame, Union[pd.Series, None]]:
     data = rg.metadata.read(cache=True)
     data.columns = snake_case_col(data.columns)
     data["region"] = data.loc[:, "metro_region"]
-    data["mw"] = data.loc[:, "cpa_mw"]
+    if "cpa_mw" in data.columns and "mw" not in data.columns:
+        data["mw"] = data.loc[:, "cpa_mw"]
     data = data.loc[data["mw"] > 0, :]
     profile_path = Path(rg.group["profiles"])
     if rg.group.get("site_map"):
@@ -1426,6 +1447,7 @@ def add_renewables_clusters(
                 .assign(technology=technology, region=region)
             )
             if settings.get("extra_outputs"):
+                Path(settings["extra_outputs"]).mkdir(parents=True, exist_ok=True)
                 bin_cols = [c for c in data.columns if c.endswith("_bin")]
                 group_cols = [g.lower() for g in scenario.get("group", [])]
                 cols = ["cpa_id"] + bin_cols + group_cols + ["cluster"]
