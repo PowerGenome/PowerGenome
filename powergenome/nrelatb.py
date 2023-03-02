@@ -1359,9 +1359,14 @@ def add_renewables_clusters(
             if v and all([scenario.get(ki) == vi for ki, vi in v.items()])
         ]
         if not technologies:
-            raise ValueError(
-                f"Renewables clusters do not match NREL ATB technologies: {scenario}"
+            s = (
+                f"You have a renewables_cluster for technology '{scenario.get('technology')} "
+                f"in region '{scenario.get('region')}', but no comparable new-build technology "
+                "was specified in your settings file."
             )
+
+            logger.warning(s)
+            continue
         if len(technologies) > 1:
             raise ValueError(
                 f"Renewables clusters match multiple NREL ATB technologies: {scenario}"
