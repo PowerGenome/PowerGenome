@@ -1,9 +1,10 @@
 """
 Flexible methods to cluster/aggregate renewable projects
 """
+from functools import lru_cache
 import logging
 from pathlib import Path
-from typing import Any, List, Union
+from typing import Any, List, Union, Dict
 
 import numpy as np
 import pandas as pd
@@ -11,7 +12,7 @@ import pyarrow.parquet as pq
 from sklearn.cluster import AgglomerativeClustering
 
 from powergenome.resource_clusters import MERGE
-from powergenome.util import snake_case_str
+from powergenome.util import deep_freeze_args, snake_case_str
 
 logger = logging.getLogger(__name__)
 
@@ -119,8 +120,10 @@ def value_bin(
     return labels
 
 
+@deep_freeze_args
+@lru_cache()
 def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
-    if s.empty:
+    if len(s) == 0:
         return []
     if len(s) == 1:
         return np.array([0])
@@ -140,14 +143,16 @@ def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
         n_clusters = len(s)
 
     clust = AgglomerativeClustering(n_clusters=n_clusters).fit(
-        np.array([x for x in s.values])
+        np.array([x for x in np.array(s)])
     )
     labels = clust.labels_
     return labels
 
 
+@deep_freeze_args
+@lru_cache()
 def agg_cluster_other(s: pd.Series, n_clusters: int) -> pd.DataFrame:
-    if s.empty:
+    if len(s) == 0:
         return []
     if len(s) == 1:
         return np.array([0])
@@ -165,7 +170,9 @@ def agg_cluster_other(s: pd.Series, n_clusters: int) -> pd.DataFrame:
             "Manually setting n_clusters to the number of renewable sites in this case."
         )
         n_clusters = len(s)
-    clust = AgglomerativeClustering(n_clusters=n_clusters).fit(s.values.reshape(-1, 1))
+    clust = AgglomerativeClustering(n_clusters=n_clusters).fit(
+        np.array(s).reshape(-1, 1)
+    )
     labels = clust.labels_
     return labels
 
