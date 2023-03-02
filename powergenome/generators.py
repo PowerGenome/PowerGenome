@@ -3594,13 +3594,13 @@ class GeneratorClusters:
             "co2_pipeline_cost_fn"
         ):
             self.all_resources = merge_co2_pipeline_costs(
-                self.all_resources,
-                self.settings["co2_pipeline_filters"],
-                self.settings.get("region_aggregations"),
-                self.settings["input_folder"]
+                df=self.all_resources,
+                co2_data_path=self.settings["input_folder"]
                 / self.settings.get("co2_pipeline_cost_fn"),
-                self.settings["fuel_emission_factors"],
-                self.settings.get("target_usd_year"),
+                co2_pipeline_filters=self.settings["co2_pipeline_filters"],
+                region_aggregations=self.settings.get("region_aggregations"),
+                fuel_emission_factors=self.settings["fuel_emission_factors"],
+                target_usd_year=self.settings.get("target_usd_year"),
             )
 
         self.all_resources = self.all_resources.round(3)
