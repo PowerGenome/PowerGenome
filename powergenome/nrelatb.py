@@ -1394,8 +1394,27 @@ def add_renewables_clusters(
             )
         technology = technologies[0]
         scenario = scenario.copy()
+        # ClusterBuilder.get_clusters() does not take region as an argument
         scenario.pop("region")
 
+        # Create name suffex with unique id info like turbine_type and pref_site
+        new_tech_suffix = "_" + "_".join(
+            [
+                str(v)
+                for k, v in scenario.items()
+                if k
+                not in [
+                    "region",
+                    "technology",
+                    "max_clusters",
+                    "min_capacity",
+                    "filter",
+                    "bin",
+                    "group",
+                    "cluster",
+                ]
+            ]
+        )
         # Assume not preclustering renewables unless set to True in settings or the
         # old parameters are used.
         precluster = False
@@ -1451,11 +1470,10 @@ def add_renewables_clusters(
                 bin_cols = [c for c in data.columns if c.endswith("_bin")]
                 group_cols = [g.lower() for g in scenario.get("group", [])]
                 cols = ["cpa_id"] + bin_cols + group_cols + ["cluster"]
-                fn = f"{region}_{technology}_site_cluster_assignments.csv"
+                fn = f"{region}_{technology}{new_tech_suffix}_site_cluster_assignments.csv"
                 data.loc[:, cols].to_csv(
                     Path(settings["extra_outputs"]) / fn, index=False
                 )
-        # region not an argument to ClusterBuilder.get_clusters()
         else:
             clusters = (
                 cluster_builder.get_clusters(
@@ -1478,14 +1496,7 @@ def add_renewables_clusters(
                     + f" less than minimum ({capacity} < {scenario['min_capacity']} MW)"
                 )
         row = df[df["technology"] == technology].to_dict("records")[0]
-        # new_tech_name = "_".join(
-        #     [
-        #         str(v)
-        #         for k, v in scenario.items()
-        #         if k not in ["region", "technology", "max_clusters", "min_capacity"]
-        #     ]
-        # )
-        # clusters["technology"] = clusters["technology"] + "_" + new_tech_name
+        clusters["technology"] = clusters["technology"] + new_tech_suffix
         kwargs = {k: v for k, v in row.items() if k not in clusters}
         cdfs.append(clusters.assign(**kwargs))
     return pd.concat([df[~mask]] + cdfs, sort=False)
