@@ -41,7 +41,7 @@ model_tag_values:
     Natural Gas Fired Combustion Turbine: 1
     Natural Gas Internal Combustion Engine: 1
     Natural Gas Steam Turbine: 1
-    NGCCS100: 1
+    NaturalGas_CCS100: 1
     Nuclear: 1
     Other Gases: 1
     Other Natural Gas: 1
@@ -87,7 +87,7 @@ model_tag_values:
     Natural Gas Fired Combustion Turbine: 1
     Natural Gas Internal Combustion Engine: 1
     Natural Gas Steam Turbine: 1
-    NGCCS100: 1
+    NaturalGas_CCS100: 1
     Nuclear: 1
     Other_peaker: 1 # Is there any way to do this based on the underlying categories?
     Petroleum Coke: 1
@@ -112,7 +112,7 @@ model_tag_values:
     Geothermal: 1
     LandbasedWind: 1
     Natural Gas CCS100: 1
-    NGCCS100: 1
+    NaturalGas_CCS100: 1
     Nuclear: 1
     OffshoreWind: 1
     Onshore Wind: 1
@@ -129,7 +129,7 @@ model_tag_values:
     Geothermal: -1
     LandbasedWind: 1
     NaturalGas: 1
-    NGCCS100: 1
+    NaturalGas_CCS100: 1
     OffshoreWind: 1
     Small Hydroelectric: -1
     UtilityPV: 1
@@ -160,7 +160,7 @@ model_tag_values:
     Biopower_: 0.9
     Nuclear_: 0.9
     CSP_: 0.9
-    NGCCS100: 0.9
+    NaturalGas_CCS100: 0.9
     OffshoreWind: 0.8
     LandbasedWind: 0.8
     UtilityPV: 0.8
@@ -194,7 +194,7 @@ model_tag_values:
     Biopower_: 0.9
     Nuclear_: 0.9
     CSP_: 0.9
-    NGCCS100: 0.9
+    NaturalGas_CCS100: 0.9
     OffshoreWind: 0.8
     LandbasedWind: 0.8
     UtilityPV: 0.8
