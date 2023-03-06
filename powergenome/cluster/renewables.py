@@ -327,6 +327,7 @@ def assign_site_cluster(
     group: List[str] = None,
     cluster: List[dict] = None,
     utc_offset: int = 0,
+    cluster_assgn: pd.DataFrame = None,
     **kwargs: Any,
 ) -> pd.DataFrame:
     """Use settings options to group individual renewable sites.
@@ -431,6 +432,9 @@ def assign_site_cluster(
         cpa_profiles = load_site_profiles(profile_path, site_ids=list(set(site_ids)))
         profiles = [np.roll(cpa_profiles[site].values, utc_offset) for site in site_ids]
         data["profile"] = profiles
+    if cluster_assgn:
+        data = pd.merge(data, cluster_assgn, on="cpa_id")
+        return data
 
     bin_features = []
     for b in bin or []:
