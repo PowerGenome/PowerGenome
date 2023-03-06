@@ -213,9 +213,11 @@ def main(**kwargs):
         input_folder / settings["scenario_definitions_fn"]
     )
 
-    assert set(scenario_definitions["year"]) == set(
-        settings["model_year"]
-    ), "The years included the secenario definitions file must match the settings parameter `model_year`"
+    if set(scenario_definitions["year"]) != set(settings["model_year"]):
+        logger.warning(
+            f"The years included the secenario definitions file ({set(scenario_definitions['year'])}) "
+            f"does not match the settings parameter `model_year` ({settings['model_year']})"
+        )
     assert len(settings["model_year"]) == len(
         settings["model_first_planning_year"]
     ), "The number of years in the settings parameter 'model_year' must be the same as 'model_first_planning_year'"
