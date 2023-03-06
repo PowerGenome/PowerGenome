@@ -212,7 +212,7 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     """
     df["Start_Fuel_MMBTU_per_MW"] = 0
     for eia_tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
-        if not isinstance(settings["eia_atb_tech_map"][eia_tech], list):
+        if not isinstance(settings.get("eia_atb_tech_map", {}).get(eia_tech), list):
             settings["eia_atb_tech_map"][eia_tech] = [
                 settings["eia_atb_tech_map"][eia_tech]
             ]
