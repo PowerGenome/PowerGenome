@@ -818,9 +818,11 @@ def build_scenario_settings(
     case_id_name_map = build_case_id_name_map(settings)
 
     scenario_settings = {}
-    for year in scenario_definitions["year"].unique():
+    for year in model_planning_period_dict.keys():
         scenario_settings[year] = {}
-        planning_year_settings_management = settings["settings_management"][year]
+        planning_year_settings_management = (
+            settings.get("settings_management", {}).get(year, {}) or {}
+        )
 
         # Create a dictionary with keys of things that change (e.g. ccs_capex) and
         # values of nested dictionaries that give case_id: scenario name
@@ -830,25 +832,13 @@ def build_scenario_settings(
             .to_dict()
         )
         planning_year_scenario_definitions_dict.pop("year")
-
+        new_param_warn_list = []
         for case_id in scenario_definitions.query("year==@year")["case_id"].unique():
             _settings = deepcopy(settings)
 
             if "all_cases" in planning_year_settings_management:
                 new_parameter = planning_year_settings_management["all_cases"]
                 _settings = update_dictionary(_settings, new_parameter)
-
-            # Add the scenario definition values to the settings files
-            # e.g.
-            # case_id	year	demand_response	growth	tx_expansion	ng_price
-            # p1	    2030	moderate	            normal	high	reference
-            case_scenario_definitions = scenario_definitions.loc[
-                (scenario_definitions.case_id == case_id)
-                & (scenario_definitions.year == year),
-                :,
-            ]
-            for col in scenario_definitions.columns:
-                _settings[col] = case_scenario_definitions.squeeze().at[col]
 
             modified_settings = []
             for (
@@ -859,8 +849,23 @@ def build_scenario_settings(
                 try:
                     case_value = case_value_dict[case_id]
                     new_parameter = (
-                        planning_year_settings_management[category][case_value] or {}
+                        planning_year_settings_management.get(category, {}).get(
+                            case_value, {}
+                        )
+                        or {}
                     )
+                    if (
+                        not new_parameter
+                        and (category, case_value) not in new_param_warn_list
+                    ):
+                        new_param_warn_list.append((category, case_value))
+
+                        logger.warning(
+                            f"The parameter value '{case_value}' from column '{category}' "
+                            "in your scenario definitions file is not included in the "
+                            "'settings_management' dictionary. Settings for case id "
+                            f"'{case_id}' will not be modified to reflect this scenario."
+                        )
 
                     try:
                         settings_keys = list(flatten(new_parameter).keys())
