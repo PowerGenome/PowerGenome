@@ -669,7 +669,7 @@ def calc_om(
                 # Based on conversation with Jesse J. on Dec 20, 2019.
                 plant_capacity = _df[settings["capacity_col"]].sum()
                 op, op_value = (
-                    settings.get("atb_modifiers", {})
+                    (settings.get("atb_modifiers", {}) or {})
                     .get("ngct", {})
                     .get("Var_OM_Cost_per_MWh", (None, None))
                 )
