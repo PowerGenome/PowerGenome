@@ -835,6 +835,7 @@ def build_scenario_settings(
         new_param_warn_list = []
         for case_id in scenario_definitions.query("year==@year")["case_id"].unique():
             _settings = deepcopy(settings)
+            _settings["case_id"] = case_id
 
             if "all_cases" in planning_year_settings_management:
                 new_parameter = planning_year_settings_management["all_cases"]
