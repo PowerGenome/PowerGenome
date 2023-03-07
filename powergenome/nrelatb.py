@@ -15,7 +15,7 @@ import pandas as pd
 import sqlalchemy
 from powergenome.cluster.renewables import assign_site_cluster, calc_cluster_values
 
-from powergenome.params import DATA_PATHS, build_resource_clusters
+from powergenome.params import DATA_PATHS, SETTINGS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import (
     ClusterBuilder,
@@ -682,7 +682,7 @@ def calc_om(
                 # Based on conversation with Jesse J. on Dec 20, 2019.
                 plant_capacity = _df[settings["capacity_col"]].sum()
                 op, op_value = (
-                    settings.get("atb_modifiers", {})
+                    (settings.get("atb_modifiers", {}) or {})
                     .get("ngct", {})
                     .get("Var_OM_Cost_per_MWh", (None, None))
                 )
@@ -1291,9 +1291,9 @@ def parallel_region_renewables(
 
 
 def load_resource_group_data(
-    rg: ResourceGroup,
+    rg: ResourceGroup, cache=True
 ) -> Tuple[pd.DataFrame, Union[pd.Series, None]]:
-    data = rg.metadata.read(cache=True)
+    data = rg.metadata.read(cache=cache)
     data.columns = snake_case_col(data.columns)
     data["region"] = data.loc[:, "metro_region"]
     if "cpa_mw" in data.columns and "mw" not in data.columns:
@@ -1309,6 +1309,21 @@ def load_resource_group_data(
         site_map = None
 
     return data, site_map
+
+
+def flatten_cluster_def(scenario, detail_suffix):
+    "Return cluster definition as a string for unique filenames"
+    if isinstance(scenario, dict):
+        for k, v in scenario.items():
+            detail_suffix += flatten_cluster_def(k, "")
+            detail_suffix += flatten_cluster_def(v, "")
+    elif isinstance(scenario, list):
+        for l in scenario:
+            detail_suffix += flatten_cluster_def(l, "")
+    else:
+        detail_suffix += f"{scenario}_"
+
+    return detail_suffix
 
 
 def add_renewables_clusters(
@@ -1397,24 +1412,6 @@ def add_renewables_clusters(
         # ClusterBuilder.get_clusters() does not take region as an argument
         scenario.pop("region")
 
-        # Create name suffex with unique id info like turbine_type and pref_site
-        new_tech_suffix = "_" + "_".join(
-            [
-                str(v)
-                for k, v in scenario.items()
-                if k
-                not in [
-                    "region",
-                    "technology",
-                    "max_clusters",
-                    "min_capacity",
-                    "filter",
-                    "bin",
-                    "group",
-                    "cluster",
-                ]
-            ]
-        )
         # Assume not preclustering renewables unless set to True in settings or the
         # old parameters are used.
         precluster = False
@@ -1424,52 +1421,87 @@ def add_renewables_clusters(
         if any([k in precluster_keys for k in scenario.keys()]):
             precluster = True
         if precluster is False:
-            drop_keys = ["min_capacity", "filter", "bin", "group", "cluster"]
-            group_kwargs = dict(
-                [(k, v) for k, v in scenario.items() if k not in drop_keys]
+            # Create name suffex with unique id info like turbine_type and pref_site
+            new_tech_suffix = "_" + "_".join(
+                [
+                    str(v)
+                    for k, v in scenario.items()
+                    if k
+                    not in [
+                        "region",
+                        "technology",
+                        "max_clusters",
+                        "min_capacity",
+                        "filter",
+                        "bin",
+                        "group",
+                        "cluster",
+                    ]
+                ]
             )
-            resource_groups = cluster_builder.find_groups(
-                existing=False,
-                **group_kwargs,
+            detail_suffix = flatten_cluster_def(scenario, "_")
+            cache_cluster_fn = (
+                f"{region}_{technology}{detail_suffix}_cluster_data.parquet"
             )
-            if not resource_groups:
-                raise ValueError(
-                    f"Parameters do not match any resource groups: {group_kwargs}"
+            cache_site_assn_fn = (
+                f"{region}_{technology}{detail_suffix}_site_assn.parquet"
+            )
+            sub_folder = SETTINGS.get("RESOURCE_GROUPS") or settings["RESOURCE_GROUPS"]
+            sub_folder = str(sub_folder).replace("/", "_").replace("\\", "_")
+            cache_folder = Path(
+                settings["input_folder"] / "cluster_assignments" / sub_folder
+            )
+            cache_cluster_fpath = cache_folder / cache_cluster_fn
+            cache_site_assn_fpath = cache_folder / cache_site_assn_fn
+            if cache_cluster_fpath.exists() and cache_site_assn_fpath.exists():
+                clusters = pd.read_parquet(cache_cluster_fpath)
+                data = pd.read_parquet(cache_site_assn_fpath)
+            else:
+                drop_keys = ["min_capacity", "filter", "bin", "group", "cluster"]
+                group_kwargs = dict(
+                    [(k, v) for k, v in scenario.items() if k not in drop_keys]
                 )
-            if len(resource_groups) > 1:
-                meta = [rg.group for rg in resource_groups]
-                raise ValueError(f"Parameters match multiple resource groups: {meta}")
-            renew_data, site_map = load_resource_group_data(resource_groups[0])
+                resource_groups = cluster_builder.find_groups(
+                    existing=False,
+                    **group_kwargs,
+                )
+                if not resource_groups:
+                    raise ValueError(
+                        f"Parameters do not match any resource groups: {group_kwargs}"
+                    )
+                if len(resource_groups) > 1:
+                    meta = [rg.group for rg in resource_groups]
+                    raise ValueError(
+                        f"Parameters match multiple resource groups: {meta}"
+                    )
+                renew_data, site_map = load_resource_group_data(
+                    resource_groups[0], cache=False
+                )
+                data = assign_site_cluster(
+                    renew_data=renew_data,
+                    profile_path=resource_groups[0].group.get("profiles"),
+                    regions=regions,
+                    site_map=site_map,
+                    utc_offset=settings.get("utc_offset", 0),
+                    **scenario,
+                )
+                clusters = (
+                    data.groupby("cluster", as_index=False)
+                    .apply(calc_cluster_values)
+                    .rename(columns={"mw": "Max_Cap_MW"})
+                    .assign(technology=technology, region=region)
+                )
 
-            feature_keys = ["filter", "bin", "cluster"]
-            feature_cols = []
-            for k in feature_keys:
-                for d in scenario.get(k, []):
-                    if d.get("feature"):
-                        if (
-                            d["feature"] in renew_data.columns
-                            and d["feature"] not in feature_cols
-                        ):
-                            feature_cols.append(snake_case_str(d["feature"]))
-            data = assign_site_cluster(
-                renew_data=renew_data[feature_cols + ["cpa_id", "mw", "region"]],
-                profile_path=resource_groups[0].group.get("profiles"),
-                regions=regions,
-                site_map=site_map,
-                utc_offset=settings.get("utc_offset", 0),
-                **scenario,
-            )
-            clusters = (
-                data.groupby("cluster", as_index=False)
-                .apply(calc_cluster_values)
-                .rename(columns={"mw": "Max_Cap_MW"})
-                .assign(technology=technology, region=region)
-            )
+                cache_folder.mkdir(parents=True, exist_ok=True)
+                if not cache_cluster_fpath.exists():
+                    clusters.to_parquet(cache_cluster_fpath)
+                if not cache_site_assn_fpath.exists():
+                    cols = ["cpa_id", "cluster"]
+                    data[cols].to_parquet(cache_site_assn_fpath)
             if settings.get("extra_outputs"):
+                # fn = f"{region}_{technology}{new_tech_suffix}_site_cluster_assignments.csv"
                 Path(settings["extra_outputs"]).mkdir(parents=True, exist_ok=True)
-                bin_cols = [c for c in data.columns if c.endswith("_bin")]
-                group_cols = [g.lower() for g in scenario.get("group", [])]
-                cols = ["cpa_id"] + bin_cols + group_cols + ["cluster"]
+                cols = ["cpa_id", "cluster"]
                 fn = f"{region}_{technology}{new_tech_suffix}_site_cluster_assignments.csv"
                 data.loc[:, cols].to_csv(
                     Path(settings["extra_outputs"]) / fn, index=False
