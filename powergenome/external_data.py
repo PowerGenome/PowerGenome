@@ -508,12 +508,12 @@ def load_user_tx_costs(
         for row in df.itertuples():
             adj_annuity = inflation_price_adjustment(
                 row.total_interconnect_annuity_mw, row.dollar_year, target_usd_year
-            )
+            ).round(0)
             adjusted_annuities.append(adj_annuity)
 
             adj_cost = inflation_price_adjustment(
                 row.total_interconnect_cost_mw, row.dollar_year, target_usd_year
-            )
+            ).round(0)
             adjusted_costs.append(adj_cost)
         df["total_interconnect_annuity_mw"] = adjusted_annuities
         df["total_interconnect_cost_mw"] = adjusted_costs
