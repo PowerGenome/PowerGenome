@@ -633,7 +633,8 @@ def network_max_reinforcement(
         `Line_Max_Reinforcement_MW`.
     """
 
-    max_expansion = settings.get("tx_expansion_per_period")
+    max_expansion = settings.get("tx_expansion_per_period", 0)
+    expansion_mw = settings.get("tx_expansion_mw_per_period", 0)
 
     if not max_expansion and max_expansion != 0:
         raise KeyError(
@@ -667,9 +668,9 @@ def network_max_reinforcement(
     #         )
 
     # else:
-    transmission.loc[:, "Line_Max_Reinforcement_MW"] = (
-        transmission.loc[:, "Line_Max_Flow_MW"] * max_expansion
-    )
+    transmission.loc[:, "Line_Max_Reinforcement_MW"] = [
+        max(tx * max_expansion, expansion_mw) for tx in transmission["Line_Max_Flow_MW"]
+    ]
     transmission["Line_Max_Reinforcement_MW"] = transmission[
         "Line_Max_Reinforcement_MW"
     ].round(0)
