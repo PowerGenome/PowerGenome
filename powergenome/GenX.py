@@ -633,7 +633,7 @@ def network_max_reinforcement(
         `Line_Max_Reinforcement_MW`.
     """
 
-    max_expansion = settings.get("tx_expansion_per_period")
+    max_expansion = settings.get("tx_expansion_per_period", 0)
     expansion_mw = settings.get("tx_expansion_mw_per_period", 0)
 
     if not max_expansion and max_expansion != 0:
