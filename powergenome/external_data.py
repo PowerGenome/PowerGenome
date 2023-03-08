@@ -501,6 +501,7 @@ def load_user_tx_costs(
     }
     df["zone_1"] = df["start_region"].map(zone_num_map)
     df["zone_2"] = df["dest_region"].map(zone_num_map)
+    df = df.dropna(subset=["zone_1", "zone_2"])
 
     if target_usd_year:
         adjusted_annuities = []
