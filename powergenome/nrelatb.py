@@ -1420,39 +1420,36 @@ def add_renewables_clusters(
             precluster = True
         if any([k in precluster_keys for k in scenario.keys()]):
             precluster = True
-        if precluster is False:
+
             # Create name suffex with unique id info like turbine_type and pref_site
-            new_tech_suffix = "_" + "_".join(
-                [
-                    str(v)
-                    for k, v in scenario.items()
-                    if k
-                    not in [
-                        "region",
-                        "technology",
-                        "max_clusters",
-                        "min_capacity",
-                        "filter",
-                        "bin",
-                        "group",
-                        "cluster",
-                    ]
+        new_tech_suffix = "_" + "_".join(
+            [
+                str(v)
+                for k, v in scenario.items()
+                if k
+                not in [
+                    "region",
+                    "technology",
+                    "max_clusters",
+                    "min_capacity",
+                    "filter",
+                    "bin",
+                    "group",
+                    "cluster",
                 ]
-            )
-            detail_suffix = flatten_cluster_def(scenario, "_")
-            cache_cluster_fn = (
-                f"{region}_{technology}{detail_suffix}_cluster_data.parquet"
-            )
-            cache_site_assn_fn = (
-                f"{region}_{technology}{detail_suffix}_site_assn.parquet"
-            )
-            sub_folder = SETTINGS.get("RESOURCE_GROUPS") or settings["RESOURCE_GROUPS"]
-            sub_folder = str(sub_folder).replace("/", "_").replace("\\", "_")
-            cache_folder = Path(
-                settings["input_folder"] / "cluster_assignments" / sub_folder
-            )
-            cache_cluster_fpath = cache_folder / cache_cluster_fn
-            cache_site_assn_fpath = cache_folder / cache_site_assn_fn
+            ]
+        )
+        detail_suffix = flatten_cluster_def(scenario, "_")
+        cache_cluster_fn = f"{region}_{technology}{detail_suffix}_cluster_data.parquet"
+        cache_site_assn_fn = f"{region}_{technology}{detail_suffix}_site_assn.parquet"
+        sub_folder = SETTINGS.get("RESOURCE_GROUPS") or settings["RESOURCE_GROUPS"]
+        sub_folder = str(sub_folder).replace("/", "_").replace("\\", "_")
+        cache_folder = Path(
+            settings["input_folder"] / "cluster_assignments" / sub_folder
+        )
+        cache_cluster_fpath = cache_folder / cache_cluster_fn
+        cache_site_assn_fpath = cache_folder / cache_site_assn_fn
+        if precluster is False:
             if cache_cluster_fpath.exists() and cache_site_assn_fpath.exists():
                 clusters = pd.read_parquet(cache_cluster_fpath)
                 data = pd.read_parquet(cache_site_assn_fpath)
@@ -1507,17 +1504,28 @@ def add_renewables_clusters(
                     Path(settings["extra_outputs"]) / fn, index=False
                 )
         else:
-            clusters = (
-                cluster_builder.get_clusters(
-                    **scenario,
-                    ipm_regions=regions,
-                    existing=False,
-                    utc_offset=settings.get("utc_offset", 0),
+            if cache_cluster_fpath.exists():
+                clusters = pd.read_parquet(cache_cluster_fpath)
+                data = None
+            else:
+                clusters = (
+                    cluster_builder.get_clusters(
+                        **scenario,
+                        ipm_regions=regions,
+                        existing=False,
+                        utc_offset=settings.get("utc_offset", 0),
+                    )
+                    .rename(columns={"mw": "Max_Cap_MW"})
+                    .assign(technology=technology, region=region)
                 )
-                .rename(columns={"mw": "Max_Cap_MW"})
-                .assign(technology=technology, region=region)
-            )
-            clusters["cluster"] = range(1, 1 + len(clusters))
+                clusters["cluster"] = range(1, 1 + len(clusters))
+                data = None
+        cache_folder.mkdir(parents=True, exist_ok=True)
+        if not cache_cluster_fpath.exists():
+            clusters.to_parquet(cache_cluster_fpath)
+        if not cache_site_assn_fpath.exists() and not data is None:
+            cols = ["cpa_id", "cluster"]
+            data[cols].to_parquet(cache_site_assn_fpath)
         if scenario.get("min_capacity"):
             # Warn if total capacity less than expected
             capacity = clusters["Max_Cap_MW"].sum()
