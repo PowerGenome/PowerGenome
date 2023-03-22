@@ -2687,6 +2687,7 @@ def load_demand_response_efs_profile(
         year=model_year,
         elec_scenario=electrification_scenario,
         regions=keep_regions,
+        utc_offset=utc_offset or 0,
         path_in=path_in,
     )
 
@@ -2707,9 +2708,6 @@ def load_demand_response_efs_profile(
         ).sum(axis=1)
         dr_profile = dr_profile.drop(columns=base_regs, errors="ignore")
 
-    if utc_offset:
-        for col in dr_profile.columns:
-            dr_profile[col] = np.roll(dr_profile[col].values, utc_offset)
     return dr_profile
 
 

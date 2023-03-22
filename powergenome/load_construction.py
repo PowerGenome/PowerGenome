@@ -122,6 +122,7 @@ def create_subsector_ts(
     subsector: str,
     year: int,
     scenario_stock: pd.DataFrame,
+    utc_offset: int = 0,
     path_in: Path = None,
 ) -> pd.DataFrame:
     if not path_in:
@@ -160,7 +161,18 @@ def create_subsector_ts(
         load_mw=timeseries["agg_stock_type1"] * timeseries["factor_type1"]
         + timeseries["agg_stock_type2"] * timeseries["factor_type2"]
     )
-    return timeseries[["state", "time_index", "load_mw"]].dropna()
+    timeseries = (
+        timeseries[["state", "time_index", "load_mw"]]
+        .dropna()
+        .groupby("state")
+        .apply(utc_offset_state_load, utc_offset)
+    )
+    return timeseries
+
+
+def utc_offset_state_load(df: pd.DataFrame, utc_offset: int = 0) -> pd.DataFrame:
+    df["load_mw"] = np.roll(df["load_mw"], utc_offset)
+    return df
 
 
 def state_demand_to_region(
@@ -179,9 +191,12 @@ def electrification_profiles(
     year: int,
     elec_scenario: str,
     regions: List[str],
+    utc_offset: int = 0,
     path_in: Path = None,
 ) -> pd.DataFrame:
     """Create demand profiles for potentially flexible resources that will be electrified.
+
+    Profiles are shifted from stored timezone (assume UTC) to the model timezone.
 
     Parameters
     ----------
@@ -194,6 +209,8 @@ def electrification_profiles(
         Name of a scenario from the stock data file.
     regions : List[str]
         All of the base regions that will have profiles created.
+    utc_offset : int, optional
+        Hours to shift data from UTC to the desired timezone for the model, by default 0.
     path_in : Path, optional
         Folder where stock and incremental factor (profile) data are located, by default
         None.
@@ -246,9 +263,9 @@ def electrification_profiles(
 
     subsector_ts_dfs = []
     for name, (sector, subsector) in running_sectors.items():
-        df = create_subsector_ts(sector, subsector, year, scenario_stock, path_in).pipe(
-            state_demand_to_region, pop, name
-        )
+        df = create_subsector_ts(
+            sector, subsector, year, scenario_stock, utc_offset, path_in
+        ).pipe(state_demand_to_region, pop, name)
 
         df["resource"] = name
         subsector_ts_dfs.append(df)
