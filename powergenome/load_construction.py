@@ -330,7 +330,7 @@ def electrification_profiles(
     for name, (sector, subsector) in running_sectors.items():
         df = create_subsector_ts(
             sector, subsector, year, scenario_stock, utc_offset, path_in
-        ).pipe(state_demand_to_region, pop, name)
+        ).pipe(state_demand_to_region, pop)
 
         df["resource"] = name
         subsector_ts_dfs.append(df)
