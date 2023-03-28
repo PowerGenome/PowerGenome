@@ -43,6 +43,7 @@ SETTINGS["PG_DB"] = os.environ.get("PG_DB")
 SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
 SETTINGS["EFS_DATA"] = os.environ.get("EFS_DATA")
 SETTINGS["RESOURCE_GROUPS"] = os.environ.get("RESOURCE_GROUPS")
+SETTINGS["DISTRIBUTED_GEN_DATA"] = os.environ.get("DISTRIBUTED_GEN_DATA")
 
 
 def build_resource_clusters(group_path: Union[str, Path] = None):
