@@ -1440,8 +1440,12 @@ def add_renewables_clusters(
             ]
         )
         detail_suffix = flatten_cluster_def(scenario, "_")
-        cache_cluster_fn = f"{region}_{technology}{detail_suffix}_cluster_data.parquet"
-        cache_site_assn_fn = f"{region}_{technology}{detail_suffix}_site_assn.parquet"
+        cache_cluster_fn = (
+            f"{region}_{technology}_{hash(detail_suffix)}_cluster_data.parquet"
+        )
+        cache_site_assn_fn = (
+            f"{region}_{technology}_{hash(detail_suffix)}_site_assn.parquet"
+        )
         sub_folder = SETTINGS.get("RESOURCE_GROUPS") or settings["RESOURCE_GROUPS"]
         sub_folder = str(sub_folder).replace("/", "_").replace("\\", "_")
         cache_folder = Path(
