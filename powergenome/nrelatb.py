@@ -1408,9 +1408,9 @@ def add_renewables_clusters(
                 f"Renewables clusters match multiple NREL ATB technologies: {scenario}"
             )
         technology = technologies[0]
-        scenario = scenario.copy()
+        _scenario = scenario.copy()
         # ClusterBuilder.get_clusters() does not take region as an argument
-        scenario.pop("region")
+        _scenario.pop("region")
 
         # Assume not preclustering renewables unless set to True in settings or the
         # old parameters are used.
@@ -1418,14 +1418,14 @@ def add_renewables_clusters(
         precluster_keys = ["max_clusters", "max_lcoe"]
         if settings.get("precluster_renewables") is True:
             precluster = True
-        if any([k in precluster_keys for k in scenario.keys()]):
+        if any([k in precluster_keys for k in _scenario.keys()]):
             precluster = True
 
             # Create name suffex with unique id info like turbine_type and pref_site
         new_tech_suffix = "_" + "_".join(
             [
                 str(v)
-                for k, v in scenario.items()
+                for k, v in _scenario.items()
                 if k
                 not in [
                     "region",
@@ -1439,7 +1439,7 @@ def add_renewables_clusters(
                 ]
             ]
         )
-        detail_suffix = flatten_cluster_def(scenario, "_")
+        detail_suffix = flatten_cluster_def(_scenario, "_")
         cache_cluster_fn = (
             f"{region}_{technology}_{hash(detail_suffix)}_cluster_data.parquet"
         )
@@ -1460,7 +1460,7 @@ def add_renewables_clusters(
             else:
                 drop_keys = ["min_capacity", "filter", "bin", "group", "cluster"]
                 group_kwargs = dict(
-                    [(k, v) for k, v in scenario.items() if k not in drop_keys]
+                    [(k, v) for k, v in _scenario.items() if k not in drop_keys]
                 )
                 resource_groups = cluster_builder.find_groups(
                     existing=False,
@@ -1484,7 +1484,7 @@ def add_renewables_clusters(
                     regions=regions,
                     site_map=site_map,
                     utc_offset=settings.get("utc_offset", 0),
-                    **scenario,
+                    **_scenario,
                 )
                 clusters = (
                     data.groupby("cluster", as_index=False)
@@ -1514,7 +1514,7 @@ def add_renewables_clusters(
             else:
                 clusters = (
                     cluster_builder.get_clusters(
-                        **scenario,
+                        **_scenario,
                         ipm_regions=regions,
                         existing=False,
                         utc_offset=settings.get("utc_offset", 0),
@@ -1530,14 +1530,14 @@ def add_renewables_clusters(
         if not cache_site_assn_fpath.exists() and not data is None:
             cols = ["cpa_id", "cluster"]
             data[cols].to_parquet(cache_site_assn_fpath)
-        if scenario.get("min_capacity"):
+        if _scenario.get("min_capacity"):
             # Warn if total capacity less than expected
             capacity = clusters["Max_Cap_MW"].sum()
             if capacity < scenario["min_capacity"]:
                 logger.warning(
-                    f"Selected technology {scenario['technology']} capacity"
+                    f"Selected technology {_scenario['technology']} capacity"
                     + f" in region {region}"
-                    + f" less than minimum ({capacity} < {scenario['min_capacity']} MW)"
+                    + f" less than minimum ({capacity} < {_scenario['min_capacity']} MW)"
                 )
         row = df[df["technology"] == technology].to_dict("records")[0]
         clusters["technology"] = clusters["technology"] + new_tech_suffix

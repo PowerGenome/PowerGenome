@@ -182,6 +182,7 @@ def agglomerative_cluster_binned(
     by: Union[str, List[str]],
     feature: str,
     n_clusters: Union[int, pd.Series, dict],
+    **kwargs,
 ) -> pd.DataFrame:
     if data.empty:
         data["cluster"] = []
@@ -212,7 +213,7 @@ def agglomerative_cluster_binned(
 
 
 def agglomerative_cluster_no_bin(
-    data: pd.DataFrame, feature: str, n_clusters: int
+    data: pd.DataFrame, feature: str, n_clusters: int, **kwargs
 ) -> pd.DataFrame:
     if data.empty:
         data["cluster"] = []
@@ -501,7 +502,6 @@ def assign_site_cluster(
                 clust["n_clusters"] = (
                     data.groupby(group_by)["mw"].sum() / clust["mw_per_cluster"]
                 ).astype(int) + 1
-            del clust["mw_per_cluster"]
 
         if "cluster" in data.columns and prev_feature_cluster_col:
             data = data.rename(columns={"cluster": prev_feature_cluster_col})
