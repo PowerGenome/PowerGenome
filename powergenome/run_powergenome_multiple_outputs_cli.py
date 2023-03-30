@@ -7,7 +7,7 @@ from datetime import datetime as dt
 from pathlib import Path
 
 import pandas as pd
-
+sys.path.append("/home/gm1710/PowerGenome/")
 import powergenome
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import (
