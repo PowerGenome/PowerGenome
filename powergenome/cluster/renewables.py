@@ -495,13 +495,14 @@ def assign_site_cluster(
             if clust.get("n_clusters") is not None:
                 logger.warning("Overwriting 'n_clusters' based on mw_cluster_size")
             if not group_by:
-                clust["n_clusters"] = (
-                    int(data["mw"].sum() / clust["mw_per_cluster"]) + 1
+                clust["n_clusters"] = max(
+                    int(data["mw"].sum() / clust["mw_per_cluster"]), 1
                 )
             else:
-                clust["n_clusters"] = (
+                n_clusters = (
                     data.groupby(group_by)["mw"].sum() / clust["mw_per_cluster"]
-                ).astype(int) + 1
+                ).astype(int)
+                clust["n_clusters"] = n_clusters.where(n_clusters > 0, 1)
 
         if "cluster" in data.columns and prev_feature_cluster_col:
             data = data.rename(columns={"cluster": prev_feature_cluster_col})
@@ -529,16 +530,37 @@ def assign_site_cluster(
     return data
 
 
-def num_bins_from_capacity(data, b):
+def num_bins_from_capacity(data: pd.DataFrame, b: Dict[str, int]) -> Dict[str, int]:
+    """Calculate the "bins" or "q" parameter based on available capacity.
+
+    Either `mw_per_bin` or `mw_per_q` can be a key in the input dictionary. The
+    number of bins/quantiles is calculated by dividing total site capacity by the
+    mw_per_* value. If neither key is present, return the dictionary
+    unaltered.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Must have column "mw"
+    b : Dict[str, int]
+        Must have either "mw_per_bin" or "mw_per_q" if the number of bins/quantiles
+        should be decided based on available capacity.
+
+    Returns
+    -------
+    Dict[str, int]
+        Dictionary with either existing `bins`/`q` key or one of those keys calculated
+        from available site capacity and `mw_per_bin`/`mw_per_q`
+    """
     if "mw_per_bin" in b:
         if b.get("bins") is not None:
             logger.warning("Overwriting 'bins' based on mw_per_bin")
-        b["bins"] = int(data["mw"].sum() / b["mw_per_bin"]) + 1
+        b["bins"] = max(int(data["mw"].sum() / b["mw_per_bin"]), 1)
         del b["mw_per_bin"]
-    if "mw_per_q" in b:
+    elif "mw_per_q" in b:
         if b.get("q") is not None:
             logger.warning("Overwriting 'q' based on mw_per_q")
-        b["q"] = int(data["mw"].sum() / b["mw_per_q"]) + 1
+        b["q"] = max(int(data["mw"].sum() / b["mw_per_q"]), 1)
         del b["mw_per_q"]
 
     return b
