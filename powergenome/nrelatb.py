@@ -457,7 +457,6 @@ def atb_fixed_var_om_existing(
         "Steam Turbine",
         "Hydroelectric",
         "Geothermal",
-        "Nuclear",
     ]
     atb_techs = [
         (tech, tech_detail)
