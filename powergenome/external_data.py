@@ -272,7 +272,7 @@ def load_policy_scenarios(settings: dict) -> pd.DataFrame:
     # another policy to reduce human copy/paste errors.
     if "copy_case_id" in policies.columns:
         policies = copy_case_values(policies, match_cols=["case_id", "year", "region"])
-        policies = policies.drop(columns="copy_case_id")
+        policies = policies.drop(columns="copy_case_id", errors="ignore")
 
     policies = policies.set_index(["case_id", "year"])
 
