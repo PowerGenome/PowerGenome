@@ -3151,6 +3151,9 @@ class GeneratorClusters:
         # Create a pudl unit id based on plant and generator id where one doesn't exist.
         # This is used later to match the cluster numbers to plants
         self.units_model.reset_index(inplace=True)
+        self.units_model = self.units_model.drop_duplicates(
+            subset=["plant_id_eia", "generator_id"]
+        )
         if self.supplement_with_860m:
             self.units_model = add_860m_storage_mwh(
                 self.units_model,
