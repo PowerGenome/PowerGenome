@@ -234,112 +234,68 @@ def main(**kwargs):
             )
             _settings["extra_outputs"] = case_folder / "extra_outputs"
             _settings["extra_outputs"].mkdir(parents=True, exist_ok=True)
-            if i == 0:
-                if args.gens:
-                    gc = GeneratorClusters(
-                        pudl_engine=pudl_engine,
-                        pudl_out=pudl_out,
-                        pg_engine=pg_engine,
-                        settings=_settings,
-                        current_gens=args.current_gens,
-                        sort_gens=args.sort_gens,
-                    )
-                    gen_clusters = gc.create_all_generators()
-                    if args.fuel and args.gens:
-                        fuels = fuel_cost_table(
-                            fuel_costs=gc.fuel_prices,
-                            generators=gc.all_resources,
-                            settings=_settings,
-                        )
-                        fuels.index.name = "Time_Index"
-                        write_results_file(
-                            df=remove_fuel_scenario_name(fuels, _settings),
-                            folder=case_folder,
-                            file_name="Fuels_data.csv",
-                            include_index=True,
-                        )
-
-                    gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
-                    gen_clusters = add_misc_gen_values(gen_clusters, _settings)
-                    gen_clusters = hydro_energy_to_power(
-                        gen_clusters,
-                        _settings.get("hydro_factor"),
-                        _settings.get("regional_hydro_factor", {}),
-                    )
-
-                    # Save existing resources that aren't demand response for use in
-                    # other cases
-                    existing_gens = gc.existing_resources.copy()
-
-                    logger.info(
-                        f"\nFinished first round with year {year} scenario {case_id}\n"
-                    )
-                    gen_variability = make_generator_variability(gen_clusters)
-                    gen_variability.index.name = "Time_Index"
-                    gen_variability.columns = gen_clusters["Resource"]
-                    gens = fix_min_power_values(gen_clusters, gen_variability).pipe(
-                        add_co2_costs_to_o_m
-                    )
-                    for col in _settings["generator_columns"]:
-                        if col not in gens.columns:
-                            gens[col] = 0
-                    cols = [c for c in _settings["generator_columns"] if c in gens]
-
-                    write_results_file(
-                        df=remove_fuel_gen_scenario_name(
-                            gens[cols].fillna(0), _settings
-                        )
-                        .pipe(set_int_cols)
-                        .pipe(round_col_values)
-                        .pipe(check_resource_tags),
-                        folder=case_folder,
-                        file_name="Generators_data.csv",
-                        include_index=False,
-                    )
-
-                    i += 1
-                if args.transmission:
-                    if args.gens is False:
-                        model_regions_gdf = load_ipm_shapefile(_settings)
-
-            else:
-                logger.info(f"\nStarting year {year} scenario {case_id}\n")
-                if args.gens:
-                    gc.settings = _settings
-
-                    gen_clusters = gc.create_all_generators()
-                    gen_clusters = add_misc_gen_values(gen_clusters, _settings)
-                    gen_clusters = hydro_energy_to_power(
-                        gen_clusters,
-                        _settings.get("hydro_factor"),
-                        _settings.get("regional_hydro_factor"),
-                    )
-                    gen_clusters = set_int_cols(gen_clusters)
-                    gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
-
+            logger.info(f"Starting year {year} scenario {case_id}\n")
+            if args.gens:
+                gc = GeneratorClusters(
+                    pudl_engine=pudl_engine,
+                    pudl_out=pudl_out,
+                    pg_engine=pg_engine,
+                    settings=_settings,
+                    current_gens=args.current_gens,
+                    sort_gens=args.sort_gens,
+                )
+                gen_clusters = gc.create_all_generators()
+                if args.fuel and args.gens:
                     fuels = fuel_cost_table(
                         fuel_costs=gc.fuel_prices,
                         generators=gc.all_resources,
                         settings=_settings,
                     )
-                    gen_variability = make_generator_variability(gen_clusters)
-                    gen_variability.index.name = "Time_Index"
-                    gen_variability.columns = gen_clusters["Resource"]
-                    gens = fix_min_power_values(gen_clusters, gen_variability).pipe(
-                        add_co2_costs_to_o_m
-                    )
-                    cols = [c for c in _settings["generator_columns"] if c in gens]
+                    fuels.index.name = "Time_Index"
                     write_results_file(
-                        df=remove_fuel_gen_scenario_name(
-                            gens[cols].fillna(0), _settings
-                        )
-                        .pipe(set_int_cols)
-                        .pipe(round_col_values)
-                        .pipe(check_resource_tags),
+                        df=remove_fuel_scenario_name(fuels, _settings),
                         folder=case_folder,
-                        file_name="Generators_data.csv",
-                        include_index=False,
+                        file_name="Fuels_data.csv",
+                        include_index=True,
                     )
+
+                gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
+                gen_clusters = add_misc_gen_values(gen_clusters, _settings)
+                gen_clusters = hydro_energy_to_power(
+                    gen_clusters,
+                    _settings.get("hydro_factor"),
+                    _settings.get("regional_hydro_factor", {}),
+                )
+
+                # Save existing resources that aren't demand response for use in
+                # other cases
+                existing_gens = gc.existing_resources.copy()
+
+                gen_variability = make_generator_variability(gen_clusters)
+                gen_variability.index.name = "Time_Index"
+                gen_variability.columns = gen_clusters["Resource"]
+                gens = fix_min_power_values(gen_clusters, gen_variability).pipe(
+                    add_co2_costs_to_o_m
+                )
+                for col in _settings["generator_columns"]:
+                    if col not in gens.columns:
+                        gens[col] = 0
+                cols = [c for c in _settings["generator_columns"] if c in gens]
+
+                write_results_file(
+                    df=remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings)
+                    .pipe(set_int_cols)
+                    .pipe(round_col_values)
+                    .pipe(check_resource_tags),
+                    folder=case_folder,
+                    file_name="Generators_data.csv",
+                    include_index=False,
+                )
+
+                i += 1
+            if args.transmission:
+                if args.gens is False:
+                    model_regions_gdf = load_ipm_shapefile(_settings)
 
             if args.load:
                 load = make_final_load_curves(pg_engine=pg_engine, settings=_settings)
