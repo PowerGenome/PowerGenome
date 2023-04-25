@@ -3377,7 +3377,8 @@ class GeneratorClusters:
         )
         if self.settings.get("extra_outputs"):
             self.all_units.to_csv(
-                self.settings["extra_outputs"] / "existing_gen_units.csv", index=False
+                Path(self.settings["extra_outputs"]) / "existing_gen_units.csv",
+                index=False,
             )
 
         logger.info("Finalizing generation clusters")
