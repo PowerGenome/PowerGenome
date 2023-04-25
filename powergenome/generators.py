@@ -3375,9 +3375,10 @@ class GeneratorClusters:
             on=["plant_id_eia"],
             how="left",
         )
-        self.all_units.to_csv(
-            self.settings["extra_outputs"] / "existing_gen_units.csv", index=False
-        )
+        if self.settings.get("extra_outputs"):
+            self.all_units.to_csv(
+                self.settings["extra_outputs"] / "existing_gen_units.csv", index=False
+            )
 
         logger.info("Finalizing generation clusters")
         self.results = pd.concat(self.cluster_list)
