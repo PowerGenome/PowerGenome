@@ -3366,14 +3366,17 @@ class GeneratorClusters:
         # Save some data about individual units for easy access
         self.all_units = pd.concat(unit_list, sort=False)
         self.all_units = pd.merge(
-            self.units_model.reset_index(),
-            self.all_units,
+            self.units_model,  # .reset_index(),
+            self.all_units.reset_index()[["plant_id_eia", "unit_id_pg", "cluster"]],
             on=["plant_id_eia", "unit_id_pg"],
-            how="left",
+            how="inner",
         ).merge(
             self.plants_860[["plant_id_eia", "utility_id_eia"]],
             on=["plant_id_eia"],
             how="left",
+        )
+        self.all_units.to_csv(
+            self.settings["extra_outputs"] / "existing_gen_units.csv", index=False
         )
 
         logger.info("Finalizing generation clusters")
