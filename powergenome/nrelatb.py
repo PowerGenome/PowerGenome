@@ -1294,7 +1294,8 @@ def load_resource_group_data(
 ) -> Tuple[pd.DataFrame, Union[pd.Series, None]]:
     data = rg.metadata.read(cache=cache)
     data.columns = snake_case_col(data.columns)
-    data["region"] = data.loc[:, "metro_region"]
+    if "metro_region" in data.columns and "region" not in data.columns:
+        data["region"] = data.loc[:, "metro_region"]
     if "cpa_mw" in data.columns and "mw" not in data.columns:
         data["mw"] = data.loc[:, "cpa_mw"]
     data = data.loc[data["mw"] > 0, :]
