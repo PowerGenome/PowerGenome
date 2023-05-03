@@ -3376,6 +3376,14 @@ class GeneratorClusters:
             how="left",
         )
         if self.settings.get("extra_outputs"):
+            self.all_units = self.all_units.rename(columns={"model_region": "region"})
+            self.all_units["Resource"] = (
+                self.all_units["region"]
+                + "_"
+                + snake_case_col(self.all_units["technology"])
+                + "_"
+                + self.all_units["cluster"]
+            )
             self.all_units.to_csv(
                 Path(self.settings["extra_outputs"]) / "existing_gen_units.csv",
                 index=False,
