@@ -3382,7 +3382,7 @@ class GeneratorClusters:
                 + "_"
                 + snake_case_col(self.all_units["technology"])
                 + "_"
-                + self.all_units["cluster"]
+                + self.all_units["cluster"].astype(str)
             )
             self.all_units.to_csv(
                 Path(self.settings["extra_outputs"]) / "existing_gen_units.csv",
