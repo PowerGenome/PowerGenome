@@ -482,9 +482,11 @@ def reduce_time_domain(
         )
 
     else:
-        time_index = pd.Series(data=range(1, 8761), name="Time_Index")
+        time_index = pd.Series(data=range(1, len(load_profiles) + 1), name="Time_Index")
         sub_weights = pd.Series(data=[1], name="Sub_Weights")
-        hours_per_period = pd.Series(data=[168], name="Timesteps_per_Rep_Period")
+        hours_per_period = pd.Series(
+            data=[len(load_profiles)], name="Timesteps_per_Rep_Period"
+        )
         subperiods = pd.Series(data=[1], name="Rep_Periods")
 
         # Not actually reduced
