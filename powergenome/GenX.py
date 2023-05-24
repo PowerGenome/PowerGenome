@@ -816,6 +816,54 @@ def check_min_power_against_variability(gen_clusters, resource_profile):
     return gen_clusters
 
 
+def set_must_run_generation(
+    gen_variability: pd.DataFrame, must_run_techs: List[str] = None
+) -> pd.DataFrame:
+    """Set the generation of must run resources -- those tagged as "MUST_RUN" in
+     generators data -- to 1 in all hours.
+
+    Parameters
+    ----------
+    gen_variability : pd.DataFrame
+        Columns are names of resources, rows are floats from 0-1
+    must_run_techs : List[str], optional
+        Names of the resources selected as must run, by default None
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified version of gen_variability with any must run techs having a value of 1
+        in all rows.
+
+    Examples
+    --------
+    In-memory dataframe:
+
+    >>> gen_variability = pd.DataFrame({
+        "gen_1": [0.5, 0.6, 0.7],
+        "gen_2": [0.8, 0.9, 1.0],
+        "gen_3": [0.0, 0.0, 0.0]
+    })
+    >>> must_run_techs = ["gen_3"]
+    >>> expected_output = pd.DataFrame({
+        "gen_1": [0.5, 0.6, 0.7],
+        "gen_2": [0.8, 0.9, 1.0],
+        "gen_3": [1.0, 1.0, 1.0]
+    })
+    >>> assert set_must_run_generation(gen_variability, must_run_techs).equals(expected_output)
+    """
+    for tech in must_run_techs or []:
+        if tech not in gen_variability.columns:
+            logger.warning(
+                f"Trying to set {tech} as a must run resource (hourly generation is) "
+                "always 1), but it was not found in the generation variability dataframe."
+            )
+            continue
+        gen_variability.loc[:, tech] = 1.0
+
+    return gen_variability
+
+
 def calc_emissions_ces_level(network_df, load_df, settings):
     # load_cols = [col for col in load_df.columns if "Load" in col]
     total_load = load_df.sum().sum()

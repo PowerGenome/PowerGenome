@@ -33,6 +33,7 @@ from powergenome.GenX import (
     round_col_values,
     set_int_cols,
     calculate_partial_CES_values,
+    set_must_run_generation,
 )
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
@@ -274,6 +275,13 @@ def main(**kwargs):
                 gen_variability = make_generator_variability(gen_clusters)
                 gen_variability.index.name = "Time_Index"
                 gen_variability.columns = gen_clusters["Resource"]
+                if "MUST_RUN" in gen_clusters.columns:
+                    gen_variability = set_must_run_generation(
+                        gen_variability,
+                        gen_clusters.loc[
+                            gen_clusters["MUST_RUN"] == 1, "Resource"
+                        ].to_list(),
+                    )
                 gens = fix_min_power_values(gen_clusters, gen_variability).pipe(
                     add_co2_costs_to_o_m
                 )
