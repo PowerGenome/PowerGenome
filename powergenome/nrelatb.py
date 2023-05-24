@@ -1234,12 +1234,12 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         df_list = Parallel(n_jobs=settings.get("clustering_n_jobs", 1))(
             delayed(parallel_region_renewables)(
                 settings,
-                cluster_builder,
                 new_gen_df,
                 regional_cost_multipliers,
                 rev_mult_region_map,
                 rev_mult_tech_map,
                 region,
+                cluster_builder,
             )
             for region in regions
         )
@@ -1262,14 +1262,39 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
 
 
 def parallel_region_renewables(
-    settings,
-    cluster_builder,
-    new_gen_df,
-    regional_cost_multipliers,
-    rev_mult_region_map,
-    rev_mult_tech_map,
-    region,
-):
+    settings: dict,
+    new_gen_df: pd.DataFrame,
+    regional_cost_multipliers: pd.DataFrame,
+    rev_mult_region_map: Dict[str, List[str]],
+    rev_mult_tech_map: Dict[str, List[str]],
+    region: str,
+    cluster_builder: ClusterBuilder = None,
+) -> pd.DataFrame:
+    """Wrapper function to run regional capex and add renewable clusters in parallel
+
+    Parameters
+    ----------
+    settings : dict
+        Can have keys "renewables_clusters" and "region_aggregations"
+    new_gen_df : pd.DataFrame
+        Rows are new-build resources specified by the user
+    regional_cost_multipliers : pd.DataFrame
+        Cost multiplier for each technology type in different regions
+    rev_mult_region_map : Dict[str, List[str]]
+        Mapping of cost regions to model regions
+    rev_mult_tech_map : Dict[str, List[str]]
+        Mapping of technologies from cost map to technologies in new_gen_df
+    region : str
+        Name of the model region
+    cluster_builder
+        ClusterBuilder object. Reuse to save time. None by default.
+
+    Returns
+    -------
+    pd.DataFrame
+        New-build resources in a single region. Includes the regionally corrected cost
+        and renewable resource clusters as specified by the user.
+    """
     _df = new_gen_df.copy()
     _df["region"] = region
     _df = regional_capex_multiplier(
@@ -1292,6 +1317,25 @@ def parallel_region_renewables(
 def load_resource_group_data(
     rg: ResourceGroup, cache=True
 ) -> Tuple[pd.DataFrame, Union[pd.Series, None]]:
+    """Load metadata for the specified resource group.
+
+    Metadata is information on individual renewable sites such as the site ID, capacity,
+    interconnection cost, etc. If the resource group has the attribute "site_map", then
+    a mapping of site IDs to generation profile IDs is also returned.
+
+    Parameters
+    ----------
+    rg : ResourceGroup
+        A resource group object
+    cache : bool, optional
+        A flag indicating whether to cache the data, by default True
+
+    Returns
+    -------
+    Tuple[pd.DataFrame, Union[pd.Series, None]]
+        A tuple of the metadata dataframe and the site map as a Series with site ID as
+        the index
+    """
     data = rg.metadata.read(cache=cache)
     data.columns = snake_case_col(data.columns)
     if "metro_region" in data.columns and "region" not in data.columns:
@@ -1311,7 +1355,24 @@ def load_resource_group_data(
     return data, site_map
 
 
-def flatten_cluster_def(scenario, detail_suffix):
+def flatten_cluster_def(
+    scenario: Union[dict, list, str, int, float], detail_suffix: str
+) -> str:
+    """Turn a nested dictionary of clustering instructions into a string.
+
+    Parameters
+    ----------
+    scenario : Union[dict, list, str, int, float]
+        Either a dictionary, list, str, or numeric object -- base level must be a string
+        or numeric.
+    detail_suffix : str
+        A string used to separate individual objects
+
+    Returns
+    -------
+    str
+        Flattened string representation
+    """
     "Return cluster definition as a string for unique filenames"
     if isinstance(scenario, dict):
         for k, v in scenario.items():
@@ -1348,8 +1409,7 @@ def add_renewables_clusters(
         Dictionary with the following keys:
             - `renewables_clusters`: Determines the clusters built for the region.
             - `region_aggregations`: Maps the model region to IPM regions.
-    cluster_builder
-        ClusterBuilder object. Reuse to save time. None by default.
+
 
     Returns
     -------
