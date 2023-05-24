@@ -340,6 +340,7 @@ def test_combined_load_sources(CA_AZ_settings):
         "FERC": "load_curves_ferc",
     }
     CA_AZ_settings["EFS_DATA"] = DATA_PATHS["test_data"] / "efs"
+    CA_AZ_settings["electrification"] = "reference"
     make_final_load_curves(pg_engine, CA_AZ_settings)
 
 
@@ -372,6 +373,7 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
     }
     CA_AZ_settings["modified_atb_new_gen"]["NGCCS100"]["heat_rate"] = 7.5
     CA_AZ_settings["EFS_DATA"] = DATA_PATHS["test_data"] / "efs"
+    CA_AZ_settings["electrification"] = "reference"
     gc = GeneratorClusters(
         pudl_engine, pudl_out, pg_engine, CA_AZ_settings, supplement_with_860m=True
     )
