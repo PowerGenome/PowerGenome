@@ -62,7 +62,7 @@ def merge_co2_pipeline_costs(
     if target_usd_year:
         for dollar_year in co2_df["dollar_year"].unique():
             co2_df.loc[
-                co2_df["dollar_year"] == dollar_year, "parameter_value"
+                (co2_df["dollar_year"] == dollar_year), "parameter_value"
             ] = inflation_price_adjustment(
                 co2_df.loc[co2_df["dollar_year"] == dollar_year, "parameter_value"],
                 dollar_year,
@@ -122,6 +122,7 @@ def merge_co2_pipeline_costs(
             columns="parameter",
             values="parameter_value",
         ).reset_index()
+        co2_costs_wide["capture_rate"] = filt.get("capture_rate", 90)
         df_list.append(co2_costs_wide)
 
     df_co2_costs = pd.merge(df, pd.concat(df_list), how="left")
@@ -200,11 +201,18 @@ def mass_to_energy_costs(
     fuel_col = [c for c in df.columns if c.lower() == "fuel"]
     fuel_col = fuel_col[0]
     for fuel, ef in fuel_emission_factors.items():
-        df.loc[df[fuel_col].str.contains(fuel, case=False), "tonne_co2_mwh"] = (
-            df.loc[df[fuel_col].str.contains(fuel, case=False), heat_rate_col] * ef
+        df.loc[
+            df[fuel_col].str.contains(fuel, case=False), "tonne_co2_captured_mwh"
+        ] = (
+            df.loc[df[fuel_col].str.contains(fuel, case=False), heat_rate_col]
+            * ef
+            * (
+                df.loc[df[fuel_col].str.contains(fuel, case=False), "capture_rate"]
+                / 100
+            )
         )
 
-    df["co2_cost_mwh"] = df[mass_cols].sum(axis=1) * df["tonne_co2_mwh"]
-    df.loc[:, "co2_cost_mwh"] = df["co2_cost_mwh"].fillna(0)
+    df.loc[:, "co2_cost_mwh"] = df[mass_cols].sum(axis=1) * df["tonne_co2_captured_mwh"]
+    df.loc[:, "co2_cost_mwh"] = df.loc[:, "co2_cost_mwh"].fillna(0)
 
     return df

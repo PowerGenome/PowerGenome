@@ -212,7 +212,7 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     """
     df["Start_Fuel_MMBTU_per_MW"] = 0
     for eia_tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
-        if not isinstance(settings["eia_atb_tech_map"][eia_tech], list):
+        if not isinstance(settings.get("eia_atb_tech_map", {}).get(eia_tech), list):
             settings["eia_atb_tech_map"][eia_tech] = [
                 settings["eia_atb_tech_map"][eia_tech]
             ]
@@ -454,8 +454,7 @@ def load_plant_region_map(
         settings["model_regions"], settings.get("region_aggregations")
     )
 
-    # Create a new column "model_region" with labels that we're using for aggregated
-    # regions
+    # Create a new column "model_region" with labels that we're using for aggregated regions
 
     model_region_map_df = region_map_df.loc[
         region_map_df.region.isin(keep_regions), :
@@ -779,10 +778,16 @@ def supplement_generator_860_data(
     # In this merge of the three dataframes we're trying to label each generator with
     # the model region it is part of, the prime mover and operating date, and the
     # PUDL unit codes (where they exist).
+
+    # drop duplicate rows of model_region_map
+    mapping = model_region_map.drop(columns="region").drop_duplicates()
+    # drop duplicate mappings for the same ID
+    mapping = mapping.loc[~mapping.plant_id_eia.duplicated(), :]
+
     gens_860_model = (
         pd.merge(
             gens_860[gen_cols],
-            model_region_map.drop(columns="region"),
+            mapping,
             on="plant_id_eia",
             how="inner",
         )
@@ -2815,9 +2820,13 @@ class GeneratorClusters:
 
             self.eia_860m = load_860m(self.settings)
             self.operating_860m = self.eia_860m["operating"]
+            self.operating_860m = self.remove_860_duplicates(self.operating_860m)
             self.planned_860m = self.eia_860m["planned"]
+            self.planned_860m = self.remove_860_duplicates(self.planned_860m)
             self.canceled_860m = self.eia_860m["canceled"]
+            self.canceled_860m = self.remove_860_duplicates(self.canceled_860m)
             self.retired_860m = self.eia_860m["retired"]
+            self.retired_860m = self.remove_860_duplicates(self.retired_860m)
 
             # self.ownership = load_ownership_eia860(self.pudl_engine, self.data_years)
             self.plants_860 = load_plants_860(self.pudl_engine, self.data_years)
@@ -2855,6 +2864,15 @@ class GeneratorClusters:
         # df["heat_rate_mmbtu_mwh"].fillna(median_hr, inplace=True)
 
         # return df
+
+    def remove_860_duplicates(self, df_860: pd.DataFrame()) -> pd.DataFrame():
+        """
+        Remove rows from an EIA 860 DF that contain a duplicate plant-generator pairing.
+        """
+        df = df_860.copy(deep=True)
+        df = df.set_index(["plant_id_eia", "generator_id"])
+        df = df.loc[~df.index.duplicated(), :].reset_index()
+        return df
 
     def create_demand_response_gen_rows(self):
         """Create rows for demand response/management resources to include in the
@@ -3151,6 +3169,9 @@ class GeneratorClusters:
         # Create a pudl unit id based on plant and generator id where one doesn't exist.
         # This is used later to match the cluster numbers to plants
         self.units_model.reset_index(inplace=True)
+        self.units_model = self.units_model.drop_duplicates(
+            subset=["plant_id_eia", "generator_id"]
+        )
         if self.supplement_with_860m:
             self.units_model = add_860m_storage_mwh(
                 self.units_model,
@@ -3345,15 +3366,28 @@ class GeneratorClusters:
         # Save some data about individual units for easy access
         self.all_units = pd.concat(unit_list, sort=False)
         self.all_units = pd.merge(
-            self.units_model.reset_index(),
-            self.all_units,
+            self.units_model,  # .reset_index(),
+            self.all_units.reset_index()[["plant_id_eia", "unit_id_pg", "cluster"]],
             on=["plant_id_eia", "unit_id_pg"],
-            how="left",
+            how="inner",
         ).merge(
             self.plants_860[["plant_id_eia", "utility_id_eia"]],
             on=["plant_id_eia"],
             how="left",
         )
+        if self.settings.get("extra_outputs"):
+            self.all_units = self.all_units.rename(columns={"model_region": "region"})
+            self.all_units["Resource"] = (
+                self.all_units["region"]
+                + "_"
+                + snake_case_col(self.all_units["technology"])
+                + "_"
+                + self.all_units["cluster"].astype(str)
+            )
+            self.all_units.to_csv(
+                Path(self.settings["extra_outputs"]) / "existing_gen_units.csv",
+                index=False,
+            )
 
         logger.info("Finalizing generation clusters")
         self.results = pd.concat(self.cluster_list)
@@ -3551,6 +3585,7 @@ class GeneratorClusters:
         self.new_generators = add_genx_model_tags(self.new_generators, self.settings)
         if "cluster" not in self.new_generators.columns:
             self.new_generators["cluster"] = 1
+        self.new_generators["cluster"] = self.new_generators["cluster"].astype("Int64")
         self.new_generators["Resource"] = (
             self.new_generators["region"]
             + "_"

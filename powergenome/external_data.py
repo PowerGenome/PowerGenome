@@ -509,12 +509,12 @@ def load_user_tx_costs(
         for row in df.itertuples():
             adj_annuity = inflation_price_adjustment(
                 row.total_interconnect_annuity_mw, row.dollar_year, target_usd_year
-            )
+            ).round(0)
             adjusted_annuities.append(adj_annuity)
 
             adj_cost = inflation_price_adjustment(
                 row.total_interconnect_cost_mw, row.dollar_year, target_usd_year
-            )
+            ).round(0)
             adjusted_costs.append(adj_cost)
         df["total_interconnect_annuity_mw"] = adjusted_annuities
         df["total_interconnect_cost_mw"] = adjusted_costs
@@ -544,7 +544,9 @@ def insert_user_tx_costs(tx_df: pd.DataFrame, user_costs: pd.DataFrame) -> pd.Da
     pd.DataFrame
         Supplemented interregional transmission lines
     """
-
+    if tx_df.empty:
+        return tx_df
+    user_costs = user_costs.dropna(subset=["zone_1", "zone_2"], how="any")
     unused_lines = []
     for row in user_costs.itertuples():
         line_row = tx_df.loc[(tx_df[row.zone_1] != 0) & (tx_df[row.zone_2] != 0), :]
