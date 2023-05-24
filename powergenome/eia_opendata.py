@@ -257,9 +257,7 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
 
         SERIES_ID = f"AEO.{aeo_year}.{scenario_series}.PRCE_REAL_ELEP_NA_{fuel_series}_NA_{region_series}_Y13DLRPMMBTU.A"
 
-        df = load_aeo_series(
-            series_id=SERIES_ID, api_key=API_KEY, columns=["year", "price"]
-        )
+        df = load_aeo_series(series_id=SERIES_ID)
         df["fuel"] = fuel_name
         df["region"] = region_name
         df["scenario"] = scenario_name
@@ -519,7 +517,7 @@ def get_aeo_load(
         f"AEO.{aeo_year}.{scenario_series}.CNSM_NA_{sector}_NA_ELC_NA_{region}_BLNKWH.A"
     )
 
-    df = load_aeo_series(SERIES_ID, API_KEY, columns=["year", "demand"])
+    df = load_aeo_series(SERIES_ID)
     df["year"] = df["year"].astype(int)
 
     return df
