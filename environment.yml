@@ -13,12 +13,10 @@ dependencies:
   - beautifulsoup4
   - lxml
   - pyyaml
-  - conda-forge::pre-commit
   - isort
   - pre-commit
   - conda-forge::nb_conda_kernels
   - fastparquet
-  - pandas=1.3.*
   - statsmodels
   - conda-forge::python-dotenv
   - conda-forge::flatten-dict
@@ -26,6 +24,7 @@ dependencies:
   - conda-forge::frozendict
   - conda-forge::hypothesis[pandas]
   - numpy=1.23.*
+  - openpyxl>=3.0
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona
