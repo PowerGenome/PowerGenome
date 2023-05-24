@@ -1,7 +1,7 @@
 "Test functions from price_adjustment.py"
 
 import pandas as pd
-from powergenome.eia_opendata import read_eia_api
+from powergenome.eia_opendata import load_aeo_series
 from powergenome.params import SETTINGS
 from powergenome.price_adjustment import inflation_price_adjustment, load_cpi_data
 
@@ -33,7 +33,7 @@ def test_inflate_price(tmp_path):
     assert all(p2 > p)
 
 
-def test_eia_api():
+def test_aeo_series():
     series_id = "AEO.2022.REF2022.PRCE_REAL_ELEP_NA_NG_NA_NEENGL_Y13DLRPMMBTU.A"
-    df = read_eia_api(series_id, SETTINGS["EIA_API_KEY"], columns=["year", "price"])
+    df = load_aeo_series(series_id)
     assert not df.empty

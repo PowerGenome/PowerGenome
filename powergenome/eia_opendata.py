@@ -67,46 +67,7 @@ def extract_bulk_series(aeo_year: int, name_str: str, columns: list = None):
         _df.to_csv(save_data_dir / f"{series}.csv", index=False, float_format="%g")
 
 
-def read_eia_api(series_id: str, api_key: str, columns: list = None):
-    """Load EIA AEO data from the API and write it to file
-
-    Parameters
-    ----------
-    series_id : str
-        The AEO API series ID that uniquely identifies the data request.
-    api_key : str
-        A valid API key for EIA's open data portal
-    columns : list
-        The expected output dataframe columns
-
-    Returns
-    -------
-    pd.DataFrame
-        Data from EIA's AEO via their open data API.
-    """
-    data_dir = DATA_PATHS["eia"] / "open_data"
-    data_dir.mkdir(parents=True, exist_ok=True)
-    url = (
-        f"https://api.eia.gov/series/?series_id={series_id}&api_key={api_key}&out=json"
-    )
-    r = requests.get(url)
-
-    try:
-        df = pd.DataFrame(r.json()["series"][0]["data"], columns=columns, dtype=float)
-        df.to_csv(data_dir / f"{series_id}.csv", index=False)
-        return df
-    except KeyError:
-        print(
-            "There was an error creating a dataframe from your EIA AEO data request. "
-            f"The constructed series ID is {series_id}. Check to make sure it looks "
-            "correct. The data returned from EIA's API is: \n"
-            f"{r.json()}"
-        )
-
-
-def load_aeo_series(
-    series_id: str, api_key: str, columns: list = None, retry_bulk: bool = False
-) -> pd.DataFrame:
+def load_aeo_series(series_id: str) -> pd.DataFrame:
     """Load EIA AEO data either from file (if it exists) from a bulk download file or
     from the API.
 
@@ -114,10 +75,6 @@ def load_aeo_series(
     ----------
     series_id : str
         The AEO API series ID that uniquely identifies the data request.
-    api_key : str
-        A valid API key for EIA's open data portal
-    columns : list
-        The expected output dataframe columns
 
     Returns
     -------
@@ -140,21 +97,17 @@ def load_aeo_series(
                 columns=["year", "price"],
             )
         except (FileNotFoundError, zipfile.BadZipFile):
-            try:
-                download_bulk_file(fn, retry=True)
-                extract_bulk_series(
-                    aeo_year=year,
-                    name_str="Electricity Demand",
-                    columns=["year", "demand"],
-                )
-                extract_bulk_series(
-                    aeo_year=year,
-                    name_str="Energy Prices : Electric Power",
-                    columns=["year", "price"],
-                )
-            except (FileNotFoundError, zipfile.BadZipFile):
-                df = read_eia_api(series_id, api_key, columns)
-                return df
+            download_bulk_file(fn, retry=True)
+            extract_bulk_series(
+                aeo_year=year,
+                name_str="Electricity Demand",
+                columns=["year", "demand"],
+            )
+            extract_bulk_series(
+                aeo_year=year,
+                name_str="Energy Prices : Electric Power",
+                columns=["year", "price"],
+            )
 
     df = pd.read_csv(data_dir / f"{series_id}.csv")
 
@@ -304,9 +257,7 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
 
         SERIES_ID = f"AEO.{aeo_year}.{scenario_series}.PRCE_REAL_ELEP_NA_{fuel_series}_NA_{region_series}_Y13DLRPMMBTU.A"
 
-        df = load_aeo_series(
-            series_id=SERIES_ID, api_key=API_KEY, columns=["year", "price"]
-        )
+        df = load_aeo_series(series_id=SERIES_ID)
         df["fuel"] = fuel_name
         df["region"] = region_name
         df["scenario"] = scenario_name
@@ -566,7 +517,7 @@ def get_aeo_load(
         f"AEO.{aeo_year}.{scenario_series}.CNSM_NA_{sector}_NA_ELC_NA_{region}_BLNKWH.A"
     )
 
-    df = load_aeo_series(SERIES_ID, API_KEY, columns=["year", "demand"])
+    df = load_aeo_series(SERIES_ID)
     df["year"] = df["year"].astype(int)
 
     return df
