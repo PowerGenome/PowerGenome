@@ -506,6 +506,8 @@ def label_retirement_year(
     """
     if age_col not in df.columns:
         age_col = age_col.replace("operating_date", "generator_operating_date")
+    if age_col not in df.columns:
+        return df
     start_len = len(df)
     retirement_ages = settings.get(settings_retirement_table, {}) or {}
     if "retirement_year" not in df.columns:
