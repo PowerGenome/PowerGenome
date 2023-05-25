@@ -477,11 +477,11 @@ def load_plant_region_map(
 
 
 def label_retirement_year(
-    df,
-    settings,
-    age_col="operating_date",
-    settings_retirement_table="retirement_ages",
-    add_additional_retirements=True,
+    df: pd.DataFrame,
+    settings: dict,
+    age_col: str = "operating_date",
+    settings_retirement_table: str = "retirement_ages",
+    add_additional_retirements: bool = True,
 ):
     """
     Add a retirement year column to the dataframe based on the year each generator
@@ -504,22 +504,24 @@ def label_retirement_year(
         be checked. For example, this isn't necessary when adding proposed generators
         because we probably won't be setting an artifically early retirement year.
     """
-
+    if age_col not in df.columns:
+        age_col = age_col.replace("operating_date", "generator_operating_date")
     start_len = len(df)
     retirement_ages = settings.get(settings_retirement_table, {}) or {}
     if "retirement_year" not in df.columns:
         df["retirement_year"] = np.nan
 
-    for tech, life in retirement_ages.items():
-        try:
-            df.loc[df.technology_description == tech, "retirement_year"] = (
-                df.loc[df.technology_description == tech, age_col].dt.year + life
-            )
-        except AttributeError:
-            # This is a bit hacky but for the proposed plants I have an int column
-            df.loc[df.technology_description == tech, "retirement_year"] = (
-                df.loc[df.technology_description == tech, age_col] + life
-            )
+    df["retirement_age"] = df["technology_description"].map(retirement_ages).fillna(500)
+    try:
+        df.loc[df["retirement_year"].isna(), "retirement_year"] = (
+            df.loc[df["retirement_year"].isna(), age_col].dt.year
+            + df.loc[df["retirement_year"].isna(), "retirement_age"]
+        )
+    except AttributeError:
+        df.loc[df["retirement_year"].isna(), "retirement_year"] = (
+            df.loc[df["retirement_year"].isna(), age_col]
+            + df.loc[df["retirement_year"].isna(), "retirement_age"]
+        )
 
     try:
         df.loc[~df["planned_retirement_date"].isnull(), "retirement_year"] = df.loc[
@@ -764,7 +766,15 @@ def supplement_generator_860_data(
     )
     gen_cols = [c for c in gen_cols if c in gens_860]
 
-    entity_cols = ["plant_id_eia", "generator_id", "prime_mover_code", "operating_date"]
+    entity_cols = [
+        "plant_id_eia",
+        "generator_id",
+        "prime_mover_code",
+        "operating_date",
+        "generator_operating_date",
+        "original_planned_operating_date",
+        "original_planned_generator_operating_date",
+    ]
     entity_cols = [c for c in entity_cols if c in gens_entity]
 
     bga_cols = [
@@ -3023,7 +3033,13 @@ class GeneratorClusters:
             )
             .pipe(remove_canceled_860m, self.canceled_860m)
             .pipe(remove_retired_860m, self.retired_860m)
+            .pipe(update_operating_date_860m, self.operating_860m.copy())
             .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
+            .pipe(
+                label_retirement_year,
+                self.settings,
+                age_col="original_planned_operating_date",
+            )
             .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
             .pipe(
                 group_technologies,
@@ -3031,7 +3047,6 @@ class GeneratorClusters:
                 self.settings.get("tech_groups", {}) or {},
                 self.settings.get("regional_no_grouping", {}) or {},
             )
-            .pipe(update_operating_date_860m, self.operating_860m.copy())
         )
         self.gens_860_model = self.gens_860_model.pipe(
             modify_cc_prime_mover_code, self.gens_860_model
