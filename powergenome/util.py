@@ -765,8 +765,7 @@ def build_case_id_name_map(settings: dict) -> dict:
     case_id_name_df = pd.read_csv(
         Path(settings["input_folder"]) / settings["case_id_description_fn"],
         index_col=0,
-        squeeze=True,
-    )
+    ).squeeze("columns")
     case_id_name_df = case_id_name_df.str.replace(" ", "_")
     case_id_name_map = case_id_name_df.to_dict()
 
