@@ -2045,13 +2045,20 @@ def gentype_region_capacity_factor(
         by = ["plant_id_eia"]
     else:
         by = {"plant_id_eia": "eia"}
-    capacity_factor = pudl.helpers.clean_merge_asof(
-        generation,
-        plant_tech_cap,
-        left_on="report_date",
-        right_on="report_date",
-        by=by,
-    )
+    if pudl.__version__ < "2022.11.30":
+        capacity_factor = pudl.helpers.clean_merge_asof(
+            generation,
+            plant_tech_cap,
+            left_on="report_date",
+            right_on="report_date",
+            by=by,
+        )
+    else:
+        capacity_factor = pudl.helpers.date_merge(
+            generation,
+            plant_tech_cap,
+            on=by,
+        )
 
     if settings.get("group_technologies"):
         capacity_factor = group_technologies(
