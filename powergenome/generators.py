@@ -3394,19 +3394,6 @@ class GeneratorClusters:
             on=["plant_id_eia"],
             how="left",
         )
-        if self.settings.get("extra_outputs"):
-            self.all_units = self.all_units.rename(columns={"model_region": "region"})
-            self.all_units["Resource"] = (
-                self.all_units["region"]
-                + "_"
-                + snake_case_col(self.all_units["technology"])
-                + "_"
-                + self.all_units["cluster"].astype(str)
-            )
-            self.all_units.to_csv(
-                Path(self.settings["extra_outputs"]) / "existing_gen_units.csv",
-                index=False,
-            )
 
         logger.info("Finalizing generation clusters")
         self.results = pd.concat(self.cluster_list)
@@ -3434,15 +3421,26 @@ class GeneratorClusters:
 
         # Calculate average capacity factors
         if self.settings.get("derate_techs"):
-            self.capacity_factors = gentype_region_capacity_factor(
+            (
+                plant_tech_cf,
+                self.region_tech_capacity_factors,
+            ) = gentype_region_capacity_factor(
                 self.pudl_engine,
                 self.units_model[["plant_id_eia", "model_region"]],
                 self.settings,
             )
+            self.all_units = pd.merge(
+                self.all_units,
+                plant_tech_cf,
+                how="left",
+                on=["plant_id_eia", "technology"],
+            )
 
             self.results = pd.merge(
                 self.results.reset_index(),
-                self.capacity_factors[["region", "technology", "capacity_factor"]],
+                self.region_tech_capacity_factors[
+                    ["region", "technology", "capacity_factor"]
+                ],
                 on=["region", "technology"],
                 how="left",
             )
@@ -3463,6 +3461,19 @@ class GeneratorClusters:
                 ]
             )
 
+        if self.settings.get("extra_outputs"):
+            self.all_units = self.all_units.rename(columns={"model_region": "region"})
+            self.all_units["Resource"] = (
+                self.all_units["region"]
+                + "_"
+                + snake_case_col(self.all_units["technology"])
+                + "_"
+                + self.all_units["cluster"].astype(str)
+            )
+            self.all_units.to_csv(
+                Path(self.settings["extra_outputs"]) / "existing_gen_units.csv",
+                index=False,
+            )
         # Round Cap_size to prevent GenX error.
         self.results = self.results.round(3)
         self.results["Cap_Size"] = self.results["Cap_Size"]
