@@ -1,6 +1,5 @@
 """
-Load data from EIA's Open Data API. Requires an api key, which should be included in a
-.env file (/powergenome/.env) with the format EIA_API_KEY=YOUR_API_KEY
+Load data from EIA's bulk data
 """
 
 from itertools import product
@@ -178,7 +177,6 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
     "target_usd_year" and "aeo_fuel_usd_year" exist and are valid integers.
     ************
     """
-    API_KEY = SETTINGS["EIA_API_KEY"]
 
     if settings.get("fuel_eia_aeo_year"):
         aeo_year = settings.get("fuel_eia_aeo_year")
@@ -511,8 +509,6 @@ def get_aeo_load(
     3  2047  472.314972
     4  2046  466.875671
     """
-    API_KEY = SETTINGS["EIA_API_KEY"]
-
     SERIES_ID = (
         f"AEO.{aeo_year}.{scenario_series}.CNSM_NA_{sector}_NA_ELC_NA_{region}_BLNKWH.A"
     )
