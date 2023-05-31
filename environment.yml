@@ -16,7 +16,6 @@ dependencies:
   - isort
   - pre-commit
   - conda-forge::nb_conda_kernels
-  - fastparquet
   - statsmodels
   - conda-forge::python-dotenv
   - conda-forge::flatten-dict
