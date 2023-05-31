@@ -30,4 +30,3 @@ dependencies:
   - conda-forge::geopandas
   - conda-forge::pyogrio
   - conda-forge::shapely
-  - conda-forge::descartes
