@@ -42,20 +42,6 @@ This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl
 
 ![PUDL software version for database](/docs/_static/pudl_version.png)
 
-**IMPORTANT UPDATE:** As of December 2021, our pinned `catalystcoop.pudl` dependency has bumped from 0.3.* to 0.5.* This version bump is associated with some changes in the PUDL database structure and an increase in the Pandas dependency from 0.25.* to 1.* If you are running an older version of PowerGenome it may be easiest to [remove the existing `powergenome` conda environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#removing-an-environment) and reinstall it.
-
-```sh
-conda remove --name powergenome --all
-```
-
-Alternatively, you can [update your existing environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#updating-an-environment).
-
-```sh
-conda env update --file environment.yml  --prune
-```
-
-Either way, you will need to download the new database files in steps 5/6 below and update your `.env` file.
-
 ## Installation
 
 1. Clone this repository to your local machine and navigate to the top level (PowerGenome) folder.
@@ -84,7 +70,7 @@ conda activate powergenome
 pip install -e .
 ```
 
-5. Download [the PUDL database](https://doi.org/10.5281/zenodo.3653158), unzip it, and copy the `/pudl_data/sqlite/pudl.sqlite` to wherever you would like to store PowerGenome data on your computer. The zip file contains other data sets that aren't needed for PowerGenome and can be deleted.  Note that as of December 2021 the most recent version of this database (Data Release v3.0.0) is compatible with `catalystcoop.pudl` version 0.5.* and will not work if an earlier version is included in your conda environment.
+5. Download [the PUDL database](https://doi.org/10.5281/zenodo.3653158), unzip it, and copy the `/pudl_data/sqlite/pudl.sqlite` to wherever you would like to store PowerGenome data on your computer. The zip file contains other data sets that aren't needed for PowerGenome and can be deleted.  Note that as of May 2023 the most recent version of this database (v2022.11.30) is compatible with `catalystcoop.pudl` version v2022.11.30 and may not work if an earlier software version is included in your conda environment.
 
 6. Download [additional PowerGenome data](https://drive.google.com/file/d/1LCB0uwnx6VHrmHQDPH2huLHU6fKXb7kG/view?usp=sharing) that includes NREL ATB cost data, transmission constraints between IPM regions, and hourly demand for each IPM region. Hourly demand is based on a 2012 weather year and was constructed either directly from FERC 714 data (`load_curves_ferc`) or from NREL EFS data (`load_curves_nrel_efs`) that also sources back to FERC 714. The NREL load curves, which separate hourly demand by sector and subsector, are now the default source for load curves in PowerGenome. See [the wiki](https://github.com/PowerGenome/PowerGenome/wiki/Settings-files#demand) for more information. These files will eventually be provided through a data repository with citation information.
 
