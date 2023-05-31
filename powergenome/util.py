@@ -939,8 +939,10 @@ def load_ipm_shapefile(settings: dict, path: Union[str, Path] = IPM_GEOJSON_PATH
     keep_regions, region_agg_map = regions_to_keep(
         settings["model_regions"], settings.get("region_aggregations", {}) or {}
     )
-
-    ipm_regions = gpd.read_file(path)
+    try:
+        ipm_regions = gpd.read_file(path, engine="pyogrio")
+    except ImportError:
+        ipm_regions = gpd.read_file(path, engine="fiona")
     ipm_regions = ipm_regions.rename(columns={"IPM_Region": "region"})
 
     if settings.get("user_region_geodata_fn"):

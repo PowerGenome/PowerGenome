@@ -28,5 +28,6 @@ dependencies:
   # GIS dependencies from conda-forge
   - conda-forge::fiona
   - conda-forge::geopandas
+  - conda-forge::pyogrio
   - conda-forge::shapely
   - conda-forge::descartes
