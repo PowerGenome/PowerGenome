@@ -1973,12 +1973,7 @@ def gentype_region_capacity_factor(
     """
     data_years = [str(y) for y in settings["data_years"]]
     data_years.extend(settings.get("capacity_factor_default_year_filter", []))
-    if type(settings.get("alt_year_filters")) is dict:
-        for tech, value in settings["alt_year_filters"].items():
-            if isinstance(value, list):
-                data_years.extend(value)
-            else:
-                data_years.append(value)
+
     cap_col = settings["capacity_col"]
 
     # Include standby (SB) generators since they are in our capacity totals
@@ -3438,7 +3433,7 @@ class GeneratorClusters:
         )
 
         # Calculate average capacity factors
-        if type(self.settings.get("capacity_factor_techs")) is list:
+        if self.settings.get("derate_techs"):
             self.capacity_factors = gentype_region_capacity_factor(
                 self.pudl_engine,
                 self.units_model[["plant_id_eia", "model_region"]],
@@ -3452,22 +3447,21 @@ class GeneratorClusters:
                 how="left",
             )
 
-            if self.settings.get("derate_capacity"):
-                derate_techs = self.settings["derate_techs"]
-                self.results.loc[:, "unmodified_cap_size"] = self.results.loc[
-                    :, "Cap_Size"
-                ].copy()
+            derate_techs = self.settings["derate_techs"]
+            self.results.loc[:, "unmodified_cap_size"] = self.results.loc[
+                :, "Cap_Size"
+            ].copy()
+            self.results.loc[
+                self.results["technology"].isin(derate_techs), "Cap_Size"
+            ] = (
                 self.results.loc[
-                    self.results["technology"].isin(derate_techs), "Cap_Size"
-                ] = (
-                    self.results.loc[
-                        self.results["technology"].isin(derate_techs),
-                        "unmodified_cap_size",
-                    ]
-                    * self.results.loc[
-                        self.results["technology"].isin(derate_techs), "capacity_factor"
-                    ]
-                )
+                    self.results["technology"].isin(derate_techs),
+                    "unmodified_cap_size",
+                ]
+                * self.results.loc[
+                    self.results["technology"].isin(derate_techs), "capacity_factor"
+                ]
+            )
 
         # Round Cap_size to prevent GenX error.
         self.results = self.results.round(3)

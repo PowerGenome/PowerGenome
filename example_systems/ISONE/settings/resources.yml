@@ -59,30 +59,16 @@ regional_no_grouping: ~
 # Add code to ensure region names here are included above
 alt_num_clusters: ~
 
-# CAPACITY FACTOR
-# Calculate the capacity factor of technology types listed here. If derate_capacity is
-# True, multiply the calculated capacity of each cluster by the CF
-capacity_factor_techs:
+
+# Derate the capacity of technologies that will be set as MUST_RUN in GenX by their
+# historical capacity factor.
+derate_techs:
   - Small Hydroelectric
   - Biomass
 
 # Default value to limit the years used to calculate capacity factors.
-# Use "~" (null, converted to None in Python) to use all data years. PUDL currently has
-# generation data from 2011 through the most recent final release of 923/860.
-capacity_factor_default_year_filter: [2018, 2019]
-
-# Select the year filters for specific technologies. Grouped technologies should be
-# used rather than in individual categories (e.g. Peaker rather than Combustion Turbine).
-# Again, use "~" to use all years.
-alt_year_filters:
-  Small Hydroelectric: ~
-  Conventional Hydroelectric: ~
-  Biomass: ~
-
-derate_capacity: True
-derate_techs:
-  - Small Hydroelectric
-  - Biomass
+# PUDL currently has generation data from 2011 through the most recent final release of 923/860.
+capacity_factor_default_year_filter: [2016, 2017, 2018, 2019, 2020, 2021]
 
 
 # LABEL SMALL HYDRO
