@@ -485,7 +485,7 @@ def test_existing_gen_profiles():
         model_year=2030,
         model_first_planning_year=2022,
         model_regions=regions,
-        data_years=[2020],
+        eia_data_years=[2020],
         capacity_col="capacity_mw",
         num_clusters={tech: 2 for tech in technologies},
         retirement_ages={tech: 200 for tech in technologies},

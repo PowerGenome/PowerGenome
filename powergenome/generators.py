@@ -1971,7 +1971,7 @@ def gentype_region_capacity_factor(
     DataFrame
         A dataframe with the capacity factor of every selected technology
     """
-    data_years = [str(y) for y in settings["data_years"]]
+    data_years = [str(y) for y in settings["eia_data_years"]]
     data_years.extend(settings.get("capacity_factor_default_year_filter", []))
 
     cap_col = settings["capacity_col"]
@@ -2803,7 +2803,7 @@ class GeneratorClusters:
         )
 
         if self.current_gens:
-            self.data_years = self.settings["data_years"]
+            self.data_years = self.settings.get("eia_data_years") or []
 
             self.gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
             self.gens_entity = pd.read_sql_table(

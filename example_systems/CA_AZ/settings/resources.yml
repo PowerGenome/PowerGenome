@@ -2,7 +2,7 @@
 # Pick one or more years of generator data to use when creating clusters. If
 # more than one year is used then things like heat rate will be calculated as the
 # average (weighted by generation per year).
-data_years:
+eia_data_years:
   - 2020
 
 # CAPACITY TYPE
