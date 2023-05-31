@@ -1542,6 +1542,8 @@ def add_renewables_clusters(
                     utc_offset=settings.get("utc_offset", 0),
                     **_scenario,
                 )
+                if data.empty:
+                    return pd.DataFrame()
                 clusters = (
                     data.groupby("cluster", as_index=False)
                     .apply(calc_cluster_values)
