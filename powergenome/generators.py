@@ -2063,32 +2063,10 @@ def gentype_region_capacity_factor(
             settings.get("regional_no_grouping", {}) or {},
         )
 
-    if years_filter is None:
-        years_filter = {
-            tech: settings["capacity_factor_default_year_filter"]
-            for tech in plant_gen_tech_cap["technology_description"].unique()
-        }
-        if type(settings.get("alt_year_filters")) is dict:
-            for tech, value in settings["alt_year_filters"].items():
-                years_filter[tech] = value
-
-        data_years = plant_gen_tech_cap["report_date"].dt.year.unique()
-
-        # Use all years where the value is None
-
-        for tech, value in years_filter.items():
-            if value is None:
-                years_filter[tech] = data_years
-
-    df_list = []
-    for tech, years in years_filter.items():
-        _df = capacity_factor.loc[
-            (capacity_factor["technology_description"] == tech)
-            & (capacity_factor["report_date"].dt.year.isin(years)),
-            :,
-        ]
-        df_list.append(_df)
-    capacity_factor = pd.concat(df_list, sort=False)
+    cf_years = settings.get("capacity_factor_default_year_filter", data_years)
+    capacity_factor = capacity_factor.loc[
+        capacity_factor["report_date"].dt.year.isin(cf_years)
+    ]
 
     # get a unique set of dates to generate the number of hours
     dates = capacity_factor["report_date"].drop_duplicates()
@@ -2110,6 +2088,18 @@ def gentype_region_capacity_factor(
     capacity_factor["potential_generation_mwh"] = (
         capacity_factor[cap_col] * capacity_factor["hours"]
     )
+    plant_tech_capacity_factor = capacity_factor.groupby(
+        ["plant_id_eia", "technology_description"], as_index=False
+    )[["potential_generation_mwh", "net_generation_mwh"]].sum()
+
+    plant_tech_capacity_factor["capacity_factor"] = (
+        plant_tech_capacity_factor["net_generation_mwh"]
+        / plant_tech_capacity_factor["potential_generation_mwh"]
+    )
+    plant_tech_capacity_factor.rename(
+        columns={"technology_description": "technology"},
+        inplace=True,
+    )
 
     capacity_factor_tech_region = capacity_factor.groupby(
         ["model_region", "technology_description"], as_index=False
@@ -2128,7 +2118,7 @@ def gentype_region_capacity_factor(
 
     logger.debug(capacity_factor_tech_region)
 
-    return capacity_factor_tech_region
+    return plant_tech_capacity_factor, capacity_factor_tech_region
 
 
 def add_fuel_labels(df, fuel_prices, settings):
