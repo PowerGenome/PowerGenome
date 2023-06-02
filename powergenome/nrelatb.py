@@ -1543,7 +1543,7 @@ def add_renewables_clusters(
                     **_scenario,
                 )
                 if data.empty:
-                    return pd.DataFrame()
+                    continue
                 clusters = (
                     data.groupby("cluster", as_index=False)
                     .apply(calc_cluster_values)
