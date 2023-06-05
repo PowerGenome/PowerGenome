@@ -38,6 +38,5 @@ setup(
         "frozendict",
         "openpyxl>=3.0",
         "geopandas",
-        "descartes",
     ],
 )
