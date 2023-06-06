@@ -46,13 +46,7 @@ This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl
 
 1. Clone this repository to your local machine and navigate to the top level (PowerGenome) folder.
 
-2. Create a conda environment named `powergenome` using the provided `environment.yml` file. If you don't already use conda, [download and install miniconda](https://docs.conda.io/en/latest/miniconda.html). Note that resolving all the dependencies can be slow with conda, so I highly recommend that you [install mamba](https://mamba.readthedocs.io/en/latest/installation.html#existing-conda-install) and use it instead (just sub `mamba` for `conda` below). Mamba installation is easy and will probably take less time than sitting around while conda resolves dependencies.
-
-```sh
-conda env create -f environment.yml
-```
-
-or if you installed mamba:
+2. Create a conda or micromamba environment named `powergenome` using the provided `environment.yml` file. If you don't already use conda, [download and install miniconda](https://docs.conda.io/en/latest/miniconda.html). Conda usually fail to resolve dependencies in under a day so I highly recommend that you [install mamba](https://mamba.readthedocs.io/en/latest/installation.html#existing-conda-install) and use it instead (just sub `mamba` for `conda` below). Mamba installation is easy and will take less time than sitting around while conda resolves dependencies.
 
 ```sh
 mamba env create -f environment.yml
