@@ -9,14 +9,12 @@ dependencies:
   - jupyterlab
   - black
   - pytest
-  - requests
   - beautifulsoup4
-  - lxml
   - pyyaml
   - isort
   - pre-commit
   - conda-forge::nb_conda_kernels
-  - statsmodels
+  - statsmodels>=0.13
   - conda-forge::python-dotenv
   - conda-forge::flatten-dict
   - conda-forge::ruamel.yaml
@@ -27,6 +25,6 @@ dependencies:
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona
-  - conda-forge::geopandas
+  - conda-forge::geopandas>=0.12
   - conda-forge::pyogrio
   - conda-forge::shapely

@@ -29,14 +29,14 @@ setup(
     python_requires=">=3.9,<3.12",
     install_requires=[
         "catalystcoop.pudl>=0.6.0, <=2022.11.30",
-        "beautifulsoup4",
-        "statsmodels",
+        "beautifulsoup4 >= 4.8.13",
+        "statsmodels>=0.13",
         "python-dotenv",
         "flatten-dict",
         "ruamel.yaml",
         "pyyaml",
         "frozendict",
         "openpyxl>=3.0",
-        "geopandas",
+        "geopandas>=0.12",
     ],
 )
