@@ -10,8 +10,7 @@ from pathlib import Path
 import pandas as pd
 import sqlalchemy as sa
 
-from powergenome.util import (find_centroid, map_agg_region_names,
-                              reverse_dict_of_lists)
+from powergenome.util import find_centroid, map_agg_region_names, reverse_dict_of_lists
 
 logger = logging.getLogger(__name__)
 
