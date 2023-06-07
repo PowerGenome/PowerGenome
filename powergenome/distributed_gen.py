@@ -1,18 +1,15 @@
+import logging
+import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List
-import os
-import logging
-from functools import lru_cache
 
 import pandas as pd
 import pyarrow.parquet as pq
 
-from powergenome.util import (
-    deep_freeze_args,
-    snake_case_col,
-)
-from powergenome.params import SETTINGS
 from powergenome.load_construction import us_state_abbrev
+from powergenome.params import SETTINGS
+from powergenome.util import deep_freeze_args, snake_case_col
 
 logger = logging.getLogger(__name__)
 

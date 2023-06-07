@@ -10,18 +10,14 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
-from powergenome.distributed_gen import distributed_gen_profiles
 
-from powergenome.load_construction import electrification_profiles
+from powergenome.distributed_gen import distributed_gen_profiles
 from powergenome.eia_opendata import get_aeo_load
 from powergenome.external_data import make_demand_response_profiles
-from powergenome.util import (
-    find_region_col,
-    map_agg_region_names,
-    regions_to_keep,
-    reverse_dict_of_lists,
-    remove_feb_29,
-)
+from powergenome.load_construction import electrification_profiles
+from powergenome.util import (find_region_col, map_agg_region_names,
+                              regions_to_keep, remove_feb_29,
+                              reverse_dict_of_lists)
 
 logger = logging.getLogger(__name__)
 

@@ -3,8 +3,9 @@ import glob
 import json
 import os
 import re
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
 from pathlib import Path
+from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
+                    Union)
 
 import numpy as np
 import pandas as pd

@@ -1,10 +1,10 @@
 """
 Flexible methods to cluster/aggregate renewable projects
 """
-from functools import lru_cache
 import logging
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, List, Union, Dict
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import pandas as pd

@@ -2,34 +2,27 @@
 Functions to fetch and modify NREL ATB data from PUDL
 """
 
-import copy
 import collections
+import copy
 import logging
 import operator
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
-from joblib import Parallel, delayed
 
 import numpy as np
 import pandas as pd
 import sqlalchemy
-from powergenome.cluster.renewables import assign_site_cluster, calc_cluster_values
+from joblib import Parallel, delayed
 
+from powergenome.cluster.renewables import (assign_site_cluster,
+                                            calc_cluster_values)
 from powergenome.params import DATA_PATHS, SETTINGS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.resource_clusters import (
-    ClusterBuilder,
-    ResourceGroup,
-    Table,
-    map_nrel_atb_technology,
-)
-from powergenome.util import (
-    apply_all_tag_to_regions,
-    reverse_dict_of_lists,
-    remove_leading_zero,
-    snake_case_col,
-    snake_case_str,
-)
+from powergenome.resource_clusters import (ClusterBuilder, ResourceGroup,
+                                           Table, map_nrel_atb_technology)
+from powergenome.util import (apply_all_tag_to_regions, remove_leading_zero,
+                              reverse_dict_of_lists, snake_case_col,
+                              snake_case_str)
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)

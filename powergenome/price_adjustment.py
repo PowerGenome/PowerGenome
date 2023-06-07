@@ -2,16 +2,17 @@
 Adjust price/cost from one year to another
 """
 
-from functools import lru_cache
-import logging
-
-import requests
 import json
-from typing import NamedTuple, Union
+import logging
 from datetime import date
-import pandas as pd
-import numpy as np
+from functools import lru_cache
 from pathlib import Path
+from typing import NamedTuple, Union
+
+import numpy as np
+import pandas as pd
+import requests
+
 from powergenome.params import DATA_PATHS
 
 

@@ -1,10 +1,11 @@
 "Functions to cluster or otherwise reduce the number of hours in generation and load profiles"
 
+import datetime
+
+import numpy as np
+import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import minmax_scale
-import numpy as np
-import datetime
-import pandas as pd
 
 
 def kmeans_time_clustering(

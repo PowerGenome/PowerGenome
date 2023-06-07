@@ -2,16 +2,16 @@
 Load data from EIA's bulk data
 """
 
-from itertools import product
 import logging
 import operator
+import zipfile
+from itertools import product
 from typing import Union
 
 import pandas as pd
 import requests
-import zipfile
 
-from powergenome.params import SETTINGS, DATA_PATHS
+from powergenome.params import DATA_PATHS, SETTINGS
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.util import download_save, reverse_dict_of_lists
 

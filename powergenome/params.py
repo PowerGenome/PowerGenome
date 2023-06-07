@@ -1,9 +1,9 @@
 """
 Parameters and settings
 """
-from typing import Union
 import os
 from pathlib import Path
+from typing import Union
 
 from dotenv import find_dotenv, load_dotenv
 

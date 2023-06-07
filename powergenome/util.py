@@ -1,24 +1,21 @@
 import collections
-from copy import deepcopy
-import functools
 import itertools
 import logging
 import re
 import subprocess
-from typing import Dict, List, Tuple, Union
 from collections.abc import Iterable
+from copy import deepcopy
+from pathlib import Path
+from typing import Dict, List, Tuple, Union
 
-import pandas as pd
 import geopandas as gpd
+import pandas as pd
 import pudl
 import requests
 import sqlalchemy as sa
-
-from flatten_dict import flatten
 import yaml
+from flatten_dict import flatten
 from ruamel.yaml import YAML
-from pathlib import Path
-from frozendict import frozendict
 
 from powergenome.params import IPM_GEOJSON_PATH, SETTINGS
 
@@ -972,7 +969,8 @@ def deep_freeze(thing):
     """
     https://stackoverflow.com/a/66729248/3393071
     """
-    from collections.abc import Collection, Mapping, Hashable
+    from collections.abc import Collection, Hashable, Mapping
+
     from frozendict import frozendict
 
     if thing is None or isinstance(thing, str):

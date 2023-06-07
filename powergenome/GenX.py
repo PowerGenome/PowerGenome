@@ -1,21 +1,20 @@
 "Functions specific to GenX outputs"
 
-from itertools import product
 import logging
+from itertools import product
 from pathlib import Path
 from typing import Dict, List
+
 import pandas as pd
 
-from powergenome.external_data import (
-    load_policy_scenarios,
-    load_demand_segments,
-    load_user_genx_settings,
-    make_generator_variability,
-)
+from powergenome.external_data import (load_demand_segments,
+                                       load_policy_scenarios,
+                                       load_user_genx_settings,
+                                       make_generator_variability)
 from powergenome.load_profiles import make_distributed_gen_profiles
+from powergenome.nrelatb import investment_cost_calculator
 from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import find_region_col, load_settings, snake_case_col
-from powergenome.nrelatb import investment_cost_calculator
 
 logger = logging.getLogger(__name__)
 

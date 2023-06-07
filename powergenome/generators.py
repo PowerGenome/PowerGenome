@@ -1,63 +1,45 @@
 import collections
 import logging
-from numbers import Number
-from typing import Dict, List, Union
 import re
+from numbers import Number
+from pathlib import Path
+from typing import Dict, List, Union
 from zipfile import BadZipFile
-
-import requests
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from pathlib import Path
 import pudl
+import requests
+import sqlalchemy
 from bs4 import BeautifulSoup
 from flatten_dict import flatten
-import sqlalchemy
-from powergenome.cluster_method import (
-    cluster_by_owner,
-    cluster_kmeans,
-    weighted_ownership_by_unit,
-)
-from powergenome.co2_pipeline_cost import merge_co2_pipeline_costs
-from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
-from powergenome.external_data import (
-    make_demand_response_profiles,
-    demand_response_resource_capacity,
-    add_resource_max_cap_spur,
-)
-from powergenome.load_profiles import make_distributed_gen_profiles
-from powergenome.nrelatb import (
-    atb_fixed_var_om_existing,
-    atb_new_generators,
-    fetch_atb_costs,
-    fetch_atb_heat_rates,
-    fetch_atb_offshore_spur_costs,
-    investment_cost_calculator,
-)
-from powergenome.params import (
-    DATA_PATHS,
-    IPM_GEOJSON_PATH,
-    build_resource_clusters,
-)
-from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.resource_clusters import map_eia_technology
-from powergenome.util import (
-    download_save,
-    find_region_col,
-    map_agg_region_names,
-    reverse_dict_of_lists,
-    snake_case_col,
-    regions_to_keep,
-    snake_case_str,
-    load_ipm_shapefile,
-    remove_leading_zero,
-)
-from powergenome.GenX import rename_gen_cols
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
 from xlrd import XLRDError
+
+from powergenome.cluster_method import (cluster_by_owner, cluster_kmeans,
+                                        weighted_ownership_by_unit)
+from powergenome.co2_pipeline_cost import merge_co2_pipeline_costs
+from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
+from powergenome.external_data import (add_resource_max_cap_spur,
+                                       demand_response_resource_capacity,
+                                       make_demand_response_profiles)
+from powergenome.GenX import rename_gen_cols
+from powergenome.load_profiles import make_distributed_gen_profiles
+from powergenome.nrelatb import (atb_fixed_var_om_existing, atb_new_generators,
+                                 fetch_atb_costs, fetch_atb_heat_rates,
+                                 fetch_atb_offshore_spur_costs,
+                                 investment_cost_calculator)
+from powergenome.params import (DATA_PATHS, IPM_GEOJSON_PATH,
+                                build_resource_clusters)
+from powergenome.price_adjustment import inflation_price_adjustment
+from powergenome.resource_clusters import map_eia_technology
+from powergenome.util import (download_save, find_region_col,
+                              load_ipm_shapefile, map_agg_region_names,
+                              regions_to_keep, remove_leading_zero,
+                              reverse_dict_of_lists, snake_case_col,
+                              snake_case_str)
 
 logger = logging.getLogger(__name__)
 
