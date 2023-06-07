@@ -16,6 +16,32 @@ project_path = powergenome_path.parent
 
 load_dotenv(dotenv_path=powergenome_path / ".env")
 
+if os.name == "nt":
+    # if user is using a windows system
+    SQL_PREFIX = "sqlite:///"
+else:
+    SQL_PREFIX = "sqlite:////"
+
+
+def sqlalchemy_prefix(db_path: str) -> str:
+    """Check the database path and add sqlite prefix if needed
+
+    Parameters
+    ----------
+    db_path : str
+        Path to the sqlite database. May or may not include sqlite://// (OS specific)
+
+    Returns
+    -------
+    str
+        SqlAlchemy connection string
+    """
+    if SQL_PREFIX in db_path:
+        return db_path
+    else:
+        return SQL_PREFIX + db_path
+
+
 DATA_PATHS = {}
 DATA_PATHS["results"] = project_path / "results"
 DATA_PATHS["powergenome"] = project_path / "powergenome"
@@ -38,8 +64,8 @@ IPM_SHAPEFILE_PATH = DATA_PATHS["ipm_shapefiles"] / "IPM_Regions_201770405.shp"
 IPM_GEOJSON_PATH = DATA_PATHS["data"] / "ipm_regions_simple.geojson"
 
 SETTINGS = {}
-SETTINGS["PUDL_DB"] = os.environ.get("PUDL_DB")
-SETTINGS["PG_DB"] = os.environ.get("PG_DB")
+SETTINGS["PUDL_DB"] = sqlalchemy_prefix(os.environ.get("PUDL_DB"))
+SETTINGS["PG_DB"] = sqlalchemy_prefix(os.environ.get("PG_DB"))
 SETTINGS["EFS_DATA"] = os.environ.get("EFS_DATA")
 SETTINGS["RESOURCE_GROUPS"] = os.environ.get("RESOURCE_GROUPS")
 SETTINGS["DISTRIBUTED_GEN_DATA"] = os.environ.get("DISTRIBUTED_GEN_DATA")
