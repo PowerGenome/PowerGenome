@@ -7,10 +7,12 @@ from typing import Dict, List
 
 import pandas as pd
 
-from powergenome.external_data import (load_demand_segments,
-                                       load_policy_scenarios,
-                                       load_user_genx_settings,
-                                       make_generator_variability)
+from powergenome.external_data import (
+    load_demand_segments,
+    load_policy_scenarios,
+    load_user_genx_settings,
+    make_generator_variability,
+)
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import investment_cost_calculator
 from powergenome.time_reduction import kmeans_time_clustering

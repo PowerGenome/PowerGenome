@@ -11,10 +11,16 @@ from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters, load_ipm_shapefile
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.params import DATA_PATHS
-from powergenome.transmission import (agg_transmission_constraints,
-                                      transmission_line_distance)
-from powergenome.util import (get_git_hash, init_pudl_connection,
-                              load_settings, remove_fuel_scenario_name)
+from powergenome.transmission import (
+    agg_transmission_constraints,
+    transmission_line_distance,
+)
+from powergenome.util import (
+    get_git_hash,
+    init_pudl_connection,
+    load_settings,
+    remove_fuel_scenario_name,
+)
 
 if not sys.warnoptions:
     import warnings
