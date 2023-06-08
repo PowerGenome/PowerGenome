@@ -1,11 +1,13 @@
 import collections
 import logging
+import os
 import re
 from numbers import Number
 from pathlib import Path
 from typing import Dict, List, Union
 from zipfile import BadZipFile
 
+os.environ["USE_PYGEOS"] = "0"
 import geopandas as gpd
 import numpy as np
 import pandas as pd
