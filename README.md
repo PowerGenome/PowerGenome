@@ -42,7 +42,7 @@ This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl
 
 ![PUDL software version for database](/docs/_static/pudl_version.png)
 
-## Installation
+## Installation from GitHub
 
 1. Clone this repository to your local machine and navigate to the top level (PowerGenome) folder.
 
