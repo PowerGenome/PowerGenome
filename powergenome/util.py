@@ -63,6 +63,15 @@ def load_settings(path: Union[str, Path]) -> dict:
         if settings.get(key):
             settings[key] = sqlalchemy_prefix(settings[key])
 
+    for key in [
+        "EFS_DATA",
+        "RESOURCE_GROUPS",
+        "DISTRIBUTED_GEN_DATA",
+        "RESOURCE_GROUP_PROFILES",
+    ]:
+        if settings.get(key):
+            settings[key] = Path(settings[key])
+
     return fix_param_names(settings)
 
 
