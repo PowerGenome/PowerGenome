@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PowerGenome"
-version = "0.6.1a"
+version = "0.6.1a1"
 authors = [{ name = "Greg Schivley", email = "greg.schivley@princeton.edu" }]
 maintainers = [
     { name = "Greg Schivley", email = "greg.schivley@princeton.edu" },
