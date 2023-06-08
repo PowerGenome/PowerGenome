@@ -1,6 +1,7 @@
 import collections
 import itertools
 import logging
+import os
 import re
 import subprocess
 from collections.abc import Iterable
@@ -16,8 +17,6 @@ import sqlalchemy as sa
 import yaml
 from flatten_dict import flatten
 from ruamel.yaml import YAML
-
-from powergenome.params import IPM_GEOJSON_PATH, SETTINGS
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,39 @@ def load_settings(path: Union[str, Path]) -> dict:
 
     settings = apply_all_tag_to_regions(settings)
 
+    for key in ["PUDL_DB", "PG_DB"]:
+        # Add correct connection string prefix if it isn't there
+        if settings.get(key):
+            settings[key] = sqlalchemy_prefix(settings[key])
+
     return fix_param_names(settings)
+
+
+def sqlalchemy_prefix(db_path: str) -> str:
+    """Check the database path and add sqlite prefix if needed
+
+    Parameters
+    ----------
+    db_path : str
+        Path to the sqlite database. May or may not include sqlite://// (OS specific)
+
+    Returns
+    -------
+    str
+        SqlAlchemy connection string
+    """
+    if os.name == "nt":
+        # if user is using a windows system
+        sql_prefix = "sqlite:///"
+    else:
+        sql_prefix = "sqlite:////"
+
+    if not db_path:
+        return None
+    if sql_prefix in db_path:
+        return db_path
+    else:
+        return sql_prefix + str(Path(db_path))
 
 
 def apply_all_tag_to_regions(settings: dict) -> dict:
@@ -422,6 +453,8 @@ def init_pudl_connection(
         object for quickly accessing parts of the database. `pudl_out` is used
         to access unit heat rates.
     """
+    from powergenome.params import SETTINGS
+
     if not pudl_db:
         pudl_db = SETTINGS["PUDL_DB"]
     if not pg_db:
@@ -916,7 +949,7 @@ def remove_feb_29(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=["datetime"])
 
 
-def load_ipm_shapefile(settings: dict, path: Union[str, Path] = IPM_GEOJSON_PATH):
+def load_ipm_shapefile(settings: dict, path: Union[str, Path] = None):
     """
     Load the shapefile of IPM regions
 
@@ -934,6 +967,10 @@ def load_ipm_shapefile(settings: dict, path: Union[str, Path] = IPM_GEOJSON_PATH
     geodataframe
         Regions to use in the study with the matching geometry for each.
     """
+    if not path:
+        from powergenome.params import IPM_GEOJSON_PATH
+
+        path = IPM_GEOJSON_PATH
     keep_regions, region_agg_map = regions_to_keep(
         settings["model_regions"], settings.get("region_aggregations", {}) or {}
     )

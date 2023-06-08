@@ -9,37 +9,13 @@ from dotenv import find_dotenv, load_dotenv
 
 from powergenome import __file__
 from powergenome.resource_clusters import ClusterBuilder
+from powergenome.util import sqlalchemy_prefix
 
 # Not convinced this is the best way to set folder paths but it works!
 powergenome_path = Path(__file__).parent
 project_path = powergenome_path.parent
 
 load_dotenv(dotenv_path=powergenome_path / ".env")
-
-if os.name == "nt":
-    # if user is using a windows system
-    SQL_PREFIX = "sqlite:///"
-else:
-    SQL_PREFIX = "sqlite:////"
-
-
-def sqlalchemy_prefix(db_path: str) -> str:
-    """Check the database path and add sqlite prefix if needed
-
-    Parameters
-    ----------
-    db_path : str
-        Path to the sqlite database. May or may not include sqlite://// (OS specific)
-
-    Returns
-    -------
-    str
-        SqlAlchemy connection string
-    """
-    if SQL_PREFIX in db_path:
-        return db_path
-    else:
-        return SQL_PREFIX + db_path
 
 
 DATA_PATHS = {}
