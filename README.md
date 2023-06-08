@@ -88,9 +88,22 @@ pip install -e .
 
 Quotation marks are only needed if your values contain spaces. The `.env` file is included in `.gitignore` and will not be synced with the repository.
 
-## Installation a packaged version (pip/conda-forge)
+## Installation with a packaged version (pip/conda-forge)
 
-If you are installing a packaged version of PowerGenome you won't be able to easily use a .env file. Instead, add the environment parameters (`PUDL_DB`, `PG_DB`, etc) to a YAML file in the same folder as the rest of your settings. It doesn't really matter which file these parameters are included in but creating a new file such as `env.yml` will help keep them separate from other settings parameters that might be shared with other PowerGenome users.
+Installing Powergenome with pip has only been tested within a conda environment but it should work in other environment management systems. Make sure that you have an updated version of pip installed. If you hit dependency errors I suggest trying to install them using mamba or conda. PowerGenome has `catalystcoop.pudl` as a dependency, which has a large number of its own dependencies. I have not (yet) had to install `catalystcoop.pudl` using mamba but doing so may help clear up errors.
+
+Depending on your operating system you might also have issues installing some other packages from pip. The example code below is what works for me on a Mac, where python-snappy fails to build wheels.
+
+```sh
+(base) conda create -n powergenome python=3.10 pip python-snappy
+(base) conda activate powergenome
+(powergenome) pip install powergenome
+```
+
+PowerGenome has been submitted to conda-forge but is not yet available.
+
+
+If you are installing a packaged version of PowerGenome you won't be able to easily use a .env file. Instead, add the environment parameters (`PUDL_DB`, `PG_DB`, etc) to a YAML file in the same folder as the rest of your settings. It doesn't really matter which file these parameters are included in but creating a new file such as `env_params.yml` will help keep them separate from other settings parameters that might be shared with other PowerGenome users.
 
 ## Running code
 
