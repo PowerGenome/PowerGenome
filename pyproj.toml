@@ -48,7 +48,14 @@ where = ["data"]
 "*" = ["*.csv", "*.geojson"]
 
 [project.optional-dependencies]
-dev = ["black[jupyter] == 23.3.0", "pre-commit", "pytest", "isort"]
+dev = [
+    "black[jupyter] == 23.3.0",
+    "pre-commit",
+    "pytest",
+    "isort",
+    "build",
+    "twine",
+]
 
 [project.scripts]
 run_powergenome_multiple = "powergenome.run_powergenome_multiple_outputs_cli:main"
