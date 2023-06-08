@@ -178,6 +178,8 @@ def main(**kwargs):
         freq="AS",
         start_year=min(settings.get("eia_data_years")),
         end_year=max(settings.get("eia_data_years")),
+        pudl_db=settings.get("PUDL_DB"),
+        pg_db=settings.get("PG_DB"),
     )
 
     check_settings(settings, pg_engine)
