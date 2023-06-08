@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PowerGenome"
-version = "0.6.1a1"
+version = "0.6.1a2"
 authors = [{ name = "Greg Schivley", email = "greg.schivley@princeton.edu" }]
 maintainers = [
     { name = "Greg Schivley", email = "greg.schivley@princeton.edu" },
@@ -28,14 +28,14 @@ classifiers = [
 dependencies = [
     "catalystcoop.pudl>=0.6.0, <=2022.11.30",
     "beautifulsoup4 >= 4.8.13",
-    "statsmodels>=0.13",
+    "statsmodels>=0.12.2",
     "python-dotenv",
     "flatten-dict",
     "ruamel.yaml",
     "pyyaml",
     "frozendict",
     "openpyxl>=3.0",
-    "geopandas>=0.12",
+    "geopandas>=0.11",
 ]
 
 [tool.setuptools]
