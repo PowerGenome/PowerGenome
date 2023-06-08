@@ -1,9 +1,10 @@
 [build-system]
-requires = ["setuptools ~= 58.0", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=66,<68", "wheel"] # , "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "PowerGenome"
+version = "0.6.1a"
 authors = [{ name = "Greg Schivley", email = "greg.schivley@princeton.edu" }]
 maintainers = [
     { name = "Greg Schivley", email = "greg.schivley@princeton.edu" },
@@ -36,13 +37,13 @@ dependencies = [
     "openpyxl>=3.0",
     "geopandas>=0.12",
 ]
-dynamic = ["version"]
 
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["data"]
+include = ["powergenome*", "data*"]
+exclude = ["tests*", "docs*", "data/eia*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.csv", "*.geojson"]
