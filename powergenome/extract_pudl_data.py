@@ -5,6 +5,7 @@ import sys
 from datetime import datetime as dt
 
 import pandas as pd
+
 import powergenome
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters, load_ipm_shapefile

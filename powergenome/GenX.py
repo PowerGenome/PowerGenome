@@ -1,21 +1,22 @@
 "Functions specific to GenX outputs"
 
-from itertools import product
 import logging
+from itertools import product
 from pathlib import Path
 from typing import Dict, List
+
 import pandas as pd
 
 from powergenome.external_data import (
-    load_policy_scenarios,
     load_demand_segments,
+    load_policy_scenarios,
     load_user_genx_settings,
     make_generator_variability,
 )
 from powergenome.load_profiles import make_distributed_gen_profiles
+from powergenome.nrelatb import investment_cost_calculator
 from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import find_region_col, load_settings, snake_case_col
-from powergenome.nrelatb import investment_cost_calculator
 
 logger = logging.getLogger(__name__)
 
@@ -482,9 +483,11 @@ def reduce_time_domain(
         )
 
     else:
-        time_index = pd.Series(data=range(1, 8761), name="Time_Index")
+        time_index = pd.Series(data=range(1, len(load_profiles) + 1), name="Time_Index")
         sub_weights = pd.Series(data=[1], name="Sub_Weights")
-        hours_per_period = pd.Series(data=[168], name="Timesteps_per_Rep_Period")
+        hours_per_period = pd.Series(
+            data=[len(load_profiles)], name="Timesteps_per_Rep_Period"
+        )
         subperiods = pd.Series(data=[1], name="Rep_Periods")
 
         # Not actually reduced
@@ -633,7 +636,8 @@ def network_max_reinforcement(
         `Line_Max_Reinforcement_MW`.
     """
 
-    max_expansion = settings.get("tx_expansion_per_period")
+    max_expansion = settings.get("tx_expansion_per_period", 0)
+    expansion_mw = settings.get("tx_expansion_mw_per_period", 0)
 
     if not max_expansion and max_expansion != 0:
         raise KeyError(
@@ -667,9 +671,9 @@ def network_max_reinforcement(
     #         )
 
     # else:
-    transmission.loc[:, "Line_Max_Reinforcement_MW"] = (
-        transmission.loc[:, "Line_Max_Flow_MW"] * max_expansion
-    )
+    transmission.loc[:, "Line_Max_Reinforcement_MW"] = [
+        max(tx * max_expansion, expansion_mw) for tx in transmission["Line_Max_Flow_MW"]
+    ]
     transmission["Line_Max_Reinforcement_MW"] = transmission[
         "Line_Max_Reinforcement_MW"
     ].round(0)
@@ -811,6 +815,54 @@ def check_min_power_against_variability(gen_clusters, resource_profile):
     # )
 
     return gen_clusters
+
+
+def set_must_run_generation(
+    gen_variability: pd.DataFrame, must_run_techs: List[str] = None
+) -> pd.DataFrame:
+    """Set the generation of must run resources -- those tagged as "MUST_RUN" in
+     generators data -- to 1 in all hours.
+
+    Parameters
+    ----------
+    gen_variability : pd.DataFrame
+        Columns are names of resources, rows are floats from 0-1
+    must_run_techs : List[str], optional
+        Names of the resources selected as must run, by default None
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified version of gen_variability with any must run techs having a value of 1
+        in all rows.
+
+    Examples
+    --------
+    In-memory dataframe:
+
+    >>> gen_variability = pd.DataFrame({
+        "gen_1": [0.5, 0.6, 0.7],
+        "gen_2": [0.8, 0.9, 1.0],
+        "gen_3": [0.0, 0.0, 0.0]
+    })
+    >>> must_run_techs = ["gen_3"]
+    >>> expected_output = pd.DataFrame({
+        "gen_1": [0.5, 0.6, 0.7],
+        "gen_2": [0.8, 0.9, 1.0],
+        "gen_3": [1.0, 1.0, 1.0]
+    })
+    >>> assert set_must_run_generation(gen_variability, must_run_techs).equals(expected_output)
+    """
+    for tech in must_run_techs or []:
+        if tech not in gen_variability.columns:
+            logger.warning(
+                f"Trying to set {tech} as a must run resource (hourly generation is) "
+                "always 1), but it was not found in the generation variability dataframe."
+            )
+            continue
+        gen_variability.loc[:, tech] = 1.0
+
+    return gen_variability
 
 
 def calc_emissions_ces_level(network_df, load_df, settings):
@@ -1140,5 +1192,34 @@ def rename_gen_cols(
         rename.update(rename_cols)
 
     df = df.rename(columns=rename, errors="ignore")
+
+    return df
+
+
+def add_co2_costs_to_o_m(df: pd.DataFrame) -> pd.DataFrame:
+    """Add CO2 pipeline annuity/FOM to fixed O&M and cost per MWh to variable O&M
+    using the column names for GenX
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Generators dataframe. May include columns "co2_cost_mwh", "co2_pipeline_annuity_mw",
+        and "co2_o_m_mw". Must include columns "Var_OM_Cost_per_MWh",
+        "Inv_Cost_per_MWyr", and "Fixed_OM_Cost_per_MWyr"
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified version of original df with CO2 pipeline annuity/O&M added to plant
+        costs
+    """
+    if "co2_cost_mwh" in df.columns:
+        df["Var_OM_Cost_per_MWh"] += df["co2_cost_mwh"]
+    if "co2_pipeline_annuity_mw" in df.columns:
+        df["Inv_Cost_per_MWyr"] += df["co2_pipeline_annuity_mw"]
+    if "co2_o_m_mw" in df.columns:
+        df["Fixed_OM_Cost_per_MWyr"] += df["co2_o_m_mw"]
+    if "co2_pipeline_capex_mw" in df.columns:
+        df["capex_mw"] += df["co2_pipeline_capex_mw"]
 
     return df

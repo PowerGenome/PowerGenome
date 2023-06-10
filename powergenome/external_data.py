@@ -1,13 +1,14 @@
 # Read in and add external inputs (user-supplied files) to PowerGenome outputs
 
 import logging
-import numpy as np
-import pandas as pd
 from pathlib import Path
 from typing import Any, List
 
-from powergenome.util import snake_case_col, remove_feb_29
+import numpy as np
+import pandas as pd
+
 from powergenome.price_adjustment import inflation_price_adjustment
+from powergenome.util import remove_feb_29, snake_case_col
 
 logger = logging.getLogger(__name__)
 
@@ -272,8 +273,8 @@ def load_policy_scenarios(settings: dict) -> pd.DataFrame:
     # another policy to reduce human copy/paste errors.
     if "copy_case_id" in policies.columns:
         policies = copy_case_values(policies, match_cols=["case_id", "year", "region"])
+        policies = policies.drop(columns="copy_case_id", errors="ignore")
 
-    policies = policies.drop(columns="copy_case_id")
     policies = policies.set_index(["case_id", "year"])
 
     return policies
@@ -501,6 +502,7 @@ def load_user_tx_costs(
     }
     df["zone_1"] = df["start_region"].map(zone_num_map)
     df["zone_2"] = df["dest_region"].map(zone_num_map)
+    df = df.dropna(subset=["zone_1", "zone_2"])
 
     if target_usd_year:
         adjusted_annuities = []
@@ -508,12 +510,12 @@ def load_user_tx_costs(
         for row in df.itertuples():
             adj_annuity = inflation_price_adjustment(
                 row.total_interconnect_annuity_mw, row.dollar_year, target_usd_year
-            )
+            ).round(0)
             adjusted_annuities.append(adj_annuity)
 
             adj_cost = inflation_price_adjustment(
                 row.total_interconnect_cost_mw, row.dollar_year, target_usd_year
-            )
+            ).round(0)
             adjusted_costs.append(adj_cost)
         df["total_interconnect_annuity_mw"] = adjusted_annuities
         df["total_interconnect_cost_mw"] = adjusted_costs
@@ -543,7 +545,9 @@ def insert_user_tx_costs(tx_df: pd.DataFrame, user_costs: pd.DataFrame) -> pd.Da
     pd.DataFrame
         Supplemented interregional transmission lines
     """
-
+    if tx_df.empty:
+        return tx_df
+    user_costs = user_costs.dropna(subset=["zone_1", "zone_2"], how="any")
     unused_lines = []
     for row in user_costs.itertuples():
         line_row = tx_df.loc[(tx_df[row.zone_1] != 0) & (tx_df[row.zone_2] != 0), :]

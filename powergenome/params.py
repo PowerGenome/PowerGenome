@@ -1,20 +1,22 @@
 """
 Parameters and settings
 """
-from typing import Union
 import os
 from pathlib import Path
+from typing import Union
 
 from dotenv import find_dotenv, load_dotenv
 
 from powergenome import __file__
 from powergenome.resource_clusters import ClusterBuilder
+from powergenome.util import sqlalchemy_prefix
 
 # Not convinced this is the best way to set folder paths but it works!
 powergenome_path = Path(__file__).parent
 project_path = powergenome_path.parent
 
 load_dotenv(dotenv_path=powergenome_path / ".env")
+
 
 DATA_PATHS = {}
 DATA_PATHS["results"] = project_path / "results"
@@ -38,11 +40,12 @@ IPM_SHAPEFILE_PATH = DATA_PATHS["ipm_shapefiles"] / "IPM_Regions_201770405.shp"
 IPM_GEOJSON_PATH = DATA_PATHS["data"] / "ipm_regions_simple.geojson"
 
 SETTINGS = {}
-SETTINGS["PUDL_DB"] = os.environ.get("PUDL_DB")
-SETTINGS["PG_DB"] = os.environ.get("PG_DB")
-SETTINGS["EIA_API_KEY"] = os.environ.get("EIA_API_KEY")
+SETTINGS["PUDL_DB"] = sqlalchemy_prefix(os.environ.get("PUDL_DB"))
+SETTINGS["PG_DB"] = sqlalchemy_prefix(os.environ.get("PG_DB"))
 SETTINGS["EFS_DATA"] = os.environ.get("EFS_DATA")
 SETTINGS["RESOURCE_GROUPS"] = os.environ.get("RESOURCE_GROUPS")
+SETTINGS["DISTRIBUTED_GEN_DATA"] = os.environ.get("DISTRIBUTED_GEN_DATA")
+SETTINGS["RESOURCE_GROUP_PROFILES"] = os.environ.get("RESOURCE_GROUP_PROFILES")
 
 
 def build_resource_clusters(group_path: Union[str, Path] = None):

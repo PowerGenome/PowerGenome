@@ -32,10 +32,13 @@
 # trans_bus (transit buses)
 
 
-electrification_stock_fn: EFS_STOCK_AGG.parquet  # SCENARIO_STOCK.parquet
-electrification_scenario: REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT # current_policy
+electrification_stock_fn: SCENARIO_STOCK.parquet # EFS_STOCK_AGG.parquet
+electrification_scenario: current_policy # REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT 
 # Name of the flexible resource, fraction of load that can be shifted, and model-specific
 # parameters that will be applied to each resource.
+# Table 5.1 from the NREL report "Electrification Futures Study:
+# Scenarios of Electric Technology Adoption and Power Consumption for the United States"
+# can serve as a starting point for determining parameter values.
 flexible_demand_resources:
   2030:
     trans_light_duty:

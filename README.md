@@ -22,51 +22,25 @@ The goal of PowerGenome is to let a user make all of these choices in a settings
 
 ## Data
 
-PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. The data are accessed through a combination of sqlite databases, CSV files, and parquet data files.
+PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. The data are accessed through a combination of sqlite databases, CSV files, and parquet data files. All data files [are available here](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing). 
 
-1. EIA data on existing generating units are already compiled into a [single sqlite database (PUDL)](https://doi.org/10.5281/zenodo.3653158) (see instructions for using it below).
-2. A [second sqlite database (pg_misc_efs)](https://drive.google.com/file/d/1LCB0uwnx6VHrmHQDPH2huLHU6fKXb7kG/view?usp=sharing) has tables with new resource costs from NREL ATB, transmission constraints between IPM regions from EIA, and hourly demand within each IPM region derived from NREL or FERC data.
-3. The hourly incremental demand for different flexible demand technologies, and stock values across a range of projection scenarios ([efs_files_utc](https://drive.google.com/file/d/1bS-5LycImdp1AYoS_0uK7tXRHo8TWKCD/view?usp=share_link)).
-
-There are also a few data files stored in this repository:
-
-- Regional cost multipliers for individual technologies developed by EIA (`data/cost_multipliers/AEO_2020_regional_cost_corrections.csv`).
-- A simplified geojson version of EPA's shapefile for IPM regions (`data/ipm_regions_simple.geojson`).
-- Information on user-defined technologies, which can be included in outputs. This can be used to define a custom cost case (e.g. $500/kW PV) or a new technology such as natural gas with 100% carbon capture. The CSV files are stored in the `extra_inputs` subfolders of each example system. A documentation file in that folder describes what to include in the file.
+1. EIA data on existing generating units are already compiled into a [single sqlite database (PUDL)](https://doi.org/10.5281/zenodo.3653158) (see instructions for using it below). This file is available at the link above or you can download it from the Zenodo repository.
+2. A second sqlite database (`pg_misc_tables_efs.sqlite`) has tables with new resource costs from NREL ATB, transmission constraints between IPM regions from EIA, and hourly demand within each IPM region derived from NREL or FERC data.
+3. The hourly incremental demand for different flexible demand technologies, and stock values across a range of projection scenarios (`efs_files_utc`).
 
 ## PUDL Dependency
 
 This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl). As such, it requires installation of PUDL to access a normalized sqlite database and some of the convienience PUDL functions.
 
-`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). Catalyst Cooperative will be creating versioned data releases of PUDL, which can be [accessed on Zenodo](https://doi.org/10.5281/zenodo.3653158). Download the zip file from Zenodo, unzip it, and find the sqlite database under `pudl_data/sqlite/pudl.sqlite`. Note that the version of `catalystcoop.pudl` software may change based on the database version you use. Look on the right-hand side of the zenodo archive to see what software version was used to compile the data. If the version in your conda environment does not match the version used to compile the data, you can change it in the `environment.yml` file or install a [different version](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#installing-packages) using `conda install catalystcoop.pudl=<your_version>`.
+`catalystcoop.pudl` is included in the `environment.yml` file and will be installed automatically in the conda environment (see instructions below). Catalyst Cooperative will be creating versioned data releases of PUDL, which can be [accessed on Zenodo](https://doi.org/10.5281/zenodo.3653158). Download the zip file from Zenodo, unzip it, and find the sqlite database under `pudl_data/sqlite/pudl.sqlite`. Note that the version of `catalystcoop.pudl` software may change based on the database version you use. Look on the right-hand side of the zenodo archive to see what software version was used to compile the data. If the version in your conda environment does not match the version used to compile the data, you can change it in the `environment.yml` file or install a [different version](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#installing-packages) using `mamba install catalystcoop.pudl=<your_version>`.
 
 ![PUDL software version for database](/docs/_static/pudl_version.png)
 
-**IMPORTANT UPDATE:** As of December 2021, our pinned `catalystcoop.pudl` dependency has bumped from 0.3.* to 0.5.* This version bump is associated with some changes in the PUDL database structure and an increase in the Pandas dependency from 0.25.* to 1.* If you are running an older version of PowerGenome it may be easiest to [remove the existing `powergenome` conda environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#removing-an-environment) and reinstall it.
-
-```sh
-conda remove --name powergenome --all
-```
-
-Alternatively, you can [update your existing environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#updating-an-environment).
-
-```sh
-conda env update --file environment.yml  --prune
-```
-
-Either way, you will need to download the new database files in steps 5/6 below and update your `.env` file.
-
-## Installation
+## Installation from GitHub
 
 1. Clone this repository to your local machine and navigate to the top level (PowerGenome) folder.
 
-2. Create a conda environment named `powergenome` using the provided `environment.yml` file. If you don't already use conda, [download and install miniconda](https://docs.conda.io/en/latest/miniconda.html). Note that resolving all the dependencies can be slow with conda, so I highly recommend that you [install mamba](https://mamba.readthedocs.io/en/latest/installation.html#existing-conda-install) and use it instead (just sub `mamba` for `conda` below). Mamba installation is easy and will probably take less time than sitting around while conda resolves dependencies.
-
-```sh
-conda env create -f environment.yml
-```
-
-or if you installed mamba:
+2. Create a conda environment named `powergenome` using the provided `environment.yml` file. If you don't already use conda it is easiest to download and install [Mambaforge](https://github.com/conda-forge/miniforge#mambaforge), which will install conda with mamba in the `base` environment. See [this description](https://bioconda.github.io/faqs.html#what-s-the-difference-between-miniconda-miniforge-mambaforge-micromamba) for more information on the difference between different ways to install conda and mamba. Conda usually fail to resolve dependencies in under a day so I highly recommend that you either start with Mambaforge or [install mamba in your `base` environment](https://mamba.readthedocs.io/en/latest/installation.html#existing-conda-install) and use it instead.
 
 ```sh
 mamba env create -f environment.yml
@@ -84,24 +58,46 @@ conda activate powergenome
 pip install -e .
 ```
 
-5. Download [the PUDL database](https://doi.org/10.5281/zenodo.3653158), unzip it, and copy the `/pudl_data/sqlite/pudl.sqlite` to wherever you would like to store PowerGenome data on your computer. The zip file contains other data sets that aren't needed for PowerGenome and can be deleted.  Note that as of December 2021 the most recent version of this database (Data Release v3.0.0) is compatible with `catalystcoop.pudl` version 0.5.* and will not work if an earlier version is included in your conda environment.
+5. Download the PUDL database [from Zenodo](https://doi.org/10.5281/zenodo.3653158) or the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing), unzip it, and copy the `/pudl_data/sqlite/pudl.sqlite` to wherever you would like to store PowerGenome data on your computer. The zip file contains other data sets that aren't needed for PowerGenome and can be deleted.  Note that as of May 2023 the most recent version of this database (v2022.11.30) is compatible with `catalystcoop.pudl` version v2022.11.30 and may not work if an earlier software version is included in your conda environment.
 
-6. Download [additional PowerGenome data](https://drive.google.com/file/d/1LCB0uwnx6VHrmHQDPH2huLHU6fKXb7kG/view?usp=sharing) that includes NREL ATB cost data, transmission constraints between IPM regions, and hourly demand for each IPM region. Hourly demand is based on a 2012 weather year and was constructed either directly from FERC 714 data (`load_curves_ferc`) or from NREL EFS data (`load_curves_nrel_efs`) that also sources back to FERC 714. The NREL load curves, which separate hourly demand by sector and subsector, are now the default source for load curves in PowerGenome. See [the wiki](https://github.com/PowerGenome/PowerGenome/wiki/Settings-files#demand) for more information. These files will eventually be provided through a data repository with citation information.
+6. Download the additional PowerGenome database from the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing). It includes NREL ATB cost data, transmission constraints between IPM regions, and hourly demand for each IPM region. Hourly demand is based on a 2012 weather year and was constructed either directly from FERC 714 data (`load_curves_ferc`) or from NREL EFS data (`load_curves_nrel_efs`) that also sources back to FERC 714. The NREL load curves, which separate hourly demand by sector and subsector, are now the default source for load curves in PowerGenome. See [the wiki](https://github.com/PowerGenome/PowerGenome/wiki/Settings-files#demand) for more information. These files will eventually be provided through a data repository with citation information.
 
-7. Download the [renewable resource data](https://drive.google.com/file/d/1g0Q6TdNp4C12HQJy6pAURzp_oVg0Q7ly/view?usp=sharing) containing generation profiles and capacity for existing and new-build renewable resources. Save and unzip this file. The suggested location for all of the unzipped files is `PowerGenome/data/resource_groups/`. These files will eventually be provided through a data repository with citation information.
+7. Download the appropriate renewable resource data files from the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing). There is a single set of generation profiles and resource group folders specific to different regional aggregations. Read through the [included README](https://docs.google.com/document/d/1p_zDk6ng4tvgL1v1ZAXkvY9b34FmaLqdWFlJmUHP1Eo/edit?usp=share_link) for more background. This folder contains:
 
-8. Download and unzip [data files derived from NREL's EFS](https://drive.google.com/file/d/1bS-5LycImdp1AYoS_0uK7tXRHo8TWKCD/view?usp=sharing)
+- `generation_profiles` can be saved in a single place and used across multiple studies.
+- Each of the folders under `resource_groups` has CSV files that tell PowerGenome the metro that each potential wind/solar site will deliver power to based on a set of regional aggregations. Use the corresponding regional aggregations in your settings file. You can request new resource group files for different regional aggregations on the PowerGenome [repository discussion page](https://github.com/PowerGenome/PowerGenome/discussions)
 
-9. Get an [API key for EIA's OpenData portal](https://www.eia.gov/opendata/register.php). This key is needed to download projected fuel prices and regonal demand growth from EIA's Annual Energy Outlook.
+8. Download data files derived from NREL's EFS from the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing). These provide hourly demand profiles for growing electrification technologies like electric vehicles and heat pumps and are used to both build up demand profiles in the future and create flexible demand resources that can shift their load.
 
-10. Create the file `PowerGenome/powergenome/.env`. In this file, add:
+9. Download distributed generation profiles from the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing) compiled from NREL Cambium 2022 scenarios.
+
+9. Create the file `PowerGenome/powergenome/.env`. In this file, add:
 
 - `PUDL_DB=YOUR_PATH_HERE` (your path to the PUDL database downloaded in step 5)
 - `PG_DB=YOUR_PATH_HERE` (your path to the additional PowerGenome data downloaded in step 6)
-- `EIA_API_KEY=YOUR_KEY_HERE` (your EIA API key)
-- `RESOURCE_GROUPS=YOUR_PATH_HERE` (your path to where the resource groups data from Step 6 are saved)
+- `RESOURCE_GROUP_PROFILES=YOUR_PATH_HERE` (your path to the folder with hourly wind/solar generation parquet files)
 - `EFS_DATA=YOUR_PATH_HERE` (your path to the folder with EFS derived data files)
-Quotation marks are only needed if your values contain spaces. The `.env` file is included in `.gitignore` and will not be synced with the repository. See the [SQLAlchemy documentation](https://docs.sqlalchemy.org/en/13/dialects/sqlite.html#connect-strings) for examples of how to format the `PUDL_DB` and `PG_DB` paths (e.g. `sqlite:////<entire path to the folder containing pudl file>/pudl.sqlite`, or `sqlite:///C:/path/to/folder/pudl.sqlite` on Windows). If you get any errors when trying to initite the PUDL database, go back and check your path formatting against the SQLAlchemy documentation examples.
+- `DISTRIBUTED_GEN_DATA=YOUR_PATH_HERE` (your path to the folder with distributed generation profiles)
+- OPTIONAL: `RESOURCE_GROUPS=YOUR_PATH_HERE` (your path to the resource groups data for a project -- **this can be included in your settings file instead of the .env file**)
+
+Quotation marks are only needed if your values contain spaces. The `.env` file is included in `.gitignore` and will not be synced with the repository.
+
+## Installation with a packaged version (pip/conda-forge)
+
+Installing Powergenome with pip has only been tested within a conda environment but it should work in other environment management systems. Make sure that you have an updated version of pip installed. If you hit dependency errors I suggest trying to install them using mamba or conda. PowerGenome has `catalystcoop.pudl` as a dependency, which has a large number of its own dependencies. I have not (yet) had to install `catalystcoop.pudl` using mamba but doing so may help clear up errors.
+
+Depending on your operating system you might also have issues installing some other packages from pip. The example code below is what works for me on a Mac, where python-snappy fails to build wheels.
+
+```sh
+(base) conda create -n powergenome python=3.10 pip python-snappy
+(base) conda activate powergenome
+(powergenome) pip install powergenome
+```
+
+PowerGenome has been submitted to conda-forge but is not yet available.
+
+
+If you are installing a packaged version of PowerGenome you won't be able to easily use a .env file. Instead, add the environment parameters (`PUDL_DB`, `PG_DB`, etc) to a YAML file in the same folder as the rest of your settings. It doesn't really matter which file these parameters are included in but creating a new file such as `env_params.yml` will help keep them separate from other settings parameters that might be shared with other PowerGenome users.
 
 ## Running code
 

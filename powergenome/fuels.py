@@ -3,6 +3,7 @@ Load fuel prices needed for the model
 """
 
 from asyncio.log import logger
+
 import pandas as pd
 
 from powergenome.eia_opendata import add_user_fuel_prices

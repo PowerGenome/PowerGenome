@@ -11,15 +11,16 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
-from powergenome.load_construction import electrification_profiles
+from powergenome.distributed_gen import distributed_gen_profiles
 from powergenome.eia_opendata import get_aeo_load
 from powergenome.external_data import make_demand_response_profiles
+from powergenome.load_construction import electrification_profiles
 from powergenome.util import (
     find_region_col,
     map_agg_region_names,
     regions_to_keep,
-    reverse_dict_of_lists,
     remove_feb_29,
+    reverse_dict_of_lists,
 )
 
 logger = logging.getLogger(__name__)
@@ -685,6 +686,7 @@ def make_final_load_curves(
             settings["model_year"],
             settings.get("electrification_scenario"),
             keep_regions,
+            settings.get("utc_offset", 0),
             settings.get("EFS_DATA"),
         )
         flex_profiles = map_agg_region_names(
@@ -701,9 +703,10 @@ def make_final_load_curves(
     else:
         load_curves_before_dg = load_curves_before_dr
 
-    if settings.get("distributed_gen_profiles_fn") and not settings.get(
-        "dg_as_resource"
-    ):
+    if (
+        settings.get("distributed_gen_profiles_fn")
+        or settings.get("distributed_gen_fn")
+    ) and not settings.get("dg_as_resource"):
         final_load_curves = subtract_distributed_generation(
             load_curves_before_dg, pg_engine, settings
         )
@@ -733,8 +736,6 @@ def make_distributed_gen_profiles(pg_engine, settings):
 
     Parameters
     ----------
-    dg_profiles_path : path-like
-        Where to load the file from
     pg_engine : sqlalchemy.Engine
         A sqlalchemy connection for use by pandas. Needed to create base load profiles.
     settings : dict
@@ -753,6 +754,32 @@ def make_distributed_gen_profiles(pg_engine, settings):
     """
 
     year = settings["model_year"]
+
+    if settings.get("distributed_gen_fn"):
+        scenario = settings.get("distributed_gen_scenario")
+        path_in = settings.get("")
+        if settings.get("region_aggregations"):
+            regions = [
+                r
+                for r in settings["model_regions"]
+                if r not in settings["region_aggregations"].keys()
+            ]
+            regions.extend(
+                list(reverse_dict_of_lists(settings["region_aggregations"]).keys())
+            )
+        else:
+            regions = settings["model_regions"]
+
+        dg_profiles = distributed_gen_profiles(
+            settings.get("distributed_gen_fn"),
+            settings["model_year"],
+            scenario,
+            regions,
+            settings.get("DISTRIBUTED_GEN_DATA"),
+            settings.get("region_aggregations"),
+        )
+        return dg_profiles
+
     dg_profiles_path = (
         Path(settings["input_folder"]) / settings["distributed_gen_profiles_fn"]
     )

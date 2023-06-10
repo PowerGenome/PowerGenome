@@ -3,6 +3,7 @@ import glob
 import json
 import os
 import re
+from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
@@ -438,11 +439,26 @@ class ResourceGroup:
         profiles: pd.DataFrame = None,
         path: str = ".",
     ) -> None:
+        from powergenome.params import SETTINGS
+
         self.group = {"existing": False, "tree": None, **group.copy()}
-        for key in ["metadata", "profiles"]:
-            if self.group.get(key):
-                # Convert relative paths (relative to group file) to absolute paths
-                self.group[key] = os.path.abspath(os.path.join(path, self.group[key]))
+
+        # Convert relative paths (relative to group file) to absolute paths
+        # Profiles may be stored in a single location and reused across resource groups
+        if self.group.get("metadata"):
+            self.group["metadata"] = Path(path) / self.group["metadata"]
+        if self.group.get("profiles"):
+            if (
+                SETTINGS.get("RESOURCE_GROUP_PROFILES")
+                and (
+                    Path(SETTINGS["RESOURCE_GROUP_PROFILES"]) / self.group["profiles"]
+                ).exists()
+            ):
+                self.group["profiles"] = (
+                    Path(SETTINGS["RESOURCE_GROUP_PROFILES"]) / self.group["profiles"]
+                )
+            else:
+                self.group["profiles"] = Path(path) / self.group["profiles"]
         required = ["technology"]
         if metadata is None:
             required.append("metadata")

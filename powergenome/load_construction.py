@@ -1,19 +1,14 @@
+import logging
+import os
+from functools import lru_cache
+from pathlib import Path
 from typing import Dict, List, Union
+
 import numpy as np
 import pandas as pd
-import os
-import logging
-from functools import lru_cache
 
-from pathlib import Path
-
-
-from powergenome.util import (
-    deep_freeze_args,
-    find_region_col,
-    snake_case_col,
-)
 from powergenome.params import DATA_PATHS, SETTINGS
+from powergenome.util import deep_freeze_args, find_region_col, snake_case_col
 
 logger = logging.getLogger(__name__)
 
@@ -122,8 +117,45 @@ def create_subsector_ts(
     subsector: str,
     year: int,
     scenario_stock: pd.DataFrame,
+    utc_offset: int = 0,
     path_in: Path = None,
 ) -> pd.DataFrame:
+    """Build hourly demand for a single sector/subsector in a given year and scenario.
+
+    This uses files with stock projections and "incremental factors" of hourly demand
+    for each stock type. Two stock types and hourly factors are supported (based on how
+    data were originally derived from NREL EFS). Data can be shifted from the original
+    timezone (e.g. UTC) to a different timezone.
+
+    Sector and subsector names must correspond to the stock and incremental factor files
+    used.
+
+    Stock values must be for the model year specified.
+
+    Parameters
+    ----------
+    sector : str
+        Name of the stock sector (e.g. Residential)
+    subsector : str
+        Name of the stock subsector (e.g. water heating)
+    year : int
+        Modeling year, for selecting incremental factors
+    scenario_stock : pd.DataFrame
+        Stock of different sector/subsectors in the model year in applicable states. Must
+        have the columns "sector", "subsector", "state", "year", "agg_stock_type1", and
+        "agg_stock_type2".
+    utc_offset : int, optional
+        Number of hours to shift the data away from UTC, by default 0
+    path_in : Path, optional
+        Folder with incremental factor timeseries data, by default None. There should be
+        a file in this folder named with the convention "{sector}_{subsector}_Incremental_Factor.parquet"
+
+    Returns
+    -------
+    pd.DataFrame
+        Hourly demand of a single sector/subsector across one or more states, adjusted
+        to the specified timezone (relative to data storage)
+    """
     if not path_in:
         try:
             path_in = Path(SETTINGS["EFS_DATA"])
@@ -160,12 +192,52 @@ def create_subsector_ts(
         load_mw=timeseries["agg_stock_type1"] * timeseries["factor_type1"]
         + timeseries["agg_stock_type2"] * timeseries["factor_type2"]
     )
-    return timeseries[["state", "time_index", "load_mw"]].dropna()
+    timeseries = (
+        timeseries[["state", "time_index", "load_mw"]]
+        .dropna()
+        .groupby("state")
+        .apply(utc_offset_state_load, utc_offset)
+    )
+    return timeseries
 
 
-def state_demand_to_region(
-    df: pd.DataFrame, pop: pd.DataFrame, col_name: str
-) -> pd.DataFrame:
+def utc_offset_state_load(df: pd.DataFrame, utc_offset: int = 0) -> pd.DataFrame:
+    """Shift hourly load within a single dataframe from UTC to an offset timezone
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Hourly load of some type. Must have the column "load_mw"
+    utc_offset : int, optional
+        Number of hours to shift away from the data timezone (e.g. UTC), by default 0
+
+    Returns
+    -------
+    pd.DataFrame
+        Time-shifted demand
+    """
+    df["load_mw"] = np.roll(df["load_mw"], utc_offset)
+    return df
+
+
+def state_demand_to_region(df: pd.DataFrame, pop: pd.DataFrame) -> pd.DataFrame:
+    """Allocate hourly demand from states to regions based on population proportion
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Hourly demand by one or more resource types in different states. Must have columns
+        "state" and "time_index"
+    pop : pd.DataFrame
+        Proportion of state population in each region. Must have columns "state", "state_prop",
+        and "region".
+
+
+    Returns
+    -------
+    pd.DataFrame
+        Hourly demand data ("load_mw") grouped by "time_index" and "region"
+    """
     temp = pd.merge(df, pop, on=["state"], how="left")
     temp["load_mw"] *= temp["state_prop"]
     temp = temp.groupby(["time_index", "region"], as_index=False)["load_mw"].sum()
@@ -179,9 +251,12 @@ def electrification_profiles(
     year: int,
     elec_scenario: str,
     regions: List[str],
+    utc_offset: int = 0,
     path_in: Path = None,
 ) -> pd.DataFrame:
     """Create demand profiles for potentially flexible resources that will be electrified.
+
+    Profiles are shifted from stored timezone (assume UTC) to the model timezone.
 
     Parameters
     ----------
@@ -194,6 +269,8 @@ def electrification_profiles(
         Name of a scenario from the stock data file.
     regions : List[str]
         All of the base regions that will have profiles created.
+    utc_offset : int, optional
+        Hours to shift data from UTC to the desired timezone for the model, by default 0.
     path_in : Path, optional
         Folder where stock and incremental factor (profile) data are located, by default
         None.
@@ -246,9 +323,9 @@ def electrification_profiles(
 
     subsector_ts_dfs = []
     for name, (sector, subsector) in running_sectors.items():
-        df = create_subsector_ts(sector, subsector, year, scenario_stock, path_in).pipe(
-            state_demand_to_region, pop, name
-        )
+        df = create_subsector_ts(
+            sector, subsector, year, scenario_stock, utc_offset, path_in
+        ).pipe(state_demand_to_region, pop)
 
         df["resource"] = name
         subsector_ts_dfs.append(df)

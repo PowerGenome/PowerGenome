@@ -1,26 +1,23 @@
 import collections
-from copy import deepcopy
-import functools
 import itertools
 import logging
+import os
 import re
 import subprocess
-from typing import Dict, List, Tuple, Union
 from collections.abc import Iterable
+from copy import deepcopy
+from pathlib import Path
+from typing import Dict, List, Tuple, Union
 
-import pandas as pd
+os.environ["USE_PYGEOS"] = "0"
 import geopandas as gpd
+import pandas as pd
 import pudl
 import requests
 import sqlalchemy as sa
-
-from flatten_dict import flatten
 import yaml
+from flatten_dict import flatten
 from ruamel.yaml import YAML
-from pathlib import Path
-from frozendict import frozendict
-
-from powergenome.params import IPM_GEOJSON_PATH, SETTINGS
 
 logger = logging.getLogger(__name__)
 
@@ -52,16 +49,159 @@ def load_settings(path: Union[str, Path]) -> dict:
             s = yaml.load(sf)
             if s:
                 settings.update(s)
+    else:
+        raise FileNotFoundError(
+            "Path is not recognized. Check that your path is valid."
+        )
 
     if settings.get("input_folder"):
         settings["input_folder"] = path.parent / settings["input_folder"]
+
+    settings = apply_all_tag_to_regions(settings)
+
+    for key in ["PUDL_DB", "PG_DB"]:
+        # Add correct connection string prefix if it isn't there
+        if settings.get(key):
+            settings[key] = sqlalchemy_prefix(settings[key])
+
+    for key in [
+        "EFS_DATA",
+        "RESOURCE_GROUPS",
+        "DISTRIBUTED_GEN_DATA",
+        "RESOURCE_GROUP_PROFILES",
+    ]:
+        if settings.get(key):
+            settings[key] = Path(settings[key])
+
     return fix_param_names(settings)
+
+
+def sqlalchemy_prefix(db_path: str) -> str:
+    """Check the database path and add sqlite prefix if needed
+
+    Parameters
+    ----------
+    db_path : str
+        Path to the sqlite database. May or may not include sqlite://// (OS specific)
+
+    Returns
+    -------
+    str
+        SqlAlchemy connection string
+    """
+    if os.name == "nt":
+        # if user is using a windows system
+        sql_prefix = "sqlite:///"
+    else:
+        sql_prefix = "sqlite:////"
+
+    if not db_path:
+        return None
+    if sql_prefix in db_path:
+        return db_path
+    else:
+        return sql_prefix + str(Path(db_path))
+
+
+def apply_all_tag_to_regions(settings: dict) -> dict:
+    """Make copies of renewables_clusters dicts with region "all"
+
+    If a renewables clustering object doesn't already existing for a region/technology
+    then make a copy for use. This is helpful with large numbers of regions when
+    the clustering parameters can be applied everywhere.
+
+    Parameters
+    ----------
+    settings : dict
+        All user-specified settings from YAML files
+
+    Returns
+    -------
+    dict
+        Copy of the input settings with renewables_clusters objects for all regions
+
+    Raises
+    ------
+    KeyError
+        The dictionary is missing the tag "region"
+    KeyError
+        The dictionary with region "all" is missing the tag "technology"
+    """
+
+    settings_all = dict()
+    all_regions = settings["model_regions"]
+
+    # Keeps a list of which regions should be modified by "all" (are not specifically tagged)
+    techs_tagged_w_all = []
+    techs_tagged_by_region = dict()
+
+    i = 0
+    to_delete = []
+
+    # These are the keys in settings which will not be used to determine whether 'all' should apply to that region
+    identifier_keys = ["technology", "pref_site", "turbine_type"]
+
+    for d in settings.get("renewables_clusters", []) or []:
+        if "region" not in d:
+            raise KeyError("Entry missing 'region' tag.")
+
+        reg = d["region"]
+
+        keys = sorted(d.keys())
+        tech = ""
+        for key in keys:
+            if key in identifier_keys:
+                if tech != "":
+                    tech += "_"
+                tech += str(d[key])
+
+        # Update the dict stating that this technology is specified for this region
+        if tech in techs_tagged_by_region:
+            techs_tagged_by_region[tech].append(reg)
+        elif reg.lower() == "all":
+            techs_tagged_by_region[tech] = []
+        else:
+            techs_tagged_by_region[tech] = [reg]
+
+        if reg.lower() == "all":
+            settings_all[tech] = d
+
+            if "technology" not in d:
+                raise KeyError(f"""Entry for {reg} missing 'technology' tag.""")
+
+            if tech in techs_tagged_w_all:
+                s = f"""
+                Multiple 'all' tags applied to technology {tech}. Only last one will be used.
+                """
+                logger.warning(s)
+
+            else:
+                techs_tagged_w_all.append(tech)
+
+            to_delete.append(i)
+
+        # Keeps track of the "all" tags so that they can be deleted later in the function
+        i += 1
+
+    for i in reversed(to_delete):
+        del settings["renewables_clusters"][i]
+
+    for tech in techs_tagged_w_all:
+        for reg in all_regions:
+            if reg not in techs_tagged_by_region[tech]:
+                temp_entry = settings_all[tech].copy()
+                temp_entry["region"] = reg
+
+                settings["renewables_clusters"].append(temp_entry)
+
+    return settings
 
 
 def fix_param_names(settings: dict) -> dict:
     fix_params = {
         "historical_load_region_maps": "historical_load_region_map",
         "demand_response_resources": "flexible_demand_resources",
+        "data_years": "eia_data_years",
     }
     for k, v in fix_params.items():
         if k in settings:
@@ -323,6 +463,8 @@ def init_pudl_connection(
         object for quickly accessing parts of the database. `pudl_out` is used
         to access unit heat rates.
     """
+    from powergenome.params import SETTINGS
+
     if not pudl_db:
         pudl_db = SETTINGS["PUDL_DB"]
     if not pg_db:
@@ -439,14 +581,15 @@ def snake_case_col(col: pd.Series) -> pd.Series:
 
 def snake_case_str(s: str) -> str:
     "Remove special characters and convert to snake case"
-    clean = (
-        re.sub(r"[^0-9a-zA-Z\-]+", " ", s)
-        .lower()
-        .replace("-", "")
-        .strip()
-        .replace(" ", "_")
-    )
-    return clean
+    if s:
+        clean = (
+            re.sub(r"[^0-9a-zA-Z\-]+", " ", s)
+            .lower()
+            .replace("-", "")
+            .strip()
+            .replace(" ", "_")
+        )
+        return clean
 
 
 def get_git_hash():
@@ -663,8 +806,7 @@ def build_case_id_name_map(settings: dict) -> dict:
     case_id_name_df = pd.read_csv(
         Path(settings["input_folder"]) / settings["case_id_description_fn"],
         index_col=0,
-        squeeze=True,
-    )
+    ).squeeze("columns")
     case_id_name_df = case_id_name_df.str.replace(" ", "_")
     case_id_name_map = case_id_name_df.to_dict()
 
@@ -716,9 +858,11 @@ def build_scenario_settings(
     case_id_name_map = build_case_id_name_map(settings)
 
     scenario_settings = {}
-    for year in scenario_definitions["year"].unique():
+    for year in model_planning_period_dict.keys():
         scenario_settings[year] = {}
-        planning_year_settings_management = settings["settings_management"][year]
+        planning_year_settings_management = (
+            settings.get("settings_management", {}).get(year, {}) or {}
+        )
 
         # Create a dictionary with keys of things that change (e.g. ccs_capex) and
         # values of nested dictionaries that give case_id: scenario name
@@ -728,25 +872,14 @@ def build_scenario_settings(
             .to_dict()
         )
         planning_year_scenario_definitions_dict.pop("year")
-
+        new_param_warn_list = []
         for case_id in scenario_definitions.query("year==@year")["case_id"].unique():
             _settings = deepcopy(settings)
+            _settings["case_id"] = case_id
 
             if "all_cases" in planning_year_settings_management:
                 new_parameter = planning_year_settings_management["all_cases"]
                 _settings = update_dictionary(_settings, new_parameter)
-
-            # Add the scenario definition values to the settings files
-            # e.g.
-            # case_id	year	demand_response	growth	tx_expansion	ng_price
-            # p1	    2030	moderate	            normal	high	reference
-            case_scenario_definitions = scenario_definitions.loc[
-                (scenario_definitions.case_id == case_id)
-                & (scenario_definitions.year == year),
-                :,
-            ]
-            for col in scenario_definitions.columns:
-                _settings[col] = case_scenario_definitions.squeeze().at[col]
 
             modified_settings = []
             for (
@@ -757,8 +890,23 @@ def build_scenario_settings(
                 try:
                     case_value = case_value_dict[case_id]
                     new_parameter = (
-                        planning_year_settings_management[category][case_value] or {}
+                        planning_year_settings_management.get(category, {}).get(
+                            case_value, {}
+                        )
+                        or {}
                     )
+                    if (
+                        not new_parameter
+                        and (category, case_value) not in new_param_warn_list
+                    ):
+                        new_param_warn_list.append((category, case_value))
+
+                        logger.warning(
+                            f"The parameter value '{case_value}' from column '{category}' "
+                            "in your scenario definitions file is not included in the "
+                            "'settings_management' dictionary. Settings for case id "
+                            f"'{case_id}' will not be modified to reflect this scenario."
+                        )
 
                     try:
                         settings_keys = list(flatten(new_parameter).keys())
@@ -811,7 +959,7 @@ def remove_feb_29(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=["datetime"])
 
 
-def load_ipm_shapefile(settings: dict, path: Union[str, Path] = IPM_GEOJSON_PATH):
+def load_ipm_shapefile(settings: dict, path: Union[str, Path] = None):
     """
     Load the shapefile of IPM regions
 
@@ -829,11 +977,17 @@ def load_ipm_shapefile(settings: dict, path: Union[str, Path] = IPM_GEOJSON_PATH
     geodataframe
         Regions to use in the study with the matching geometry for each.
     """
+    if not path:
+        from powergenome.params import IPM_GEOJSON_PATH
+
+        path = IPM_GEOJSON_PATH
     keep_regions, region_agg_map = regions_to_keep(
         settings["model_regions"], settings.get("region_aggregations", {}) or {}
     )
-
-    ipm_regions = gpd.read_file(path)
+    try:
+        ipm_regions = gpd.read_file(path, engine="pyogrio")
+    except ImportError:
+        ipm_regions = gpd.read_file(path, engine="fiona")
     ipm_regions = ipm_regions.rename(columns={"IPM_Region": "region"})
 
     if settings.get("user_region_geodata_fn"):
@@ -862,7 +1016,8 @@ def deep_freeze(thing):
     """
     https://stackoverflow.com/a/66729248/3393071
     """
-    from collections.abc import Collection, Mapping, Hashable
+    from collections.abc import Collection, Hashable, Mapping
+
     from frozendict import frozendict
 
     if thing is None or isinstance(thing, str):

@@ -2,8 +2,8 @@
 Functions to fetch and modify NREL ATB data from PUDL
 """
 
-import copy
 import collections
+import copy
 import logging
 import operator
 from pathlib import Path
@@ -12,11 +12,24 @@ from typing import Dict, List, Tuple, Union
 import numpy as np
 import pandas as pd
 import sqlalchemy
+from joblib import Parallel, delayed
 
-from powergenome.params import DATA_PATHS, build_resource_clusters
+from powergenome.cluster.renewables import assign_site_cluster, calc_cluster_values
+from powergenome.params import DATA_PATHS, SETTINGS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.resource_clusters import ClusterBuilder, map_nrel_atb_technology
-from powergenome.util import reverse_dict_of_lists, remove_leading_zero
+from powergenome.resource_clusters import (
+    ClusterBuilder,
+    ResourceGroup,
+    Table,
+    map_nrel_atb_technology,
+)
+from powergenome.util import (
+    apply_all_tag_to_regions,
+    remove_leading_zero,
+    reverse_dict_of_lists,
+    snake_case_col,
+    snake_case_str,
+)
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
@@ -444,7 +457,6 @@ def atb_fixed_var_om_existing(
         "Steam Turbine",
         "Hydroelectric",
         "Geothermal",
-        "Nuclear",
     ]
     atb_techs = [
         (tech, tech_detail)
@@ -669,7 +681,7 @@ def calc_om(
                 # Based on conversation with Jesse J. on Dec 20, 2019.
                 plant_capacity = _df[settings["capacity_col"]].sum()
                 op, op_value = (
-                    settings.get("atb_modifiers", {})
+                    (settings.get("atb_modifiers", {}) or {})
                     .get("ngct", {})
                     .get("Var_OM_Cost_per_MWh", (None, None))
                 )
@@ -915,9 +927,10 @@ def regional_capex_multiplier(
 
     tech_multiplier_map = {}
     for atb_tech, eia_tech in tech_map.items():
-        if df["technology"].str.contains(atb_tech).sum() > 0:
+        if df["technology"].str.contains(atb_tech, case=False).sum() > 0:
             full_atb_tech = df.loc[
-                df["technology"].str.contains(atb_tech).idxmax(), "technology"
+                df["technology"].str.contains(atb_tech, case=False).idxmax(),
+                "technology",
             ]
             tech_multiplier_map[full_atb_tech] = tech_multiplier.at[eia_tech]
         if df["technology"].str.contains(atb_tech).sum() > 1:
@@ -1214,25 +1227,22 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         rev_mult_tech_map = reverse_dict_of_lists(
             settings["cost_multiplier_technology_map"]
         )
+
         df_list = []
-        for region in regions:
-            _df = new_gen_df.copy()
-            _df["region"] = region
-            _df = regional_capex_multiplier(
-                _df,
-                region,
+        settings = apply_all_tag_to_regions(settings)
+
+        df_list = Parallel(n_jobs=settings.get("clustering_n_jobs", 1))(
+            delayed(parallel_region_renewables)(
+                settings,
+                new_gen_df,
+                regional_cost_multipliers,
                 rev_mult_region_map,
                 rev_mult_tech_map,
-                regional_cost_multipliers,
+                region,
+                cluster_builder,
             )
-            _df = add_renewables_clusters(_df, region, settings, cluster_builder)
-
-            if region in (settings.get("new_gen_not_available") or {}):
-                techs = settings["new_gen_not_available"][region]
-                for tech in techs:
-                    _df = _df.loc[~_df["technology"].str.contains(tech), :]
-
-            df_list.append(_df)
+            for region in regions
+        )
 
         results = pd.concat(df_list, ignore_index=True, sort=False)
 
@@ -1249,6 +1259,132 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         results["Var_OM_Cost_per_MWh"] = results["Var_OM_Cost_per_MWh"].astype(float)
 
     return results
+
+
+def parallel_region_renewables(
+    settings: dict,
+    new_gen_df: pd.DataFrame,
+    regional_cost_multipliers: pd.DataFrame,
+    rev_mult_region_map: Dict[str, List[str]],
+    rev_mult_tech_map: Dict[str, List[str]],
+    region: str,
+    cluster_builder: ClusterBuilder = None,
+) -> pd.DataFrame:
+    """Wrapper function to run regional capex and add renewable clusters in parallel
+
+    Parameters
+    ----------
+    settings : dict
+        Can have keys "renewables_clusters" and "region_aggregations"
+    new_gen_df : pd.DataFrame
+        Rows are new-build resources specified by the user
+    regional_cost_multipliers : pd.DataFrame
+        Cost multiplier for each technology type in different regions
+    rev_mult_region_map : Dict[str, List[str]]
+        Mapping of cost regions to model regions
+    rev_mult_tech_map : Dict[str, List[str]]
+        Mapping of technologies from cost map to technologies in new_gen_df
+    region : str
+        Name of the model region
+    cluster_builder
+        ClusterBuilder object. Reuse to save time. None by default.
+
+    Returns
+    -------
+    pd.DataFrame
+        New-build resources in a single region. Includes the regionally corrected cost
+        and renewable resource clusters as specified by the user.
+    """
+    _df = new_gen_df.copy()
+    _df["region"] = region
+    _df = regional_capex_multiplier(
+        _df,
+        region,
+        rev_mult_region_map,
+        rev_mult_tech_map,
+        regional_cost_multipliers,
+    )
+    _df = add_renewables_clusters(
+        _df,
+        region,
+        settings,
+        cluster_builder,
+    )
+
+    return _df
+
+
+def load_resource_group_data(
+    rg: ResourceGroup, cache=True
+) -> Tuple[pd.DataFrame, Union[pd.Series, None]]:
+    """Load metadata for the specified resource group.
+
+    Metadata is information on individual renewable sites such as the site ID, capacity,
+    interconnection cost, etc. If the resource group has the attribute "site_map", then
+    a mapping of site IDs to generation profile IDs is also returned.
+
+    Parameters
+    ----------
+    rg : ResourceGroup
+        A resource group object
+    cache : bool, optional
+        A flag indicating whether to cache the data, by default True
+
+    Returns
+    -------
+    Tuple[pd.DataFrame, Union[pd.Series, None]]
+        A tuple of the metadata dataframe and the site map as a Series with site ID as
+        the index
+    """
+    data = rg.metadata.read(cache=cache)
+    data.columns = snake_case_col(data.columns)
+    if "metro_region" in data.columns and "region" not in data.columns:
+        data["region"] = data.loc[:, "metro_region"]
+    if "cpa_mw" in data.columns and "mw" not in data.columns:
+        data["mw"] = data.loc[:, "cpa_mw"]
+    data = data.loc[data["mw"] > 0, :]
+    profile_path = Path(rg.group["profiles"])
+    if rg.group.get("site_map"):
+        table = Table(profile_path.parent / rg.group["site_map"])
+        cols = table.columns
+        df = table.read().set_index(cols[0])
+        site_map = df[df.columns[0]]
+    else:
+        site_map = None
+
+    return data, site_map
+
+
+def flatten_cluster_def(
+    scenario: Union[dict, list, str, int, float], detail_suffix: str
+) -> str:
+    """Turn a nested dictionary of clustering instructions into a string.
+
+    Parameters
+    ----------
+    scenario : Union[dict, list, str, int, float]
+        Either a dictionary, list, str, or numeric object -- base level must be a string
+        or numeric.
+    detail_suffix : str
+        A string used to separate individual objects
+
+    Returns
+    -------
+    str
+        Flattened string representation
+    """
+    "Return cluster definition as a string for unique filenames"
+    if isinstance(scenario, dict):
+        for k, v in scenario.items():
+            detail_suffix += flatten_cluster_def(k, "")
+            detail_suffix += flatten_cluster_def(v, "")
+    elif isinstance(scenario, list):
+        for l in scenario:
+            detail_suffix += flatten_cluster_def(l, "")
+    else:
+        detail_suffix += f"{scenario}_"
+
+    return detail_suffix
 
 
 def add_renewables_clusters(
@@ -1273,8 +1409,7 @@ def add_renewables_clusters(
         Dictionary with the following keys:
             - `renewables_clusters`: Determines the clusters built for the region.
             - `region_aggregations`: Maps the model region to IPM regions.
-    cluster_builder
-        ClusterBuilder object. Reuse to save time. None by default.
+
 
     Returns
     -------
@@ -1291,6 +1426,8 @@ def add_renewables_clusters(
     ValueError
         Renewables clusters match multiple NREL ATB technologies.
     """
+    if not cluster_builder:
+        cluster_builder = build_resource_clusters(settings.get("RESOURCE_GROUPS"))
     if not df["technology"].is_unique:
         raise ValueError(
             f"NREL ATB technologies are not unique: {df['technology'].to_list()}"
@@ -1304,10 +1441,10 @@ def add_renewables_clusters(
     )
     cdfs = []
     if region in (settings.get("region_aggregations", {}) or {}):
-        ipm_regions = settings.get("region_aggregations", {})[region]
-        ipm_regions.append(region)  # Add model region, sometimes listed in RG file
+        regions = settings.get("region_aggregations", {})[region]
+        regions.append(region)  # Add model region, sometimes listed in RG file
     else:
-        ipm_regions = [region]
+        regions = [region]
     for scenario in settings.get("renewables_clusters", []) or []:
         if scenario["region"] != region:
             continue
@@ -1318,48 +1455,150 @@ def add_renewables_clusters(
             if v and all([scenario.get(ki) == vi for ki, vi in v.items()])
         ]
         if not technologies:
-            raise ValueError(
-                f"Renewables clusters do not match NREL ATB technologies: {scenario}"
+            s = (
+                f"You have a renewables_cluster for technology '{scenario.get('technology')} "
+                f"in region '{scenario.get('region')}', but no comparable new-build technology "
+                "was specified in your settings file."
             )
+
+            logger.warning(s)
+            continue
         if len(technologies) > 1:
             raise ValueError(
                 f"Renewables clusters match multiple NREL ATB technologies: {scenario}"
             )
         technology = technologies[0]
-        # region not an argument to ClusterBuilder.get_clusters()
-        scenario = scenario.copy()
-        scenario.pop("region")
-        if not cluster_builder:
-            cluster_builder = build_resource_clusters(settings.get("RESOURCE_GROUPS"))
-        clusters = (
-            cluster_builder.get_clusters(
-                **scenario,
-                ipm_regions=ipm_regions,
-                existing=False,
-                utc_offset=settings.get("utc_offset", 0),
-            )
-            .rename(columns={"mw": "Max_Cap_MW"})
-            .assign(technology=technology, region=region)
+        _scenario = scenario.copy()
+        # ClusterBuilder.get_clusters() does not take region as an argument
+        _scenario.pop("region")
+
+        # Assume not preclustering renewables unless set to True in settings or the
+        # old parameters are used.
+        precluster = False
+        precluster_keys = ["max_clusters", "max_lcoe"]
+        if settings.get("precluster_renewables") is True:
+            precluster = True
+        if any([k in precluster_keys for k in _scenario.keys()]):
+            precluster = True
+
+            # Create name suffex with unique id info like turbine_type and pref_site
+        new_tech_suffix = "_" + "_".join(
+            [
+                str(v)
+                for k, v in _scenario.items()
+                if k
+                not in [
+                    "region",
+                    "technology",
+                    "max_clusters",
+                    "min_capacity",
+                    "filter",
+                    "bin",
+                    "group",
+                    "cluster",
+                ]
+            ]
         )
-        clusters["cluster"] = range(1, 1 + len(clusters))
-        if scenario.get("min_capacity"):
+        detail_suffix = flatten_cluster_def(_scenario, "_")
+        cache_cluster_fn = f"{region}_{technology}_{detail_suffix}_cluster_data.parquet"
+        cache_site_assn_fn = f"{region}_{technology}_{detail_suffix}_site_assn.parquet"
+        sub_folder = SETTINGS.get("RESOURCE_GROUPS") or settings["RESOURCE_GROUPS"]
+        sub_folder = str(sub_folder).replace("/", "_").replace("\\", "_")
+        cache_folder = Path(
+            settings["input_folder"] / "cluster_assignments" / sub_folder
+        )
+        cache_cluster_fpath = cache_folder / cache_cluster_fn
+        cache_site_assn_fpath = cache_folder / cache_site_assn_fn
+        if precluster is False:
+            if cache_cluster_fpath.exists() and cache_site_assn_fpath.exists():
+                clusters = pd.read_parquet(cache_cluster_fpath)
+                data = pd.read_parquet(cache_site_assn_fpath)
+            else:
+                drop_keys = ["min_capacity", "filter", "bin", "group", "cluster"]
+                group_kwargs = dict(
+                    [(k, v) for k, v in _scenario.items() if k not in drop_keys]
+                )
+                resource_groups = cluster_builder.find_groups(
+                    existing=False,
+                    **group_kwargs,
+                )
+                if not resource_groups:
+                    raise ValueError(
+                        f"Parameters do not match any resource groups: {group_kwargs}"
+                    )
+                if len(resource_groups) > 1:
+                    meta = [rg.group for rg in resource_groups]
+                    raise ValueError(
+                        f"Parameters match multiple resource groups: {meta}"
+                    )
+                renew_data, site_map = load_resource_group_data(
+                    resource_groups[0], cache=False
+                )
+                data = assign_site_cluster(
+                    renew_data=renew_data,
+                    profile_path=resource_groups[0].group.get("profiles"),
+                    regions=regions,
+                    site_map=site_map,
+                    utc_offset=settings.get("utc_offset", 0),
+                    **_scenario,
+                )
+                if data.empty:
+                    continue
+                clusters = (
+                    data.groupby("cluster", as_index=False)
+                    .apply(calc_cluster_values)
+                    .rename(columns={"mw": "Max_Cap_MW"})
+                    .assign(technology=technology, region=region)
+                )
+
+                cache_folder.mkdir(parents=True, exist_ok=True)
+                if not cache_cluster_fpath.exists():
+                    clusters.to_parquet(cache_cluster_fpath)
+                if not cache_site_assn_fpath.exists():
+                    cols = ["cpa_id", "cluster"]
+                    data[cols].to_parquet(cache_site_assn_fpath)
+            if settings.get("extra_outputs"):
+                # fn = f"{region}_{technology}{new_tech_suffix}_site_cluster_assignments.csv"
+                Path(settings["extra_outputs"]).mkdir(parents=True, exist_ok=True)
+                cols = ["cpa_id", "cluster"]
+                fn = f"{region}_{technology}{new_tech_suffix}_site_cluster_assignments.csv"
+                data.loc[:, cols].to_csv(
+                    Path(settings["extra_outputs"]) / fn, index=False
+                )
+        else:
+            if cache_cluster_fpath.exists():
+                clusters = pd.read_parquet(cache_cluster_fpath)
+                data = None
+            else:
+                clusters = (
+                    cluster_builder.get_clusters(
+                        **_scenario,
+                        ipm_regions=regions,
+                        existing=False,
+                        utc_offset=settings.get("utc_offset", 0),
+                    )
+                    .rename(columns={"mw": "Max_Cap_MW"})
+                    .assign(technology=technology, region=region)
+                )
+                clusters["cluster"] = range(1, 1 + len(clusters))
+                data = None
+        cache_folder.mkdir(parents=True, exist_ok=True)
+        if not cache_cluster_fpath.exists():
+            clusters.to_parquet(cache_cluster_fpath)
+        if not cache_site_assn_fpath.exists() and not data is None:
+            cols = ["cpa_id", "cluster"]
+            data[cols].to_parquet(cache_site_assn_fpath)
+        if _scenario.get("min_capacity"):
             # Warn if total capacity less than expected
             capacity = clusters["Max_Cap_MW"].sum()
             if capacity < scenario["min_capacity"]:
                 logger.warning(
-                    f"Selected technology {scenario['technology']} capacity"
+                    f"Selected technology {_scenario['technology']} capacity"
                     + f" in region {region}"
-                    + f" less than minimum ({capacity} < {scenario['min_capacity']} MW)"
+                    + f" less than minimum ({capacity} < {_scenario['min_capacity']} MW)"
                 )
         row = df[df["technology"] == technology].to_dict("records")[0]
-        new_tech_name = "_".join(
-            [
-                str(v)
-                for k, v in scenario.items()
-                if k not in ["region", "technology", "max_clusters", "min_capacity"]
-            ]
-        )
-        clusters["technology"] = clusters["technology"] + "_" + new_tech_name
+        clusters["technology"] = clusters["technology"] + new_tech_suffix
         kwargs = {k: v for k, v in row.items() if k not in clusters}
         cdfs.append(clusters.assign(**kwargs))
     return pd.concat([df[~mask]] + cdfs, sort=False)

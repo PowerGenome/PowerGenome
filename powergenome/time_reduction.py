@@ -1,10 +1,11 @@
 "Functions to cluster or otherwise reduce the number of hours in generation and load profiles"
 
+import datetime
+
+import numpy as np
+import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import minmax_scale
-import numpy as np
-import datetime
-import pandas as pd
 
 
 def kmeans_time_clustering(
@@ -67,8 +68,9 @@ def kmeans_time_clustering(
     resource_col_names = resource_profiles.columns
     if variable_resources_only:
         input_std = resource_profiles.describe().loc["std", :]
-        var_col_names = [col for col in input_std.index if input_std[col] > 0]
+        var_col_names = input_std[input_std > 0].index.to_list()
         resource_profiles = resource_profiles.loc[:, var_col_names]
+
     # Initialize dataframes to store final and intermediate data in
 
     input_data = pd.concat(
