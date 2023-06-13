@@ -1,0 +1,19 @@
+
+# This is a nested dictionary of settings changes for each scenario defined in the
+# "scenario_definitions_fn" file.
+# - The fist set of keys are planning years.
+# - The second set of keys are either "all_cases" or the name of a scenario in the
+# "scenario_definitions_fn" file. If "all_cases" then the settings key: value will be
+# applied to all settings files for that year. An example scenario might be "ccs_capex".
+# - The third set of keys are names of scenario values. For a "ccs_capex" scenario these
+# might be "high", "mid", "low".
+# - The values under this third set of keys are a key: value pair where the key is a
+# parameter from this settings file with a value that should be modified for a specific
+# case.
+settings_management:
+  2050:
+    policy:
+      unconstrained:
+        emission_policies_fn: ~
+      co2_cap:
+        emission_policies_fn: emission_policies.csv # this is already the default value and is not required here

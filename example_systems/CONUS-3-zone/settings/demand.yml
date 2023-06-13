@@ -6,8 +6,8 @@
 # same AEO scenarios used for fuel prices. Examples include HIGHMACRO for high growth and
 # LOWMACRO for low growth.
 regular_load_growth_start_year: 2020
-growth_scenario: REF2021
-load_eia_aeo_year: 2021
+growth_scenario: REF2022
+load_eia_aeo_year: 2022
 
 historical_load_region_map:
   TRE: [ERC_PHDL, ERC_REST, ERC_WEST]
