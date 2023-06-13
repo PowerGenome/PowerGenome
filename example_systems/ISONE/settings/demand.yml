@@ -9,7 +9,7 @@ regular_load_growth_start_year: 2020
 growth_scenario: REF2021
 load_eia_aeo_year: 2021
 
-historical_load_region_maps:
+historical_load_region_map:
   TRE: [ERC_PHDL, ERC_REST, ERC_WEST]
   FLRC: [FRCC] #FRCC
   MWRCE: [MIS_WUMS]
