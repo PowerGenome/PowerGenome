@@ -1969,7 +1969,9 @@ def gentype_region_capacity_factor(
     DataFrame
         A dataframe with the capacity factor of every selected technology
     """
-    data_years = [str(y) for y in settings["eia_data_years"]]
+    data_years = settings[
+        "eia_data_years"
+    ].copy()  # [str(y) for y in settings["eia_data_years"]]
     data_years.extend(settings.get("capacity_factor_default_year_filter", []))
 
     cap_col = settings["capacity_col"]
@@ -1999,7 +2001,10 @@ def gentype_region_capacity_factor(
     """
 
     plant_gen_tech_cap = pd.read_sql_query(
-        sql, pudl_engine, params=data_years, parse_dates=["report_date"]
+        sql,
+        pudl_engine,
+        params=[str(y) for y in data_years],
+        parse_dates=["report_date"],
     )
     plant_gen_tech_cap = plant_gen_tech_cap.loc[
         plant_gen_tech_cap["plant_id_eia"].isin(plant_region_map["plant_id_eia"]), :
