@@ -1427,7 +1427,9 @@ def add_renewables_clusters(
         Renewables clusters match multiple NREL ATB technologies.
     """
     if not cluster_builder:
-        cluster_builder = build_resource_clusters(settings.get("RESOURCE_GROUPS"))
+        cluster_builder = build_resource_clusters(
+            settings.get("RESOURCE_GROUPS"), settings.get("RESOURCE_GROUP_PROFILES")
+        )
     if not df["technology"].is_unique:
         raise ValueError(
             f"NREL ATB technologies are not unique: {df['technology'].to_list()}"
