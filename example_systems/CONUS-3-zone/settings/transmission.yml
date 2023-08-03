@@ -1,0 +1,17 @@
+# Transmission financial information to calculate annual investment costs
+# capex_mw_mile: Capital cost per MW-mile for all (numeric) or each model region (dict).
+# WACC and investment years from https://www.sciencedirect.com/science/article/abs/pii/S0301421519305816
+transmission_investment_cost:
+  # If true, uses interconnect_annuity when available
+  use_total: true
+  spur:
+    capex_mw_mile:
+      Western: 3900
+      Eastern: 8775
+      ERCOT: 3900
+    wacc: 0.044
+    investment_years: 60
+
+# Percent expansion in planning period above and beyond existing transmission
+tx_expansion_per_period: 10.0
+tx_expansion_mw_per_period: 10000

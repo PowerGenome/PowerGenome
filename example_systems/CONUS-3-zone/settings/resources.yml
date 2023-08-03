@@ -11,7 +11,7 @@
 # more than one year is used then things like heat rate will be calculated as the
 # average (weighted by generation per year).
 eia_data_years:
-  - 2020
+  - 2021
 
 eia_860m_fn: april_generator2023.xlsx
 
@@ -26,8 +26,8 @@ capacity_col: winter_capacity_mw
 
 # ** Any technologies not included in num_clusters will be omitted **
 num_clusters:
-  Conventional Steam Coal: 1
-  Natural Gas Fired Combined Cycle: 1
+  Conventional Steam Coal: 2
+  Natural Gas Fired Combined Cycle: 2
   Natural Gas Fired Combustion Turbine: 1
   Nuclear: 1
   Conventional Hydroelectric: 1
@@ -85,9 +85,7 @@ capacity_factor_default_year_filter: [2016, 2017, 2018, 2019, 2020, 2021]
 small_hydro: true
 small_hydro_mw: 30
 small_hydro_regions:
-  - NENGREST
-  - NENG_CT
-  - NENG_ME
+  - Western
 
 
 # Factors for calculating hydro energy to power ratio in GenX. The default factors is
@@ -107,7 +105,10 @@ regional_hydro_factor: ~
 # name is contained in the dataframe technology name.
 energy_storage_duration:
   Hydroelectric Pumped Storage: 15.5
-  Batteries: 2
+  Batteries:
+    Western: 4
+    Eastern: 2
+    ERCOT: 2
 
 
 # The year of NREL ATB data to use for matching existing generators (O&M costs)
@@ -120,16 +121,15 @@ atb_existing_year: 2020
 
 atb_data_year: 2022
 atb_financial_case: Market
-atb_cap_recovery_years: 20
+atb_cap_recovery_years: 30
 
 # Alternate capital recovery periods for specific technologies, which are used to calculate
 # the annual investment costs. The names are matched using str.contains rather than
 # exact matches. Set parameter value to none (~) if not used.
 alt_atb_cap_recovery_years:
-  NaturalGas_CCAvg: 15
-  NaturalGas_CTAvg: 15
   Battery: 15
   Nuclear: 40
+  UtilityPV: 20
 
 # Use Class3 onshore wind, Class 3 for fixed offshore wind, and Class 12 for floating offshore wind
 # Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
@@ -139,9 +139,16 @@ atb_new_gen:
   - [NaturalGas, CTAvgCF, Moderate, 100]
   - [LandbasedWind, Class3, Moderate, 1]
   - [OffShoreWind, Class3, Moderate, 1]
+  - [OffShoreWind, Class12, Moderate, 1]
   - [UtilityPV, Class1, Moderate, 1]
   - [Battery, "*", Moderate, 1]
-  # - [Nuclear, Nuclear, Moderate, 500]
+  - [Nuclear, Nuclear, Moderate, 500]
+
+co2_pipeline_filters:
+  - technology: NaturalGas
+    tech_detail: CCCCSAvgCF
+    with_backbone: false
+    percentile: 25
 
 renewables_clusters:
   - region: all
@@ -177,12 +184,56 @@ renewables_clusters:
     bin:
       - feature: lcoe
         weights: mw
-        q: 3
-    cluster:
-      - feature: profile
-        n_clusters: 2
-        method: agg
-
+        q: 2
+    # cluster:
+    #   - feature: profile
+    #     n_clusters: 2
+    #     method: agg
+  - region: all
+    technology: offshorewind
+    turbine_type: floating
+    pref_site: 1
+    filter:
+      - feature: lcoe
+        max: 150
+    bin:
+      - feature: lcoe
+        weights: mw
+        q: 2
+    # cluster:
+    #   - feature: profile
+    #     n_clusters: 2
+    #     method: agg
+  - region: all
+    technology: offshorewind
+    turbine_type: fixed
+    pref_site: 0
+    filter:
+      - feature: lcoe
+        max: 125
+    bin:
+      - feature: lcoe
+        weights: mw
+        q: 2
+    # cluster:
+    #   - feature: profile
+    #     n_clusters: 2
+    #     method: agg
+  - region: all
+    technology: offshorewind
+    turbine_type: floating
+    pref_site: 0
+    filter:
+      - feature: lcoe
+        max: 150
+    bin:
+      - feature: lcoe
+        weights: mw
+        q: 2
+    # cluster:
+    #   - feature: profile
+    #     n_clusters: 2
+    #     method: agg
 
 # The atb_modifers parameter is used here to add a VOM cost to battery technologies. PNNL
 # reports a 0.03 cents per kWh VOM, which is split between Var_OM_Cost_per_MWh and
@@ -227,7 +278,7 @@ modified_atb_new_gen: ~
 # cut across EMM regions.
 # See a map at https://www.eia.gov/outlooks/aeo/pdf/nerc_map.pdf
 cost_multiplier_region_map:
-  TRE: [ERC_PHDL, ERC_REST, ERC_WEST]
+  TRE: [ERC_PHDL, ERC_REST, ERC_WEST, ERCOT]
   FRCC: [FRCC]
   MISW: [MIS_WUMS, MIS_MNWI, MIS_IA]
   MISE: [MIS_LMI]
@@ -237,7 +288,7 @@ cost_multiplier_region_map:
   SPPC: [SPP_N]
   SPPS: [SPP_WEST, SPP_SPS]
   MISS: [MIS_AMSO, MIS_WOTA, MIS_LA, MIS_AR, MIS_D_MS]
-  SRSE: [S_SOU]
+  SRSE: [S_SOU, Eastern]
   SRCA: [S_VACA]
   PJMD: [PJM_Dom]
   PJMW: [PJM_West, PJM_AP, PJM_ATSI]
@@ -251,7 +302,7 @@ cost_multiplier_region_map:
   NWPP: [WECC_PNW, WECC_MT]
   CANO: [WEC_CALN, WEC_BANC, CA_N]
   CASO: [WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE, CA_S]
-  SRSG: [WECC_AZ, WECC_NM, WECC_SNV]
+  SRSG: [WECC_AZ, WECC_NM, WECC_SNV, Western]
 
 ######################################################
 # THESE PARAMETERS ARE RARELY MODIFIED FOR NEW STUDIES
@@ -302,7 +353,7 @@ cost_multiplier_technology_map:
   Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
   MSW - landfill gas: []
   Wind: [LandbasedWind_Class3]
-  Wind offshore: [OffShoreWind_Class3]
+  Wind offshore: [OffShoreWind_Class3, OffShoreWind_Class12]
   Solar thermal: [CSP]
   Solar PV - tracking: [UtilityPV_Class1, CommPV, ResPV]
   Battery storage: [Battery_*]
