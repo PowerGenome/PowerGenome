@@ -996,10 +996,12 @@ def load_ipm_shapefile(settings: dict, path: Union[str, Path] = None):
             Path(settings["input_folder"]) / settings["user_region_geodata_fn"]
         )
         if "region" not in user_regions.columns:
-            raise KeyError(
+            region_col = [c for c in user_regions.columns if "region" in c.lower()][0]
+            user_regions = user_regions.rename(columns={region_col: "region"})
+            logger.warning(
                 "The user supplied region geodata file does not include the "
-                "property 'region' for any of the region polygons! User region "
-                "geodata can not be appropriately mapped to model regions."
+                "property 'region' for any of the region polygons! Automatically detecting "
+                "the correct column but this may cause errors."
             )
         user_regions = user_regions.to_crs(ipm_regions.crs)
         ipm_regions = ipm_regions.append(user_regions)
