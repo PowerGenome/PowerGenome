@@ -3563,6 +3563,9 @@ class GeneratorClusters:
 
         self.results = rename_gen_cols(self.results)
 
+        # Drop old index cols from df
+        self.results.drop(columns=["level_0", "index"], errors="ignore", inplace=True)
+
         return self.results
 
     def create_new_generators(self):
