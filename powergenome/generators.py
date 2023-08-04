@@ -3291,6 +3291,7 @@ class GeneratorClusters:
         for _, df in region_tech_grouped:
             region, tech = _
             grouped = group_units(df, self.settings)
+            grouped["technology"] = tech
 
             # This is bad. Should be setting up a dictionary of objects that picks the
             # correct clustering method. Can't keep doing if statements as the number of
@@ -3382,8 +3383,10 @@ class GeneratorClusters:
         self.all_units = pd.concat(unit_list, sort=False)
         self.all_units = pd.merge(
             self.units_model,  # .reset_index(),
-            self.all_units.reset_index()[["plant_id_eia", "unit_id_pg", "cluster"]],
-            on=["plant_id_eia", "unit_id_pg"],
+            self.all_units.reset_index()[
+                ["plant_id_eia", "unit_id_pg", "cluster", "technology"]
+            ],
+            on=["plant_id_eia", "unit_id_pg", "technology"],
             how="inner",
         ).merge(
             self.plants_860[["plant_id_eia", "utility_id_eia"]],
