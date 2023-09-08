@@ -2580,6 +2580,9 @@ def energy_storage_mwh(
     for tech, val in energy_storage_duration.items():
         if isinstance(val, dict):
             tech_regions = val.keys()
+            df.loc[
+                df[tech_col].isna(), "technology_description"
+            ] = "missing_tech_description"
             model_tech_regions = df.loc[
                 snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
                 region_col,
