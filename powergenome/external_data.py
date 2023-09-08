@@ -130,9 +130,19 @@ def add_resource_max_cap_spur(
     # Prepare file
     path = Path(settings["input_folder"]) / settings["capacity_limit_spur_fn"]
     df = pd.read_csv(path)
-    for col in "region", "technology":
-        if col not in df:
-            raise KeyError(f"The max capacity/spur file must have column {col}")
+    if "technology" not in df.columns:
+        raise KeyError(f"The max capacity/spur file must have column 'technology'")
+
+    # Let users omit the "region" column or set a value of "all"
+    if "region" not in df.columns:
+        df["region"] = "all"
+    for region in settings["model_regions"]:
+        _df = df.loc[df["region"].str.lower() == "all", :]
+        _df.loc[:, "region"] = region
+        df = df.append(_df)
+
+    df = df.loc[df["region"].str.lower() != "all", :]
+
     for key, value in defaults.items():
         df[key] = df[key].fillna(value) if key in df else value
         new_resource_df[key] = (

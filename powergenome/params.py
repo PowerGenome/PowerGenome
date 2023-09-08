@@ -48,13 +48,19 @@ SETTINGS["DISTRIBUTED_GEN_DATA"] = os.environ.get("DISTRIBUTED_GEN_DATA")
 SETTINGS["RESOURCE_GROUP_PROFILES"] = os.environ.get("RESOURCE_GROUP_PROFILES")
 
 
-def build_resource_clusters(group_path: Union[str, Path] = None):
+def build_resource_clusters(
+    group_path: Union[str, Path] = None, profile_path: Union[str, Path] = None
+) -> ClusterBuilder:
     if not group_path:
         group_path = SETTINGS.get("RESOURCE_GROUPS")
+    if not profile_path:
+        profile_path = SETTINGS.get("RESOURCE_GROUP_PROFILES")
+    if profile_path is not None:
+        profile_path = Path(profile_path)
     if not group_path:
         cluster_builder = ClusterBuilder([])
     else:
         cluster_builder = ClusterBuilder.from_json(
-            Path(group_path, ".").glob("**/*.json")
+            Path(group_path, ".").glob("**/*.json"), profile_path
         )
     return cluster_builder

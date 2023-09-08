@@ -125,7 +125,24 @@ def merge_co2_pipeline_costs(
         co2_costs_wide["capture_rate"] = filt.get("capture_rate", 90)
         df_list.append(co2_costs_wide)
 
-    df_co2_costs = pd.merge(df, pd.concat(df_list), how="left")
+    full_co2_costs_wide = pd.concat(df_list)
+    # Split incoming df into techs with and without pipeline cost. Remove pipeline cost
+    # columns from the "with" techs to avoid duplicates, merge in co2 costs, then concat
+    # with the "without" techs
+    df = df.reset_index()
+    drop_cols = [
+        c for c in full_co2_costs_wide.columns if c not in ["region", "technology"]
+    ]
+    df_co2_techs = df.loc[df["technology"].isin(co2_resources.values()), :]
+    df_co2_techs = df_co2_techs.drop(columns=drop_cols, errors="ignore")
+    df_co2_techs = pd.merge(
+        df_co2_techs, full_co2_costs_wide, on=["region", "technology"], how="left"
+    )
+    df_non_co2_techs = df.loc[~df["technology"].isin(co2_resources.values()), :]
+
+    df_co2_costs = (
+        pd.concat([df_co2_techs, df_non_co2_techs]).set_index("index").sort_index()
+    )
 
     drop_idx = df_co2_costs.loc[
         (df_co2_costs["technology"].isin(co2_resources.values()))

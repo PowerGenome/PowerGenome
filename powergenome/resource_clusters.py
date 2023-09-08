@@ -438,6 +438,7 @@ class ResourceGroup:
         metadata: pd.DataFrame = None,
         profiles: pd.DataFrame = None,
         path: str = ".",
+        profile_path: str = None,
     ) -> None:
         from powergenome.params import SETTINGS
 
@@ -448,7 +449,12 @@ class ResourceGroup:
         if self.group.get("metadata"):
             self.group["metadata"] = Path(path) / self.group["metadata"]
         if self.group.get("profiles"):
-            if (
+            # Check for location passed as an arg (probably from settings file),
+            # then the SETTINGS (from .env file), then assume they are in the same folder
+            # as the JSON file
+            if profile_path and (profile_path / self.group["profiles"]).exists():
+                self.group["profiles"] = Path(profile_path) / self.group["profiles"]
+            elif (
                 SETTINGS.get("RESOURCE_GROUP_PROFILES")
                 and (
                     Path(SETTINGS["RESOURCE_GROUP_PROFILES"]) / self.group["profiles"]
@@ -473,7 +479,9 @@ class ResourceGroup:
             self.profiles = Table(df=profiles, path=self.group.get("profiles"))
 
     @classmethod
-    def from_json(cls, path: Union[str, os.PathLike]) -> "ResourceGroup":
+    def from_json(
+        cls, path: Union[str, os.PathLike], profile_path: Union[str, os.PathLike] = None
+    ) -> "ResourceGroup":
         """
         Build from JSON file.
 
@@ -484,7 +492,7 @@ class ResourceGroup:
         """
         with open(path, mode="r") as fp:
             group = json.load(fp)
-        return cls(group, path=os.path.dirname(path))
+        return cls(group, path=os.path.dirname(path), profile_path=profile_path)
 
     def test_metadata(self) -> None:
         """
@@ -709,7 +717,11 @@ class ClusterBuilder:
         self.groups = groups
 
     @classmethod
-    def from_json(cls, paths: Iterable[Union[str, os.PathLike]]) -> "ClusterBuilder":
+    def from_json(
+        cls,
+        paths: Iterable[Union[str, os.PathLike]],
+        profile_path: Union[str, os.PathLike] = None,
+    ) -> "ClusterBuilder":
         """
         Load resources from resource group JSON files.
 
@@ -726,7 +738,7 @@ class ClusterBuilder:
         paths = list(paths)
         if not paths:
             raise ValueError(f"No resource groups specified {paths}")
-        return cls([ResourceGroup.from_json(path) for path in paths])
+        return cls([ResourceGroup.from_json(path, profile_path) for path in paths])
 
     def find_groups(self, **kwargs: Any) -> List[ResourceGroup]:
         """

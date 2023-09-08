@@ -1969,7 +1969,9 @@ def gentype_region_capacity_factor(
     DataFrame
         A dataframe with the capacity factor of every selected technology
     """
-    data_years = [str(y) for y in settings["eia_data_years"]]
+    data_years = settings[
+        "eia_data_years"
+    ].copy()  # [str(y) for y in settings["eia_data_years"]]
     data_years.extend(settings.get("capacity_factor_default_year_filter", []))
 
     cap_col = settings["capacity_col"]
@@ -1999,7 +2001,10 @@ def gentype_region_capacity_factor(
     """
 
     plant_gen_tech_cap = pd.read_sql_query(
-        sql, pudl_engine, params=data_years, parse_dates=["report_date"]
+        sql,
+        pudl_engine,
+        params=[str(y) for y in data_years],
+        parse_dates=["report_date"],
     )
     plant_gen_tech_cap = plant_gen_tech_cap.loc[
         plant_gen_tech_cap["plant_id_eia"].isin(plant_region_map["plant_id_eia"]), :
@@ -2575,6 +2580,9 @@ def energy_storage_mwh(
     for tech, val in energy_storage_duration.items():
         if isinstance(val, dict):
             tech_regions = val.keys()
+            df.loc[
+                df[tech_col].isna(), "technology_description"
+            ] = "missing_tech_description"
             model_tech_regions = df.loc[
                 snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
                 region_col,
@@ -2782,12 +2790,15 @@ class GeneratorClusters:
         self.pg_engine = pg_engine
         self.settings = settings
         self.current_gens = current_gens
+        if self.settings.get("num_clusters") is None:
+            self.current_gens = False
         self.sort_gens = sort_gens
         self.model_regions_gdf = load_ipm_shapefile(self.settings)
         self.weighted_unit_hr = None
         self.supplement_with_860m = supplement_with_860m
         self.cluster_builder = build_resource_clusters(
-            self.settings.get("RESOURCE_GROUPS")
+            self.settings.get("RESOURCE_GROUPS"),
+            self.settings.get("RESOURCE_GROUP_PROFILES"),
         )
 
         if self.current_gens:
@@ -3283,6 +3294,7 @@ class GeneratorClusters:
         for _, df in region_tech_grouped:
             region, tech = _
             grouped = group_units(df, self.settings)
+            grouped["technology"] = tech
 
             # This is bad. Should be setting up a dictionary of objects that picks the
             # correct clustering method. Can't keep doing if statements as the number of
@@ -3374,8 +3386,10 @@ class GeneratorClusters:
         self.all_units = pd.concat(unit_list, sort=False)
         self.all_units = pd.merge(
             self.units_model,  # .reset_index(),
-            self.all_units.reset_index()[["plant_id_eia", "unit_id_pg", "cluster"]],
-            on=["plant_id_eia", "unit_id_pg"],
+            self.all_units.reset_index()[
+                ["plant_id_eia", "unit_id_pg", "cluster", "technology"]
+            ],
+            on=["plant_id_eia", "unit_id_pg", "technology"],
             how="inner",
         ).merge(
             self.plants_860[["plant_id_eia", "utility_id_eia"]],
@@ -3554,6 +3568,9 @@ class GeneratorClusters:
             self.results["profile"][i] = clusters["profile"][0]
 
         self.results = rename_gen_cols(self.results)
+
+        # Drop old index cols from df
+        self.results.drop(columns=["level_0", "index"], errors="ignore", inplace=True)
 
         return self.results
 
