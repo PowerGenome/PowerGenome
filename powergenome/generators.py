@@ -32,6 +32,7 @@ from powergenome.external_data import (
     demand_response_resource_capacity,
     make_demand_response_profiles,
 )
+from powergenome.financials import investment_cost_calculator
 from powergenome.GenX import rename_gen_cols
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
@@ -40,7 +41,6 @@ from powergenome.nrelatb import (
     fetch_atb_costs,
     fetch_atb_heat_rates,
     fetch_atb_offshore_spur_costs,
-    investment_cost_calculator,
 )
 from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
@@ -2422,7 +2422,10 @@ def calculate_transmission_inv_cost(resource_df, settings, offshore_spur_costs=N
             capex_mw_mile.fillna(0) * resource_df[f"{ttype}_miles"]
         )
         resource_df[f"{ttype}_inv_mwyr"] = investment_cost_calculator(
-            resource_df[f"{ttype}_capex"], params["wacc"], params["investment_years"]
+            resource_df[f"{ttype}_capex"],
+            params["wacc"],
+            params["investment_years"],
+            settings.get("interest_compound_method", "discrete"),
         )
     return resource_df
 

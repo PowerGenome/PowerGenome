@@ -439,6 +439,14 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
             )
             settings["growth_scenario"] = f"REF{load_aeo_year}"
 
+    if not settings.get("interest_compound_method"):
+        logger.info(
+            "The default interest compounding method for calculating annuities has "
+            "changed from continuous to discrete. This method can be set with the parameter "
+            "'interest_compound_method', using values `discrete` or `continuous`.\n"
+            "This message will be removed after version 0.7.0."
+        )
+
 
 def init_pudl_connection(
     freq: str = "AS",

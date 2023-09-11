@@ -14,7 +14,7 @@ from powergenome.external_data import (
     make_generator_variability,
 )
 from powergenome.load_profiles import make_distributed_gen_profiles
-from powergenome.nrelatb import investment_cost_calculator
+from powergenome.financials import investment_cost_calculator
 from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import find_region_col, load_settings, snake_case_col
 
@@ -607,7 +607,12 @@ def network_reinforcement_cost(
             "investment_years. See the `test_settings.yml` file for an example."
         )
     line_inv_cost = (
-        investment_cost_calculator(line_capex, line_wacc, line_inv_period)
+        investment_cost_calculator(
+            line_capex,
+            line_wacc,
+            line_inv_period,
+            settings.get("interest_compound_method", "discrete"),
+        )
         * transmission["distance_mile"]
     )
 

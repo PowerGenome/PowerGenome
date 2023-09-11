@@ -15,6 +15,7 @@ import sqlalchemy
 from joblib import Parallel, delayed
 
 from powergenome.cluster.renewables import assign_site_cluster, calc_cluster_values
+from powergenome.financials import investment_cost_calculator
 from powergenome.params import DATA_PATHS, SETTINGS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import (
@@ -895,23 +896,6 @@ def single_generator_row(
     return row
 
 
-def investment_cost_calculator(capex, wacc, cap_rec_years):
-    capex = np.asarray(capex, dtype=float)
-    wacc = np.asarray(wacc, dtype=float)
-
-    for variable in capex, wacc, cap_rec_years:
-        if np.isnan(variable).any():
-            raise ValueError(f"Investment costs contains nan values")
-
-    inv_cost = capex * (
-        np.exp(wacc * cap_rec_years)
-        * (np.exp(wacc) - 1)
-        / (np.exp(wacc * cap_rec_years) - 1)
-    )
-
-    return inv_cost
-
-
 def regional_capex_multiplier(
     df: pd.DataFrame,
     region: str,
@@ -1194,12 +1178,14 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
             capex=new_gen_df["capex_mw"],
             wacc=new_gen_df["wacc_real"],
             cap_rec_years=new_gen_df["cap_recovery_years"],
+            compound_method=settings.get("interest_compound_method", "discrete"),
         )
 
         new_gen_df["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
             capex=new_gen_df["capex_mwh"],
             wacc=new_gen_df["wacc_real"],
             cap_rec_years=new_gen_df["cap_recovery_years"],
+            compound_method=settings.get("interest_compound_method", "discrete"),
         )
 
         # Set no capacity limit on new resources that aren't renewables.
