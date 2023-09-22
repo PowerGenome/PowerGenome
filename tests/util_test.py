@@ -5,7 +5,7 @@ import logging
 import pytest
 
 import powergenome
-from powergenome.util import apply_all_tag_to_regions
+from powergenome.util import apply_all_tag_to_regions, sort_nested_dict
 
 
 logger = logging.getLogger(powergenome.__name__)
@@ -19,6 +19,25 @@ formatter = logging.Formatter(
 )
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+
+def test_sort_nested_dict():
+    test_dict1 = {"one": 1, "threeee": 3, "twoo": 2}
+    sorted_dict1 = sort_nested_dict(test_dict1)
+    # Here, the keys should be ordered as 'one', 'twoo' and 'threeee'
+    assert list(sorted_dict1.keys()) == ["one", "twoo", "threeee"]
+
+    test_dict2 = {"threeee": {"fourrrrr": 4, "twoo": 2}, "one": 1, "fiveeeee": 5}
+    sorted_dict2 = sort_nested_dict(test_dict2)
+    # Here, the keys at the top level should be ordered as 'one', 'threeee' and 'fiveeeee'
+    assert list(sorted_dict2.keys()) == ["one", "threeee", "fiveeeee"]
+    # And within the dictionary mapped to by 'threeee', the keys should be 'twoo' and 'fourrrrr'
+    assert list(sorted_dict2["threeee"].keys()) == ["twoo", "fourrrrr"]
+
+    test_dict3 = {"a": {"b": 4, "a": 2}, "c": 1, "b": 5}
+    sorted_dict3 = sort_nested_dict(test_dict3)
+    assert list(sorted_dict3.keys()) == ["a", "c", "b"]
+    assert list(sorted_dict3["a"].keys()) == ["b", "a"]
 
 
 def test_apply_all_tag_to_regions(caplog):
