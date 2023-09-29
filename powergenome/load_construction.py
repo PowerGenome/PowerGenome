@@ -220,7 +220,12 @@ def utc_offset_state_load(df: pd.DataFrame, utc_offset: int = 0) -> pd.DataFrame
     return df
 
 
-def state_demand_to_region(df: pd.DataFrame, pop: pd.DataFrame) -> pd.DataFrame:
+def state_demand_to_region(
+    df: pd.DataFrame,
+    pop: pd.DataFrame,
+    on: List[str] = ["state"],
+    by: List[str] = ["time_index", "region"],
+) -> pd.DataFrame:
     """Allocate hourly demand from states to regions based on population proportion
 
     Parameters
@@ -238,9 +243,9 @@ def state_demand_to_region(df: pd.DataFrame, pop: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
         Hourly demand data ("load_mw") grouped by "time_index" and "region"
     """
-    temp = pd.merge(df, pop, on=["state"], how="left")
+    temp = pd.merge(df, pop, on=on, how="left")
     temp["load_mw"] *= temp["state_prop"]
-    temp = temp.groupby(["time_index", "region"], as_index=False)["load_mw"].sum()
+    temp = temp.groupby(by, as_index=False)["load_mw"].sum()
     return temp
 
 
