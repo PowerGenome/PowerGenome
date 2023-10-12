@@ -132,6 +132,16 @@ def parse_command_line(argv):
             "still be separate from new resources."
         ),
     )
+    parser.add_argument(
+        "-c",
+        "--case-id",
+        dest="case_id",
+        nargs="*",
+        help=(
+            "One or more case IDs to select from the scenario inputs file. Only these "
+            "cases will be used."
+        ),
+    )
     arguments = parser.parse_args(argv[1:])
     return arguments
 
@@ -215,6 +225,17 @@ def main(**kwargs):
     scenario_definitions = pd.read_csv(
         input_folder / settings["scenario_definitions_fn"]
     )
+
+    if args.case_id:
+        missing_case_ids = set(args.case_id) - set(scenario_definitions["case_id"])
+        if missing_case_ids:
+            raise ValueError(
+                f"The requested case IDs {missing_case_ids} are not in your scenario "
+                "inputs file."
+            )
+        scenario_definitions = scenario_definitions.loc[
+            scenario_definitions["case_id"].isin(args.case_id), :
+        ]
 
     if set(scenario_definitions["year"]) != set(settings["model_year"]):
         logger.warning(
