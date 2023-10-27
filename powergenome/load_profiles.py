@@ -141,7 +141,7 @@ def make_load_curves(
         if "state" in table_cols:
             path_in = Path(SETTINGS["EFS_DATA"])
             pop_files = path_in.glob("*pop_weight*")
-            newest_pop_file = max(pop_files, key=os.path.getctime)
+            newest_pop_file = max(pop_files, key=os.path.getmtime)
             pop = load_region_pop_frac(path_in=path_in, fn=newest_pop_file.name)
             pop = pop.rename(columns={"region": "demand_region"})
             pop = pop.loc[pop["demand_region"].isin(keep_regions), :]
@@ -671,7 +671,7 @@ def make_final_load_curves(
             *****************************
             """
             logger.warning(s)
-            load_sources = {"EFS": "load_curves_nrel_efs"}
+            load_sources = {"EFS": "load_curves_nrel_efs_state"}
 
         # `filter_load_by_region` is a decorator factory that generates a decorator
         # when given the parameter `load_source`. This decorator creates a wrapper
