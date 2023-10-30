@@ -55,6 +55,7 @@ from powergenome.util import (
     reverse_dict_of_lists,
     snake_case_col,
     snake_case_str,
+    sort_nested_dict,
 )
 
 logger = logging.getLogger(__name__)
@@ -1427,7 +1428,10 @@ def add_genx_model_tags(df, settings):
             settings["generator_columns"].append(tag_col)
 
         try:
-            for tech, tag_value in settings["model_tag_values"][tag_col].items():
+            for tech, tag_value in sorted(
+                settings["model_tag_values"][tag_col].items(),
+                key=lambda item: len(item[0]),
+            ):
                 tech = re.sub(ignored, "", tech)
                 mask = technology.str.contains(rf"^{tech}", case=False)
                 df.loc[mask, tag_col] = tag_value
@@ -1435,7 +1439,9 @@ def add_genx_model_tags(df, settings):
             logger.warning(f"No model tag values found for {tag_col} ({e})")
 
     # Change tags with specific regional values for a technology
-    flat_regional_tags = flatten(settings.get("regional_tag_values", {}) or {})
+    flat_regional_tags = flatten(
+        sort_nested_dict(settings.get("regional_tag_values", {}) or {})
+    )
 
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
