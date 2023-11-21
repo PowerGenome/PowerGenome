@@ -16,7 +16,12 @@ from powergenome.external_data import (
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import investment_cost_calculator
 from powergenome.time_reduction import kmeans_time_clustering
-from powergenome.util import find_region_col, load_settings, snake_case_col
+from powergenome.util import (
+    find_region_col,
+    load_settings,
+    snake_case_col,
+    snake_case_str,
+)
 
 logger = logging.getLogger(__name__)
 
