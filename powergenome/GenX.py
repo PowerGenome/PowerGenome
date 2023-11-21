@@ -392,7 +392,7 @@ def add_misc_gen_values(
             )
     generic_resources = []
     for gen_resource in gen_clusters[resource_col].unique():
-        for r in settings["model_regions"]:
+        for r in sorted(settings["model_regions"])[::-1]:
             if r in gen_resource:
                 gen_resource = gen_resource.replace(r + "_", "")
                 generic_resources.append(gen_resource)
