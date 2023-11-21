@@ -395,7 +395,7 @@ def add_misc_gen_values(
         for r in sorted(settings["model_regions"])[::-1]:
             if r in gen_resource:
                 gen_resource = gen_resource.replace(r + "_", "")
-                generic_resources.append(gen_resource)
+                generic_resources.append(snake_case_str(gen_resource))
                 continue
     generic_resources = set(generic_resources)
     missing_resources = []
@@ -423,7 +423,11 @@ def add_misc_gen_values(
         row_cols = row[value_cols].dropna().index
         gen_clusters.loc[
             (gen_clusters["region"] == row[region_col])
-            & (gen_clusters[resource_col].str.contains(row[resource_col], case=False)),
+            & (
+                snake_case_col(gen_clusters[resource_col]).str.contains(
+                    row[resource_col], case=False
+                )
+            ),
             row_cols,
         ] = row[row_cols].values
     return gen_clusters
