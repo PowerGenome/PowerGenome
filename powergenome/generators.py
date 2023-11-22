@@ -2020,7 +2020,7 @@ def gentype_region_capacity_factor(
     plant_tech_cap = group_generators_at_plant(
         df=plant_gen_tech_cap,
         by=["plant_id_eia", "report_date", "technology_description"],
-        agg_fn={cap_col: "sum"},
+        agg_fn={cap_col: "sum", "capacity_mw": "sum"},
     )
 
     plant_tech_cap = plant_tech_cap.merge(
@@ -2028,7 +2028,12 @@ def gentype_region_capacity_factor(
     )
 
     label_small_hydro(plant_tech_cap, settings, by=["plant_id_eia", "report_date"])
-
+    for tech in settings.get("derate_techs", []):
+        plant_tech_cap.loc[
+            (plant_tech_cap["technology_description"] == tech)
+            & (plant_tech_cap[cap_col] == 0),
+            cap_col,
+        ] = plant_tech_cap["capacity_mw"]
     sql = """
         SELECT
             strftime('%Y', GF.report_date) AS report_date,
