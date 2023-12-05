@@ -457,7 +457,7 @@ def load_plant_region_map(
 
     model_region_map_df = region_map_df.loc[
         region_map_df.region.isin(keep_regions), :
-    ].drop(columns="id")
+    ].drop(columns="id", errors="ignore")
 
     model_region_map_df = map_agg_region_names(
         df=model_region_map_df,
