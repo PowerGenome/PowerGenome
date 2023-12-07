@@ -253,9 +253,14 @@ def main(**kwargs):
     model_regions_gdf = None
     for year in scenario_settings:
         for case_id, _settings in scenario_settings[year].items():
-            case_folder = (
-                out_folder / f"{year}" / f"{case_id}_{year}_{_settings['case_name']}"
-            )
+            if settings.get("case_name"):
+                case_folder = (
+                    out_folder
+                    / f"{year}"
+                    / f"{case_id}_{year}_{_settings['case_name']}"
+                )
+            else:
+                case_folder = out_folder / f"{year}" / f"{case_id}_{year}"
             _settings["extra_outputs"] = case_folder / "extra_outputs"
             _settings["extra_outputs"].mkdir(parents=True, exist_ok=True)
             logger.info(f"Starting year {year} scenario {case_id}\n")
