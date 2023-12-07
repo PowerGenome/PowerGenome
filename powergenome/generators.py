@@ -2925,8 +2925,8 @@ class GeneratorClusters:
                 "for this planning period. No flexible demand resources will be included."
             )
         for resource, parameters in (
-            self.settings["flexible_demand_resources"].get(year, {}).items()
-        ):
+            self.settings["flexible_demand_resources"].get(year, {}) or {}
+        ).items():
             _df = pd.DataFrame(
                 index=self.settings["model_regions"],
                 columns=list(self.settings["generator_columns"]) + ["profile"],
