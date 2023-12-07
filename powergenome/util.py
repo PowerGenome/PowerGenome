@@ -898,8 +898,10 @@ def build_scenario_settings(
             "either the key 'model_periods' (a list of 2-element lists) or the keys "
             "'model_year' and 'model_first_planning_year' (each a list of years)."
         )
-
-    case_id_name_map = build_case_id_name_map(settings)
+    if settings.get("case_id_description_fn"):
+        case_id_name_map = build_case_id_name_map(settings)
+    else:
+        case_id_name_map = None
 
     scenario_settings = {}
     for year in model_planning_period_dict.keys():
@@ -973,7 +975,8 @@ def build_scenario_settings(
 
             _settings["model_first_planning_year"] = model_planning_period_dict[year][0]
             _settings["model_year"] = model_planning_period_dict[year][1]
-            _settings["case_name"] = case_id_name_map[case_id]
+            if settings.get("case_id_description_fn"):
+                _settings["case_name"] = case_id_name_map[case_id]
             scenario_settings[year][case_id] = _settings
 
     return scenario_settings
