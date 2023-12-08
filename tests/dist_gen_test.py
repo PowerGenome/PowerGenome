@@ -1,6 +1,7 @@
 "Test functions for loading distributed generation scenario data"
 
 from pathlib import Path
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -75,6 +76,25 @@ def test_distributed_gen_profiles():
     assert not dg.empty
     assert len(dg.columns) == 2
     assert dg.mean().mean() > 0
+
+    offset = -8
+    dg_offset = distributed_gen_profiles(
+        profile_fn=profile_fn,
+        year=2024,
+        scenario=scenario,
+        regions=["WECC_PNW", "WECC_SNV", "WECC_NNV"],
+        path_in=DATA_FOLDER,
+        region_aggregations={"NV": ["WECC_SNV", "WECC_NNV"]},
+        tz_offset=offset,
+    )
+    assert not dg_offset.empty
+    assert len(dg_offset.columns) == 2
+    assert dg_offset.mean().mean() > 0
+
+    test_hour = 12
+    assert np.allclose(
+        dg.loc[test_hour - offset, :].mean(), dg_offset.loc[test_hour, :].mean()
+    )
 
     with pytest.raises(ValueError):
         dg = distributed_gen_profiles(

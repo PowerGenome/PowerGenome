@@ -777,6 +777,7 @@ def make_distributed_gen_profiles(pg_engine, settings):
             regions,
             settings.get("DISTRIBUTED_GEN_DATA"),
             settings.get("region_aggregations"),
+            settings.get("utc_offset"),
         )
         return dg_profiles
 

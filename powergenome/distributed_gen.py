@@ -3,6 +3,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List
+import numpy as np
 
 import pandas as pd
 import pyarrow.parquet as pq
@@ -70,6 +71,7 @@ def distributed_gen_profiles(
     regions: List[str],
     path_in: Path,
     region_aggregations: Dict[str, str] = None,
+    tz_offset: int = None,
 ) -> pd.DataFrame:
     """Build distributed generation profiles for each region
 
@@ -90,6 +92,9 @@ def distributed_gen_profiles(
     region_aggregations : Dict[str, str]
         Mapping of region aggregations from base regions to model regions (where used),
         by default None
+    tz_offset: int
+        Number of hours offset from the original data, by default None. If None, the
+        original data will not be modified.
 
     Returns
     -------
@@ -235,4 +240,10 @@ def distributed_gen_profiles(
         )["region_distpv_mwh"].sum()
         region_scenario_profile = region_scenario_profile.unstack()
 
+    # Adjust for timezone
+    if tz_offset is not None:
+        for col in region_scenario_profile.columns:
+            region_scenario_profile[col] = np.roll(
+                region_scenario_profile[col], tz_offset
+            )
     return region_scenario_profile.reset_index(drop=True)
