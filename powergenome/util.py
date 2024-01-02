@@ -681,7 +681,7 @@ def update_dictionary(d: dict, u: dict) -> dict:
     ):
         raise TypeError("Inputs must be dictionaries")
 
-    for k, v in sorted(u.items(), key=lambda item: len(item[0])):
+    for k, v in sorted(u.items(), key=lambda item: len(str(item[0]))):
         if isinstance(d, collections.abc.Mapping):
             if isinstance(v, collections.abc.Mapping):
                 r = update_dictionary(d.get(k, {}), v)
@@ -690,7 +690,7 @@ def update_dictionary(d: dict, u: dict) -> dict:
                 d[k] = u[k]
         else:
             d = {k: u[k]}
-    return dict(sorted(d.items(), key=lambda item: len(item[0])))
+    return dict(sorted(d.items(), key=lambda item: len(str(item[0]))))
 
 
 def remove_fuel_scenario_name(df, settings):

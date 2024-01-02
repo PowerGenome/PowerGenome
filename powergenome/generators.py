@@ -1430,7 +1430,7 @@ def add_genx_model_tags(df, settings):
         try:
             for tech, tag_value in sorted(
                 settings["model_tag_values"][tag_col].items(),
-                key=lambda item: len(item[0]),
+                key=lambda item: len(str(item[0])),
             ):
                 tech = re.sub(ignored, "", tech)
                 mask = technology.str.contains(rf"^{tech}", case=False)
