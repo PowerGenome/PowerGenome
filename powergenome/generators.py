@@ -934,6 +934,67 @@ def remove_retired_860m(df, retired_860m):
     return not_retired_df.reset_index(drop=True)
 
 
+def update_planned_retirement_date_860m(
+    df: pd.DataFrame, operating_860m: pd.DataFrame
+) -> pd.DataFrame:
+    """Update the planned retirement date in the main dataframe using the planned
+    retirement year column from 860m existing generators.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Main dataframe of generators from EIA 860. Must have columns "plant_id_eia",
+        "generator_id", and "planned_retirement_date", which should be in a datatime format.
+    operating_860m : pd.DataFrame
+        Dataframe of operating generators from EIA 860m. Must have columns "plant_id_eia",
+        "generator_id", and "planned_retirement_year"
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified version of "df" dataframe, with updated values in column
+        "planned_retirement_date" based on EIA-860m.
+    """
+    if "planned_retirement_date" not in df.columns:
+        logger.warning(
+            "The main generators dataframe from EIA 860 does not have a column "
+            "'planned_retirement_date'. If this column is missing all retirement dates "
+            "will be based on plant age."
+        )
+        return df
+    if "planned_retirement_year" not in operating_860m.columns:
+        logger.warning(
+            "The EIA-860m existing dataframe does not have a column 'planned_retirement_year'."
+            "Check the 860m file to see if it has been renamed. No values from the original "
+            "860 data will be changed."
+        )
+        return df
+    if df.empty or operating_860m.empty:
+        return df
+    _df = df.set_index(["plant_id_eia", "generator_id"])
+    _operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
+    _operating_860m["planned_retirement_date_860m"] = pd.to_datetime(
+        _operating_860m["planned_retirement_year"], format="%Y"
+    )
+    update_df = pd.merge(
+        _df,
+        _operating_860m[["planned_retirement_date_860m"]],
+        how="inner",
+        left_index=True,
+        right_index=True,
+    )
+    mask = update_df.loc[
+        update_df["planned_retirement_date"].dt.year.fillna(9999)
+        != update_df["planned_retirement_date_860m"].dt.year.fillna(9999),
+        :,
+    ].index
+    _df.loc[mask, "planned_retirement_date"] = update_df.loc[
+        mask, "planned_retirement_date_860m"
+    ]
+
+    return _df.reset_index()
+
+
 def remove_future_retirements_860m(df, retired_860m):
     """Remove generators that 860m shows as having been retired
 
@@ -3045,6 +3106,7 @@ class GeneratorClusters:
             )
             .pipe(remove_canceled_860m, self.canceled_860m)
             .pipe(remove_retired_860m, self.retired_860m)
+            .pipe(update_planned_retirement_date_860m, self.operating_860m.copy())
             .pipe(update_operating_date_860m, self.operating_860m.copy())
             .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
             .pipe(
@@ -3276,15 +3338,31 @@ class GeneratorClusters:
                 ].items():
                     num_clusters[region][tech] = cluster_size
 
-        region_tech_grouped = self.units_model.loc[
-            (self.units_model.technology.isin(techs))
-            & ~(self.units_model.retirement_year <= self.settings["model_year"]),
-            :,
-        ].groupby(["model_region", "technology"])
-
         self.retired = self.units_model.loc[
             ~(self.units_model.retirement_year > self.settings["model_year"]), :
         ]
+        self.retired_index = self.retired.set_index(
+            ["plant_id_eia", "unit_id_pg"]
+        ).index
+        if self.settings.get("cluster_with_retired_gens", False) is True:
+            logger.info(
+                "\n\nAge-retired gens are included for clustering to keep consistent "
+                "cluster assignments across periods. \n\n"
+            )
+            region_tech_grouped = self.units_model.loc[
+                self.units_model.technology.isin(techs), :
+            ].groupby(["model_region", "technology"])
+        else:
+            logger.info(
+                "\n\nAge-retired gens are NOT included for clustering. This may lead to "
+                "inconsistent cluster assignments across periods. If you want to change "
+                "this behavior, add 'cluster_with_retired_gens: true' to your settings.\n\n"
+            )
+            region_tech_grouped = self.units_model.loc[
+                (self.units_model.technology.isin(techs))
+                & ~(self.units_model.retirement_year <= self.settings["model_year"]),
+                :,
+            ].groupby(["model_region", "technology"])
 
         # gens_860 lost the ownership code... refactor this!
         # self.all_gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
@@ -3309,18 +3387,23 @@ class GeneratorClusters:
             # correct clustering method. Can't keep doing if statements as the number of
             # methods grows. CHANGE LATER.
             if not alt_cluster_method:
-                # Allow users to set value as None and not cluster units.
-                if num_clusters[region][tech] is None:
+                # Allow users to set value as None and not cluster units, or when the
+                # num clusters is equal to the number of units.
+                if num_clusters[region][tech] is None or num_clusters[region][
+                    tech
+                ] == len(grouped):
+                    grouped = grouped.loc[~grouped.index.isin(self.retired_index), :]
                     grouped["cluster"] = np.arange(len(grouped)) + 1
                     unit_list.append(grouped)
-                    _df = calc_unit_cluster_values(
-                        grouped, self.settings["capacity_col"], tech
-                    )
-                    _df["region"] = region
+                    if not grouped.empty:
+                        _df = calc_unit_cluster_values(
+                            grouped, self.settings["capacity_col"], tech
+                        )
+                        _df["region"] = region
 
-                    self.cluster_list.append(_df)
-                    continue
-                if num_clusters[region][tech] > 0:
+                        self.cluster_list.append(_df)
+                        continue
+                elif num_clusters[region][tech] > 0:
                     cluster_cols = [
                         "Fixed_OM_Cost_per_MWyr",
                         # "Var_OM_Cost_per_MWh",
@@ -3378,18 +3461,25 @@ class GeneratorClusters:
 
             # Don't add technologies with specified 0 clusters
             if num_clusters[region][tech] != 0:
-                _df = calc_unit_cluster_values(
-                    grouped, self.settings["capacity_col"], tech
-                )
-                _df["region"] = region
-                _df["plant_id_eia"] = (
-                    grouped.reset_index().groupby("cluster")["plant_id_eia"].apply(list)
-                )
-                _df["unit_id_pg"] = (
-                    grouped.reset_index().groupby("cluster")["unit_id_pg"].apply(list)
-                )
+                # Remove retired units before calculating cluster operating values
+                grouped = grouped.loc[~grouped.index.isin(self.retired_index), :]
+                if not grouped.empty:
+                    _df = calc_unit_cluster_values(
+                        grouped, self.settings["capacity_col"], tech
+                    )
+                    _df["region"] = region
+                    _df["plant_id_eia"] = (
+                        grouped.reset_index()
+                        .groupby("cluster")["plant_id_eia"]
+                        .apply(list)
+                    )
+                    _df["unit_id_pg"] = (
+                        grouped.reset_index()
+                        .groupby("cluster")["unit_id_pg"]
+                        .apply(list)
+                    )
 
-                self.cluster_list.append(_df)
+                    self.cluster_list.append(_df)
 
         # Save some data about individual units for easy access
         self.all_units = pd.concat(unit_list, sort=False)
