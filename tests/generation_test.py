@@ -488,7 +488,7 @@ def test_existing_gen_profiles():
         eia_data_years=[2020],
         capacity_col="capacity_mw",
         num_clusters={tech: 2 for tech in technologies},
-        retirement_ages={tech: 200 for tech in technologies},
+        retirement_ages={tech: 30 for tech in technologies},
         atb_data_year=2022,
         atb_existing_year=2020,
         fuel_eia_aeo_year=2022,
@@ -573,13 +573,24 @@ def test_existing_gen_profiles():
             "Natural Gas Steam Turbine": "gas_steam",
             "Nuclear": "nuclear",
         },
+        proposed_status_included=["VS", "TS"],
     )
     gc = GeneratorClusters(
-        pudl_engine, pudl_out, pg_engine, settings, supplement_with_860m=False
+        pudl_engine, pudl_out, pg_engine, settings.copy(), supplement_with_860m=False
     )
     existing_gen = gc.create_region_technology_clusters()
     gen_variability = make_generator_variability(existing_gen)
     assert (gen_variability >= 0).all().all()
+
+    gc_retire_cluster = GeneratorClusters(
+        pudl_engine, pudl_out, pg_engine, settings.copy(), supplement_with_860m=False
+    )
+    gc_retire_cluster.settings["cluster_with_retired_gens"] = True
+    existing_gen_retire_cluster = gc_retire_cluster.create_region_technology_clusters()
+    assert not existing_gen.equals(existing_gen_retire_cluster) and np.allclose(
+        existing_gen["Existing_Cap_MW"].sum(),
+        existing_gen_retire_cluster["Existing_Cap_MW"].sum(),
+    )
 
 
 def test_cap_req():
