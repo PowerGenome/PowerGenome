@@ -52,6 +52,7 @@ from powergenome.generators import (
     load_860m,
     GeneratorClusters,
     energy_storage_mwh,
+    update_planned_retirement_date_860m,
 )
 from powergenome.load_profiles import (
     add_load_growth,
@@ -919,3 +920,255 @@ def test_remove_leading_zeros():
 
     s = "GEN1"
     assert remove_leading_zero(s) == "GEN1"
+
+
+def test_update_planned_retirement_date_860m():
+    # Matching data
+    df = pd.DataFrame(
+        {
+            "plant_id_eia": [1, 2, 3],
+            "generator_id": [1, 2, 3],
+            "planned_retirement_date": ["2022-01-01", np.nan, "2024-01-01"],
+        }
+    )
+    df["planned_retirement_date"] = pd.to_datetime(
+        df["planned_retirement_date"]
+    )  # Recommended Fix
+    operating_860m = pd.DataFrame(
+        {
+            "plant_id_eia": [1, 2, 3],
+            "generator_id": [1, 2, 3],
+            "planned_retirement_year": [2022, np.nan, 2024],
+        }
+    )
+
+    # Act
+    result = update_planned_retirement_date_860m(df, operating_860m)
+
+    # Assert
+    assert result.reset_index(drop=True).equals(df)
+
+    # Not matching dates
+    df = pd.DataFrame(
+        {
+            "plant_id_eia": [1, 2, 3],
+            "generator_id": [1, 2, 3],
+            "planned_retirement_date": ["2040-01-01", np.nan, "2024-01-01"],
+        }
+    )
+    df["planned_retirement_date"] = pd.to_datetime(
+        df["planned_retirement_date"]
+    )  # Recommended Fix
+    operating_860m = pd.DataFrame(
+        {
+            "plant_id_eia": [1, 2, 3],
+            "generator_id": [1, 2, 3],
+            "planned_retirement_year": [2022, np.nan, 2024],
+        }
+    )
+
+    # Act
+    result = update_planned_retirement_date_860m(df, operating_860m)
+
+    # Assert
+    assert result.reset_index(drop=True).equals(df)
+
+    # Missing retirement date column
+    # Arrange
+    df = pd.DataFrame(
+        {
+            "plant_id_eia": [1, 2, 3],
+            "generator_id": [1, 2, 3],
+            "other_column": ["A", "B", "C"],
+        }
+    )
+    operating_860m = pd.DataFrame(
+        {
+            "plant_id_eia": [1, 2, 3],
+            "generator_id": [1, 2, 3],
+            "planned_retirement_year": [2022, 2023, 2024],
+        }
+    )
+
+    # Act
+    result = update_planned_retirement_date_860m(df, operating_860m)
+
+    # Assert
+    assert result.equals(df)
+
+
+class TestUpdatePlannedRetirementDate860m:
+    # Function called with valid input data
+    def test_same_input_data(self):
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_date": ["2022-01-01", np.nan, "2024-01-01"],
+            }
+        )
+        df["planned_retirement_date"] = pd.to_datetime(
+            df["planned_retirement_date"]
+        )  # Recommended Fix
+        operating_860m = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_year": [2022, np.nan, 2024],
+            }
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.reset_index(drop=True).equals(df)
+
+    def test_update_data(self):
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_date": ["2022-01-01", "2023-01-01", "2024-01-01"],
+            }
+        )
+        df["planned_retirement_date"] = pd.to_datetime(
+            df["planned_retirement_date"]
+        )  # Recommended Fix
+        operating_860m = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_year": [
+                    2022,
+                    2023,
+                    2025,
+                ],  # Changed value from 2024 to 2025
+            }
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        expected_df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_date": [
+                    "2022-01-01",
+                    "2023-01-01",
+                    "2025-01-01",
+                ],  # Updated retirement date for the third generator
+            }
+        )
+        expected_df["planned_retirement_date"] = pd.to_datetime(
+            expected_df["planned_retirement_date"]
+        )
+        assert result.reset_index(drop=True).equals(expected_df)
+
+    # "planned_retirement_date" column exists in df
+    def test_missing_planned_retirement_date_column(self):
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "other_column": ["A", "B", "C"],
+            }
+        )
+        operating_860m = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_year": [2022, 2023, 2024],
+            }
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.equals(df)
+
+    # "planned_retirement_year" column exists in operating_860m
+    def test_missing_planned_retirement_year_column(self):
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_date": ["2022-01-01", "2023-01-01", "2024-01-01"],
+            }
+        )
+        operating_860m = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "other_column": ["A", "B", "C"],
+            }
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.equals(df)
+
+    # df is empty
+    def test_empty_df(self):
+        # Arrange
+        df = pd.DataFrame(
+            columns=["plant_id_eia", "generator_id", "planned_retirement_date"]
+        )
+        operating_860m = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_year": [2022, 2023, 2024],
+            }
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.empty
+
+    # operating_860m is empty
+    def test_empty_operating_860m(self):
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_date": ["2022-01-01", "2023-01-01", "2024-01-01"],
+            }
+        )
+        operating_860m = pd.DataFrame(
+            columns=["plant_id_eia", "generator_id", "planned_retirement_year"]
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.equals(df)
+
+    # df and operating_860m are empty
+    def test_empty_df_and_operating_860m(self):
+        # Arrange
+        df = pd.DataFrame(
+            columns=["plant_id_eia", "generator_id", "planned_retirement_date"]
+        )
+        operating_860m = pd.DataFrame(
+            columns=["plant_id_eia", "generator_id", "planned_retirement_year"]
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.empty
