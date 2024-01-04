@@ -3276,15 +3276,31 @@ class GeneratorClusters:
                 ].items():
                     num_clusters[region][tech] = cluster_size
 
-        region_tech_grouped = self.units_model.loc[
-            (self.units_model.technology.isin(techs))
-            & ~(self.units_model.retirement_year <= self.settings["model_year"]),
-            :,
-        ].groupby(["model_region", "technology"])
-
         self.retired = self.units_model.loc[
             ~(self.units_model.retirement_year > self.settings["model_year"]), :
         ]
+        self.retired_index = self.retired.set_index(
+            ["plant_id_eia", "unit_id_pg"]
+        ).index
+        if self.settings.get("cluster_with_retired_gens", False) is True:
+            logger.info(
+                "\n\nAge-retired gens are included for clustering to keep consistent "
+                "cluster assignments across periods. \n\n"
+            )
+            region_tech_grouped = self.units_model.loc[
+                self.units_model.technology.isin(techs), :
+            ].groupby(["model_region", "technology"])
+        else:
+            logger.info(
+                "\n\nAge-retired gens are NOT included for clustering. This may lead to "
+                "inconsistent cluster assignments across periods. If you want to change "
+                "this behavior, add 'cluster_with_retired_gens: true' to your settings.\n\n"
+            )
+            region_tech_grouped = self.units_model.loc[
+                (self.units_model.technology.isin(techs))
+                & ~(self.units_model.retirement_year <= self.settings["model_year"]),
+                :,
+            ].groupby(["model_region", "technology"])
 
         # gens_860 lost the ownership code... refactor this!
         # self.all_gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
@@ -3309,18 +3325,23 @@ class GeneratorClusters:
             # correct clustering method. Can't keep doing if statements as the number of
             # methods grows. CHANGE LATER.
             if not alt_cluster_method:
-                # Allow users to set value as None and not cluster units.
-                if num_clusters[region][tech] is None:
+                # Allow users to set value as None and not cluster units, or when the
+                # num clusters is equal to the number of units.
+                if num_clusters[region][tech] is None or num_clusters[region][
+                    tech
+                ] == len(grouped):
+                    grouped = grouped.loc[~grouped.index.isin(self.retired_index), :]
                     grouped["cluster"] = np.arange(len(grouped)) + 1
                     unit_list.append(grouped)
-                    _df = calc_unit_cluster_values(
-                        grouped, self.settings["capacity_col"], tech
-                    )
-                    _df["region"] = region
+                    if not grouped.empty:
+                        _df = calc_unit_cluster_values(
+                            grouped, self.settings["capacity_col"], tech
+                        )
+                        _df["region"] = region
 
-                    self.cluster_list.append(_df)
-                    continue
-                if num_clusters[region][tech] > 0:
+                        self.cluster_list.append(_df)
+                        continue
+                elif num_clusters[region][tech] > 0:
                     cluster_cols = [
                         "Fixed_OM_Cost_per_MWyr",
                         # "Var_OM_Cost_per_MWh",
@@ -3378,18 +3399,25 @@ class GeneratorClusters:
 
             # Don't add technologies with specified 0 clusters
             if num_clusters[region][tech] != 0:
-                _df = calc_unit_cluster_values(
-                    grouped, self.settings["capacity_col"], tech
-                )
-                _df["region"] = region
-                _df["plant_id_eia"] = (
-                    grouped.reset_index().groupby("cluster")["plant_id_eia"].apply(list)
-                )
-                _df["unit_id_pg"] = (
-                    grouped.reset_index().groupby("cluster")["unit_id_pg"].apply(list)
-                )
+                # Remove retired units before calculating cluster operating values
+                grouped = grouped.loc[~grouped.index.isin(self.retired_index), :]
+                if not grouped.empty:
+                    _df = calc_unit_cluster_values(
+                        grouped, self.settings["capacity_col"], tech
+                    )
+                    _df["region"] = region
+                    _df["plant_id_eia"] = (
+                        grouped.reset_index()
+                        .groupby("cluster")["plant_id_eia"]
+                        .apply(list)
+                    )
+                    _df["unit_id_pg"] = (
+                        grouped.reset_index()
+                        .groupby("cluster")["unit_id_pg"]
+                        .apply(list)
+                    )
 
-                self.cluster_list.append(_df)
+                    self.cluster_list.append(_df)
 
         # Save some data about individual units for easy access
         self.all_units = pd.concat(unit_list, sort=False)
