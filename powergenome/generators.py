@@ -934,6 +934,67 @@ def remove_retired_860m(df, retired_860m):
     return not_retired_df.reset_index(drop=True)
 
 
+def update_planned_retirement_date_860m(
+    df: pd.DataFrame, operating_860m: pd.DataFrame
+) -> pd.DataFrame:
+    """Update the planned retirement date in the main dataframe using the planned
+    retirement year column from 860m existing generators.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Main dataframe of generators from EIA 860. Must have columns "plant_id_eia",
+        "generator_id", and "planned_retirement_date", which should be in a datatime format.
+    operating_860m : pd.DataFrame
+        Dataframe of operating generators from EIA 860m. Must have columns "plant_id_eia",
+        "generator_id", and "planned_retirement_year"
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified version of "df" dataframe, with updated values in column
+        "planned_retirement_date" based on EIA-860m.
+    """
+    if "planned_retirement_date" not in df.columns:
+        logger.warning(
+            "The main generators dataframe from EIA 860 does not have a column "
+            "'planned_retirement_date'. If this column is missing all retirement dates "
+            "will be based on plant age."
+        )
+        return df
+    if "planned_retirement_year" not in operating_860m.columns:
+        logger.warning(
+            "The EIA-860m existing dataframe does not have a column 'planned_retirement_year'."
+            "Check the 860m file to see if it has been renamed. No values from the original "
+            "860 data will be changed."
+        )
+        return df
+    if df.empty or operating_860m.empty:
+        return df
+    _df = df.set_index(["plant_id_eia", "generator_id"])
+    _operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
+    _operating_860m["planned_retirement_date_860m"] = pd.to_datetime(
+        _operating_860m["planned_retirement_year"], format="%Y"
+    )
+    update_df = pd.merge(
+        _df,
+        _operating_860m[["planned_retirement_date_860m"]],
+        how="inner",
+        left_index=True,
+        right_index=True,
+    )
+    mask = update_df.loc[
+        update_df["planned_retirement_date"].dt.year.fillna(9999)
+        != update_df["planned_retirement_date_860m"].dt.year.fillna(9999),
+        :,
+    ].index
+    _df.loc[mask, "planned_retirement_date"] = update_df.loc[
+        mask, "planned_retirement_date_860m"
+    ]
+
+    return _df.reset_index()
+
+
 def remove_future_retirements_860m(df, retired_860m):
     """Remove generators that 860m shows as having been retired
 
@@ -3045,6 +3106,7 @@ class GeneratorClusters:
             )
             .pipe(remove_canceled_860m, self.canceled_860m)
             .pipe(remove_retired_860m, self.retired_860m)
+            .pipe(update_planned_retirement_date_860m, self.operating_860m.copy())
             .pipe(update_operating_date_860m, self.operating_860m.copy())
             .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
             .pipe(
