@@ -3628,6 +3628,17 @@ class GeneratorClusters:
             + "_"
             + self.results["cluster"].astype(str)
         )
+        if self.results["Resource"].nunique() != len(self.results):
+            dup_resources = (
+                self.results[self.results["Resource"].duplicated()]
+                .drop_duplicates()
+                .to_list()
+            )
+            raise ValueError(
+                f"The generator resource names {dup_resources} have duplicates. These "
+                "names should be unique. You'll probably need to file an issue for this "
+                "at https://github.com/PowerGenome/PowerGenome/issues."
+            )
 
         # Add variable resource profiles
         self.results = self.results.reset_index(drop=True)
