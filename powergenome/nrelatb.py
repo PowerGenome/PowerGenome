@@ -417,10 +417,32 @@ def atb_fixed_var_om_existing(
     existing_year = settings["atb_existing_year"]
 
     techs = {}
+    missing_techs = []
     for eia, atb in settings["eia_atb_tech_map"].items():
         if not isinstance(atb, list):
             atb = [atb]
-        techs[eia] = atb[0].split("_")
+        missing = True
+        for tech_detail in atb:
+            tech, detail = tech_detail.split("_")
+            if not atb_hr_df.query(
+                "technology == @tech and tech_detail == @detail"
+            ).empty:
+                techs[eia] = [tech, detail]
+                missing = False
+                break
+        if missing is True and eia in results["technology"].unique():
+            missing_techs.append(eia)
+
+        # techs[eia] = atb[0].split("_")
+    if missing_techs:
+        s = (
+            f"The EIA technologies {missing_techs} do not have an ATB counterpart with a "
+            "valid heat rate. Not all ATB technologies *should* have a valid heat rate "
+            "(e.g. wind, solar, and hydro). Check the 'eia_atb_tech_map' parameter in your "
+            "settings file(s) if you think one of these technologies should be mapped to "
+            "an ATB technology with a valid heat rate."
+        )
+        logger.warning(s)
 
     target_usd_year = settings["target_usd_year"]
     simple_o_m = {
