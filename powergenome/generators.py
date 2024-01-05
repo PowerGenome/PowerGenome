@@ -1398,7 +1398,7 @@ def calc_unit_cluster_values(
         Aggragate values for generators in a technology cluster
     """
     # if not clustering units no need to calulate cluster average values
-    if df["cluster"].max() == len(df):
+    if df["cluster"].nunique() == len(df):
         df["Min_Power"] = df["minimum_load_mw"] / df[capacity_col]
         df["num_units"] = 1
         if technology:
