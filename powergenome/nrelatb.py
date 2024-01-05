@@ -641,7 +641,7 @@ def calc_om(
     except (ValueError, TypeError, KeyError):
         # Not all technologies have a heat rate. If they don't, just set both values
         # to 10.34 (33% efficiency)
-        df["heat_rate_mmbtu_mwh"] = 10.34
+        df.loc[df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"] = 10.34
         new_build_hr = 10.34
 
     try:
