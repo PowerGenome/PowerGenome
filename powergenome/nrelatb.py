@@ -444,6 +444,58 @@ def atb_fixed_var_om_existing(
         )
         logger.warning(s)
 
+    # Find valid ATB tech/tech_details with O&M costs where heat rate was missing.
+    s = """
+            SELECT
+            technology,
+            tech_detail
+        FROM
+            technology_costs_nrelatb
+        WHERE
+            basis_year == ?
+            AND financial_case == "Market"
+            AND cost_case in("Mid", "Moderate")
+            AND atb_year == ?
+            AND parameter in("variable_o_m_mwh", "fixed_o_m_mw")
+    """
+    params = [existing_year, settings["atb_data_year"]]
+    atb_om_names = pd.read_sql_query(
+        s,
+        pg_engine,
+        params=params,
+    ).drop_duplicates()
+    _missing_techs = missing_techs.copy()
+    for eia_tech in missing_techs:
+        atb = settings["eia_atb_tech_map"][eia_tech]
+        if not isinstance(atb, list):
+            atb = [atb]
+        missing = True
+        for tech_detail in atb:
+            tech, detail = tech_detail.split("_")
+            if (
+                not atb_om_names.query(
+                    "technology == @tech and tech_detail == @detail"
+                ).empty
+                and missing is True
+            ):
+                techs[eia_tech] = [tech, detail]
+                missing = False
+                # break
+        if missing is False:
+            _missing_techs.remove(eia_tech)
+        elif missing is True and eia_tech in results["technology"].unique():
+            techs[eia_tech] = atb[0].split("_")
+        # else:
+        #     techs[eia_tech] = atb[0].split("_")
+    if _missing_techs:
+        s = (
+            f"The EIA technologies {_missing_techs} do not have an ATB counterpart with "
+            "valid fixed or variable O&M costs. All ATB technologies *should* have valid "
+            "fixed/variable O&M costs. Check the 'eia_atb_tech_map' parameter in your "
+            "settings file(s)."
+        )
+        logger.warning(s)
+
     target_usd_year = settings["target_usd_year"]
     simple_o_m = {
         "Natural Gas Steam Turbine": {
