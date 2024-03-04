@@ -215,7 +215,7 @@ def adjust_ccs_fuels(
                 "You did not specify a CCS disposal cost, so it will be set to $0. "
                 "Set a non-zero value with the settings parameter 'ccs_disposal_cost'."
             )
-            disposal_cost = 0
+            ccs_disposal_cost = 0
 
         capture_rate = ccs_capture_rate.get(base_fuel_name, 0)
 
