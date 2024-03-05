@@ -3,6 +3,7 @@ Flexible methods to cluster/aggregate renewable projects
 """
 import logging
 from functools import lru_cache
+import operator
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
@@ -281,6 +282,7 @@ def min_capacity_mw(
 
 def calc_cluster_values(
     df: pd.DataFrame,
+    group: List[str] = None,
     sums: List[str] = MERGE["sums"],
     means: List[str] = MERGE["means"],
     weight: str = MERGE["weight"],
@@ -306,6 +308,10 @@ def calc_cluster_values(
 
     _df["profile"] = [profile]
     _df["cluster"] = df["cluster"].values[0]
+    for g in group or []:
+        _df["cluster"] = (
+            str(_df["cluster"][0]) + f"_{g}:" + str(df[snake_case_str(g)].iloc[0])
+        )
 
     return _df
 
@@ -564,3 +570,85 @@ def num_bins_from_capacity(data: pd.DataFrame, b: Dict[str, int]) -> Dict[str, i
         del b["mw_per_q"]
 
     return b
+
+
+def modify_renewable_group(
+    df: pd.DataFrame, group_modifiers: List[Dict[str, Union[float, str, list]]] = None
+) -> pd.DataFrame:
+    """Modify values (e.g. cost) of a rewnewables cluster based on group membership.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Clustered renewable sites with averaged parameters like cost and profile. Must
+        have column "cluster".
+    group_modifiers : List[Dict[str, Union[float, str, list]]], optional
+        List of dicts. Each must have keys "group" and "group_value". Any other keys should
+         correspond to a column in `df` such as "capex_mw", "Inv_Cost_per_MW", etc. The
+         values for these keys should either be a 2-item list with an operator and a value
+         or a single numeric value.
+
+         Rows of `df` are identified by string matching f"{group}:{group_value}" on the
+         "cluster" column.
+
+         By default None
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified version of input df. No change in columns.
+
+    Raises
+    ------
+    KeyError
+        One dictionary in group_modifiers is missing either "group" or "group_value" keys
+    ValueError
+        The operator list is not a 2-item list. Must be 2 items (operator and value)
+    ValueError
+        The operator is not in the valid list (["add", "mul", "truediv", "sub"])
+    """
+    allowed_operators = ["add", "mul", "truediv", "sub"]
+    for _group_mod in group_modifiers or []:
+        group_mod = _group_mod.copy()
+        missing_keys = [
+            k for k in ["group", "group_value"] if k not in group_mod.keys()
+        ]
+        if missing_keys:
+            raise KeyError(
+                f"One of your 'renewables_clusters' has a 'group_modifiers' key but is "
+                f"missing the key(s) {missing_keys}. These are required to modify values "
+                "of a renewables cluster. Add these keys or remove the 'group_modifiers' "
+                "section."
+            )
+
+        group = group_mod.pop("group")
+        group_value = group_mod.pop("group_value")
+        group_id = f"{group}:{group_value}"
+        # for group, mod in (group_modifiers or {}).items():
+        for key, op_list in group_mod.items():
+            if isinstance(op_list, float) | isinstance(op_list, int):
+                df.loc[df["cluster"].str.contains(group_id, case=False), key] = op_list
+            else:
+                if len(op_list) != 2:
+                    raise ValueError(
+                        "Either a single numeric value or a list of two values - an operator "
+                        "and a numeric value - are needed in the parameter "
+                        f"'{key}' whenever 'group_modifiers' are used in 'renewables_clusters'. "
+                        f"One of your 'group_modifiers' has {op_list} instead."
+                    )
+                op, op_value = op_list
+                if op not in allowed_operators:
+                    raise ValueError(
+                        f"One of the 'group_modifiers' in your 'renewables_clusters' with key "
+                        f"{key} has {op} as the mathmatical operator. Only {allowed_operators} "
+                        "in the format [<operator>, <value>] can be used to modify the "
+                        "properties of a renewable cluster.\n"
+                    )
+                f = operator.attrgetter(op)
+                df.loc[df["cluster"].str.contains(group_id, case=False), key] = f(
+                    operator
+                )(
+                    df.loc[df["cluster"].str.contains(group_id, case=False), key],
+                    op_value,
+                )
+    return df
