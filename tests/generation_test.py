@@ -1,4 +1,5 @@
 """Test functions in generation.py"""
+
 import logging
 import sqlite3
 import os
@@ -21,7 +22,7 @@ from powergenome.GenX import (
     set_int_cols,
 )
 from powergenome.eia_opendata import add_user_fuel_prices
-from powergenome.external_data import make_generator_variability
+from powergenome.external_data import load_policy_scenarios, make_generator_variability
 
 from powergenome.fuels import fuel_cost_table
 from powergenome.nrelatb import db_col_values
@@ -728,9 +729,9 @@ def test_flex_resources(CA_AZ_settings):
     CA_AZ_settings["model_year"] = 2035
     CA_AZ_settings["model_first_planning_year"] = 2030
     CA_AZ_settings["electrification_stock_fn"] = "EFS_STOCK_AGG.parquet"
-    CA_AZ_settings[
-        "electrification_scenario"
-    ] = "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
+    CA_AZ_settings["electrification_scenario"] = (
+        "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
+    )
     CA_AZ_settings["flexible_demand_resources"] = {
         2035: {
             "trans_light_duty": {
@@ -1097,3 +1098,77 @@ class TestUpdatePlannedRetirementDate860m:
 
         # Assert
         assert result.empty
+
+
+def test_load_policy_with_columns(tmp_path):
+    # Prepare
+    settings = {
+        "input_folder": str(tmp_path),
+        "emission_policies_fn": "policy_file.csv",
+        "case_id": "test_case",
+    }
+    # Create the policy file
+    policy_file = tmp_path / "policy_file.csv"
+    policy_file.write_text("case_id,year\n1,2021\n2,2022\n")
+    # Invoke
+    result = load_policy_scenarios(settings)
+    # Assert
+    assert isinstance(result, pd.DataFrame)
+    assert "case_id" in result.index.names
+    assert "year" in result.index.names
+
+
+def test_load_policy_missing_case_id(tmp_path):
+    # Prepare
+    settings = {
+        "input_folder": str(tmp_path),
+        "emission_policies_fn": "policy_file.csv",
+        "case_id": "test_case",
+    }
+    # Create the policy file
+    policy_file = tmp_path / "policy_file.csv"
+    policy_file.write_text("year\n2021\n2022\n")
+    # Invoke
+    result = load_policy_scenarios(settings)
+    # Assert
+    assert isinstance(result, pd.DataFrame)
+    assert "case_id" in result.index.names
+    result = result.reset_index()
+    assert result["case_id"].nunique() == 1
+    assert result["case_id"].unique()[0] == settings["case_id"]
+
+
+def test_load_policy_with_duplicates(tmp_path, caplog):
+    # Prepare
+    settings = {
+        "input_folder": str(tmp_path),
+        "emission_policies_fn": "policy_file.csv",
+        "case_id": "test_case",
+    }
+    # Create the policy file
+    policy_file = tmp_path / "policy_file.csv"
+    policy_file.write_text("case_id,year\n1,2021\n1,2021\n")
+    # Invoke
+    caplog.set_level(logging.WARNING)
+    result = load_policy_scenarios(settings)
+    # Assert
+    assert isinstance(result, pd.DataFrame)
+    assert "Your emissions policies" in caplog.text
+
+
+def test_load_policy_with_all_and_duplicates(tmp_path, caplog):
+    # Prepare
+    settings = {
+        "input_folder": str(tmp_path),
+        "emission_policies_fn": "policy_file.csv",
+        "case_id": "test_case",
+    }
+    # Create the policy file
+    policy_file = tmp_path / "policy_file.csv"
+    policy_file.write_text("case_id,year\ntest_case,2021\n1,2021\nall,2021")
+    # Invoke
+    caplog.set_level(logging.WARNING)
+    result = load_policy_scenarios(settings)
+    # Assert
+    assert isinstance(result, pd.DataFrame)
+    assert "After replacing" in caplog.text
