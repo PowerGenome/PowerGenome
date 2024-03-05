@@ -288,9 +288,9 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
     for new_tech, cost_tech in settings.get("new_build_startup_costs", {}).items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
-        df.loc[
-            df["technology"].str.contains(new_tech), "Start_Cost_per_MW"
-        ] = total_startup_costs
+        df.loc[df["technology"].str.contains(new_tech), "Start_Cost_per_MW"] = (
+            total_startup_costs
+        )
     df.loc[:, "Start_Cost_per_MW"] = df.loc[:, "Start_Cost_per_MW"]
 
     # df.loc[df["technology"].str.contains("Nuclear"), "Start_Cost_per_MW"] = "FILL VALUE"
@@ -2650,9 +2650,9 @@ def energy_storage_mwh(
     for tech, val in energy_storage_duration.items():
         if isinstance(val, dict):
             tech_regions = val.keys()
-            df.loc[
-                df[tech_col].isna(), "technology_description"
-            ] = "missing_tech_description"
+            df.loc[df[tech_col].isna(), "technology_description"] = (
+                "missing_tech_description"
+            )
             model_tech_regions = df.loc[
                 snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
                 region_col,
@@ -3340,6 +3340,14 @@ class GeneratorClusters:
 
         self.retired = self.units_model.loc[
             ~(self.units_model.retirement_year > self.settings["model_year"]), :
+        ]
+        self.period_retired = self.units_model.loc[
+            ~(self.units_model.retirement_year > self.settings["model_year"])
+            & (
+                self.units_model.retirement_year
+                >= self.settings["model_first_planning_year"]
+            ),
+            :,
         ]
         self.retired_index = self.retired.set_index(
             ["plant_id_eia", "unit_id_pg"]
