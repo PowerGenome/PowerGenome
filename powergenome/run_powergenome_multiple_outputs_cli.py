@@ -142,6 +142,13 @@ def parse_command_line(argv):
             "cases will be used."
         ),
     )
+    parser.add_argument(
+        "-mp",
+        "--multi-period",
+        dest="multi_period",
+        action="store_true",
+        help=("Use multi-period output format."),
+    )
     arguments = parser.parse_args(argv[1:])
     return arguments
 
@@ -248,19 +255,40 @@ def main(**kwargs):
 
     # Build a dictionary of settings for every planning year and case_id
     scenario_settings = build_scenario_settings(settings, scenario_definitions)
+    period_map = {}
+    for case, _df in scenario_definitions.groupby(["case_id"]):
+        period_map[case] = {}
+        for idx, year in enumerate(_df["year"].sort_values()):
+            period_map[case][year] = idx + 1
 
-    i = 0
     model_regions_gdf = None
+    first_year = True
     for year in scenario_settings:
         for case_id, _settings in scenario_settings[year].items():
-            if settings.get("case_name"):
-                case_folder = (
-                    out_folder
-                    / f"{year}"
-                    / f"{case_id}_{year}_{_settings['case_name']}"
-                )
+            if not args.multi_period:
+                if settings.get("case_name"):
+                    case_folder = (
+                        out_folder
+                        / f"{year}"
+                        / f"{case_id}_{year}_{_settings['case_name']}"
+                    )
+                else:
+                    case_folder = out_folder / f"{year}" / f"{case_id}_{year}"
             else:
-                case_folder = out_folder / f"{year}" / f"{case_id}_{year}"
+                if settings.get("case_name"):
+                    case_folder = (
+                        out_folder
+                        / f"{case_id}_{_settings['case_name']}"
+                        / "Inputs"
+                        / f"Inputs_p{period_map[case_id][year]}"
+                    )
+                else:
+                    case_folder = (
+                        out_folder
+                        / f"{case_id}"
+                        / "Inputs"
+                        / f"Inputs_p{period_map[case_id][year]}"
+                    )
             _settings["extra_outputs"] = case_folder / "extra_outputs"
             _settings["extra_outputs"].mkdir(parents=True, exist_ok=True)
             logger.info(f"Starting year {year} scenario {case_id}\n")
@@ -272,6 +300,8 @@ def main(**kwargs):
                     settings=_settings,
                     current_gens=args.current_gens,
                     sort_gens=args.sort_gens,
+                    multi_period=args.multi_period,
+                    include_retired_cap=first_year is False,
                 )
                 gen_clusters = gc.create_all_generators()
                 if args.fuel and args.gens:
@@ -286,6 +316,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Fuels_data.csv",
                         include_index=True,
+                        multi_period=args.multi_period,
                     )
 
                 gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
@@ -326,9 +357,9 @@ def main(**kwargs):
                     folder=case_folder,
                     file_name="Generators_data.csv",
                     include_index=False,
+                    multi_period=args.multi_period,
                 )
 
-                i += 1
             if args.transmission:
                 if args.gens is False:
                     model_regions_gdf = load_ipm_shapefile(_settings)
@@ -349,6 +380,7 @@ def main(**kwargs):
                     folder=case_folder,
                     file_name="Load_data.csv",
                     include_index=False,
+                    multi_period=args.multi_period,
                 )
 
                 write_results_file(
@@ -357,6 +389,7 @@ def main(**kwargs):
                     file_name="Generators_variability.csv",
                     include_index=True,
                     float_format="%.3f",
+                    multi_period=args.multi_period,
                 )
                 if time_series_mapping is not None:
                     write_results_file(
@@ -364,6 +397,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Period_map.csv",
                         include_index=False,
+                        multi_period=args.multi_period,
                     )
                 if representative_point is not None:
                     write_results_file(
@@ -371,10 +405,10 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Representative_Period.csv",
                         include_index=False,
+                        multi_period=args.multi_period,
                     )
 
             if args.transmission:
-                model_regions_gdf = gc.model_regions_gdf
                 if _settings.get("user_transmission_costs"):
                     user_tx_costs = load_user_tx_costs(
                         _settings["input_folder"]
@@ -386,6 +420,7 @@ def main(**kwargs):
                         pg_engine=pg_engine, settings=_settings
                     ).pipe(insert_user_tx_costs, user_costs=user_tx_costs)
                 else:
+                    model_regions_gdf = gc.model_regions_gdf
                     transmission = (
                         agg_transmission_constraints(
                             pg_engine=pg_engine, settings=_settings
@@ -426,6 +461,7 @@ def main(**kwargs):
                     folder=case_folder,
                     file_name="Network.csv",
                     include_index=False,
+                    multi_period=args.multi_period,
                 )
                 if energy_share_req is not None:
                     write_results_file(
@@ -433,6 +469,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Energy_share_requirement.csv",
                         include_index=False,
+                        multi_period=args.multi_period,
                     )
                 if cap_res is not None:
                     write_results_file(
@@ -440,6 +477,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Capacity_reserve_margin.csv",
                         include_index=True,
+                        multi_period=args.multi_period,
                     )
                 if co2_cap is not None:
                     co2_cap = co2_cap.set_index("Region_description")
@@ -449,6 +487,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="CO2_cap.csv",
                         include_index=True,
+                        multi_period=args.multi_period,
                     )
                 if min_cap is not None:
                     write_results_file(
@@ -456,6 +495,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Minimum_capacity_requirement.csv",
                         include_index=False,
+                        multi_period=args.multi_period,
                     )
                 if max_cap is not None:
                     write_results_file(
@@ -463,6 +503,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Maximum_capacity_limit.csv",
                         include_index=False,
+                        multi_period=args.multi_period,
                     )
 
             if args.fuel and args.gens:
@@ -480,6 +521,7 @@ def main(**kwargs):
                     folder=case_folder,
                     file_name="Fuels_data.csv",
                     include_index=True,
+                    multi_period=args.multi_period,
                 )
             if _settings.get("reserves_fn"):
                 shutil.copy(
@@ -501,6 +543,7 @@ def main(**kwargs):
                 folder=case_folder,
                 file_name="powergenome_case_settings.yml",
             )
+            first_year = False
 
 
 if __name__ == "__main__":
