@@ -1228,12 +1228,12 @@ def add_co2_costs_to_o_m(df: pd.DataFrame) -> pd.DataFrame:
         costs
     """
     if "co2_cost_mwh" in df.columns:
-        df["Var_OM_Cost_per_MWh"] += df["co2_cost_mwh"]
+        df["Var_OM_Cost_per_MWh"] += df["co2_cost_mwh"].fillna(0)
     if "co2_pipeline_annuity_mw" in df.columns:
-        df["Inv_Cost_per_MWyr"] += df["co2_pipeline_annuity_mw"]
+        df["Inv_Cost_per_MWyr"] += df["co2_pipeline_annuity_mw"].fillna(0)
     if "co2_o_m_mw" in df.columns:
-        df["Fixed_OM_Cost_per_MWyr"] += df["co2_o_m_mw"]
+        df["Fixed_OM_Cost_per_MWyr"] += df["co2_o_m_mw"].fillna(0)
     if "co2_pipeline_capex_mw" in df.columns:
-        df["capex_mw"] += df["co2_pipeline_capex_mw"]
+        df["capex_mw"] += df["co2_pipeline_capex_mw"].fillna(0)
 
     return df

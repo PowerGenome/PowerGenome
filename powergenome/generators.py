@@ -3341,6 +3341,14 @@ class GeneratorClusters:
         self.retired = self.units_model.loc[
             ~(self.units_model.retirement_year > self.settings["model_year"]), :
         ]
+        self.period_retired = self.units_model.loc[
+            ~(self.units_model.retirement_year > self.settings["model_year"])
+            & (
+                self.units_model.retirement_year
+                >= self.settings["model_first_planning_year"]
+            ),
+            :,
+        ]
         self.retired_index = self.retired.set_index(
             ["plant_id_eia", "unit_id_pg"]
         ).index
