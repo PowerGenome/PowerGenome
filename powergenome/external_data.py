@@ -289,16 +289,16 @@ def load_policy_scenarios(settings: dict) -> pd.DataFrame:
         policies["case_id"] = settings["case_id"]
 
     warned = False
-    if policies.duplicated(subset=["case_id", "year"]).any():
+    if policies.duplicated(subset=["case_id", "year", "region"]).any():
         logger.warning(
             "Your emissions policies file has repeated values of 'case_id' and 'year'. "
             "This duplication of emission policies across multiple years may cause erors."
         )
         warned = True
-    policies.loc[
-        policies["case_id"].astype(str).str.lower() == "all", "case_id"
-    ] = settings["case_id"]
-    if policies.duplicated(subset=["case_id", "year"]).any() and not warned:
+    policies.loc[policies["case_id"].astype(str).str.lower() == "all", "case_id"] = (
+        settings["case_id"]
+    )
+    if policies.duplicated(subset=["case_id", "year", "region"]).any() and not warned:
         logger.warning(
             f"After replacing values of 'all' with {settings['case_id']}, your emissions "
             "policies file has repeated values of 'case_id' and 'year'. "

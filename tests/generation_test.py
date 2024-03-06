@@ -729,9 +729,9 @@ def test_flex_resources(CA_AZ_settings):
     CA_AZ_settings["model_year"] = 2035
     CA_AZ_settings["model_first_planning_year"] = 2030
     CA_AZ_settings["electrification_stock_fn"] = "EFS_STOCK_AGG.parquet"
-    CA_AZ_settings[
-        "electrification_scenario"
-    ] = "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
+    CA_AZ_settings["electrification_scenario"] = (
+        "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
+    )
     CA_AZ_settings["flexible_demand_resources"] = {
         2035: {
             "trans_light_duty": {
@@ -1109,7 +1109,7 @@ def test_load_policy_with_columns(tmp_path):
     }
     # Create the policy file
     policy_file = tmp_path / "policy_file.csv"
-    policy_file.write_text("case_id,year\n1,2021\n2,2022\n")
+    policy_file.write_text("case_id,region,year\n1,a,2021\n2,a,2022\n")
     # Invoke
     result = load_policy_scenarios(settings)
     # Assert
@@ -1127,7 +1127,7 @@ def test_load_policy_missing_case_id(tmp_path):
     }
     # Create the policy file
     policy_file = tmp_path / "policy_file.csv"
-    policy_file.write_text("year\n2021\n2022\n")
+    policy_file.write_text("region,year\na,2021\na,2022\n")
     # Invoke
     result = load_policy_scenarios(settings)
     # Assert
@@ -1147,7 +1147,7 @@ def test_load_policy_with_duplicates(tmp_path, caplog):
     }
     # Create the policy file
     policy_file = tmp_path / "policy_file.csv"
-    policy_file.write_text("case_id,year\n1,2021\n1,2021\n")
+    policy_file.write_text("case_id,region,year\n1,a,2021\n1,a,2021\n")
     # Invoke
     caplog.set_level(logging.WARNING)
     result = load_policy_scenarios(settings)
@@ -1165,7 +1165,9 @@ def test_load_policy_with_all_and_duplicates(tmp_path, caplog):
     }
     # Create the policy file
     policy_file = tmp_path / "policy_file.csv"
-    policy_file.write_text("case_id,year\ntest_case,2021\n1,2021\nall,2021")
+    policy_file.write_text(
+        "case_id,region,year\ntest_case,a,2021\n1,a,2021\nall,a,2021"
+    )
     # Invoke
     caplog.set_level(logging.WARNING)
     result = load_policy_scenarios(settings)
