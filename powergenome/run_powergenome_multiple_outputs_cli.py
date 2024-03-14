@@ -347,8 +347,17 @@ def main(**kwargs):
                 for col in _settings["generator_columns"]:
                     if col not in gens.columns:
                         gens[col] = 0
-                cols = [c for c in _settings["generator_columns"] if c in gens]
 
+                gens = gens.rename(
+                    columns={
+                        "cap_recovery_years": "Capital_Recovery_Period",
+                        "wacc_real": "WACC",
+                    }
+                )
+                gens["Lifetime"] = gens["Capital_Recovery_Period"]
+                gens.loc[gens["Lifetime"] == 0, "Lifetime"] = 50
+                cols = [c for c in _settings["generator_columns"] if c in gens]
+                cols.extend(["Capital_Recovery_Period", "WACC", "Lifetime"])
                 write_results_file(
                     df=remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings)
                     .pipe(set_int_cols)
@@ -456,6 +465,9 @@ def main(**kwargs):
 
                 cap_res = create_regional_cap_res(_settings)
 
+                network["Line_Max_Flow_Possible_MW"] = 1e6
+                network["Capital_Recovery_Period"] = 60
+                network["WACC"] = 0.044
                 write_results_file(
                     df=network,
                     folder=case_folder,
