@@ -1,6 +1,7 @@
 """
 Flexible methods to cluster/aggregate renewable projects
 """
+
 import logging
 from functools import lru_cache
 import operator
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 def load_site_profiles(path: Path, site_ids: List[str]) -> pd.DataFrame:
     suffix = path.suffix
+    site_ids = [s.replace(".0", "") for s in site_ids]
     if suffix == ".parquet":
         df = pq.read_table(path, columns=site_ids).to_pandas()
     elif suffix == ".csv":
@@ -431,9 +433,9 @@ def assign_site_cluster(
     if min_capacity:
         data = min_capacity_mw(data, min_cap=min_capacity)
     if site_map is not None:
-        site_ids = [str(site_map.loc[i]) for i in data["cpa_id"]]
+        site_ids = [str(int(site_map.loc[i])) for i in data["cpa_id"]]
     else:
-        site_ids = [str(i) for i in data["cpa_id"]]
+        site_ids = [str(int(i)) for i in data["cpa_id"]]
     if profile_path is not None:
         cpa_profiles = load_site_profiles(profile_path, site_ids=list(set(site_ids)))
         profiles = [np.roll(cpa_profiles[site].values, utc_offset) for site in site_ids]
