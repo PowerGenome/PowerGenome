@@ -1570,7 +1570,15 @@ def add_renewables_clusters(
             {k: v for (k, v) in _scenario.items() if k != "group_modifiers"}, "_"
         )
         cache_cluster_fn = f"{region}_{technology}_{detail_suffix}_cluster_data.parquet"
+        if len(cache_cluster_fn) > 255:
+            cache_cluster_fn = (
+                f"{region}_{technology}_{detail_suffix}"[:230] + "_cluster_data.parquet"
+            )
         cache_site_assn_fn = f"{region}_{technology}_{detail_suffix}_site_assn.parquet"
+        if len(cache_site_assn_fn) > 255:
+            cache_site_assn_fn = (
+                f"{region}_{technology}_{detail_suffix}"[:230] + "_site_assn.parquet"
+            )
         sub_folder = settings.get("RESOURCE_GROUPS") or SETTINGS.get("RESOURCE_GROUPS")
         sub_folder = str(sub_folder).replace("/", "_").replace("\\", "_")
         cache_folder = Path(
