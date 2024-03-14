@@ -4,6 +4,7 @@ Hourly demand profiles
 
 import logging
 from inspect import signature
+import os
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -14,7 +15,12 @@ import sqlalchemy as sa
 from powergenome.distributed_gen import distributed_gen_profiles
 from powergenome.eia_opendata import get_aeo_load
 from powergenome.external_data import make_demand_response_profiles
-from powergenome.load_construction import electrification_profiles
+from powergenome.load_construction import (
+    electrification_profiles,
+    load_region_pop_frac,
+    state_demand_to_region,
+)
+from powergenome.params import SETTINGS
 from powergenome.util import (
     find_region_col,
     map_agg_region_names,
@@ -129,7 +135,21 @@ def make_load_curves(
         )
     table_cols = [c["name"] for c in inst.get_columns(pg_table)]
     context = f"Load curves table ({pg_table} in database {pg_engine}."
-    region_col = find_region_col(table_cols, context)
+    try:
+        region_col = find_region_col(table_cols, context)
+    except ValueError as e:
+        if "state" in table_cols:
+            path_in = Path(SETTINGS["EFS_DATA"])
+            pop_files = path_in.glob("*pop_weight*")
+            newest_pop_file = max(pop_files, key=os.path.getmtime)
+            pop = load_region_pop_frac(path_in=path_in, fn=newest_pop_file.name)
+            pop = pop.rename(columns={"region": "demand_region"})
+            pop = pop.loc[pop["demand_region"].isin(keep_regions), :]
+            keep_regions = list(pop["state"].unique())
+            region_col = "state"
+        else:
+            raise ValueError(e)
+
     if "sector" in table_cols or "subsector" in table_cols:
         if settings.get("electrification_stock_fn") and settings.get(
             "electrification_scenario"
@@ -147,12 +167,12 @@ def make_load_curves(
                 ("industrial", "other"),
             ]
             s = f"""
-                    SELECT year, {region_col} as region, time_index, sector, sum(load_mw) as load_mw
+                    SELECT year, {region_col} as demand_region, time_index, sector, sum(load_mw) as load_mw
                     FROM {pg_table}
                     WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
                     AND
                     ({' OR '.join(["(sector=? and subsector=?)"]*len(base_sector_subsectors))})
-                    GROUP BY year, region, sector, time_index
+                    GROUP BY year, demand_region, sector, time_index
                     """
             params = keep_regions + [
                 item for sublist in base_sector_subsectors for item in sublist
@@ -160,7 +180,7 @@ def make_load_curves(
             load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
         else:
             s = f"""
-                    SELECT year, {region_col} as region, time_index, sector, sum(load_mw) as load_mw
+                    SELECT year, {region_col} as demand_region, time_index, sector, sum(load_mw) as load_mw
                     FROM {pg_table}
                     WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
                     GROUP BY year, region, sector, time_index
@@ -170,22 +190,32 @@ def make_load_curves(
     else:
         # With no sector or subsector columns, assume that table has total load in each hour
         s = f"""
-            SELECT year, {region_col} as region, time_index, load_mw
+            SELECT year, {region_col} as demand_region, time_index, load_mw
             FROM {pg_table}
             WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
             """
         params = keep_regions
         load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
 
+    if region_col == "state":
+        load_curves = load_curves.rename(columns={"demand_region": "state"})
+        load_curves = state_demand_to_region(
+            load_curves,
+            pop.rename(columns={"demand_region": "region"}),
+            by=["time_index", "region", "year"],
+        )
+        load_curves = load_curves.rename(columns={"region": "demand_region"})
     # Increase demand to account for load growth
     load_curves = add_load_growth(load_curves, settings)
 
     load_curves.loc[
-        load_curves.region.isin(region_agg_map), "region"
-    ] = load_curves.region.map(region_agg_map)
+        load_curves.demand_region.isin(region_agg_map), "demand_region"
+    ] = load_curves.demand_region.map(region_agg_map)
 
     logger.info("Aggregating load curves in grouped regions")
-    load_curves_agg = load_curves.groupby(["region", "time_index"])["load_mw"].sum()
+    load_curves_agg = load_curves.groupby(["demand_region", "time_index"])[
+        "load_mw"
+    ].sum()
 
     lc_wide = load_curves_agg.unstack(level=0)
     if lc_wide.columns.nlevels > 1:
@@ -317,7 +347,9 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
                                 "specific growth rate the demand will not be increased."
                             )
                 for region in keep_regions:
-                    _df.loc[_df["region"] == region, "load_mw"] *= growth_factor[region]
+                    _df.loc[_df["demand_region"] == region, "load_mw"] *= growth_factor[
+                        region
+                    ]
                 df_list.append(_df)
         else:
             load_growth_dict = {
@@ -349,7 +381,9 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
                 if isinstance(rate, float):
                     growth_factor[region] = (1 + rate) ** years_growth
             for region in keep_regions:
-                df.loc[df["region"] == region, "load_mw"] *= growth_factor[region]
+                df.loc[df["demand_region"] == region, "load_mw"] *= growth_factor[
+                    region
+                ]
             df_list.append(df)
 
         annual_load = pd.concat(df_list, ignore_index=True)
@@ -460,7 +494,9 @@ def grow_historical_load(
                 if isinstance(rate, dict) and rate.get(sector):
                     growth_factor[region] = (1 + rate["sector"]) ** years_growth
             for region in keep_regions:
-                _df.loc[_df["region"] == region, "load_mw"] *= growth_factor[region]
+                _df.loc[_df["demand_region"] == region, "load_mw"] *= growth_factor[
+                    region
+                ]
             old_aeo_list.append(_df)
 
     else:
@@ -494,7 +530,7 @@ def grow_historical_load(
             if isinstance(rate, float):
                 growth_factor[region] = (1 + rate) ** years_growth
         for region in keep_regions:
-            df.loc[df["region"] == region, "load_mw"] *= growth_factor[region]
+            df.loc[df["demand_region"] == region, "load_mw"] *= growth_factor[region]
         old_aeo_list.append(df)
 
     df = pd.concat(old_aeo_list, ignore_index=True)
@@ -635,7 +671,7 @@ def make_final_load_curves(
             *****************************
             """
             logger.warning(s)
-            load_sources = {"EFS": "load_curves_nrel_efs"}
+            load_sources = {"EFS": "load_curves_nrel_efs_state"}
 
         # `filter_load_by_region` is a decorator factory that generates a decorator
         # when given the parameter `load_source`. This decorator creates a wrapper

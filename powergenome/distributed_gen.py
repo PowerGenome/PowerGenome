@@ -124,7 +124,7 @@ def distributed_gen_profiles(
         path_in = Path(path_in)
 
     pop_files = path_in.glob("*pop_weight*")
-    newest_pop_file = max(pop_files, key=os.path.getctime)
+    newest_pop_file = max(pop_files, key=os.path.getmtime)
     pop = load_region_pop_frac(path_in=path_in, fn=newest_pop_file.name)
     pop = pop.loc[pop["region"].isin(regions), :]
 
