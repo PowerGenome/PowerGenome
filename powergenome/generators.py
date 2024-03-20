@@ -3737,7 +3737,9 @@ class GeneratorClusters:
         self.new_generators = add_genx_model_tags(self.new_generators, self.settings)
         if "cluster" not in self.new_generators.columns:
             self.new_generators["cluster"] = 1
-        self.new_generators["cluster"] = self.new_generators["cluster"].astype("Int64")
+        self.new_generators["cluster"] = self.new_generators["cluster"].astype(
+            "Int64", errors="ignore"
+        )
         self.new_generators["Resource"] = (
             self.new_generators["region"]
             + "_"
