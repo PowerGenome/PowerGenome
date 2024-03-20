@@ -461,7 +461,7 @@ def main(**kwargs):
                     write_results_file(
                         df=max_cap,
                         folder=case_folder,
-                        file_name="Maximum_capacity_limit.csv",
+                        file_name="Maximum_capacity_requirement.csv",
                         include_index=False,
                     )
 
