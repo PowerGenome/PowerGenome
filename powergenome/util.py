@@ -1,4 +1,6 @@
 import collections
+import csv
+import hashlib
 import itertools
 import logging
 import os
@@ -1179,3 +1181,75 @@ def remove_leading_zero(id: Union[str, int]) -> Union[str, int]:
     elif id.isnumeric():
         id = id.lstrip("0")
     return id
+
+
+def hash_string_sha256(input_string: str) -> str:
+    """Create a reproducible hash of an input string. Use for creating cache filenames.
+
+    Parameters
+    ----------
+    input_string : str
+        String representing the data to hash
+
+    Returns
+    -------
+    str
+        Hexdigest hash of the input string.
+    """
+    # For simplicity, require string inputs.
+    if not isinstance(input_string, str):
+        raise TypeError("The input value cannot be hashed if it is not a string.")
+    # Encode the string into bytes
+    input_bytes = input_string.encode("utf-8")
+
+    # Create a SHA-256 hash object
+    hasher = hashlib.sha256()
+
+    # Pass the bytes to the hasher
+    hasher.update(input_bytes)
+
+    # Generate the hexadecimal representation of the digest
+    hex_digest = hasher.hexdigest()
+
+    return hex_digest
+
+
+def add_row_to_csv(file: Path, new_row: List[str], headers: List[str] = None) -> None:
+    """Add a row of data to an existing CSV file. If the file does not exist, create it
+    with headers and the first row of data.
+
+    Parameters
+    ----------
+    file : Path
+        Path to the CSV file
+    new_row : List[str]
+        Data to add as a new row in the CSV
+    headers : List[str], optional
+        Header names, by default None. Required if the file does not exist.
+
+    Raises
+    ------
+    ValueError
+        The file does not exist and no headers were provided.
+    """
+    file = Path(file)
+    # Check if file exists
+    if not file.exists():
+        if headers is None:
+            raise ValueError(
+                f"No headers provided. The file {file} does not exist, so headers are "
+                "required to create the file."
+            )
+        file.parent.mkdir(parents=True, exist_ok=True)
+        with file.open("w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(headers)  # write headers first time only
+
+    with file.open("r") as f:
+        reader = csv.reader(f)
+        data = list(reader)  # this contains all the rows in your CSV file
+
+    if new_row not in data:  # check if row already exists in data
+        with file.open("a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(new_row)  # add the new row to the CSV file
