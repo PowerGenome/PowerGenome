@@ -1,11 +1,18 @@
 """
 Test util functions
 """
+
+import csv
 import logging
 import pytest
 
 import powergenome
-from powergenome.util import apply_all_tag_to_regions, sort_nested_dict
+from powergenome.util import (
+    add_row_to_csv,
+    apply_all_tag_to_regions,
+    hash_string_sha256,
+    sort_nested_dict,
+)
 
 
 logger = logging.getLogger(powergenome.__name__)
@@ -114,3 +121,88 @@ def test_apply_all_tag_to_regions(caplog):
     apply_all_tag_to_regions(settings)
     settings = {"model_regions": ["a", "b", "c"]}
     apply_all_tag_to_regions(settings)
+
+
+class TestHashStringSha256:
+
+    # Returns a hash string for a given input string
+    def test_returns_hash_string(self):
+        # Arrange
+        input_string = "Hello, World!"
+        expected_hash = (
+            "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f"
+        )
+
+        # Act
+        actual_hash = hash_string_sha256(input_string)
+
+        # Assert
+        assert actual_hash == expected_hash
+
+    # Raises TypeError if input is not a string
+    def test_raises_type_error(self):
+        # Arrange
+        input_string = 123
+
+        # Act & Assert
+        with pytest.raises(TypeError):
+            hash_string_sha256(input_string)
+
+
+class TestAddRowToCsv:
+
+    # Adds a new row to an existing CSV file with headers, ensuring correct file permissions
+    def test_add_row_with_headers_fixed_fixed(self, tmp_path):
+        # Create a temporary CSV file with headers in the temporary directory
+        file = tmp_path / "test.csv"
+        headers = ["Name", "Age", "City"]
+        with file.open("w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(headers)
+
+        # Call the function to add a new row
+        new_row = ["John", "25", "New York"]
+        try:
+            add_row_to_csv(file, new_row)
+        except PermissionError:
+            pytest.fail("PermissionError: Unable to open file in append mode")
+
+        # Check if the new row is added to the CSV file
+        with file.open("r") as f:
+            reader = csv.reader(f)
+            data = list(reader)
+            assert new_row in data
+
+        # Clean up the temporary CSV file and directory
+        file.unlink()
+
+    # Raises ValueError if the file does not exist and no headers were provided
+    def test_raises_value_error_if_file_does_not_exist_and_no_headers_provided(
+        self, tmp_path
+    ):
+        with pytest.raises(ValueError):
+            file = tmp_path / "test.csv"
+            new_row = ["John", "25", "New York"]
+            add_row_to_csv(file, new_row)
+
+    # Creates a new CSV file with headers and adds a new row
+    def test_add_row_with_headers_and_new_row_fixed_fixed(self, tmp_path):
+        # Create a temporary CSV file without headers
+        file = tmp_path / "test.csv"
+        headers = ["Name", "Age", "City"]
+
+        # Call the function to add a new row
+        new_row = ["John", "25", "New York"]
+        try:
+            add_row_to_csv(file, new_row, headers)
+        except ValueError as e:
+            pytest.fail(str(e))
+
+        # Check if the new row is added to the CSV file
+        with file.open("r") as f:
+            reader = csv.reader(f)
+            data = list(reader)
+            assert new_row in data
+
+        # Clean up the temporary CSV file
+        file.unlink()
