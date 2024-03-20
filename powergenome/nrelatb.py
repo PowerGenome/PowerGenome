@@ -29,7 +29,9 @@ from powergenome.resource_clusters import (
     map_nrel_atb_technology,
 )
 from powergenome.util import (
+    add_row_to_csv,
     apply_all_tag_to_regions,
+    hash_string_sha256,
     remove_leading_zero,
     reverse_dict_of_lists,
     snake_case_col,
@@ -592,9 +594,9 @@ def atb_fixed_var_om_existing(
     if not mod_results.loc[mod_results["Fixed_OM_Cost_per_MWyr"].isna()].empty:
         df_list = []
         for tech, _df in mod_results.groupby("technology"):
-            _df.loc[
-                _df["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
-            ] = _df["Fixed_OM_Cost_per_MWyr"].mean()
+            _df.loc[_df["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"] = (
+                _df["Fixed_OM_Cost_per_MWyr"].mean()
+            )
             df_list.append(_df)
         mod_results = pd.concat(df_list, ignore_index=True)
         mod_results.loc[
@@ -881,9 +883,9 @@ def calc_om(
                 )
 
                 # If nuclear heat rates are NaN, set them to new build value
-                _df.loc[
-                    _df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"
-                ] = new_build_hr
+                _df.loc[_df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"] = (
+                    new_build_hr
+                )
                 _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (
                     _df["heat_rate_mmbtu_mwh"].mean() / new_build_hr
                 )
@@ -1569,20 +1571,19 @@ def add_renewables_clusters(
         detail_suffix = flatten_cluster_def(
             {k: v for (k, v) in _scenario.items() if k != "group_modifiers"}, "_"
         )
-        cache_cluster_fn = f"{region}_{technology}_{detail_suffix}_cluster_data.parquet"
-        if len(cache_cluster_fn) > 255:
-            cache_cluster_fn = (
-                f"{region}_{technology}_{detail_suffix}"[:230] + "_cluster_data.parquet"
-            )
-        cache_site_assn_fn = f"{region}_{technology}_{detail_suffix}_site_assn.parquet"
-        if len(cache_site_assn_fn) > 255:
-            cache_site_assn_fn = (
-                f"{region}_{technology}_{detail_suffix}"[:230] + "_site_assn.parquet"
-            )
+        unique_hash = hash_string_sha256(f"{region}_{technology}_{detail_suffix}")
+        cache_cluster_fn = unique_hash + "_cluster_data.parquet"
+        cache_site_assn_fn = unique_hash + "_site_assn.parquet"
+
         sub_folder = settings.get("RESOURCE_GROUPS") or SETTINGS.get("RESOURCE_GROUPS")
         sub_folder = str(sub_folder).replace("/", "_").replace("\\", "_")
         cache_folder = Path(
             settings["input_folder"] / "cluster_assignments" / sub_folder
+        )
+        add_row_to_csv(
+            cache_folder / "hash_map.csv",
+            headers=["name", "hash"],
+            new_row=[f"{region}_{technology}_{detail_suffix}", unique_hash],
         )
         cache_cluster_fpath = cache_folder / cache_cluster_fn
         cache_site_assn_fpath = cache_folder / cache_site_assn_fn
