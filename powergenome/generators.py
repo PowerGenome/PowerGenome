@@ -3470,7 +3470,8 @@ class GeneratorClusters:
                     grouped["cluster"] = (
                         clusters.labels_ + 1
                     )  # Change to 1-index for julia
-
+                else:
+                    continue
             else:
                 if (
                     region in alt_cluster_method
@@ -3494,6 +3495,8 @@ class GeneratorClusters:
                     grouped["cluster"] = (
                         clusters.labels_ + 1
                     )  # Change to 1-index for julia
+                else:
+                    continue
 
             # Saving individual unit data for later analysis (if needed)
             unit_list.append(grouped)
