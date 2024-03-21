@@ -271,7 +271,7 @@ class Table:
         if path is not None:
             try:
                 self._dataset = pq.ParquetDataset(path)
-                self._columns = self._dataset.schema.names
+                self._columns = pq.read_schema(path).names
                 self.format = "parquet"
             except pyarrow.lib.ArrowInvalid:
                 # Assume CSV file
