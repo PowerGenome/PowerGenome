@@ -1237,3 +1237,22 @@ def add_co2_costs_to_o_m(df: pd.DataFrame) -> pd.DataFrame:
         df["capex_mw"] += df["co2_pipeline_capex_mw"].fillna(0)
 
     return df
+
+
+def cap_retire_within_period(
+    gens: pd.DataFrame, first_year: int, last_year: int, capacity_col: str
+) -> pd.Series:
+
+    retired_cap = (
+        gens.query("retirement_year <= @last_year and retirement_year >= @first_year")
+        .groupby("Resource", as_index=False)[[capacity_col, "capacity_mwh"]]
+        .sum()
+    ).rename(
+        columns={
+            capacity_col: "Min_Retired_Cap_MW",
+            "capacity_mwh": "Min_Retired_Energy_Cap_MW",
+        }
+    )
+    retired_cap["Min_Retired_Charge_Cap_MW"] = 0
+
+    return retired_cap

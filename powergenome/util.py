@@ -719,6 +719,7 @@ def write_results_file(
     file_name: str,
     include_index: bool = False,
     float_format: str = None,
+    multi_period: bool = True,
 ):
     """Write a finalized dataframe to one of the results csv files.
 
@@ -734,11 +735,15 @@ def write_results_file(
         If pandas should include the index when writing to csv, by default False
     float_format: str
         Parameter passed to pandas .to_csv
+    multi_period : bool, optional
+        If results should be formatted for multi-period, by default True
     """
-    sub_folder = folder / "Inputs"
-    sub_folder.mkdir(exist_ok=True, parents=True)
+    if not multi_period:
+        folder = folder / "Inputs"
 
-    path_out = sub_folder / file_name
+    folder.mkdir(exist_ok=True, parents=True)
+
+    path_out = folder / file_name
     df.to_csv(path_out, index=include_index, float_format=float_format)
 
 

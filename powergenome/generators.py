@@ -33,7 +33,7 @@ from powergenome.external_data import (
     make_demand_response_profiles,
 )
 from powergenome.financials import investment_cost_calculator
-from powergenome.GenX import rename_gen_cols
+from powergenome.GenX import cap_retire_within_period, rename_gen_cols
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
     atb_fixed_var_om_existing,
@@ -1375,7 +1375,7 @@ def group_units(df, settings):
 
 
 def calc_unit_cluster_values(
-    df: pd.DataFrame, capacity_col: str, technology: str = None
+    df: pd.DataFrame, capacity_col: str, technology: str = None, clustered: bool = True
 ):
     """
     Calculate the total capacity, minimum load, weighted heat rate, and number of
@@ -1391,6 +1391,8 @@ def calc_unit_cluster_values(
         winter_capacity_mw).
     technology : str, optional
         Name of the generating technology, by default None
+    clustered : bool, optional
+        If units are clustered or only a single unit is being passed, by default True
 
     Returns
     -------
@@ -1398,19 +1400,29 @@ def calc_unit_cluster_values(
         Aggragate values for generators in a technology cluster
     """
     # if not clustering units no need to calulate cluster average values
-    if df["cluster"].nunique() == len(df):
+    if len(df) == 1:
+        clustered = False
+    elif df["cluster"].nunique() == len(df):
+        clustered = False
+
+    if not clustered:
         df["Min_Power"] = df["minimum_load_mw"] / df[capacity_col]
         df["num_units"] = 1
         if technology:
             df["technology"] = technology
 
-        return df.reset_index()
+        return df.reset_index().replace(np.inf, 0)
 
     # Define a function to compute the weighted mean.
     # The issue here is that the df name needs to be used in the function.
     # So this will need to be within a function that takes df as an input
     def wm(x):
-        return np.average(x, weights=df.loc[x.index, capacity_col])
+        try:
+            return np.average(
+                x, weights=df.loc[x.index, capacity_col].replace(np.nan, 0)
+            )
+        except ZeroDivisionError:
+            return x.mean()
 
     if df["heat_rate_mmbtu_mwh"].isnull().values.any():
         # mean =
@@ -1449,7 +1461,9 @@ def calc_unit_cluster_values(
 
     df_values["Min_Power"] = df_values["minimum_load_mw"] / df_values[capacity_col]
 
-    df_values["num_units"] = df.groupby("cluster")["cluster"].count()
+    df_values["num_units"] = (
+        df.dropna(subset=capacity_col).groupby("cluster")["cluster"].count()
+    )
 
     if technology:
         df_values["technology"] = technology
@@ -2843,6 +2857,8 @@ class GeneratorClusters:
         sort_gens=False,
         plant_region_map_table="plant_region_map_epaipm",
         settings_agg_key="region_aggregations",
+        multi_period=False,
+        include_retired_cap=False,
     ):
         """
 
@@ -2866,6 +2882,8 @@ class GeneratorClusters:
         self.model_regions_gdf = load_ipm_shapefile(self.settings)
         self.weighted_unit_hr = None
         self.supplement_with_860m = supplement_with_860m
+        self.multi_period = multi_period
+        self.include_retired_cap = include_retired_cap
         self.cluster_builder = build_resource_clusters(
             self.settings.get("RESOURCE_GROUPS"),
             self.settings.get("RESOURCE_GROUP_PROFILES"),
@@ -3400,7 +3418,20 @@ class GeneratorClusters:
                 if num_clusters[region][tech] is None or num_clusters[region][
                     tech
                 ] == len(grouped):
-                    grouped = grouped.loc[~grouped.index.isin(self.retired_index), :]
+                    if self.multi_period:
+                        grouped.loc[
+                            grouped.index.isin(self.retired_index),
+                            [
+                                self.settings["capacity_col"],
+                                "minimum_load_mw",
+                                "capacity_mwh",
+                            ],
+                        ] = np.nan
+                    else:
+                        grouped = grouped.loc[
+                            ~grouped.index.isin(self.retired_index), :
+                        ]
+
                     grouped["cluster"] = np.arange(len(grouped)) + 1
                     unit_list.append(grouped)
                     if not grouped.empty:
@@ -3439,7 +3470,8 @@ class GeneratorClusters:
                     grouped["cluster"] = (
                         clusters.labels_ + 1
                     )  # Change to 1-index for julia
-
+                else:
+                    continue
             else:
                 if (
                     region in alt_cluster_method
@@ -3463,6 +3495,8 @@ class GeneratorClusters:
                     grouped["cluster"] = (
                         clusters.labels_ + 1
                     )  # Change to 1-index for julia
+                else:
+                    continue
 
             # Saving individual unit data for later analysis (if needed)
             unit_list.append(grouped)
@@ -3470,7 +3504,17 @@ class GeneratorClusters:
             # Don't add technologies with specified 0 clusters
             if num_clusters[region][tech] != 0:
                 # Remove retired units before calculating cluster operating values
-                grouped = grouped.loc[~grouped.index.isin(self.retired_index), :]
+                if self.multi_period:
+                    grouped.loc[
+                        grouped.index.isin(self.retired_index),
+                        [
+                            self.settings["capacity_col"],
+                            "minimum_load_mw",
+                            "capacity_mwh",
+                        ],
+                    ] = np.nan
+                else:
+                    grouped = grouped.loc[~grouped.index.isin(self.retired_index), :]
                 if not grouped.empty:
                     _df = calc_unit_cluster_values(
                         grouped, self.settings["capacity_col"], tech
@@ -3570,15 +3614,16 @@ class GeneratorClusters:
                 ]
             )
 
+        self.all_units = self.all_units.rename(columns={"model_region": "region"})
+        self.all_units["Resource"] = (
+            self.all_units["region"]
+            + "_"
+            + snake_case_col(self.all_units["technology"])
+            + "_"
+            + self.all_units["cluster"].astype(int).astype(str)
+        )
+
         if self.settings.get("extra_outputs"):
-            self.all_units = self.all_units.rename(columns={"model_region": "region"})
-            self.all_units["Resource"] = (
-                self.all_units["region"]
-                + "_"
-                + snake_case_col(self.all_units["technology"])
-                + "_"
-                + self.all_units["cluster"].astype(str)
-            )
             self.all_units.to_csv(
                 Path(self.settings["extra_outputs"]) / "existing_gen_units.csv",
                 index=False,
@@ -3587,6 +3632,9 @@ class GeneratorClusters:
         self.results = self.results.round(3)
         self.results["Cap_Size"] = self.results["Cap_Size"]
         self.results["Existing_Cap_MW"] = self.results.Cap_Size * self.results.num_units
+
+        # A cap size of 0 causes issues in GenX with thermal commitment.
+        self.results["Cap_Size"] = self.results["Cap_Size"].fillna(1).replace(0, 1)
         if self.settings.get("derate_capacity"):
             self.results["unmodified_existing_cap_mw"] = (
                 self.results["unmodified_cap_size"] * self.results["num_units"]
@@ -3647,6 +3695,33 @@ class GeneratorClusters:
                 "names should be unique. You'll probably need to file an issue for this "
                 "at https://github.com/PowerGenome/PowerGenome/issues."
             )
+
+        if self.multi_period:
+            retire_cols = [
+                "Min_Retired_Cap_MW",
+                "Min_Retired_Energy_Cap_MW",
+                "Min_Retired_Charge_Cap_MW",
+            ]
+            for col in retire_cols:
+                if col not in self.settings.get("generator_columns", []) and isinstance(
+                    self.settings.get("generator_columns"), list
+                ):
+                    self.settings["generator_columns"].append(col)
+
+            if self.include_retired_cap:
+                # Add mimimum retirement amounts
+                cap_retired = cap_retire_within_period(
+                    self.all_units,
+                    self.settings["model_first_planning_year"],
+                    self.settings["model_year"],
+                    self.settings.get("capacity_col", "capacity_mw"),
+                )
+                self.results = pd.merge(
+                    self.results, cap_retired, on="Resource", how="left", validate="1:1"
+                )
+                self.results[retire_cols].fillna(0, inplace=True)
+            else:
+                self.results[retire_cols] = 0
 
         # Add variable resource profiles
         self.results = self.results.reset_index(drop=True)
