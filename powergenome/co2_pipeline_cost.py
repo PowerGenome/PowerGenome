@@ -152,8 +152,10 @@ def merge_co2_pipeline_costs(
     if not drop_idx.empty:
         for tech, _df in df_co2_costs.loc[drop_idx, :].groupby("technology"):
             regs = _df["region"].to_list()
-            f"The CCS resource {tech} is being removed from regions {regs} because cost "
-            "data was not included in your CO2 pipeline cost file."
+            logger.warning(
+                f"The CCS resource {tech} is being removed from regions {regs} because cost "
+                "data was not included in your CO2 pipeline cost file."
+            )
     df_co2_costs = df_co2_costs.drop(index=drop_idx)
     df_co2_costs.loc[:, co2_costs_wide.columns] = df_co2_costs[
         co2_costs_wide.columns

@@ -433,7 +433,7 @@ def assign_site_cluster(
     if min_capacity:
         data = min_capacity_mw(data, min_cap=min_capacity)
     if site_map is not None:
-        site_ids = [str(int(site_map.loc[i])) for i in data["cpa_id"]]
+        site_ids = [site_map.loc[i] for i in data["cpa_id"]]
     else:
         site_ids = [str(int(i)) for i in data["cpa_id"]]
     if profile_path is not None:
