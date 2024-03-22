@@ -5,6 +5,7 @@ Create a slimmed-down version of the pg_misc database for testing.
 import sqlite3
 
 import pandas as pd
+
 from powergenome.params import DATA_PATHS
 from powergenome.util import init_pudl_connection
 

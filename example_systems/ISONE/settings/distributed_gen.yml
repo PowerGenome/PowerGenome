@@ -1,4 +1,4 @@
-# Name of the data file located in the folder specified by the parameter 
+# Name of the data file located in the folder specified by the parameter
 # DISTRIBUTED_GEN_DATA
 distributed_gen_fn: nrel_cambium_distr_pv_2022_utc.parquet
 distributed_gen_scenario: MidCase

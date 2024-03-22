@@ -1,8 +1,12 @@
 """Test functions in generation.py"""
 import logging
-import sqlite3
 import os
+import sqlite3
 from pathlib import Path
+
+from powergenome.eia_opendata import add_user_fuel_prices
+from powergenome.external_data import make_generator_variability
+from powergenome.fuels import fuel_cost_table
 from powergenome.GenX import (
     RESOURCE_TAGS,
     add_cap_res_network,
@@ -20,10 +24,6 @@ from powergenome.GenX import (
     round_col_values,
     set_int_cols,
 )
-from powergenome.eia_opendata import add_user_fuel_prices
-from powergenome.external_data import make_generator_variability
-
-from powergenome.fuels import fuel_cost_table
 from powergenome.nrelatb import db_col_values
 
 CWD = Path.cwd()
@@ -37,21 +37,22 @@ CWD = Path.cwd()
 
 import numpy as np
 import pandas as pd
-import sqlalchemy
-import powergenome
 import pytest
+import sqlalchemy
+
+import powergenome
 from powergenome.generators import (
+    GeneratorClusters,
+    energy_storage_mwh,
     fill_missing_tech_descriptions,
     gentype_region_capacity_factor,
     group_technologies,
     label_retirement_year,
     label_small_hydro,
+    load_860m,
     load_demand_response_efs_profile,
     remove_leading_zero,
     unit_generator_heat_rates,
-    load_860m,
-    GeneratorClusters,
-    energy_storage_mwh,
 )
 from powergenome.load_profiles import (
     add_load_growth,
@@ -65,9 +66,9 @@ from powergenome.transmission import (
 )
 from powergenome.util import (
     build_scenario_settings,
+    check_settings,
     find_region_col,
     init_pudl_connection,
-    check_settings,
     load_settings,
     map_agg_region_names,
     regions_to_keep,
