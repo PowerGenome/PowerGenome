@@ -61,12 +61,12 @@ def merge_co2_pipeline_costs(
     co2_df = co2_df.loc[co2_df["parameter"] != "capacity_mw", :]
     if target_usd_year:
         for dollar_year in co2_df["dollar_year"].unique():
-            co2_df.loc[
-                (co2_df["dollar_year"] == dollar_year), "parameter_value"
-            ] = inflation_price_adjustment(
-                co2_df.loc[co2_df["dollar_year"] == dollar_year, "parameter_value"],
-                dollar_year,
-                target_usd_year,
+            co2_df.loc[(co2_df["dollar_year"] == dollar_year), "parameter_value"] = (
+                inflation_price_adjustment(
+                    co2_df.loc[co2_df["dollar_year"] == dollar_year, "parameter_value"],
+                    dollar_year,
+                    target_usd_year,
+                )
             )
     for k, v in (region_aggregations or {}).items():
         co2_df.loc[co2_df["region"].isin(v), "region"] = k
@@ -152,8 +152,10 @@ def merge_co2_pipeline_costs(
     if not drop_idx.empty:
         for tech, _df in df_co2_costs.loc[drop_idx, :].groupby("technology"):
             regs = _df["region"].to_list()
-            f"The CCS resource {tech} is being removed from regions {regs} because cost "
-            "data was not included in your CO2 pipeline cost file."
+            logger.warning(
+                f"The CCS resource {tech} is being removed from regions {regs} because cost "
+                "data was not included in your CO2 pipeline cost file."
+            )
     df_co2_costs = df_co2_costs.drop(index=drop_idx)
     df_co2_costs.loc[:, co2_costs_wide.columns] = df_co2_costs[
         co2_costs_wide.columns

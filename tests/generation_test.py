@@ -1,11 +1,12 @@
 """Test functions in generation.py"""
+
 import logging
 import os
 import sqlite3
 from pathlib import Path
 
 from powergenome.eia_opendata import add_user_fuel_prices
-from powergenome.external_data import make_generator_variability
+from powergenome.external_data import load_policy_scenarios, make_generator_variability
 from powergenome.fuels import fuel_cost_table
 from powergenome.GenX import (
     RESOURCE_TAGS,
@@ -53,6 +54,7 @@ from powergenome.generators import (
     load_demand_response_efs_profile,
     remove_leading_zero,
     unit_generator_heat_rates,
+    update_planned_retirement_date_860m,
 )
 from powergenome.load_profiles import (
     add_load_growth,
@@ -489,7 +491,7 @@ def test_existing_gen_profiles():
         eia_data_years=[2020],
         capacity_col="capacity_mw",
         num_clusters={tech: 2 for tech in technologies},
-        retirement_ages={tech: 200 for tech in technologies},
+        retirement_ages={tech: 30 for tech in technologies},
         atb_data_year=2022,
         atb_existing_year=2020,
         fuel_eia_aeo_year=2022,
@@ -574,13 +576,24 @@ def test_existing_gen_profiles():
             "Natural Gas Steam Turbine": "gas_steam",
             "Nuclear": "nuclear",
         },
+        proposed_status_included=["VS", "TS"],
     )
     gc = GeneratorClusters(
-        pudl_engine, pudl_out, pg_engine, settings, supplement_with_860m=False
+        pudl_engine, pudl_out, pg_engine, settings.copy(), supplement_with_860m=False
     )
     existing_gen = gc.create_region_technology_clusters()
     gen_variability = make_generator_variability(existing_gen)
     assert (gen_variability >= 0).all().all()
+
+    gc_retire_cluster = GeneratorClusters(
+        pudl_engine, pudl_out, pg_engine, settings.copy(), supplement_with_860m=False
+    )
+    gc_retire_cluster.settings["cluster_with_retired_gens"] = True
+    existing_gen_retire_cluster = gc_retire_cluster.create_region_technology_clusters()
+    assert not existing_gen.equals(existing_gen_retire_cluster) and np.allclose(
+        existing_gen["Existing_Cap_MW"].sum(),
+        existing_gen_retire_cluster["Existing_Cap_MW"].sum(),
+    )
 
 
 def test_cap_req():
@@ -717,9 +730,9 @@ def test_flex_resources(CA_AZ_settings):
     CA_AZ_settings["model_year"] = 2035
     CA_AZ_settings["model_first_planning_year"] = 2030
     CA_AZ_settings["electrification_stock_fn"] = "EFS_STOCK_AGG.parquet"
-    CA_AZ_settings[
-        "electrification_scenario"
-    ] = "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
+    CA_AZ_settings["electrification_scenario"] = (
+        "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
+    )
     CA_AZ_settings["flexible_demand_resources"] = {
         2035: {
             "trans_light_duty": {
@@ -909,3 +922,256 @@ def test_remove_leading_zeros():
 
     s = "GEN1"
     assert remove_leading_zero(s) == "GEN1"
+
+
+class TestUpdatePlannedRetirementDate860m:
+    # Function called with valid input data
+    def test_same_input_data(self):
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_date": ["2022-01-01", np.nan, "2024-01-01"],
+            }
+        )
+        df["planned_retirement_date"] = pd.to_datetime(
+            df["planned_retirement_date"]
+        )  # Recommended Fix
+        operating_860m = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_year": [2022, np.nan, 2024],
+            }
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.reset_index(drop=True).equals(df)
+
+    def test_update_data(self):
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_date": ["2022-01-01", "2023-01-01", "2024-01-01"],
+            }
+        )
+        df["planned_retirement_date"] = pd.to_datetime(
+            df["planned_retirement_date"]
+        )  # Recommended Fix
+        operating_860m = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_year": [
+                    2022,
+                    2023,
+                    2025,
+                ],  # Changed value from 2024 to 2025
+            }
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        expected_df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_date": [
+                    "2022-01-01",
+                    "2023-01-01",
+                    "2025-01-01",
+                ],  # Updated retirement date for the third generator
+            }
+        )
+        expected_df["planned_retirement_date"] = pd.to_datetime(
+            expected_df["planned_retirement_date"]
+        )
+        assert result.reset_index(drop=True).equals(expected_df)
+
+    # "planned_retirement_date" column exists in df
+    def test_missing_planned_retirement_date_column(self):
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "other_column": ["A", "B", "C"],
+            }
+        )
+        operating_860m = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_year": [2022, 2023, 2024],
+            }
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.equals(df)
+
+    # "planned_retirement_year" column exists in operating_860m
+    def test_missing_planned_retirement_year_column(self):
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_date": ["2022-01-01", "2023-01-01", "2024-01-01"],
+            }
+        )
+        operating_860m = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "other_column": ["A", "B", "C"],
+            }
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.equals(df)
+
+    # df is empty
+    def test_empty_df(self):
+        # Arrange
+        df = pd.DataFrame(
+            columns=["plant_id_eia", "generator_id", "planned_retirement_date"]
+        )
+        operating_860m = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_year": [2022, 2023, 2024],
+            }
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.empty
+
+    # operating_860m is empty
+    def test_empty_operating_860m(self):
+        # Arrange
+        df = pd.DataFrame(
+            {
+                "plant_id_eia": [1, 2, 3],
+                "generator_id": [1, 2, 3],
+                "planned_retirement_date": ["2022-01-01", "2023-01-01", "2024-01-01"],
+            }
+        )
+        operating_860m = pd.DataFrame(
+            columns=["plant_id_eia", "generator_id", "planned_retirement_year"]
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.equals(df)
+
+    # df and operating_860m are empty
+    def test_empty_df_and_operating_860m(self):
+        # Arrange
+        df = pd.DataFrame(
+            columns=["plant_id_eia", "generator_id", "planned_retirement_date"]
+        )
+        operating_860m = pd.DataFrame(
+            columns=["plant_id_eia", "generator_id", "planned_retirement_year"]
+        )
+
+        # Act
+        result = update_planned_retirement_date_860m(df, operating_860m)
+
+        # Assert
+        assert result.empty
+
+
+def test_load_policy_with_columns(tmp_path):
+    # Prepare
+    settings = {
+        "input_folder": str(tmp_path),
+        "emission_policies_fn": "policy_file.csv",
+        "case_id": "test_case",
+    }
+    # Create the policy file
+    policy_file = tmp_path / "policy_file.csv"
+    policy_file.write_text("case_id,region,year\n1,a,2021\n2,a,2022\n")
+    # Invoke
+    result = load_policy_scenarios(settings)
+    # Assert
+    assert isinstance(result, pd.DataFrame)
+    assert "case_id" in result.index.names
+    assert "year" in result.index.names
+
+
+def test_load_policy_missing_case_id(tmp_path):
+    # Prepare
+    settings = {
+        "input_folder": str(tmp_path),
+        "emission_policies_fn": "policy_file.csv",
+        "case_id": "test_case",
+    }
+    # Create the policy file
+    policy_file = tmp_path / "policy_file.csv"
+    policy_file.write_text("region,year\na,2021\na,2022\n")
+    # Invoke
+    result = load_policy_scenarios(settings)
+    # Assert
+    assert isinstance(result, pd.DataFrame)
+    assert "case_id" in result.index.names
+    result = result.reset_index()
+    assert result["case_id"].nunique() == 1
+    assert result["case_id"].unique()[0] == settings["case_id"]
+
+
+def test_load_policy_with_duplicates(tmp_path, caplog):
+    # Prepare
+    settings = {
+        "input_folder": str(tmp_path),
+        "emission_policies_fn": "policy_file.csv",
+        "case_id": "test_case",
+    }
+    # Create the policy file
+    policy_file = tmp_path / "policy_file.csv"
+    policy_file.write_text("case_id,region,year\n1,a,2021\n1,a,2021\n")
+    # Invoke
+    caplog.set_level(logging.WARNING)
+    result = load_policy_scenarios(settings)
+    # Assert
+    assert isinstance(result, pd.DataFrame)
+    assert "Your emissions policies" in caplog.text
+
+
+def test_load_policy_with_all_and_duplicates(tmp_path, caplog):
+    # Prepare
+    settings = {
+        "input_folder": str(tmp_path),
+        "emission_policies_fn": "policy_file.csv",
+        "case_id": "test_case",
+    }
+    # Create the policy file
+    policy_file = tmp_path / "policy_file.csv"
+    policy_file.write_text(
+        "case_id,region,year\ntest_case,a,2021\n1,a,2021\nall,a,2021"
+    )
+    # Invoke
+    caplog.set_level(logging.WARNING)
+    result = load_policy_scenarios(settings)
+    # Assert
+    assert isinstance(result, pd.DataFrame)
+    assert "After replacing" in caplog.text

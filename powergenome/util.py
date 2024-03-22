@@ -1,4 +1,6 @@
 import collections
+import csv
+import hashlib
 import itertools
 import logging
 import os
@@ -467,6 +469,14 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
             )
             settings["growth_scenario"] = f"REF{load_aeo_year}"
 
+    if not settings.get("interest_compound_method"):
+        logger.info(
+            "The default interest compounding method for calculating annuities has "
+            "changed from continuous to discrete. This method can be set with the parameter "
+            "'interest_compound_method', using values `discrete` or `continuous`.\n"
+            "This message will be removed after version 0.7.0."
+        )
+
 
 def init_pudl_connection(
     freq: str = "AS",
@@ -673,7 +683,7 @@ def update_dictionary(d: dict, u: dict) -> dict:
     ):
         raise TypeError("Inputs must be dictionaries")
 
-    for k, v in sorted(u.items(), key=lambda item: len(item[0])):
+    for k, v in sorted(u.items(), key=lambda item: len(str(item[0]))):
         if isinstance(d, collections.abc.Mapping):
             if isinstance(v, collections.abc.Mapping):
                 r = update_dictionary(d.get(k, {}), v)
@@ -682,7 +692,7 @@ def update_dictionary(d: dict, u: dict) -> dict:
                 d[k] = u[k]
         else:
             d = {k: u[k]}
-    return dict(sorted(d.items(), key=lambda item: len(item[0])))
+    return dict(sorted(d.items(), key=lambda item: len(str(item[0]))))
 
 
 def remove_fuel_scenario_name(df, settings):
@@ -709,6 +719,7 @@ def write_results_file(
     file_name: str,
     include_index: bool = False,
     float_format: str = None,
+    multi_period: bool = True,
 ):
     """Write a finalized dataframe to one of the results csv files.
 
@@ -724,11 +735,15 @@ def write_results_file(
         If pandas should include the index when writing to csv, by default False
     float_format: str
         Parameter passed to pandas .to_csv
+    multi_period : bool, optional
+        If results should be formatted for multi-period, by default True
     """
-    sub_folder = folder / "Inputs"
-    sub_folder.mkdir(exist_ok=True, parents=True)
+    if not multi_period:
+        folder = folder / "Inputs"
 
-    path_out = sub_folder / file_name
+    folder.mkdir(exist_ok=True, parents=True)
+
+    path_out = folder / file_name
     df.to_csv(path_out, index=include_index, float_format=float_format)
 
 
@@ -898,8 +913,10 @@ def build_scenario_settings(
             "either the key 'model_periods' (a list of 2-element lists) or the keys "
             "'model_year' and 'model_first_planning_year' (each a list of years)."
         )
-
-    case_id_name_map = build_case_id_name_map(settings)
+    if settings.get("case_id_description_fn"):
+        case_id_name_map = build_case_id_name_map(settings)
+    else:
+        case_id_name_map = None
 
     scenario_settings = {}
     for year in model_planning_period_dict.keys():
@@ -973,7 +990,8 @@ def build_scenario_settings(
 
             _settings["model_first_planning_year"] = model_planning_period_dict[year][0]
             _settings["model_year"] = model_planning_period_dict[year][1]
-            _settings["case_name"] = case_id_name_map[case_id]
+            if settings.get("case_id_description_fn"):
+                _settings["case_name"] = case_id_name_map[case_id]
             scenario_settings[year][case_id] = _settings
 
     return scenario_settings
@@ -1168,3 +1186,75 @@ def remove_leading_zero(id: Union[str, int]) -> Union[str, int]:
     elif id.isnumeric():
         id = id.lstrip("0")
     return id
+
+
+def hash_string_sha256(input_string: str) -> str:
+    """Create a reproducible hash of an input string. Use for creating cache filenames.
+
+    Parameters
+    ----------
+    input_string : str
+        String representing the data to hash
+
+    Returns
+    -------
+    str
+        Hexdigest hash of the input string.
+    """
+    # For simplicity, require string inputs.
+    if not isinstance(input_string, str):
+        raise TypeError("The input value cannot be hashed if it is not a string.")
+    # Encode the string into bytes
+    input_bytes = input_string.encode("utf-8")
+
+    # Create a SHA-256 hash object
+    hasher = hashlib.sha256()
+
+    # Pass the bytes to the hasher
+    hasher.update(input_bytes)
+
+    # Generate the hexadecimal representation of the digest
+    hex_digest = hasher.hexdigest()
+
+    return hex_digest
+
+
+def add_row_to_csv(file: Path, new_row: List[str], headers: List[str] = None) -> None:
+    """Add a row of data to an existing CSV file. If the file does not exist, create it
+    with headers and the first row of data.
+
+    Parameters
+    ----------
+    file : Path
+        Path to the CSV file
+    new_row : List[str]
+        Data to add as a new row in the CSV
+    headers : List[str], optional
+        Header names, by default None. Required if the file does not exist.
+
+    Raises
+    ------
+    ValueError
+        The file does not exist and no headers were provided.
+    """
+    file = Path(file)
+    # Check if file exists
+    if not file.exists():
+        if headers is None:
+            raise ValueError(
+                f"No headers provided. The file {file} does not exist, so headers are "
+                "required to create the file."
+            )
+        file.parent.mkdir(parents=True, exist_ok=True)
+        with file.open("w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(headers)  # write headers first time only
+
+    with file.open("r") as f:
+        reader = csv.reader(f)
+        data = list(reader)  # this contains all the rows in your CSV file
+
+    if new_row not in data:  # check if row already exists in data
+        with file.open("a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(new_row)  # add the new row to the CSV file

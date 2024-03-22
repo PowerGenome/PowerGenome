@@ -32,7 +32,8 @@ from powergenome.external_data import (
     demand_response_resource_capacity,
     make_demand_response_profiles,
 )
-from powergenome.GenX import rename_gen_cols
+from powergenome.financials import investment_cost_calculator
+from powergenome.GenX import cap_retire_within_period, rename_gen_cols
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
     atb_fixed_var_om_existing,
@@ -40,7 +41,6 @@ from powergenome.nrelatb import (
     fetch_atb_costs,
     fetch_atb_heat_rates,
     fetch_atb_offshore_spur_costs,
-    investment_cost_calculator,
 )
 from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
@@ -288,9 +288,9 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
     for new_tech, cost_tech in settings.get("new_build_startup_costs", {}).items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
-        df.loc[
-            df["technology"].str.contains(new_tech), "Start_Cost_per_MW"
-        ] = total_startup_costs
+        df.loc[df["technology"].str.contains(new_tech), "Start_Cost_per_MW"] = (
+            total_startup_costs
+        )
     df.loc[:, "Start_Cost_per_MW"] = df.loc[:, "Start_Cost_per_MW"]
 
     # df.loc[df["technology"].str.contains("Nuclear"), "Start_Cost_per_MW"] = "FILL VALUE"
@@ -457,7 +457,7 @@ def load_plant_region_map(
 
     model_region_map_df = region_map_df.loc[
         region_map_df.region.isin(keep_regions), :
-    ].drop(columns="id")
+    ].drop(columns="id", errors="ignore")
 
     model_region_map_df = map_agg_region_names(
         df=model_region_map_df,
@@ -934,6 +934,67 @@ def remove_retired_860m(df, retired_860m):
     return not_retired_df.reset_index(drop=True)
 
 
+def update_planned_retirement_date_860m(
+    df: pd.DataFrame, operating_860m: pd.DataFrame
+) -> pd.DataFrame:
+    """Update the planned retirement date in the main dataframe using the planned
+    retirement year column from 860m existing generators.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Main dataframe of generators from EIA 860. Must have columns "plant_id_eia",
+        "generator_id", and "planned_retirement_date", which should be in a datatime format.
+    operating_860m : pd.DataFrame
+        Dataframe of operating generators from EIA 860m. Must have columns "plant_id_eia",
+        "generator_id", and "planned_retirement_year"
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified version of "df" dataframe, with updated values in column
+        "planned_retirement_date" based on EIA-860m.
+    """
+    if "planned_retirement_date" not in df.columns:
+        logger.warning(
+            "The main generators dataframe from EIA 860 does not have a column "
+            "'planned_retirement_date'. If this column is missing all retirement dates "
+            "will be based on plant age."
+        )
+        return df
+    if "planned_retirement_year" not in operating_860m.columns:
+        logger.warning(
+            "The EIA-860m existing dataframe does not have a column 'planned_retirement_year'."
+            "Check the 860m file to see if it has been renamed. No values from the original "
+            "860 data will be changed."
+        )
+        return df
+    if df.empty or operating_860m.empty:
+        return df
+    _df = df.set_index(["plant_id_eia", "generator_id"])
+    _operating_860m = operating_860m.set_index(["plant_id_eia", "generator_id"])
+    _operating_860m["planned_retirement_date_860m"] = pd.to_datetime(
+        _operating_860m["planned_retirement_year"], format="%Y"
+    )
+    update_df = pd.merge(
+        _df,
+        _operating_860m[["planned_retirement_date_860m"]],
+        how="inner",
+        left_index=True,
+        right_index=True,
+    )
+    mask = update_df.loc[
+        update_df["planned_retirement_date"].dt.year.fillna(9999)
+        != update_df["planned_retirement_date_860m"].dt.year.fillna(9999),
+        :,
+    ].index
+    _df.loc[mask, "planned_retirement_date"] = update_df.loc[
+        mask, "planned_retirement_date_860m"
+    ]
+
+    return _df.reset_index()
+
+
 def remove_future_retirements_860m(df, retired_860m):
     """Remove generators that 860m shows as having been retired
 
@@ -1314,7 +1375,7 @@ def group_units(df, settings):
 
 
 def calc_unit_cluster_values(
-    df: pd.DataFrame, capacity_col: str, technology: str = None
+    df: pd.DataFrame, capacity_col: str, technology: str = None, clustered: bool = True
 ):
     """
     Calculate the total capacity, minimum load, weighted heat rate, and number of
@@ -1330,6 +1391,8 @@ def calc_unit_cluster_values(
         winter_capacity_mw).
     technology : str, optional
         Name of the generating technology, by default None
+    clustered : bool, optional
+        If units are clustered or only a single unit is being passed, by default True
 
     Returns
     -------
@@ -1337,19 +1400,29 @@ def calc_unit_cluster_values(
         Aggragate values for generators in a technology cluster
     """
     # if not clustering units no need to calulate cluster average values
-    if df["cluster"].max() == len(df):
+    if len(df) == 1:
+        clustered = False
+    elif df["cluster"].nunique() == len(df):
+        clustered = False
+
+    if not clustered:
         df["Min_Power"] = df["minimum_load_mw"] / df[capacity_col]
         df["num_units"] = 1
         if technology:
             df["technology"] = technology
 
-        return df.reset_index()
+        return df.reset_index().replace(np.inf, 0)
 
     # Define a function to compute the weighted mean.
     # The issue here is that the df name needs to be used in the function.
     # So this will need to be within a function that takes df as an input
     def wm(x):
-        return np.average(x, weights=df.loc[x.index, capacity_col])
+        try:
+            return np.average(
+                x, weights=df.loc[x.index, capacity_col].replace(np.nan, 0)
+            )
+        except ZeroDivisionError:
+            return x.mean()
 
     if df["heat_rate_mmbtu_mwh"].isnull().values.any():
         # mean =
@@ -1388,7 +1461,9 @@ def calc_unit_cluster_values(
 
     df_values["Min_Power"] = df_values["minimum_load_mw"] / df_values[capacity_col]
 
-    df_values["num_units"] = df.groupby("cluster")["cluster"].count()
+    df_values["num_units"] = (
+        df.dropna(subset=capacity_col).groupby("cluster")["cluster"].count()
+    )
 
     if technology:
         df_values["technology"] = technology
@@ -1430,7 +1505,7 @@ def add_genx_model_tags(df, settings):
         try:
             for tech, tag_value in sorted(
                 settings["model_tag_values"][tag_col].items(),
-                key=lambda item: len(item[0]),
+                key=lambda item: len(str(item[0])),
             ):
                 tech = re.sub(ignored, "", tech)
                 mask = technology.str.contains(rf"^{tech}", case=False)
@@ -2428,7 +2503,10 @@ def calculate_transmission_inv_cost(resource_df, settings, offshore_spur_costs=N
             capex_mw_mile.fillna(0) * resource_df[f"{ttype}_miles"]
         )
         resource_df[f"{ttype}_inv_mwyr"] = investment_cost_calculator(
-            resource_df[f"{ttype}_capex"], params["wacc"], params["investment_years"]
+            resource_df[f"{ttype}_capex"],
+            params["wacc"],
+            params["investment_years"],
+            settings.get("interest_compound_method", "discrete"),
         )
     return resource_df
 
@@ -2586,9 +2664,9 @@ def energy_storage_mwh(
     for tech, val in energy_storage_duration.items():
         if isinstance(val, dict):
             tech_regions = val.keys()
-            df.loc[
-                df[tech_col].isna(), "technology_description"
-            ] = "missing_tech_description"
+            df.loc[df[tech_col].isna(), "technology_description"] = (
+                "missing_tech_description"
+            )
             model_tech_regions = df.loc[
                 snake_case_col(df[tech_col]).str.contains(snake_case_str(tech)),
                 region_col,
@@ -2779,6 +2857,8 @@ class GeneratorClusters:
         sort_gens=False,
         plant_region_map_table="plant_region_map_epaipm",
         settings_agg_key="region_aggregations",
+        multi_period=False,
+        include_retired_cap=False,
     ):
         """
 
@@ -2802,6 +2882,8 @@ class GeneratorClusters:
         self.model_regions_gdf = load_ipm_shapefile(self.settings)
         self.weighted_unit_hr = None
         self.supplement_with_860m = supplement_with_860m
+        self.multi_period = multi_period
+        self.include_retired_cap = include_retired_cap
         self.cluster_builder = build_resource_clusters(
             self.settings.get("RESOURCE_GROUPS"),
             self.settings.get("RESOURCE_GROUP_PROFILES"),
@@ -2884,7 +2966,7 @@ class GeneratorClusters:
 
         # return df
 
-    def remove_860_duplicates(self, df_860: pd.DataFrame()) -> pd.DataFrame():
+    def remove_860_duplicates(self, df_860: pd.DataFrame) -> pd.DataFrame:
         """
         Remove rows from an EIA 860 DF that contain a duplicate plant-generator pairing.
         """
@@ -2925,8 +3007,8 @@ class GeneratorClusters:
                 "for this planning period. No flexible demand resources will be included."
             )
         for resource, parameters in (
-            self.settings["flexible_demand_resources"].get(year, {}).items()
-        ):
+            self.settings["flexible_demand_resources"].get(year, {}) or {}
+        ).items():
             _df = pd.DataFrame(
                 index=self.settings["model_regions"],
                 columns=list(self.settings["generator_columns"]) + ["profile"],
@@ -3042,6 +3124,7 @@ class GeneratorClusters:
             )
             .pipe(remove_canceled_860m, self.canceled_860m)
             .pipe(remove_retired_860m, self.retired_860m)
+            .pipe(update_planned_retirement_date_860m, self.operating_860m.copy())
             .pipe(update_operating_date_860m, self.operating_860m.copy())
             .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
             .pipe(
@@ -3273,15 +3356,39 @@ class GeneratorClusters:
                 ].items():
                     num_clusters[region][tech] = cluster_size
 
-        region_tech_grouped = self.units_model.loc[
-            (self.units_model.technology.isin(techs))
-            & ~(self.units_model.retirement_year <= self.settings["model_year"]),
-            :,
-        ].groupby(["model_region", "technology"])
-
         self.retired = self.units_model.loc[
             ~(self.units_model.retirement_year > self.settings["model_year"]), :
         ]
+        self.period_retired = self.units_model.loc[
+            ~(self.units_model.retirement_year > self.settings["model_year"])
+            & (
+                self.units_model.retirement_year
+                >= self.settings["model_first_planning_year"]
+            ),
+            :,
+        ]
+        self.retired_index = self.retired.set_index(
+            ["plant_id_eia", "unit_id_pg"]
+        ).index
+        if self.settings.get("cluster_with_retired_gens", False) is True:
+            logger.info(
+                "\n\nAge-retired gens are included for clustering to keep consistent "
+                "cluster assignments across periods. \n\n"
+            )
+            region_tech_grouped = self.units_model.loc[
+                self.units_model.technology.isin(techs), :
+            ].groupby(["model_region", "technology"])
+        else:
+            logger.info(
+                "\n\nAge-retired gens are NOT included for clustering. This may lead to "
+                "inconsistent cluster assignments across periods. If you want to change "
+                "this behavior, add 'cluster_with_retired_gens: true' to your settings.\n\n"
+            )
+            region_tech_grouped = self.units_model.loc[
+                (self.units_model.technology.isin(techs))
+                & ~(self.units_model.retirement_year <= self.settings["model_year"]),
+                :,
+            ].groupby(["model_region", "technology"])
 
         # gens_860 lost the ownership code... refactor this!
         # self.all_gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
@@ -3306,18 +3413,36 @@ class GeneratorClusters:
             # correct clustering method. Can't keep doing if statements as the number of
             # methods grows. CHANGE LATER.
             if not alt_cluster_method:
-                # Allow users to set value as None and not cluster units.
-                if num_clusters[region][tech] is None:
+                # Allow users to set value as None and not cluster units, or when the
+                # num clusters is equal to the number of units.
+                if num_clusters[region][tech] is None or num_clusters[region][
+                    tech
+                ] == len(grouped):
+                    if self.multi_period:
+                        grouped.loc[
+                            grouped.index.isin(self.retired_index),
+                            [
+                                self.settings["capacity_col"],
+                                "minimum_load_mw",
+                                "capacity_mwh",
+                            ],
+                        ] = np.nan
+                    else:
+                        grouped = grouped.loc[
+                            ~grouped.index.isin(self.retired_index), :
+                        ]
+
                     grouped["cluster"] = np.arange(len(grouped)) + 1
                     unit_list.append(grouped)
-                    _df = calc_unit_cluster_values(
-                        grouped, self.settings["capacity_col"], tech
-                    )
-                    _df["region"] = region
+                    if not grouped.empty:
+                        _df = calc_unit_cluster_values(
+                            grouped, self.settings["capacity_col"], tech
+                        )
+                        _df["region"] = region
 
-                    self.cluster_list.append(_df)
-                    continue
-                if num_clusters[region][tech] > 0:
+                        self.cluster_list.append(_df)
+                        continue
+                elif num_clusters[region][tech] > 0:
                     cluster_cols = [
                         "Fixed_OM_Cost_per_MWyr",
                         # "Var_OM_Cost_per_MWh",
@@ -3345,7 +3470,8 @@ class GeneratorClusters:
                     grouped["cluster"] = (
                         clusters.labels_ + 1
                     )  # Change to 1-index for julia
-
+                else:
+                    continue
             else:
                 if (
                     region in alt_cluster_method
@@ -3369,24 +3495,43 @@ class GeneratorClusters:
                     grouped["cluster"] = (
                         clusters.labels_ + 1
                     )  # Change to 1-index for julia
+                else:
+                    continue
 
             # Saving individual unit data for later analysis (if needed)
             unit_list.append(grouped)
 
             # Don't add technologies with specified 0 clusters
             if num_clusters[region][tech] != 0:
-                _df = calc_unit_cluster_values(
-                    grouped, self.settings["capacity_col"], tech
-                )
-                _df["region"] = region
-                _df["plant_id_eia"] = (
-                    grouped.reset_index().groupby("cluster")["plant_id_eia"].apply(list)
-                )
-                _df["unit_id_pg"] = (
-                    grouped.reset_index().groupby("cluster")["unit_id_pg"].apply(list)
-                )
+                # Remove retired units before calculating cluster operating values
+                if self.multi_period:
+                    grouped.loc[
+                        grouped.index.isin(self.retired_index),
+                        [
+                            self.settings["capacity_col"],
+                            "minimum_load_mw",
+                            "capacity_mwh",
+                        ],
+                    ] = np.nan
+                else:
+                    grouped = grouped.loc[~grouped.index.isin(self.retired_index), :]
+                if not grouped.empty:
+                    _df = calc_unit_cluster_values(
+                        grouped, self.settings["capacity_col"], tech
+                    )
+                    _df["region"] = region
+                    _df["plant_id_eia"] = (
+                        grouped.reset_index()
+                        .groupby("cluster")["plant_id_eia"]
+                        .apply(list)
+                    )
+                    _df["unit_id_pg"] = (
+                        grouped.reset_index()
+                        .groupby("cluster")["unit_id_pg"]
+                        .apply(list)
+                    )
 
-                self.cluster_list.append(_df)
+                    self.cluster_list.append(_df)
 
         # Save some data about individual units for easy access
         self.all_units = pd.concat(unit_list, sort=False)
@@ -3469,15 +3614,16 @@ class GeneratorClusters:
                 ]
             )
 
+        self.all_units = self.all_units.rename(columns={"model_region": "region"})
+        self.all_units["Resource"] = (
+            self.all_units["region"]
+            + "_"
+            + snake_case_col(self.all_units["technology"])
+            + "_"
+            + self.all_units["cluster"].astype(int).astype(str)
+        )
+
         if self.settings.get("extra_outputs"):
-            self.all_units = self.all_units.rename(columns={"model_region": "region"})
-            self.all_units["Resource"] = (
-                self.all_units["region"]
-                + "_"
-                + snake_case_col(self.all_units["technology"])
-                + "_"
-                + self.all_units["cluster"].astype(str)
-            )
             self.all_units.to_csv(
                 Path(self.settings["extra_outputs"]) / "existing_gen_units.csv",
                 index=False,
@@ -3486,6 +3632,9 @@ class GeneratorClusters:
         self.results = self.results.round(3)
         self.results["Cap_Size"] = self.results["Cap_Size"]
         self.results["Existing_Cap_MW"] = self.results.Cap_Size * self.results.num_units
+
+        # A cap size of 0 causes issues in GenX with thermal commitment.
+        self.results["Cap_Size"] = self.results["Cap_Size"].fillna(1).replace(0, 1)
         if self.settings.get("derate_capacity"):
             self.results["unmodified_existing_cap_mw"] = (
                 self.results["unmodified_cap_size"] * self.results["num_units"]
@@ -3535,6 +3684,44 @@ class GeneratorClusters:
             + "_"
             + self.results["cluster"].astype(str)
         )
+        if self.results["Resource"].nunique() != len(self.results):
+            dup_resources = (
+                self.results[self.results["Resource"].duplicated()]
+                .drop_duplicates()
+                .to_list()
+            )
+            raise ValueError(
+                f"The generator resource names {dup_resources} have duplicates. These "
+                "names should be unique. You'll probably need to file an issue for this "
+                "at https://github.com/PowerGenome/PowerGenome/issues."
+            )
+
+        if self.multi_period:
+            retire_cols = [
+                "Min_Retired_Cap_MW",
+                "Min_Retired_Energy_Cap_MW",
+                "Min_Retired_Charge_Cap_MW",
+            ]
+            for col in retire_cols:
+                if col not in self.settings.get("generator_columns", []) and isinstance(
+                    self.settings.get("generator_columns"), list
+                ):
+                    self.settings["generator_columns"].append(col)
+
+            if self.include_retired_cap:
+                # Add mimimum retirement amounts
+                cap_retired = cap_retire_within_period(
+                    self.all_units,
+                    self.settings["model_first_planning_year"],
+                    self.settings["model_year"],
+                    self.settings.get("capacity_col", "capacity_mw"),
+                )
+                self.results = pd.merge(
+                    self.results, cap_retired, on="Resource", how="left", validate="1:1"
+                )
+                self.results[retire_cols].fillna(0, inplace=True)
+            else:
+                self.results[retire_cols] = 0
 
         # Add variable resource profiles
         self.results = self.results.reset_index(drop=True)
@@ -3625,7 +3812,9 @@ class GeneratorClusters:
         self.new_generators = add_genx_model_tags(self.new_generators, self.settings)
         if "cluster" not in self.new_generators.columns:
             self.new_generators["cluster"] = 1
-        self.new_generators["cluster"] = self.new_generators["cluster"].astype("Int64")
+        self.new_generators["cluster"] = self.new_generators["cluster"].astype(
+            "Int64", errors="ignore"
+        )
         self.new_generators["Resource"] = (
             self.new_generators["region"]
             + "_"
