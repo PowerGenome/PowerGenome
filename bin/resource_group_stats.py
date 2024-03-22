@@ -1,6 +1,7 @@
 """
 Create a summary file with the resource group capacity by lcoe bin for every region
 """
+
 import argparse
 import sys
 from pathlib import Path
