@@ -730,9 +730,9 @@ def test_flex_resources(CA_AZ_settings):
     CA_AZ_settings["model_year"] = 2035
     CA_AZ_settings["model_first_planning_year"] = 2030
     CA_AZ_settings["electrification_stock_fn"] = "EFS_STOCK_AGG.parquet"
-    CA_AZ_settings[
-        "electrification_scenario"
-    ] = "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
+    CA_AZ_settings["electrification_scenario"] = (
+        "REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT"
+    )
     CA_AZ_settings["flexible_demand_resources"] = {
         2035: {
             "trans_light_duty": {
