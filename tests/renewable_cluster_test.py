@@ -16,6 +16,7 @@ from powergenome.cluster.renewables import (
     agglomerative_cluster_binned,
     agglomerative_cluster_no_bin,
     assign_site_cluster,
+    modify_renewable_group,
     num_bins_from_capacity,
     value_bin,
 )
