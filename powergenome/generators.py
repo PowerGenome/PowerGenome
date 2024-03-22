@@ -2966,7 +2966,7 @@ class GeneratorClusters:
 
         # return df
 
-    def remove_860_duplicates(self, df_860: pd.DataFrame()) -> pd.DataFrame():
+    def remove_860_duplicates(self, df_860: pd.DataFrame) -> pd.DataFrame:
         """
         Remove rows from an EIA 860 DF that contain a duplicate plant-generator pairing.
         """
