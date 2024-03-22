@@ -69,8 +69,9 @@ def test_set_must_run_generation_no_techs():
 
 # Tests that the function logs a warning message when trying to set a must run resource that is not found in the generation variability dataframe.
 def test_set_must_run_generation_tech_not_found(caplog):
-    from pandas.testing import assert_frame_equal
     import logging
+
+    from pandas.testing import assert_frame_equal
 
     gen_variability = pd.DataFrame(
         {"gen_1": [0.5, 0.6, 0.7], "gen_2": [0.8, 0.9, 1.0], "gen_3": [0.0, 0.0, 0.0]}

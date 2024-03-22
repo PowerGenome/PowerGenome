@@ -3,6 +3,7 @@ Test functions related to load profiles
 """
 
 import pandas as pd
+
 from powergenome.load_profiles import grow_historical_load
 
 

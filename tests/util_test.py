@@ -2,11 +2,11 @@
 Test util functions
 """
 import logging
+
 import pytest
 
 import powergenome
 from powergenome.util import apply_all_tag_to_regions, sort_nested_dict
-
 
 logger = logging.getLogger(powergenome.__name__)
 logger.setLevel(logging.INFO)

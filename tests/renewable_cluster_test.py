@@ -2,22 +2,22 @@
 
 from pathlib import Path
 
+import hypothesis
 import pandas as pd
+from hypothesis import given
+from hypothesis import strategies as st
+from hypothesis.extra.numpy import arrays
+from hypothesis.extra.pandas import column, data_frames, range_indexes, series
 
 from powergenome.cluster.renewables import (
-    assign_site_cluster,
-    num_bins_from_capacity,
-    value_bin,
     agg_cluster_other,
     agg_cluster_profile,
     agglomerative_cluster_binned,
     agglomerative_cluster_no_bin,
+    assign_site_cluster,
+    num_bins_from_capacity,
+    value_bin,
 )
-
-import hypothesis
-from hypothesis import given, strategies as st
-from hypothesis.extra.pandas import data_frames, column, range_indexes, series
-from hypothesis.extra.numpy import arrays
 
 CWD = Path.cwd()
 DATA_FOLDER = CWD / "tests" / "data" / "cpa_cluster_data"

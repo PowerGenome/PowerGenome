@@ -2,12 +2,13 @@
 
 import logging
 import os
+
 import numpy as np
 import pytest
 
 import powergenome
 from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
-from powergenome.fuels import add_user_fuel_prices, add_carbon_tax, fuel_cost_table
+from powergenome.fuels import add_carbon_tax, add_user_fuel_prices, fuel_cost_table
 from powergenome.generators import GeneratorClusters
 from powergenome.params import DATA_PATHS
 from powergenome.util import init_pudl_connection

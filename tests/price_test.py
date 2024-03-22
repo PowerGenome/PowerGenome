@@ -1,6 +1,7 @@
 "Test functions from price_adjustment.py"
 
 import pandas as pd
+
 from powergenome.eia_opendata import load_aeo_series
 from powergenome.params import SETTINGS
 from powergenome.price_adjustment import inflation_price_adjustment, load_cpi_data
