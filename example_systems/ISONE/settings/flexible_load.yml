@@ -33,7 +33,7 @@
 
 
 electrification_stock_fn: SCENARIO_STOCK.parquet # EFS_STOCK_AGG.parquet
-electrification_scenario: current_policy # REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT 
+electrification_scenario: current_policy # REFERENCE ELECTRIFICATION - MODERATE TECHNOLOGY ADVANCEMENT
 # Name of the flexible resource, fraction of load that can be shifted, and model-specific
 # parameters that will be applied to each resource.
 # Table 5.1 from the NREL report "Electrification Futures Study:
