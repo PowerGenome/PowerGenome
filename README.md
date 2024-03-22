@@ -5,6 +5,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4426097.svg)](https://doi.org/10.5281/zenodo.4426096)
 [![pytest](https://github.com/PowerGenome/PowerGenome/actions/workflows/pytest.yml/badge.svg)](https://github.com/PowerGenome/PowerGenome/actions/workflows/pytest.yml)
 [![codecov](https://codecov.io/gh/PowerGenome/PowerGenome/branch/master/graph/badge.svg?token=7KJYLE3jOW)](https://codecov.io/gh/PowerGenome/PowerGenome)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/PowerGenome/PowerGenome/master.svg)](https://results.pre-commit.ci/latest/github/PowerGenome/PowerGenome/master)
 
 The code and data for PowerGenome are under active development and some changes may break existing functions. Keep up to date with major code and data releases by joining [PowerGenome on groups.io](https://groups.io/g/powergenome). And **check out the growing documentation on the [Wiki](https://github.com/PowerGenome/PowerGenome/wiki)** for helpful background information.
 
