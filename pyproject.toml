@@ -63,3 +63,6 @@ run_powergenome_multiple = "powergenome.run_powergenome_multiple_outputs_cli:mai
 
 [project.urls]
 "Source" = "https://github.com/PowerGenome/PowerGenome"
+
+[tool.isort]
+profile = "black"
