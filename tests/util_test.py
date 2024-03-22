@@ -124,7 +124,6 @@ def test_apply_all_tag_to_regions(caplog):
 
 
 class TestHashStringSha256:
-
     # Returns a hash string for a given input string
     def test_returns_hash_string(self):
         # Arrange
@@ -150,7 +149,6 @@ class TestHashStringSha256:
 
 
 class TestAddRowToCsv:
-
     # Adds a new row to an existing CSV file with headers, ensuring correct file permissions
     def test_add_row_with_headers_fixed_fixed(self, tmp_path):
         # Create a temporary CSV file with headers in the temporary directory

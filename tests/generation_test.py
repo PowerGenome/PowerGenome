@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 from powergenome.eia_opendata import add_user_fuel_prices
-from powergenome.external_data import make_generator_variability
+from powergenome.external_data import load_policy_scenarios, make_generator_variability
 from powergenome.fuels import fuel_cost_table
 from powergenome.GenX import (
     RESOURCE_TAGS,
@@ -25,9 +25,6 @@ from powergenome.GenX import (
     round_col_values,
     set_int_cols,
 )
-from powergenome.eia_opendata import add_user_fuel_prices
-from powergenome.external_data import load_policy_scenarios, make_generator_variability
-from powergenome.fuels import fuel_cost_table
 from powergenome.nrelatb import db_col_values
 
 CWD = Path.cwd()

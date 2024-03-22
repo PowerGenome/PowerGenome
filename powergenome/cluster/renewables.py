@@ -3,8 +3,8 @@ Flexible methods to cluster/aggregate renewable projects
 """
 
 import logging
-from functools import lru_cache
 import operator
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Union
 

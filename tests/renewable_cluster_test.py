@@ -5,7 +5,6 @@ from pathlib import Path
 import hypothesis
 import pandas as pd
 import pytest
-
 from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays

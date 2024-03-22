@@ -5,15 +5,15 @@ Adjust price/cost from one year to another
 from pathlib import Path
 from typing import Union
 from warnings import warn
-import numpy as np
 
+import numpy as np
 import pandas as pd
 
+from powergenome.financials import get_cpi_data as _get_cpi_data
 from powergenome.financials import (
-    get_cpi_data as _get_cpi_data,
-    load_cpi_data as _load_cpi_data,
     inflation_price_adjustment as _inflation_price_adjustment,
 )
+from powergenome.financials import load_cpi_data as _load_cpi_data
 
 
 def get_cpi_data(start_year: int = 1980, end_year: int = None) -> pd.DataFrame:

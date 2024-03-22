@@ -10,8 +10,8 @@ import pytest
 import powergenome
 from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
 from powergenome.fuels import (
-    add_user_fuel_prices,
     add_carbon_tax,
+    add_user_fuel_prices,
     adjust_ccs_fuels,
     fuel_cost_table,
 )

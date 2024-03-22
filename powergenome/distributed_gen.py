@@ -3,8 +3,8 @@ import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List
-import numpy as np
 
+import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 

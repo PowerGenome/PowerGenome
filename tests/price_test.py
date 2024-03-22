@@ -6,8 +6,8 @@ import pytest
 
 from powergenome.eia_opendata import load_aeo_series
 from powergenome.financials import (
-    investment_cost_calculator,
     inflation_price_adjustment,
+    investment_cost_calculator,
     load_cpi_data,
 )
 from powergenome.params import SETTINGS

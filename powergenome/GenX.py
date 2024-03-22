@@ -13,8 +13,8 @@ from powergenome.external_data import (
     load_user_genx_settings,
     make_generator_variability,
 )
-from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.financials import investment_cost_calculator
+from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import (
     find_region_col,
@@ -1242,7 +1242,6 @@ def add_co2_costs_to_o_m(df: pd.DataFrame) -> pd.DataFrame:
 def cap_retire_within_period(
     gens: pd.DataFrame, first_year: int, last_year: int, capacity_col: str
 ) -> pd.Series:
-
     retired_cap = (
         gens.query("retirement_year <= @last_year and retirement_year >= @first_year")
         .groupby("Resource", as_index=False)[[capacity_col, "capacity_mwh"]]

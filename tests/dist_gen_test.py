@@ -1,8 +1,8 @@
 "Test functions for loading distributed generation scenario data"
 
 from pathlib import Path
-import numpy as np
 
+import numpy as np
 import pandas as pd
 import pytest
 
