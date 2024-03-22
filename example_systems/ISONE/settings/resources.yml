@@ -198,7 +198,7 @@ atb_modifiers:
     Var_OM_Cost_per_MWh_In: 0.15
 
 
-# Copy and modify an existing ATB new generator. Set parameter to none (~) if not adding 
+# Copy and modify an existing ATB new generator. Set parameter to none (~) if not adding
 # any modified generators.
 modified_atb_new_gen: ~
   # NGCCS100:

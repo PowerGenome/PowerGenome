@@ -4,6 +4,7 @@ Test util functions
 
 import csv
 import logging
+
 import pytest
 
 import powergenome
@@ -13,7 +14,6 @@ from powergenome.util import (
     hash_string_sha256,
     sort_nested_dict,
 )
-
 
 logger = logging.getLogger(powergenome.__name__)
 logger.setLevel(logging.INFO)

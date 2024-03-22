@@ -2,13 +2,14 @@
 
 from pathlib import Path
 import numpy as np
+
 import pandas as pd
 import pytest
 
 from powergenome.distributed_gen import (
-    load_region_pop_frac,
-    interp_dg,
     distributed_gen_profiles,
+    interp_dg,
+    load_region_pop_frac,
 )
 
 CWD = Path.cwd()

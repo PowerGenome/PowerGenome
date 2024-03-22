@@ -1,7 +1,8 @@
 import sqlite3
-import sqlalchemy as sa
 
 import pandas as pd
+import sqlalchemy as sa
+
 from powergenome.params import DATA_PATHS
 from powergenome.util import init_pudl_connection
 

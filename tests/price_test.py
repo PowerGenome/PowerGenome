@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+
 from powergenome.eia_opendata import load_aeo_series
 from powergenome.financials import (
     investment_cost_calculator,
