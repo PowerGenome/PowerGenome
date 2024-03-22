@@ -180,9 +180,9 @@ def make_load_curves(
     # Increase demand to account for load growth
     load_curves = add_load_growth(load_curves, settings)
 
-    load_curves.loc[load_curves.region.isin(region_agg_map), "region"] = (
-        load_curves.region.map(region_agg_map)
-    )
+    load_curves.loc[
+        load_curves.region.isin(region_agg_map), "region"
+    ] = load_curves.region.map(region_agg_map)
 
     logger.info("Aggregating load curves in grouped regions")
     load_curves_agg = load_curves.groupby(["region", "time_index"])["load_mw"].sum()

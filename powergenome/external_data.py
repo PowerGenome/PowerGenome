@@ -295,9 +295,9 @@ def load_policy_scenarios(settings: dict) -> pd.DataFrame:
             "This duplication of emission policies across multiple years may cause erors."
         )
         warned = True
-    policies.loc[policies["case_id"].astype(str).str.lower() == "all", "case_id"] = (
-        settings["case_id"]
-    )
+    policies.loc[
+        policies["case_id"].astype(str).str.lower() == "all", "case_id"
+    ] = settings["case_id"]
     if policies.duplicated(subset=["case_id", "year", "region"]).any() and not warned:
         logger.warning(
             f"After replacing values of 'all' with {settings['case_id']}, your emissions "
@@ -585,12 +585,12 @@ def insert_user_tx_costs(tx_df: pd.DataFrame, user_costs: pd.DataFrame) -> pd.Da
 
         if line_row.empty:
             unused_lines.append(row)
-        tx_df.loc[line_row.index, "Line_Reinforcement_Cost_per_MWyr"] = (
-            row.total_interconnect_annuity_mw
-        )
-        tx_df.loc[line_row.index, "Line_Reinforcement_Cost_per_MW"] = (
-            row.total_interconnect_cost_mw
-        )
+        tx_df.loc[
+            line_row.index, "Line_Reinforcement_Cost_per_MWyr"
+        ] = row.total_interconnect_annuity_mw
+        tx_df.loc[
+            line_row.index, "Line_Reinforcement_Cost_per_MW"
+        ] = row.total_interconnect_cost_mw
         tx_df.loc[line_row.index, "Line_Loss_Percentage"] = row.total_line_loss_frac
 
     unused_line_df = pd.DataFrame(unused_lines)
@@ -607,9 +607,9 @@ def insert_user_tx_costs(tx_df: pd.DataFrame, user_costs: pd.DataFrame) -> pd.Da
     for idx, row in unused_line_df.iterrows():
         unused_line_df.loc[idx, row["zone_1"]] = 1
         unused_line_df.loc[idx, row["zone_2"]] = -1
-        unused_line_df.loc[idx, "transmission_path_name"] = (
-            f"{row.start_region}_to_{row.dest_region}"
-        )
+        unused_line_df.loc[
+            idx, "transmission_path_name"
+        ] = f"{row.start_region}_to_{row.dest_region}"
 
     cols = [c for c in tx_df.columns if c in unused_line_df.columns]
     tx_df = pd.concat([tx_df, unused_line_df[cols]], ignore_index=True)
