@@ -1,6 +1,7 @@
 """
 Flexible methods to cluster/aggregate renewable projects
 """
+
 import logging
 from functools import lru_cache
 from pathlib import Path

@@ -1,6 +1,7 @@
 """
 Test util functions
 """
+
 import logging
 
 import pytest

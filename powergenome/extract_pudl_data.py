@@ -219,7 +219,7 @@ def main():
     if args.gens:
         gen_clusters.to_csv(
             out_folder / f"generator_clusters_{args.results_folder}.csv",
-            index=False
+            index=False,
             # float_format="%.3f",
         )
         # if args.all_units is True:
