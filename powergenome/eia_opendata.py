@@ -463,12 +463,12 @@ def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFram
     user_fuel_price = pd.DataFrame(fuel_data)
     if settings.get("target_usd_year"):
         for fuel, year in (settings.get("user_fuel_usd_year", {}) or {}).items():
-            user_fuel_price.loc[user_fuel_price["fuel"] == fuel, "price"] = (
-                inflation_price_adjustment(
-                    user_fuel_price.loc[user_fuel_price["fuel"] == fuel, "price"],
-                    year,
-                    settings["target_usd_year"],
-                )
+            user_fuel_price.loc[
+                user_fuel_price["fuel"] == fuel, "price"
+            ] = inflation_price_adjustment(
+                user_fuel_price.loc[user_fuel_price["fuel"] == fuel, "price"],
+                year,
+                settings["target_usd_year"],
             )
     if df is not None:
         user_fuel_price = pd.concat([df, user_fuel_price])
