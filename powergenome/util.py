@@ -872,6 +872,73 @@ def build_case_id_name_map(settings: dict) -> dict:
     return case_id_name_map
 
 
+
+def make_iterable(item):
+    """Return an iterable version of the one or more items passed."""
+    if isinstance(item, str):
+        i = iter([item])
+    else:
+        try:
+            # check if it's iterable
+            i = iter(item)
+        except TypeError:
+            i = iter([item])
+    return i
+
+
+def assign_model_planning_years(_settings, year):
+    """
+    Make sure "model_year" and "model_first_planning_year" appear as scalars.
+
+    These can originally be set in any of these forms, in either the default
+    settings or in the settings_management dictionary:
+
+    model_year: 2040 and model_first_planning_year: 2031
+    model_year: [2040, 2050] and model_first_planning_year: [2031, 2041]
+    model_periods: (2031, 2040)
+    model_periods: [(2031, 2040), (2041, 2050)]
+
+    This function looks up the right values for the current year and assigns
+    them as scalars (the first form above).
+    """
+    if "model_periods" in _settings:
+        model_planning_period_dict = {
+            year: (start_year, year)
+            for (start_year, year) in make_iterable(_settings["model_periods"])
+        }
+    elif "model_year" in _settings and "model_first_planning_year" in _settings:
+        model_planning_period_dict = {
+            year: (start_year, year)
+            for year, start_year in zip(
+                make_iterable(_settings["model_year"]),
+                make_iterable(_settings["model_first_planning_year"]),
+            )
+        }
+    elif "model_first_planning_year" in _settings:
+        # we also allow leaving out the model_year tag and just specifying
+        # model_first_planning_year
+        model_planning_period_dict = {year: _settings["model_first_planning_year"]}
+    else:
+        raise KeyError(
+            "To build a dictionary of scenario settings your settings file should include "
+            "either the key 'model_periods' (a list of 2-element lists) or the keys "
+            "'model_year' and 'model_first_planning_year' (each a list of years)."
+        )
+
+    # remove any model period data already there
+    for key in ["model_periods", "model_year", "model_first_planning_year"]:
+        try:
+            del _settings[key]
+        except KeyError:
+            pass
+
+    # assign the scalar values
+    _settings["model_first_planning_year"] = model_planning_period_dict[year][0]
+    _settings["model_year"] = model_planning_period_dict[year][1]
+
+    return _settings
+
+
 def build_scenario_settings(
     settings: dict, scenario_definitions: pd.DataFrame
 ) -> Dict[int, Dict[Union[int, str], dict]]:
@@ -894,105 +961,110 @@ def build_scenario_settings(
         A nested dictionary. The first set of keys are the planning years, the second
         set of keys are the case ID values associated with each case.
     """
-    if settings.get("model_periods"):
-        model_planning_period_dict = {
-            year: (start_year, year) for (start_year, year) in settings["model_periods"]
-        }
-    elif isinstance(settings.get("model_year"), list) and isinstance(
-        settings.get("model_first_planning_year"), list
-    ):
-        model_planning_period_dict = {
-            year: (start_year, year)
-            for year, start_year in zip(
-                settings["model_year"], settings["model_first_planning_year"]
-            )
-        }
-    else:
-        raise KeyError(
-            "To build a dictionary of scenario settings your settings file should include "
-            "either the key 'model_periods' (a list of 2-element lists) or the keys "
-            "'model_year' and 'model_first_planning_year' (each a list of years)."
+
+    # don't allow duplicate rows in the scenario definitions table, since they
+    # could give unexpected results
+    dups = scenario_definitions[["case_id", "year"]].duplicated()
+    if dups.sum() > 0:
+        raise ValueError(
+            "The following cases and years are repeated in your scenario definitions file:\n\n"
+            + scenario_definitions[dups].to_string(index=False)
         )
+
     if settings.get("case_id_description_fn"):
         case_id_name_map = build_case_id_name_map(settings)
     else:
         case_id_name_map = None
 
+    all_category_levels = set()
+    active_category_levels = set()
     scenario_settings = {}
-    for year in model_planning_period_dict.keys():
-        scenario_settings[year] = {}
-        planning_year_settings_management = (
-            settings.get("settings_management", {}).get(year, {}) or {}
-        )
+    missing_flag = object()
+    for i, scenario_row in scenario_definitions.iterrows():
+        year, case_id = scenario_row[["year", "case_id"]]
 
-        # Create a dictionary with keys of things that change (e.g. ccs_capex) and
-        # values of nested dictionaries that give case_id: scenario name
-        planning_year_scenario_definitions_dict = (
-            scenario_definitions.loc[scenario_definitions.year == year]
-            .set_index("case_id")
-            .to_dict()
-        )
-        planning_year_scenario_definitions_dict.pop("year")
-        new_param_warn_list = []
-        for case_id in scenario_definitions.query("year==@year")["case_id"].unique():
-            _settings = deepcopy(settings)
-            _settings["case_id"] = case_id
+        _settings = deepcopy(settings)
+        _settings["case_id"] = case_id
 
+        # first apply any settings under "all_years", then any settings for this year
+        for settings_year in ["all_years", year]:
+
+            planning_year_settings_management = (
+                settings.get("settings_management", {}).get(settings_year) or {}
+            )
+
+            # update settings from all_cases entry if available (these settings
+            # are applied to all cases for this year, and don't use the category
+            # names or levels from the scenario definitions table)
             if "all_cases" in planning_year_settings_management:
                 new_parameter = planning_year_settings_management["all_cases"]
                 _settings = update_dictionary(_settings, new_parameter)
 
-            modified_settings = []
-            for (
-                category,
-                case_value_dict,
-            ) in planning_year_scenario_definitions_dict.items():
-                # key is the category e.g. ccs_capex, case_value_dict is p1: mid
-                try:
-                    case_value = case_value_dict[case_id]
-                    new_parameter = (
-                        planning_year_settings_management.get(category, {}).get(
-                            case_value, {}
+            modified_settings = {}
+            for category, level in scenario_row.drop(["case_id", "year"]).items():
+                # category is a column from the scenario definitions table, e.g. ccs_capex
+                # level is the selection for this category for this case/year, e.g., "mid" or "none"
+
+                new_parameter = planning_year_settings_management.get(category, {}).get(
+                    level, missing_flag
+                )
+
+                # Remember category/levels that were selected and that actually
+                # had an effect.
+                all_category_levels.add((year, category, level))
+                if new_parameter is not missing_flag:
+                    # note: user could set None or {} as the setting, to indicate
+                    # this flag should use the default settings as-is
+                    active_category_levels.add((year, category, level))
+                if new_parameter in [missing_flag, None, {}]:
+                    continue
+
+                _settings = update_dictionary(_settings, new_parameter)
+
+                # report any conflicts between these settings and previous ones
+                for key in flatten(new_parameter).keys():
+                    if key in modified_settings:
+                        raise ValueError(
+                            f"The setting {key} is modified by both the "
+                            f"`{modified_settings[key]}` flag and the "
+                            f"`{category}={level}` flag in the scenario "
+                            f"definition for case {case_id}, {year}."
                         )
-                        or {}
-                    )
-                    if (
-                        not new_parameter
-                        and (category, case_value) not in new_param_warn_list
-                    ):
-                        new_param_warn_list.append((category, case_value))
+                    else:
+                        # remember this setting for later
+                        modified_settings[key] = f"{category}={level}"
 
-                        logger.warning(
-                            f"The parameter value '{case_value}' from column '{category}' "
-                            "in your scenario definitions file is not included in the "
-                            "'settings_management' dictionary. Settings for case id "
-                            f"'{case_id}' will not be modified to reflect this scenario."
-                        )
+        # make sure model year data appears in standard form
+        assign_model_planning_years(_settings, year)
 
-                    try:
-                        settings_keys = list(flatten(new_parameter).keys())
-                    except AttributeError:
-                        settings_keys = {}
+        if case_id_name_map:
+            _settings["case_name"] = case_id_name_map[case_id]
 
-                    for key in settings_keys:
-                        assert (
-                            key not in modified_settings
-                        ), f"The settings key {key} is modified twice in case id {case_id}"
+        scenario_settings.setdefault(year, {})[case_id] = _settings
 
-                        modified_settings.append(key)
-
-                    if new_parameter is not None:
-                        _settings = update_dictionary(_settings, new_parameter)
-                    # print(_settings[list(new_parameter.keys())[0]])
-
-                except KeyError:
-                    pass
-
-            _settings["model_first_planning_year"] = model_planning_period_dict[year][0]
-            _settings["model_year"] = model_planning_period_dict[year][1]
-            if settings.get("case_id_description_fn"):
-                _settings["case_name"] = case_id_name_map[case_id]
-            scenario_settings[year][case_id] = _settings
+    # Report any settings in the scenario definitions that had no effect. Values
+    # can be changed via either the "all_years" key or a specific year, so we
+    # have to wait till the end to decide which tags had no effect.
+    missing_category_levels = all_category_levels - active_category_levels
+    if missing_category_levels:
+        missing = (
+            pd.DataFrame(
+                missing_category_levels,
+                columns=["year", "category", "level"],
+            )
+            .pivot(index="year", columns="category", values="level")
+            .fillna("")
+            .reset_index()
+        )
+        logger.warning(
+            "The following parameter value(s) in your scenario definitions file "
+            "are not included in the 'settings_management' dictionary for the "
+            "specified year(s). Settings will not be modified to reflect these "
+            "entries:\n\n"
+            + missing.to_string(index=False)
+            + "\n\nYou can place empty keys for these in settings_management "
+            "dictionary to avoid this message."
+        )
 
     return scenario_settings
 
