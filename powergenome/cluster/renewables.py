@@ -312,7 +312,7 @@ def calc_cluster_values(
     _df["cluster"] = df["cluster"].values[0]
     for g in group or []:
         _df["cluster"] = (
-            str(_df["cluster"][0]) + f"_{g}:" + str(df[snake_case_str(g)].iloc[0])
+            str(_df["cluster"][0]) + f"_{g}_" + str(df[snake_case_str(g)].iloc[0])
         )
 
     return _df
@@ -419,6 +419,9 @@ def assign_site_cluster(
             n_clusters: 2
     """
     data = renew_data.loc[renew_data["region"].isin(regions), :]
+    group = [snake_case_str(g) for g in group or []]
+    if group:
+        data[group] = data[group].convert_dtypes()
 
     for filt in filter or []:
         data = value_filter(
