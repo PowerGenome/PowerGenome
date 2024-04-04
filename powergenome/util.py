@@ -959,6 +959,13 @@ def assign_model_planning_years(_settings: dict, year: int) -> dict:
         except KeyError:
             pass
 
+    if year not in model_planning_period_dict:
+        raise ValueError(
+            f"The year {year} is in your scenario definition file for case {_settings['case_id']} "
+            "but was not found in the 'model_year' or 'model_periods' settings parameters. "
+            "Either it is missing in the main settings file or was removed in the "
+            "'settings_management' section."
+        )
     # assign the scalar values
     _settings["model_first_planning_year"] = model_planning_period_dict[year][0]
     _settings["model_year"] = model_planning_period_dict[year][1]
