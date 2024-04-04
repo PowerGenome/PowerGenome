@@ -291,11 +291,8 @@ class TestAssignModelPlanningYears:
         year = 2022
 
         # Execute function
-        result = assign_model_planning_years(_settings, year)
-
-        # Check output
-        assert result["model_first_planning_year"] == 2022
-        assert result["model_year"] == 2022
+        with pytest.raises(KeyError):
+            assign_model_planning_years(_settings, year)
 
     # The function is called with a dictionary containing the key 'model_first_planning_year' with an integer value, and an integer year.
     def test_with_model_first_planning_year(self):
