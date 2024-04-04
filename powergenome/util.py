@@ -872,9 +872,19 @@ def build_case_id_name_map(settings: dict) -> dict:
     return case_id_name_map
 
 
+def make_iterable(item: Union[int, str, Iterable]) -> Iterable:
+    """Return an iterable version of the one or more items passed.
 
-def make_iterable(item):
-    """Return an iterable version of the one or more items passed."""
+    Parameters
+    ----------
+    item : Union[int, str, Iterable]
+       Item that may or may not already be iterable
+
+    Returns
+    -------
+    Iterable
+        An iterable version of the item
+    """
     if isinstance(item, str):
         i = iter([item])
     else:
@@ -886,9 +896,8 @@ def make_iterable(item):
     return i
 
 
-def assign_model_planning_years(_settings, year):
-    """
-    Make sure "model_year" and "model_first_planning_year" appear as scalars.
+def assign_model_planning_years(_settings: dict, year: int) -> dict:
+    """Make sure "model_year" and "model_first_planning_year" appear as scalars.
 
     These can originally be set in any of these forms, in either the default
     settings or in the settings_management dictionary:
@@ -900,6 +909,24 @@ def assign_model_planning_years(_settings, year):
 
     This function looks up the right values for the current year and assigns
     them as scalars (the first form above).
+
+    Parameters
+    ----------
+    _settings : dict
+        Model settings dictionary. Must have either "model_periods", "model_year"
+        AND "model_first_planning_year", or "model_first_planning_year" as keys.
+    year : int
+        Model year.
+
+    Returns
+    -------
+    dict
+        Modified settings with scaler versions of "model_year" and "model_first_planning_year".
+
+    Raises
+    ------
+    KeyError
+        None of the required keys found
     """
     if "model_periods" in _settings:
         model_planning_period_dict = {
