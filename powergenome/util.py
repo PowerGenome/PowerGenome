@@ -925,15 +925,44 @@ def assign_model_planning_years(_settings: dict, year: int) -> dict:
 
     Raises
     ------
+    ValueError
+        model_periods is not a series of tuples
+    ValueError
+        model_periods tuples are not all length 2
+    ValueError
+        model_year and model_first_planning_year must all be integer
     KeyError
         None of the required keys found
+    ValueError
+        The model year from scenario definitions is not in the settings
     """
     if "model_periods" in _settings:
+        model_periods = make_iterable(_settings["model_periods"])
+        if not all([isinstance(t, tuple) for t in model_periods]):
+            raise ValueError(
+                "The settings parameter 'model_periods' must be a list of tuples. It is "
+                f"currently {_settings['model_periods']}"
+            )
+        if not all(len(t) == 2 for t in model_periods):
+            raise ValueError(
+                "The tuples in settings parameter 'model_periods' must all be 2 years. "
+                f"The values found are {_settings['model_periods']}"
+            )
         model_planning_period_dict = {
             year: (start_year, year)
             for (start_year, year) in make_iterable(_settings["model_periods"])
         }
     elif "model_year" in _settings and "model_first_planning_year" in _settings:
+        model_year = make_iterable(_settings["model_year"])
+        first_planning_year = make_iterable(_settings["model_first_planning_year"])
+        if not all(isinstance(y, int) for y in model_year) and all(
+            isinstance(y, int) for y in first_planning_year
+        ):
+            raise ValueError(
+                "Both 'model_year' and 'model_first_planning_year' parameters must be "
+                f"integers or lists of integers. The values found are {model_periods} and "
+                f"{first_planning_year}."
+            )
         model_planning_period_dict = {
             year: (start_year, year)
             for year, start_year in zip(
@@ -944,7 +973,12 @@ def assign_model_planning_years(_settings: dict, year: int) -> dict:
     elif "model_first_planning_year" in _settings:
         # we also allow leaving out the model_year tag and just specifying
         # model_first_planning_year
-        model_planning_period_dict = {year: _settings["model_first_planning_year"]}
+        model_planning_period_dict = {
+            year: (
+                _settings["model_first_planning_year"],
+                _settings["model_first_planning_year"],
+            )
+        }
     else:
         raise KeyError(
             "To build a dictionary of scenario settings your settings file should include "
@@ -961,7 +995,7 @@ def assign_model_planning_years(_settings: dict, year: int) -> dict:
 
     if year not in model_planning_period_dict:
         raise ValueError(
-            f"The year {year} is in your scenario definition file for case {_settings['case_id']} "
+            f"The year {year} is in your scenario definition file for case {_settings.get('case_id')} "
             "but was not found in the 'model_year' or 'model_periods' settings parameters. "
             "Either it is missing in the main settings file or was removed in the "
             "'settings_management' section."
