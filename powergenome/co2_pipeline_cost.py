@@ -19,6 +19,7 @@ def merge_co2_pipeline_costs(
     co2_pipeline_filters: List[dict],
     region_aggregations: Dict[str, List[str]] = None,
     fuel_emission_factors: Dict[str, float] = None,
+    extra_ccs_cost_tonne: float = None,
     target_usd_year: int = None,
 ) -> pd.DataFrame:
     """Merge columns with CO2 pipeline costs to a dataframe.
@@ -48,6 +49,9 @@ def merge_co2_pipeline_costs(
         Aggregations of multiple base regions to model regions, by default None
     fuel_emission_factors : Dict[str, float], optional
         CO2 emissions per unit of energy for different fuel types, by default None
+    extra_ccs_cost_tonne: float
+        An extra cost (positive or negative) assigned per tonne of CO2. Converted to
+        cost per MWh.
     target_usd_year : int, optional
         The target year for cost inflation adjustment, by default None
 
@@ -126,6 +130,7 @@ def merge_co2_pipeline_costs(
         df_list.append(co2_costs_wide)
 
     full_co2_costs_wide = pd.concat(df_list)
+    full_co2_costs_wide["extra_ccs_cost_tonne"] = extra_ccs_cost_tonne or 0
     # Split incoming df into techs with and without pipeline cost. Remove pipeline cost
     # columns from the "with" techs to avoid duplicates, merge in co2 costs, then concat
     # with the "without" techs
@@ -161,7 +166,7 @@ def merge_co2_pipeline_costs(
         co2_costs_wide.columns
     ].fillna(0)
 
-    mass_cols = [c for c in co2_costs_wide.columns if "tonne" in c]
+    mass_cols = [c for c in full_co2_costs_wide.columns if "tonne" in c]
     if mass_cols and fuel_emission_factors:
         df_co2_costs = mass_to_energy_costs(
             df_co2_costs, mass_cols, fuel_emission_factors
