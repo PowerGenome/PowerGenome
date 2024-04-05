@@ -3847,6 +3847,7 @@ class GeneratorClusters:
                 region_aggregations=self.settings.get("region_aggregations"),
                 fuel_emission_factors=self.settings["fuel_emission_factors"],
                 target_usd_year=self.settings.get("target_usd_year"),
+                extra_ccs_cost_tonne=self.settings.get("ccs_disposal_cost"),
             )
 
         self.all_resources = self.all_resources.round(3)
