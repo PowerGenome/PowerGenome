@@ -1079,11 +1079,11 @@ def build_scenario_settings(
 
                 # Remember category/levels that were selected and that actually
                 # had an effect.
-                all_category_levels.add((year, category, level))
+                all_category_levels.add((case_id, year, category, level))
                 if new_parameter is not missing_flag:
                     # note: user could set None or {} as the setting, to indicate
                     # this flag should use the default settings as-is
-                    active_category_levels.add((year, category, level))
+                    active_category_levels.add((case_id, year, category, level))
                 if new_parameter in [missing_flag, None, {}]:
                     continue
 
@@ -1118,9 +1118,9 @@ def build_scenario_settings(
         missing = (
             pd.DataFrame(
                 missing_category_levels,
-                columns=["year", "category", "level"],
+                columns=["case_id", "year", "category", "level"],
             )
-            .pivot(index="year", columns="category", values="level")
+            .pivot(index=["case_id", "year"], columns="category", values="level")
             .fillna("")
             .reset_index()
         )
@@ -1130,8 +1130,8 @@ def build_scenario_settings(
             "specified year(s). Settings will not be modified to reflect these "
             "entries:\n\n"
             + missing.to_string(index=False)
-            + "\n\nYou can place empty keys for these in settings_management "
-            "dictionary to avoid this message."
+            + "\n\nYou can place empty entries (~) for these in the "
+            "settings_management dictionary to avoid this message.\n"
         )
 
     return scenario_settings
