@@ -1255,3 +1255,36 @@ def cap_retire_within_period(
     retired_cap["Min_Retired_Charge_Cap_MW"] = 0
 
     return retired_cap
+
+
+def check_vre_profiles(
+    gen_df: pd.DataFrame,
+    gen_var_df: pd.DataFrame,
+    vre_cols: List[str] = ["VRE", "HYDRO"],
+):
+    """Check generation profiles of VRE resources to ensure they are variable. Alert the
+    user with a logger warning if any are not.
+
+    Parameters
+    ----------
+    gen_df : pd.DataFrame
+        Dataframe of generators. Must have column "Resource".
+    gen_var_df : pd.DataFrame
+        Dataframe of hourly generation for each resource. Column names are from the
+        "Resource" column of `gen_df`.
+    vre_cols : List[str]
+        List of boolean columns indicating inclusion in the group of variable resources.
+        By default, ["VRE", "HYDRO"].
+    """
+    var_gen_names = []
+    vre_cols = [c for c in vre_cols if c in gen_df.columns]
+    if vre_cols:
+        for c in vre_cols:
+            var_gen_names.extend(gen_df.loc[gen_df[c] == 1, "Resource"].to_list())
+
+        vre_std = gen_var_df[var_gen_names].std()
+        if (vre_std == 0).any():
+            non_variable = vre_std.loc[vre_std == 0].index.to_list()
+            logger.warning(
+                f"The variable resources {non_variable} have non-variable generation profiles."
+            )
