@@ -1409,8 +1409,11 @@ def load_resource_group_data(
     if "cpa_mw" in data.columns and "mw" not in data.columns:
         data["mw"] = data.loc[:, "cpa_mw"]
     data = data.loc[data["mw"] > 0, :]
-    profile_path = Path(rg.group["profiles"])
-    if rg.group.get("site_map"):
+    if rg.group.get("profiles"):
+        profile_path = Path(rg.group["profiles"])
+    else:
+        profile_path = None
+    if rg.group.get("site_map") and profile_path is not None:
         table = Table(profile_path.parent / rg.group["site_map"])
         cols = table.columns
         df = table.read().set_index(cols[0])
