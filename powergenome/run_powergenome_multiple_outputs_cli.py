@@ -368,6 +368,15 @@ def main(**kwargs):
                     include_index=False,
                     multi_period=args.multi_period,
                 )
+                if not args.load:
+                    write_results_file(
+                        df=gen_variability,
+                        folder=case_folder,
+                        file_name="Generators_variability.csv",
+                        include_index=True,
+                        float_format="%.3f",
+                        multi_period=args.multi_period,
+                    )
 
             if args.transmission:
                 if args.gens is False:
