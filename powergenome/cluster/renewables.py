@@ -628,7 +628,7 @@ def modify_renewable_group(
 
         group = group_mod.pop("group")
         group_value = group_mod.pop("group_value")
-        group_id = f"{group}:{group_value}"
+        group_id = f"{group}_{group_value}"
         # for group, mod in (group_modifiers or {}).items():
         for key, op_list in group_mod.items():
             if isinstance(op_list, float) | isinstance(op_list, int):
