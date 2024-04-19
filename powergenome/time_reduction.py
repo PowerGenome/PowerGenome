@@ -323,11 +323,7 @@ def kmeans_time_clustering(
     resource_df = pd.DataFrame(
         columns=resource_col_names, index=final_output_data.index
     )
-    for col in resource_col_names:
-        try:
-            resource_df[col] = final_output_data.loc[:, col].values
-        except KeyError:
-            pass
+    resource_df.loc[:, var_col_names] = final_output_data.loc[:, var_col_names]
     resource_df = resource_df.fillna(value=1)
 
     # load_df["Sub_Weights"] = np.nan
