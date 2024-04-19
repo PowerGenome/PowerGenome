@@ -8,6 +8,59 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import minmax_scale
 
 
+def max_rep_periods(
+    resource_profiles: pd.DataFrame,
+    load_profiles: pd.DataFrame,
+    days_in_group: int,
+    num_clusters: int,
+) -> (pd.DataFrame, pd.DataFrame, List[int], pd.DataFrame, pd.DataFrame):  # type: ignore
+    """Shortcut clustering when every representative period is assigned once (e.g. 52 rep
+    weeks in a year)
+
+    Parameters
+    ----------
+    resource_profiles : pd.DataFrame
+        Hourly profiles of all resources
+    load_profiles : pd.DataFrame
+        Hourly demand profile in each region
+    days_in_group : int
+        Number of days in each period
+    num_clusters : int
+        Numer of representative periods
+
+    Returns
+    -------
+    (pd.DataFrame, pd.DataFrame, List[int], pd.DataFrame, pd.DataFrame)
+        _description_
+    """
+    num_hours = num_clusters * days_in_group * 24
+    cluster_weights = [1] * num_clusters
+    time_series_mapping = pd.DataFrame(
+        data={
+            "Period_Index": range(1, 1 + num_clusters),
+            "Rep_Period_Index": range(1, 1 + num_clusters),
+            "Month": 0,
+        }
+    )
+    for Period_Index in time_series_mapping["Period_Index"]:
+        dayOfYear = days_in_group * Period_Index
+        d = datetime.datetime.strptime("{} {}".format(dayOfYear, 2011), "%j %Y")
+        time_series_mapping["Month"][Period_Index - 1] = d.month
+    rep_point = [f"p{i}" for i in range(1, 1 + num_clusters)]
+    rep_point_df = pd.DataFrame(data=rep_point, columns=["slot"])
+
+    reduced_load_profiles = load_profiles.iloc[:num_hours, :]
+    reduced_resouce_profiles = resource_profiles.iloc[:num_hours, :]
+
+    return (
+        reduced_load_profiles,
+        reduced_resouce_profiles,
+        cluster_weights,
+        time_series_mapping,
+        rep_point_df,
+    )
+
+
 def kmeans_time_clustering(
     resource_profiles,
     load_profiles,
@@ -65,6 +118,41 @@ def kmeans_time_clustering(
 
         The second list has integer weights of each cluster.
     """
+    # In cases where each cluster is selected exactly once, skip the clustering entirely
+    total_cluster_hours = days_in_group * num_clusters * 24
+    if len(load_profiles) - total_cluster_hours < days_in_group * 24:
+        (
+            load_df,
+            resource_df,
+            EachClusterWeight,
+            time_series_mapping,
+            EachClusterRepPoint,
+        ) = max_rep_periods(
+            resource_profiles=resource_profiles,
+            load_profiles=load_profiles,
+            days_in_group=days_in_group,
+            num_clusters=num_clusters,
+        )
+        rep_period_map = {
+            i + 1: int(p[1:]) for i, p in enumerate(EachClusterRepPoint["slot"])
+        }
+        time_series_mapping["Rep_Period"] = time_series_mapping["Rep_Period_Index"].map(
+            rep_period_map
+        )
+        return (
+            {
+                "load_profiles": load_df,  # Scaled Output Load and Renewables profiles for the sampled representative groupings
+                "resource_profiles": resource_df,
+                "ClusterWeights": EachClusterWeight,  # Weight of each for the representative groupings
+                "AnnualGenScaleFactor": 1,  # Scale factor used to adjust load output to match annual generation of original data
+                "RMSE": None,  # Root mean square error between full year data and modeled full year data (duration curves)
+                "AnnualProfile": None,
+                "time_series_mapping": time_series_mapping,
+            },
+            EachClusterRepPoint,
+            EachClusterWeight,
+        )
+
     resource_col_names = resource_profiles.columns
     if variable_resources_only:
         input_std = resource_profiles.describe().loc["std", :]
