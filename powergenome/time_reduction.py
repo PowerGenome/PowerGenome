@@ -49,7 +49,7 @@ def max_rep_periods(
     rep_point = [f"p{i}" for i in range(1, 1 + num_clusters)]
     rep_point_df = pd.DataFrame(data=rep_point, columns=["slot"])
 
-    reduced_load_profiles = load_profiles.iloc[:num_hours, :]
+    reduced_load_profiles = load_profiles.iloc[:num_hours, :].reset_index(drop=True)
     reduced_resouce_profiles = resource_profiles.iloc[:num_hours, :]
 
     return (
