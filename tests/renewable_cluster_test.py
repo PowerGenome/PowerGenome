@@ -239,7 +239,7 @@ class TestModifyRenewableGroup:
         # Arrange
         df = pd.DataFrame(
             {
-                "cluster": ["group1:value1", "group2:value2", "group1:value3"],
+                "cluster": ["group1_value1", "group2_value2", "group1_value3"],
                 "cost": [100, 200, 300],
             }
         )
