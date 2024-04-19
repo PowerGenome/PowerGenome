@@ -1,6 +1,7 @@
 "Functions to cluster or otherwise reduce the number of hours in generation and load profiles"
 
 import datetime
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -13,9 +14,9 @@ def max_rep_periods(
     load_profiles: pd.DataFrame,
     days_in_group: int,
     num_clusters: int,
-) -> (pd.DataFrame, pd.DataFrame, List[int], pd.DataFrame, pd.DataFrame):  # type: ignore
+) -> Tuple[pd.DataFrame, pd.DataFrame, List[int], pd.DataFrame, pd.DataFrame]:
     """Shortcut clustering when every representative period is assigned once (e.g. 52 rep
-    weeks in a year)
+    weeks in a year).
 
     Parameters
     ----------
@@ -30,8 +31,11 @@ def max_rep_periods(
 
     Returns
     -------
-    (pd.DataFrame, pd.DataFrame, List[int], pd.DataFrame, pd.DataFrame)
-        _description_
+    Tuple[pd.DataFrame, pd.DataFrame, List[int], pd.DataFrame, pd.DataFrame]
+        Load and resource profile dataframes with first N hours, where N is
+        num_clusters * days_in_group * 24, the cluster weights (all values are 1),
+        a mapping of each period to the representative period and the month,
+        and the order of representative periods.
     """
     num_hours = num_clusters * days_in_group * 24
     cluster_weights = [1] * num_clusters
