@@ -3,6 +3,7 @@ Hourly demand profiles
 """
 
 import logging
+from functools import lru_cache
 from inspect import signature
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -16,6 +17,7 @@ from powergenome.eia_opendata import get_aeo_load
 from powergenome.external_data import make_demand_response_profiles
 from powergenome.load_construction import electrification_profiles
 from powergenome.util import (
+    deep_freeze_args,
     find_region_col,
     map_agg_region_names,
     regions_to_keep,
@@ -82,6 +84,40 @@ def filter_load_by_region(load_source):  # "decorator factory"
     return decorator
 
 
+@deep_freeze_args
+@lru_cache
+def read_subsector_demand(
+    pg_engine_str: str, keep_regions: List[str], pg_table: str, region_col: str
+) -> pd.DataFrame:
+    pg_engine = sa.create_engine(pg_engine_str)
+    # This is a default list of sector/subsectors that are considered "base" demand
+    # and are not affected by stock levels of electric technologies (e.g. EVs and heat pumps)
+    # NOTE: This should be parameratized so it can be changed by the user, especially
+    # if load data is from a source other than NREL EFS
+    base_sector_subsectors = [
+        ("commercial", "other"),
+        ("residential", "other"),
+        ("residential", "clothes and dish washing/drying"),
+        ("industrial", "machine drives"),
+        ("industrial", "process heat"),
+        ("industrial", "other"),
+    ]
+    s = f"""
+            SELECT year, {region_col} as region, time_index, sector, sum(load_mw) as load_mw
+            FROM {pg_table}
+            WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
+            AND
+            ({' OR '.join(["(sector=? and subsector=?)"]*len(base_sector_subsectors))})
+            GROUP BY year, region, sector, time_index
+            """
+    params = list(keep_regions) + [
+        item for sublist in base_sector_subsectors for item in sublist
+    ]
+    load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+
+    return load_curves
+
+
 def make_load_curves(
     pg_engine: sa.engine.base.Engine,
     settings: dict,
@@ -134,30 +170,12 @@ def make_load_curves(
         if settings.get("electrification_stock_fn") and settings.get(
             "electrification_scenario"
         ):
-            # This is a default list of sector/subsectors that are considered "base" demand
-            # and are not affected by stock levels of electric technologies (e.g. EVs and heat pumps)
-            # NOTE: This should be parameratized so it can be changed by the user, especially
-            # if load data is from a source other than NREL EFS
-            base_sector_subsectors = [
-                ("commercial", "other"),
-                ("residential", "other"),
-                ("residential", "clothes and dish washing/drying"),
-                ("industrial", "machine drives"),
-                ("industrial", "process heat"),
-                ("industrial", "other"),
-            ]
-            s = f"""
-                    SELECT year, {region_col} as region, time_index, sector, sum(load_mw) as load_mw
-                    FROM {pg_table}
-                    WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
-                    AND
-                    ({' OR '.join(["(sector=? and subsector=?)"]*len(base_sector_subsectors))})
-                    GROUP BY year, region, sector, time_index
-                    """
-            params = keep_regions + [
-                item for sublist in base_sector_subsectors for item in sublist
-            ]
-            load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+            load_curves = read_subsector_demand(
+                pg_engine_str=str(pg_engine)[7:-1],
+                keep_regions=keep_regions,
+                pg_table=pg_table,
+                region_col=region_col,
+            )
         else:
             s = f"""
                     SELECT year, {region_col} as region, time_index, sector, sum(load_mw) as load_mw
