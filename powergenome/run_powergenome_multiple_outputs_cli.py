@@ -26,6 +26,7 @@ from powergenome.GenX import (
     add_misc_gen_values,
     calculate_partial_CES_values,
     check_resource_tags,
+    check_vre_profiles,
     create_policy_req,
     create_regional_cap_res,
     fix_min_power_values,
@@ -344,6 +345,7 @@ def main(**kwargs):
                 gens = fix_min_power_values(gen_clusters, gen_variability).pipe(
                     add_co2_costs_to_o_m
                 )
+                check_vre_profiles(gens, gen_variability)
                 for col in _settings["generator_columns"]:
                     if col not in gens.columns:
                         gens[col] = 0
