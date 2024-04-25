@@ -8,6 +8,7 @@ import re
 import subprocess
 from collections.abc import Iterable
 from copy import deepcopy
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
@@ -843,7 +844,7 @@ def regions_to_keep(
     # IPM regions to keep - single in model_regions plus those aggregated by the user
     keep_regions = [
         x
-        for x in model_regions + list(region_agg_map)
+        for x in list(model_regions) + list(region_agg_map)
         if x not in region_agg_map.values()
     ]
     return keep_regions, region_agg_map
@@ -1161,59 +1162,124 @@ def remove_feb_29(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=["datetime"])
 
 
-def load_ipm_shapefile(settings: dict, path: Union[str, Path] = None):
+# @deep_freeze_args
+# @lru_cache
+# def load_ipm_shapefile(
+#     model_regions: List[str],
+#     region_aggregations: Dict[str, List[str]] = None,
+#     input_folder: str = None,
+#     user_region_geodata_fn: str = None,
+#     path: Union[str, Path] = None,
+# ):
+#     """
+#     Load the shapefile of IPM regions
+
+#     Parameters
+#     ----------
+#     settings : dict
+#         User-defined parameters from a settings YAML file. This is where any region
+#         aggregations would be defined.
+#     path : Union[str, Path]
+#         Path, loction, or URL of the IPM shapefile/geojson to load. Default value is
+#         a simplified geojson stored in the PowerGenome data folder.
+
+#     Returns
+#     -------
+#     geodataframe
+#         Regions to use in the study with the matching geometry for each.
+#     """
+#     if not path:
+#         from powergenome.params import IPM_GEOJSON_PATH
+
+#         path = IPM_GEOJSON_PATH
+#     keep_regions, region_agg_map = regions_to_keep(
+#         model_regions, region_aggregations or {}
+#     )
+#     try:
+#         ipm_regions = gpd.read_file(path, engine="pyogrio")
+#     except ImportError:
+#         ipm_regions = gpd.read_file(path, engine="fiona")
+#     ipm_regions = ipm_regions.rename(columns={"IPM_Region": "region"})
+
+#     if user_region_geodata_fn:
+#         logger.info("Appending user regions to IPM Regions")
+#         user_regions = gpd.read_file(Path(input_folder) / user_region_geodata_fn)
+#         if "region" not in user_regions.columns:
+#             region_col = [c for c in user_regions.columns if "region" in c.lower()][0]
+#             user_regions = user_regions.rename(columns={region_col: "region"})
+#             logger.warning(
+#                 "The user supplied region geodata file does not include the "
+#                 "property 'region' for any of the region polygons! Automatically detecting "
+#                 "the correct column but this may cause errors."
+#             )
+#         user_regions = user_regions.to_crs(ipm_regions.crs)
+#         ipm_regions = ipm_regions.append(user_regions)
+
+#     model_regions_gdf = ipm_regions.loc[ipm_regions["region"].isin(keep_regions)]
+#     model_regions_gdf = map_agg_region_names(
+#         model_regions_gdf, region_agg_map, "region", "model_region"
+#     ).reset_index(drop=True)
+
+#     return model_regions_gdf
+
+
+def dataframe_to_tuple(df: pd.DataFrame) -> Tuple[Tuple[Tuple], Tuple, Tuple]:
     """
-    Load the shapefile of IPM regions
+    Convert a pandas DataFrame into a hashable tuple, including its data, column names, and index.
 
     Parameters
     ----------
-    settings : dict
-        User-defined parameters from a settings YAML file. This is where any region
-        aggregations would be defined.
-    path : Union[str, Path]
-        Path, loction, or URL of the IPM shapefile/geojson to load. Default value is
-        a simplified geojson stored in the PowerGenome data folder.
+    df : pd.DataFrame
+        The DataFrame to convert into a tuple format.
 
     Returns
     -------
-    geodataframe
-        Regions to use in the study with the matching geometry for each.
+    Tuple[Tuple[Tuple], Tuple, Tuple]
+        A tuple containing three elements:
+        1. A tuple of tuples, where each inner tuple represents a row in the DataFrame.
+        2. A tuple containing the column names of the DataFrame.
+        3. A tuple containing the index of the DataFrame.
+
+    Examples
+    --------
+    >>> df = pd.DataFrame({
+    ...     'A': [1, 2],
+    ...     'B': [3, 4]
+    ... }, index=[0, 1])
+    >>> dataframe_to_tuple(df)
+    (((1, 3), (2, 4)), ('A', 'B'), (0, 1))
     """
-    if not path:
-        from powergenome.params import IPM_GEOJSON_PATH
+    data_tuple = tuple(map(tuple, df.to_numpy()))
+    return (data_tuple, tuple(df.columns), tuple(df.index))
 
-        path = IPM_GEOJSON_PATH
-    keep_regions, region_agg_map = regions_to_keep(
-        settings["model_regions"], settings.get("region_aggregations", {}) or {}
-    )
-    try:
-        ipm_regions = gpd.read_file(path, engine="pyogrio")
-    except ImportError:
-        ipm_regions = gpd.read_file(path, engine="fiona")
-    ipm_regions = ipm_regions.rename(columns={"IPM_Region": "region"})
 
-    if settings.get("user_region_geodata_fn"):
-        logger.info("Appending user regions to IPM Regions")
-        user_regions = gpd.read_file(
-            Path(settings["input_folder"]) / settings["user_region_geodata_fn"]
-        )
-        if "region" not in user_regions.columns:
-            region_col = [c for c in user_regions.columns if "region" in c.lower()][0]
-            user_regions = user_regions.rename(columns={region_col: "region"})
-            logger.warning(
-                "The user supplied region geodata file does not include the "
-                "property 'region' for any of the region polygons! Automatically detecting "
-                "the correct column but this may cause errors."
-            )
-        user_regions = user_regions.to_crs(ipm_regions.crs)
-        ipm_regions = ipm_regions.append(user_regions)
+def tuple_to_dataframe(data_tuple: Tuple[Tuple[Tuple], Tuple, Tuple]) -> pd.DataFrame:
+    """
+    Convert a tuple representation of a DataFrame back into a pandas DataFrame.
 
-    model_regions_gdf = ipm_regions.loc[ipm_regions["region"].isin(keep_regions)]
-    model_regions_gdf = map_agg_region_names(
-        model_regions_gdf, region_agg_map, "region", "model_region"
-    ).reset_index(drop=True)
+    Parameters
+    ----------
+    data_tuple : Tuple[Tuple[Tuple], Tuple, Tuple]
+        A tuple containing the data, columns, and index of the DataFrame.
+        1. The first element is a tuple of tuples, each representing a row of data.
+        2. The second element is a tuple containing the column names.
+        3. The third element is a tuple containing the index values.
 
-    return model_regions_gdf
+    Returns
+    -------
+    pd.DataFrame
+        The reconstructed DataFrame from the tuple representation.
+
+    Examples
+    --------
+    >>> data_tuple = (((1, 3), (2, 4)), ('A', 'B'), (0, 1))
+    >>> tuple_to_dataframe(data_tuple)
+       A  B
+    0  1  3
+    1  2  4
+    """
+    data, columns, index = data_tuple
+    return pd.DataFrame(list(data), columns=columns, index=index)
 
 
 def deep_freeze(thing):
@@ -1228,6 +1294,8 @@ def deep_freeze(thing):
         return thing
     elif isinstance(thing, Mapping):
         return frozendict({k: deep_freeze(v) for k, v in thing.items()})
+    elif isinstance(thing, pd.DataFrame):
+        return dataframe_to_tuple(thing)
     elif isinstance(thing, Collection):
         return tuple(deep_freeze(i) for i in thing)
     elif not isinstance(thing, Hashable):
@@ -1398,3 +1466,64 @@ def add_row_to_csv(file: Path, new_row: List[str], headers: List[str] = None) ->
         with file.open("a", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(new_row)  # add the new row to the CSV file
+
+
+@deep_freeze_args
+@lru_cache
+def load_ipm_shapefile(
+    model_regions: List[str],
+    region_aggregations: Dict[str, List[str]] = None,
+    input_folder: str = None,
+    user_region_geodata_fn: str = None,
+    path: Union[str, Path] = None,
+):
+    """
+    Load the shapefile of IPM regions
+
+    Parameters
+    ----------
+    settings : dict
+        User-defined parameters from a settings YAML file. This is where any region
+        aggregations would be defined.
+    path : Union[str, Path]
+        Path, loction, or URL of the IPM shapefile/geojson to load. Default value is
+        a simplified geojson stored in the PowerGenome data folder.
+
+    Returns
+    -------
+    geodataframe
+        Regions to use in the study with the matching geometry for each.
+    """
+    if not path:
+        from powergenome.params import IPM_GEOJSON_PATH
+
+        path = IPM_GEOJSON_PATH
+    keep_regions, region_agg_map = regions_to_keep(
+        model_regions, region_aggregations or {}
+    )
+    try:
+        ipm_regions = gpd.read_file(path, engine="pyogrio")
+    except ImportError:
+        ipm_regions = gpd.read_file(path, engine="fiona")
+    ipm_regions = ipm_regions.rename(columns={"IPM_Region": "region"})
+
+    if user_region_geodata_fn:
+        logger.info("Appending user regions to IPM Regions")
+        user_regions = gpd.read_file(Path(input_folder) / user_region_geodata_fn)
+        if "region" not in user_regions.columns:
+            region_col = [c for c in user_regions.columns if "region" in c.lower()][0]
+            user_regions = user_regions.rename(columns={region_col: "region"})
+            logger.warning(
+                "The user supplied region geodata file does not include the "
+                "property 'region' for any of the region polygons! Automatically detecting "
+                "the correct column but this may cause errors."
+            )
+        user_regions = user_regions.to_crs(ipm_regions.crs)
+        ipm_regions = ipm_regions.append(user_regions)
+
+    model_regions_gdf = ipm_regions.loc[ipm_regions["region"].isin(keep_regions)]
+    model_regions_gdf = map_agg_region_names(
+        model_regions_gdf, region_agg_map, "region", "model_region"
+    ).reset_index(drop=True)
+
+    return model_regions_gdf

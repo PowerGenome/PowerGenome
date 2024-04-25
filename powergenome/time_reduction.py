@@ -1,12 +1,16 @@
 "Functions to cluster or otherwise reduce the number of hours in generation and load profiles"
 
 import datetime
+from functools import lru_cache
+from time import time
 from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import minmax_scale
+
+from powergenome.util import deep_freeze_args, tuple_to_dataframe
 
 
 def max_rep_periods(
@@ -63,6 +67,21 @@ def max_rep_periods(
         time_series_mapping,
         rep_point_df,
     )
+
+
+@deep_freeze_args
+@lru_cache
+def cluster_data(df, num_clusters) -> Tuple[np.ndarray, np.ndarray]:
+
+    if isinstance(df, tuple):
+        df = tuple_to_dataframe(df)
+    # K-means clutering with 100 trials with randomly selected starting values
+    model = KMeans(
+        n_clusters=num_clusters, n_init=100, init="k-means++", random_state=42
+    )
+    model.fit(df.values.transpose())
+
+    return model.labels_, model.cluster_centers_
 
 
 def kmeans_time_clustering(
@@ -149,7 +168,7 @@ def kmeans_time_clustering(
                 "resource_profiles": resource_df,
                 "ClusterWeights": EachClusterWeight,  # Weight of each for the representative groupings
                 "AnnualGenScaleFactor": 1,  # Scale factor used to adjust load output to match annual generation of original data
-                "RMSE": None,  # Root mean square error between full year data and modeled full year data (duration curves)
+                # "RMSE": None,  # Root mean square error between full year data and modeled full year data (duration curves)
                 "AnnualProfile": None,
                 "time_series_mapping": time_series_mapping,
             },
@@ -249,10 +268,17 @@ def kmeans_time_clustering(
         num_clusters = num_clusters - 1
 
     # K-means clutering with 100 trials with randomly selected starting values
-    model = KMeans(
-        n_clusters=num_clusters, n_init=100, init="k-means++", random_state=42
-    )
-    model.fit(ClusteringInputDF.values.transpose())
+    # model = KMeans(
+    #     n_clusters=num_clusters, n_init=100, init="k-means++", random_state=42
+    # )
+    # model.fit(ClusteringInputDF.values.transpose())
+
+    # labels = model.labels_
+    # cluster_centers = model.cluster_centers_
+    start_time = time()
+    labels, cluster_centers = cluster_data(ClusteringInputDF, num_clusters)
+    duration = round(time() - start_time, 1)
+    print(f"KMeans took {duration} seconds")
 
     # Store clustered data
     # Create an empty list storing weight of each cluster
@@ -266,13 +292,13 @@ def kmeans_time_clustering(
 
     for k in range(num_clusters):
         # Number of points in kth cluster (i.e. label=0)
-        EachClusterWeight[k] = len(model.labels_[model.labels_ == k])
+        EachClusterWeight[k] = len(labels[labels == k])
 
         # Compute Euclidean distance of each point from centroid of cluster k
         dist = {
-            ClusteringInputDF.loc[:, model.labels_ == k].columns[j]: np.linalg.norm(
-                ClusteringInputDF.loc[:, model.labels_ == k].values.transpose()[j]
-                - model.cluster_centers_[k]
+            ClusteringInputDF.loc[:, labels == k].columns[j]: np.linalg.norm(
+                ClusteringInputDF.loc[:, labels == k].values.transpose()[j]
+                - cluster_centers[k]
             )
             for j in range(EachClusterWeight[k])
         }
@@ -286,7 +312,7 @@ def kmeans_time_clustering(
                 pd.DataFrame(
                     {
                         "Period_Index": int(
-                            ClusteringInputDF.loc[:, model.labels_ == k].columns[j][1:]
+                            ClusteringInputDF.loc[:, labels == k].columns[j][1:]
                         ),
                         "Rep_Period_Index": k + 1,
                     },
@@ -402,13 +428,13 @@ def kmeans_time_clustering(
     #  Root mean square error between the duration curves of each time series
     # Only conisder the points consider in the k-means clustering - ignoring any days
     # dropped off from original data set  due to rounding
-    RMSE = {
-        col: np.linalg.norm(
-            np.sort(input_data.truncate(after=len(FullLengthOutputs) - 1)[col].values)
-            - np.sort(FullLengthOutputs[col].values)
-        )
-        for col in original_col_names
-    }
+    # RMSE = {
+    #     col: np.linalg.norm(
+    #         np.sort(input_data.truncate(after=len(FullLengthOutputs) - 1)[col].values)
+    #         - np.sort(FullLengthOutputs[col].values)
+    #     )
+    #     for col in original_col_names
+    # }
 
     load_df = final_output_data.loc[:, load_col_names]
     # if variable_only:
@@ -440,7 +466,7 @@ def kmeans_time_clustering(
             "resource_profiles": resource_df,
             "ClusterWeights": EachClusterWeight,  # Weight of each for the representative groupings
             "AnnualGenScaleFactor": ScaleFactor,  # Scale factor used to adjust load output to match annual generation of original data
-            "RMSE": RMSE,  # Root mean square error between full year data and modeled full year data (duration curves)
+            # "RMSE": RMSE,  # Root mean square error between full year data and modeled full year data (duration curves)
             "AnnualProfile": FullLengthOutputs,
             "time_series_mapping": time_series_mapping,
         },

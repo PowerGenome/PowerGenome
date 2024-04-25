@@ -3,6 +3,7 @@ Parameters and settings
 """
 
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Union
 
@@ -49,6 +50,7 @@ SETTINGS["DISTRIBUTED_GEN_DATA"] = os.environ.get("DISTRIBUTED_GEN_DATA")
 SETTINGS["RESOURCE_GROUP_PROFILES"] = os.environ.get("RESOURCE_GROUP_PROFILES")
 
 
+@lru_cache
 def build_resource_clusters(
     group_path: Union[str, Path] = None, profile_path: Union[str, Path] = None
 ) -> ClusterBuilder:

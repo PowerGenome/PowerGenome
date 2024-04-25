@@ -2,9 +2,10 @@ import collections
 import logging
 import os
 import re
+from functools import lru_cache
 from numbers import Number
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 from zipfile import BadZipFile
 
 os.environ["USE_PYGEOS"] = "0"
@@ -46,6 +47,7 @@ from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH, build_resource_clus
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_eia_technology
 from powergenome.util import (
+    deep_freeze_args,
     download_save,
     find_region_col,
     load_ipm_shapefile,
@@ -56,6 +58,7 @@ from powergenome.util import (
     snake_case_col,
     snake_case_str,
     sort_nested_dict,
+    tuple_to_dataframe,
 )
 
 logger = logging.getLogger(__name__)
@@ -477,9 +480,11 @@ def load_plant_region_map(
 
 def label_retirement_year(
     df: pd.DataFrame,
-    settings: dict,
+    model_year: int,
+    retirement_ages: Dict[str, int] = None,
+    additional_retirements: list = None,
+    capacity_col: str = "capacity_mw",
     age_col: str = "operating_date",
-    settings_retirement_table: str = "retirement_ages",
     add_additional_retirements: bool = True,
 ):
     """
@@ -508,7 +513,7 @@ def label_retirement_year(
     if age_col not in df.columns:
         return df
     start_len = len(df)
-    retirement_ages = settings.get(settings_retirement_table, {}) or {}
+    retirement_ages = retirement_ages or {}
     if "retirement_year" not in df.columns:
         df["retirement_year"] = np.nan
 
@@ -532,16 +537,13 @@ def label_retirement_year(
         pass
 
     # Add additonal retirements from settings file
-    if settings.get("additional_retirements") and add_additional_retirements:
+    if additional_retirements and add_additional_retirements:
         logger.info("Changing retirement dates based on settings file")
-        model_year = settings["model_year"]
-        start_ret_cap = df.loc[
-            df["retirement_year"] <= model_year, settings["capacity_col"]
-        ].sum()
+        start_ret_cap = df.loc[df["retirement_year"] <= model_year, capacity_col].sum()
         logger.info(f"Starting retirement capacity is {start_ret_cap} MW")
         i = 0
         ret_cap = 0
-        for record in settings["additional_retirements"]:
+        for record in additional_retirements:
             plant_id, gen_id, ret_year = record
             # gen ids are strings, not integers
             gen_id = str(gen_id)
@@ -554,12 +556,10 @@ def label_retirement_year(
             i += 1
             ret_cap += df.loc[
                 (df["plant_id_eia"] == plant_id) & (df["generator_id"] == gen_id),
-                settings["capacity_col"],
+                capacity_col,
             ].sum()
 
-        end_ret_cap = df.loc[
-            df["retirement_year"] <= model_year, settings["capacity_col"]
-        ].sum()
+        end_ret_cap = df.loc[df["retirement_year"] <= model_year, capacity_col].sum()
         logger.info(f"Ending retirement capacity is {end_ret_cap} MW")
         if not end_ret_cap > start_ret_cap:
             logger.debug(
@@ -1704,7 +1704,7 @@ def load_860m(settings: dict) -> Dict[str, pd.DataFrame]:
 
 
 def label_gen_region(
-    df: pd.DataFrame, settings: dict, model_regions_gdf: gpd.GeoDataFrame
+    df: pd.DataFrame, capacity_col: str, model_regions_gdf: gpd.GeoDataFrame
 ) -> pd.DataFrame:
     """Label the region that generators in a dataframe belong to based on their
     geographic location. This is done via geospaital join and may not always be accurate
@@ -1714,7 +1714,7 @@ def label_gen_region(
     ----------
     df : pd.DataFrame
         Generators that are not assigned to a model region.
-    settings : dict
+    capacity_col: str
         Need the parameter `capacity_col` to determine which column has capacity.
     model_regions_gdf : gpd.GeoDataFrame
         Contains the name and geometry of each region being used in the study
@@ -1729,7 +1729,7 @@ def label_gen_region(
         (df["latitude"].isnull()) | (df["longitude"].isnull()), :
     ].copy()
     if not no_lat_lon.empty:
-        no_lat_lon_cap = no_lat_lon[settings["capacity_col"]].sum()
+        no_lat_lon_cap = no_lat_lon[capacity_col].sum()
         logger.warning(
             "Some generators do not have lon/lat data. Check the source "
             "file to determine if they should be included in results. "
@@ -1756,11 +1756,32 @@ def label_gen_region(
     return gdf
 
 
+@deep_freeze_args
+@lru_cache
+def create_new_gens_mask(
+    gens_860_id: List[Tuple[int, str]], operating_860m_id: List[Tuple[int, str]]
+) -> List[bool]:
+
+    return [g not in gens_860_id for g in operating_860m_id]
+
+
+@deep_freeze_args
+@lru_cache
 def import_new_generators(
     operating_860m: pd.DataFrame,
     gens_860: pd.DataFrame,
-    settings: dict,
-    model_regions_gdf: gpd.GeoDataFrame,
+    model_year: int,
+    capacity_col: str,
+    model_regions: List[str],
+    region_aggregations: Dict[str, List[str]] = None,
+    input_folder: str = None,
+    user_region_geodata_fn: str = None,
+    proposed_gen_heat_rates: Dict[str, int] = None,
+    group_techs: bool = False,
+    tech_groups: Dict[str, List[str]] = None,
+    regional_no_grouping: Dict[str, List[str]] = None,
+    retirement_ages: Dict[str, int] = None,
+    proposed_min_load: Dict[str, float] = None,
 ) -> pd.DataFrame:
     """Find the set of generating units in 860m that are not in the annual 860 data.
 
@@ -1786,7 +1807,17 @@ def import_new_generators(
     pd.DataFrame
         Set of operating generators that were not already in the gens_860 dataframe
     """
-    _operating_860m = operating_860m.copy()
+    model_regions_gdf = load_ipm_shapefile(
+        model_regions,
+        region_aggregations or {},
+        input_folder,
+        user_region_geodata_fn,
+    )
+    if isinstance(operating_860m, tuple):
+        _operating_860m = tuple_to_dataframe(operating_860m)
+    if isinstance(gens_860, tuple):
+        gens_860 = tuple_to_dataframe(gens_860)
+    # _operating_860m = operating_860m.copy()
     _operating_860m["generator_id"] = _operating_860m["generator_id"].apply(
         remove_leading_zero
     )
@@ -1795,16 +1826,19 @@ def import_new_generators(
         _operating_860m["plant_id_eia"], _operating_860m["generator_id"]
     )
 
+    # new_mask = create_new_gens_mask(gens_860_id, operating_860m_id)
     new_mask = [g not in gens_860_id for g in operating_860m_id]
     new_operating = label_gen_region(
-        _operating_860m.loc[new_mask, :], settings, model_regions_gdf
+        _operating_860m.loc[new_mask, :],
+        capacity_col,
+        model_regions_gdf,
     )
     new_operating = new_operating.drop_duplicates(
         subset=["plant_id_eia", "generator_id"]
     )
     new_operating.loc[:, "heat_rate_mmbtu_mwh"] = new_operating.loc[
         :, "technology_description"
-    ].map(settings.get("proposed_gen_heat_rates", {}) or {})
+    ].map(proposed_gen_heat_rates or {})
 
     # The default EIA heat rate for non-thermal technologies is 9.21
     new_operating.loc[
@@ -1812,10 +1846,8 @@ def import_new_generators(
     ] = 9.21
 
     new_operating.loc[:, "minimum_load_mw"] = (
-        new_operating["technology_description"].map(
-            settings.get("proposed_min_load", {}) or {}
-        )
-        * new_operating[settings.get("capacity_col", "capacity_mw")]
+        new_operating["technology_description"].map(proposed_min_load or {})
+        * new_operating[capacity_col]
     )
 
     # Assume anything else being built at scale is wind/solar and will have a Min_power
@@ -1829,7 +1861,10 @@ def import_new_generators(
     # Add a retirement year based on the planned start year
     label_retirement_year(
         df=new_operating,
-        settings=settings,
+        model_year=model_year,
+        retirement_ages=retirement_ages or {},
+        additional_retirements=None,
+        capacity_col=capacity_col,
         age_col="operating_year",
         add_additional_retirements=False,
     )
@@ -1844,7 +1879,7 @@ def import_new_generators(
         )
         plant_capacity = new_operating.loc[
             new_operating["technology_description"].isnull(),
-            settings.get("capacity_col", "capacity_mw"),
+            capacity_col,
         ].sum()
 
         logger.warning(
@@ -1853,12 +1888,12 @@ def import_new_generators(
             f"capcity of {plant_capacity} MW."
         )
 
-    if settings.get("group_technologies"):
+    if group_techs is True:
         new_operating = group_technologies(
             new_operating,
-            settings["group_technologies"],
-            settings.get("tech_groups", {}) or {},
-            settings.get("regional_no_grouping", {}) or {},
+            group_techs,
+            tech_groups or {},
+            regional_no_grouping or {},
         )
         print(new_operating["technology_description"].unique().tolist())
 
@@ -1866,7 +1901,7 @@ def import_new_generators(
         "model_region",
         "technology_description",
         "generator_id",
-        settings.get("capacity_col", "capacity_mw"),
+        capacity_col,
         "capacity_mwh",
         "minimum_load_mw",
         "operational_status_code",
@@ -1932,7 +1967,9 @@ def import_proposed_generators(
     # planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
     _planned = planned.copy()
     _planned["generator_id"] = _planned["generator_id"].apply(remove_leading_zero)
-    planned_gdf = label_gen_region(_planned, settings, model_regions_gdf)
+    planned_gdf = label_gen_region(
+        _planned, settings.get("capacity_col", "capacity_mw"), model_regions_gdf
+    )
     planned_gdf = planned_gdf.drop_duplicates(subset=["plant_id_eia", "generator_id"])
 
     # Add planned additions from the settings file
@@ -1993,9 +2030,12 @@ def import_proposed_generators(
         )
 
     # Add a retirement year based on the planned start year
-    label_retirement_year(
+    planned_gdf = label_retirement_year(
         df=planned_gdf,
-        settings=settings,
+        model_year=settings["model_year"],
+        retirement_ages=settings.get("retirement_ages", {}),
+        additional_retirements=settings.get("additional_retirements"),
+        capacity_col=settings.get("capacity_col", "capacity_mw"),
         age_col="planned_operating_year",
         add_additional_retirements=False,
     )
@@ -2879,7 +2919,12 @@ class GeneratorClusters:
         if self.settings.get("num_clusters") is None:
             self.current_gens = False
         self.sort_gens = sort_gens
-        self.model_regions_gdf = load_ipm_shapefile(self.settings)
+        self.model_regions_gdf = load_ipm_shapefile(
+            self.settings["model_regions"],
+            self.settings.get("region_aggregations", {}),
+            self.settings.get("input_folder"),
+            self.settings.get("user_region_geodata_fn"),
+        )
         self.weighted_unit_hr = None
         self.supplement_with_860m = supplement_with_860m
         self.multi_period = multi_period
@@ -3126,10 +3171,20 @@ class GeneratorClusters:
             .pipe(remove_retired_860m, self.retired_860m)
             .pipe(update_planned_retirement_date_860m, self.operating_860m.copy())
             .pipe(update_operating_date_860m, self.operating_860m.copy())
-            .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
             .pipe(
                 label_retirement_year,
-                self.settings,
+                self.settings["model_year"],
+                self.settings.get("retirement_ages", {}),
+                self.settings.get("additional_retirements"),
+                self.settings.get("capacity_col", "capacity_mw"),
+                add_additional_retirements=True,
+            )
+            .pipe(
+                label_retirement_year,
+                self.settings["model_year"],
+                self.settings.get("retirement_ages", {}),
+                self.settings.get("additional_retirements"),
+                self.settings.get("capacity_col", "capacity_mw"),
                 age_col="original_planned_operating_date",
             )
             .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
@@ -3246,8 +3301,18 @@ class GeneratorClusters:
             self.new_860m_gens = import_new_generators(
                 operating_860m=self.operating_860m,
                 gens_860=self.gens_860_model,
-                settings=self.settings,
-                model_regions_gdf=self.model_regions_gdf,
+                model_year=self.settings["model_year"],
+                capacity_col=self.settings.get("capacity_col", "capacity_mw"),
+                model_regions=self.settings["model_regions"],
+                region_aggregations=self.settings.get("region_aggregations", {}),
+                input_folder=self.settings.get("input_folder"),
+                user_region_geodata_fn=self.settings.get("user_region_geodata_fn"),
+                proposed_gen_heat_rates=self.settings.get("proposed_gen_heat_rates"),
+                group_techs=self.settings.get("group_technologies", False),
+                tech_groups=self.settings.get("tech_groups", {}),
+                regional_no_grouping=self.settings.get("regional_no_grouping", {}),
+                retirement_ages=self.settings.get("retirement_ages", {}),
+                proposed_min_load=self.settings.get("proposed_min_load", {}),
             )
             # Add new/proposed generators to plant_region_map
             self.plant_region_map = pd.concat(
