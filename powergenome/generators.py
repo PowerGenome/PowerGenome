@@ -1815,6 +1815,8 @@ def import_new_generators(
     )
     if isinstance(operating_860m, tuple):
         _operating_860m = tuple_to_dataframe(operating_860m)
+    else:
+        _operating_860m = operating_860m.copy()
     if isinstance(gens_860, tuple):
         gens_860 = tuple_to_dataframe(gens_860)
     # _operating_860m = operating_860m.copy()
