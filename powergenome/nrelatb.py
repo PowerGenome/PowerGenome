@@ -513,9 +513,9 @@ def atb_fixed_var_om_existing(
     if not mod_results.loc[mod_results["Fixed_OM_Cost_per_MWyr"].isna()].empty:
         df_list = []
         for tech, _df in mod_results.groupby("technology"):
-            _df.loc[_df["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"] = (
-                _df["Fixed_OM_Cost_per_MWyr"].mean()
-            )
+            _df.loc[
+                _df["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
+            ] = _df["Fixed_OM_Cost_per_MWyr"].mean()
             df_list.append(_df)
         mod_results = pd.concat(df_list, ignore_index=True)
         mod_results.loc[
@@ -802,9 +802,9 @@ def calc_om(
                 )
 
                 # If nuclear heat rates are NaN, set them to new build value
-                _df.loc[_df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"] = (
-                    new_build_hr
-                )
+                _df.loc[
+                    _df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"
+                ] = new_build_hr
                 _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (
                     _df["heat_rate_mmbtu_mwh"].mean() / new_build_hr
                 )
