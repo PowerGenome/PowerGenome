@@ -10,6 +10,7 @@ import pytest
 
 import powergenome
 from powergenome.util import (
+    add_model_tags_to_gen_columns,
     add_row_to_csv,
     apply_all_tag_to_regions,
     assign_model_planning_years,
@@ -355,3 +356,29 @@ class TestAssignModelPlanningYears:
         # Execute function
         with pytest.raises(ValueError):
             assign_model_planning_years(_settings, year)
+
+
+class TestAddModelTagsToGenColumns:
+
+    # Returns the input 'generator_columns' list unmodified if it is not a list.
+    def test_returns_input_unmodified_if_not_list(self):
+        generator_columns = "not a list"
+        model_tag_values = {}
+        regional_tag_values = {}
+        result = add_model_tags_to_gen_columns(
+            model_tag_values, regional_tag_values, generator_columns
+        )
+        assert result == generator_columns
+
+    # Adds model resource tag keys to the 'generator_columns' list if they are not already present.
+    def test_adds_model_tags_to_gen_columns(self):
+        generator_columns = ["capacity", "output"]
+        model_tag_values = {"cost": {"solar": 100, "wind": 150}}
+        regional_tag_values = {"NA": {"efficiency": {"solar": 20, "wind": 25}}}
+        expected_result = ["capacity", "output", "cost", "efficiency"]
+
+        result = add_model_tags_to_gen_columns(
+            model_tag_values, regional_tag_values, generator_columns
+        )
+
+        assert sorted(result) == sorted(expected_result)
