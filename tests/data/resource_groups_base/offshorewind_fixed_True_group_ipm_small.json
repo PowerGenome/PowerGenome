@@ -1,0 +1,1 @@
+{"technology": "offshorewind", "turbine_type": "fixed", "pref_site": true, "metadata": "small_offshorewind_lcoe_fixed_true_ipm.csv", "profiles": "small_interpolated_scaled_offshore_wind_profiles_20230719.parquet"}
