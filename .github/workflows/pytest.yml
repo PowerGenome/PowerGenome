@@ -38,7 +38,6 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       env:
-        EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
         RESOURCE_GROUPS: ${{ secrets.RESOURCE_GROUPS }}
         PUDL_DB: ${{ secrets.PUDL_DB }}
         PG_DB: ${{ secrets.PG_DB }}
@@ -47,3 +46,5 @@ jobs:
         pytest --cov=powergenome tests/ --cov-report=xml
     - name: Upload test coverage report to CodeCov
       uses: codecov/codecov-action@v4
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
