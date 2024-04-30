@@ -44,6 +44,7 @@ import sqlalchemy
 import powergenome
 from powergenome.generators import (
     GeneratorClusters,
+    add_resource_tags,
     energy_storage_mwh,
     fill_missing_tech_descriptions,
     gentype_region_capacity_factor,
@@ -1175,3 +1176,108 @@ def test_load_policy_with_all_and_duplicates(tmp_path, caplog):
     # Assert
     assert isinstance(result, pd.DataFrame)
     assert "After replacing" in caplog.text
+
+
+class TestAddResourceTags:
+
+    # Given a DataFrame with a 'technology' column, when calling the function with a valid model_tag_values dictionary, then the function should add new columns to the DataFrame with the keys of the model_tag_values dictionary.
+    def test_add_resource_tags_with_valid_model_tag_values(self):
+        # Create a sample DataFrame
+        df = pd.DataFrame({"technology": ["solar", "wind", "nuclear"]})
+
+        # Define the model_tag_values dictionary
+        model_tag_values = {
+            "THERM": {"gas": 1, "coal": 2},
+            "RENEW": {"solar": 1, "wind": 2},
+        }
+
+        # Call the add_resource_tags function
+        result = add_resource_tags(df, model_tag_values)
+
+        # Check if new columns are added to the DataFrame
+        assert "THERM" in result.columns
+        assert "RENEW" in result.columns
+
+    # Given a DataFrame without a 'technology' column, when calling the function, then the function should raise a KeyError.
+    def test_add_resource_tags_without_technology_column(self):
+        # Create a sample DataFrame without 'technology' column
+        df = pd.DataFrame({"region": ["A", "B", "C"]})
+
+        # Define the model_tag_values dictionary
+        model_tag_values = {
+            "THERM": {"gas": 1, "coal": 2},
+            "RENEW": {"solar": 1, "wind": 2},
+        }
+
+        # Call the add_resource_tags function and expect a KeyError
+        with pytest.raises(KeyError):
+            add_resource_tags(df, model_tag_values)
+
+    # Given a DataFrame with a 'technology' column and a valid regional_tag_values dictionary, when calling the function, then the function should add new columns to the DataFrame with the keys of the regional_tag_values dictionary and fill them with the corresponding values for each technology in each region.
+    def test_add_resource_tags_with_valid_regional_tag_values(self):
+        # Create a sample DataFrame
+        df = pd.DataFrame(
+            {
+                "technology": ["solar", "wind", "nuclear"] * 2,
+                "region": ["A"] * 3 + ["B"] * 3,
+            }
+        )
+
+        # Define the regional_tag_values dictionary
+        regional_tag_values = {
+            "A": {
+                "THERM": {"nuclear": 1, "coal": 2},
+                "RENEW": {"solar": 1, "wind": 2},
+            },
+            "B": {"THERM": {"nuclear": 3, "coal": 4}, "RENEW": {"solar": 3, "wind": 4}},
+        }
+
+        # Call the add_resource_tags function
+        result = add_resource_tags(df, {}, regional_tag_values)
+
+        # Check if new columns are added to the DataFrame
+        assert "THERM" in result.columns
+        assert "RENEW" in result.columns
+
+        # Check if values are filled correctly for each technology in each region
+        assert result["RENEW"].to_list() == [1, 2, 0, 3, 4, 0]
+        assert result["THERM"].to_list() == [0, 0, 1, 0, 0, 3]
+
+    # Given a DataFrame with a 'technology' column and a valid regional_tag_values dictionary, but without a 'region' column, when calling the function with the correct arguments, then the function should raise a KeyError.
+    def test_add_resource_tags_with_missing_region_column_fixed(self):
+        # Create a sample DataFrame without a 'region' column
+        df = pd.DataFrame({"technology": ["solar", "wind", "nuclear"]})
+
+        # Define the regional_tag_values dictionary
+        regional_tag_values = {"REGIONAL_TAG": {"solar": {"region1": 1, "region2": 2}}}
+
+        # Call the add_resource_tags function and expect a KeyError
+        with pytest.raises(KeyError):
+            add_resource_tags(df, {}, regional_tag_values)
+
+    # Given a DataFrame with a 'technology' column and a valid model_tag_values dictionary, but with some keys in the dictionary not found in the DataFrame, when calling the function, then the function should log a warning message.
+    def test_warning_message_when_keys_not_found(self, caplog):
+        import logging
+
+        # Create a sample DataFrame
+        df = pd.DataFrame({"technology": ["solar", "wind", "nuclear"]})
+
+        # Define the model_tag_values dictionary with some keys not found in the DataFrame
+        model_tag_values = {
+            "THERM": {"gas": 1, "coal": 2},
+            "RENEW": {"solar": 1, "wind": 2},
+        }
+
+        model_tag_names = ["THERM", "RENEW", "HYDRO"]
+
+        # Call the add_resource_tags function
+        caplog.set_level(logging.WARNING)
+        result = add_resource_tags(
+            df, model_tag_values, model_tag_names=model_tag_names
+        )
+
+        # Check if warning message is logged
+        assert (
+            "The model resource tags {'HYDRO'} are listed in the settings parameter 'model_tags_name' but are not assigned values for any resources"
+            in caplog.text
+        )
