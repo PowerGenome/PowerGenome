@@ -1471,60 +1471,101 @@ def calc_unit_cluster_values(
     return df_values
 
 
-def add_genx_model_tags(df, settings):
-    """
+def add_resource_tags(
+    df: pd.DataFrame,
+    model_tag_values: Dict[str, Dict[str, int]],
+    regional_tag_values: Dict[str, Dict[str, Dict[str, int]]] = None,
+    model_tag_names: List[str] = None,
+    default_model_tag: Union[int, float, str] = 0,
+) -> pd.DataFrame:
+    """Add columns to the dataframe of resources and assign values based on technology
+    names. Can be boolean-type integers, floats, or strings. Different values can be
+    assigned by region.
+
     Each generator type needs to have certain tags for use by the GenX model. Each tag
     is a column, e.g. THERM for thermal generators. These columns and tag values are
-    defined in the settings file and applied here. Tags are (usually?) boolean 0/1
-    values.
+    defined in the settings file and applied here.
+
+    Keys representing technology names are sorted by length so that shorter names are
+    applied first. This prevents short or generic names like "nuclear" from overriding
+    more specific names like "nuclear_nuclear".
 
     Parameters
     ----------
-    df : dataframe
-        Clusters of generators. The index should have a column 'technology', which
-        is used to map tag values.
-    settings : dict
-        User-defined settings loaded from a YAML file.
+    df : pd.DataFrame
+        Each row represents one resource. Should have the column "technology",
+        and the column "region" if `regional_tag_values` is used.
+    model_tag_values : Dict[str, Dict[str, int]]
+        Mapping of values to technology names that will be assigned to a new column using
+        the key as the column name.
+    regional_tag_values : Dict[str, Dict[str, Dict[str, int]]]
+        Mapping of values to technology names within a given region that will be assigned
+        to a new column using the key as the column name.
+    model_tag_names : List[str], optional
+        List of tag names to either assign specific values or the default value, by default
+        None. Only necessary if a column is required but not specified within
+        `model_tag_values` or `regional_tag_values`.
+    default_model_tag : Union[int, float, str], optional
+        The default value used to fill within a column before assigning specific values to
+        each technology, by default 0
 
     Returns
     -------
-    dataframe
-        The original generator cluster results with new columns for each model tag.
+    pd.DataFrame
+        Modified version of the input df with new columns from the dictionary keys.
     """
+    if not "technology" in df.columns:
+        raise KeyError(
+            "The column 'techology' is required when adding model tag values."
+        )
+    if regional_tag_values is not None and "region" not in df.columns:
+        raise KeyError(
+            "When assigning regional model tags, the column 'region' is required."
+        )
+    _df = df.copy()
+    if model_tag_names is None:
+        model_tag_names = []
     ignored = r"_"
-    technology = df["technology"].str.replace(ignored, "")
+    technology = _df["technology"].str.replace(ignored, "")
+
+    global_keys = list((model_tag_values or {}).keys())
+    regional_keys = []
+    for region, regional_tags in (regional_tag_values or {}).items():
+        regional_keys.extend(list(regional_tags.keys()))
+
+    # global_keys = list(set(global_keys + regional_keys))
     # Create a new dataframe with the same index
-    default = settings.get("default_model_tag", 0)
-    for tag_col in settings.get("model_tag_names", []):
-        df[tag_col] = default
-        if tag_col not in settings.get("generator_columns", []) and isinstance(
-            settings.get("generator_columns"), list
-        ):
-            settings["generator_columns"].append(tag_col)
+    tags_no_value = set(model_tag_names) - set(global_keys + regional_keys)
+    if tags_no_value:
+        logger.warning(
+            f"The model resource tags {tags_no_value} are listed in the settings parameter "
+            "'model_tags_name' but are not assigned values for any resources"
+        )
+    for tag_col in set(model_tag_names + global_keys + regional_keys):
+        _df.loc[:, tag_col] = default_model_tag
+    for tag_col in global_keys:
 
         try:
             for tech, tag_value in sorted(
-                settings["model_tag_values"][tag_col].items(),
+                model_tag_values[tag_col].items(),
                 key=lambda item: len(str(item[0])),
             ):
                 tech = re.sub(ignored, "", tech)
                 mask = technology.str.contains(rf"^{tech}", case=False)
-                df.loc[mask, tag_col] = tag_value
+                _df.loc[mask, tag_col] = tag_value
         except (KeyError, AttributeError) as e:
             logger.warning(f"No model tag values found for {tag_col} ({e})")
 
     # Change tags with specific regional values for a technology
-    flat_regional_tags = flatten(
-        sort_nested_dict(settings.get("regional_tag_values", {}) or {})
-    )
+    flat_regional_tags = flatten(sort_nested_dict(regional_tag_values or {}))
 
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
         tech = re.sub(ignored, "", tech)
         mask = technology.str.contains(rf"^{tech}", case=False)
-        df.loc[(df["region"] == region) & mask, tag_col] = tag_value
+        _df.loc[(_df["region"] == region) & mask, tag_col] = tag_value
 
-    return df
+    return _df
 
 
 def download_860m(settings: dict) -> pd.ExcelFile:
@@ -3669,7 +3710,13 @@ class GeneratorClusters:
             .pipe(startup_fuel, self.settings)
             .pipe(add_fuel_labels, self.fuel_prices, self.settings)
             .pipe(startup_nonfuel_costs, self.settings)
-            .pipe(add_genx_model_tags, self.settings)
+            .pipe(
+                add_resource_tags,
+                model_tag_values=self.settings.get("model_tag_values", {}),
+                regional_tag_values=self.settings.get("regional_tag_values", {}),
+                model_tag_names=self.settings.get("model_tag_names", []),
+                default_model_tag=self.settings.get("default_model_tag", {}),
+            )
         )
 
         if self.sort_gens:
@@ -3809,7 +3856,13 @@ class GeneratorClusters:
             self.new_generators = pd.concat(
                 [self.new_generators, dr_rows], sort=False, ignore_index=True
             )
-        self.new_generators = add_genx_model_tags(self.new_generators, self.settings)
+        self.new_generators = add_resource_tags(
+            self.new_generators,
+            model_tag_values=self.settings.get("model_tag_values", {}),
+            regional_tag_values=self.settings.get("regional_tag_values", {}),
+            model_tag_names=self.settings.get("model_tag_names", []),
+            default_model_tag=self.settings.get("default_model_tag", {}),
+        )
         if "cluster" not in self.new_generators.columns:
             self.new_generators["cluster"] = 1
         self.new_generators["cluster"] = self.new_generators["cluster"].astype(

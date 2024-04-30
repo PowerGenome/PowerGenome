@@ -59,6 +59,13 @@ def load_settings(path: Union[str, Path]) -> dict:
     if settings.get("input_folder"):
         settings["input_folder"] = path.parent / settings["input_folder"]
 
+    if settings.get("generator_columns"):
+        settings["generator_columns"] = add_model_tags_to_gen_columns(
+            model_tag_values=settings.get("model_tag_values", {}),
+            regional_tag_values=settings.get("regional_tag_values", {}),
+            generator_columns=settings["generator_columns"],
+        )
+
     settings = apply_all_tag_to_regions(settings)
     settings = sort_nested_dict(settings)
 
@@ -77,6 +84,52 @@ def load_settings(path: Union[str, Path]) -> dict:
             settings[key] = Path(settings[key])
 
     return fix_param_names(settings)
+
+
+def add_model_tags_to_gen_columns(
+    model_tag_values: Dict[str, Dict[str, int]],
+    regional_tag_values: Dict[str, Dict[str, Dict[str, int]]],
+    generator_columns: List[str],
+) -> List[str]:
+    """Add model resource tag keys to the list of columns that will be included in
+    generator outputs.
+
+    Parameters
+    ----------
+    model_tag_values : Dict[str, Dict[str, int]]
+        Tags applied to resources in all regions. Top level is the tag name, which will
+        become a column in the generators output. The next level is technology names
+        and the value for each technology.
+    regional_tag_values : Dict[str, Dict[str, Dict[str, int]]]
+        Regional values applied to technologies. Top level is the region, then the tag
+        name, then the technology name and value.
+    generator_columns : List[str]
+        List of columns to include in generator outputs from the settings.
+
+    Returns
+    -------
+    List[str]
+        Updated list of column names, now including any resource tags/columns.
+    """
+
+    if not isinstance(generator_columns, list):
+        logger.warning(
+            "There is a parameter 'generator_columns' in your settings but it is not a "
+            "list. This parameter will not have any effect in it's current form."
+        )
+        return generator_columns
+
+    tag_keys = list((model_tag_values or {}).keys())
+    regional_keys = []
+    for region, regional_tags in (regional_tag_values or {}).items():
+        regional_keys.extend(list(regional_tags.keys()))
+
+    tag_keys = set(tag_keys + regional_keys)
+    for tag in tag_keys:
+        if tag not in generator_columns:
+            generator_columns.append(tag)
+
+    return generator_columns
 
 
 def sort_nested_dict(d: Dict[str, Any]) -> Dict[str, Any]:
@@ -1109,6 +1162,12 @@ def build_scenario_settings(
             _settings["case_name"] = case_id_name_map[case_id]
 
         scenario_settings.setdefault(year, {})[case_id] = _settings
+        if _settings.get("generator_columns"):
+            _settings["generator_columns"] = add_model_tags_to_gen_columns(
+                model_tag_values=_settings.get("model_tag_values", {}),
+                regional_tag_values=_settings.get("regional_tag_values", {}),
+                generator_columns=_settings["generator_columns"],
+            )
 
     # Report any settings in the scenario definitions that had no effect. Values
     # can be changed via either the "all_years" key or a specific year, so we

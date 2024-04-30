@@ -15,11 +15,7 @@ from powergenome.external_data import (
     make_generator_variability,
 )
 from powergenome.fuels import fuel_cost_table
-from powergenome.generators import (
-    GeneratorClusters,
-    add_fuel_labels,
-    add_genx_model_tags,
-)
+from powergenome.generators import GeneratorClusters, add_fuel_labels
 from powergenome.GenX import (
     add_cap_res_network,
     add_co2_costs_to_o_m,
