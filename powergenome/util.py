@@ -181,11 +181,7 @@ def sqlalchemy_prefix(db_path: str) -> str:
     str
         SqlAlchemy connection string
     """
-    if os.name == "nt":
-        # if user is using a windows system
-        sql_prefix = "sqlite:///"
-    else:
-        sql_prefix = "sqlite:////"
+    sql_prefix = "sqlite:///"
 
     if not db_path:
         return None
