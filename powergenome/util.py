@@ -110,6 +110,15 @@ def add_model_tags_to_gen_columns(
     -------
     List[str]
         Updated list of column names, now including any resource tags/columns.
+
+    Example
+    -------
+    >>> model_tag_values = {'cost': {'solar': 100, 'wind': 150}}
+    >>> regional_tag_values = {'NA': {'other_tag': {'solar': 20, 'wind': 25}}}
+    >>> generator_columns = ['capacity', 'output']
+    >>> add_model_tags_to_gen_columns(model_tag_values, regional_tag_values, generator_columns)
+    ['capacity', 'output', 'cost', 'other_tag']
+
     """
 
     if not isinstance(generator_columns, list):
