@@ -231,31 +231,57 @@ new_gen_not_available:
 renewables_clusters:
   - region: CA_N
     technology: landbasedwind
-    max_clusters: 2
-    max_lcoe: 110
     min_capacity: 25000
+    bin:
+      - feature: lcoe
+        q: 2
+        weights: "mw"
+    cluster:
+      - feature: cf
+        n_clusters: 2
+        method: agg
   - region: CA_N
     technology: offshorewind
     turbine_type: floating
     pref_site: 1
-    max_clusters: 3
     min_capacity: 40000
+    cluster:
+      - feature: cf
+        n_clusters: 2
+        method: agg
   - region: CA_S
     technology: landbasedwind
-    max_clusters: 4
-    max_lcoe: 100
     min_capacity: 45000
+    bin:
+      - feature: lcoe
+        q: 2
+        weights: "mw"
+    cluster:
+      - feature: cf
+        n_clusters: 2
+        method: agg
   - region: CA_S
     technology: utilitypv
-    max_clusters: 5
-    max_lcoe: 75
     min_capacity: 100000
-    cap_multiplier: 0.2
+    bin:
+      - feature: lcoe
+        q: 2
+        weights: "mw"
+    cluster:
+      - feature: cf
+        n_clusters: 2
+        method: agg
   - region: WECC_AZ
     technology: utilitypv
-    max_clusters: 3
     min_capacity: 100000
-    cap_multiplier: 0.2
+    bin:
+      - feature: lcoe
+        q: 2
+        weights: "mw"
+    cluster:
+      - feature: cf
+        n_clusters: 2
+        method: agg
 
 
 # Map user-regions to AEO Electricity Market Module (EMM) regions for cost multipliers
