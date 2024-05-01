@@ -784,6 +784,9 @@ def make_distributed_gen_profiles(pg_engine, settings):
             regions.extend(
                 list(reverse_dict_of_lists(settings["region_aggregations"]).keys())
             )
+            regions = [
+                r for r in regions if r not in settings["region_aggregations"].keys()
+            ]
         else:
             regions = settings["model_regions"]
 
