@@ -10,18 +10,11 @@ import pandas as pd
 from powergenome.external_data import (
     load_demand_segments,
     load_policy_scenarios,
-    load_user_genx_settings,
     make_generator_variability,
 )
 from powergenome.financials import investment_cost_calculator
-from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.time_reduction import kmeans_time_clustering
-from powergenome.util import (
-    find_region_col,
-    load_settings,
-    snake_case_col,
-    snake_case_str,
-)
+from powergenome.util import find_region_col, snake_case_col, snake_case_str
 
 logger = logging.getLogger(__name__)
 
@@ -191,9 +184,9 @@ def label_cap_res_lines(path_names: List[str], dest_regions: List[str]) -> List[
     for name in path_names:
         s_r = name.split("_to_")[0]
         e_r = name.split("_to_")[-1]
-        if (s_r in dest_regions) and not (e_r in dest_regions):
+        if (s_r in dest_regions) and e_r not in dest_regions:
             cap_res_list.append(1)
-        elif (e_r in dest_regions) and not (s_r in dest_regions):
+        elif (e_r in dest_regions) and s_r not in dest_regions:
             cap_res_list.append(-1)
         else:
             cap_res_list.append(0)
@@ -231,10 +224,6 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         tx_df["transmission_path_name"] = tx_df["Transmission Path Name"]
     original_cols = tx_df.columns.to_list()
 
-    zones = settings["model_regions"]
-    zone_num_map = {
-        zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
-    }
     path_names = tx_df["transmission_path_name"].to_list()
     policy_nums = []
 
@@ -381,7 +370,6 @@ def add_misc_gen_values(
 
     misc_values = misc_values.loc[misc_values[region_col].str.lower() != "all", :]
 
-    resource_len = 0
     for tech, _df in misc_values.groupby(resource_col):
         num_tech_regions = len(
             gen_clusters.loc[

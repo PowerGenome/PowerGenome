@@ -775,7 +775,6 @@ def make_distributed_gen_profiles(pg_engine, settings):
 
     if settings.get("distributed_gen_fn"):
         scenario = settings.get("distributed_gen_scenario")
-        path_in = settings.get("")
         if settings.get("region_aggregations"):
             regions = [
                 r
@@ -811,7 +810,7 @@ def make_distributed_gen_profiles(pg_engine, settings):
 
     assert (
         year in dg_calc_values
-    ), f"The years in settings parameter 'distributed_gen_values' do not match the model years."
+    ), "The years in settings parameter 'distributed_gen_values' do not match the model years."
 
     for region in dg_calc_values[year]:
         assert region in set(profile_regions), (

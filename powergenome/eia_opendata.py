@@ -9,9 +9,8 @@ from itertools import product
 from typing import Union
 
 import pandas as pd
-import requests
 
-from powergenome.params import DATA_PATHS, SETTINGS
+from powergenome.params import DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.util import download_save, reverse_dict_of_lists
 

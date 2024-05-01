@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Union
 
-from dotenv import find_dotenv, load_dotenv
+from dotenv import load_dotenv
 
 from powergenome import __file__
 from powergenome.resource_clusters import ClusterBuilder

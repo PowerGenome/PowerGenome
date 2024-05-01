@@ -2,12 +2,12 @@ import logging
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import List
 
 import numpy as np
 import pandas as pd
 
-from powergenome.params import DATA_PATHS, SETTINGS
+from powergenome.params import SETTINGS
 from powergenome.util import deep_freeze_args, find_region_col, snake_case_col
 
 logger = logging.getLogger(__name__)
@@ -176,7 +176,7 @@ def create_subsector_ts(
     ]
 
     factor_years = timeseries["year"].unique()
-    if not year in factor_years:
+    if year not in factor_years:
         diff = np.array(factor_years - year)
         index = diff[np.where(diff <= 0)].argmax()
         year_approx = factor_years[index]

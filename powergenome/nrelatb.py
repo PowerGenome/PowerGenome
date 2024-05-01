@@ -35,7 +35,6 @@ from powergenome.util import (
     remove_leading_zero,
     reverse_dict_of_lists,
     snake_case_col,
-    snake_case_str,
 )
 
 idx = pd.IndexSlice
@@ -1673,7 +1672,7 @@ def add_renewables_clusters(
         cache_folder.mkdir(parents=True, exist_ok=True)
         if not cache_cluster_fpath.exists():
             clusters.to_parquet(cache_cluster_fpath)
-        if not cache_site_assn_fpath.exists() and not data is None:
+        if not cache_site_assn_fpath.exists() and data is not None:
             cols = ["cpa_id", "cluster"]
             data[cols].to_parquet(cache_site_assn_fpath)
         if _scenario.get("min_capacity"):

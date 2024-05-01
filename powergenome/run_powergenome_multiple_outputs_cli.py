@@ -1,5 +1,4 @@
 import argparse
-import copy
 import logging
 import shutil
 import sys
@@ -15,12 +14,11 @@ from powergenome.external_data import (
     make_generator_variability,
 )
 from powergenome.fuels import fuel_cost_table
-from powergenome.generators import GeneratorClusters, add_fuel_labels
+from powergenome.generators import GeneratorClusters
 from powergenome.GenX import (
     add_cap_res_network,
     add_co2_costs_to_o_m,
     add_misc_gen_values,
-    calculate_partial_CES_values,
     check_resource_tags,
     check_vre_profiles,
     create_policy_req,
@@ -38,7 +36,6 @@ from powergenome.GenX import (
     set_must_run_generation,
 )
 from powergenome.load_profiles import make_final_load_curves
-from powergenome.nrelatb import atb_fixed_var_om_existing
 from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
@@ -51,7 +48,6 @@ from powergenome.util import (
     load_settings,
     remove_fuel_gen_scenario_name,
     remove_fuel_scenario_name,
-    update_dictionary,
     write_case_settings_file,
     write_results_file,
 )
@@ -323,10 +319,6 @@ def main(**kwargs):
                     _settings.get("hydro_factor"),
                     _settings.get("regional_hydro_factor", {}),
                 )
-
-                # Save existing resources that aren't demand response for use in
-                # other cases
-                existing_gens = gc.existing_resources.copy()
 
                 gen_variability = make_generator_variability(gen_clusters)
                 gen_variability.index.name = "Time_Index"

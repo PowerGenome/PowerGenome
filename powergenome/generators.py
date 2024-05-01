@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Dict, List, Union
 from zipfile import BadZipFile
 
-os.environ["USE_PYGEOS"] = "0"
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -20,11 +19,7 @@ from scipy.stats import iqr
 from sklearn import cluster, preprocessing
 from xlrd import XLRDError
 
-from powergenome.cluster_method import (
-    cluster_by_owner,
-    cluster_kmeans,
-    weighted_ownership_by_unit,
-)
+from powergenome.cluster_method import cluster_by_owner
 from powergenome.co2_pipeline_cost import merge_co2_pipeline_costs
 from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
 from powergenome.external_data import (
@@ -42,7 +37,7 @@ from powergenome.nrelatb import (
     fetch_atb_heat_rates,
     fetch_atb_offshore_spur_costs,
 )
-from powergenome.params import DATA_PATHS, IPM_GEOJSON_PATH, build_resource_clusters
+from powergenome.params import DATA_PATHS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_eia_technology
 from powergenome.util import (
@@ -58,6 +53,7 @@ from powergenome.util import (
     sort_nested_dict,
 )
 
+os.environ["USE_PYGEOS"] = "0"
 logger = logging.getLogger(__name__)
 
 
@@ -619,7 +615,7 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
     start_len = len(df)
     size_cap = settings["small_hydro_mw"]
     cap_col = settings.get("capacity_col")
-    if not cap_col in df:
+    if cap_col not in df:
         cap_col = "capacity_mw"
 
     start_hydro_capacity = df.query(
@@ -1514,7 +1510,7 @@ def add_resource_tags(
     pd.DataFrame
         Modified version of the input df with new columns from the dictionary keys.
     """
-    if not "technology" in df.columns:
+    if "technology" not in df.columns:
         raise KeyError(
             "The column 'techology' is required when adding model tag values."
         )
@@ -1544,7 +1540,6 @@ def add_resource_tags(
     for tag_col in set(model_tag_names + global_keys + regional_keys):
         _df.loc[:, tag_col] = default_model_tag
     for tag_col in global_keys:
-
         try:
             for tech, tag_value in sorted(
                 model_tag_values[tag_col].items(),
@@ -3044,7 +3039,7 @@ class GeneratorClusters:
             )
         if self.settings["flexible_demand_resources"][year] is None:
             logger.warning(
-                f"Your 'flexible_demand_resources' settings parameter has the value 'None' "
+                "Your 'flexible_demand_resources' settings parameter has the value 'None' "
                 "for this planning period. No flexible demand resources will be included."
             )
         for resource, parameters in (
@@ -3785,7 +3780,7 @@ class GeneratorClusters:
             if len(groups) > 1:
                 # Multiple matching resource groups
                 raise ValueError(
-                    f"Multiple existing resource groups match EIA technology"
+                    "Multiple existing resource groups match EIA technology"
                     + row.technology
                 )
             group = groups[0]
