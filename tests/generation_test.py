@@ -154,6 +154,7 @@ def plant_region_map_ipm_data():
 def test_settings():
     settings = load_settings(DATA_PATHS["test_data"] / "test_settings.yml")
     settings["RESOURCE_GROUPS"] = DATA_PATHS["test_data"] / "resource_groups_base"
+    settings["tdr_n_init"] = 1
     return settings
 
 
@@ -162,6 +163,7 @@ def CA_AZ_settings():
     settings = load_settings(
         DATA_PATHS["powergenome"].parent / "example_systems" / "CA_AZ" / "settings"
     )
+    settings["tdr_n_init"] = 1
     settings["input_folder"] = Path(
         DATA_PATHS["powergenome"].parent
         / "example_systems"

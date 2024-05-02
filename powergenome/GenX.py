@@ -445,6 +445,7 @@ def reduce_time_domain(
             include_peak_day=include_peak_day,
             load_weight=load_weight,
             variable_resources_only=variable_resources_only,
+            n_init=settings.get("tdr_n_init", 100),
         )
 
         reduced_resource_profile = results["resource_profiles"]

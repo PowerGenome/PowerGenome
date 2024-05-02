@@ -73,6 +73,7 @@ def kmeans_time_clustering(
     include_peak_day=True,
     load_weight=1,
     variable_resources_only=True,
+    n_init=100,
 ):
     """Reduce the number of hours in load and resource variability timeseries using
     kmeans clustering.
@@ -109,6 +110,8 @@ def kmeans_time_clustering(
     variable_resources_only : bool, optional
         If clustering should only consider resources with variable (non-zero standard
         deviation) profiles, by default True
+    n_init : int, optional
+        Parameter for k-means clustering.
 
     Returns
     -------
@@ -250,7 +253,7 @@ def kmeans_time_clustering(
 
     # K-means clutering with 100 trials with randomly selected starting values
     model = KMeans(
-        n_clusters=num_clusters, n_init=100, init="k-means++", random_state=42
+        n_clusters=num_clusters, n_init=n_init, init="k-means++", random_state=42
     )
     model.fit(ClusteringInputDF.values.transpose())
 
