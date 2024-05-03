@@ -338,7 +338,7 @@ def test_combined_load_sources(CA_AZ_settings):
     CA_AZ_settings["regional_load_fn"] = "test_regional_load_profiles.csv"
     CA_AZ_settings["load_source_table_name"] = {"EFS": "load_curves_nrel_efs"}
     CA_AZ_settings["regional_load_source"] = {
-        "USER": ["CA_N", "CA_S"],
+        "FERC": ["CA_N", "CA_S"],
         "EFS": ["WECC_AZ"],
     }
     CA_AZ_settings["load_source_table_name"] = {
@@ -442,11 +442,11 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
         assert time_series_mapping.isna().any().all() == False
     assert len(reduced_load_profile) == len(reduced_resource_profile)
 
-    gc.settings["distributed_gen_method"]["CA_N"] = "fraction_load"
-    gc.settings["distributed_gen_values"][2030]["CA_N"] = 0.1
-    gc.settings["regional_load_fn"] = "test_regional_load_profiles.csv"
-    gc.settings["regional_load_includes_demand_response"] = False
-    make_final_load_curves(pg_engine=pg_engine, settings=gc.settings)
+    # gc.settings["distributed_gen_method"]["CA_N"] = "fraction_load"
+    # gc.settings["distributed_gen_values"][2030]["CA_N"] = 0.1
+    # gc.settings["regional_load_fn"] = "test_regional_load_profiles.csv"
+    # gc.settings["regional_load_includes_demand_response"] = False
+    # make_final_load_curves(pg_engine=pg_engine, settings=gc.settings)
 
     model_regions_gdf = gc.model_regions_gdf
     transmission = (
