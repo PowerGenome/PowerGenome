@@ -13,9 +13,9 @@ from hypothesis.extra.pandas import column, data_frames, range_indexes, series
 from powergenome.cluster.renewables import (
     agg_cluster_other,
     agg_cluster_profile,
-    agglomerative_cluster_binned,
-    agglomerative_cluster_no_bin,
     assign_site_cluster,
+    cluster_sites_binned,
+    cluster_sites_no_bin,
     modify_renewable_group,
     num_bins_from_capacity,
     value_bin,
@@ -35,6 +35,14 @@ cluster_data = data_frames(
         column(
             name="lcoe",
             elements=st.floats(min_value=0, max_value=100, allow_infinity=False),
+        ),
+        column(
+            name="lat",
+            elements=st.floats(min_value=50, max_value=70, allow_infinity=False),
+        ),
+        column(
+            name="lon",
+            elements=st.floats(min_value=-100, max_value=-70, allow_infinity=False),
         ),
         column(name="state", elements=st.sampled_from(["a", "b"])),
     ]
@@ -98,7 +106,12 @@ def test_fuzz_agg_cluster_other(s, n_clusters):
     n_clusters=st.integers(),
 )
 def test_fuzz_agglomerative_cluster_no_bin(data, feature, n_clusters):
-    agglomerative_cluster_no_bin(data=data, feature=feature, n_clusters=n_clusters)
+    cluster_sites_no_bin(
+        data=data, method="agg", feature=feature, n_clusters=n_clusters
+    )
+    cluster_sites_no_bin(
+        data=data, method="kmeans", feature=["lat", "lon"], n_clusters=n_clusters
+    )
 
 
 @given(
@@ -108,8 +121,11 @@ def test_fuzz_agglomerative_cluster_no_bin(data, feature, n_clusters):
     n_clusters=st.integers(),
 )
 def test_fuzz_agglomerative_cluster_binned(data, feature, by, n_clusters):
-    agglomerative_cluster_binned(
-        data=data, by=by, feature=feature, n_clusters=n_clusters
+    cluster_sites_binned(
+        data=data, by=by, method="agg", feature=feature, n_clusters=n_clusters
+    )
+    cluster_sites_binned(
+        data=data, by=by, method="kmeans", feature=["lat", "lon"], n_clusters=n_clusters
     )
 
 
@@ -170,6 +186,22 @@ def test_assign_site_cluster():
     cluster = {
         "cluster": [
             {"feature": "profile", "method": "agglomerative", "mw_per_cluster": 200},
+        ],
+    }
+    data = assign_site_cluster(
+        renew_data=renew_data, profile_path=profile_path, regions=regions, **cluster
+    )
+    assert data.notna().all().all()
+    assert "cluster" in data.columns
+    assert len(data) == len(renew_data)
+
+    cluster = {
+        "cluster": [
+            {
+                "feature": ["interconnect_annuity", "lcoe"],
+                "method": "kmeans",
+                "mw_per_cluster": 200,
+            },
         ],
     }
     data = assign_site_cluster(
