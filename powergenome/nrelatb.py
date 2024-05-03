@@ -73,7 +73,7 @@ def fetch_atb_costs(
        'basis_year', 'tech_detail', 'fixed_o_m_mw', 'variable_o_m_mwh', 'capex', 'cf',
        'fuel', 'lcoe', 'wacc_real']
     """
-    logger.info("Loading NREL ATB data")
+    logger.debug("Loading NREL ATB data")
 
     col_names = [
         "technology",
@@ -179,7 +179,7 @@ def fetch_atb_costs(
             # if battery_wacc_standin in tech_list:
             #     pass
             # else:
-            logger.info(
+            logger.debug(
                 f"Using {battery_wacc_standin} {fin_case} WACC for Battery storage."
             )
             for cost_case in ["Mid", "Moderate"]:
@@ -264,7 +264,7 @@ def fetch_atb_costs(
             ["capex_mw", "fixed_o_m_mw", "variable_o_m_mwh"],
         ] *= settings.get("pv_ac_dc_ratio", 1.3)
     elif atb_year > 2019:
-        logger.info("PV costs are already in AC units, not inflating the cost.")
+        logger.debug("PV costs are already in AC units, not inflating the cost.")
 
     if offshore_spur_costs is not None and "OffShoreWind" in atb_costs["technology"]:
         idx_cols = ["technology", "tech_detail", "cost_case", "basis_year"]
@@ -417,7 +417,7 @@ def atb_fixed_var_om_existing(
         Same as incoming "results" dataframe but with new columns
         "Fixed_OM_Cost_per_MWyr" and "Var_OM_Cost_per_MWh"
     """
-    logger.info("Adding fixed and variable O&M for existing plants")
+    logger.debug("Adding fixed and variable O&M for existing plants")
 
     existing_year = settings["atb_existing_year"]
 
@@ -447,7 +447,7 @@ def atb_fixed_var_om_existing(
             "settings file(s) if you think one of these technologies should be mapped to "
             "an ATB technology with a valid heat rate."
         )
-        logger.warning(s)
+        logger.info(s)
 
     # Find valid ATB tech/tech_details with O&M costs where heat rate was missing.
     s = """
@@ -499,7 +499,7 @@ def atb_fixed_var_om_existing(
             "fixed/variable O&M costs. Check the 'eia_atb_tech_map' parameter in your "
             "settings file(s)."
         )
-        logger.warning(s)
+        logger.info(s)
 
     target_usd_year = settings["target_usd_year"]
     simple_o_m = {
@@ -728,7 +728,7 @@ def calc_om(
             # Also using the new values for coal plants, assuming 40-50 yr age and half
             # FGD
             # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
-            # logger.info(f"Using NEMS values for {eia_tech} fixed/variable O&M")
+            # logger.debug(f"Using NEMS values for {eia_tech} fixed/variable O&M")
 
             if "Combined Cycle" in eia_tech:
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
@@ -1118,7 +1118,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
        'Inv_Cost_per_MWyr', 'Inv_Cost_per_MWhyr', 'Heat_Rate_MMBTU_per_MWh',
        'Cap_Size', 'region']
     """
-    logger.info("Creating new resources for each region.")
+    logger.debug("Creating new resources for each region.")
     new_gen_types = settings["atb_new_gen"]
     model_year = settings["model_year"]
     try:

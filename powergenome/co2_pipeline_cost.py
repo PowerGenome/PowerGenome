@@ -60,6 +60,7 @@ def merge_co2_pipeline_costs(
         The input dataframe (one row per resource) plus columns with cost data for CO2
         pipeline constuction/operation and CO2 disposal
     """
+    logger.info("Adding CCS pipeline costs")
     co2_df = pd.read_csv(co2_data_path)
     co2_df = co2_df.loc[co2_df["parameter"] != "capacity_mw", :]
     if target_usd_year:

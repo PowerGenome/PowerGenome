@@ -215,8 +215,8 @@ def adjust_ccs_fuels(
     if base_fuel_name:
         # USD/tonne disposal
         if not ccs_disposal_cost:
-            logger.warning(
-                "You did not specify a CCS disposal cost, so it will be set to $0. "
+            logger.debug(
+                "You did not specify a fuel-modifying CCS disposal cost, so it will be set to $0. "
                 "Set a non-zero value with the settings parameter 'ccs_disposal_cost'."
             )
             ccs_disposal_cost = 0

@@ -156,7 +156,7 @@ def make_load_curves(
 
     # I'd rather use a sql query and only pull the regions of interest but
     # sqlalchemy doesn't allow table names to be parameterized.
-    logger.info("Loading load curves from PUDL")
+    logger.debug("Loading demand profiles from the database")
     inst = sa.inspect(pg_engine)
     if not inst.has_table(pg_table):
         raise KeyError(
@@ -202,7 +202,7 @@ def make_load_curves(
         load_curves.region.map(region_agg_map)
     )
 
-    logger.info("Aggregating load curves in grouped regions")
+    logger.debug("Aggregating load curves in grouped regions")
     load_curves_agg = load_curves.groupby(["region", "time_index"])["load_mw"].sum()
 
     lc_wide = load_curves_agg.unstack(level=0)
@@ -601,7 +601,7 @@ def load_usr_demand_profiles(settings):
         return hourly_load_profiles
 
     else:
-        logger.info("User supplied load profile not found.")
+        logger.warning("User supplied load profile not found.")
         return None
 
 
@@ -633,7 +633,7 @@ def make_final_load_curves(
         When all load curves are null.
     """
 
-    logger.info("Loading load curves")
+    logger.info("Creating hourly demand profiles")
     user_load_curves = load_usr_demand_profiles(settings)
 
     if user_load_curves is not None and all(
@@ -644,15 +644,11 @@ def make_final_load_curves(
     else:
         load_sources = settings.get("load_source_table_name")
         if load_sources is None:
-            s = """
-            *****************************
-            Regional load data sources have not been specified. Defaulting to EFS load data.
-            Check your settings file, and please specify the preferred source for load data
-            (FERC, EFS, USER) either for each region or for the entire system with the setting
-            "regional_load_source".
-            *****************************
-            """
-            logger.warning(s)
+            s = (
+                "Regional load data sources have not been specified. Defaulting to EFS load data. "
+                "See documentation of the parameter 'regional_load_source' to use other data."
+            )
+            logger.info(s)
             load_sources = {"EFS": "load_curves_nrel_efs"}
 
         # `filter_load_by_region` is a decorator factory that generates a decorator
@@ -770,7 +766,7 @@ def make_distributed_gen_profiles(pg_engine, settings):
     KeyError
         If the calculation method specified in settings is not 'capacity' or 'fraction_load'
     """
-
+    logger.info("Creating distributed generation profiles")
     year = settings["model_year"]
 
     if settings.get("distributed_gen_fn"):

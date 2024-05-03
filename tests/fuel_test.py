@@ -465,7 +465,7 @@ class TestAdjustCCSFuels:
 
     # If the function is called with a row that contains a CCS fuel and a disposal cost that is not specified in the settings, it should issue a warning and set the disposal cost to 0.
     def test_ccs_fuel_with_no_disposal_cost_fixed(self, caplog):
-        caplog.set_level(logging.WARNING)
+        caplog.set_level(logging.DEBUG)
         # Arrange
         row = pd.Series(
             {
@@ -487,7 +487,7 @@ class TestAdjustCCSFuels:
         assert result["Fuel"] == "naturalgas_ccs"
         assert result["Cost_per_MMBtu"] == 10
         assert result["CO2_content_tons_per_MMBtu"] == 5 - (5 * 0.9)
-        assert "You did not specify a CCS disposal cost" in caplog.text
+        assert "You did not specify a fuel-modifying CCS disposal cost" in caplog.text
 
 
 class TestFuelCostTable:

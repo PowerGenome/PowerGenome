@@ -532,7 +532,7 @@ def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFram
     elif "distance_km" in transmission.columns:
         distance_col = "distance_km"
         loss_per_100_miles *= 0.62137
-        logger.info("Line loss per 100 miles was converted to km.")
+        logger.debug("Line loss per 100 miles was converted to km.")
     else:
         raise KeyError("No distance column is available in the transmission dataframe")
 
@@ -938,7 +938,7 @@ def fix_min_power_values(
     gen_profile_min = _gen_profile.min().reset_index(drop=True)
     mask = (resource_df[min_power_col].fillna(0) > gen_profile_min).values
 
-    logger.info(
+    logger.debug(
         f"{sum(mask)} resources have {min_power_col} larger than hourly generation."
     )
 
