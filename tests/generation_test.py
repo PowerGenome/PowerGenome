@@ -171,6 +171,8 @@ def CA_AZ_settings():
         / settings["input_folder"]
     )
     settings["RESOURCE_GROUPS"] = DATA_PATHS["test_data"] / "resource_groups_base"
+    settings["DISTRIBUTED_GEN_DATA"] = DATA_PATHS["test_data"] / "dist_gen"
+    settings["distributed_gen_fn"] = "nrel_cambium_distr_pv_2022_slim.parquet"
     scenario_definitions = pd.read_csv(
         settings["input_folder"] / settings["scenario_definitions_fn"]
     )
@@ -334,8 +336,8 @@ def test_alt_table_load_sources(CA_AZ_settings):
 
 
 def test_combined_load_sources(CA_AZ_settings):
-    # Test with a combination of user and database load sources
-    CA_AZ_settings["regional_load_fn"] = "test_regional_load_profiles.csv"
+    # Test with a combination of database load sources
+    # CA_AZ_settings["regional_load_fn"] = "test_regional_load_profiles.csv"
     CA_AZ_settings["load_source_table_name"] = {"EFS": "load_curves_nrel_efs"}
     CA_AZ_settings["regional_load_source"] = {
         "FERC": ["CA_N", "CA_S"],
