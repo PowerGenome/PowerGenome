@@ -23,8 +23,8 @@ target_usd_year: 2022
 # profiles, etc
 # - "model_first_planning_year": The first year of each planning period. Capex for
 # new-build generators from ATB are an average of costs from first to last (inclusive).
-model_year: [2050]
-model_first_planning_year: [2023]
+model_year: [2030, 2050]
+model_first_planning_year: [2024, 2031]
 
 # HOURS OFFSET FROM UTC
 # All time profile data are stored in UTC. Provide an offset for the model timezone.
@@ -92,7 +92,7 @@ generator_columns: [
             "Var_OM_Cost_per_MWh_In",
             "Inv_Cost_Charge_per_MWyr",
             "Fixed_OM_Cost_Charge_per_MWyr",
-            # "Externality_cost_MWh",
+
             "Start_Cost_per_MW",
             "Start_Fuel_MMBTU_per_MW",
             "Heat_Rate_MMBTU_per_MWh",
@@ -133,4 +133,7 @@ generator_columns: [
             "storage_cost_tonne",
             "tonne_co2_captured_mwh",
             "co2_cost_mwh",
+            "Min_Retired_Cap_MW",
+            "Min_Retired_Energy_Cap_MW",
+            "Min_Retired_Charge_Cap_MW"
         ]

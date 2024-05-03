@@ -1,0 +1,7 @@
+﻿region_from,region_to,firm_ttc_mw,notes
+ERC_WEST,ERC_REST,11000,
+WECC_MT,MIS_MAPP,200,
+WECC_WY,SPP_WAUE,200,
+WECC_WY,SPP_NEBR,210,Stegall and Sidney
+WECC_CO,SPP_N,210,
+WECC_NM,SPP_SPS,400,

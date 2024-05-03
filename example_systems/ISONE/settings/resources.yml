@@ -24,6 +24,9 @@ capacity_col: winter_capacity_mw
 # of thermal plant as a default and then specify specific values for any regions
 # that are different.
 
+# Include units with planned/age-based retirements when determining clusters across periods
+cluster_with_retired_gens: true
+
 # ** Any technologies not included in num_clusters will be omitted **
 num_clusters:
   Conventional Steam Coal: 1
