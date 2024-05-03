@@ -11,9 +11,75 @@
 # parameter from this settings file with a value that should be modified for a specific
 # case.
 settings_management:
-  2050:
+  all_years:
     policy:
       unconstrained:
         emission_policies_fn: ~
-      co2_cap:
+      existing_esr:
         emission_policies_fn: emission_policies.csv # this is already the default value and is not required here
+    renewable_clustering:
+      base: ~
+      lat_lon:
+        renewables_clusters:
+          - region: all
+            technology: landbasedwind
+            filter:
+              - feature: lcoe
+                max: 75
+            cluster:
+              - feature: [longitude, latitude]
+                n_clusters: 6
+                method: kmeans
+          - region: all
+            technology: utilitypv
+            filter:
+              - feature: lcoe
+                max: 50
+            cluster:
+              - feature: [longitude, latitude]
+                n_clusters: 6
+                method: kmeans
+          - region: all
+            technology: offshorewind
+            turbine_type: fixed
+            pref_site: 1
+            filter:
+              - feature: lcoe
+                max: 125
+            bin:
+              - feature: lcoe
+                weights: mw
+                q: 2
+          - region: all
+            technology: offshorewind
+            turbine_type: floating
+            pref_site: 1
+            filter:
+              - feature: lcoe
+                max: 150
+            bin:
+              - feature: lcoe
+                weights: mw
+                q: 2
+          - region: all
+            technology: offshorewind
+            turbine_type: fixed
+            pref_site: 0
+            filter:
+              - feature: lcoe
+                max: 125
+            bin:
+              - feature: lcoe
+                weights: mw
+                q: 2
+          - region: all
+            technology: offshorewind
+            turbine_type: floating
+            pref_site: 0
+            filter:
+              - feature: lcoe
+                max: 150
+            bin:
+              - feature: lcoe
+                weights: mw
+                q: 2

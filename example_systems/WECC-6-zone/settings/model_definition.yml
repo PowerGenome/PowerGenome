@@ -4,15 +4,22 @@
 # aggregations.
 
 model_regions:
-  - NENGREST
-  - NENG_CT
-  - NENG_ME
+  - CA_N
+  - CA_S
+  - WECC_N
+  - WECC_WYCO
+  - WECC_NMAZ
+  - WECC_PNW
 
-# Comment out this setting if no aggregated regions are included in the study.
-region_aggregations: ~
+region_aggregations:
+  CA_N: [WEC_CALN, WEC_BANC]
+  CA_S: [WECC_SCE, WEC_LADW, WEC_SDGE, WECC_IID]
+  WECC_N: [WECC_ID, WECC_MT, WECC_NNV, WECC_UT]
+  WECC_WYCO: [WECC_WY, WECC_CO]
+  WECC_NMAZ: [WECC_AZ, WECC_NM, WECC_SNV]
 
 # Dollar year that all outputs will be converted to
-target_usd_year: 2020
+target_usd_year: 2022
 
 # Model year(s) and first planning year(s)
 # Each of these parameters should be a list.
@@ -20,19 +27,15 @@ target_usd_year: 2020
 # profiles, etc
 # - "model_first_planning_year": The first year of each planning period. Capex for
 # new-build generators from ATB are an average of costs from first to last (inclusive).
-model_year: [2030]
-model_first_planning_year: [2020]
+model_year: [2035, 2050]
+model_first_planning_year: [2023, 2036]
 
 # HOURS OFFSET FROM UTC
 # All time profile data are stored in UTC. Provide an offset for the model timezone.
 # US East cost is UTC-5, Pacific is UTC-8
-utc_offset: -5
+utc_offset: -8
 
-regional_capacity_reserves:
-  CapRes_1:
-    NENGREST: 0.193
-    NENG_CT: 0.193
-    NENG_ME: 0.193
+regional_capacity_reserves: ~
 
 cap_res_network_derate_default: 0.95
 
@@ -49,8 +52,6 @@ generator_columns: [
             "R_ID",
             "Zone",
             "Num_VRE_Bins",
-            "CapRes_1",
-            "CapRes_2",
             "THERM",
             "VRE",
             "MUST_RUN",
@@ -60,8 +61,6 @@ generator_columns: [
             "HYDRO",
             "ESR_1",
             "ESR_2",
-            "MinCapTag_1",
-            "MinCapTag_2",
             "Min_Share",
             "Max_Share",
             "Existing_Cap_MWh",
@@ -89,7 +88,6 @@ generator_columns: [
             "Var_OM_Cost_per_MWh_In",
             "Inv_Cost_Charge_per_MWyr",
             "Fixed_OM_Cost_Charge_per_MWyr",
-            # "Externality_cost_MWh",
             "Start_Cost_per_MW",
             "Start_Fuel_MMBTU_per_MW",
             "Heat_Rate_MMBTU_per_MWh",
@@ -101,7 +99,6 @@ generator_columns: [
             "Eff_Up",
             "Eff_Down",
             "Hydro_Energy_to_Power_Ratio",
-            "Ratio_power_to_energy",
             "Min_Duration",
             "Max_Duration",
             "Max_Flexible_Demand_Delay",
@@ -111,18 +108,6 @@ generator_columns: [
             "Ramp_Dn_Percentage",
             "Up_Time",
             "Down_Time",
-            "NACC_Eff",
-            "NACC_Peak_to_Base",
-            "Reg_Max",
-            "Rsv_Max",
-            "Reg_Cost",
-            "Rsv_Cost",
-            "spur_miles",
-            "spur_capex",
-            "offshore_spur_miles",
-            "offshore_spur_capex",
-            "tx_miles",
-            "tx_capex",
             "interconnect_annuity",
             "Min_Retired_Cap_MW",
             "Min_Retired_Energy_Cap_MW",

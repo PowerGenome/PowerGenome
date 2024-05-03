@@ -13,7 +13,7 @@
 eia_data_years:
   - 2021
 
-eia_860m_fn: april_generator2023.xlsx
+eia_860m_fn: september_generator2023.xlsx
 
 # CAPACITY TYPE
 capacity_col: winter_capacity_mw
@@ -29,9 +29,9 @@ cluster_with_retired_gens: true
 
 # ** Any technologies not included in num_clusters will be omitted **
 num_clusters:
-  Conventional Steam Coal: 2
-  Natural Gas Fired Combined Cycle: 2
-  Natural Gas Fired Combustion Turbine: 1
+  Conventional Steam Coal: 3
+  Natural Gas Fired Combined Cycle: 1
+  Natural Gas Fired Combustion Turbine: 3
   Nuclear: 1
   Conventional Hydroelectric: 1
   Wood/Wood Waste Biomass: 1
@@ -53,7 +53,64 @@ num_clusters:
   Other_peaker: 1
   Batteries: 1
 
-
+retirement_ages: # TAYLOR - https://www.nrel.gov/docs/fy22osti/80641.pdf (pdf page 42)
+  Conventional Hydroelectric: 100 # TD update
+  Small Hydroelectric: 100 # TD update
+  Conventional Steam Coal: 65 # TD update
+  Natural Gas Fired Combined Cycle: 60 # TD update
+  Natural Gas Fired Combustion Turbine: 50 # TD update
+  Petroleum Liquids: 40
+  Natural Gas Internal Combustion Engine: 60 # TD update
+  Nuclear: 80 # TD update
+  Onshore Wind Turbine: 30 # TD checked/no change
+  Hydroelectric Pumped Storage: 100 # TD update
+  Natural Gas Steam Turbine: 50 # oil-gas-steam, nat gas combustion turbine is also 50
+  Solar Photovoltaic: 30 # TD update
+  Solar Thermal without Energy Storage: 30 # CSP in SWITCH
+  Geothermal: 30 # TD update
+  Municipal Solid Waste: 40
+  Landfill Gas: 40
+  Batteries: 15 # TD update
+  Wood/Wood Waste Biomass: 50 # TD update
+  Petroleum Coke: 40
+  All Other: 40
+  Natural Gas with Compressed Air Storage: 60 # assuming nat gas cs&ccs
+  Coal Integrated Gasification Combined Cycle: 65 # TD update
+  Other Waste Biomass: 50 # assuming biopower
+  Other Gases: 50 # asuming oil-gas-steam
+  Other Natural Gas: 50 # assuming oil-gas-steam
+  Solar Thermal with Energy Storage: 30 # solar items in table are 30
+  Flywheels: 40
+  Offshore Wind Turbine: 30 # TD checked/no change
+  Biomass: 50
+  NaturalGas_CCCCSAvgCF_Conservative: 30 # combined cycle and carbon capture sequestration
+  NaturalGas_CCAvgCF_Moderate: 30 # carbon capture
+  NaturalGas_CTAvgCF_Moderate: 30 # combustion turbine
+  Battery_*_Moderate: 15
+  NaturalGas_CCS100_Moderate: 30
+  UtilityPV_Class1_Moderate_100: 30
+  UtilityPV_Class1_Moderate: 30
+  LandbasedWind_Class1_Moderate: 30
+  LandbasedWind_Class1_Moderate_100: 30
+  UtilityPV_Class1_Moderate_50: 30
+  OffShoreWind_Class1_Moderate: 30
+  OffShoreWind_Class3_Moderate_fixed_1: 30
+  OffShoreWind_Class3_Moderate_fixed_0: 30
+  OffShoreWind_Class12_Moderate_floating_1: 30
+  OffShoreWind_Class12_Moderate_floating_0: 30
+  Coal_CCS90AvgCF_Moderate: 40
+  Nuclear_Nuclear_Moderate: 40
+  LandbasedWind_Class3_Moderate: 30
+  OffShoreWind_Class12_Moderate: 30
+  OffShoreWind_Class3_Moderate: 30
+  Hydrogen_CTAvgCF_Moderate: 30
+  Hydrogen_CCAvgCF_Moderate: 30
+  NaturalGas_H-Frame CC_Moderate: 30
+  Hydrogen_H-Frame CC_Moderate: 30
+  NaturalGas_F-Frame CT: 30
+  Hydrogen_F-Frame CT: 30
+  NaturalGas_H-Frame CC 95% CCS_Moderate: 30
+  distributed_generation: 100
 # Group these technologies
 group_technologies: True
 tech_groups:
@@ -88,7 +145,12 @@ capacity_factor_default_year_filter: [2016, 2017, 2018, 2019, 2020, 2021]
 small_hydro: true
 small_hydro_mw: 30
 small_hydro_regions:
-  - Western
+  - CA_N
+  - CA_S
+  - WECC_N
+  - WECC_WYCO
+  - WECC_NMAZ
+  - WECC_PNW
 
 
 # Factors for calculating hydro energy to power ratio in GenX. The default factors is
@@ -98,7 +160,8 @@ small_hydro_regions:
 # storage at peak discharge power output.
 hydro_factor: 2
 
-regional_hydro_factor: ~
+regional_hydro_factor:
+  WECC_N: 4
 
 
 # Energy storge duration. Provide a default value for existing resources of a given type.
@@ -109,13 +172,16 @@ regional_hydro_factor: ~
 energy_storage_duration:
   Hydroelectric Pumped Storage: 15.5
   Batteries:
-    Western: 4
-    Eastern: 2
-    ERCOT: 2
+    CA_N: 4
+    CA_S: 4
+    WECC_WYCO: 2
+    WECC_N: 2
+    WECC_NMAZ: 2
+    WECC_PNW: 2
 
 
 # The year of NREL ATB data to use for matching existing generators (O&M costs)
-atb_existing_year: 2020
+atb_existing_year: 2021
 
 #####################
 # New-build generators
@@ -132,7 +198,6 @@ atb_cap_recovery_years: 30
 alt_atb_cap_recovery_years:
   Battery: 15
   Nuclear: 40
-  UtilityPV: 20
 
 # Use Class3 onshore wind, Class 3 for fixed offshore wind, and Class 12 for floating offshore wind
 # Format for each list item is <technology>, <tech_detail>, <cost_case>, <size>
@@ -141,17 +206,21 @@ atb_new_gen:
   - [NaturalGas, CCAvgCF, Moderate, 500]
   - [NaturalGas, CTAvgCF, Moderate, 100]
   - [LandbasedWind, Class3, Moderate, 1]
-  - [OffShoreWind, Class3, Moderate, 1]
   - [OffShoreWind, Class12, Moderate, 1]
+  # - [OffShoreWind, Class3, Moderate, 1]
   - [UtilityPV, Class1, Moderate, 1]
   - [Battery, "*", Moderate, 1]
   - [Nuclear, Nuclear, Moderate, 500]
 
-co2_pipeline_filters:
-  - technology: NaturalGas
-    tech_detail: CCCCSAvgCF
-    with_backbone: false
-    percentile: 25
+
+# renewables_clusters_cost_modifiers:
+#   - region: all
+#     technology: solar
+#     cost_modifier:
+#       - feature: anyQual
+#         qualifying_value: 1
+#         parameter: capex_mw
+#         modifier: [mul, 0.85]
 
 renewables_clusters:
   - region: all
@@ -179,7 +248,7 @@ renewables_clusters:
         q: 2
   - region: all
     technology: offshorewind
-    turbine_type: fixed
+    turbine_type: floating
     pref_site: 1
     filter:
       - feature: lcoe
@@ -188,28 +257,13 @@ renewables_clusters:
       - feature: lcoe
         weights: mw
         q: 2
-    # cluster:
-    #   - feature: profile
-    #     n_clusters: 2
-    #     method: agg
+    cluster:
+      - feature: profile
+        n_clusters: 2
+        method: agg
   - region: all
     technology: offshorewind
     turbine_type: floating
-    pref_site: 1
-    filter:
-      - feature: lcoe
-        max: 150
-    bin:
-      - feature: lcoe
-        weights: mw
-        q: 2
-    # cluster:
-    #   - feature: profile
-    #     n_clusters: 2
-    #     method: agg
-  - region: all
-    technology: offshorewind
-    turbine_type: fixed
     pref_site: 0
     filter:
       - feature: lcoe
@@ -218,25 +272,11 @@ renewables_clusters:
       - feature: lcoe
         weights: mw
         q: 2
-    # cluster:
-    #   - feature: profile
-    #     n_clusters: 2
-    #     method: agg
-  - region: all
-    technology: offshorewind
-    turbine_type: floating
-    pref_site: 0
-    filter:
-      - feature: lcoe
-        max: 150
-    bin:
-      - feature: lcoe
-        weights: mw
-        q: 2
-    # cluster:
-    #   - feature: profile
-    #     n_clusters: 2
-    #     method: agg
+    cluster:
+      - feature: profile
+        n_clusters: 2
+        method: agg
+
 
 # The atb_modifers parameter is used here to add a VOM cost to battery technologies. PNNL
 # reports a 0.03 cents per kWh VOM, which is split between Var_OM_Cost_per_MWh and
@@ -281,7 +321,7 @@ modified_atb_new_gen: ~
 # cut across EMM regions.
 # See a map at https://www.eia.gov/outlooks/aeo/pdf/nerc_map.pdf
 cost_multiplier_region_map:
-  TRE: [ERC_PHDL, ERC_REST, ERC_WEST, ERCOT]
+  TRE: [ERC_PHDL, ERC_REST, ERC_WEST]
   FRCC: [FRCC]
   MISW: [MIS_WUMS, MIS_MNWI, MIS_IA]
   MISE: [MIS_LMI]
@@ -291,7 +331,7 @@ cost_multiplier_region_map:
   SPPC: [SPP_N]
   SPPS: [SPP_WEST, SPP_SPS]
   MISS: [MIS_AMSO, MIS_WOTA, MIS_LA, MIS_AR, MIS_D_MS]
-  SRSE: [S_SOU, Eastern]
+  SRSE: [S_SOU]
   SRCA: [S_VACA]
   PJMD: [PJM_Dom]
   PJMW: [PJM_West, PJM_AP, PJM_ATSI]
@@ -300,12 +340,12 @@ cost_multiplier_region_map:
   NYUP: [NY_Z_A, NY_Z_B, NY_Z_C&E, NY_Z_D, NY_Z_F, NY_Z_G-I,]
   NYCW: [NY_Z_J, NY_Z_K]
   ISNE: [NENG_ME, NENGREST, NENG_CT]
-  RMRG: [WECC_CO]
-  BASN: [WECC_ID, WECC_WY, WECC_UT, WECC_NNV]
+  RMRG: [WECC_CO, WECC_WYCO]
+  BASN: [WECC_ID, WECC_WY, WECC_UT, WECC_NNV, WECC_N]
   NWPP: [WECC_PNW, WECC_MT]
   CANO: [WEC_CALN, WEC_BANC, CA_N]
   CASO: [WECC_IID, WECC_SCE, WEC_LADW, WEC_SDGE, CA_S]
-  SRSG: [WECC_AZ, WECC_NM, WECC_SNV, Western]
+  SRSG: [WECC_AZ, WECC_NM, WECC_SNV, WECC_NMAZ]
 
 ######################################################
 # THESE PARAMETERS ARE RARELY MODIFIED FOR NEW STUDIES
@@ -356,7 +396,7 @@ cost_multiplier_technology_map:
   Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
   MSW - landfill gas: []
   Wind: [LandbasedWind_Class3]
-  Wind offshore: [OffShoreWind_Class3, OffShoreWind_Class12]
+  Wind offshore: [OffShoreWind_Class3]
   Solar thermal: [CSP]
   Solar PV - tracking: [UtilityPV_Class1, CommPV, ResPV]
   Battery storage: [Battery_*]
