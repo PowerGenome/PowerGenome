@@ -481,9 +481,16 @@ def main(**kwargs):
 
                 cap_res = create_regional_cap_res(_settings)
 
-                network["Line_Max_Flow_Possible_MW"] = 1e6
-                network["Capital_Recovery_Period"] = 60
-                network["WACC"] = 0.044
+                if args.multi_period:
+                    for line in network["Network_Lines"].dropna():
+                        network.loc[
+                            network["Network_Lines"] == line,
+                            "Line_Max_Flow_Possible_MW",
+                        ] = 1e6
+                        network.loc[
+                            network["Network_Lines"] == line, "Capital_Recovery_Period"
+                        ] = 60
+                        network.loc[network["Network_Lines"] == line, "WACC"] = 0.044
                 write_results_file(
                     df=network,
                     folder=case_folder,
