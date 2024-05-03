@@ -1,12 +1,15 @@
 "Functions to cluster or otherwise reduce the number of hours in generation and load profiles"
 
 import datetime
+import logging
 from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import minmax_scale
+
+logger = logging.getLogger(__name__)
 
 
 def max_rep_periods(
@@ -125,6 +128,7 @@ def kmeans_time_clustering(
 
         The second list has integer weights of each cluster.
     """
+    logger.info("Reducing time domain from 8760 hours to representative periods")
     # In cases where each cluster is selected exactly once, skip the clustering entirely
     total_cluster_hours = days_in_group * num_clusters * 24
     if len(load_profiles) - total_cluster_hours < days_in_group * 24:

@@ -290,6 +290,7 @@ def electrification_profiles(
         The "electrificication_scenario" parameter does not match scenarios in the stock
         file.
     """
+    logger.info("Building demand profiles of electrified end-use technologies")
     if not path_in:
         try:
             path_in = Path(SETTINGS["EFS_DATA"])

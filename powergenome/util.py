@@ -11,6 +11,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
+os.environ["USE_PYGEOS"] = "0"
+
 import geopandas as gpd
 import pandas as pd
 import pudl
@@ -20,7 +22,6 @@ import yaml
 from flatten_dict import flatten
 from ruamel.yaml import YAML
 
-os.environ["USE_PYGEOS"] = "0"
 logger = logging.getLogger(__name__)
 
 

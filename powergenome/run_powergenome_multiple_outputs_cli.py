@@ -156,20 +156,34 @@ def main(**kwargs):
 
     # Create a logger to output any messages we might have...
     logger = logging.getLogger(powergenome.__name__)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     handler = logging.StreamHandler()
-    formatter = logging.Formatter(
+    stream_formatter = logging.Formatter(
+        # More extensive test-like formatter...
+        "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s",
+        # This is the datetime format string.
+        "%H:%M:%S",
+    )
+    handler.setFormatter(stream_formatter)
+    handler.setLevel(logging.INFO)
+    logger.addHandler(handler)
+
+    file_formatter = logging.Formatter(
         # More extensive test-like formatter...
         "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s",
         # This is the datetime format string.
         "%Y-%m-%d %H:%M:%S",
     )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
     filehandler = logging.FileHandler(out_folder / "log.txt")
-    filehandler.setFormatter(formatter)
+    filehandler.setLevel(logging.DEBUG)
+    filehandler.setFormatter(file_formatter)
     logger.addHandler(filehandler)
+
+    if not args.multi_period:
+        logger.info(
+            "As of version 0.6.2 the --multi-period/-mp flag can be used to format inputs "
+            "for multi-stage modeling in GenX."
+        )
 
     logger.info("Reading settings file")
     settings = load_settings(path=args.settings_file)
@@ -182,7 +196,7 @@ def main(**kwargs):
             args.settings_file, out_folder / "pg_settings", dirs_exist_ok=True
         )
 
-    logger.info("Initiating PUDL connections")
+    logger.debug("Initiating PUDL connections")
 
     pudl_engine, pudl_out, pg_engine = init_pudl_connection(
         freq="AS",
@@ -214,7 +228,7 @@ def main(**kwargs):
     # Sort zones in the settings to make sure they are correctly sorted everywhere.
     settings["model_regions"] = sorted(settings["model_regions"])
     zones = settings["model_regions"]
-    logger.info(f"Sorted zones are {', '.join(zones)}")
+    logger.info(f"Sorted model regions are {', '.join(zones)}")
     zone_num_map = {
         zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
@@ -284,7 +298,7 @@ def main(**kwargs):
                     )
             _settings["extra_outputs"] = case_folder / "extra_outputs"
             _settings["extra_outputs"].mkdir(parents=True, exist_ok=True)
-            logger.info(f"Starting year {year} scenario {case_id}\n")
+            logger.info(f"\n\nStarting year {year} scenario {case_id}\n\n")
             if args.gens:
                 gc = GeneratorClusters(
                     pudl_engine=pudl_engine,
