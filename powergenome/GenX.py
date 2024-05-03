@@ -355,7 +355,9 @@ def add_misc_gen_values(
     except ValueError:
         region_col = "region"
         misc_values["region"] = "all"
-    regions = [r for r in misc_values[region_col].unique() if r.lower() != "all"]
+    regions = [
+        r for r in misc_values[region_col].fillna("all").unique() if r.lower() != "all"
+    ]
     wrong_regions = [r for r in regions if r not in settings["model_regions"]]
     if wrong_regions:
         raise ValueError(

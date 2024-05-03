@@ -3421,7 +3421,18 @@ class GeneratorClusters:
         self.retired_index = self.retired.set_index(
             ["plant_id_eia", "unit_id_pg"]
         ).index
-        if self.settings.get("cluster_with_retired_gens", False) is True:
+        if (
+            self.multi_period
+            and self.settings.get("cluster_with_retired_gens", True) is True
+        ):
+            logger.info(
+                "Age-retired gens are included for clustering to keep consistent "
+                "cluster assignments across periods. "
+            )
+            region_tech_grouped = self.units_model.loc[
+                self.units_model.technology.isin(techs), :
+            ].groupby(["model_region", "technology"])
+        elif self.settings.get("cluster_with_retired_gens", False) is True:
             logger.info(
                 "Age-retired gens are included for clustering to keep consistent "
                 "cluster assignments across periods."

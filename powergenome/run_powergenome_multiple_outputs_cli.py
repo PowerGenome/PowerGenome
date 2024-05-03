@@ -352,6 +352,7 @@ def main(**kwargs):
                     if col not in gens.columns:
                         gens[col] = 0
 
+                # Some extra fixes for multi-period
                 gens = gens.rename(
                     columns={
                         "cap_recovery_years": "Capital_Recovery_Period",
@@ -359,7 +360,9 @@ def main(**kwargs):
                     }
                 )
                 gens["Lifetime"] = gens["Capital_Recovery_Period"]
-                gens.loc[gens["Lifetime"] == 0, "Lifetime"] = 50
+                gens.loc[
+                    (gens["Lifetime"] == 0) | (gens["Lifetime"].isna()), "Lifetime"
+                ] = 50
                 cols = [c for c in _settings["generator_columns"] if c in gens]
                 cols.extend(["Capital_Recovery_Period", "WACC", "Lifetime"])
                 write_results_file(
