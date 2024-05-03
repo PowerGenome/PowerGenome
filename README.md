@@ -129,6 +129,12 @@ Functions from each module can be imported and used in an interactive environmen
 run_powergenome_multiple --settings_file settings --results_folder test_system
 ```
 
+Or to set up files for multi-period runs in GenX
+
+```sh
+run_powergenome_multiple --settings_file settings --results_folder test_system --multi-period
+```
+
 The command line arguments `--settings_file` and `--results_folder` can be shortened to `-sf` and `-rf` respectively. For all options, run:
 
 ```sh
