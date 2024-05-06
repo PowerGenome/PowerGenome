@@ -1388,6 +1388,8 @@ def remove_leading_zero(id: Union[str, int]) -> Union[str, int]:
     """
     if isinstance(id, int):
         return id
+    elif isinstance(id, float):
+        return int(id)
     elif id.isnumeric():
         id = id.lstrip("0")
     return id
