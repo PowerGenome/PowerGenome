@@ -2024,6 +2024,7 @@ def import_proposed_generators(
 
     # planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
     _planned = planned.copy()
+    _planned["generator_id"] = _planned["generator_id"].fillna("no_gen_id")
     _planned["generator_id"] = _planned["generator_id"].apply(remove_leading_zero)
     planned_gdf = label_gen_region(_planned, settings, model_regions_gdf)
     planned_gdf = planned_gdf.drop_duplicates(subset=["plant_id_eia", "generator_id"])
