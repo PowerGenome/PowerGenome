@@ -135,8 +135,6 @@ model_tag_values:
     UtilityPV: 1
     Nuclear_Nuclear: 1
     Hydroelectric Pumped Storage: -1
-  Hydro_level:
-    Conventional Hydroelectric: 0.5
   CapRes_1:
     Conventional Steam Coal: 0.9
     Natural Gas Fired Combined Cycle: 0.9
@@ -170,7 +168,6 @@ model_tag_values:
     Solar Photovoltaic: 0.8
     Battery: 0.95
     Hydroelectric Pumped Storage: 0.95
-    ev_load_shifting: 0.95
   CapRes_2:
     Conventional Steam Coal: 0.9
     Natural Gas Fired Combined Cycle: 0.9
@@ -204,13 +201,11 @@ model_tag_values:
     Solar Photovoltaic: 0.8
     Battery: 0.95
     Hydroelectric Pumped Storage: 0.95
-    ev_load_shifting: 0.95
   MUST_RUN:
     Small Hydroelectric: 1
     Geothermal: 1
     Wood/Wood Waste Biomass: 1
     Biomass: 1
-    distributed_generation: 1
 
 # Tags for a technology in a specific region
 # Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>

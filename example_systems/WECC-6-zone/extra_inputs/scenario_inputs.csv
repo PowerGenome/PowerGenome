@@ -1,0 +1,5 @@
+﻿case_id,year,flexible_load
+p1,2035,ira_mid
+p1,2050,ira_mid
+s1,2035,ira_aggressive
+s1,2050,ira_aggressive

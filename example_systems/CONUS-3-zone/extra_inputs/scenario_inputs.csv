@@ -1,3 +1,7 @@
-﻿case_id,year,policy
-p1,2050,unconstrained
-p2,2050,co2_cap
+﻿case_id,year,policy,renewable_clustering
+p1,2030,unconstrained,base
+p1,2050,unconstrained,base
+p2,2030,existing_esr,base
+p2,2050,existing_esr,base
+p3,2030,existing_esr,lat_lon
+p3,2050,existing_esr,lat_lon

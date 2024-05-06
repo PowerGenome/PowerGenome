@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.util import remove_feb_29, snake_case_col
+from powergenome.util import remove_feb_29
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ def add_resource_max_cap_spur(
     path = Path(settings["input_folder"]) / settings["capacity_limit_spur_fn"]
     df = pd.read_csv(path)
     if "technology" not in df.columns:
-        raise KeyError(f"The max capacity/spur file must have column 'technology'")
+        raise KeyError("The max capacity/spur file must have column 'technology'")
 
     # Let users omit the "region" column or set a value of "all"
     if "region" not in df.columns:
@@ -284,6 +284,26 @@ def load_policy_scenarios(settings: dict) -> pd.DataFrame:
     if "copy_case_id" in policies.columns:
         policies = copy_case_values(policies, match_cols=["case_id", "year", "region"])
         policies = policies.drop(columns="copy_case_id", errors="ignore")
+
+    if "case_id" not in policies.columns:
+        policies["case_id"] = settings["case_id"]
+
+    warned = False
+    if policies.duplicated(subset=["case_id", "year", "region"]).any():
+        logger.warning(
+            "Your emissions policies file has repeated values of 'case_id' and 'year'. "
+            "This duplication of emission policies across multiple years may cause erors."
+        )
+        warned = True
+    policies.loc[policies["case_id"].astype(str).str.lower() == "all", "case_id"] = (
+        settings["case_id"]
+    )
+    if policies.duplicated(subset=["case_id", "year", "region"]).any() and not warned:
+        logger.warning(
+            f"After replacing values of 'all' with {settings['case_id']}, your emissions "
+            "policies file has repeated values of 'case_id' and 'year'. "
+            "This duplication of emission policies across multiple years may cause erors."
+        )
 
     policies = policies.set_index(["case_id", "year"])
 

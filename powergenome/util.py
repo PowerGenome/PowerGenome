@@ -1,4 +1,6 @@
 import collections
+import csv
+import hashlib
 import itertools
 import logging
 import os
@@ -10,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
 os.environ["USE_PYGEOS"] = "0"
+
 import geopandas as gpd
 import pandas as pd
 import pudl
@@ -57,6 +60,13 @@ def load_settings(path: Union[str, Path]) -> dict:
     if settings.get("input_folder"):
         settings["input_folder"] = path.parent / settings["input_folder"]
 
+    if settings.get("generator_columns"):
+        settings["generator_columns"] = add_model_tags_to_gen_columns(
+            model_tag_values=settings.get("model_tag_values", {}),
+            regional_tag_values=settings.get("regional_tag_values", {}),
+            generator_columns=settings["generator_columns"],
+        )
+
     settings = apply_all_tag_to_regions(settings)
     settings = sort_nested_dict(settings)
 
@@ -75,6 +85,61 @@ def load_settings(path: Union[str, Path]) -> dict:
             settings[key] = Path(settings[key])
 
     return fix_param_names(settings)
+
+
+def add_model_tags_to_gen_columns(
+    model_tag_values: Dict[str, Dict[str, int]],
+    regional_tag_values: Dict[str, Dict[str, Dict[str, int]]],
+    generator_columns: List[str],
+) -> List[str]:
+    """Add model resource tag keys to the list of columns that will be included in
+    generator outputs.
+
+    Parameters
+    ----------
+    model_tag_values : Dict[str, Dict[str, int]]
+        Tags applied to resources in all regions. Top level is the tag name, which will
+        become a column in the generators output. The next level is technology names
+        and the value for each technology.
+    regional_tag_values : Dict[str, Dict[str, Dict[str, int]]]
+        Regional values applied to technologies. Top level is the region, then the tag
+        name, then the technology name and value.
+    generator_columns : List[str]
+        List of columns to include in generator outputs from the settings.
+
+    Returns
+    -------
+    List[str]
+        Updated list of column names, now including any resource tags/columns.
+
+    Example
+    -------
+    >>> model_tag_values = {'cost': {'solar': 100, 'wind': 150}}
+    >>> regional_tag_values = {'NA': {'other_tag': {'solar': 20, 'wind': 25}}}
+    >>> generator_columns = ['capacity', 'output']
+    >>> add_model_tags_to_gen_columns(model_tag_values, regional_tag_values, generator_columns)
+    ['capacity', 'output', 'cost', 'other_tag']
+
+    """
+
+    if not isinstance(generator_columns, list):
+        logger.warning(
+            "There is a parameter 'generator_columns' in your settings but it is not a "
+            "list. This parameter will not have any effect in it's current form."
+        )
+        return generator_columns
+
+    tag_keys = list((model_tag_values or {}).keys())
+    regional_keys = []
+    for region, regional_tags in (regional_tag_values or {}).items():
+        regional_keys.extend(list(regional_tags.keys()))
+
+    tag_keys = set(tag_keys + regional_keys)
+    for tag in tag_keys:
+        if tag not in generator_columns:
+            generator_columns.append(tag)
+
+    return generator_columns
 
 
 def sort_nested_dict(d: Dict[str, Any]) -> Dict[str, Any]:
@@ -463,6 +528,14 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
             )
             settings["growth_scenario"] = f"REF{load_aeo_year}"
 
+    if not settings.get("interest_compound_method"):
+        logger.info(
+            "The default interest compounding method for calculating annuities has "
+            "changed from continuous to discrete. This method can be set with the parameter "
+            "'interest_compound_method', using values `discrete` or `continuous`.\n"
+            "This message will be removed after version 0.7.0."
+        )
+
 
 def init_pudl_connection(
     freq: str = "AS",
@@ -669,7 +742,7 @@ def update_dictionary(d: dict, u: dict) -> dict:
     ):
         raise TypeError("Inputs must be dictionaries")
 
-    for k, v in sorted(u.items(), key=lambda item: len(item[0])):
+    for k, v in sorted(u.items(), key=lambda item: len(str(item[0]))):
         if isinstance(d, collections.abc.Mapping):
             if isinstance(v, collections.abc.Mapping):
                 r = update_dictionary(d.get(k, {}), v)
@@ -678,7 +751,7 @@ def update_dictionary(d: dict, u: dict) -> dict:
                 d[k] = u[k]
         else:
             d = {k: u[k]}
-    return dict(sorted(d.items(), key=lambda item: len(item[0])))
+    return dict(sorted(d.items(), key=lambda item: len(str(item[0]))))
 
 
 def remove_fuel_scenario_name(df, settings):
@@ -705,6 +778,7 @@ def write_results_file(
     file_name: str,
     include_index: bool = False,
     float_format: str = None,
+    multi_period: bool = True,
 ):
     """Write a finalized dataframe to one of the results csv files.
 
@@ -720,11 +794,15 @@ def write_results_file(
         If pandas should include the index when writing to csv, by default False
     float_format: str
         Parameter passed to pandas .to_csv
+    multi_period : bool, optional
+        If results should be formatted for multi-period, by default True
     """
-    sub_folder = folder / "Inputs"
-    sub_folder.mkdir(exist_ok=True, parents=True)
+    if not multi_period:
+        folder = folder / "Inputs"
 
-    path_out = sub_folder / file_name
+    folder.mkdir(exist_ok=True, parents=True)
+
+    path_out = folder / file_name
     df.to_csv(path_out, index=include_index, float_format=float_format)
 
 
@@ -853,6 +931,141 @@ def build_case_id_name_map(settings: dict) -> dict:
     return case_id_name_map
 
 
+def make_iterable(item: Union[int, str, Iterable]) -> Iterable:
+    """Return an iterable version of the one or more items passed.
+
+    Parameters
+    ----------
+    item : Union[int, str, Iterable]
+       Item that may or may not already be iterable
+
+    Returns
+    -------
+    Iterable
+        An iterable version of the item
+    """
+    if isinstance(item, str):
+        i = iter([item])
+    else:
+        try:
+            # check if it's iterable
+            i = iter(item)
+        except TypeError:
+            i = iter([item])
+    return i
+
+
+def assign_model_planning_years(_settings: dict, year: int) -> dict:
+    """Make sure "model_year" and "model_first_planning_year" appear as scalars.
+
+    These can originally be set in any of these forms, in either the default
+    settings or in the settings_management dictionary:
+
+    model_year: 2040 and model_first_planning_year: 2031
+    model_year: [2040, 2050] and model_first_planning_year: [2031, 2041]
+    model_periods: (2031, 2040)
+    model_periods: [(2031, 2040), (2041, 2050)]
+
+    This function looks up the right values for the current year and assigns
+    them as scalars (the first form above).
+
+    Parameters
+    ----------
+    _settings : dict
+        Model settings dictionary. Must have either "model_periods", "model_year"
+        AND "model_first_planning_year", or "model_first_planning_year" as keys.
+    year : int
+        Model year.
+
+    Returns
+    -------
+    dict
+        Modified settings with scaler versions of "model_year" and "model_first_planning_year".
+
+    Raises
+    ------
+    ValueError
+        model_periods is not a series of tuples
+    ValueError
+        model_periods tuples are not all length 2
+    ValueError
+        model_year and model_first_planning_year must all be integer
+    KeyError
+        None of the required keys found
+    ValueError
+        The model year from scenario definitions is not in the settings
+    """
+    if "model_periods" in _settings:
+        model_periods = make_iterable(_settings["model_periods"])
+        if not all([isinstance(t, tuple) for t in model_periods]):
+            raise ValueError(
+                "The settings parameter 'model_periods' must be a list of tuples. It is "
+                f"currently {_settings['model_periods']}"
+            )
+        if not all(len(t) == 2 for t in model_periods):
+            raise ValueError(
+                "The tuples in settings parameter 'model_periods' must all be 2 years. "
+                f"The values found are {_settings['model_periods']}"
+            )
+        model_planning_period_dict = {
+            year: (start_year, year)
+            for (start_year, year) in make_iterable(_settings["model_periods"])
+        }
+    elif "model_year" in _settings and "model_first_planning_year" in _settings:
+        model_year = make_iterable(_settings["model_year"])
+        first_planning_year = make_iterable(_settings["model_first_planning_year"])
+        if not all(isinstance(y, int) for y in model_year) and all(
+            isinstance(y, int) for y in first_planning_year
+        ):
+            raise ValueError(
+                "Both 'model_year' and 'model_first_planning_year' parameters must be "
+                f"integers or lists of integers. The values found are {model_periods} and "
+                f"{first_planning_year}."
+            )
+        model_planning_period_dict = {
+            year: (start_year, year)
+            for year, start_year in zip(
+                make_iterable(_settings["model_year"]),
+                make_iterable(_settings["model_first_planning_year"]),
+            )
+        }
+    elif "model_first_planning_year" in _settings:
+        # we also allow leaving out the model_year tag and just specifying
+        # model_first_planning_year
+        model_planning_period_dict = {
+            year: (
+                _settings["model_first_planning_year"],
+                _settings["model_first_planning_year"],
+            )
+        }
+    else:
+        raise KeyError(
+            "To build a dictionary of scenario settings your settings file should include "
+            "either the key 'model_periods' (a list of 2-element lists) or the keys "
+            "'model_year' and 'model_first_planning_year' (each a list of years)."
+        )
+
+    # remove any model period data already there
+    for key in ["model_periods", "model_year", "model_first_planning_year"]:
+        try:
+            del _settings[key]
+        except KeyError:
+            pass
+
+    if year not in model_planning_period_dict:
+        raise ValueError(
+            f"The year {year} is in your scenario definition file for case {_settings.get('case_id')} "
+            "but was not found in the 'model_year' or 'model_periods' settings parameters. "
+            "Either it is missing in the main settings file or was removed in the "
+            "'settings_management' section."
+        )
+    # assign the scalar values
+    _settings["model_first_planning_year"] = model_planning_period_dict[year][0]
+    _settings["model_year"] = model_planning_period_dict[year][1]
+
+    return _settings
+
+
 def build_scenario_settings(
     settings: dict, scenario_definitions: pd.DataFrame
 ) -> Dict[int, Dict[Union[int, str], dict]]:
@@ -875,102 +1088,116 @@ def build_scenario_settings(
         A nested dictionary. The first set of keys are the planning years, the second
         set of keys are the case ID values associated with each case.
     """
-    if settings.get("model_periods"):
-        model_planning_period_dict = {
-            year: (start_year, year) for (start_year, year) in settings["model_periods"]
-        }
-    elif isinstance(settings.get("model_year"), list) and isinstance(
-        settings.get("model_first_planning_year"), list
-    ):
-        model_planning_period_dict = {
-            year: (start_year, year)
-            for year, start_year in zip(
-                settings["model_year"], settings["model_first_planning_year"]
-            )
-        }
+
+    # don't allow duplicate rows in the scenario definitions table, since they
+    # could give unexpected results
+    dups = scenario_definitions[["case_id", "year"]].duplicated()
+    if dups.sum() > 0:
+        raise ValueError(
+            "The following cases and years are repeated in your scenario definitions file:\n\n"
+            + scenario_definitions[dups].to_string(index=False)
+        )
+
+    if settings.get("case_id_description_fn"):
+        case_id_name_map = build_case_id_name_map(settings)
     else:
-        raise KeyError(
-            "To build a dictionary of scenario settings your settings file should include "
-            "either the key 'model_periods' (a list of 2-element lists) or the keys "
-            "'model_year' and 'model_first_planning_year' (each a list of years)."
-        )
+        case_id_name_map = None
 
-    case_id_name_map = build_case_id_name_map(settings)
-
+    all_category_levels = set()
+    active_category_levels = set()
     scenario_settings = {}
-    for year in model_planning_period_dict.keys():
-        scenario_settings[year] = {}
-        planning_year_settings_management = (
-            settings.get("settings_management", {}).get(year, {}) or {}
-        )
+    missing_flag = object()
+    for i, scenario_row in scenario_definitions.iterrows():
+        year, case_id = scenario_row[["year", "case_id"]]
 
-        # Create a dictionary with keys of things that change (e.g. ccs_capex) and
-        # values of nested dictionaries that give case_id: scenario name
-        planning_year_scenario_definitions_dict = (
-            scenario_definitions.loc[scenario_definitions.year == year]
-            .set_index("case_id")
-            .to_dict()
-        )
-        planning_year_scenario_definitions_dict.pop("year")
-        new_param_warn_list = []
-        for case_id in scenario_definitions.query("year==@year")["case_id"].unique():
-            _settings = deepcopy(settings)
-            _settings["case_id"] = case_id
+        _settings = deepcopy(settings)
+        _settings["case_id"] = case_id
 
+        # first apply any settings under "all_years", then any settings for this year
+        for settings_year in ["all_years", year]:
+
+            planning_year_settings_management = (
+                settings.get("settings_management", {}).get(settings_year) or {}
+            )
+
+            # update settings from all_cases entry if available (these settings
+            # are applied to all cases for this year, and don't use the category
+            # names or levels from the scenario definitions table)
             if "all_cases" in planning_year_settings_management:
                 new_parameter = planning_year_settings_management["all_cases"]
                 _settings = update_dictionary(_settings, new_parameter)
 
-            modified_settings = []
-            for (
-                category,
-                case_value_dict,
-            ) in planning_year_scenario_definitions_dict.items():
-                # key is the category e.g. ccs_capex, case_value_dict is p1: mid
-                try:
-                    case_value = case_value_dict[case_id]
-                    new_parameter = (
-                        planning_year_settings_management.get(category, {}).get(
-                            case_value, {}
+            modified_settings = {}
+            for category, level in scenario_row.drop(["case_id", "year"]).items():
+                # category is a column from the scenario definitions table, e.g. ccs_capex
+                # level is the selection for this category for this case/year, e.g., "mid" or "none"
+
+                new_parameter = planning_year_settings_management.get(category, {}).get(
+                    level, missing_flag
+                )
+
+                # Remember category/levels that were selected and that actually
+                # had an effect.
+                all_category_levels.add((case_id, year, category, level))
+                if new_parameter is not missing_flag:
+                    # note: user could set None or {} as the setting, to indicate
+                    # this flag should use the default settings as-is
+                    active_category_levels.add((case_id, year, category, level))
+                if new_parameter in [missing_flag, None, {}]:
+                    continue
+
+                _settings = update_dictionary(_settings, new_parameter)
+
+                # report any conflicts between these settings and previous ones
+                for key in flatten(new_parameter).keys():
+                    if key in modified_settings:
+                        raise ValueError(
+                            f"The setting {key} is modified by both the "
+                            f"`{modified_settings[key]}` flag and the "
+                            f"`{category}={level}` flag in the scenario "
+                            f"definition for case {case_id}, {year}."
                         )
-                        or {}
-                    )
-                    if (
-                        not new_parameter
-                        and (category, case_value) not in new_param_warn_list
-                    ):
-                        new_param_warn_list.append((category, case_value))
+                    else:
+                        # remember this setting for later
+                        modified_settings[key] = f"{category}={level}"
 
-                        logger.warning(
-                            f"The parameter value '{case_value}' from column '{category}' "
-                            "in your scenario definitions file is not included in the "
-                            "'settings_management' dictionary. Settings for case id "
-                            f"'{case_id}' will not be modified to reflect this scenario."
-                        )
+        # make sure model year data appears in standard form
+        assign_model_planning_years(_settings, year)
 
-                    try:
-                        settings_keys = list(flatten(new_parameter).keys())
-                    except AttributeError:
-                        settings_keys = {}
-
-                    for key in settings_keys:
-                        assert (
-                            key not in modified_settings
-                        ), f"The settings key {key} is modified twice in case id {case_id}"
-
-                        modified_settings.append(key)
-
-                    if new_parameter is not None:
-                        _settings = update_dictionary(_settings, new_parameter)
-                    # print(_settings[list(new_parameter.keys())[0]])
-
-                except KeyError:
-                    pass
-
-            _settings["model_first_planning_year"] = model_planning_period_dict[year][0]
-            _settings["model_year"] = model_planning_period_dict[year][1]
+        if case_id_name_map:
             _settings["case_name"] = case_id_name_map[case_id]
-            scenario_settings[year][case_id] = _settings
+
+        scenario_settings.setdefault(year, {})[case_id] = _settings
+        if _settings.get("generator_columns"):
+            _settings["generator_columns"] = add_model_tags_to_gen_columns(
+                model_tag_values=_settings.get("model_tag_values", {}),
+                regional_tag_values=_settings.get("regional_tag_values", {}),
+                generator_columns=_settings["generator_columns"],
+            )
+
+    # Report any settings in the scenario definitions that had no effect. Values
+    # can be changed via either the "all_years" key or a specific year, so we
+    # have to wait till the end to decide which tags had no effect.
+    missing_category_levels = all_category_levels - active_category_levels
+    if missing_category_levels:
+        missing = (
+            pd.DataFrame(
+                missing_category_levels,
+                columns=["case_id", "year", "category", "level"],
+            )
+            .pivot(index=["case_id", "year"], columns="category", values="level")
+            .fillna("")
+            .reset_index()
+        )
+        logger.warning(
+            "The following parameter value(s) in your scenario definitions file "
+            "are not included in the 'settings_management' dictionary for the "
+            "specified year(s). Settings will not be modified to reflect these "
+            "entries:\n\n"
+            + missing.to_string(index=False)
+            + "\n\nYou can place empty entries (~) for these in the "
+            "settings_management dictionary to avoid this message.\n"
+        )
 
     return scenario_settings
 
@@ -1161,6 +1388,80 @@ def remove_leading_zero(id: Union[str, int]) -> Union[str, int]:
     """
     if isinstance(id, int):
         return id
+    elif isinstance(id, float):
+        return int(id)
     elif id.isnumeric():
         id = id.lstrip("0")
     return id
+
+
+def hash_string_sha256(input_string: str) -> str:
+    """Create a reproducible hash of an input string. Use for creating cache filenames.
+
+    Parameters
+    ----------
+    input_string : str
+        String representing the data to hash
+
+    Returns
+    -------
+    str
+        Hexdigest hash of the input string.
+    """
+    # For simplicity, require string inputs.
+    if not isinstance(input_string, str):
+        raise TypeError("The input value cannot be hashed if it is not a string.")
+    # Encode the string into bytes
+    input_bytes = input_string.encode("utf-8")
+
+    # Create a SHA-256 hash object
+    hasher = hashlib.sha256()
+
+    # Pass the bytes to the hasher
+    hasher.update(input_bytes)
+
+    # Generate the hexadecimal representation of the digest
+    hex_digest = hasher.hexdigest()
+
+    return hex_digest
+
+
+def add_row_to_csv(file: Path, new_row: List[str], headers: List[str] = None) -> None:
+    """Add a row of data to an existing CSV file. If the file does not exist, create it
+    with headers and the first row of data.
+
+    Parameters
+    ----------
+    file : Path
+        Path to the CSV file
+    new_row : List[str]
+        Data to add as a new row in the CSV
+    headers : List[str], optional
+        Header names, by default None. Required if the file does not exist.
+
+    Raises
+    ------
+    ValueError
+        The file does not exist and no headers were provided.
+    """
+    file = Path(file)
+    # Check if file exists
+    if not file.exists():
+        if headers is None:
+            raise ValueError(
+                f"No headers provided. The file {file} does not exist, so headers are "
+                "required to create the file."
+            )
+        file.parent.mkdir(parents=True, exist_ok=True)
+        with file.open("w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(headers)  # write headers first time only
+
+    with file.open("r") as f:
+        reader = csv.reader(f)
+        data = list(reader)  # this contains all the rows in your CSV file
+
+    if new_row not in data:  # check if row already exists in data
+        with file.open("a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(new_row)  # add the new row to the CSV file

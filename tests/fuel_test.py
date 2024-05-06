@@ -4,11 +4,17 @@ import logging
 import os
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import powergenome
 from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
-from powergenome.fuels import add_carbon_tax, add_user_fuel_prices, fuel_cost_table
+from powergenome.fuels import (
+    add_carbon_tax,
+    add_user_fuel_prices,
+    adjust_ccs_fuels,
+    fuel_cost_table,
+)
 from powergenome.generators import GeneratorClusters
 from powergenome.params import DATA_PATHS
 from powergenome.util import init_pudl_connection
@@ -312,3 +318,314 @@ def test_regional_mod_fuel_labels(fuel_settings):
     gens = gc.create_new_generators()
     assert "S_VACA_reference_naturalgas" in gens.Fuel.values
     assert "PJM_Dom_reference_naturalgas" in gens.Fuel.values
+
+
+class TestAddCarbonTax:
+    # returns unaltered dataframe if no carbon tax value is provided
+    def test_returns_unaltered_dataframe_if_no_carbon_tax_value_is_provided(self):
+        # Arrange
+        fuel_df = pd.DataFrame(
+            {"Cost_per_MMBtu": [10, 20, 30], "CO2_content_tons_per_MMBtu": [1, 2, 3]}
+        )
+
+        # Act
+        result = add_carbon_tax(fuel_df)
+
+        # Assert
+        assert result.equals(fuel_df)
+
+    # increases fuel prices to reflect carbon tax value
+    def test_increases_fuel_prices_to_reflect_carbon_tax_value(self):
+        # Arrange
+        fuel_df = pd.DataFrame(
+            {"Cost_per_MMBtu": [10, 20, 30], "CO2_content_tons_per_MMBtu": [1, 2, 3]}
+        )
+        carbon_tax_value = 5
+
+        expected_result = pd.DataFrame(
+            {"Cost_per_MMBtu": [15, 30, 45], "CO2_content_tons_per_MMBtu": [1, 2, 3]}
+        )
+
+        # Act
+        result = add_carbon_tax(fuel_df, carbon_tax_value)
+
+        # Assert
+        assert result.equals(expected_result)
+
+    # raises KeyError if "Cost_per_MMBtu" column is missing from input dataframe
+    def test_raises_KeyError_if_Cost_per_MMBtu_column_is_missing(self):
+        # Arrange
+        fuel_df = pd.DataFrame({"CO2_content_tons_per_MMBtu": [1, 2, 3]})
+        carbon_tax_value = 5
+
+        # Act & Assert
+        with pytest.raises(KeyError):
+            add_carbon_tax(fuel_df, carbon_tax_value)
+
+    # raises KeyError if "CO2_content_tons_per_MMBtu" column is missing from input dataframe
+    def test_raises_KeyError_if_CO2_content_tons_per_MMBtu_column_is_missing(self):
+        # Arrange
+        fuel_df = pd.DataFrame({"Cost_per_MMBtu": [10, 20, 30]})
+        carbon_tax_value = 5
+
+        # Act & Assert
+        with pytest.raises(KeyError):
+            add_carbon_tax(fuel_df, carbon_tax_value)
+
+    # returns unaltered dataframe if input dataframe is empty
+    def test_returns_unaltered_dataframe_if_input_dataframe_is_empty(self):
+        # Arrange
+        fuel_df = pd.DataFrame(columns=["Cost_per_MMBtu", "CO2_content_tons_per_MMBtu"])
+        carbon_tax_value = 5
+
+        # Act
+        result = add_carbon_tax(fuel_df, carbon_tax_value)
+
+        # Assert
+        assert result.empty
+
+
+class TestAdjustCCSFuels:
+    # If the function is called with a row that does not contain a CCS fuel, it should return the row unmodified.
+    def test_no_ccs_fuel(self):
+        # Arrange
+        row = pd.Series(
+            {"Fuel": "coal", "Cost_per_MMBtu": 10, "CO2_content_tons_per_MMBtu": 5}
+        )
+
+        # Act
+        result = adjust_ccs_fuels(row)
+
+        # Assert
+        assert result["Fuel"] == "coal"
+        assert result["Cost_per_MMBtu"] == 10
+        assert result["CO2_content_tons_per_MMBtu"] == 5
+
+    # If the function is called with a row that contains a CCS fuel, it should adjust the "CO2_content_tons_per_MMBtu" and "Cost_per_MMBtu" values based on the capture rate and disposal cost specified in the settings.
+    def test_with_ccs_fuel(self):
+        # Arrange
+        row = pd.Series(
+            {
+                "Fuel": "naturalgas_ccs90",
+                "Cost_per_MMBtu": 10,
+                "CO2_content_tons_per_MMBtu": 5,
+            }
+        )
+        ccs_fuels = ["naturalgas_ccs90"]
+        ccs_capture_rate = {"naturalgas_ccs90": 0.9}
+        ccs_disposal_cost = 50
+
+        # Act
+        result = adjust_ccs_fuels(row, ccs_fuels, ccs_capture_rate, ccs_disposal_cost)
+
+        # Assert
+        assert result["Fuel"] == "naturalgas_ccs90"
+        assert result["Cost_per_MMBtu"] == 10 + (5 * 0.9 * 50)
+        assert result["CO2_content_tons_per_MMBtu"] == 5 - (5 * 0.9)
+
+    # If the function is called with a row that contains a CCS fuel and a disposal cost of 0, it should adjust the "CO2_content_tons_per_MMBtu" value but not the "Cost_per_MMBtu" value.
+    def test_with_ccs_fuel_and_zero_disposal_cost(self):
+        # Arrange
+        row = pd.Series(
+            {
+                "Fuel": "naturalgas_ccs90",
+                "Cost_per_MMBtu": 10,
+                "CO2_content_tons_per_MMBtu": 5,
+            }
+        )
+        ccs_fuels = ["naturalgas_ccs90"]
+        ccs_capture_rate = {"naturalgas_ccs90": 0.9}
+        ccs_disposal_cost = 0
+
+        # Act
+        result = adjust_ccs_fuels(row, ccs_fuels, ccs_capture_rate, ccs_disposal_cost)
+
+        # Assert
+        assert result["Fuel"] == "naturalgas_ccs90"
+        assert result["Cost_per_MMBtu"] == 10
+        assert result["CO2_content_tons_per_MMBtu"] == 5 - (5 * 0.9)
+
+    # If the function is called with a row that contains a CCS fuel that is not included in the "ccs_capture_rate" dict, it should raise a KeyError.
+    def test_with_ccs_fuel_not_in_capture_rate(self):
+        # Arrange
+        row = pd.Series(
+            {
+                "Fuel": "naturalgas_ccs90",
+                "Cost_per_MMBtu": 10,
+                "CO2_content_tons_per_MMBtu": 5,
+            }
+        )
+        ccs_fuels = ["naturalgas_ccs90"]
+        ccs_capture_rate = {}
+        ccs_disposal_cost = 50
+
+        # Act & Assert
+        with pytest.raises(KeyError):
+            adjust_ccs_fuels(row, ccs_fuels, ccs_capture_rate, ccs_disposal_cost)
+
+    # If the function is called with a row that contains a CCS fuel and a disposal cost that is not specified in the settings, it should issue a warning and set the disposal cost to 0.
+    def test_ccs_fuel_with_no_disposal_cost_fixed(self, caplog):
+        caplog.set_level(logging.DEBUG)
+        # Arrange
+        row = pd.Series(
+            {
+                "Fuel": "naturalgas_ccs",
+                "Cost_per_MMBtu": 10,
+                "CO2_content_tons_per_MMBtu": 5,
+            }
+        )
+
+        # Act
+        result = adjust_ccs_fuels(
+            row,
+            ccs_fuels=["naturalgas_ccs"],
+            ccs_capture_rate={"naturalgas_ccs": 0.9},
+            ccs_disposal_cost=None,
+        )
+
+        # Assert
+        assert result["Fuel"] == "naturalgas_ccs"
+        assert result["Cost_per_MMBtu"] == 10
+        assert result["CO2_content_tons_per_MMBtu"] == 5 - (5 * 0.9)
+        assert "You did not specify a fuel-modifying CCS disposal cost" in caplog.text
+
+
+class TestFuelCostTable:
+    def test_fuel_cost_table_tdr(self):
+        fuel_costs = pd.DataFrame(
+            {
+                "year": [2022, 2022],
+                "price": [10, 20],
+                "fuel": ["coal", "naturalgas"],
+                "region": ["US", "US"],
+                "full_fuel_name": ["US_coal", "US_naturalgas"],
+            }
+        )
+
+        generators = pd.DataFrame(
+            {
+                "Fuel": [
+                    "US_coal",
+                    "US_naturalgas",
+                    "US_naturalgas_ccs90",
+                    "hydrogen",
+                ]
+            }
+        )
+
+        settings = {
+            "model_year": 2022,
+            "fuel_emission_factors": {"coal": 2.5, "naturalgas": 1.8, "hydrogen": 0},
+            "ccs_fuel_map": {"naturalgas_ccs": "naturalgas_ccs90"},
+            "ccs_capture_rate": {"naturalgas_ccs90": 0.9},
+            "ccs_disposal_cost": 50,
+            "carbon_tax": 20,
+            "reduce_time_domain": True,
+            "time_domain_days_per_period": 7,
+            "time_domain_periods": 52,
+            "aeo_fuel_scenarios": {
+                "coal": "reference",
+                "naturalgas": "reference",
+            },
+            "user_fuel_price": {"hydrogen": 20},
+        }
+
+        result = fuel_cost_table(fuel_costs, generators, settings)
+
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape[0] == 52 * 7 * 24 + 1
+        assert result.shape[1] == 4
+        assert result.columns.tolist() == [
+            "US_coal",
+            "US_naturalgas",
+            "US_naturalgas_ccs90",
+            "hydrogen",
+        ]
+        assert np.allclose(result.iloc[0].tolist(), [2.5, 1.8, 1.8 - (1.8 * 0.9), 0])
+
+    def test_fuel_cost_table_no_tdr(self):
+        fuel_costs = pd.DataFrame(
+            {
+                "year": [2022, 2022],
+                "price": [10, 20],
+                "fuel": ["coal", "naturalgas"],
+                "region": ["US", "US"],
+                "full_fuel_name": ["US_coal", "US_naturalgas"],
+            }
+        )
+
+        generators = pd.DataFrame(
+            {
+                "Fuel": [
+                    "US_coal",
+                    "US_naturalgas",
+                    "hydrogen",
+                ]
+            }
+        )
+
+        settings = {
+            "model_year": 2022,
+            "fuel_emission_factors": {"coal": 2.5, "naturalgas": 1.8, "hydrogen": 0},
+            "aeo_fuel_scenarios": {
+                "coal": "reference",
+                "naturalgas": "reference",
+            },
+            "user_fuel_price": {"hydrogen": 20},
+        }
+
+        result = fuel_cost_table(fuel_costs, generators, settings)
+
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape[0] == 8761
+        assert result.shape[1] == 3
+        assert result.columns.tolist() == [
+            "US_coal",
+            "US_naturalgas",
+            "hydrogen",
+        ]
+        assert np.allclose(result.iloc[0].tolist(), [2.5, 1.8, 0])
+
+    def test_fuel_cost_table_warning(self, caplog):
+        fuel_costs = pd.DataFrame(
+            {
+                "year": [2022, 2022],
+                "price": [10, 20],
+                "fuel": ["coal", "naturalgas"],
+                "region": ["US", "US"],
+                "full_fuel_name": ["US_coal", "US_naturalgas"],
+            }
+        )
+
+        generators = pd.DataFrame(
+            {
+                "Fuel": [
+                    "US_coal",
+                    "US_naturalgas",
+                    "hydrogen",
+                ]
+            }
+        )
+
+        settings = {
+            "model_year": 2022,
+            "fuel_emission_factors": {"coal": 2.5, "naturalgas": 1.8},
+            "aeo_fuel_scenarios": {
+                "coal": "reference",
+                "naturalgas": "reference",
+            },
+            "user_fuel_price": {"hydrogen": 20},
+        }
+
+        result = fuel_cost_table(fuel_costs, generators, settings)
+
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape[0] == 8761
+        assert result.shape[1] == 3
+        assert result.columns.tolist() == [
+            "US_coal",
+            "US_naturalgas",
+            "hydrogen",
+        ]
+        assert np.allclose(result.iloc[0].tolist(), [2.5, 1.8, 0])
+        assert "The user fuel" in caplog.text

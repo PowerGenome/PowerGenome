@@ -1,0 +1,11 @@
+# The location and name of additional input files needed to create outputs
+input_folder: extra_inputs # Subfolder directly below the location of this settings file
+scenario_definitions_fn: scenario_inputs.csv # Define policy/cost scenarios for each case
+emission_policies_fn: emission_policies.csv # Emission policies for each model_year/region/case_id
+capacity_limit_spur_fn: resource_capacity_spur.csv # Max capacity and spur line distance for each renewable resource
+demand_segments_fn: demand_segments_voll.csv
+misc_gen_inputs_fn: misc_gen_inputs.csv
+user_transmission_costs: network_costs_wecc_6_zone.csv
+user_transmission_constraints_fn: ipm_tx_corrections.csv
+co2_pipeline_cost_fn: co2_pipeline_cost_percentiles.csv
+reserves_fn: Reserves.csv

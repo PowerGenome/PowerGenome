@@ -26,7 +26,7 @@ The goal of PowerGenome is to let a user make all of these choices in a settings
 PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. The data are accessed through a combination of sqlite databases, CSV files, and parquet data files. All data files [are available here](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing).
 
 1. EIA data on existing generating units are already compiled into a [single sqlite database (PUDL)](https://doi.org/10.5281/zenodo.3653158) (see instructions for using it below). This file is available at the link above or you can download it from the Zenodo repository.
-2. A second sqlite database (`pg_misc_tables_efs.sqlite`) has tables with new resource costs from NREL ATB, transmission constraints between IPM regions from EIA, and hourly demand within each IPM region derived from NREL or FERC data.
+2. A second sqlite database (`pg_misc_tables_efs_2023_2.sqlite`) has tables with new resource costs from NREL ATB, transmission constraints between IPM regions from EIA, and hourly demand within each IPM region derived from NREL or FERC data.
 3. The hourly incremental demand for different flexible demand technologies, and stock values across a range of projection scenarios (`efs_files_utc`).
 
 ## PUDL Dependency
@@ -72,7 +72,7 @@ pip install -e .
 
 9. Download distributed generation profiles from the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing) compiled from NREL Cambium 2022 scenarios.
 
-9. Create the file `PowerGenome/powergenome/.env`. In this file, add:
+10. Create the file `PowerGenome/powergenome/.env`. In this file, add:
 
 - `PUDL_DB=YOUR_PATH_HERE` (your path to the PUDL database downloaded in step 5)
 - `PG_DB=YOUR_PATH_HERE` (your path to the additional PowerGenome data downloaded in step 6)
@@ -96,7 +96,6 @@ Depending on your operating system you might also have issues installing some ot
 ```
 
 PowerGenome has been submitted to conda-forge but is not yet available.
-
 
 If you are installing a packaged version of PowerGenome you won't be able to easily use a .env file. Instead, add the environment parameters (`PUDL_DB`, `PG_DB`, etc) to a YAML file in the same folder as the rest of your settings. It doesn't really matter which file these parameters are included in but creating a new file such as `env_params.yml` will help keep them separate from other settings parameters that might be shared with other PowerGenome users.
 
@@ -128,6 +127,12 @@ Functions from each module can be imported and used in an interactive environmen
 
 ```sh
 run_powergenome_multiple --settings_file settings --results_folder test_system
+```
+
+Or to set up files for multi-period runs in GenX
+
+```sh
+run_powergenome_multiple --settings_file settings --results_folder test_system --multi-period
 ```
 
 The command line arguments `--settings_file` and `--results_folder` can be shortened to `-sf` and `-rf` respectively. For all options, run:

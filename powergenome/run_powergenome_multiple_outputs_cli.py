@@ -1,5 +1,4 @@
 import argparse
-import copy
 import logging
 import shutil
 import sys
@@ -15,17 +14,13 @@ from powergenome.external_data import (
     make_generator_variability,
 )
 from powergenome.fuels import fuel_cost_table
-from powergenome.generators import (
-    GeneratorClusters,
-    add_fuel_labels,
-    add_genx_model_tags,
-)
+from powergenome.generators import GeneratorClusters
 from powergenome.GenX import (
     add_cap_res_network,
     add_co2_costs_to_o_m,
     add_misc_gen_values,
-    calculate_partial_CES_values,
     check_resource_tags,
+    check_vre_profiles,
     create_policy_req,
     create_regional_cap_res,
     fix_min_power_values,
@@ -41,7 +36,6 @@ from powergenome.GenX import (
     set_must_run_generation,
 )
 from powergenome.load_profiles import make_final_load_curves
-from powergenome.nrelatb import atb_fixed_var_om_existing
 from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
@@ -54,7 +48,6 @@ from powergenome.util import (
     load_settings,
     remove_fuel_gen_scenario_name,
     remove_fuel_scenario_name,
-    update_dictionary,
     write_case_settings_file,
     write_results_file,
 )
@@ -132,6 +125,23 @@ def parse_command_line(argv):
             "still be separate from new resources."
         ),
     )
+    parser.add_argument(
+        "-c",
+        "--case-id",
+        dest="case_id",
+        nargs="*",
+        help=(
+            "One or more case IDs to select from the scenario inputs file. Only these "
+            "cases will be used."
+        ),
+    )
+    parser.add_argument(
+        "-mp",
+        "--multi-period",
+        dest="multi_period",
+        action="store_true",
+        help=("Use multi-period output format."),
+    )
     arguments = parser.parse_args(argv[1:])
     return arguments
 
@@ -146,20 +156,34 @@ def main(**kwargs):
 
     # Create a logger to output any messages we might have...
     logger = logging.getLogger(powergenome.__name__)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     handler = logging.StreamHandler()
-    formatter = logging.Formatter(
+    stream_formatter = logging.Formatter(
+        # More extensive test-like formatter...
+        "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s",
+        # This is the datetime format string.
+        "%H:%M:%S",
+    )
+    handler.setFormatter(stream_formatter)
+    handler.setLevel(logging.INFO)
+    logger.addHandler(handler)
+
+    file_formatter = logging.Formatter(
         # More extensive test-like formatter...
         "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s",
         # This is the datetime format string.
         "%Y-%m-%d %H:%M:%S",
     )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
     filehandler = logging.FileHandler(out_folder / "log.txt")
-    filehandler.setFormatter(formatter)
+    filehandler.setLevel(logging.DEBUG)
+    filehandler.setFormatter(file_formatter)
     logger.addHandler(filehandler)
+
+    if not args.multi_period:
+        logger.info(
+            "As of version 0.6.2 the --multi-period/-mp flag can be used to format inputs "
+            "for multi-stage modeling in GenX."
+        )
 
     logger.info("Reading settings file")
     settings = load_settings(path=args.settings_file)
@@ -172,7 +196,7 @@ def main(**kwargs):
             args.settings_file, out_folder / "pg_settings", dirs_exist_ok=True
         )
 
-    logger.info("Initiating PUDL connections")
+    logger.debug("Initiating PUDL connections")
 
     pudl_engine, pudl_out, pg_engine = init_pudl_connection(
         freq="AS",
@@ -204,7 +228,7 @@ def main(**kwargs):
     # Sort zones in the settings to make sure they are correctly sorted everywhere.
     settings["model_regions"] = sorted(settings["model_regions"])
     zones = settings["model_regions"]
-    logger.info(f"Sorted zones are {', '.join(zones)}")
+    logger.info(f"Sorted model regions are {', '.join(zones)}")
     zone_num_map = {
         zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
@@ -215,6 +239,17 @@ def main(**kwargs):
     scenario_definitions = pd.read_csv(
         input_folder / settings["scenario_definitions_fn"]
     )
+
+    if args.case_id:
+        missing_case_ids = set(args.case_id) - set(scenario_definitions["case_id"])
+        if missing_case_ids:
+            raise ValueError(
+                f"The requested case IDs {missing_case_ids} are not in your scenario "
+                "inputs file."
+            )
+        scenario_definitions = scenario_definitions.loc[
+            scenario_definitions["case_id"].isin(args.case_id), :
+        ]
 
     if set(scenario_definitions["year"]) != set(settings["model_year"]):
         logger.warning(
@@ -227,17 +262,43 @@ def main(**kwargs):
 
     # Build a dictionary of settings for every planning year and case_id
     scenario_settings = build_scenario_settings(settings, scenario_definitions)
+    period_map = {}
+    for case, _df in scenario_definitions.groupby(["case_id"]):
+        period_map[case] = {}
+        for idx, year in enumerate(_df["year"].sort_values()):
+            period_map[case][year] = idx + 1
 
-    i = 0
     model_regions_gdf = None
+    first_year = True
     for year in scenario_settings:
         for case_id, _settings in scenario_settings[year].items():
-            case_folder = (
-                out_folder / f"{year}" / f"{case_id}_{year}_{_settings['case_name']}"
-            )
+            if not args.multi_period:
+                if settings.get("case_name"):
+                    case_folder = (
+                        out_folder
+                        / f"{year}"
+                        / f"{case_id}_{year}_{_settings['case_name']}"
+                    )
+                else:
+                    case_folder = out_folder / f"{year}" / f"{case_id}_{year}"
+            else:
+                if settings.get("case_name"):
+                    case_folder = (
+                        out_folder
+                        / f"{case_id}_{_settings['case_name']}"
+                        / "Inputs"
+                        / f"Inputs_p{period_map[case_id][year]}"
+                    )
+                else:
+                    case_folder = (
+                        out_folder
+                        / f"{case_id}"
+                        / "Inputs"
+                        / f"Inputs_p{period_map[case_id][year]}"
+                    )
             _settings["extra_outputs"] = case_folder / "extra_outputs"
             _settings["extra_outputs"].mkdir(parents=True, exist_ok=True)
-            logger.info(f"Starting year {year} scenario {case_id}\n")
+            logger.info(f"\n\nStarting year {year} scenario {case_id}\n\n")
             if args.gens:
                 gc = GeneratorClusters(
                     pudl_engine=pudl_engine,
@@ -246,6 +307,8 @@ def main(**kwargs):
                     settings=_settings,
                     current_gens=args.current_gens,
                     sort_gens=args.sort_gens,
+                    multi_period=args.multi_period,
+                    include_retired_cap=first_year is False,
                 )
                 gen_clusters = gc.create_all_generators()
                 if args.fuel and args.gens:
@@ -260,6 +323,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Fuels_data.csv",
                         include_index=True,
+                        multi_period=args.multi_period,
                     )
 
                 gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
@@ -269,10 +333,6 @@ def main(**kwargs):
                     _settings.get("hydro_factor"),
                     _settings.get("regional_hydro_factor", {}),
                 )
-
-                # Save existing resources that aren't demand response for use in
-                # other cases
-                existing_gens = gc.existing_resources.copy()
 
                 gen_variability = make_generator_variability(gen_clusters)
                 gen_variability.index.name = "Time_Index"
@@ -287,11 +347,24 @@ def main(**kwargs):
                 gens = fix_min_power_values(gen_clusters, gen_variability).pipe(
                     add_co2_costs_to_o_m
                 )
+                check_vre_profiles(gens, gen_variability)
                 for col in _settings["generator_columns"]:
                     if col not in gens.columns:
                         gens[col] = 0
-                cols = [c for c in _settings["generator_columns"] if c in gens]
 
+                # Some extra fixes for multi-period
+                gens = gens.rename(
+                    columns={
+                        "cap_recovery_years": "Capital_Recovery_Period",
+                        "wacc_real": "WACC",
+                    }
+                )
+                gens["Lifetime"] = gens["Capital_Recovery_Period"]
+                gens.loc[
+                    (gens["Lifetime"] == 0) | (gens["Lifetime"].isna()), "Lifetime"
+                ] = 50
+                cols = [c for c in _settings["generator_columns"] if c in gens]
+                cols.extend(["Capital_Recovery_Period", "WACC", "Lifetime"])
                 write_results_file(
                     df=remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings)
                     .pipe(set_int_cols)
@@ -300,9 +373,18 @@ def main(**kwargs):
                     folder=case_folder,
                     file_name="Generators_data.csv",
                     include_index=False,
+                    multi_period=args.multi_period,
                 )
+                if not args.load:
+                    write_results_file(
+                        df=gen_variability,
+                        folder=case_folder,
+                        file_name="Generators_variability.csv",
+                        include_index=True,
+                        float_format="%.3f",
+                        multi_period=args.multi_period,
+                    )
 
-                i += 1
             if args.transmission:
                 if args.gens is False:
                     model_regions_gdf = load_ipm_shapefile(_settings)
@@ -323,6 +405,7 @@ def main(**kwargs):
                     folder=case_folder,
                     file_name="Load_data.csv",
                     include_index=False,
+                    multi_period=args.multi_period,
                 )
 
                 write_results_file(
@@ -331,6 +414,7 @@ def main(**kwargs):
                     file_name="Generators_variability.csv",
                     include_index=True,
                     float_format="%.3f",
+                    multi_period=args.multi_period,
                 )
                 if time_series_mapping is not None:
                     write_results_file(
@@ -338,6 +422,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Period_map.csv",
                         include_index=False,
+                        multi_period=args.multi_period,
                     )
                 if representative_point is not None:
                     write_results_file(
@@ -345,10 +430,10 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Representative_Period.csv",
                         include_index=False,
+                        multi_period=args.multi_period,
                     )
 
             if args.transmission:
-                model_regions_gdf = gc.model_regions_gdf
                 if _settings.get("user_transmission_costs"):
                     user_tx_costs = load_user_tx_costs(
                         _settings["input_folder"]
@@ -360,6 +445,7 @@ def main(**kwargs):
                         pg_engine=pg_engine, settings=_settings
                     ).pipe(insert_user_tx_costs, user_costs=user_tx_costs)
                 else:
+                    model_regions_gdf = gc.model_regions_gdf
                     transmission = (
                         agg_transmission_constraints(
                             pg_engine=pg_engine, settings=_settings
@@ -395,11 +481,22 @@ def main(**kwargs):
 
                 cap_res = create_regional_cap_res(_settings)
 
+                if args.multi_period:
+                    for line in network["Network_Lines"].dropna():
+                        network.loc[
+                            network["Network_Lines"] == line,
+                            "Line_Max_Flow_Possible_MW",
+                        ] = 1e6
+                        network.loc[
+                            network["Network_Lines"] == line, "Capital_Recovery_Period"
+                        ] = 60
+                        network.loc[network["Network_Lines"] == line, "WACC"] = 0.044
                 write_results_file(
                     df=network,
                     folder=case_folder,
                     file_name="Network.csv",
                     include_index=False,
+                    multi_period=args.multi_period,
                 )
                 if energy_share_req is not None:
                     write_results_file(
@@ -407,6 +504,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Energy_share_requirement.csv",
                         include_index=False,
+                        multi_period=args.multi_period,
                     )
                 if cap_res is not None:
                     write_results_file(
@@ -414,6 +512,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Capacity_reserve_margin.csv",
                         include_index=True,
+                        multi_period=args.multi_period,
                     )
                 if co2_cap is not None:
                     co2_cap = co2_cap.set_index("Region_description")
@@ -423,6 +522,7 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="CO2_cap.csv",
                         include_index=True,
+                        multi_period=args.multi_period,
                     )
                 if min_cap is not None:
                     write_results_file(
@@ -430,13 +530,15 @@ def main(**kwargs):
                         folder=case_folder,
                         file_name="Minimum_capacity_requirement.csv",
                         include_index=False,
+                        multi_period=args.multi_period,
                     )
                 if max_cap is not None:
                     write_results_file(
                         df=max_cap,
                         folder=case_folder,
-                        file_name="Maximum_capacity_limit.csv",
+                        file_name="Maximum_capacity_requirement.csv",
                         include_index=False,
+                        multi_period=args.multi_period,
                     )
 
             if args.fuel and args.gens:
@@ -454,6 +556,7 @@ def main(**kwargs):
                     folder=case_folder,
                     file_name="Fuels_data.csv",
                     include_index=True,
+                    multi_period=args.multi_period,
                 )
             if _settings.get("reserves_fn"):
                 shutil.copy(
@@ -475,6 +578,7 @@ def main(**kwargs):
                 folder=case_folder,
                 file_name="powergenome_case_settings.yml",
             )
+            first_year = False
 
 
 if __name__ == "__main__":

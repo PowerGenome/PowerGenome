@@ -14,11 +14,12 @@ jobs:
       #   python-version: ["3.9", "3.10"]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install Conda environment with Micromamba
-      uses: mamba-org/provision-with-micromamba@main
+      uses: mamba-org/setup-micromamba@v1
       with:
-        cache-env: true
+        environment-file: environment.yml
+        cache-environment: true
     - run: |
         conda info
         conda list

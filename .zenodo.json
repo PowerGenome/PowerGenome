@@ -1,7 +1,7 @@
 {
     "creators": [
         {
-            "affiliation": "Carbon Impact Consulting",
+            "affiliation": "Princeton University",
             "name": "Greg Schivley",
             "orcid": "0000-0002-8947-694X"
         },
@@ -42,6 +42,10 @@
             "name": "Jesse D. Jenkins",
             "affiliation": "Princeton University",
             "orcid": "0000-0002-9670-7793"
+        },
+        {
+            "name": "Matthias Fripp",
+            "affiliation": "Environmental Defense Fund"
         }
     ]
 }
