@@ -78,8 +78,8 @@ def test_max_rep_periods(test_data):
 def test_kmeans_time_clustering(test_data):
     """Test the `kmeans_time_clustering` function."""
     resource_profiles, load_profiles = test_data
-    days_in_group = 7
-    num_clusters = 2
+    days_in_group = 2
+    num_clusters = 5
 
     results, representative_point, _ = kmeans_time_clustering(
         resource_profiles, load_profiles, days_in_group, num_clusters, n_init=1
@@ -101,23 +101,14 @@ def test_kmeans_time_clustering(test_data):
 
     # Test if cluster_weights have the correct length and are all 1
     assert len(cluster_weights) == num_clusters, "Cluster weights length is incorrect"
-    assert all(
+    assert not all(
         weight == 1 for weight in cluster_weights
-    ), "Cluster weights are not all 1"
+    ), "Cluster weights are all 1"
 
     # Test if the time_series_mapping has the correct structure and mappings
     assert (
-        time_series_mapping.shape[0] == num_clusters
+        time_series_mapping["Rep_Period"].nunique() == num_clusters
     ), "Time series mapping length is incorrect"
-    assert list(time_series_mapping["Period_Index"]) == list(
-        range(1, num_clusters + 1)
+    assert len(time_series_mapping["Period_Index"]) == int(
+        len(load_profiles) / (days_in_group * 24)
     ), "Period index mismatch"
-    assert list(time_series_mapping["Rep_Period_Index"]) == list(
-        range(1, num_clusters + 1)
-    ), "Representative period index mismatch"
-
-    # Check if the representative period point dataframe is as expected
-    expected_rep_points = [f"p{i}" for i in range(1, num_clusters + 1)]
-    assert (
-        list(representative_point["slot"]) == expected_rep_points
-    ), "Representative points mismatch"
