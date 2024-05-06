@@ -1696,10 +1696,6 @@ def clean_860m_sheet(
             op_status_map
         )
 
-    if sheet_name == "Planned":
-        df = df.loc[
-            df["operational_status_code"].isin(settings["proposed_status_included"]), :
-        ]
     df.columns = snake_case_col(df.columns)
 
     return df
@@ -1738,6 +1734,10 @@ def load_860m(settings: dict) -> Dict[str, pd.DataFrame]:
         pkl_path = DATA_PATHS["eia_860m"] / f"{fn_name}_{name}.pkl"
         if pkl_path.exists():
             data_dict[name] = pd.read_pickle(pkl_path)
+            if sheet == "Planned":
+                data_dict[name] = filter_op_status_codes(
+                    data_dict[name], settings.get("proposed_status_included")
+                )
             data_dict[name]["plant_id_eia"] = data_dict[name]["plant_id_eia"].astype(
                 "Int64"
             )
@@ -1746,9 +1746,53 @@ def load_860m(settings: dict) -> Dict[str, pd.DataFrame]:
             if eia_860m_excelfile is None:
                 eia_860m_excelfile = download_860m(settings)
             data_dict[name] = clean_860m_sheet(eia_860m_excelfile, sheet, settings)
+            if sheet == "planned":
+                data_dict[name] = filter_op_status_codes(
+                    data_dict[name], settings.get("proposed_status_included")
+                )
             data_dict[name].to_pickle(pkl_path)
 
     return data_dict
+
+
+def filter_op_status_codes(
+    df: pd.DataFrame, proposed_status_included: Union[List[str], None]
+) -> pd.DataFrame:
+    """Filter a planned 860m sheet to only include desired operational status codes.
+    Used to filter out projects that are still early in the pipeline and might not be built.
+
+    If proposed_status_included is None, included all proposed plants. Will warn user
+    in logs if invalid codes are included.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        EIA860m planned generators. Includes the column "operational_status_code".
+    proposed_status_included : Union[List[str], None]
+        List of status codes for proposed generators that should be included in the model.
+        Examples include "V" (Under construction, more than 50 percent complete),
+        "TS" (Construction complete, but not yet in commercial operation), "U", (Under
+        construction, less than or equal to 50 percent complete), etc.
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered input dataframe.
+    """
+    if proposed_status_included is None:
+        return df
+
+    valid_status_codes = df["operational_status_code"].unique()
+    invalid_user_codes = [
+        c for c in proposed_status_included if c not in valid_status_codes
+    ]
+    if invalid_user_codes:
+        logger.warning(
+            f"The operational status codes {invalid_user_codes} included in the "
+            "settings parameter 'proposed_status_included' do not appear in EIA 860m.\n"
+            f"Valid status codes from 'operational_status_code' are {valid_status_codes}"
+        )
+    return df.loc[df["operational_status_code"].isin(proposed_status_included), :]
 
 
 def label_gen_region(
