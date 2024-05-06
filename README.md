@@ -72,7 +72,7 @@ pip install -e .
 
 9. Download distributed generation profiles from the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing) compiled from NREL Cambium 2022 scenarios.
 
-9. Create the file `PowerGenome/powergenome/.env`. In this file, add:
+10. Create the file `PowerGenome/powergenome/.env`. In this file, add:
 
 - `PUDL_DB=YOUR_PATH_HERE` (your path to the PUDL database downloaded in step 5)
 - `PG_DB=YOUR_PATH_HERE` (your path to the additional PowerGenome data downloaded in step 6)
