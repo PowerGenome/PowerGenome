@@ -47,6 +47,7 @@ from powergenome.generators import (
     add_resource_tags,
     energy_storage_mwh,
     fill_missing_tech_descriptions,
+    filter_op_status_codes,
     gentype_region_capacity_factor,
     group_technologies,
     label_retirement_year,
@@ -1285,3 +1286,53 @@ class TestAddResourceTags:
             "The model resource tags {'HYDRO'} are listed in the settings parameter 'model_tags_name' but are not assigned values for any resources"
             in caplog.text
         )
+
+
+@pytest.fixture
+def test_df():
+    """Fixture for setting up test DataFrame."""
+    # Create a sample DataFrame mimicking EIA 860m with various operational status codes
+    data = {
+        "plant_id": [101, 102, 103, 104, 105],
+        "generator_id": ["G1", "G2", "G3", "G4", "G5"],
+        "operational_status_code": ["V", "TS", "U", "OT", "N"],
+    }
+    return pd.DataFrame(data)
+
+
+def test_filter_op_status_codes(test_df, caplog):
+    """Test the `filter_op_status_codes` function."""
+    # Test filtering when all proposed codes are provided (should include everything)
+    proposed_status_included = ["V", "TS", "U", "OT"]
+    result = filter_op_status_codes(test_df, proposed_status_included)
+    assert (
+        len(result) == 4
+    ), "Filtered DataFrame should only contain 4 records with specified status codes."
+    assert sorted(result["operational_status_code"].unique()) == sorted(
+        proposed_status_included
+    ), "Mismatched status codes in the result."
+
+    # Test filtering when only a subset of the status codes is provided
+    proposed_status_included = ["V", "TS"]
+    result = filter_op_status_codes(test_df, proposed_status_included)
+    assert (
+        len(result) == 2
+    ), "Filtered DataFrame should only contain 2 records with 'V' or 'TS' status codes."
+    assert sorted(result["operational_status_code"].unique()) == sorted(
+        proposed_status_included
+    ), "Mismatched status codes in the result."
+
+    # Test with invalid status codes, expecting a warning in the logs
+    proposed_status_included = ["V", "TS", "ZZ"]
+    with caplog.at_level("WARNING"):
+        result = filter_op_status_codes(test_df, proposed_status_included)
+        assert (
+            "The operational status codes ['ZZ'] included in the settings parameter"
+            in caplog.text
+        ), "Expected warning not found in logs."
+
+    # Test the behavior when `proposed_status_included` is None (should include all)
+    result = filter_op_status_codes(test_df, None)
+    assert len(result) == len(
+        test_df
+    ), "Filtered DataFrame should include all records when no specific status is provided."
