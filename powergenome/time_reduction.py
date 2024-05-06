@@ -202,7 +202,9 @@ def kmeans_time_clustering(
     norm_tseries.loc[:, load_col_names] *= load_weight
 
     # Identify hour with maximum system wide load
-    hr_maxSysLoad = input_data.loc[:, load_col_names].sum(axis=1).idxmax()
+    hr_maxSysLoad = (
+        input_data.loc[: total_cluster_hours - 1, load_col_names].sum(axis=1).idxmax()
+    )
     ################################ pre-processing data to create concatenated column
     # of load, pv and wind data
 
