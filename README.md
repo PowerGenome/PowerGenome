@@ -90,7 +90,7 @@ Installing Powergenome with pip has only been tested within a conda environment 
 Depending on your operating system you might also have issues installing some other packages from pip. The example code below is what works for me on a Mac, where python-snappy fails to build wheels.
 
 ```sh
-(base) conda create -n powergenome python=3.10 pip python-snappy
+(base) conda create -n powergenome python=3.10 pip python-snappy=0.6.1
 (base) conda activate powergenome
 (powergenome) pip install powergenome
 ```
