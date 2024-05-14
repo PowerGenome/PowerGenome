@@ -42,16 +42,14 @@ dependencies = [
 path = "powergenome/version.py"
 
 [tool.hatch.build.targets.sdist]
-exclude = [
-    "/.github",
-    "/docs",
-    "/notebooks",
-    "/data/eia*",
-    "/tests",
-    "/bin",
-    "/example_systems",
-    "/wiki",
-]
+only-include = ["powergenome", "data"]
+exclude = ["/data/eia*"]
+
+
+[tool.hatch.build.targets.wheel]
+only-include = ["powergenome", "data"]
+exclude = ["/data/eia*"]
+
 
 [project.optional-dependencies]
 dev = [
