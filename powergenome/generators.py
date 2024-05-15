@@ -1374,6 +1374,13 @@ def group_units(df, settings):
     grouped_units = grouped_units.replace([np.inf, -np.inf], np.nan)
     grouped_units = grouped_units.fillna(grouped_units.mean())
 
+    if settings.get("use_EIA_retirement_year"):
+        grouped_units["retirement_year"] = df_copy.groupby(by).apply(
+            lambda x: np.average(
+                x["retirement_year"], weights=x[settings["capacity_col"]]
+            )
+        )
+
     return grouped_units
 
 
