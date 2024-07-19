@@ -1298,7 +1298,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
 
         df_list = Parallel(n_jobs=settings.get("clustering_n_jobs", 1))(
             delayed(parallel_region_renewables)(
-                settings,
+                copy.deepcopy(settings),
                 new_gen_df,
                 regional_cost_multipliers,
                 rev_mult_region_map,
@@ -1372,7 +1372,7 @@ def parallel_region_renewables(
     _df = add_renewables_clusters(
         _df,
         region,
-        settings,
+        copy.deepcopy(settings),
         cluster_builder,
     )
 
@@ -1515,7 +1515,7 @@ def add_renewables_clusters(
         regions.append(region)  # Add model region, sometimes listed in RG file
     else:
         regions = [region]
-    for scenario in settings.get("renewables_clusters", []) or []:
+    for scenario in copy.deepcopy(settings).get("renewables_clusters", []) or []:
         if scenario["region"] != region:
             continue
         # Match cluster technology to NREL ATB technologies
