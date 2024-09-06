@@ -3493,7 +3493,10 @@ class GeneratorClusters:
             )
             region_tech_grouped = self.units_model.loc[
                 (self.units_model.technology.isin(techs))
-                & ~(self.units_model.retirement_year <= self.settings["model_year"]),
+                & ~(self.units_model.retirement_year <= self.settings["model_year"])
+                # Add a condition to subset the units data including only selected model regions
+                # instead of the whole 26 zones
+                & (self.units_model.model_region.isin(self.settings["model_regions"])),
                 :,
             ].groupby(["model_region", "technology"])
 
