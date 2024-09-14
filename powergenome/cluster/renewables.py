@@ -495,7 +495,7 @@ def assign_site_cluster(
     if site_map is not None:
         site_ids = [site_map.loc[i] for i in data["cpa_id"]]
     else:
-        site_ids = [str(int(i)) for i in data["cpa_id"]]
+        site_ids = [str(i) for i in data["cpa_id"]]
     if profile_path is not None:
         cpa_profiles = load_site_profiles(profile_path, site_ids=list(set(site_ids)))
         profiles = [np.roll(cpa_profiles[site].values, utc_offset) for site in site_ids]
