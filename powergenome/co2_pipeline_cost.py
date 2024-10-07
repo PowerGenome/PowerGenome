@@ -6,9 +6,8 @@ from typing import Dict, List
 
 import pandas as pd
 
-from powergenome.params import DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.util import snake_case_col, snake_case_str
+from powergenome.util import snake_case_str
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +18,7 @@ def merge_co2_pipeline_costs(
     co2_pipeline_filters: List[dict],
     region_aggregations: Dict[str, List[str]] = None,
     fuel_emission_factors: Dict[str, float] = None,
+    extra_ccs_cost_tonne: float = None,
     target_usd_year: int = None,
 ) -> pd.DataFrame:
     """Merge columns with CO2 pipeline costs to a dataframe.
@@ -48,6 +48,9 @@ def merge_co2_pipeline_costs(
         Aggregations of multiple base regions to model regions, by default None
     fuel_emission_factors : Dict[str, float], optional
         CO2 emissions per unit of energy for different fuel types, by default None
+    extra_ccs_cost_tonne: float
+        An extra cost (positive or negative) assigned per tonne of CO2. Converted to
+        cost per MWh.
     target_usd_year : int, optional
         The target year for cost inflation adjustment, by default None
 
@@ -57,16 +60,17 @@ def merge_co2_pipeline_costs(
         The input dataframe (one row per resource) plus columns with cost data for CO2
         pipeline constuction/operation and CO2 disposal
     """
+    logger.info("Adding CCS pipeline costs")
     co2_df = pd.read_csv(co2_data_path)
     co2_df = co2_df.loc[co2_df["parameter"] != "capacity_mw", :]
     if target_usd_year:
         for dollar_year in co2_df["dollar_year"].unique():
-            co2_df.loc[
-                (co2_df["dollar_year"] == dollar_year), "parameter_value"
-            ] = inflation_price_adjustment(
-                co2_df.loc[co2_df["dollar_year"] == dollar_year, "parameter_value"],
-                dollar_year,
-                target_usd_year,
+            co2_df.loc[(co2_df["dollar_year"] == dollar_year), "parameter_value"] = (
+                inflation_price_adjustment(
+                    co2_df.loc[co2_df["dollar_year"] == dollar_year, "parameter_value"],
+                    dollar_year,
+                    target_usd_year,
+                )
             )
     for k, v in (region_aggregations or {}).items():
         co2_df.loc[co2_df["region"].isin(v), "region"] = k
@@ -126,6 +130,7 @@ def merge_co2_pipeline_costs(
         df_list.append(co2_costs_wide)
 
     full_co2_costs_wide = pd.concat(df_list)
+    full_co2_costs_wide["extra_ccs_cost_tonne"] = extra_ccs_cost_tonne or 0
     # Split incoming df into techs with and without pipeline cost. Remove pipeline cost
     # columns from the "with" techs to avoid duplicates, merge in co2 costs, then concat
     # with the "without" techs
@@ -152,14 +157,16 @@ def merge_co2_pipeline_costs(
     if not drop_idx.empty:
         for tech, _df in df_co2_costs.loc[drop_idx, :].groupby("technology"):
             regs = _df["region"].to_list()
-            f"The CCS resource {tech} is being removed from regions {regs} because cost "
-            "data was not included in your CO2 pipeline cost file."
+            logger.warning(
+                f"The CCS resource {tech} is being removed from regions {regs} because cost "
+                "data was not included in your CO2 pipeline cost file."
+            )
     df_co2_costs = df_co2_costs.drop(index=drop_idx)
     df_co2_costs.loc[:, co2_costs_wide.columns] = df_co2_costs[
         co2_costs_wide.columns
     ].fillna(0)
 
-    mass_cols = [c for c in co2_costs_wide.columns if "tonne" in c]
+    mass_cols = [c for c in full_co2_costs_wide.columns if "tonne" in c]
     if mass_cols and fuel_emission_factors:
         df_co2_costs = mass_to_energy_costs(
             df_co2_costs, mass_cols, fuel_emission_factors

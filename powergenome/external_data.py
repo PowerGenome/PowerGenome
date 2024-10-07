@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.util import remove_feb_29, snake_case_col
+from powergenome.util import remove_feb_29
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ def add_resource_max_cap_spur(
     path = Path(settings["input_folder"]) / settings["capacity_limit_spur_fn"]
     df = pd.read_csv(path)
     if "technology" not in df.columns:
-        raise KeyError(f"The max capacity/spur file must have column 'technology'")
+        raise KeyError("The max capacity/spur file must have column 'technology'")
 
     # Let users omit the "region" column or set a value of "all"
     if "region" not in df.columns:
@@ -284,6 +284,26 @@ def load_policy_scenarios(settings: dict) -> pd.DataFrame:
     if "copy_case_id" in policies.columns:
         policies = copy_case_values(policies, match_cols=["case_id", "year", "region"])
         policies = policies.drop(columns="copy_case_id", errors="ignore")
+
+    if "case_id" not in policies.columns:
+        policies["case_id"] = settings["case_id"]
+
+    warned = False
+    if policies.duplicated(subset=["case_id", "year", "region"]).any():
+        logger.warning(
+            "Your emissions policies file has repeated values of 'case_id' and 'year'. "
+            "This duplication of emission policies across multiple years may cause erors."
+        )
+        warned = True
+    policies.loc[policies["case_id"].astype(str).str.lower() == "all", "case_id"] = (
+        settings["case_id"]
+    )
+    if policies.duplicated(subset=["case_id", "year", "region"]).any() and not warned:
+        logger.warning(
+            f"After replacing values of 'all' with {settings['case_id']}, your emissions "
+            "policies file has repeated values of 'case_id' and 'year'. "
+            "This duplication of emission policies across multiple years may cause erors."
+        )
 
     policies = policies.set_index(["case_id", "year"])
 
@@ -565,12 +585,12 @@ def insert_user_tx_costs(tx_df: pd.DataFrame, user_costs: pd.DataFrame) -> pd.Da
 
         if line_row.empty:
             unused_lines.append(row)
-        tx_df.loc[
-            line_row.index, "Line_Reinforcement_Cost_per_MWyr"
-        ] = row.total_interconnect_annuity_mw
-        tx_df.loc[
-            line_row.index, "Line_Reinforcement_Cost_per_MW"
-        ] = row.total_interconnect_cost_mw
+        tx_df.loc[line_row.index, "Line_Reinforcement_Cost_per_MWyr"] = (
+            row.total_interconnect_annuity_mw
+        )
+        tx_df.loc[line_row.index, "Line_Reinforcement_Cost_per_MW"] = (
+            row.total_interconnect_cost_mw
+        )
         tx_df.loc[line_row.index, "Line_Loss_Percentage"] = row.total_line_loss_frac
 
     unused_line_df = pd.DataFrame(unused_lines)
@@ -587,9 +607,9 @@ def insert_user_tx_costs(tx_df: pd.DataFrame, user_costs: pd.DataFrame) -> pd.Da
     for idx, row in unused_line_df.iterrows():
         unused_line_df.loc[idx, row["zone_1"]] = 1
         unused_line_df.loc[idx, row["zone_2"]] = -1
-        unused_line_df.loc[
-            idx, "transmission_path_name"
-        ] = f"{row.start_region}_to_{row.dest_region}"
+        unused_line_df.loc[idx, "transmission_path_name"] = (
+            f"{row.start_region}_to_{row.dest_region}"
+        )
 
     cols = [c for c in tx_df.columns if c in unused_line_df.columns]
     tx_df = pd.concat([tx_df, unused_line_df[cols]], ignore_index=True)

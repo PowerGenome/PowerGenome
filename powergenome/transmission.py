@@ -78,7 +78,7 @@ def agg_transmission_constraints(
     combos = list(itertools.combinations(zones, 2))
     reverse_combos = [(combo[-1], combo[0]) for combo in combos]
 
-    logger.info("Loading transmission constraints from PUDL")
+    logger.debug("Loading transmission constraints from the database")
     transmission_constraints_table = pd.read_sql_table(pg_table, con=pg_engine)
 
     if tx_value_col not in transmission_constraints_table.columns:
@@ -100,6 +100,7 @@ def agg_transmission_constraints(
             dup_lines,
         )
     if settings.get("user_transmission_constraints_fn"):
+        logger.debug("Adding user-supplied transmission constraint data")
         user_tx_constraints = pd.read_csv(
             Path(settings["input_folder"])
             / settings["user_transmission_constraints_fn"]
@@ -134,8 +135,8 @@ def agg_transmission_constraints(
             subset=["region_from", "region_to"]
         ).any():
             logger.warning(
-                "The user transmission capacity table duplicates values from the "
-                "database. Database values will be discarded in favor of user values."
+                "The user transmission capacity table duplicates some values from the "
+                "database. Database values will be discarded in these cases."
             )
 
         transmission_constraints_table = transmission_constraints_table.drop_duplicates(
@@ -162,7 +163,7 @@ def agg_transmission_constraints(
         :,
     ].drop(columns="id", errors="ignore")
 
-    logger.info("Map and aggregate region names for transmission constraints")
+    logger.debug("Map and aggregate region names for transmission constraints")
     for col in ["region_from", "region_to"]:
         model_col = "model_" + col
 
@@ -183,7 +184,7 @@ def agg_transmission_constraints(
     ).sum()
 
     # Build the final output dataframe
-    logger.info(
+    logger.debug(
         "Build a new transmission constraints dataframe with a single line between "
         "regions"
     )
@@ -194,7 +195,7 @@ def agg_transmission_constraints(
     )
 
     if tc_joined.empty:
-        logger.info(f"No transmission lines exist between model regions {combos}")
+        logger.warning(f"No transmission lines exist between model regions {combos}")
         tc_joined["transmission_path_name"] = None
         tc_joined.rename(columns=zone_num_map, inplace=True)
         return tc_joined.reset_index(drop=True)
@@ -283,7 +284,7 @@ def single_line_distance(line_name, region_centroids, units):
 def transmission_line_distance(
     trans_constraints_df, ipm_shapefile, settings, units="mile"
 ):
-    logger.info("Calculating transmission line distance")
+    logger.debug("Calculating transmission line distance")
     ipm_shapefile["geometry"] = ipm_shapefile.buffer(0.01)
     model_polygons = ipm_shapefile.dissolve(by="model_region")
     model_polygons = model_polygons.to_crs(epsg=4326)

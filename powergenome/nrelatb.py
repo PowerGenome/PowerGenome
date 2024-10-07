@@ -14,7 +14,12 @@ import pandas as pd
 import sqlalchemy
 from joblib import Parallel, delayed
 
-from powergenome.cluster.renewables import assign_site_cluster, calc_cluster_values
+from powergenome.cluster.renewables import (
+    assign_site_cluster,
+    calc_cluster_values,
+    modify_renewable_group,
+)
+from powergenome.financials import investment_cost_calculator
 from powergenome.params import DATA_PATHS, SETTINGS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import (
@@ -24,11 +29,12 @@ from powergenome.resource_clusters import (
     map_nrel_atb_technology,
 )
 from powergenome.util import (
+    add_row_to_csv,
     apply_all_tag_to_regions,
+    hash_string_sha256,
     remove_leading_zero,
     reverse_dict_of_lists,
     snake_case_col,
-    snake_case_str,
 )
 
 idx = pd.IndexSlice
@@ -67,7 +73,7 @@ def fetch_atb_costs(
        'basis_year', 'tech_detail', 'fixed_o_m_mw', 'variable_o_m_mwh', 'capex', 'cf',
        'fuel', 'lcoe', 'wacc_real']
     """
-    logger.info("Loading NREL ATB data")
+    logger.debug("Loading NREL ATB data")
 
     col_names = [
         "technology",
@@ -173,7 +179,7 @@ def fetch_atb_costs(
             # if battery_wacc_standin in tech_list:
             #     pass
             # else:
-            logger.info(
+            logger.debug(
                 f"Using {battery_wacc_standin} {fin_case} WACC for Battery storage."
             )
             for cost_case in ["Mid", "Moderate"]:
@@ -258,7 +264,7 @@ def fetch_atb_costs(
             ["capex_mw", "fixed_o_m_mw", "variable_o_m_mwh"],
         ] *= settings.get("pv_ac_dc_ratio", 1.3)
     elif atb_year > 2019:
-        logger.info("PV costs are already in AC units, not inflating the cost.")
+        logger.debug("PV costs are already in AC units, not inflating the cost.")
 
     if offshore_spur_costs is not None and "OffShoreWind" in atb_costs["technology"]:
         idx_cols = ["technology", "tech_detail", "cost_case", "basis_year"]
@@ -411,15 +417,89 @@ def atb_fixed_var_om_existing(
         Same as incoming "results" dataframe but with new columns
         "Fixed_OM_Cost_per_MWyr" and "Var_OM_Cost_per_MWh"
     """
-    logger.info("Adding fixed and variable O&M for existing plants")
+    logger.debug("Adding fixed and variable O&M for existing plants")
 
     existing_year = settings["atb_existing_year"]
 
     techs = {}
+    missing_techs = []
     for eia, atb in settings["eia_atb_tech_map"].items():
         if not isinstance(atb, list):
             atb = [atb]
-        techs[eia] = atb[0].split("_")
+        missing = True
+        for tech_detail in atb:
+            tech, detail = tech_detail.split("_")
+            if not atb_hr_df.query(
+                "technology == @tech and tech_detail == @detail"
+            ).empty:
+                techs[eia] = [tech, detail]
+                missing = False
+                break
+        if missing is True and eia in results["technology"].unique():
+            missing_techs.append(eia)
+
+        # techs[eia] = atb[0].split("_")
+    if missing_techs:
+        s = (
+            f"The EIA technologies {missing_techs} do not have an ATB counterpart with a "
+            "valid heat rate. Not all ATB technologies *should* have a valid heat rate "
+            "(e.g. wind, solar, and hydro). Check the 'eia_atb_tech_map' parameter in your "
+            "settings file(s) if you think one of these technologies should be mapped to "
+            "an ATB technology with a valid heat rate."
+        )
+        logger.info(s)
+
+    # Find valid ATB tech/tech_details with O&M costs where heat rate was missing.
+    s = """
+            SELECT
+            technology,
+            tech_detail
+        FROM
+            technology_costs_nrelatb
+        WHERE
+            basis_year == ?
+            AND financial_case == "Market"
+            AND cost_case in("Mid", "Moderate")
+            AND atb_year == ?
+            AND parameter in("variable_o_m_mwh", "fixed_o_m_mw")
+    """
+    params = [existing_year, settings["atb_data_year"]]
+    atb_om_names = pd.read_sql_query(
+        s,
+        pg_engine,
+        params=params,
+    ).drop_duplicates()
+    _missing_techs = missing_techs.copy()
+    for eia_tech in missing_techs:
+        atb = settings["eia_atb_tech_map"][eia_tech]
+        if not isinstance(atb, list):
+            atb = [atb]
+        missing = True
+        for tech_detail in atb:
+            tech, detail = tech_detail.split("_")
+            if (
+                not atb_om_names.query(
+                    "technology == @tech and tech_detail == @detail"
+                ).empty
+                and missing is True
+            ):
+                techs[eia_tech] = [tech, detail]
+                missing = False
+                # break
+        if missing is False:
+            _missing_techs.remove(eia_tech)
+        elif missing is True and eia_tech in results["technology"].unique():
+            techs[eia_tech] = atb[0].split("_")
+        # else:
+        #     techs[eia_tech] = atb[0].split("_")
+    if _missing_techs:
+        s = (
+            f"The EIA technologies {_missing_techs} do not have an ATB counterpart with "
+            "valid fixed or variable O&M costs. All ATB technologies *should* have valid "
+            "fixed/variable O&M costs. Check the 'eia_atb_tech_map' parameter in your "
+            "settings file(s)."
+        )
+        logger.info(s)
 
     target_usd_year = settings["target_usd_year"]
     simple_o_m = {
@@ -513,9 +593,9 @@ def atb_fixed_var_om_existing(
     if not mod_results.loc[mod_results["Fixed_OM_Cost_per_MWyr"].isna()].empty:
         df_list = []
         for tech, _df in mod_results.groupby("technology"):
-            _df.loc[
-                _df["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"
-            ] = _df["Fixed_OM_Cost_per_MWyr"].mean()
+            _df.loc[_df["Fixed_OM_Cost_per_MWyr"].isna(), "Fixed_OM_Cost_per_MWyr"] = (
+                _df["Fixed_OM_Cost_per_MWyr"].mean()
+            )
             df_list.append(_df)
         mod_results = pd.concat(df_list, ignore_index=True)
         mod_results.loc[
@@ -618,7 +698,7 @@ def calc_om(
     except (ValueError, TypeError, KeyError):
         # Not all technologies have a heat rate. If they don't, just set both values
         # to 10.34 (33% efficiency)
-        df["heat_rate_mmbtu_mwh"] = 10.34
+        df.loc[df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"] = 10.34
         new_build_hr = 10.34
 
     try:
@@ -648,7 +728,7 @@ def calc_om(
             # Also using the new values for coal plants, assuming 40-50 yr age and half
             # FGD
             # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
-            # logger.info(f"Using NEMS values for {eia_tech} fixed/variable O&M")
+            # logger.debug(f"Using NEMS values for {eia_tech} fixed/variable O&M")
 
             if "Combined Cycle" in eia_tech:
                 # https://www.eia.gov/analysis/studies/powerplants/generationcost/pdf/full_report.pdf
@@ -802,9 +882,9 @@ def calc_om(
                 )
 
                 # If nuclear heat rates are NaN, set them to new build value
-                _df.loc[
-                    _df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"
-                ] = new_build_hr
+                _df.loc[_df["heat_rate_mmbtu_mwh"].isna(), "heat_rate_mmbtu_mwh"] = (
+                    new_build_hr
+                )
                 _df["Var_OM_Cost_per_MWh"] = atb_var_om_mwh * (
                     _df["heat_rate_mmbtu_mwh"].mean() / new_build_hr
                 )
@@ -893,23 +973,6 @@ def single_generator_row(
     row["Cap_Size"] = size_mw
 
     return row
-
-
-def investment_cost_calculator(capex, wacc, cap_rec_years):
-    capex = np.asarray(capex, dtype=float)
-    wacc = np.asarray(wacc, dtype=float)
-
-    for variable in capex, wacc, cap_rec_years:
-        if np.isnan(variable).any():
-            raise ValueError(f"Investment costs contains nan values")
-
-    inv_cost = capex * (
-        np.exp(wacc * cap_rec_years)
-        * (np.exp(wacc) - 1)
-        / (np.exp(wacc * cap_rec_years) - 1)
-    )
-
-    return inv_cost
 
 
 def regional_capex_multiplier(
@@ -1055,7 +1118,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
        'Inv_Cost_per_MWyr', 'Inv_Cost_per_MWhyr', 'Heat_Rate_MMBTU_per_MWh',
        'Cap_Size', 'region']
     """
-    logger.info("Creating new resources for each region.")
+    logger.debug("Creating new resources for each region.")
     new_gen_types = settings["atb_new_gen"]
     model_year = settings["model_year"]
     try:
@@ -1194,12 +1257,14 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
             capex=new_gen_df["capex_mw"],
             wacc=new_gen_df["wacc_real"],
             cap_rec_years=new_gen_df["cap_recovery_years"],
+            compound_method=settings.get("interest_compound_method", "discrete"),
         )
 
         new_gen_df["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
             capex=new_gen_df["capex_mwh"],
             wacc=new_gen_df["wacc_real"],
             cap_rec_years=new_gen_df["cap_recovery_years"],
+            compound_method=settings.get("interest_compound_method", "discrete"),
         )
 
         # Set no capacity limit on new resources that aren't renewables.
@@ -1233,7 +1298,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
 
         df_list = Parallel(n_jobs=settings.get("clustering_n_jobs", 1))(
             delayed(parallel_region_renewables)(
-                settings,
+                copy.deepcopy(settings),
                 new_gen_df,
                 regional_cost_multipliers,
                 rev_mult_region_map,
@@ -1251,7 +1316,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
             "Fixed_OM_Cost_per_MWhyr",
             "Inv_Cost_per_MWyr",
             "Inv_Cost_per_MWhyr",
-            "cluster",
+            # "cluster",
         ]
         int_cols = [c for c in int_cols if c in results.columns]
         results = results.fillna(0)
@@ -1307,7 +1372,7 @@ def parallel_region_renewables(
     _df = add_renewables_clusters(
         _df,
         region,
-        settings,
+        copy.deepcopy(settings),
         cluster_builder,
     )
 
@@ -1343,8 +1408,11 @@ def load_resource_group_data(
     if "cpa_mw" in data.columns and "mw" not in data.columns:
         data["mw"] = data.loc[:, "cpa_mw"]
     data = data.loc[data["mw"] > 0, :]
-    profile_path = Path(rg.group["profiles"])
-    if rg.group.get("site_map"):
+    if rg.group.get("profiles"):
+        profile_path = Path(rg.group["profiles"])
+    else:
+        profile_path = None
+    if rg.group.get("site_map") and profile_path is not None:
         table = Table(profile_path.parent / rg.group["site_map"])
         cols = table.columns
         df = table.read().set_index(cols[0])
@@ -1447,7 +1515,7 @@ def add_renewables_clusters(
         regions.append(region)  # Add model region, sometimes listed in RG file
     else:
         regions = [region]
-    for scenario in settings.get("renewables_clusters", []) or []:
+    for scenario in copy.deepcopy(settings).get("renewables_clusters", []) or []:
         if scenario["region"] != region:
             continue
         # Match cluster technology to NREL ATB technologies
@@ -1498,16 +1566,26 @@ def add_renewables_clusters(
                     "bin",
                     "group",
                     "cluster",
+                    "group_modifiers",
                 ]
             ]
         )
-        detail_suffix = flatten_cluster_def(_scenario, "_")
-        cache_cluster_fn = f"{region}_{technology}_{detail_suffix}_cluster_data.parquet"
-        cache_site_assn_fn = f"{region}_{technology}_{detail_suffix}_site_assn.parquet"
-        sub_folder = SETTINGS.get("RESOURCE_GROUPS") or settings["RESOURCE_GROUPS"]
+        detail_suffix = flatten_cluster_def(
+            {k: v for (k, v) in _scenario.items() if k != "group_modifiers"}, "_"
+        )
+        unique_hash = hash_string_sha256(f"{region}_{technology}_{detail_suffix}")
+        cache_cluster_fn = unique_hash + "_cluster_data.parquet"
+        cache_site_assn_fn = unique_hash + "_site_assn.parquet"
+
+        sub_folder = settings.get("RESOURCE_GROUPS") or SETTINGS.get("RESOURCE_GROUPS")
         sub_folder = str(sub_folder).replace("/", "_").replace("\\", "_")
         cache_folder = Path(
             settings["input_folder"] / "cluster_assignments" / sub_folder
+        )
+        add_row_to_csv(
+            cache_folder / "hash_map.csv",
+            headers=["name", "hash"],
+            new_row=[f"{region}_{technology}_{detail_suffix}", unique_hash],
         )
         cache_cluster_fpath = cache_folder / cache_cluster_fn
         cache_site_assn_fpath = cache_folder / cache_site_assn_fn
@@ -1516,7 +1594,14 @@ def add_renewables_clusters(
                 clusters = pd.read_parquet(cache_cluster_fpath)
                 data = pd.read_parquet(cache_site_assn_fpath)
             else:
-                drop_keys = ["min_capacity", "filter", "bin", "group", "cluster"]
+                drop_keys = [
+                    "min_capacity",
+                    "filter",
+                    "bin",
+                    "group",
+                    "cluster",
+                    "group_modifiers",
+                ]
                 group_kwargs = dict(
                     [(k, v) for k, v in _scenario.items() if k not in drop_keys]
                 )
@@ -1548,7 +1633,7 @@ def add_renewables_clusters(
                     continue
                 clusters = (
                     data.groupby("cluster", as_index=False)
-                    .apply(calc_cluster_values)
+                    .apply(calc_cluster_values, _scenario.get("group"))
                     .rename(columns={"mw": "Max_Cap_MW"})
                     .assign(technology=technology, region=region)
                 )
@@ -1587,13 +1672,13 @@ def add_renewables_clusters(
         cache_folder.mkdir(parents=True, exist_ok=True)
         if not cache_cluster_fpath.exists():
             clusters.to_parquet(cache_cluster_fpath)
-        if not cache_site_assn_fpath.exists() and not data is None:
+        if not cache_site_assn_fpath.exists() and data is not None:
             cols = ["cpa_id", "cluster"]
             data[cols].to_parquet(cache_site_assn_fpath)
         if _scenario.get("min_capacity"):
             # Warn if total capacity less than expected
             capacity = clusters["Max_Cap_MW"].sum()
-            if capacity < scenario["min_capacity"]:
+            if capacity < _scenario["min_capacity"]:
                 logger.warning(
                     f"Selected technology {_scenario['technology']} capacity"
                     + f" in region {region}"
@@ -1602,7 +1687,11 @@ def add_renewables_clusters(
         row = df[df["technology"] == technology].to_dict("records")[0]
         clusters["technology"] = clusters["technology"] + new_tech_suffix
         kwargs = {k: v for k, v in row.items() if k not in clusters}
-        cdfs.append(clusters.assign(**kwargs))
+        cdfs.append(
+            clusters.assign(**kwargs).pipe(
+                modify_renewable_group, _scenario.get("group_modifiers")
+            )
+        )
     return pd.concat([df[~mask]] + cdfs, sort=False)
 
 

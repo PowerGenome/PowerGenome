@@ -1,20 +1,21 @@
 "Test functions for interregional transmission lines"
 
-from collections import namedtuple
 import os
+from collections import namedtuple
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 
+from powergenome.external_data import insert_user_tx_costs, load_user_tx_costs
+from powergenome.params import DATA_PATHS
+from powergenome.transmission import agg_transmission_constraints
 from powergenome.util import (
     build_scenario_settings,
-    load_settings,
     init_pudl_connection,
+    load_settings,
 )
-from powergenome.params import DATA_PATHS
-from powergenome.external_data import load_user_tx_costs, insert_user_tx_costs
-from powergenome.transmission import agg_transmission_constraints
 
 if os.name == "nt":
     # if user is using a windows system

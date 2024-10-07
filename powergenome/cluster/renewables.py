@@ -1,7 +1,9 @@
 """
 Flexible methods to cluster/aggregate renewable projects
 """
+
 import logging
+import operator
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Union
@@ -9,7 +11,8 @@ from typing import Any, Dict, List, Union
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
-from sklearn.cluster import AgglomerativeClustering
+from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn.preprocessing import StandardScaler
 
 from powergenome.resource_clusters import MERGE
 from powergenome.util import deep_freeze_args, snake_case_str
@@ -19,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 def load_site_profiles(path: Path, site_ids: List[str]) -> pd.DataFrame:
     suffix = path.suffix
+    site_ids = [s.replace(".0", "") for s in site_ids]
     if suffix == ".parquet":
         df = pq.read_table(path, columns=site_ids).to_pandas()
     elif suffix == ".csv":
@@ -122,7 +126,7 @@ def value_bin(
 
 @deep_freeze_args
 @lru_cache()
-def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
+def agg_cluster_profile(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
     if len(s) == 0:
         return []
     if len(s) == 1:
@@ -151,7 +155,7 @@ def agg_cluster_profile(s: pd.Series, n_clusters: int) -> pd.DataFrame:
 
 @deep_freeze_args
 @lru_cache()
-def agg_cluster_other(s: pd.Series, n_clusters: int) -> pd.DataFrame:
+def agg_cluster_other(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
     if len(s) == 0:
         return []
     if len(s) == 1:
@@ -177,10 +181,38 @@ def agg_cluster_other(s: pd.Series, n_clusters: int) -> pd.DataFrame:
     return labels
 
 
-def agglomerative_cluster_binned(
+def kmeans_cluster_other(df: pd.DataFrame, n_clusters: int, **kwargs) -> np.ndarray:
+    if len(df) == 0 or df.empty:
+        return []
+    if len(df) == 1:
+        return np.array([0])
+    if n_clusters <= 0:
+        logger.warning(
+            f"You have entered a n_clusters parameter that is less than or equal to 0 "
+            "in the settings parameter renewables_clusters. n_clusters must be >= 1. "
+            "Manually setting n_clusters to 1 in this case."
+        )
+        n_clusters = 1
+    if n_clusters > len(df):
+        logger.warning(
+            f"You have entered a n_clusters parameter that is greater than the number of "
+            "renewable sites for one grouping in the settings parameter renewables_clusters."
+            "Manually assiging each site to its own cluster."
+        )
+        return np.arange(0, len(df))
+
+    clust = KMeans(n_clusters=n_clusters, random_state=42, **kwargs).fit(
+        StandardScaler().fit_transform(df)
+    )
+    labels = clust.labels_
+    return labels
+
+
+def cluster_sites_binned(
     data: pd.DataFrame,
     by: Union[str, List[str]],
-    feature: str,
+    method: str,
+    feature: Union[str, List[str]],
     n_clusters: Union[int, pd.Series, dict],
     **kwargs,
 ) -> pd.DataFrame:
@@ -189,9 +221,14 @@ def agglomerative_cluster_binned(
         return data
 
     if feature == "profile":
+        if method not in ["agglomerative", "agg", "hierarchical"]:
+            logger.warning(
+                f"The renewables clustering method {method} cannot be used with the "
+                "'profile' feature. Using agglomerative clustering instead."
+            )
         func = agg_cluster_profile
     else:
-        func = agg_cluster_other
+        func = CLUSTER_METHOD_FUNCS[method]
 
     grouped = data.groupby(by)
     df_list = []
@@ -202,44 +239,64 @@ def agglomerative_cluster_binned(
         if not _df.empty:
             if not isinstance(n_clusters, int):
                 _n_clusters = n_clusters[_]
-            labels = func(_df[feature], min(_n_clusters, len(_df)))
+            labels = func(_df[feature], min(_n_clusters, len(_df)), **kwargs)
             labels += first_label
             first_label = max(labels) + 1
             _df["cluster"] = labels
+            df_list.append(_df)
+        else:
+            _df = pd.DataFrame(columns=list(data.columns) + ["cluster"])
             df_list.append(_df)
     df = pd.concat(df_list)
 
     return df
 
 
-def agglomerative_cluster_no_bin(
-    data: pd.DataFrame, feature: str, n_clusters: int, **kwargs
+def cluster_sites_no_bin(
+    data: pd.DataFrame,
+    method: str,
+    feature: Union[str, List[str]],
+    n_clusters: int,
+    **kwargs,
 ) -> pd.DataFrame:
     if data.empty:
         data["cluster"] = []
         return data
     _data = data.copy()
     if feature == "profile":
+        if method not in ["agglomerative", "agg", "hierarchical"]:
+            logger.warning(
+                f"The renewables clustering method {method} cannot be used with the "
+                "'profile' feature. Using agglomerative clustering instead."
+            )
         func = agg_cluster_profile
     else:
-        func = agg_cluster_other
+        func = CLUSTER_METHOD_FUNCS[method]
 
     if len(_data) == 1:
         labels = 1
         _data["cluster"] = labels
     else:
-        labels = func(_data[feature], min(n_clusters, len(_data)))
+        labels = func(_data[feature], min(n_clusters, len(_data)), **kwargs)
         _data["cluster"] = labels
 
     return _data
 
 
-def agglomerative_cluster(binned: bool, data: pd.DataFrame, **kwargs) -> pd.DataFrame:
-    kwargs.pop("method")
+CLUSTER_METHOD_FUNCS = {
+    "agglomerative": agg_cluster_other,
+    "agg": agg_cluster_other,
+    "hierarchical": agg_cluster_other,
+    "kmeans": kmeans_cluster_other,
+}
+
+
+def cluster_sites(binned: bool, data: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    # kwargs.pop("method")
     if binned:
-        return agglomerative_cluster_binned(data, **kwargs)
+        return cluster_sites_binned(data, **kwargs)
     else:
-        return agglomerative_cluster_no_bin(data, **kwargs)
+        return cluster_sites_no_bin(data, **kwargs)
 
 
 def value_filter(
@@ -281,6 +338,7 @@ def min_capacity_mw(
 
 def calc_cluster_values(
     df: pd.DataFrame,
+    group: List[str] = None,
     sums: List[str] = MERGE["sums"],
     means: List[str] = MERGE["means"],
     weight: str = MERGE["weight"],
@@ -306,14 +364,18 @@ def calc_cluster_values(
 
     _df["profile"] = [profile]
     _df["cluster"] = df["cluster"].values[0]
+    for g in group or []:
+        _df["cluster"] = (
+            str(_df["cluster"][0]) + f"_{g}_" + str(df[snake_case_str(g)].iloc[0])
+        )
 
     return _df
 
 
 CLUSTER_FUNCS = {
-    "agglomerative": agglomerative_cluster,
-    "agg": agglomerative_cluster,
-    "hierarchical": agglomerative_cluster,
+    "agglomerative": cluster_sites,
+    "agg": cluster_sites,
+    "hierarchical": cluster_sites,
 }
 
 
@@ -411,7 +473,11 @@ def assign_site_cluster(
             n_clusters: 2
     """
     data = renew_data.loc[renew_data["region"].isin(regions), :]
+    group = [snake_case_str(g) for g in group or []]
+    if group:
+        data[group] = data[group].convert_dtypes()
 
+    # Filter sites
     for filt in filter or []:
         data = value_filter(
             data=data,
@@ -422,17 +488,20 @@ def assign_site_cluster(
     if data.empty:
         data["cluster"] = []
         return data
+
+    # Only keep X MW least cost capacity
     if min_capacity:
         data = min_capacity_mw(data, min_cap=min_capacity)
     if site_map is not None:
-        site_ids = [str(site_map.loc[i]) for i in data["cpa_id"]]
+        site_ids = [site_map.loc[i] for i in data["cpa_id"]]
     else:
-        site_ids = [str(i) for i in data["cpa_id"]]
+        site_ids = [str(int(i)) for i in data["cpa_id"]]
     if profile_path is not None:
         cpa_profiles = load_site_profiles(profile_path, site_ids=list(set(site_ids)))
         profiles = [np.roll(cpa_profiles[site].values, utc_offset) for site in site_ids]
         data["profile"] = profiles
 
+    # Split sites into bins using numeric features
     bin_features = []
     for b in bin or []:
         feature = snake_case_str(b.get("feature"))
@@ -489,8 +558,13 @@ def assign_site_cluster(
 
     group_by = bin_features + ([snake_case_str(g) for g in group or []])
     prev_feature_cluster_col = None
+
+    # Using a clustering method (agglomerative or kmeans)
     for clust in cluster or []:
-        clust["feature"] = snake_case_str(clust["feature"])
+        if isinstance(clust["feature"], str):
+            clust["feature"] = snake_case_str(clust["feature"])
+        else:
+            clust["feature"] = [snake_case_str(f) for f in clust["feature"]]
         if "mw_per_cluster" in clust:
             if clust.get("n_clusters") is not None:
                 logger.warning("Overwriting 'n_clusters' based on mw_cluster_size")
@@ -503,14 +577,15 @@ def assign_site_cluster(
                     data.groupby(group_by)["mw"].sum() / clust["mw_per_cluster"]
                 ).astype(int)
                 clust["n_clusters"] = n_clusters.where(n_clusters > 0, 1)
+            del clust["mw_per_cluster"]
 
         if "cluster" in data.columns and prev_feature_cluster_col:
             data = data.rename(columns={"cluster": prev_feature_cluster_col})
         if group_by:
             clust["by"] = group_by
-            data = CLUSTER_FUNCS[clust["method"]](True, data, **clust)
+            data = cluster_sites(True, data, **clust)
         else:
-            data = CLUSTER_FUNCS[clust["method"]](False, data, **clust)
+            data = cluster_sites(False, data, **clust)
 
         group_by.append(f"{clust['feature']}_clust")
         prev_feature_cluster_col = f"{clust['feature']}_clust"
@@ -564,3 +639,85 @@ def num_bins_from_capacity(data: pd.DataFrame, b: Dict[str, int]) -> Dict[str, i
         del b["mw_per_q"]
 
     return b
+
+
+def modify_renewable_group(
+    df: pd.DataFrame, group_modifiers: List[Dict[str, Union[float, str, list]]] = None
+) -> pd.DataFrame:
+    """Modify values (e.g. cost) of a rewnewables cluster based on group membership.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Clustered renewable sites with averaged parameters like cost and profile. Must
+        have column "cluster".
+    group_modifiers : List[Dict[str, Union[float, str, list]]], optional
+        List of dicts. Each must have keys "group" and "group_value". Any other keys should
+         correspond to a column in `df` such as "capex_mw", "Inv_Cost_per_MW", etc. The
+         values for these keys should either be a 2-item list with an operator and a value
+         or a single numeric value.
+
+         Rows of `df` are identified by string matching f"{group}:{group_value}" on the
+         "cluster" column.
+
+         By default None
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified version of input df. No change in columns.
+
+    Raises
+    ------
+    KeyError
+        One dictionary in group_modifiers is missing either "group" or "group_value" keys
+    ValueError
+        The operator list is not a 2-item list. Must be 2 items (operator and value)
+    ValueError
+        The operator is not in the valid list (["add", "mul", "truediv", "sub"])
+    """
+    allowed_operators = ["add", "mul", "truediv", "sub"]
+    for _group_mod in group_modifiers or []:
+        group_mod = _group_mod.copy()
+        missing_keys = [
+            k for k in ["group", "group_value"] if k not in group_mod.keys()
+        ]
+        if missing_keys:
+            raise KeyError(
+                f"One of your 'renewables_clusters' has a 'group_modifiers' key but is "
+                f"missing the key(s) {missing_keys}. These are required to modify values "
+                "of a renewables cluster. Add these keys or remove the 'group_modifiers' "
+                "section."
+            )
+
+        group = group_mod.pop("group")
+        group_value = group_mod.pop("group_value")
+        group_id = f"{group}_{group_value}"
+        # for group, mod in (group_modifiers or {}).items():
+        for key, op_list in group_mod.items():
+            if isinstance(op_list, float) | isinstance(op_list, int):
+                df.loc[df["cluster"].str.contains(group_id, case=False), key] = op_list
+            else:
+                if len(op_list) != 2:
+                    raise ValueError(
+                        "Either a single numeric value or a list of two values - an operator "
+                        "and a numeric value - are needed in the parameter "
+                        f"'{key}' whenever 'group_modifiers' are used in 'renewables_clusters'. "
+                        f"One of your 'group_modifiers' has {op_list} instead."
+                    )
+                op, op_value = op_list
+                if op not in allowed_operators:
+                    raise ValueError(
+                        f"One of the 'group_modifiers' in your 'renewables_clusters' with key "
+                        f"{key} has {op} as the mathmatical operator. Only {allowed_operators} "
+                        "in the format [<operator>, <value>] can be used to modify the "
+                        "properties of a renewable cluster.\n"
+                    )
+                f = operator.attrgetter(op)
+                df.loc[df["cluster"].str.contains(group_id, case=False), key] = f(
+                    operator
+                )(
+                    df.loc[df["cluster"].str.contains(group_id, case=False), key],
+                    op_value,
+                )
+    return df

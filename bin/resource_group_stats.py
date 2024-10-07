@@ -1,14 +1,17 @@
 """
 Create a summary file with the resource group capacity by lcoe bin for every region
 """
+
 import argparse
 import sys
-from typing import List
-import pandas as pd
-import numpy as np
 from pathlib import Path
-from powergenome.util import regions_to_keep, map_agg_region_names, load_settings
+from typing import List
+
+import numpy as np
+import pandas as pd
+
 from powergenome.params import SETTINGS
+from powergenome.util import load_settings, map_agg_region_names, regions_to_keep
 
 
 def parse_command_line(argv):

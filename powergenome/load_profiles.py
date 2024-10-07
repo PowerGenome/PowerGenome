@@ -3,6 +3,7 @@ Hourly demand profiles
 """
 
 import logging
+from functools import lru_cache
 from inspect import signature
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -16,6 +17,7 @@ from powergenome.eia_opendata import get_aeo_load
 from powergenome.external_data import make_demand_response_profiles
 from powergenome.load_construction import electrification_profiles
 from powergenome.util import (
+    deep_freeze_args,
     find_region_col,
     map_agg_region_names,
     regions_to_keep,
@@ -82,6 +84,40 @@ def filter_load_by_region(load_source):  # "decorator factory"
     return decorator
 
 
+@deep_freeze_args
+@lru_cache
+def read_subsector_demand(
+    pg_engine_str: str, keep_regions: List[str], pg_table: str, region_col: str
+) -> pd.DataFrame:
+    pg_engine = sa.create_engine(pg_engine_str)
+    # This is a default list of sector/subsectors that are considered "base" demand
+    # and are not affected by stock levels of electric technologies (e.g. EVs and heat pumps)
+    # NOTE: This should be parameratized so it can be changed by the user, especially
+    # if load data is from a source other than NREL EFS
+    base_sector_subsectors = [
+        ("commercial", "other"),
+        ("residential", "other"),
+        ("residential", "clothes and dish washing/drying"),
+        ("industrial", "machine drives"),
+        ("industrial", "process heat"),
+        ("industrial", "other"),
+    ]
+    s = f"""
+            SELECT year, {region_col} as region, time_index, sector, sum(load_mw) as load_mw
+            FROM {pg_table}
+            WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
+            AND
+            ({' OR '.join(["(sector=? and subsector=?)"]*len(base_sector_subsectors))})
+            GROUP BY year, region, sector, time_index
+            """
+    params = list(keep_regions) + [
+        item for sublist in base_sector_subsectors for item in sublist
+    ]
+    load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+
+    return load_curves
+
+
 def make_load_curves(
     pg_engine: sa.engine.base.Engine,
     settings: dict,
@@ -120,7 +156,7 @@ def make_load_curves(
 
     # I'd rather use a sql query and only pull the regions of interest but
     # sqlalchemy doesn't allow table names to be parameterized.
-    logger.info("Loading load curves from PUDL")
+    logger.debug("Loading demand profiles from the database")
     inst = sa.inspect(pg_engine)
     if not inst.has_table(pg_table):
         raise KeyError(
@@ -134,30 +170,12 @@ def make_load_curves(
         if settings.get("electrification_stock_fn") and settings.get(
             "electrification_scenario"
         ):
-            # This is a default list of sector/subsectors that are considered "base" demand
-            # and are not affected by stock levels of electric technologies (e.g. EVs and heat pumps)
-            # NOTE: This should be parameratized so it can be changed by the user, especially
-            # if load data is from a source other than NREL EFS
-            base_sector_subsectors = [
-                ("commercial", "other"),
-                ("residential", "other"),
-                ("residential", "clothes and dish washing/drying"),
-                ("industrial", "machine drives"),
-                ("industrial", "process heat"),
-                ("industrial", "other"),
-            ]
-            s = f"""
-                    SELECT year, {region_col} as region, time_index, sector, sum(load_mw) as load_mw
-                    FROM {pg_table}
-                    WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
-                    AND
-                    ({' OR '.join(["(sector=? and subsector=?)"]*len(base_sector_subsectors))})
-                    GROUP BY year, region, sector, time_index
-                    """
-            params = keep_regions + [
-                item for sublist in base_sector_subsectors for item in sublist
-            ]
-            load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+            load_curves = read_subsector_demand(
+                pg_engine_str=str(pg_engine)[7:-1],
+                keep_regions=keep_regions,
+                pg_table=pg_table,
+                region_col=region_col,
+            )
         else:
             s = f"""
                     SELECT year, {region_col} as region, time_index, sector, sum(load_mw) as load_mw
@@ -180,11 +198,11 @@ def make_load_curves(
     # Increase demand to account for load growth
     load_curves = add_load_growth(load_curves, settings)
 
-    load_curves.loc[
-        load_curves.region.isin(region_agg_map), "region"
-    ] = load_curves.region.map(region_agg_map)
+    load_curves.loc[load_curves.region.isin(region_agg_map), "region"] = (
+        load_curves.region.map(region_agg_map)
+    )
 
-    logger.info("Aggregating load curves in grouped regions")
+    logger.debug("Aggregating load curves in grouped regions")
     load_curves_agg = load_curves.groupby(["region", "time_index"])["load_mw"].sum()
 
     lc_wide = load_curves_agg.unstack(level=0)
@@ -583,7 +601,7 @@ def load_usr_demand_profiles(settings):
         return hourly_load_profiles
 
     else:
-        logger.info("User supplied load profile not found.")
+        logger.warning("User supplied load profile not found.")
         return None
 
 
@@ -615,7 +633,7 @@ def make_final_load_curves(
         When all load curves are null.
     """
 
-    logger.info("Loading load curves")
+    logger.info("Creating hourly demand profiles")
     user_load_curves = load_usr_demand_profiles(settings)
 
     if user_load_curves is not None and all(
@@ -626,15 +644,11 @@ def make_final_load_curves(
     else:
         load_sources = settings.get("load_source_table_name")
         if load_sources is None:
-            s = """
-            *****************************
-            Regional load data sources have not been specified. Defaulting to EFS load data.
-            Check your settings file, and please specify the preferred source for load data
-            (FERC, EFS, USER) either for each region or for the entire system with the setting
-            "regional_load_source".
-            *****************************
-            """
-            logger.warning(s)
+            s = (
+                "Regional load data sources have not been specified. Defaulting to EFS load data. "
+                "See documentation of the parameter 'regional_load_source' to use other data."
+            )
+            logger.info(s)
             load_sources = {"EFS": "load_curves_nrel_efs"}
 
         # `filter_load_by_region` is a decorator factory that generates a decorator
@@ -752,12 +766,11 @@ def make_distributed_gen_profiles(pg_engine, settings):
     KeyError
         If the calculation method specified in settings is not 'capacity' or 'fraction_load'
     """
-
+    logger.info("Creating distributed generation profiles")
     year = settings["model_year"]
 
     if settings.get("distributed_gen_fn"):
         scenario = settings.get("distributed_gen_scenario")
-        path_in = settings.get("")
         if settings.get("region_aggregations"):
             regions = [
                 r
@@ -767,6 +780,9 @@ def make_distributed_gen_profiles(pg_engine, settings):
             regions.extend(
                 list(reverse_dict_of_lists(settings["region_aggregations"]).keys())
             )
+            regions = [
+                r for r in regions if r not in settings["region_aggregations"].keys()
+            ]
         else:
             regions = settings["model_regions"]
 
@@ -777,6 +793,7 @@ def make_distributed_gen_profiles(pg_engine, settings):
             regions,
             settings.get("DISTRIBUTED_GEN_DATA"),
             settings.get("region_aggregations"),
+            settings.get("utc_offset"),
         )
         return dg_profiles
 
@@ -792,7 +809,7 @@ def make_distributed_gen_profiles(pg_engine, settings):
 
     assert (
         year in dg_calc_values
-    ), f"The years in settings parameter 'distributed_gen_values' do not match the model years."
+    ), "The years in settings parameter 'distributed_gen_values' do not match the model years."
 
     for region in dg_calc_values[year]:
         assert region in set(profile_regions), (

@@ -14,11 +14,12 @@ jobs:
       #   python-version: ["3.9", "3.10"]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install Conda environment with Micromamba
-      uses: mamba-org/provision-with-micromamba@main
+      uses: mamba-org/setup-micromamba@v1
       with:
-        cache-env: true
+        environment-file: environment.yml
+        cache-environment: true
     - run: |
         conda info
         conda list
@@ -37,7 +38,6 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       env:
-        EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
         RESOURCE_GROUPS: ${{ secrets.RESOURCE_GROUPS }}
         PUDL_DB: ${{ secrets.PUDL_DB }}
         PG_DB: ${{ secrets.PG_DB }}
@@ -45,4 +45,6 @@ jobs:
         pip install pytest-cov
         pytest --cov=powergenome tests/ --cov-report=xml
     - name: Upload test coverage report to CodeCov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

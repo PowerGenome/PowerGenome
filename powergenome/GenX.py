@@ -10,13 +10,11 @@ import pandas as pd
 from powergenome.external_data import (
     load_demand_segments,
     load_policy_scenarios,
-    load_user_genx_settings,
     make_generator_variability,
 )
-from powergenome.load_profiles import make_distributed_gen_profiles
-from powergenome.nrelatb import investment_cost_calculator
+from powergenome.financials import investment_cost_calculator
 from powergenome.time_reduction import kmeans_time_clustering
-from powergenome.util import find_region_col, load_settings, snake_case_col
+from powergenome.util import find_region_col, snake_case_col, snake_case_str
 
 logger = logging.getLogger(__name__)
 
@@ -107,9 +105,9 @@ def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
         for region, col in product(
             year_case_policy["region"].unique(), year_case_policy[policy_cols].columns
         ):
-            zone_df.loc[
-                zone_df["Region_description"] == region, col
-            ] = year_case_policy.loc[year_case_policy.region == region, col].values[0]
+            zone_df.loc[zone_df["Region_description"] == region, col] = (
+                year_case_policy.loc[year_case_policy.region == region, col].values[0]
+            )
 
     # zone_df = zone_df.drop(columns="region")
 
@@ -186,9 +184,9 @@ def label_cap_res_lines(path_names: List[str], dest_regions: List[str]) -> List[
     for name in path_names:
         s_r = name.split("_to_")[0]
         e_r = name.split("_to_")[-1]
-        if (s_r in dest_regions) and not (e_r in dest_regions):
+        if (s_r in dest_regions) and e_r not in dest_regions:
             cap_res_list.append(1)
-        elif (e_r in dest_regions) and not (s_r in dest_regions):
+        elif (e_r in dest_regions) and s_r not in dest_regions:
             cap_res_list.append(-1)
         else:
             cap_res_list.append(0)
@@ -226,10 +224,6 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         tx_df["transmission_path_name"] = tx_df["Transmission Path Name"]
     original_cols = tx_df.columns.to_list()
 
-    zones = settings["model_regions"]
-    zone_num_map = {
-        zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
-    }
     path_names = tx_df["transmission_path_name"].to_list()
     policy_nums = []
 
@@ -317,9 +311,9 @@ def add_emission_policies(transmission_df, settings):
         for region, col in product(
             year_case_policy["region"].unique(), year_case_policy.columns
         ):
-            zone_df.loc[
-                zone_df["Region description"] == region, col
-            ] = year_case_policy.loc[year_case_policy.region == region, col].values[0]
+            zone_df.loc[zone_df["Region description"] == region, col] = (
+                year_case_policy.loc[year_case_policy.region == region, col].values[0]
+            )
 
     zone_df = zone_df.drop(columns="region")
 
@@ -361,7 +355,9 @@ def add_misc_gen_values(
     except ValueError:
         region_col = "region"
         misc_values["region"] = "all"
-    regions = [r for r in misc_values[region_col].unique() if r.lower() != "all"]
+    regions = [
+        r for r in misc_values[region_col].fillna("all").unique() if r.lower() != "all"
+    ]
     wrong_regions = [r for r in regions if r not in settings["model_regions"]]
     if wrong_regions:
         raise ValueError(
@@ -376,7 +372,6 @@ def add_misc_gen_values(
 
     misc_values = misc_values.loc[misc_values[region_col].str.lower() != "all", :]
 
-    resource_len = 0
     for tech, _df in misc_values.groupby(resource_col):
         num_tech_regions = len(
             gen_clusters.loc[
@@ -392,10 +387,10 @@ def add_misc_gen_values(
             )
     generic_resources = []
     for gen_resource in gen_clusters[resource_col].unique():
-        for r in settings["model_regions"]:
+        for r in sorted(settings["model_regions"])[::-1]:
             if r in gen_resource:
                 gen_resource = gen_resource.replace(r + "_", "")
-                generic_resources.append(gen_resource)
+                generic_resources.append(snake_case_str(gen_resource))
                 continue
     generic_resources = set(generic_resources)
     missing_resources = []
@@ -423,7 +418,11 @@ def add_misc_gen_values(
         row_cols = row[value_cols].dropna().index
         gen_clusters.loc[
             (gen_clusters["region"] == row[region_col])
-            & (gen_clusters[resource_col].str.contains(row[resource_col], case=False)),
+            & (
+                snake_case_col(gen_clusters[resource_col]).str.contains(
+                    row[resource_col], case=False
+                )
+            ),
             row_cols,
         ] = row[row_cols].values
     return gen_clusters
@@ -448,6 +447,7 @@ def reduce_time_domain(
             include_peak_day=include_peak_day,
             load_weight=load_weight,
             variable_resources_only=variable_resources_only,
+            n_init=settings.get("tdr_n_init", 100),
         )
 
         reduced_resource_profile = results["resource_profiles"]
@@ -484,7 +484,7 @@ def reduce_time_domain(
 
     else:
         time_index = pd.Series(data=range(1, len(load_profiles) + 1), name="Time_Index")
-        sub_weights = pd.Series(data=[1], name="Sub_Weights")
+        sub_weights = pd.Series(data=[8760], name="Sub_Weights")
         hours_per_period = pd.Series(
             data=[len(load_profiles)], name="Timesteps_per_Rep_Period"
         )
@@ -532,7 +532,7 @@ def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFram
     elif "distance_km" in transmission.columns:
         distance_col = "distance_km"
         loss_per_100_miles *= 0.62137
-        logger.info("Line loss per 100 miles was converted to km.")
+        logger.debug("Line loss per 100 miles was converted to km.")
     else:
         raise KeyError("No distance column is available in the transmission dataframe")
 
@@ -607,7 +607,12 @@ def network_reinforcement_cost(
             "investment_years. See the `test_settings.yml` file for an example."
         )
     line_inv_cost = (
-        investment_cost_calculator(line_capex, line_wacc, line_inv_period)
+        investment_cost_calculator(
+            line_capex,
+            line_wacc,
+            line_inv_period,
+            settings.get("interest_compound_method", "discrete"),
+        )
         * transmission["distance_mile"]
     )
 
@@ -933,7 +938,7 @@ def fix_min_power_values(
     gen_profile_min = _gen_profile.min().reset_index(drop=True)
     mask = (resource_df[min_power_col].fillna(0) > gen_profile_min).values
 
-    logger.info(
+    logger.debug(
         f"{sum(mask)} resources have {min_power_col} larger than hourly generation."
     )
 
@@ -1158,9 +1163,9 @@ def hydro_energy_to_power(
             avg_inflow = (
                 make_generator_variability(df).mean().reset_index(drop=True) * factor
             ).loc[hydro_mask & region_mask]
-            df.loc[
-                (df["HYDRO"] == 1) & region_mask, "Hydro_Energy_to_Power_Ratio"
-            ] = avg_inflow.where(avg_inflow > 1, 1)
+            df.loc[(df["HYDRO"] == 1) & region_mask, "Hydro_Energy_to_Power_Ratio"] = (
+                avg_inflow.where(avg_inflow > 1, 1)
+            )
     df["Hydro_Energy_to_Power_Ratio"] = df["Hydro_Energy_to_Power_Ratio"].fillna(0)
     return df
 
@@ -1214,12 +1219,63 @@ def add_co2_costs_to_o_m(df: pd.DataFrame) -> pd.DataFrame:
         costs
     """
     if "co2_cost_mwh" in df.columns:
-        df["Var_OM_Cost_per_MWh"] += df["co2_cost_mwh"]
+        df["Var_OM_Cost_per_MWh"] += df["co2_cost_mwh"].fillna(0)
     if "co2_pipeline_annuity_mw" in df.columns:
-        df["Inv_Cost_per_MWyr"] += df["co2_pipeline_annuity_mw"]
+        df["Inv_Cost_per_MWyr"] += df["co2_pipeline_annuity_mw"].fillna(0)
     if "co2_o_m_mw" in df.columns:
-        df["Fixed_OM_Cost_per_MWyr"] += df["co2_o_m_mw"]
+        df["Fixed_OM_Cost_per_MWyr"] += df["co2_o_m_mw"].fillna(0)
     if "co2_pipeline_capex_mw" in df.columns:
-        df["capex_mw"] += df["co2_pipeline_capex_mw"]
+        df["capex_mw"] += df["co2_pipeline_capex_mw"].fillna(0)
 
     return df
+
+
+def cap_retire_within_period(
+    gens: pd.DataFrame, first_year: int, last_year: int, capacity_col: str
+) -> pd.Series:
+    retired_cap = (
+        gens.query("retirement_year <= @last_year and retirement_year >= @first_year")
+        .groupby("Resource", as_index=False)[[capacity_col, "capacity_mwh"]]
+        .sum()
+    ).rename(
+        columns={
+            capacity_col: "Min_Retired_Cap_MW",
+            "capacity_mwh": "Min_Retired_Energy_Cap_MW",
+        }
+    )
+    retired_cap["Min_Retired_Charge_Cap_MW"] = 0
+
+    return retired_cap
+
+
+def check_vre_profiles(
+    gen_df: pd.DataFrame,
+    gen_var_df: pd.DataFrame,
+    vre_cols: List[str] = ["VRE", "HYDRO"],
+):
+    """Check generation profiles of VRE resources to ensure they are variable. Alert the
+    user with a logger warning if any are not.
+
+    Parameters
+    ----------
+    gen_df : pd.DataFrame
+        Dataframe of generators. Must have column "Resource".
+    gen_var_df : pd.DataFrame
+        Dataframe of hourly generation for each resource. Column names are from the
+        "Resource" column of `gen_df`.
+    vre_cols : List[str]
+        List of boolean columns indicating inclusion in the group of variable resources.
+        By default, ["VRE", "HYDRO"].
+    """
+    var_gen_names = []
+    vre_cols = [c for c in vre_cols if c in gen_df.columns]
+    if vre_cols:
+        for c in vre_cols:
+            var_gen_names.extend(gen_df.loc[gen_df[c] == 1, "Resource"].to_list())
+
+        vre_std = gen_var_df[var_gen_names].std()
+        if (vre_std == 0).any():
+            non_variable = vre_std.loc[vre_std == 0].index.to_list()
+            logger.warning(
+                f"The variable resources {non_variable} have non-variable generation profiles."
+            )

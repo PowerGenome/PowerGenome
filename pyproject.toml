@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=66,<68", "wheel"] # , "setuptools_scm[toml]>=6.2"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "PowerGenome"
-version = "0.6.1"
+dynamic = ["version"]
 authors = [{ name = "Greg Schivley", email = "greg.schivley@princeton.edu" }]
 maintainers = [
     { name = "Greg Schivley", email = "greg.schivley@princeton.edu" },
@@ -38,19 +38,22 @@ dependencies = [
     "geopandas>=0.11",
 ]
 
-[tool.setuptools]
-include-package-data = true
+[tool.hatch.version]
+path = "powergenome/version.py"
 
-[tool.setuptools.packages.find]
-include = ["powergenome*", "data*"]
-exclude = ["tests*", "docs*", "data/eia*"]
+[tool.hatch.build.targets.sdist]
+only-include = ["powergenome", "data"]
+exclude = ["/data/eia*"]
 
-[tool.setuptools.package-data]
-"*" = ["*.csv", "*.geojson"]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["powergenome", "data"]
+exclude = ["/data/eia*"]
+
 
 [project.optional-dependencies]
 dev = [
-    "black[jupyter] == 23.3.0",
+    "black[jupyter] == 24.3.0",
     "pre-commit",
     "pytest",
     "isort",
@@ -63,3 +66,6 @@ run_powergenome_multiple = "powergenome.run_powergenome_multiple_outputs_cli:mai
 
 [project.urls]
 "Source" = "https://github.com/PowerGenome/PowerGenome"
+
+[tool.isort]
+profile = "black"

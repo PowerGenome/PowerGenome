@@ -1,10 +1,9 @@
 import copy
-import glob
 import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -271,7 +270,7 @@ class Table:
         if path is not None:
             try:
                 self._dataset = pq.ParquetDataset(path)
-                self._columns = self._dataset.schema.names
+                self._columns = pq.read_schema(path).names
                 self.format = "parquet"
             except pyarrow.lib.ArrowInvalid:
                 # Assume CSV file
@@ -529,11 +528,11 @@ class ResourceGroup:
         columns = self.profiles.columns
         if not set(columns) == set(ids):
             raise ValueError(
-                f"Resource profiles column names do not match resource identifiers"
+                "Resource profiles column names do not match resource identifiers"
             )
         df = self.profiles.read(columns=columns[0])
         if len(df) not in [8760, 8784]:
-            raise ValueError(f"Resource profiles are not either 8760 or 8784 elements")
+            raise ValueError("Resource profiles are not either 8760 or 8784 elements")
 
     def get_clusters(
         self,
@@ -627,7 +626,7 @@ class ResourceGroup:
             # Select clusters with LCOE below the cutoff
             mask[mask] = df.loc[mask, "lcoe"] <= max_lcoe
         if not mask.any():
-            raise ValueError(f"No resources found or selected")
+            raise ValueError("No resources found or selected")
         if tree:
             # Only keep trees with one ore more base resources
             if isinstance(tree, list):
