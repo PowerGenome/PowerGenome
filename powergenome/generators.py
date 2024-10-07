@@ -1658,8 +1658,8 @@ def label_gen_region(
         logger.warning(
             "Some generators do not have lon/lat data. Check the source "
             "file to determine if they should be included in results. "
-            f"\nThe affected generators account for {no_lat_lon_cap} in balancing "
-            "authorities: "
+            f"\nThe affected generators account for {no_lat_lon_cap} MW in "
+            "these balancing authorities: "
             f"\n{no_lat_lon['balancing_authority_code'].tolist()}"
         )
 
