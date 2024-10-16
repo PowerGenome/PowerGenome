@@ -537,6 +537,47 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
         )
 
 
+def check_case_settings(scenario_settings: dict):
+    cases = []
+    for year_settings in scenario_settings.values():
+        cases.extend(list(year_settings.keys()))
+    cases = set(cases)
+    case_dicts = {}
+    for case in cases:
+        dict_lists = []
+        for year, year_settings in scenario_settings.items():
+            d = year_settings.get(case, {}).get("renewables_clusters", {})
+            if d:
+                dict_lists.append(d)
+        if dict_lists:
+            compare_dicts(dict_lists, case)
+
+
+def compare_dicts(dict_lists: List[dict], case: str):
+    # Create a dictionary to hold key-value pairs of region+technology and their corresponding relevant keys
+    check_dict = {}
+    for lst in dict_lists:
+        for d in lst:
+            # Create a unique key from "region" and "technology"
+            key = (d["region"], d["technology"])
+
+            # Collect values for the keys of interest
+            keys = ["group", "min_capacity", "filter", "bin", "cluster"]
+            values = {k: d[k] for k in keys if k in d}
+
+            # If the key already exists, compare the current dictionary's values to the saved values
+            if key in check_dict:
+                if check_dict[key] != values:
+                    logger.warning(
+                        f"Mismatch found for renewables_clusters in case {case} region {d['region']} and technology {d['technology']}"
+                    )
+                    logger.warning(f"Previous values: {check_dict[key]}")
+                    logger.warning(f"Current values: {values}")
+            else:
+                # Store the values for this region and technology pair
+                check_dict[key] = values
+
+
 def init_pudl_connection(
     freq: str = "AS",
     start_year: int = None,
@@ -1198,6 +1239,8 @@ def build_scenario_settings(
             + "\n\nYou can place empty entries (~) for these in the "
             "settings_management dictionary to avoid this message.\n"
         )
+
+    check_case_settings(scenario_settings)
 
     return scenario_settings
 
