@@ -1941,7 +1941,7 @@ def import_new_generators(
         logger.debug(
             f"The EIA860 file has {len(plant_ids)} operating generator(s) without a technology "
             f"description. The plant IDs are {plant_ids}, and they have a combined "
-            f"capcity of {plant_capacity} MW."
+            f"capacity of {plant_capacity} MW."
         )
 
     if settings.get("group_technologies"):
@@ -2083,7 +2083,7 @@ def import_proposed_generators(
         logger.debug(
             f"The EIA860 file has {len(plant_ids)} proposed generator(s) without a technology "
             f"description. The plant IDs are {plant_ids}, and they have a combined "
-            f"capcity of {plant_capacity} MW."
+            f"capacity of {plant_capacity} MW."
         )
 
     # Add a retirement year based on the planned start year
