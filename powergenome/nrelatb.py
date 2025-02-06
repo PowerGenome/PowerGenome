@@ -1573,7 +1573,9 @@ def add_renewables_clusters(
         detail_suffix = flatten_cluster_def(
             {k: v for (k, v) in _scenario.items() if k != "group_modifiers"}, "_"
         )
-        unique_hash = hash_string_sha256(f"{region}_{technology}_{detail_suffix}")
+        unique_hash = hash_string_sha256(
+            f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}"
+        )
         cache_cluster_fn = unique_hash + "_cluster_data.parquet"
         cache_site_assn_fn = unique_hash + "_site_assn.parquet"
 
@@ -1585,7 +1587,10 @@ def add_renewables_clusters(
         add_row_to_csv(
             cache_folder / "hash_map.csv",
             headers=["name", "hash"],
-            new_row=[f"{region}_{technology}_{detail_suffix}", unique_hash],
+            new_row=[
+                f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}",
+                unique_hash,
+            ],
         )
         cache_cluster_fpath = cache_folder / cache_cluster_fn
         cache_site_assn_fpath = cache_folder / cache_site_assn_fn
