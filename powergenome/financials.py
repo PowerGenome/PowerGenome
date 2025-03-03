@@ -1,4 +1,5 @@
 "Functions for financial calculation of investment costs from capex and WACC"
+
 import json
 import logging
 from datetime import date
