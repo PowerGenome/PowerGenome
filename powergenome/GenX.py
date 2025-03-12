@@ -52,6 +52,84 @@ COL_ROUND_VALUES = {
 # RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO", "LDS"]
 RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO"]
 
+# Specific columns for each resource type
+THERM_COLUMNS = [
+    "Down_Time",
+    "Min_Power",
+    "Ramp_Up_Percentage",
+    "Ramp_Dn_Percentage",
+    "Up_Time",
+]
+
+VRE_COLUMNS = ["Num_VRE_Bins"]
+
+MUST_RUN_COLUMNS = []
+
+STOR_COLUMNS = [
+    "Eff_Down",
+    "Eff_Up",
+    "Existing_Cap_MWh",
+    "Existing_Charge_Cap_MW",
+    "Fixed_OM_Cost_Charge_per_MWyr",
+    "Fixed_OM_Cost_per_MWhyr",
+    "Inv_Cost_Charge_per_MWyr",
+    "Inv_Cost_per_MWhyr",
+    "LDS",
+    "Max_Cap_MWh",
+    "Max_Charge_Cap_MW",
+    "Max_Duration",
+    "Min_Cap_MWh",
+    "Min_Charge_Cap_MW",
+    "Min_Duration",
+    "Self_Disch",
+    "Var_OM_Cost_per_MWh_In",
+]
+
+FLEX_COLUMNS = [
+    "Flexible_Demand_Energy_Eff",
+    "Max_Flexible_Demand_Delay",
+    "Max_Flexible_Demand_Advance",
+    "Var_OM_Cost_per_MWh_In",
+]
+
+HYDRO_COLUMNS = [
+    "Eff_Up",
+    "Eff_Down",
+    "Hydro_Energy_to_Power_Ratio",
+    "LDS",
+    "Min_Power",
+    "Ramp_Up_Percentage",
+    "Ramp_Dn_Percentage",
+]
+
+# For future use
+# HYDROGEN_COLUMNS = [
+#     "Hydrogen_MWh_Per_Tonne",
+#     "Hydrogen_Price_Per_Tonne",
+#     "Min_Power",
+#     "Ramp_Up_Percentage",
+#     "Ramp_Dn_Percentage",
+# ]
+
+# Create a mapping of resource tags -> columns
+RESOURCE_COLUMNS = {
+    'THERM': THERM_COLUMNS,
+    'VRE': VRE_COLUMNS,
+    'MUST_RUN': MUST_RUN_COLUMNS,
+    'STOR': STOR_COLUMNS,
+    'FLEX': FLEX_COLUMNS,
+    'HYDRO': HYDRO_COLUMNS,
+    # 'ELECTROLYZER': HYDROGEN_COLUMNS,
+}
+
+MULTISTAGE_COLS = [
+    "WACC",
+    "Capital_Recovery_Period",
+    "Lifetime",
+    "Min_Retired_Cap_MW",
+    "Min_Retired_Energy_Cap_MW",
+    "Min_Retired_Charge_Cap_MW",
+]
 
 def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
     model_year = settings["model_year"]
