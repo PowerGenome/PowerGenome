@@ -142,6 +142,21 @@ MULTISTAGE_COLS = [
     "Min_Retired_Charge_Cap_MW",
 ]
 
+# Create a mapping to update the policy tag columns
+POLICY_TAGS = [
+    ("ESR", {"oldtag": "ESR_", "newtag": "ESR_"}),
+    ("CAP_RES", {"oldtag": "CapRes_", "newtag": "Derating_factor_"}),
+    ("MIN_CAP", {"oldtag": "MinCapTag_", "newtag": "Min_Cap_"}),
+    ("MAX_CAP", {"oldtag": "MaxCapTag_", "newtag": "Max_Cap_"})
+]
+
+POLICY_TAGS_FILENAMES = {
+    "ESR": "Resource_energy_share_requirement.csv",
+    "CAP_RES": "Resource_capacity_reserve_margin.csv",
+    "MIN_CAP": "Resource_minimum_capacity_requirement.csv",
+    "MAX_CAP": "Resource_maximum_capacity_requirement.csv"
+}
+
 def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
     model_year = settings["model_year"]
     case_id = settings["case_id"]
