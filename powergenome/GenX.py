@@ -1640,7 +1640,7 @@ def split_generators_data(gen_data: pd.DataFrame) -> List[GenXResourceData]:
     List[GenXResourceData]
         List of GenXResourceData objects containing the resource-specific data
     """
-    
+
     # Drop the R_ID column if it exists, GenX will assign IDs internally
     if 'R_ID' in gen_data.columns:
         gen_data = gen_data.drop(columns=['R_ID'])
@@ -1658,8 +1658,15 @@ def split_generators_data(gen_data: pd.DataFrame) -> List[GenXResourceData]:
         if not policy_df.empty:
             policy_assignments_dir.append(GenXResourceData(tag=policy_tag, filename=out_file, dataframe=policy_df))
     
-    # Process each RESOURCE_TAGS defined at the top of this file
+    # Process multistage data
     resource_data_dir = []
+multistage_df = create_multistage_df(gen_data, MULTISTAGE_COLS)
+    if not multistage_df.empty:
+        logger.info("Creating multistage data file")
+        multistage_out_file = 'Resource_multistage_data.csv'
+        resource_data_dir.append(GenXResourceData(tag='MULTISTAGE', filename=multistage_out_file, dataframe=multistage_df))
+            
+    # Process each RESOURCE_TAGS defined at the top of this file
     for resource_tag in RESOURCE_TAGS:
         out_file = RESOURCE_FILENAMES[resource_tag]
         resource_df = create_resource_df(gen_data, resource_tag)
@@ -1667,13 +1674,6 @@ def split_generators_data(gen_data: pd.DataFrame) -> List[GenXResourceData]:
             resource_data_dir.append(GenXResourceData(tag=resource_tag, filename=out_file, dataframe=resource_df))
         else:
             logger.info(f"No data found for resource tag {resource_tag}")
-            
-    # Process multistage data
-    multistage_df = create_multistage_df(gen_data, MULTISTAGE_COLS)
-    if not multistage_df.empty:
-        logger.info("Creating multistage data file")
-        multistage_out_file = 'Resource_multistage_data.csv'
-        resource_data_dir.append(GenXResourceData(tag='MULTISTAGE', filename=multistage_out_file, dataframe=multistage_df))
             
     # Return a dictionary with the policy and resource data
     return resource_data_dir, policy_assignments_dir
