@@ -195,7 +195,7 @@ def fetch_atb_costs(
                     AND financial_case == '{fin_case}'
                     AND cost_case == '{cost_case}'
                     AND atb_year == {atb_year}
-                    AND parameter == "wacc_real"
+                    AND parameter == 'wacc_real'
 
                 """
                 b_rows = pg_engine.execute(wacc_s).fetchall()
