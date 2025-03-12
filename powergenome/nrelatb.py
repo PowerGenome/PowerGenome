@@ -125,10 +125,10 @@ def fetch_atb_costs(
         SELECT technology, tech_detail, cost_case, parameter, basis_year, parameter_value, dollar_year
         from technology_costs_nrelatb
         where
-            technology == "{tech}"
-            AND tech_detail == "{tech_detail}"
-            AND financial_case == "{fin_case}"
-            AND cost_case == "{cost_case}"
+            technology == '{tech}'
+            AND tech_detail == '{tech_detail}'
+            AND financial_case == '{fin_case}'
+            AND cost_case == '{cost_case}'
             AND atb_year == {atb_year}
             AND parameter IN ({','.join('?'*len(cost_params))})
         """
@@ -142,9 +142,9 @@ def fetch_atb_costs(
             select technology, cost_case, basis_year, parameter_value
             from technology_costs_nrelatb
             where
-                technology == "{tech}"
-                AND financial_case == "{fin_case}"
-                AND cost_case == "{cost_case}"
+                technology == '{tech}'
+                AND financial_case == '{fin_case}'
+                AND cost_case == '{cost_case}'
                 AND atb_year == {atb_year}
                 AND parameter == "wacc_real"
             """
@@ -187,9 +187,9 @@ def fetch_atb_costs(
                 select technology, cost_case, basis_year, parameter_value
                 from technology_costs_nrelatb
                 where
-                    technology == "{battery_wacc_standin}"
-                    AND financial_case == "{fin_case}"
-                    AND cost_case == "{cost_case}"
+                    technology == '{battery_wacc_standin}'
+                    AND financial_case == '{fin_case}'
+                    AND cost_case == '{cost_case}'
                     AND atb_year == {atb_year}
                     AND parameter == "wacc_real"
 
