@@ -146,7 +146,7 @@ def fetch_atb_costs(
                 AND financial_case == '{fin_case}'
                 AND cost_case == '{cost_case}'
                 AND atb_year == {atb_year}
-                AND parameter == "wacc_real"
+                AND parameter == 'wacc_real'
             """
             wacc_rows.extend(pg_engine.execute(wacc_s).fetchall())
 
@@ -458,10 +458,10 @@ def atb_fixed_var_om_existing(
             technology_costs_nrelatb
         WHERE
             basis_year == ?
-            AND financial_case == "Market"
-            AND cost_case in("Mid", "Moderate")
+            AND financial_case == 'Market'
+            AND cost_case in('Mid', 'Moderate')
             AND atb_year == ?
-            AND parameter in("variable_o_m_mwh", "fixed_o_m_mw")
+            AND parameter in('variable_o_m_mwh', 'fixed_o_m_mw')
     """
     params = [existing_year, settings["atb_data_year"]]
     atb_om_names = pd.read_sql_query(
@@ -548,10 +548,10 @@ def atb_fixed_var_om_existing(
         from technology_costs_nrelatb
         where
             basis_year == ?
-            AND financial_case == "Market"
-            AND cost_case in ("Mid", "Moderate")
+            AND financial_case == 'Market'
+            AND cost_case in ('Mid', 'Moderate')
             AND atb_year == ?
-            AND parameter in ("variable_o_m_mwh", "fixed_o_m_mw", "fixed_o_m_mwh")
+            AND parameter in ('variable_o_m_mwh', 'fixed_o_m_mw', 'fixed_o_m_mwh')
             AND
                 ({' OR '.join(["(technology==? and tech_detail==?)"]*len(atb_techs))})
             GROUP BY technology, tech_detail, parameter
