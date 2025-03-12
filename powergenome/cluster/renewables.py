@@ -394,7 +394,7 @@ def assign_site_cluster(
 ) -> pd.DataFrame:
     """Use settings options to group individual renewable sites.
     Sites are located within a model region that may be a collection of base regions.
-    Site metadata such as the cpa_id and any numeric or categorial features (e.g.
+    Site metadata such as the cpa_id and any numeric or categorical features (e.g.
     interconnection cost or the name of a geographic subregion that the site is located
     in) are specified in `renew_data`. Based on the user settings, the full list of
     sites in a region is filtered (numeric), binned (numeric), grouped(categorical), and
