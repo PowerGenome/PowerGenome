@@ -17,6 +17,24 @@ from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import find_region_col, snake_case_col, snake_case_str
 
 logger = logging.getLogger(__name__)
+class GenXResourceData:
+    """
+    A class to abstract the dataframes that will be written out in the resource folder
+    of the GenX case.
+
+    Attributes
+    ----------
+    tag : str
+        The resource or policy tag (e.g., 'THERM', 'VRE', 'ESR', 'CAP_RES', etc.)
+    filename : str
+        The filename associated with the resource data
+    dataframe : pd.DataFrame
+        The dataframe containing the resource data
+    """
+    def __init__(self, tag: str, filename: str, dataframe: pd.DataFrame):
+        self.tag = tag
+        self.filename = filename
+        self.dataframe = dataframe
 
 INT_COLS = [
     "Inv_Cost_per_MWyr",
