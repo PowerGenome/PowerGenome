@@ -93,6 +93,8 @@ COL_ROUND_VALUES = {
 # RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO", "LDS"]
 RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO"]
 
+DEFAULT_COLS = ["Resource", "Zone", "New_Build", "Can_Retire"]
+
 # Specific columns for each resource type
 THERM_COLUMNS = [
     "Down_Time",
@@ -1511,8 +1513,8 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
     resource_df = df[df[resource_tag] == 1].copy()
     
     # Find columns with non-zero values
-    nonzero_cols = get_nonzero_columns(resource_df)
-    logger.debug(f"Found {len(nonzero_cols)} non-zero columns for {resource_tag}")
+    valid_cols = set(get_valid_columns(resource_df)) | set(DEFAULT_COLS)
+    logger.debug(f"Found {len(valid_cols)} valid columns for {resource_tag}")
     
     # Get columns to keep for this resource type
     resource_specific_cols = set(RESOURCE_COLUMNS[resource_tag])
@@ -1524,10 +1526,16 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
         if tag != resource_tag
         for col in cols
     }
+# Add the resource tag column to the set of other resource columns
+    other_resource_cols.add(resource_tag)
     
     # Find columns to remove: columns that are in other_resource_cols
     # but NOT in resource_specific_cols
     cols_to_remove = (other_resource_cols - resource_specific_cols) & set(df.columns)
+    
+# List of columns to keep
+    cols_to_keep = [col for col in df.columns 
+                 if col in valid_cols and col not in cols_to_remove]
     
     # In the case of STOR and THERM, the resource tag column is also used as 
     # 'model' type (e.g., SYM or ASYM for storage, and COMMIT or NOCOMMIT for thermal)
@@ -1535,19 +1543,19 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
     if resource_tag in {'STOR', 'THERM'}:
         logger.debug(f"Renaming {resource_tag} column to 'Model'")
         resource_df = resource_df.rename(columns={resource_tag: 'Model'})
-    else:
-        cols_to_remove.add(resource_tag)
-    
-    # Keep only relevant columns with non-zero values
-    final_cols = set(nonzero_cols) - cols_to_remove
+            cols_to_keep = ['Model' if col == resource_tag else col for col in cols_to_keep]
     
     # Final check that ALL the resource specific columns are present
-    missing_cols = resource_specific_cols - set(final_cols)
+    missing_cols = resource_specific_cols - set(cols_to_keep)
     if missing_cols:
         logger.warning(f"Missing columns for {resource_tag}: {missing_cols}")
         
+# Make sure the first columns are DEFAULT_COLS defined at the top of this file
+    remaining_cols = [col for col in cols_to_keep if col not in DEFAULT_COLS]
+    final_cols = [col for col in DEFAULT_COLS if col in cols_to_keep] + remaining_cols
+        
     # Return the filtered and restructured dataframe
-    return resource_df[list(final_cols)]
+    return resource_df[final_cols]
 
 def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFrame:
     """Create a dataframe with policy-specific columns for a specific policy type.
