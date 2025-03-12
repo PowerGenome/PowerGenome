@@ -160,7 +160,11 @@ def fetch_atb_costs(
     else:
         # ATB doesn't have a WACC for battery storage. We use UtilityPV WACC as a default
         # stand-in -- make sure we have it in case.
-        s = 'SELECT DISTINCT("technology") from technology_costs_nrelatb WHERE parameter == "wacc_real"'
+        s = """
+        SELECT DISTINCT("technology")
+        from technology_costs_nrelatb
+        WHERE parameter == 'wacc_real'
+        """
         atb_techs = [x[0] for x in pg_engine.execute(s).fetchall()]
         battery_wacc_standin = settings.get("atb_battery_wacc")
         battery_tech = [x for x in techs if x[0] == "Battery"][0]
