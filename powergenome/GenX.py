@@ -1576,13 +1576,13 @@ def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFr
         Dataframe containing the policy tag columns
     """
     # Check if any columns start with the policy tag
-    if not any(col.startswith(policy_info.oldtag) for col in df.columns):
-        logger.debug(f"No columns start with {policy_info.oldtag}, skipping policy {policy_info.newtag}")
+    if not any(col.startswith(policy_info["oldtag"]) for col in df.columns):
+        logger.debug(f"No columns start with {policy_info['oldtag']}, skipping policy {policy_info['newtag']}")
         return pd.DataFrame()
     
     # Slice dataframe to include only Resource column and columns starting with oldtag
     policy_cols = [col for col in df.columns 
-                   if col == "Resource" or col.startswith(policy_info.oldtag)]
+                   if col == "Resource" or col.startswith(policy_info['oldtag'])]
     policy_df = df[policy_cols].copy()
     
     # Keep only rows with at least one non-zero value in policy columns
@@ -1591,9 +1591,9 @@ def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFr
     
     # Rename columns replacing oldtag with newtag
     rename_dict = {
-        col: col.replace(policy_info.oldtag, policy_info.newtag)
+        col: col.replace(policy_info['oldtag'], policy_info['newtag'])
         for col in policy_df.columns
-        if col.startswith(policy_info.oldtag)
+        if col.startswith(policy_info['oldtag'])
     }
     policy_df.rename(columns=rename_dict, inplace=True)
     
