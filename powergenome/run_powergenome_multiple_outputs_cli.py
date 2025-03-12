@@ -265,8 +265,8 @@ def main(**kwargs):
 
     model_regions_gdf = None
     first_year = True
-    for case_id, case_settings in scenario_settings.items():
-        for year, _settings in case_settings.items():
+    for year, year_settings in scenario_settings.items():
+        for case_id, _settings in year_settings.items():
             case_folder = (
                 out_folder
                 / f"{case_id}"

@@ -1139,7 +1139,7 @@ def build_scenario_settings(
         # make sure model year data appears in standard form
         assign_model_planning_years(_settings, year)
 
-        scenario_settings.setdefault(case_id, {})[year] = _settings
+        scenario_settings.setdefault(year, {})[case_id] = _settings
         if _settings.get("generator_columns"):
             _settings["generator_columns"] = add_model_tags_to_gen_columns(
                 model_tag_values=_settings.get("model_tag_values", {}),
