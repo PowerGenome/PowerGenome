@@ -1596,6 +1596,9 @@ def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFr
         if col.startswith(policy_info['oldtag'])
     }
     policy_df.rename(columns=rename_dict, inplace=True)
+
+    # Remove policy columns from original dataframe
+    df.drop(columns=[col for col in policy_data_cols if col in df.columns], inplace=True)
     
     return policy_df
 
