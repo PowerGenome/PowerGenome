@@ -1526,14 +1526,14 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
         if tag != resource_tag
         for col in cols
     }
-# Add the resource tag column to the set of other resource columns
+    # Add the resource tag column to the set of other resource columns
     other_resource_cols.add(resource_tag)
     
     # Find columns to remove: columns that are in other_resource_cols
     # but NOT in resource_specific_cols
     cols_to_remove = (other_resource_cols - resource_specific_cols) & set(df.columns)
     
-# List of columns to keep
+    # List of columns to keep
     cols_to_keep = [col for col in df.columns 
                  if col in valid_cols and col not in cols_to_remove]
     
@@ -1543,14 +1543,14 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
     if resource_tag in {'STOR', 'THERM'}:
         logger.debug(f"Renaming {resource_tag} column to 'Model'")
         resource_df = resource_df.rename(columns={resource_tag: 'Model'})
-            cols_to_keep = ['Model' if col == resource_tag else col for col in cols_to_keep]
+        cols_to_keep = ['Model' if col == resource_tag else col for col in cols_to_keep]
     
     # Final check that ALL the resource specific columns are present
     missing_cols = resource_specific_cols - set(cols_to_keep)
     if missing_cols:
         logger.warning(f"Missing columns for {resource_tag}: {missing_cols}")
         
-# Make sure the first columns are DEFAULT_COLS defined at the top of this file
+    # Make sure the first columns are DEFAULT_COLS defined at the top of this file
     remaining_cols = [col for col in cols_to_keep if col not in DEFAULT_COLS]
     final_cols = [col for col in DEFAULT_COLS if col in cols_to_keep] + remaining_cols
         
@@ -1596,7 +1596,7 @@ def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFr
         if col.startswith(policy_info['oldtag'])
     }
     policy_df.rename(columns=rename_dict, inplace=True)
-
+    
     # Remove policy columns from original dataframe
     df.drop(columns=[col for col in policy_data_cols if col in df.columns], inplace=True)
     
@@ -1640,27 +1640,30 @@ def split_generators_data(gen_data: pd.DataFrame) -> List[GenXResourceData]:
     List[GenXResourceData]
         List of GenXResourceData objects containing the resource-specific data
     """
-
+    
+    # Create a copy of the generator data
+    generators_df = gen_data.copy()
+    
     # Drop the R_ID column if it exists, GenX will assign IDs internally
-    if 'R_ID' in gen_data.columns:
-        gen_data = gen_data.drop(columns=['R_ID'])
+    if 'R_ID' in generators_df.columns:
+        generators_df = generators_df.drop(columns=['R_ID'])
         
     # Check if New_Build and Can_Retire columns exist
-    if 'New_Build' in gen_data.columns and 'Can_Retire' not in gen_data.columns:
-        gen_data = update_newbuild_canretire(gen_data)
+    if 'New_Build' in generators_df.columns and 'Can_Retire' not in generators_df.columns:
+        generators_df = update_newbuild_canretire(generators_df)
         
     # Process each POLICY_TAGS (defined at the top of this file) and return a dataframe
     # with the policy files to be written out
     policy_assignments_dir = []
     for policy_tag, policy_info in POLICY_TAGS:
         out_file = POLICY_TAGS_FILENAMES[policy_tag]
-        policy_df = create_policy_df(gen_data, policy_info)
+        policy_df = create_policy_df(generators_df, policy_info)
         if not policy_df.empty:
             policy_assignments_dir.append(GenXResourceData(tag=policy_tag, filename=out_file, dataframe=policy_df))
     
     # Process multistage data
     resource_data_dir = []
-multistage_df = create_multistage_df(gen_data, MULTISTAGE_COLS)
+    multistage_df = create_multistage_df(generators_df, MULTISTAGE_COLS)
     if not multistage_df.empty:
         logger.info("Creating multistage data file")
         multistage_out_file = 'Resource_multistage_data.csv'
@@ -1669,7 +1672,7 @@ multistage_df = create_multistage_df(gen_data, MULTISTAGE_COLS)
     # Process each RESOURCE_TAGS defined at the top of this file
     for resource_tag in RESOURCE_TAGS:
         out_file = RESOURCE_FILENAMES[resource_tag]
-        resource_df = create_resource_df(gen_data, resource_tag)
+        resource_df = create_resource_df(generators_df, resource_tag)
         if not resource_df.empty:
             resource_data_dir.append(GenXResourceData(tag=resource_tag, filename=out_file, dataframe=resource_df))
         else:
