@@ -1455,13 +1455,12 @@ def update_newbuild_canretire(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def get_valid_columns(df: pd.DataFrame) -> List[str]:
-    """Find columns that have at least one meaningful value.
+    """Find columns that have at least one valid value.
     
     A column is considered valid if it has at least one value that is:
     - Non-zero
     - Not None (Python None)
     - Not "None" (string)
-    - Not all lowercase (for string columns)
     
     Parameters
     ----------
@@ -1473,15 +1472,18 @@ def get_valid_columns(df: pd.DataFrame) -> List[str]:
     List[str]
         List of column names that have at least one non-zero and non-None/"None" value
     """
-    # Check for non-None values (notna) and non-zero values
-    nonzero_mask = df.astype(bool).sum() > 0
+    # Check for non-None values
     notnull_mask = df.notna().sum() > 0
-    string_notnone_mask = df.applymap(lambda x: x is not "None").sum() > 0
     
-    # Combine masks to get columns with both non-zero and non-None values
+    # Check for non-"None" string values
+    string_notnone_mask = df.applymap(lambda x: str(x) != "None" if pd.notna(x) else False).sum() > 0
+    
+    # Check for non-zero values
+    nonzero_mask = df.astype(bool).sum() > 0
+    
+    # Combine all masks
     valid_cols = nonzero_mask & notnull_mask & string_notnone_mask
     
-    # Return list of column names where both conditions are True
     return list(valid_cols[valid_cols].index)
         
 def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
