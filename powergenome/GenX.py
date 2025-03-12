@@ -1507,6 +1507,8 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
         Returns empty DataFrame if resource_tag not in columns.
 
     """
+    logger.info(f"Creating resource data file for {resource_tag}")
+    
     if resource_tag not in df.columns:
         logger.warning(f"Resource tag {resource_tag} not found in dataframe columns")
         return pd.DataFrame()
@@ -1577,6 +1579,8 @@ def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFr
     pd.DataFrame
         Dataframe containing the policy tag columns
     """
+    logger.info(f"Creating policy data file for {policy_info['newtag']}")
+    
     # Check if any columns start with the policy tag
     if not any(col.startswith(policy_info["oldtag"]) for col in df.columns):
         logger.debug(f"No columns start with {policy_info['oldtag']}, skipping policy {policy_info['newtag']}")
@@ -1619,6 +1623,7 @@ def create_multistage_df(df: pd.DataFrame, multistage_cols: List[str]) -> pd.Dat
     pd.DataFrame
         DataFrame containing Resource column and multistage data
     """
+    logger.info("Creating multistage data file")
     
     # Select Resource column and multistage columns
     cols_to_keep = ["Resource"] + [col for col in multistage_cols if col in df.columns]
