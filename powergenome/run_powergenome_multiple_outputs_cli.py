@@ -34,6 +34,7 @@ from powergenome.GenX import (
     round_col_values,
     set_int_cols,
     set_must_run_generation,
+    split_generators_data,
 )
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
@@ -365,16 +366,34 @@ def main(**kwargs):
                 ] = 50
                 cols = [c for c in _settings["generator_columns"] if c in gens]
                 cols.extend(["Capital_Recovery_Period", "WACC", "Lifetime"])
-                write_results_file(
-                    df=remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings)
-                    .pipe(set_int_cols)
-                    .pipe(round_col_values)
-                    .pipe(check_resource_tags),
-                    folder=case_folder,
-                    file_name="Generators_data.csv",
-                    include_index=False,
-                    multi_period=args.multi_period,
-                )
+                
+                df = remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings).pipe(set_int_cols).pipe(round_col_values).pipe(check_resource_tags)
+                
+                # Split the dataframe into resource-specific dataframes:
+                # 1. Each resource type gets its own dataframe
+                # 2. Policy assignments are also split into their own dataframes
+                # 3. Multistage-specific columns
+                resources, policy_assignments = split_generators_data(df)
+                
+                resource_folder = case_folder / "resources"
+                
+                for resource_data in resources:
+                    write_results_file(
+                        df=resource_data.dataframe,
+                        folder=resource_folder,
+                        file_name=resource_data.filename,
+                        include_index=False,
+                        multi_period=args.multi_period,
+                    )
+                    
+                for policy_data in policy_assignments:
+                    policy_assignments_folder = resource_folder / "policy_assignments"
+                    write_results_file(
+                        df=policy_data.dataframe,
+                        folder=policy_assignments_folder,
+                        file_name=policy_data.filename,
+                    )
+                    
                 if not args.load:
                     write_results_file(
                         df=gen_variability,
