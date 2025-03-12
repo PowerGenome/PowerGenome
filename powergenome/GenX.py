@@ -17,6 +17,29 @@ from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import find_region_col, snake_case_col, snake_case_str
 
 logger = logging.getLogger(__name__)
+        
+# In GenX v0.4, the case folder structure is:
+# resources/
+#     policy_assignments/
+#         <policy_tag>.csv
+#     <resource_tag>.csv
+#     Resource_multistage_data.csv  # if running multi-stage
+# settings/
+#     genx_settings.yaml
+#     [other settings files]
+# system/
+#     Network.csv
+#     Demand.csv
+#     Fuels_data.csv
+#     Generators_variability.csv
+# policies/
+#     CO2_cap.csv
+#     Capacity_reserve_margin.csv
+#     Energy_share_requirement.csv
+#     Maximum_capacity_requirement.csv
+#     Minimum_capacity_requirement.csv
+#     [other policy files]
+
 class GenXResourceData:
     """
     A class to abstract the dataframes that will be written out in the resource folder
@@ -1632,7 +1655,4 @@ def split_generators_data(gen_data: pd.DataFrame) -> List[GenXResourceData]:
         resource_data_dir.append(GenXResourceData(tag='MULTISTAGE', filename=multistage_out_file, dataframe=multistage_df))
             
     # Return a dictionary with the policy and resource data
-    return {
-        'policy_assignments_dir': policy_assignments_dir,
-        'base_dir': resource_data_dir
-    }
+    return resource_data_dir, policy_assignments_dir
