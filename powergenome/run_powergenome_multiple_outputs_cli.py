@@ -392,6 +392,8 @@ def main(**kwargs):
                         df=policy_data.dataframe,
                         folder=policy_assignments_folder,
                         file_name=policy_data.filename,
+                        include_index=False,
+                        multi_period=args.multi_period,
                     )
                     
                 if not args.load:
