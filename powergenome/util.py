@@ -420,8 +420,8 @@ def check_settings(settings: dict, pg_engine: sa.engine) -> None:
         SELECT technology, tech_detail
         from technology_costs_nrelatb
         where
-            technology == "{tech}"
-            AND tech_detail == "{tech_detail}"
+            technology == '{tech}'
+            AND tech_detail == '{tech_detail}'
         """
         if len(pg_engine.execute(s).fetchall()) == 0:
             s = f"""
