@@ -122,6 +122,17 @@ RESOURCE_COLUMNS = {
     # 'ELECTROLYZER': HYDROGEN_COLUMNS,
 }
 
+# Create a mapping of resource tags -> filenames
+RESOURCE_FILENAMES = {
+    "THERM": "Thermal.csv",
+    "VRE": "Vre.csv",
+    "MUST_RUN": "Must_run.csv",
+    "STOR": "Storage.csv",
+    "FLEX": "Flex_demand.csv",
+    "HYDRO": "Hydro.csv",
+    # "ELECTROLYZER": "Electrolyzer.csv",
+}
+
 MULTISTAGE_COLS = [
     "WACC",
     "Capital_Recovery_Period",
