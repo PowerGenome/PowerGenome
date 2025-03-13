@@ -17,7 +17,7 @@ from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import find_region_col, snake_case_col, snake_case_str
 
 logger = logging.getLogger(__name__)
-        
+
 # In GenX v0.4, the case folder structure is:
 # resources/
 #     policy_assignments/
@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 #     Minimum_capacity_requirement.csv
 #     [other policy files]
 
+
 class GenXResourceData:
     """
     A class to abstract the dataframes that will be written out in the resource folder
@@ -54,10 +55,12 @@ class GenXResourceData:
     dataframe : pd.DataFrame
         The dataframe containing the resource data
     """
+
     def __init__(self, tag: str, filename: str, dataframe: pd.DataFrame):
         self.tag = tag
         self.filename = filename
         self.dataframe = dataframe
+
 
 INT_COLS = [
     "Inv_Cost_per_MWyr",
@@ -154,12 +157,12 @@ HYDRO_COLUMNS = [
 
 # Create a mapping of resource tags -> columns
 RESOURCE_COLUMNS = {
-    'THERM': THERM_COLUMNS,
-    'VRE': VRE_COLUMNS,
-    'MUST_RUN': MUST_RUN_COLUMNS,
-    'STOR': STOR_COLUMNS,
-    'FLEX': FLEX_COLUMNS,
-    'HYDRO': HYDRO_COLUMNS,
+    "THERM": THERM_COLUMNS,
+    "VRE": VRE_COLUMNS,
+    "MUST_RUN": MUST_RUN_COLUMNS,
+    "STOR": STOR_COLUMNS,
+    "FLEX": FLEX_COLUMNS,
+    "HYDRO": HYDRO_COLUMNS,
     # 'ELECTROLYZER': HYDROGEN_COLUMNS,
 }
 
@@ -188,15 +191,16 @@ POLICY_TAGS = [
     ("ESR", {"oldtag": "ESR_", "newtag": "ESR_"}),
     ("CAP_RES", {"oldtag": "CapRes_", "newtag": "Derating_factor_"}),
     ("MIN_CAP", {"oldtag": "MinCapTag_", "newtag": "Min_Cap_"}),
-    ("MAX_CAP", {"oldtag": "MaxCapTag_", "newtag": "Max_Cap_"})
+    ("MAX_CAP", {"oldtag": "MaxCapTag_", "newtag": "Max_Cap_"}),
 ]
 
 POLICY_TAGS_FILENAMES = {
     "ESR": "Resource_energy_share_requirement.csv",
     "CAP_RES": "Resource_capacity_reserve_margin.csv",
     "MIN_CAP": "Resource_minimum_capacity_requirement.csv",
-    "MAX_CAP": "Resource_maximum_capacity_requirement.csv"
+    "MAX_CAP": "Resource_maximum_capacity_requirement.csv",
 }
+
 
 def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
     model_year = settings["model_year"]
@@ -1425,9 +1429,10 @@ def check_vre_profiles(
                 f"The variable resources {non_variable} have non-variable generation profiles."
             )
 
+
 def update_newbuild_canretire(df: pd.DataFrame) -> pd.DataFrame:
     """Update the New_Build and Can_Retire columns in generator data.
-    
+
     If Can_Retire column doesn't exist, creates it based on New_Build values:
     - Can_Retire = 1 if New_Build != -1, else 0
     - New_Build = 1 if New_Build == 1, else 0
@@ -1442,24 +1447,25 @@ def update_newbuild_canretire(df: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
         Modified dataframe with updated Can_Retire and New_Build columns
     """
-    if 'New_Build' not in df.columns:
+    if "New_Build" not in df.columns:
         logger.warning("New_Build column not found in generator data")
         return df
 
     logger.warning("Upgrading the Can_Retire and New_Build interface")
-    df['Can_Retire'] = (df['New_Build'] != -1).astype(int)
-    df['New_Build'] = (df['New_Build'] == 1).astype(int)
-    
+    df["Can_Retire"] = (df["New_Build"] != -1).astype(int)
+    df["New_Build"] = (df["New_Build"] == 1).astype(int)
+
     return df
+
 
 def get_nonzero_columns(df: pd.DataFrame) -> List[str]:
     """Find columns that have at least one non-zero value.
-    
+
     Parameters
     ----------
     df : pd.DataFrame
         Input dataframe to check
-        
+
     Returns
     -------
     List[str]
@@ -1468,13 +1474,14 @@ def get_nonzero_columns(df: pd.DataFrame) -> List[str]:
     # Get boolean mask of non-zero values and sum down columns
     # Any column with sum > 0 has at least one non-zero value
     nonzero_cols = df.astype(bool).sum() > 0
-    
+
     # Return list of column names where mask is True
     return list(nonzero_cols[nonzero_cols].index)
-        
+
+
 def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
     """Create a dataframe with resource-specific columns for a specific resource type.
-    
+
     Filters generator data for a specific resource type and removes columns
     specific to other resource types. For storage and thermal resources,
     renames the resource tag column to 'Model'.
@@ -1499,49 +1506,51 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
 
     # Filter rows for this resource type
     resource_df = df[df[resource_tag] == 1].copy()
-    
+
     # Find columns with non-zero values
     nonzero_cols = get_nonzero_columns(resource_df)
     logger.debug(f"Found {len(nonzero_cols)} non-zero columns for {resource_tag}")
-    
+
     # Get columns to keep for this resource type
     resource_specific_cols = set(RESOURCE_COLUMNS[resource_tag])
-    
+
     # Get all columns specific to other resource types
     # i.e. columns that do not belong to this resource type
     other_resource_cols = {
-        col for tag, cols in RESOURCE_COLUMNS.items()
+        col
+        for tag, cols in RESOURCE_COLUMNS.items()
         if tag != resource_tag
         for col in cols
     }
-    
+
     # Find columns to remove: columns that are in other_resource_cols
     # but NOT in resource_specific_cols
     cols_to_remove = (other_resource_cols - resource_specific_cols) & set(df.columns)
-    
-    # In the case of STOR and THERM, the resource tag column is also used as 
+
+    # In the case of STOR and THERM, the resource tag column is also used as
     # 'model' type (e.g., SYM or ASYM for storage, and COMMIT or NOCOMMIT for thermal)
-    # Therefore, we rename the resource tag column to 'Model' 
-    if resource_tag in {'STOR', 'THERM'}:
+    # Therefore, we rename the resource tag column to 'Model'
+    if resource_tag in {"STOR", "THERM"}:
         logger.debug(f"Renaming {resource_tag} column to 'Model'")
-        resource_df = resource_df.rename(columns={resource_tag: 'Model'})
+        resource_df = resource_df.rename(columns={resource_tag: "Model"})
     else:
         cols_to_remove.add(resource_tag)
-    
+
     # Keep only relevant columns with non-zero values
     final_cols = set(nonzero_cols) - cols_to_remove
-    
+
     # Final check that ALL the resource specific columns are present
     missing_cols = resource_specific_cols - set(final_cols)
     if missing_cols:
         logger.warning(f"Missing columns for {resource_tag}: {missing_cols}")
-        
+
     # Return the filtered and restructured dataframe
     return resource_df[list(final_cols)]
 
+
 def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFrame:
     """Create a dataframe with policy-specific columns for a specific policy type.
-    
+
     Filters generator data for a specific policy type and removes columns
     specific to other policy types.
 
@@ -1559,18 +1568,23 @@ def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFr
     """
     # Check if any columns start with the policy tag
     if not any(col.startswith(policy_info.oldtag) for col in df.columns):
-        logger.debug(f"No columns start with {policy_info.oldtag}, skipping policy {policy_info.newtag}")
+        logger.debug(
+            f"No columns start with {policy_info.oldtag}, skipping policy {policy_info.newtag}"
+        )
         return pd.DataFrame()
-    
+
     # Slice dataframe to include only Resource column and columns starting with oldtag
-    policy_cols = [col for col in df.columns 
-                   if col == "Resource" or col.startswith(policy_info.oldtag)]
+    policy_cols = [
+        col
+        for col in df.columns
+        if col == "Resource" or col.startswith(policy_info.oldtag)
+    ]
     policy_df = df[policy_cols].copy()
-    
+
     # Keep only rows with at least one non-zero value in policy columns
     policy_data_cols = policy_df.columns[1:]  # All columns except Resource
     policy_df = policy_df[policy_df[policy_data_cols].gt(0).any(axis=1)]
-    
+
     # Rename columns replacing oldtag with newtag
     rename_dict = {
         col: col.replace(policy_info.oldtag, policy_info.newtag)
@@ -1578,33 +1592,35 @@ def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFr
         if col.startswith(policy_info.oldtag)
     }
     policy_df.rename(columns=rename_dict, inplace=True)
-    
+
     return policy_df
+
 
 def create_multistage_df(df: pd.DataFrame, multistage_cols: List[str]) -> pd.DataFrame:
     """Create multistage data file from generator data.
-    
+
     Parameters
     ----------
     df : pd.DataFrame
         Generator data
     multistage_cols : List[str]
         List of column names for multistage data
-        
+
     Returns
     -------
     pd.DataFrame
         DataFrame containing Resource column and multistage data
     """
-    
+
     # Select Resource column and multistage columns
     cols_to_keep = ["Resource"] + [col for col in multistage_cols if col in df.columns]
     multistage_df = df[cols_to_keep].copy()
-    
+
     # Remove multistage columns from original dataframe
     df.drop(columns=[col for col in multistage_cols if col in df.columns], inplace=True)
-    
+
     return multistage_df
+
 
 def split_generators_data(gen_data: pd.DataFrame) -> List[GenXResourceData]:
     """Split generator data DataFrame into resource-specific files.
@@ -1619,15 +1635,15 @@ def split_generators_data(gen_data: pd.DataFrame) -> List[GenXResourceData]:
     List[GenXResourceData]
         List of GenXResourceData objects containing the resource-specific data
     """
-    
+
     # Drop the R_ID column if it exists, GenX will assign IDs internally
-    if 'R_ID' in gen_data.columns:
-        gen_data = gen_data.drop(columns=['R_ID'])
-        
+    if "R_ID" in gen_data.columns:
+        gen_data = gen_data.drop(columns=["R_ID"])
+
     # Check if New_Build and Can_Retire columns exist
-    if 'New_Build' in gen_data.columns and 'Can_Retire' not in gen_data.columns:
+    if "New_Build" in gen_data.columns and "Can_Retire" not in gen_data.columns:
         gen_data = update_newbuild_canretire(gen_data)
-        
+
     # Process each POLICY_TAGS (defined at the top of this file) and return a dataframe
     # with the policy files to be written out
     policy_assignments_dir = []
@@ -1635,24 +1651,34 @@ def split_generators_data(gen_data: pd.DataFrame) -> List[GenXResourceData]:
         out_file = POLICY_TAGS_FILENAMES[policy_tag]
         policy_df = create_policy_df(gen_data, policy_info)
         if not policy_df.empty:
-            policy_assignments_dir.append(GenXResourceData(tag=policy_tag, filename=out_file, dataframe=policy_df))
-    
+            policy_assignments_dir.append(
+                GenXResourceData(tag=policy_tag, filename=out_file, dataframe=policy_df)
+            )
+
     # Process each RESOURCE_TAGS defined at the top of this file
     resource_data_dir = []
     for resource_tag in RESOURCE_TAGS:
         out_file = RESOURCE_FILENAMES[resource_tag]
         resource_df = create_resource_df(gen_data, resource_tag)
         if not resource_df.empty:
-            resource_data_dir.append(GenXResourceData(tag=resource_tag, filename=out_file, dataframe=resource_df))
+            resource_data_dir.append(
+                GenXResourceData(
+                    tag=resource_tag, filename=out_file, dataframe=resource_df
+                )
+            )
         else:
             logger.info(f"No data found for resource tag {resource_tag}")
-            
+
     # Process multistage data
     multistage_df = create_multistage_df(gen_data, MULTISTAGE_COLS)
     if not multistage_df.empty:
         logger.info("Creating multistage data file")
-        multistage_out_file = 'Resource_multistage_data.csv'
-        resource_data_dir.append(GenXResourceData(tag='MULTISTAGE', filename=multistage_out_file, dataframe=multistage_df))
-            
+        multistage_out_file = "Resource_multistage_data.csv"
+        resource_data_dir.append(
+            GenXResourceData(
+                tag="MULTISTAGE", filename=multistage_out_file, dataframe=multistage_df
+            )
+        )
+
     # Return a dictionary with the policy and resource data
     return resource_data_dir, policy_assignments_dir
