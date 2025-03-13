@@ -367,51 +367,6 @@ def main(**kwargs):
                 cols = [c for c in _settings["generator_columns"] if c in gens]
                 cols.extend(["Capital_Recovery_Period", "WACC", "Lifetime"])
 
-                df = (
-                    remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings)
-                    .pipe(set_int_cols)
-                    .pipe(round_col_values)
-                    .pipe(check_resource_tags)
-                )
-
-                #####################################
-                ############ FOR TESTING ############
-                #####################################
-
-                genx_data_dict = {
-                    "gen_data": df,
-                    "gen_variability": pd.DataFrame(),
-                    "demand_data": pd.DataFrame(),
-                    "period_map": pd.DataFrame(),
-                    "rep_period": pd.DataFrame(),
-                    "network": pd.DataFrame(),
-                    "esr": pd.DataFrame(),
-                    "cap_reserves": pd.DataFrame(),
-                    "op_reserves": pd.DataFrame(),
-                    "co2_cap": pd.DataFrame(),
-                    "min_cap": pd.DataFrame(),
-                    "max_cap": pd.DataFrame(),
-                    "fuels": pd.DataFrame(),
-                }
-
-                # Process the data and create a list of of GenXInputData objects to be written out
-                case_folder = case_folder / "Inputs"
-                genx_data = process_genx_data(case_folder, genx_data_dict)
-
-                for data in genx_data:
-                    write_results_file(
-                        df=data.dataframe,
-                        folder=data.folder,
-                        file_name=data.file_name,
-                        include_index=False,
-                        multi_period=True,
-                    )
-
-                return
-
-                #####################################
-                #####################################
-
                 if not args.load:
                     write_results_file(
                         df=gen_variability,
