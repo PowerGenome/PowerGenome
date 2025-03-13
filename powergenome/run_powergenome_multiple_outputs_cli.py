@@ -30,7 +30,6 @@ from powergenome.GenX import (
     network_line_loss,
     network_max_reinforcement,
     network_reinforcement_cost,
-    process_genx_data,
     reduce_time_domain,
     round_col_values,
     set_int_cols,
@@ -366,7 +365,16 @@ def main(**kwargs):
                 ] = 50
                 cols = [c for c in _settings["generator_columns"] if c in gens]
                 cols.extend(["Capital_Recovery_Period", "WACC", "Lifetime"])
-
+                write_results_file(
+                    df=remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings)
+                    .pipe(set_int_cols)
+                    .pipe(round_col_values)
+                    .pipe(check_resource_tags),
+                    folder=case_folder,
+                    file_name="Generators_data.csv",
+                    include_index=False,
+                    multi_period=args.multi_period,
+                )
                 if not args.load:
                     write_results_file(
                         df=gen_variability,
