@@ -27,15 +27,6 @@ class FolderStructure:
     system: Path
     policy: Path
 
-
-@dataclass(frozen=True, slots=True)
-class DataConfig:
-    dict_key: str
-    tag: str
-    folder: Path
-    filename: str
-
-
 @dataclass(frozen=True, slots=True)
 class GenXInputData:
     """A class to abstract the dataframes that will be written out in the GenX case folder."""
@@ -1764,98 +1755,89 @@ def process_genx_data(
         policy=policy_folder,
     )
 
+    # List of GenXInputData objects to be written out
     genx_data = []
 
     # Process generator data separately
     genx_data.extend(split_generators_data(folders, genx_data_dict["gen_data"]))
 
-    # Define data configurations for all other data
-    data_configs = [
+    # Add all other data to the list
+    genx_data.extend([
         # System folder data
-        DataConfig(
-            dict_key="gen_variability",
-            tag="GENERATORS_VARIABILITY",
-            folder=system_folder,
-            filename="Generators_variability.csv",
+        GenXInputData(
+            tag="GENERATORS_VARIABILITY", 
+            folder=system_folder, 
+            file_name="Generators_variability.csv", 
+            dataframe=genx_data_dict["gen_variability"]
         ),
-        DataConfig(
-            dict_key="demand_data",
-            tag="DEMAND",
-            folder=system_folder,
-            filename="Demand_data.csv",
+        GenXInputData(
+            tag="DEMAND", 
+            folder=system_folder, 
+            file_name="Demand_data.csv", 
+             dataframe=genx_data_dict["demand_data"]
         ),
-        DataConfig(
-            dict_key="period_map",
-            tag="PERIOD_MAP",
-            folder=system_folder,
-            filename="Period_map.csv",
+        GenXInputData(
+            tag="PERIOD_MAP", 
+            folder=system_folder, 
+            file_name="Period_map.csv", 
+             dataframe=genx_data_dict["period_map"]
         ),
-        DataConfig(
-            dict_key="rep_period",
-            tag="REP_PERIOD",
-            folder=system_folder,
-            filename="Repetition_period.csv",
+        GenXInputData(
+            tag="REP_PERIOD", 
+            folder=system_folder, 
+            file_name="Repetition_period.csv", 
+             dataframe=genx_data_dict["rep_period"]
         ),
-        DataConfig(
-            dict_key="network",
-            tag="NETWORK",
-            folder=system_folder,
-            filename="Network.csv",
+        GenXInputData(
+            tag="NETWORK", 
+            folder=system_folder, 
+            file_name="Network.csv", 
+             dataframe=genx_data_dict["network"]
         ),
-        DataConfig(
-            dict_key="op_reserves",
-            tag="OP_RESERVES",
-            folder=system_folder,
-            filename="Operational_reserves.csv",
+        GenXInputData(
+            tag="OP_RESERVES", 
+            folder=system_folder, 
+            file_name="Operational_reserves.csv", 
+             dataframe=genx_data_dict["op_reserves"]
         ),
-        DataConfig(
-            dict_key="fuels",
-            tag="FUELS",
-            folder=system_folder,
-            filename="Fuels_data.csv",
+        GenXInputData(
+            tag="FUELS", 
+            folder=system_folder, 
+            file_name="Fuels_data.csv", 
+             dataframe=genx_data_dict["fuels"]
         ),
+        
         # Policy folder data
-        DataConfig(
-            dict_key="esr",
-            tag="ESR",
-            folder=policy_folder,
-            filename="Energy_share_requirement.csv",
+        GenXInputData(
+            tag="ESR", 
+            folder=policy_folder, 
+            file_name="Energy_share_requirement.csv", 
+            dataframe=genx_data_dict["esr"]
         ),
-        DataConfig(
-            dict_key="cap_reserves",
-            tag="CAP_RESERVES",
-            folder=policy_folder,
-            filename="Capacity_reserve_margin.csv",
+        GenXInputData(
+            tag="CAP_RESERVES", 
+            folder=policy_folder, 
+            file_name="Capacity_reserve_margin.csv", 
+            dataframe=genx_data_dict["cap_reserves"]
         ),
-        DataConfig(
-            dict_key="co2_cap",
-            tag="CO2_CAP",
-            folder=policy_folder,
-            filename="CO2_cap.csv",
+        GenXInputData(
+            tag="CO2_CAP", 
+            folder=policy_folder, 
+            file_name="CO2_cap.csv", 
+            dataframe=genx_data_dict["co2_cap"]
         ),
-        DataConfig(
-            dict_key="min_cap",
-            tag="MIN_CAP",
-            folder=policy_folder,
-            filename="Minimum_capacity_requirement.csv",
+        GenXInputData(
+            tag="MIN_CAP", 
+            folder=policy_folder, 
+            file_name="Minimum_capacity_requirement.csv", 
+            dataframe=genx_data_dict["min_cap"]
         ),
-        DataConfig(
-            dict_key="max_cap",
-            tag="MAX_CAP",
-            folder=policy_folder,
-            filename="Maximum_capacity_requirement.csv",
+        GenXInputData(
+            tag="MAX_CAP", 
+            folder=policy_folder, 
+            file_name="Maximum_capacity_requirement.csv", 
+            dataframe=genx_data_dict["max_cap"]
         ),
-    ]
-
-    # Process them all
-    for config in data_configs:
-        genx_data.append(
-            GenXInputData(
-                tag=config.tag,
-                folder=config.folder,
-                file_name=config.filename,
-                dataframe=genx_data_dict[config.dict_key],
-            )
-        )
-
+    ])
+    
     return genx_data
