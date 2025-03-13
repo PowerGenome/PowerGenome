@@ -34,7 +34,7 @@ from powergenome.GenX import (
     round_col_values,
     set_int_cols,
     set_must_run_generation,
-    split_generators_data,
+    process_genx_data,
 )
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
@@ -369,33 +369,44 @@ def main(**kwargs):
                 
                 df = remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings).pipe(set_int_cols).pipe(round_col_values).pipe(check_resource_tags)
                 
-                # Split the dataframe into resource-specific dataframes:
-                # 1. Each resource type gets its own dataframe
-                # 2. Policy assignments are also split into their own dataframes
-                # 3. Multistage-specific columns
-                resources, policy_assignments = split_generators_data(df)
+                #####################################
+                ############ FOR TESTING ############
+                #####################################
                 
-                resource_folder = case_folder / "resources"
+                genx_data_dict = {
+                    "gen_data": df,
+                    "gen_variability": pd.DataFrame(),
+                    "demand_data": pd.DataFrame(),
+                    "period_map": pd.DataFrame(),
+                    "rep_period": pd.DataFrame(),
+                    "network": pd.DataFrame(),
+                    "esr": pd.DataFrame(),
+                    "cap_reserves": pd.DataFrame(),
+                    "op_reserves": pd.DataFrame(),
+                    "co2_cap": pd.DataFrame(),
+                    "min_cap": pd.DataFrame(),
+                    "max_cap": pd.DataFrame(),
+                    "fuels": pd.DataFrame(),
+                }
                 
-                for resource_data in resources:
+                # Process the data and create a list of of GenXInputData objects to be written out
+                case_folder = case_folder / "Inputs"
+                genx_data = process_genx_data(case_folder, genx_data_dict)
+                
+                for data in genx_data:
                     write_results_file(
-                        df=resource_data.dataframe,
-                        folder=resource_folder,
-                        file_name=resource_data.filename,
+                        df=data.dataframe,
+                        folder=data.folder,
+                        file_name=data.file_name,
                         include_index=False,
-                        multi_period=args.multi_period,
+                        multi_period=True,
                     )
                     
-                for policy_data in policy_assignments:
-                    policy_assignments_folder = resource_folder / "policy_assignments"
-                    write_results_file(
-                        df=policy_data.dataframe,
-                        folder=policy_assignments_folder,
-                        file_name=policy_data.filename,
-                        include_index=False,
-                        multi_period=args.multi_period,
-                    )
+                return
                     
+                #####################################
+                #####################################
+                
                 if not args.load:
                     write_results_file(
                         df=gen_variability,
