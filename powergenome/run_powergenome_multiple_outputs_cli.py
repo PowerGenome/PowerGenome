@@ -107,16 +107,6 @@ def parse_command_line(argv):
         help="Calculate transmission constraints. If False, file will not be written.",
     )
     parser.add_argument(
-        "-f",
-        "--no-fuel",
-        dest="fuel",
-        action="store_false",
-        help=(
-            "Create fuel table. If False, file will not be written."
-            " Can not be created without the generators."
-        ),
-    )
-    parser.add_argument(
         "-s",
         "--sort-gens",
         dest="sort_gens",
@@ -300,6 +290,8 @@ def main(**kwargs):
             _settings["extra_outputs"] = case_folder / "extra_outputs"
             _settings["extra_outputs"].mkdir(parents=True, exist_ok=True)
             logger.info(f"\n\nStarting year {year} scenario {case_id}\n\n")
+
+            case_year_data = {}
             if args.gens:
                 gc = GeneratorClusters(
                     pudl_engine=pudl_engine,
@@ -311,107 +303,29 @@ def main(**kwargs):
                     multi_period=args.multi_period,
                     include_retired_cap=first_year is False,
                 )
-                gen_clusters = gc.create_all_generators()
-                if args.fuel and args.gens:
-                    fuels = fuel_cost_table(
-                        fuel_costs=gc.fuel_prices,
-                        generators=gc.all_resources,
-                        settings=_settings,
-                    )
-                    fuels.index.name = "Time_Index"
-                    write_results_file(
-                        df=remove_fuel_scenario_name(fuels, _settings),
-                        folder=case_folder,
-                        file_name="Fuels_data.csv",
-                        include_index=True,
-                        multi_period=args.multi_period,
-                    )
+                gen_data = gc.create_all_generators()
+                gen_data["Zone"] = gen_data["region"].map(zone_num_map)
+                case_year_data["gen_data"] = gen_data
 
-                gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
-                gen_clusters = add_misc_gen_values(gen_clusters, _settings)
-                gen_clusters = hydro_energy_to_power(
-                    gen_clusters,
-                    _settings.get("hydro_factor"),
-                    _settings.get("regional_hydro_factor", {}),
-                )
-
-                gen_variability = make_generator_variability(gen_clusters)
+                gen_variability = make_generator_variability(gen_data)
                 gen_variability.index.name = "Time_Index"
-                gen_variability.columns = gen_clusters["Resource"]
-                if "MUST_RUN" in gen_clusters.columns:
-                    gen_variability = set_must_run_generation(
-                        gen_variability,
-                        gen_clusters.loc[
-                            gen_clusters["MUST_RUN"] == 1, "Resource"
-                        ].to_list(),
-                    )
-                gens = fix_min_power_values(gen_clusters, gen_variability).pipe(
-                    add_co2_costs_to_o_m
-                )
-                check_vre_profiles(gens, gen_variability)
-                for col in _settings["generator_columns"]:
-                    if col not in gens.columns:
-                        gens[col] = 0
+                gen_variability.columns = gen_data["Resource"]
+                check_vre_profiles(gen_data, gen_variability)
+                case_year_data["gen_variability"] = gen_variability
 
-                # Some extra fixes for multi-period
-                gens = gens.rename(
-                    columns={
-                        "cap_recovery_years": "Capital_Recovery_Period",
-                        "wacc_real": "WACC",
-                    }
+                fuels = fuel_cost_table(
+                    fuel_costs=gc.fuel_prices,
+                    generators=gc.all_resources,
+                    settings=_settings,
                 )
-                gens["Lifetime"] = gens["Capital_Recovery_Period"]
-                gens.loc[
-                    (gens["Lifetime"] == 0) | (gens["Lifetime"].isna()), "Lifetime"
-                ] = 50
-                cols = [c for c in _settings["generator_columns"] if c in gens]
-                cols.extend(["Capital_Recovery_Period", "WACC", "Lifetime"])
-                
-                df = remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings).pipe(set_int_cols).pipe(round_col_values).pipe(check_resource_tags)
-                
-                # Split the dataframe into resource-specific dataframes:
-                # 1. Each resource type gets its own dataframe
-                # 2. Policy assignments are also split into their own dataframes
-                # 3. Multistage-specific columns
-                resources, policy_assignments = split_generators_data(df)
-                
-                resource_folder = case_folder / "resources"
-                
-                for resource_data in resources:
-                    write_results_file(
-                        df=resource_data.dataframe,
-                        folder=resource_folder,
-                        file_name=resource_data.filename,
-                        include_index=False,
-                        multi_period=args.multi_period,
-                    )
-                    
-                for policy_data in policy_assignments:
-                    policy_assignments_folder = resource_folder / "policy_assignments"
-                    write_results_file(
-                        df=policy_data.dataframe,
-                        folder=policy_assignments_folder,
-                        file_name=policy_data.filename,
-                    )
-                    
-                if not args.load:
-                    write_results_file(
-                        df=gen_variability,
-                        folder=case_folder,
-                        file_name="Generators_variability.csv",
-                        include_index=True,
-                        float_format="%.3f",
-                        multi_period=args.multi_period,
-                    )
-
-            if args.transmission:
-                if args.gens is False:
-                    model_regions_gdf = load_ipm_shapefile(_settings)
+                fuels.index.name = "Time_Index"
+                case_year_data["fuels"] = fuels
 
             if args.load:
                 load = make_final_load_curves(pg_engine=pg_engine, settings=_settings)
                 load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
-
+                if not args.gens:
+                    gen_variability = pd.DataFrame(index=load.index)
                 (
                     reduced_resource_profile,
                     reduced_load_profile,
@@ -419,38 +333,15 @@ def main(**kwargs):
                     representative_point,
                 ) = reduce_time_domain(gen_variability, load, _settings)
                 reduced_resource_profile.index.name = "Time_Index"
-                write_results_file(
-                    df=reduced_load_profile,
-                    folder=case_folder,
-                    file_name="Load_data.csv",
-                    include_index=False,
-                    multi_period=args.multi_period,
-                )
 
-                write_results_file(
-                    df=reduced_resource_profile,
-                    folder=case_folder,
-                    file_name="Generators_variability.csv",
-                    include_index=True,
-                    float_format="%.3f",
-                    multi_period=args.multi_period,
-                )
                 if time_series_mapping is not None:
-                    write_results_file(
-                        df=time_series_mapping,
-                        folder=case_folder,
-                        file_name="Period_map.csv",
-                        include_index=False,
-                        multi_period=args.multi_period,
-                    )
+                    case_year_data["period_map"] = time_series_mapping
                 if representative_point is not None:
-                    write_results_file(
-                        df=representative_point,
-                        folder=case_folder,
-                        file_name="Representative_Period.csv",
-                        include_index=False,
-                        multi_period=args.multi_period,
-                    )
+                    case_year_data["rep_period"] = representative_point
+
+            if args.transmission:
+                if args.gens is False:
+                    model_regions_gdf = load_ipm_shapefile(_settings)
 
             if args.transmission:
                 if _settings.get("user_transmission_costs"):
@@ -488,18 +379,6 @@ def main(**kwargs):
                 network_zones = [f"z{n+1}" for n in range(len(zones))]
                 nz_df = pd.Series(data=network_zones, name="Network_zones")
                 network = pd.concat([pd.DataFrame(nz_df), transmission], axis=1)
-
-                if _settings.get("emission_policies_fn"):
-                    energy_share_req = create_policy_req(_settings, col_str_match="ESR")
-                    co2_cap = create_policy_req(_settings, col_str_match="CO_2")
-                else:
-                    energy_share_req = None
-                    co2_cap = None
-                min_cap = min_cap_req(_settings)
-                max_cap = max_cap_req(_settings)
-
-                cap_res = create_regional_cap_res(_settings)
-
                 if args.multi_period:
                     for line in network["Network_Lines"].dropna():
                         network.loc[
@@ -510,87 +389,28 @@ def main(**kwargs):
                             network["Network_Lines"] == line, "Capital_Recovery_Period"
                         ] = 60
                         network.loc[network["Network_Lines"] == line, "WACC"] = 0.044
-                write_results_file(
-                    df=network,
-                    folder=case_folder,
-                    file_name="Network.csv",
-                    include_index=False,
-                    multi_period=args.multi_period,
-                )
-                if energy_share_req is not None:
-                    write_results_file(
-                        df=energy_share_req,
-                        folder=case_folder,
-                        file_name="Energy_share_requirement.csv",
-                        include_index=False,
-                        multi_period=args.multi_period,
-                    )
-                if cap_res is not None:
-                    write_results_file(
-                        df=cap_res,
-                        folder=case_folder,
-                        file_name="Capacity_reserve_margin.csv",
-                        include_index=True,
-                        multi_period=args.multi_period,
-                    )
-                if co2_cap is not None:
-                    co2_cap = co2_cap.set_index("Region_description")
-                    co2_cap.index.name = None
-                    write_results_file(
-                        df=co2_cap,
-                        folder=case_folder,
-                        file_name="CO2_cap.csv",
-                        include_index=True,
-                        multi_period=args.multi_period,
-                    )
-                if min_cap is not None:
-                    write_results_file(
-                        df=min_cap,
-                        folder=case_folder,
-                        file_name="Minimum_capacity_requirement.csv",
-                        include_index=False,
-                        multi_period=args.multi_period,
-                    )
-                if max_cap is not None:
-                    write_results_file(
-                        df=max_cap,
-                        folder=case_folder,
-                        file_name="Maximum_capacity_requirement.csv",
-                        include_index=False,
-                        multi_period=args.multi_period,
-                    )
+                case_year_data["network"] = network
 
-            if args.fuel and args.gens:
-                fuels = fuel_cost_table(
-                    fuel_costs=gc.fuel_prices,
-                    generators=gc.all_resources,
-                    settings=_settings,
-                )
+                if _settings.get("emission_policies_fn"):
+                    energy_share_req = create_policy_req(_settings, col_str_match="ESR")
+                    co2_cap = create_policy_req(_settings, col_str_match="CO_2")
+                    case_year_data["esr"] = energy_share_req
+                    case_year_data["co2_cap"] = co2_cap
+                else:
+                    energy_share_req = None
+                    co2_cap = None
+                min_cap = min_cap_req(_settings)
+                max_cap = max_cap_req(_settings)
+                case_year_data["min_cap"] = min_cap
+                case_year_data["max_cap"] = max_cap
 
-                fuels.index.name = "Time_Index"
-                write_results_file(
-                    df=remove_fuel_scenario_name(fuels, _settings)
-                    .pipe(set_int_cols)
-                    .pipe(round_col_values),
-                    folder=case_folder,
-                    file_name="Fuels_data.csv",
-                    include_index=True,
-                    multi_period=args.multi_period,
-                )
+                cap_res = create_regional_cap_res(_settings)
+                case_year_data["cap_reserves"] = cap_res
+
             if _settings.get("reserves_fn"):
-                shutil.copy(
-                    _settings["input_folder"] / _settings["reserves_fn"],
-                    case_folder / "Inputs",
+                case_year_data["op_reserves"] = pd.read_csv(
+                    _settings["input_folder"] / _settings["reserves_fn"]
                 )
-
-            if _settings.get("genx_settings_fn"):
-                shutil.copy(cwd / _settings["genx_settings_fn"], case_folder / "Inputs")
-
-            if _settings.get("genx_settings_folder"):
-                genx_settings_folder = case_folder / "Settings"
-                genx_settings_folder.mkdir(exist_ok=True)
-                for f in (cwd / _settings.get("genx_settings_folder")).glob("*.yml"):
-                    shutil.copy(f, genx_settings_folder)
 
             write_case_settings_file(
                 settings=_settings,

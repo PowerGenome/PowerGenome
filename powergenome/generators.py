@@ -30,7 +30,16 @@ from powergenome.external_data import (
     make_demand_response_profiles,
 )
 from powergenome.financials import investment_cost_calculator
-from powergenome.GenX import cap_retire_within_period, rename_gen_cols
+from powergenome.GenX import (
+    add_co2_costs_to_o_m,
+    add_misc_gen_values,
+    cap_retire_within_period,
+    check_resource_tags,
+    hydro_energy_to_power,
+    rename_gen_cols,
+    round_col_values,
+    set_int_cols,
+)
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
     atb_fixed_var_om_existing,
@@ -48,6 +57,7 @@ from powergenome.util import (
     load_ipm_shapefile,
     map_agg_region_names,
     regions_to_keep,
+    remove_fuel_gen_scenario_name,
     remove_leading_zero,
     reverse_dict_of_lists,
     snake_case_col,
@@ -3947,6 +3957,81 @@ class GeneratorClusters:
 
         return self.new_generators
 
+    def adjust_min_power_based_on_profile(self):
+        """
+        Adjust 'Min_Power' by ensuring it is not greater than the minimum value
+        in the corresponding 'profile' column (if 'profile' contains an array).
+        Uses np.frompyfunc for improved performance on large datasets.
+        """
+        # Vectorized function to extract the minimum value from arrays
+        get_min_value = np.frompyfunc(
+            lambda x: min(x) if isinstance(x, (list, np.ndarray)) else np.nan, 1, 1
+        )
+
+        # Compute the minimum values from the 'profile' column
+        self.all_resources["profile_min"] = get_min_value(self.all_resources["profile"])
+
+        # Update 'Min_Power' where necessary
+        self.all_resources.loc[
+            (self.all_resources["profile_min"].notna())
+            & (self.all_resources["Min_Power"] > self.all_resources["profile_min"]),
+            "Min_Power",
+        ] = self.all_resources["profile_min"]
+
+        # Drop the temporary column
+        self.all_resources.drop(columns=["profile_min"], inplace=True)
+
+    def remove_fuel_scenario_name(self, gen_fuels: List[str]):
+        """
+        Keeps fuels for used in by generators in the model. Removes the scenario name
+        from the `full_fuel_name` column of of the `fuel_prices` DataFrame.
+        """
+        self.fuel_prices = self.fuel_prices.loc[
+            self.fuel_prices["full_fuel_name"].isin(gen_fuels)
+        ]
+        scenarios = (self.settings.get("eia_series_scenario_names", {}) or {}).keys()
+        for s in scenarios:
+            self.fuel_prices["full_fuel_name"] = self.fuel_prices[
+                "full_fuel_name"
+            ].str.replace(f"_{s}", "")
+
+    def apply_multi_period_transformations(self):
+        """
+        Applies transformations to self.all_resources, renaming columns and modifying
+        specific values to ensure compatibility with multi-period analysis.
+        """
+        if self.all_resources is not None:
+            self.all_resources = self.all_resources.rename(
+                columns={
+                    "cap_recovery_years": "Capital_Recovery_Period",
+                    "wacc_real": "WACC",
+                }
+            )
+            self.all_resources["Lifetime"] = self.all_resources[
+                "Capital_Recovery_Period"
+            ]
+            self.all_resources.loc[
+                (self.all_resources["Lifetime"] == 0)
+                | (self.all_resources["Lifetime"].isna()),
+                "Lifetime",
+            ] = 50
+
+            # Select relevant columns
+            cols = [
+                c for c in self.settings["generator_columns"] if c in self.all_resources
+            ]
+            cols.extend(["Capital_Recovery_Period", "WACC", "Lifetime"])
+
+            # Apply transformations
+            self.all_resources = (
+                remove_fuel_gen_scenario_name(
+                    self.all_resources[cols].fillna(0), self.settings
+                )
+                .pipe(set_int_cols)
+                .pipe(round_col_values)
+                .pipe(check_resource_tags)
+            )
+
     def create_all_generators(self):
         if self.current_gens:
             self.existing_resources = self.create_region_technology_clusters()
@@ -3994,5 +4079,23 @@ class GeneratorClusters:
             logger.debug(
                 f"Capacity of {self.all_resources['Existing_Cap_MW'].sum()} MW in final clusters"
             )
+
+        self.all_resources = (
+            add_misc_gen_values(self.all_resources, self.settings)
+            .pipe(
+                hydro_energy_to_power,
+                self.settings.get("hydro_factor"),
+                self.settings.get("regional_hydro_factor", {}),
+            )
+            .pipe(add_co2_costs_to_o_m)
+        )
+
+        self.remove_fuel_scenario_name(self.all_resources["Fuel"].to_list())
+        self.adjust_min_power_based_on_profile()
+        self.apply_multi_period_transformations()
+
+        for col in self.settings.get("generator_columns", []):
+            if col not in self.all_resources.columns:
+                self.all_resources[col] = 0
 
         return self.all_resources
