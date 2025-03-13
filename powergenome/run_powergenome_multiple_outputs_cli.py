@@ -30,11 +30,11 @@ from powergenome.GenX import (
     network_line_loss,
     network_max_reinforcement,
     network_reinforcement_cost,
+    process_genx_data,
     reduce_time_domain,
     round_col_values,
     set_int_cols,
     set_must_run_generation,
-    process_genx_data,
 )
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
@@ -366,13 +366,18 @@ def main(**kwargs):
                 ] = 50
                 cols = [c for c in _settings["generator_columns"] if c in gens]
                 cols.extend(["Capital_Recovery_Period", "WACC", "Lifetime"])
-                
-                df = remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings).pipe(set_int_cols).pipe(round_col_values).pipe(check_resource_tags)
-                
+
+                df = (
+                    remove_fuel_gen_scenario_name(gens[cols].fillna(0), _settings)
+                    .pipe(set_int_cols)
+                    .pipe(round_col_values)
+                    .pipe(check_resource_tags)
+                )
+
                 #####################################
                 ############ FOR TESTING ############
                 #####################################
-                
+
                 genx_data_dict = {
                     "gen_data": df,
                     "gen_variability": pd.DataFrame(),
@@ -388,11 +393,11 @@ def main(**kwargs):
                     "max_cap": pd.DataFrame(),
                     "fuels": pd.DataFrame(),
                 }
-                
+
                 # Process the data and create a list of of GenXInputData objects to be written out
                 case_folder = case_folder / "Inputs"
                 genx_data = process_genx_data(case_folder, genx_data_dict)
-                
+
                 for data in genx_data:
                     write_results_file(
                         df=data.dataframe,
@@ -401,12 +406,12 @@ def main(**kwargs):
                         include_index=False,
                         multi_period=True,
                     )
-                    
+
                 return
-                    
+
                 #####################################
                 #####################################
-                
+
                 if not args.load:
                     write_results_file(
                         df=gen_variability,
