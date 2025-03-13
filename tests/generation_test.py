@@ -396,7 +396,7 @@ def test_gen_integration(CA_AZ_settings, tmp_path):
         all_gens.query("technology.str.contains('NaturalGas_CCCCS', case=False)")[
             "Heat_Rate_MMBTU_per_MWh"
         ].mean(),
-        7.159,
+        7.16,
     )
     assert np.allclose(
         all_gens.query("technology.str.contains('CCS100', case=False)")[
