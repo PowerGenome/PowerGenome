@@ -4,6 +4,7 @@ import logging
 from itertools import product
 from pathlib import Path
 from typing import Dict, List
+from dataclasses import dataclass
 
 import pandas as pd
 
@@ -17,47 +18,38 @@ from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import find_region_col, snake_case_col, snake_case_str
 
 logger = logging.getLogger(__name__)
-        
-# In GenX v0.4, the case folder structure is:
-# resources/
-#     policy_assignments/
-#         <policy_tag>.csv
-#     <resource_tag>.csv
-#     Resource_multistage_data.csv  # if running multi-stage
-# settings/
-#     genx_settings.yaml
-#     [other settings files]
-# system/
-#     Network.csv
-#     Demand.csv
-#     Fuels_data.csv
-#     Generators_variability.csv
-# policies/
-#     CO2_cap.csv
-#     Capacity_reserve_margin.csv
-#     Energy_share_requirement.csv
-#     Maximum_capacity_requirement.csv
-#     Minimum_capacity_requirement.csv
-#     [other policy files]
 
-class GenXResourceData:
-    """
-    A class to abstract the dataframes that will be written out in the resource folder
-    of the GenX case.
+@dataclass(frozen=True, slots=True)
+class FolderStructure:
+    resource: Path
+    policy_assignments: Path
+    system: Path
+    policy: Path
 
-    Attributes
-    ----------
-    tag : str
-        The resource or policy tag (e.g., 'THERM', 'VRE', 'ESR', 'CAP_RES', etc.)
-    filename : str
-        The filename associated with the resource data
-    dataframe : pd.DataFrame
-        The dataframe containing the resource data
-    """
-    def __init__(self, tag: str, filename: str, dataframe: pd.DataFrame):
-        self.tag = tag
-        self.filename = filename
-        self.dataframe = dataframe
+@dataclass(frozen=True, slots=True)
+class DataConfig:
+    dict_key: str
+    tag: str
+    folder: Path
+    filename: str
+
+@dataclass(frozen=True, slots=True)
+class GenXInputData:
+    """A class to abstract the dataframes that will be written out in the GenX case folder."""
+    tag: str
+    folder: Path
+    file_name: str
+    dataframe: pd.DataFrame
+
+    def __post_init__(self):
+        """Validate the data after initialization."""
+        if not isinstance(self.folder, Path):
+            object.__setattr__(self, 'folder', Path(self.folder))
+        if not self.file_name.endswith('.csv'):
+            raise ValueError(f"file_name must end with .csv, got {self.file_name}")
+        if not isinstance(self.dataframe, pd.DataFrame):
+            raise TypeError(f"dataframe must be a pandas DataFrame, got {type(self.dataframe)}")
+
 
 INT_COLS = [
     "Inv_Cost_per_MWyr",
@@ -1634,7 +1626,7 @@ def create_multistage_df(df: pd.DataFrame, multistage_cols: List[str]) -> pd.Dat
     
     return multistage_df
 
-def split_generators_data(gen_data: pd.DataFrame) -> List[GenXResourceData]:
+def split_generators_data(folder_structure: FolderStructure, gen_data: pd.DataFrame) -> List[GenXInputData]:
     """Split generator data DataFrame into resource-specific files.
 
     Parameters
@@ -1647,6 +1639,10 @@ def split_generators_data(gen_data: pd.DataFrame) -> List[GenXResourceData]:
     List[GenXResourceData]
         List of GenXResourceData objects containing the resource-specific data
     """
+    
+    # Paths to the folders to write the data to
+    resource_folder = folder_structure.resource
+    policy_assignments_folder = folder_structure.policy_assignments
     
     # Create a copy of the generator data
     generators_df = gen_data.copy()
@@ -1661,29 +1657,93 @@ def split_generators_data(gen_data: pd.DataFrame) -> List[GenXResourceData]:
         
     # Process each POLICY_TAGS (defined at the top of this file) and return a dataframe
     # with the policy files to be written out
-    policy_assignments_dir = []
+    resource_data = []
     for policy_tag, policy_info in POLICY_TAGS:
-        out_file = POLICY_TAGS_FILENAMES[policy_tag]
         policy_df = create_policy_df(generators_df, policy_info)
         if not policy_df.empty:
-            policy_assignments_dir.append(GenXResourceData(tag=policy_tag, filename=out_file, dataframe=policy_df))
+            out_file = POLICY_TAGS_FILENAMES[policy_tag]
+            resource_data.append(GenXInputData(tag=policy_tag, folder=policy_assignments_folder, file_name=out_file, dataframe=policy_df))
     
     # Process multistage data
-    resource_data_dir = []
     multistage_df = create_multistage_df(generators_df, MULTISTAGE_COLS)
     if not multistage_df.empty:
-        logger.info("Creating multistage data file")
-        multistage_out_file = 'Resource_multistage_data.csv'
-        resource_data_dir.append(GenXResourceData(tag='MULTISTAGE', filename=multistage_out_file, dataframe=multistage_df))
+        out_file = 'Resource_multistage_data.csv'
+        resource_data.append(GenXInputData(tag='MULTISTAGE', folder=resource_folder, file_name=out_file, dataframe=multistage_df))
             
     # Process each RESOURCE_TAGS defined at the top of this file
     for resource_tag in RESOURCE_TAGS:
         out_file = RESOURCE_FILENAMES[resource_tag]
         resource_df = create_resource_df(generators_df, resource_tag)
         if not resource_df.empty:
-            resource_data_dir.append(GenXResourceData(tag=resource_tag, filename=out_file, dataframe=resource_df))
+            resource_data.append(GenXInputData(tag=resource_tag, folder=resource_folder, file_name=out_file, dataframe=resource_df))
         else:
             logger.info(f"No data found for resource tag {resource_tag}")
             
-    # Return a dictionary with the policy and resource data
-    return resource_data_dir, policy_assignments_dir
+    # Return a list of GenXResourceData objects
+    return resource_data
+
+def process_genx_data(case_folder: Path, genx_data_dict: Dict[str, pd.DataFrame]) -> List[GenXInputData]:
+    """Process genx data dictionary and return a list of GenXResourceData objects.
+    
+    Parameters
+    ----------
+    case_folder : Path
+        Path to the case folder
+    genx_data_dict : Dict[str, pd.DataFrame]
+        Dictionary of resource-specific data
+
+    Returns
+    -------
+    List[GenXResourceData]
+        List of GenXResourceData objects to be written out
+    """
+    
+    resource_folder = case_folder / "resources"
+    policy_assignments_folder = resource_folder / "policy_assignments"
+    system_folder = case_folder / "system"
+    policy_folder = case_folder / "policy"
+
+    # Create folder structure
+    folders = FolderStructure(
+        resource=resource_folder,
+        policy_assignments=policy_assignments_folder,
+        system=system_folder,
+        policy=policy_folder
+    )
+    
+    genx_data = []
+    
+    # Process generator data separately
+    genx_data.extend(split_generators_data(folders, genx_data_dict["gen_data"]))
+    
+    # Define data configurations for all other data
+    data_configs = [
+        # System folder data
+        DataConfig(dict_key="gen_variability", tag="GENERATORS_VARIABILITY", folder=system_folder, filename="Generators_variability.csv"),
+        DataConfig(dict_key="demand_data", tag="DEMAND", folder=system_folder, filename="Demand_data.csv"),
+        DataConfig(dict_key="period_map", tag="PERIOD_MAP", folder=system_folder, filename="Period_map.csv"),
+        DataConfig(dict_key="rep_period", tag="REP_PERIOD", folder=system_folder, filename="Repetition_period.csv"),
+        DataConfig(dict_key="network", tag="NETWORK", folder=system_folder, filename="Network.csv"),
+        DataConfig(dict_key="op_reserves", tag="OP_RESERVES", folder=system_folder, filename="Operational_reserves.csv"),
+        DataConfig(dict_key="fuels", tag="FUELS", folder=system_folder, filename="Fuels_data.csv"),
+        
+        # Policy folder data
+        DataConfig(dict_key="esr", tag="ESR", folder=policy_folder, filename="Energy_share_requirement.csv"),
+        DataConfig(dict_key="cap_reserves", tag="CAP_RESERVES", folder=policy_folder, filename="Capacity_reserve_margin.csv"),
+        DataConfig(dict_key="co2_cap", tag="CO2_CAP", folder=policy_folder, filename="CO2_cap.csv"),
+        DataConfig(dict_key="min_cap", tag="MIN_CAP", folder=policy_folder, filename="Minimum_capacity_requirement.csv"),
+        DataConfig(dict_key="max_cap", tag="MAX_CAP", folder=policy_folder, filename="Maximum_capacity_requirement.csv"),
+    ]
+    
+    # Process them all
+    for config in data_configs:
+        genx_data.append(
+            GenXInputData(
+                tag=config.tag,
+                folder= config.folder,
+                file_name=config.filename,
+                dataframe=genx_data_dict[config.dict_key]
+            )
+        )
+    
+    return genx_data
