@@ -1798,74 +1798,183 @@ def process_genx_data(
                 tag="GENERATORS_VARIABILITY",
                 folder=system_folder,
                 file_name="Generators_variability.csv",
-                dataframe=genx_data_dict["gen_variability"],
+                dataframe=genx_data_dict.get("gen_variability", pd.DataFrame()),
             ),
             GenXInputData(
                 tag="DEMAND",
                 folder=system_folder,
                 file_name="Demand_data.csv",
-                dataframe=genx_data_dict["demand_data"],
+                dataframe=genx_data_dict.get("demand_data", pd.DataFrame()),
             ),
             GenXInputData(
                 tag="PERIOD_MAP",
                 folder=system_folder,
                 file_name="Period_map.csv",
-                dataframe=genx_data_dict["period_map"],
+                dataframe=genx_data_dict.get("period_map", pd.DataFrame()),
             ),
             GenXInputData(
                 tag="REP_PERIOD",
                 folder=system_folder,
                 file_name="Representative_Period.csv",
-                dataframe=genx_data_dict["rep_period"],
+                dataframe=genx_data_dict.get("rep_period", pd.DataFrame()),
             ),
             GenXInputData(
                 tag="NETWORK",
                 folder=system_folder,
                 file_name="Network.csv",
-                dataframe=genx_data_dict["network"],
+                dataframe=genx_data_dict.get("network", pd.DataFrame()),
             ),
             GenXInputData(
                 tag="OP_RESERVES",
                 folder=system_folder,
                 file_name="Operational_reserves.csv",
-                dataframe=genx_data_dict["op_reserves"],
+                dataframe=genx_data_dict.get("op_reserves", pd.DataFrame()),
             ),
             GenXInputData(
                 tag="FUELS",
                 folder=system_folder,
                 file_name="Fuels_data.csv",
-                dataframe=genx_data_dict["fuels"],
+                dataframe=genx_data_dict.get("fuels", pd.DataFrame()),
             ),
             # Policy folder data
             GenXInputData(
                 tag="ESR",
                 folder=policy_folder,
                 file_name="Energy_share_requirement.csv",
-                dataframe=genx_data_dict["esr"],
+                dataframe=genx_data_dict.get("esr", pd.DataFrame()),
             ),
             GenXInputData(
                 tag="CAP_RESERVES",
                 folder=policy_folder,
                 file_name="Capacity_reserve_margin.csv",
-                dataframe=genx_data_dict["cap_reserves"],
+                dataframe=genx_data_dict.get("cap_reserves", pd.DataFrame()),
             ),
             GenXInputData(
                 tag="CO2_CAP",
                 folder=policy_folder,
                 file_name="CO2_cap.csv",
-                dataframe=genx_data_dict["co2_cap"],
+                dataframe=genx_data_dict.get("co2_cap", pd.DataFrame()),
             ),
             GenXInputData(
                 tag="MIN_CAP",
                 folder=policy_folder,
                 file_name="Minimum_capacity_requirement.csv",
-                dataframe=genx_data_dict["min_cap"],
+                dataframe=genx_data_dict.get("min_cap", pd.DataFrame()),
             ),
             GenXInputData(
                 tag="MAX_CAP",
                 folder=policy_folder,
                 file_name="Maximum_capacity_requirement.csv",
-                dataframe=genx_data_dict["max_cap"],
+                dataframe=genx_data_dict.get("max_cap", pd.DataFrame()),
+            ),
+        ]
+    )
+
+    return genx_data
+
+
+def process_genx_data_old_format(
+    case_folder: Path, genx_data_dict: Dict[str, pd.DataFrame]
+) -> List[GenXInputData]:
+    """Process genx data dictionary and return a list of GenXResourceData objects. Use
+    for GenX versions prior to 0.4.0.
+
+    Parameters
+    ----------
+    case_folder : Path
+        Path to the case folder
+    genx_data_dict : Dict[str, pd.DataFrame]
+        Dictionary of resource-specific data
+
+    Returns
+    -------
+    List[GenXResourceData]
+        List of GenXResourceData objects to be written out
+    """
+
+    # List of GenXInputData objects to be written out
+    genx_data = []
+
+    # Add all other data to the list
+    genx_data.extend(
+        [
+            GenXInputData(
+                tag="GENERATORS_DATA",
+                folder=case_folder,
+                file_name="Generators_data.csv",
+                dataframe=genx_data_dict.get("gen_data", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="GENERATORS_VARIABILITY",
+                folder=case_folder,
+                file_name="Generators_variability.csv",
+                dataframe=genx_data_dict.get("gen_variability", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="DEMAND",
+                folder=case_folder,
+                file_name="Demand_data.csv",
+                dataframe=genx_data_dict.get("demand_data", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="PERIOD_MAP",
+                folder=case_folder,
+                file_name="Period_map.csv",
+                dataframe=genx_data_dict.get("period_map", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="REP_PERIOD",
+                folder=case_folder,
+                file_name="Representative_Period.csv",
+                dataframe=genx_data_dict.get("rep_period", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="NETWORK",
+                folder=case_folder,
+                file_name="Network.csv",
+                dataframe=genx_data_dict.get("network", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="OP_RESERVES",
+                folder=case_folder,
+                file_name="Operational_reserves.csv",
+                dataframe=genx_data_dict.get("op_reserves", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="FUELS",
+                folder=case_folder,
+                file_name="Fuels_data.csv",
+                dataframe=genx_data_dict.get("fuels", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="ESR",
+                folder=case_folder,
+                file_name="Energy_share_requirement.csv",
+                dataframe=genx_data_dict.get("esr", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="CAP_RESERVES",
+                folder=case_folder,
+                file_name="Capacity_reserve_margin.csv",
+                dataframe=genx_data_dict.get("cap_reserves", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="CO2_CAP",
+                folder=case_folder,
+                file_name="CO2_cap.csv",
+                dataframe=genx_data_dict.get("co2_cap", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="MIN_CAP",
+                folder=case_folder,
+                file_name="Minimum_capacity_requirement.csv",
+                dataframe=genx_data_dict.get("min_cap", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="MAX_CAP",
+                folder=case_folder,
+                file_name="Maximum_capacity_requirement.csv",
+                dataframe=genx_data_dict.get("max_cap", pd.DataFrame()),
             ),
         ]
     )
