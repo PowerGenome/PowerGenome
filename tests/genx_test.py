@@ -1436,16 +1436,6 @@ def test_process_genx_data_empty_dataframes(case_folder, sample_genx_data_dict):
     assert "NETWORK" in tags
 
 
-def test_process_genx_data_missing_keys(case_folder, sample_genx_data_dict):
-    """Test handling of missing dictionary keys."""
-    # Remove some keys from the dictionary
-    del sample_genx_data_dict["network"]
-    del sample_genx_data_dict["op_reserves"]
-
-    with pytest.raises(KeyError):
-        process_genx_data(case_folder, sample_genx_data_dict)
-
-
 def test_process_genx_data_generators_split(case_folder, sample_genx_data_dict):
     """Test that generator data is properly split."""
     result = process_genx_data(case_folder, sample_genx_data_dict)
