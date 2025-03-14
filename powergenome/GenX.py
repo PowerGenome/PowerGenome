@@ -1451,7 +1451,7 @@ def update_newbuild_canretire(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_valid_columns(df: pd.DataFrame) -> List[str]:
+def filter_empty_columns(df: pd.DataFrame) -> List[str]:
     """Find columns that have at least one valid value.
 
     A column is considered valid if it has at least one value that is:
@@ -1517,7 +1517,7 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
     resource_df = df[df[resource_tag] == 1].copy()
 
     # Find columns with non-zero values
-    valid_cols = set(get_valid_columns(resource_df)) | set(DEFAULT_COLS)
+    valid_cols = set(filter_empty_columns(resource_df)) | set(DEFAULT_COLS)
     logger.debug(f"Found {len(valid_cols)} valid columns for {resource_tag}")
 
     # Get columns to keep for this resource type

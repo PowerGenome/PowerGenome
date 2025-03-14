@@ -8,6 +8,7 @@ from powergenome.GenX import (
     check_vre_profiles,
     set_must_run_generation,
     update_newbuild_canretire,
+    filter_empty_columns,
 
 
 # Tests setting the generation of a single must run resource to 1 in all hours.
@@ -198,3 +199,66 @@ def test_update_newbuild_canretire():
     })
     result_df = update_newbuild_canretire(input_df)
     pd.testing.assert_frame_equal(result_df, expected_df)
+
+def test_filter_empty_columns():
+    """Test filter_empty_columns function with various test cases."""
+    # Test case 1: Default behaviour
+    df_basic = pd.DataFrame({
+        'valid_col': [1, 2, 3],
+        'zero_col': [0, 0, 0],
+        'none_col': [None, None, None],
+        'string_none_col': ["None", "None", "None"],
+        'mixed_col': [1, None, "None"],
+        'valid_string': ["a", "b", "c"]
+    })
+    result = filter_empty_columns(df_basic)
+    assert sorted(result) == sorted(['valid_col', 'mixed_col', 'valid_string']), \
+        "Basic case failed"
+
+    # Test case 2: Empty DataFrame
+    df_empty = pd.DataFrame({})
+    assert filter_empty_columns(df_empty) == [], \
+        "Empty DataFrame case failed"
+
+    # Test case 3: All invalid columns
+    df_invalid = pd.DataFrame({
+        'zero_col': [0, 0],
+        'none_col': [None, None],
+        'string_none_col': ["None", "None"]
+    })
+    assert filter_empty_columns(df_invalid) == [], \
+        "All invalid columns case failed"
+
+    # Test case 4: Mixed types
+    df_mixed = pd.DataFrame({
+        'mixed_types': [1, "text", 3.14],
+        'mixed_invalid': [0, None, "None"], # For now, mixed types are allowed
+        'bool_col': [True, False, True]
+    })
+    assert sorted(filter_empty_columns(df_mixed)) == sorted(['mixed_types', 'mixed_invalid', 'bool_col']), \
+        "Mixed types case failed"
+
+    # Test case 5: Edge cases
+    df_edge = pd.DataFrame({
+        'empty_str': ["", "", ""],
+        'whitespace': [" ", "  ", "\t"],
+        'zero_float': [0.0, 0.0, 0.0],
+        'valid_zero_one': [0, 1, 0]
+    })
+    assert sorted(filter_empty_columns(df_edge)) == sorted(['whitespace', 'valid_zero_one']), \
+        "Edge cases failed"
+
+    # Test case 6: NaN values
+    df_nan = pd.DataFrame({
+        'nan_col': [np.nan, np.nan, np.nan],
+        'mixed_nan': [1, np.nan, 3],
+        'inf_col': [np.inf, -np.inf, np.inf]
+    })
+    assert sorted(filter_empty_columns(df_nan)) == sorted(['mixed_nan', 'inf_col']), \
+        "NaN values case failed"
+
+def test_filter_empty_columns_errors():
+    """Test error handling in filter_empty_columns."""
+    # Test with non-DataFrame input
+    with pytest.raises(AttributeError):
+        filter_empty_columns([1, 2, 3])
