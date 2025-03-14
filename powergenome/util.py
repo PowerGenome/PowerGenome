@@ -778,7 +778,6 @@ def write_results_file(
     file_name: str,
     include_index: bool = False,
     float_format: str = None,
-    multi_period: bool = True,
 ):
     """Write a finalized dataframe to one of the results csv files.
 
@@ -797,8 +796,6 @@ def write_results_file(
     multi_period : bool, optional
         If results should be formatted for multi-period, by default True
     """
-    if not multi_period:
-        folder = folder / "Inputs"
 
     folder.mkdir(exist_ok=True, parents=True)
 

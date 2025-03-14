@@ -30,6 +30,8 @@ from powergenome.GenX import (
     network_line_loss,
     network_max_reinforcement,
     network_reinforcement_cost,
+    process_genx_data,
+    process_genx_data_old_format,
     reduce_time_domain,
     round_col_values,
     set_int_cols,
@@ -410,6 +412,19 @@ def main(**kwargs):
                 case_year_data["op_reserves"] = pd.read_csv(
                     _settings["input_folder"] / _settings["reserves_fn"]
                 )
+
+            if _settings.get("old_genx_format", False) is not True:
+                genx_data = process_genx_data(case_folder, case_year_data)
+            else:
+                genx_data = process_genx_data_old_format(case_folder, case_year_data)
+
+            for data in genx_data:
+                if not data.dataframe.empty:
+                    write_results_file(
+                        data.dataframe,
+                        case_folder,
+                        data.file_name,
+                    )
 
             write_case_settings_file(
                 settings=_settings,
