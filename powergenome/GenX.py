@@ -1707,7 +1707,7 @@ def split_generators_data(
             out_file = POLICY_TAGS_FILENAMES[policy_tag]
             resource_data.append(
                 GenXInputData(
-                    tag=policy_tag,
+                    tag=f"RES_{policy_tag}",
                     folder=policy_assignments_folder,
                     file_name=out_file,
                     dataframe=policy_df,

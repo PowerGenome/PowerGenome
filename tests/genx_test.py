@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pandas as pd
 import pytest
+from pathlib import Path
 
 from powergenome.GenX import (
     check_vre_profiles,
@@ -14,6 +15,10 @@ from powergenome.GenX import (
     DEFAULT_COLS,
     create_policy_df,
     create_multistage_df,
+    split_generators_data, 
+    FolderStructure,
+    GenXInputData,
+)
 
 
 # Tests setting the generation of a single must run resource to 1 in all hours.
@@ -833,3 +838,170 @@ def test_create_multistage_df_empty_df():
     assert result.empty, "Should return empty DataFrame"
     assert list(result.columns) == ['Resource', 'WACC', 'Capital_Recovery_Period', 'Lifetime'], \
         "Should preserve column structure even with empty DataFrame"
+
+@pytest.fixture
+def folder_structure():
+    """Create a test folder structure."""
+    return FolderStructure(
+        resource=Path("test_resources"),
+        policy_assignments=Path("test_policies"),
+        system=Path("test_system"),
+        policy=Path("test_policy")
+    )
+
+def test_split_generators_basic(folder_structure, sample_gen_data):
+    """Test basic functionality of split_generators_data."""
+    result = split_generators_data(folder_structure, sample_gen_data)
+    
+    # Check that we get a list of GenXInputData objects
+    assert isinstance(result, list)
+    assert all(isinstance(x, GenXInputData) for x in result)
+    
+    # Check that R_ID is dropped
+    assert all('R_ID' not in data.dataframe.columns for data in result)
+    
+    # Verify we have the expected number of output files
+    # (THERM, STOR, VRE, MUST_RUN, FLEX, HYDRO, ESR policy, CapRes policy, and multistage data)
+    resource_files = [data for data in result if data.folder == folder_structure.resource]
+    policy_files = [data for data in result if data.folder == folder_structure.policy_assignments]
+    
+    assert len(resource_files) > 0, "Should have resource files"
+    assert len(policy_files) > 0, "Should have policy files"
+
+def test_split_generators_resource_types(folder_structure, sample_gen_data):
+    """Test that each resource type is properly separated."""
+    result = split_generators_data(folder_structure, sample_gen_data)
+    
+    # Check THERM resources
+    therm_data = next(data for data in result if data.tag == 'THERM')
+    assert len(therm_data.dataframe) == 2, "Should have 2 THERM resources"
+    assert 'Model' in therm_data.dataframe.columns, "THERM should have Model column"
+    
+    # Check STOR resources
+    stor_data = next(data for data in result if data.tag == 'STOR')
+    assert len(stor_data.dataframe) == 2, "Should have 2 STOR resources"
+    assert 'Model' in stor_data.dataframe.columns, "STOR should have Model column"
+    
+    # Check VRE resources
+    vre_data = next(data for data in result if data.tag == 'VRE')
+    assert len(vre_data.dataframe) == 2, "Should have 2 VRE resources"
+    assert 'Model' not in vre_data.dataframe.columns, "VRE should not have Model column"
+    assert 'Num_VRE_Bins' in vre_data.dataframe.columns, "VRE should have Num_VRE_Bins column"
+    
+    # Check MUST_RUN resources
+    must_run_data = next(data for data in result if data.tag == 'MUST_RUN')
+    assert len(must_run_data.dataframe) == 1, "Should have 1 MUST_RUN resources"
+    assert 'Model' not in must_run_data.dataframe.columns, "MUST_RUN should not have Model column"
+
+    # Check FLEX resources
+    flex_data = next(data for data in result if data.tag == 'FLEX')
+    assert len(flex_data.dataframe) == 1, "Should have 1 FLEX resources"
+    assert 'Model' not in flex_data.dataframe.columns, "FLEX should not have Model column"
+    assert 'Num_VRE_Bins' not in flex_data.dataframe.columns, "FLEX should not have Num_VRE_Bins column"
+    assert 'Max_Flexible_Demand_Advance' in flex_data.dataframe.columns, "FLEX should have Max_Flexible_Demand_Advance column"
+    assert 'Max_Flexible_Demand_Delay' in flex_data.dataframe.columns, "FLEX should have Max_Flexible_Demand_Delay column"
+    
+    # Check HYDRO resources
+    hydro_data = next(data for data in result if data.tag == 'HYDRO')
+    assert len(hydro_data.dataframe) == 1, "Should have 1 HYDRO resources"
+    assert 'Model' not in hydro_data.dataframe.columns, "HYDRO should not have Model column"
+    assert 'Num_VRE_Bins' not in hydro_data.dataframe.columns, "HYDRO should not have Num_VRE_Bins column"
+    assert 'Eff_Down' not in hydro_data.dataframe.columns, "HYDRO should not have Eff_Down column as the column has only zeros"
+    assert 'Eff_Up' in hydro_data.dataframe.columns, "HYDRO should have Eff_Up column"
+    assert 'Hydro_Energy_to_Power_Ratio' in hydro_data.dataframe.columns, "HYDRO should have Hydro_Energy_to_Power_Ratio column"
+    assert 'LDS' in hydro_data.dataframe.columns, "HYDRO should have LDS column"
+    assert 'Min_Power' in hydro_data.dataframe.columns, "HYDRO should have Min_Power column"
+    assert 'Ramp_Up_Percentage' in hydro_data.dataframe.columns, "HYDRO should have Ramp_Up_Percentage column"
+    assert 'Ramp_Dn_Percentage' in hydro_data.dataframe.columns, "HYDRO should have Ramp_Dn_Percentage column"
+
+def test_split_generators_policy_data(folder_structure, sample_gen_data):
+    """Test that policy data is properly processed."""
+    result = split_generators_data(folder_structure, sample_gen_data)
+    
+    # Check ESR policy data
+    esr_data = next(data for data in result if data.tag == 'RES_ESR')
+    assert all(col in esr_data.dataframe.columns for col in ['ESR_1', 'ESR_2'])
+    assert len(esr_data.dataframe) > 0, "Should have ESR policy data"
+    
+    # Check Derating_factor policy data
+    cap_res_data = next(data for data in result if data.tag == 'RES_CAP_RES')
+    assert 'Derating_factor_1' in cap_res_data.dataframe.columns
+    assert len(cap_res_data.dataframe) > 0, "Should have Derating_factor policy data"
+    
+    # Check Min_Cap policy data
+    min_cap_data = next(data for data in result if data.tag == 'RES_MIN_CAP')
+    assert 'Min_Cap_1' in min_cap_data.dataframe.columns
+    assert len(min_cap_data.dataframe) > 0, "Should have Min_Cap policy data"
+    
+    # Check Max_Cap policy data
+    max_cap_data = next(data for data in result if data.tag == 'RES_MAX_CAP')
+    assert 'Max_Cap_1' in max_cap_data.dataframe.columns
+    assert len(max_cap_data.dataframe) > 0, "Should have Max_Cap policy data"
+    
+def test_split_generators_multistage(folder_structure, sample_gen_data):
+    """Test that multistage data is properly processed."""
+    result = split_generators_data(folder_structure, sample_gen_data)
+    
+    multistage_data = next(data for data in result if data.tag == 'MULTISTAGE')
+    assert all(col in multistage_data.dataframe.columns for col in ['WACC', 'Capital_Recovery_Period', 'Lifetime'])
+    assert len(multistage_data.dataframe) == 9, "Should have all rows in multistage data"
+
+def test_split_generators_empty_data(folder_structure):
+    """Test behavior with empty generator data."""
+    empty_df = pd.DataFrame(columns=['Resource', 'THERM', 'ESR_1'])
+    result = split_generators_data(folder_structure, empty_df)
+    
+    assert isinstance(result, list)
+    assert len(result) == 0, "Should return empty list for empty input"
+
+def test_split_generators_missing_columns(folder_structure, sample_gen_data):
+    """Test behavior when optional columns are missing."""
+    # Remove some columns
+    df_subset = sample_gen_data.drop(columns=['New_Build', 'R_ID'])
+    result = split_generators_data(folder_structure, df_subset)
+    
+    assert isinstance(result, list)
+    assert len(result) > 0, "Should still process data without optional columns"
+
+def test_split_generators_data_integrity(folder_structure, sample_gen_data):
+    """Test that data values are preserved correctly."""
+    result = split_generators_data(folder_structure, sample_gen_data)
+    
+    # Check that original values are preserved in appropriate output files
+    for data in result:
+        if data.tag == 'THERM':
+            assert data.dataframe['Resource'].isin(['therm_nc', 'therm_uc']).all(), \
+                "THERM resources should match original data"
+        elif data.tag == 'STOR':
+            assert data.dataframe['Resource'].isin(['stor_sym', 'stor_asym']).all(), \
+                "STOR resources should match original data"
+        elif data.tag == 'VRE':
+            assert data.dataframe['Resource'].isin(['vre_1', 'vre_2']).all(), \
+                "VRE resources should match original data"
+        elif data.tag == 'MUST_RUN':
+            assert data.dataframe['Resource'].isin(['must_run_1']).all(), \
+                "MUST_RUN resources should match original data"
+        elif data.tag == 'FLEX':
+            assert data.dataframe['Resource'].isin(['flex_1']).all(), \
+                "FLEX resources should match original data"
+        elif data.tag == 'HYDRO':
+            assert data.dataframe['Resource'].isin(['hydro_1']).all(), \
+                "HYDRO resources should match original data"
+        elif data.tag == 'MULTISTAGE':
+            assert (data.dataframe['WACC'] == [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]).all(), \
+                "Multistage data should preserve original values"
+
+def test_split_generators_newbuild_canretire(folder_structure):
+    """Test New_Build and Can_Retire column handling."""
+    df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'New_Build': [1, 0],
+        'THERM': [2, 0]
+    })
+    
+    result = split_generators_data(folder_structure, df)
+    
+    # Find THERM resource data
+    therm_data = next(data for data in result if data.tag == 'THERM')
+    assert 'Can_Retire' in therm_data.dataframe.columns, \
+        "Should add Can_Retire column based on New_Build"
