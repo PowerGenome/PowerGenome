@@ -18,6 +18,7 @@ from powergenome.GenX import (
     split_generators_data, 
     FolderStructure,
     GenXInputData,
+    process_genx_data,
 )
 
 
@@ -1005,3 +1006,184 @@ def test_split_generators_newbuild_canretire(folder_structure):
     therm_data = next(data for data in result if data.tag == 'THERM')
     assert 'Can_Retire' in therm_data.dataframe.columns, \
         "Should add Can_Retire column based on New_Build"
+
+@pytest.fixture
+def case_folder(tmp_path):
+    """Create a temporary case folder structure."""
+    return tmp_path / "test_case"
+
+@pytest.fixture
+def sample_genx_data_dict():
+    """Create sample data dictionary with all required DataFrames."""
+    return {
+        "gen_data": pd.DataFrame({
+            'Resource': ['gen_1', 'gen_2'],
+            'THERM': [2, 1],
+            'ESR_1': [1, 0],
+            'CapRes_1': [0.8, 0.9],
+            'MinCapTag_1': [1, 0],
+            'MaxCapTag_1': [0, 1],
+            'Lifetime': [10, 20]
+        }),
+        "gen_variability": pd.DataFrame({
+            'Resource': ['gen_1'],
+            'Var_1': [0.5]
+        }),
+        "demand_data": pd.DataFrame({
+            'Time': range(24),
+            'Load': [100] * 24
+        }),
+        "period_map": pd.DataFrame({
+            'Period': range(12),
+            'Map': ['Jan'] * 12
+        }),
+        "rep_period": pd.DataFrame({
+            'Period': range(12),
+            'Weight': [1] * 12
+        }),
+        "network": pd.DataFrame({
+            'Line': ['L1'],
+            'From': ['A'],
+            'To': ['B']
+        }),
+        "op_reserves": pd.DataFrame({
+            'Reserve': ['R1'],
+            'Requirement': [0.1]
+        }),
+        "fuels": pd.DataFrame({
+            'Fuel': ['Coal'],
+            'Price': [50]
+        }),
+        "esr": pd.DataFrame({
+            'Year': [2030],
+            'Target': [0.5]
+        }),
+        "cap_reserves": pd.DataFrame({
+            'Period': [1],
+            'Margin': [0.15]
+        }),
+        "co2_cap": pd.DataFrame({
+            'Year': [2030],
+            'Cap': [1000]
+        }),
+        "min_cap": pd.DataFrame({
+            'Resource': ['gen_1'],
+            'Min': [100]
+        }),
+        "max_cap": pd.DataFrame({
+            'Resource': ['gen_1'],
+            'Max': [500]
+        })
+    }
+
+def test_process_genx_data_basic(case_folder, sample_genx_data_dict):
+    """Test basic functionality of process_genx_data."""
+    result = process_genx_data(case_folder, sample_genx_data_dict)
+    
+    # Check that we get a list of GenXInputData objects
+    assert isinstance(result, list)
+    assert all(isinstance(x, GenXInputData) for x in result)
+    
+    # Check that all expected files are present
+    expected_tags = {
+        'THERM', 'RES_ESR', 'RES_CAP_RES', 'RES_MIN_CAP', 'RES_MAX_CAP', 'MULTISTAGE', 
+        'GENERATORS_VARIABILITY', 'DEMAND', 'PERIOD_MAP', 'REP_PERIOD', 'NETWORK', 
+        'OP_RESERVES', 'FUELS', 'ESR', 'CAP_RESERVES', 'CO2_CAP', 'MIN_CAP', 'MAX_CAP'
+    }
+    result_tags = {data.tag for data in result}
+    assert expected_tags == result_tags, \
+        "All expected data types should be present"
+
+def test_process_genx_data_folder_structure(case_folder, sample_genx_data_dict):
+    """Test that files are assigned to correct folders."""
+    result = process_genx_data(case_folder, sample_genx_data_dict)
+    
+    # Check system folder assignments
+    system_files = [data for data in result if data.folder == case_folder / "system"]
+    system_tags = {'GENERATORS_VARIABILITY', 'DEMAND', 'PERIOD_MAP', 
+                  'REP_PERIOD', 'NETWORK', 'OP_RESERVES', 'FUELS'}
+    assert {data.tag for data in system_files} == system_tags
+    
+    # Check policy folder assignments
+    policy_files = [data for data in result if data.folder == case_folder / "policy"]
+    policy_tags = {'ESR', 'CAP_RESERVES', 'CO2_CAP', 'MIN_CAP', 'MAX_CAP'}
+    assert {data.tag for data in policy_files} == policy_tags
+
+def test_process_genx_data_file_names(case_folder, sample_genx_data_dict):
+    """Test that correct file names are assigned."""
+    result = process_genx_data(case_folder, sample_genx_data_dict)
+    
+    expected_files = {
+        'THERM': 'Thermal.csv',
+        'RES_ESR': 'Resource_energy_share_requirement.csv',
+        'RES_CAP_RES': 'Resource_capacity_reserve_margin.csv',
+        'RES_MIN_CAP': 'Resource_minimum_capacity_requirement.csv',
+        'RES_MAX_CAP': 'Resource_maximum_capacity_requirement.csv',
+        'MULTISTAGE': 'Resource_multistage_data.csv', 
+        'GENERATORS_VARIABILITY': 'Generators_variability.csv',
+        'DEMAND': 'Demand_data.csv',
+        'PERIOD_MAP': 'Period_map.csv',
+        'REP_PERIOD': 'Representative_Period.csv',
+        'NETWORK': 'Network.csv',
+        'OP_RESERVES': 'Operational_reserves.csv',
+        'FUELS': 'Fuels_data.csv',
+        'ESR': 'Energy_share_requirement.csv',
+        'CAP_RESERVES': 'Capacity_reserve_margin.csv',
+        'CO2_CAP': 'CO2_cap.csv',
+        'MIN_CAP': 'Minimum_capacity_requirement.csv',
+        'MAX_CAP': 'Maximum_capacity_requirement.csv'
+    }
+    
+    for data in result:
+        if data.tag in expected_files:
+            assert data.file_name == expected_files[data.tag], \
+                f"File name mismatch for {data.tag}"
+
+def test_process_genx_data_empty_dataframes(case_folder, sample_genx_data_dict):
+    """Test handling of empty DataFrames."""
+    # Modify some DataFrames to be empty
+    sample_genx_data_dict["demand_data"] = pd.DataFrame()
+    sample_genx_data_dict["network"] = pd.DataFrame()
+    
+    result = process_genx_data(case_folder, sample_genx_data_dict)
+    
+    # Check that empty DataFrames are still included
+    tags = {data.tag for data in result}
+    assert 'DEMAND' in tags
+    assert 'NETWORK' in tags
+
+def test_process_genx_data_missing_keys(case_folder, sample_genx_data_dict):
+    """Test handling of missing dictionary keys."""
+    # Remove some keys from the dictionary
+    del sample_genx_data_dict["network"]
+    del sample_genx_data_dict["op_reserves"]
+    
+    with pytest.raises(KeyError):
+        process_genx_data(case_folder, sample_genx_data_dict)
+
+def test_process_genx_data_generators_split(case_folder, sample_genx_data_dict):
+    """Test that generator data is properly split."""
+    result = process_genx_data(case_folder, sample_genx_data_dict)
+    
+    # Find generator-related outputs
+    resource_folder = case_folder / "resources"
+    gen_files = [data for data in result if data.folder == resource_folder]
+    
+    assert any(data.tag == 'THERM' for data in gen_files), \
+        "Should have THERM resources from generator split"
+    assert any(data.tag == 'MULTISTAGE' for data in gen_files), \
+        "Should have multistage data from generator split"
+
+def test_process_genx_data_dataframe_integrity(case_folder, sample_genx_data_dict):
+    """Test that DataFrame contents are preserved."""
+    result = process_genx_data(case_folder, sample_genx_data_dict)
+    
+    for data in result:
+        if data.tag == 'DEMAND':
+            assert len(data.dataframe) == 24, "Demand data should have 24 rows"
+        elif data.tag == 'FUELS':
+            assert data.dataframe['Fuel'].iloc[0] == 'Coal', \
+                "Fuel data should preserve values"
+        elif data.tag == 'ESR':
+            assert data.dataframe['Target'].iloc[0] == 0.5, \
+                "ESR data should preserve values"

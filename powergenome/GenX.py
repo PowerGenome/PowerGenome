@@ -1439,7 +1439,7 @@ def update_newbuild_canretire(df: pd.DataFrame) -> pd.DataFrame:
     if "New_Build" not in df.columns:
         logger.warning("New_Build column not found in generator data")
         return df
-
+    
     if not df["New_Build"].isin([0, 1, -1]).all():
         logger.warning("New_Build column contains values other than 0, 1, or -1")
         return df
@@ -1542,7 +1542,7 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
     cols_to_keep = [
         col for col in df.columns if col in valid_cols and col not in cols_to_remove
     ]
-
+    
     # In the case of STOR and THERM, the resource tag column is also used as
     # 'model' type (e.g., SYM or ASYM for storage, and COMMIT or NOCOMMIT for thermal)
     # Therefore, we rename the resource tag column to 'Model'
@@ -1809,7 +1809,7 @@ def process_genx_data(
             GenXInputData(
                 tag="REP_PERIOD",
                 folder=system_folder,
-                file_name="Repetition_period.csv",
+                file_name="Representative_Period.csv",
                 dataframe=genx_data_dict["rep_period"],
             ),
             GenXInputData(
