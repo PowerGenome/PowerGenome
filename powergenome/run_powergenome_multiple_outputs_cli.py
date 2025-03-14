@@ -307,22 +307,23 @@ def main(**kwargs):
                 if not args.gens:
                     gen_variability = pd.DataFrame(index=load.index)
 
+                # reduce_time_domain returns unchanged inputs if the settings parameter
+                # "reduce_time_domain" is not set to True.
                 (
                     reduced_resource_profile,
                     reduced_load_profile,
                     time_series_mapping,
                     representative_point,
                 ) = reduce_time_domain(gen_variability, load, _settings)
+                case_year_data["demand_data"] = reduced_load_profile
                 reduced_resource_profile.index.name = "Time_Index"
                 reduced_resource_profile = reduced_resource_profile.reset_index(
                     drop=False
                 )
                 case_year_data["gen_variability"] = reduced_resource_profile
 
-                if time_series_mapping is not None:
-                    case_year_data["period_map"] = time_series_mapping
-                if representative_point is not None:
-                    case_year_data["rep_period"] = representative_point
+                case_year_data["period_map"] = time_series_mapping
+                case_year_data["rep_period"] = representative_point
 
             else:
                 gen_variability.index = range(1, len(reduced_resource_profile) + 1)
@@ -385,23 +386,16 @@ def main(**kwargs):
                 if _settings.get("emission_policies_fn"):
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
-                    if energy_share_req is not None:
-                        case_year_data["esr"] = energy_share_req
-                    if co2_cap is not None:
-                        case_year_data["co2_cap"] = co2_cap
-                else:
-                    energy_share_req = None
-                    co2_cap = None
+                    case_year_data["esr"] = energy_share_req
+                    case_year_data["co2_cap"] = co2_cap
+
                 min_cap = min_cap_req(_settings)
-                if min_cap:
-                    case_year_data["min_cap"] = min_cap
+                case_year_data["min_cap"] = min_cap
                 max_cap = max_cap_req(_settings)
-                if max_cap:
-                    case_year_data["max_cap"] = max_cap
+                case_year_data["max_cap"] = max_cap
 
                 cap_res = create_regional_cap_res(_settings)
-                if cap_res:
-                    case_year_data["cap_reserves"] = cap_res
+                case_year_data["cap_reserves"] = cap_res
 
             if _settings.get("reserves_fn"):
                 case_year_data["op_reserves"] = pd.read_csv(
@@ -414,7 +408,7 @@ def main(**kwargs):
                 genx_data = process_genx_data_old_format(case_folder, case_year_data)
 
             for data in genx_data:
-                if not data.dataframe.empty:
+                if data.dataframe is not None and not data.dataframe.empty:
                     write_results_file(
                         data.dataframe,
                         data.folder,

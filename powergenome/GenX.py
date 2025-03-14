@@ -43,9 +43,9 @@ class GenXInputData:
             object.__setattr__(self, "folder", Path(self.folder))
         if not self.file_name.endswith(".csv"):
             raise ValueError(f"file_name must end with .csv, got {self.file_name}")
-        if not isinstance(self.dataframe, pd.DataFrame):
+        if not isinstance(self.dataframe, (pd.DataFrame, type(None))):
             raise TypeError(
-                f"dataframe must be a pandas DataFrame, got {type(self.dataframe)}"
+                f"dataframe must be a pandas DataFrame or None, got {type(self.dataframe)}"
             )
 
 
