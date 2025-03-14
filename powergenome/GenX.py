@@ -1457,7 +1457,7 @@ def filter_empty_columns(df: pd.DataFrame) -> List[str]:
     A column is considered valid if it has at least one value that is:
     - Non-zero
     - Not None (Python None)
-    - Not "None" (string)
+    - Not "No_fuel" (string)
 
     Parameters
     ----------
@@ -1467,14 +1467,14 @@ def filter_empty_columns(df: pd.DataFrame) -> List[str]:
     Returns
     -------
     List[str]
-        List of column names that have at least one non-zero and non-None/"None" value
+        List of column names that have at least one non-zero and non-None/"No_fuel" value
     """
     # Check for non-None values
     notnull_mask = df.notna().sum() > 0
 
-    # Check for non-"None" string values
+    # Check for non-"No_fuel" string values
     string_notnone_mask = (
-        df.applymap(lambda x: str(x) != "None" if pd.notna(x) else False).sum() > 0
+        df.applymap(lambda x: str(x) != "No_fuel" if pd.notna(x) else False).sum() > 0
     )
 
     # Check for non-zero values
