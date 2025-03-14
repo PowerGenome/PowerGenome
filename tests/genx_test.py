@@ -12,6 +12,7 @@ from powergenome.GenX import (
     create_resource_df,
     RESOURCE_COLUMNS,
     DEFAULT_COLS,
+    create_policy_df,
 
 
 # Tests setting the generation of a single must run resource to 1 in all hours.
@@ -449,3 +450,265 @@ def test_create_resource_df_column_order():
     assert list(result.columns)[:len(DEFAULT_COLS)] == \
         [col for col in DEFAULT_COLS if col in result.columns], \
         "Default columns should be first and in correct order" 
+
+def test_create_policy_df():
+    """Test create_policy_df function with various test cases."""
+    # Mock data
+    input_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2', 'gen_3', 'gen_4'],
+        'Zone': [1, 2, 3, 4],
+        'New_Build': [1, 0, 1, 0],
+        'Can_Retire': [1, 1, 1, 1],
+        'ESR_1': [1, 0, 1, 0],
+        'ESR_2': [0, 1, 1, 0],
+        'CapRes_1': [0.5, 0, 0.7, 0],
+        'CapRes_2': [0, 0.5, 0, 0.3],
+        'MinCapTag_1': [1, 0, 0, 1],
+        'MinCapTag_2': [0, 1, 0, 0],
+        'MaxCapTag_1': [1, 0, 1, 0],
+        'MaxCapTag_2': [0, 1, 0, 1],
+        'Other_Col': [1, 2, 3, 4]
+    })
+
+    # Test case 1: ESR policy
+    esr_policy = {
+        'oldtag': 'ESR_',
+        'newtag': 'ESR_'
+    }
+    esr_result = create_policy_df(input_df.copy(), esr_policy)
+    
+    assert list(esr_result.columns) == ['Resource', 'ESR_1', 'ESR_2'], \
+        "Should only include Resource and ESR columns"
+    assert len(esr_result) == 3, \
+        "Should only include rows with non-zero ESR values"
+    assert not any(col.startswith('CapRes_') for col in esr_result.columns), \
+        "Should not include other policy columns"
+
+    # Test case 2: Capacity reserve policy with tag renaming
+    cap_res_policy = {
+        'oldtag': 'CapRes_',
+        'newtag': 'Derating_factor_'
+    }
+    cap_res_result = create_policy_df(input_df.copy(), cap_res_policy)
+    
+    assert 'Derating_factor_1' in cap_res_result.columns, \
+        "Should rename CapRes_ to Derating_factor_"
+    assert 'Derating_factor_2' in cap_res_result.columns, \
+        "Should rename CapRes_ to Derating_factor_"
+    assert len(cap_res_result) == 4, \
+        "Should only include rows with non-zero CapRes values"
+    assert not any(col.startswith('ESR_') for col in cap_res_result.columns), \
+        "Should not include other policy columns"
+    assert not any(col.startswith('MinCapTag_') for col in cap_res_result.columns), \
+        "Should not include other policy columns"
+    assert not any(col.startswith('MaxCapTag_') for col in cap_res_result.columns), \
+        "Should not include other policy columns"
+    assert cap_res_result["Derating_factor_1"].tolist() == [0.5, 0.0, 0.7, 0.0], \
+        "Should include the correct values"
+    assert cap_res_result["Derating_factor_2"].tolist() == [0.0, 0.5, 0.0, 0.3], \
+        "Should include the correct values"
+
+    # Test case 3: Min capacity policy with tag renaming
+    min_cap_policy = {
+        'oldtag': 'MinCapTag_',
+        'newtag': 'Min_Cap_'
+    }
+    min_cap_result = create_policy_df(input_df.copy(), min_cap_policy)
+    
+    assert 'Min_Cap_1' in min_cap_result.columns, \
+        "Should rename MinCapTag_ to Min_Cap_"
+    assert 'Min_Cap_2' in min_cap_result.columns, \
+        "Should rename MinCapTag_ to Min_Cap_"
+    assert len(min_cap_result) == 3, \
+        "Should only include rows with non-zero MinCapTag values"
+    assert not any(col.startswith('CapRes_') for col in min_cap_result.columns), \
+        "Should not include other policy columns"
+    assert min_cap_result["Min_Cap_1"].tolist() == [1, 0, 1], \
+        "Should include the correct values"
+    assert min_cap_result["Min_Cap_2"].tolist() == [0, 1, 0], \
+        "Should include the correct values"
+
+    # Test case 4: Max capacity policy with tag renaming
+    max_cap_policy = {
+        'oldtag': 'MaxCapTag_',
+        'newtag': 'Max_Cap_'
+    }
+    max_cap_result = create_policy_df(input_df.copy(), max_cap_policy)  
+    
+    assert 'Max_Cap_1' in max_cap_result.columns, \
+        "Should rename MaxCapTag_ to Max_Cap_"
+    assert 'Max_Cap_2' in max_cap_result.columns, \
+        "Should rename MaxCapTag_ to Max_Cap_"
+    assert len(max_cap_result) == 4, \
+        "Should only include rows with non-zero MaxCapTag values"   
+    assert not any(col.startswith('CapRes_') for col in max_cap_result.columns), \
+        "Should not include other policy columns"
+    assert max_cap_result["Max_Cap_1"].tolist() == [1, 0, 1, 0], \
+        "Should include the correct values"
+    assert max_cap_result["Max_Cap_2"].tolist() == [0, 1, 0, 1], \
+        "Should include the correct values"
+    
+    # Test case 5: Policy tag not present
+    missing_policy = {
+        'oldtag': 'Missing_',
+        'newtag': 'New_'
+    }
+    missing_result = create_policy_df(input_df.copy(), missing_policy)
+    
+    assert missing_result.empty, \
+        "Should return empty DataFrame when policy tag not found"
+
+    # Test case 6: All zero values
+    zero_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'ESR_1': [0, 0],
+        'ESR_2': [0, 0]
+    })
+    zero_result = create_policy_df(zero_df.copy(), esr_policy)
+    
+    assert zero_result.empty, \
+        "Should return empty DataFrame when all policy values are zero"
+
+def test_create_policy_df_edge_cases():
+    """Test create_policy_df with edge cases."""
+    # Test case 1: Empty DataFrame
+    empty_df = pd.DataFrame()
+    policy_info = {'oldtag': 'ESR_', 'newtag': 'ESR_'}
+    empty_result = create_policy_df(empty_df, policy_info)
+    
+    assert empty_result.empty, \
+        "Should handle empty DataFrame"
+
+    # Test case 2: Missing Resource column
+    no_resource_df = pd.DataFrame({
+        'ESR_1': [1, 0],
+        'ESR_2': [0, 1]
+    })
+    with pytest.raises(KeyError):
+        create_policy_df(no_resource_df.copy(), policy_info)
+
+    # Test case 3: Mixed data types
+    mixed_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'ESR_1': [1, 'high'],
+        'ESR_2': [0.5, True]
+    })
+    with pytest.raises(ValueError):
+        create_policy_df(mixed_df.copy(), policy_info)
+
+def test_create_policy_df_valid_values():
+    """Test that valid values pass validation."""
+    # Valid ESR values
+    valid_esr_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'ESR_1': [0, 1],
+        'ESR_2': [1, 0]
+    })
+    esr_policy = {'oldtag': 'ESR_', 'newtag': 'ESR_'}
+    result = create_policy_df(valid_esr_df, esr_policy)
+    assert not result.empty, "Should accept valid ESR values (0 and 1)"
+
+    # Valid CapRes values
+    valid_cap_res_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'CapRes_1': [0.5, 1.0],
+        'CapRes_2': [0.0, 0.75]
+    })
+    cap_res_policy = {'oldtag': 'CapRes_', 'newtag': 'CapRes_'}
+    result = create_policy_df(valid_cap_res_df, cap_res_policy)
+    assert not result.empty, "Should accept valid CapRes values (between 0 and 1)"
+
+    # Valid mixed policy types
+    valid_mixed_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'ESR_1': [0, 1],
+        'MinCapTag_1': [1, 0],
+        'MaxCapTag_1': [1, 1],
+        'CapRes_1': [0.5, 0.75]
+    })
+    # Test each policy type separately
+    for policy_type in ['ESR_', 'MinCapTag_', 'MaxCapTag_', 'CapRes_']:
+        policy_info = {'oldtag': policy_type, 'newtag': policy_type}
+        result = create_policy_df(valid_mixed_df.copy(), policy_info)
+        assert not result.empty, f"Should accept valid {policy_type} values"
+        
+def test_create_policy_df_invalid_values():
+    """Test value validation rules for different policy types."""
+    # Test ESR_ validation (must be 0 or 1)
+    invalid_esr_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'ESR_1': [0.5, 1],  # 0.5 is invalid
+        'ESR_2': [0, 1]
+    })
+    esr_policy = {'oldtag': 'ESR_', 'newtag': 'ESR_'}
+    with pytest.raises(ValueError, match="can only have values 0 or 1"):
+        create_policy_df(invalid_esr_df, esr_policy)
+
+    # Test MinCapTag_ validation (must be 0 or 1)
+    invalid_min_cap_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'MinCapTag_1': [2, 1],  # 2 is invalid
+        'MinCapTag_2': [0, 1]
+    })
+    min_cap_policy = {'oldtag': 'MinCapTag_', 'newtag': 'Min_Cap_'}
+    with pytest.raises(ValueError, match="can only have values 0 or 1"):
+        create_policy_df(invalid_min_cap_df, min_cap_policy)
+
+    # Test MaxCapTag_ validation (must be 0 or 1)
+    invalid_max_cap_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'MaxCapTag_1': [-1, 1],  # -1 is invalid
+        'MaxCapTag_2': [0, 1]
+    })
+    max_cap_policy = {'oldtag': 'MaxCapTag_', 'newtag': 'Max_Cap_'}
+    with pytest.raises(ValueError, match="can only have values 0 or 1"):
+        create_policy_df(invalid_max_cap_df, max_cap_policy)
+
+    # Test CapRes_ validation (must be between 0 and 1)
+    invalid_cap_res_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'CapRes_1': [1.5, 0.5],  # 1.5 is invalid
+        'CapRes_2': [0.3, 0.7]
+    })
+    cap_res_policy = {'oldtag': 'CapRes_', 'newtag': 'Derating_factor_'}
+    with pytest.raises(ValueError):
+        create_policy_df(invalid_cap_res_df, cap_res_policy)
+
+def test_create_policy_df_inplace_modification():
+    """Test that original DataFrame is modified correctly."""
+    input_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'ESR_1': [1, 0],
+        'ESR_2': [0, 1],
+        'Other_Col': [1, 2]
+    })
+        
+    policy_info = {'oldtag': 'ESR_', 'newtag': 'ESR_'}
+    _ = create_policy_df(input_df, policy_info)
+    
+    assert not any(col.startswith('ESR_') for col in input_df.columns), \
+        "Policy columns should be removed from original DataFrame"
+    assert 'Other_Col' in input_df.columns, \
+        "Non-policy columns should remain in original DataFrame"
+    assert 'Resource' in input_df.columns, \
+        "Resource column should remain in original DataFrame"
+
+def test_create_policy_df_column_values():
+    """Test that policy values are preserved correctly."""
+    # Mock data
+    input_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2', 'gen_3'],
+        'ESR_1': [1, 0, 1],
+        'ESR_2': [0, 1, 1],
+        'Other_Col': [1, 2, 3]
+    })
+    
+    policy_info = {'oldtag': 'ESR_', 'newtag': 'New_ESR_'}
+    result = create_policy_df(input_df.copy(), policy_info)
+    
+    assert (result['New_ESR_1'] == [1, 0, 1]).all(), \
+        "Values should be preserved after renaming"
+    assert (result['New_ESR_2'] == [0, 1, 1]).all(), \
+        "Values should be preserved after filtering zeros"
+    assert 'Other_Col' not in result.columns, \
+        "Non-policy columns should be removed"
