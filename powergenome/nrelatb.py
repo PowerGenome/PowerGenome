@@ -1298,7 +1298,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
 
         df_list = Parallel(n_jobs=settings.get("clustering_n_jobs", 1))(
             delayed(parallel_region_renewables)(
-                settings,
+                copy.deepcopy(settings),
                 new_gen_df,
                 regional_cost_multipliers,
                 rev_mult_region_map,
@@ -1372,7 +1372,7 @@ def parallel_region_renewables(
     _df = add_renewables_clusters(
         _df,
         region,
-        settings,
+        copy.deepcopy(settings),
         cluster_builder,
     )
 
@@ -1515,7 +1515,7 @@ def add_renewables_clusters(
         regions.append(region)  # Add model region, sometimes listed in RG file
     else:
         regions = [region]
-    for scenario in settings.get("renewables_clusters", []) or []:
+    for scenario in copy.deepcopy(settings).get("renewables_clusters", []) or []:
         if scenario["region"] != region:
             continue
         # Match cluster technology to NREL ATB technologies
@@ -1573,7 +1573,9 @@ def add_renewables_clusters(
         detail_suffix = flatten_cluster_def(
             {k: v for (k, v) in _scenario.items() if k != "group_modifiers"}, "_"
         )
-        unique_hash = hash_string_sha256(f"{region}_{technology}_{detail_suffix}")
+        unique_hash = hash_string_sha256(
+            f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}"
+        )
         cache_cluster_fn = unique_hash + "_cluster_data.parquet"
         cache_site_assn_fn = unique_hash + "_site_assn.parquet"
 
@@ -1585,7 +1587,10 @@ def add_renewables_clusters(
         add_row_to_csv(
             cache_folder / "hash_map.csv",
             headers=["name", "hash"],
-            new_row=[f"{region}_{technology}_{detail_suffix}", unique_hash],
+            new_row=[
+                f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}",
+                unique_hash,
+            ],
         )
         cache_cluster_fpath = cache_folder / cache_cluster_fn
         cache_site_assn_fpath = cache_folder / cache_site_assn_fn
