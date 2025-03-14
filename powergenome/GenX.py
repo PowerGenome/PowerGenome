@@ -1514,7 +1514,7 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
         return pd.DataFrame()
 
     # Filter rows for this resource type
-    resource_df = df[df[resource_tag] == 1].copy()
+    resource_df = df[df[resource_tag] > 0].copy()
 
     # Find columns with non-zero values
     valid_cols = set(filter_empty_columns(resource_df)) | set(DEFAULT_COLS)
@@ -1549,7 +1549,7 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
     if resource_tag in {"STOR", "THERM"}:
         logger.debug(f"Renaming {resource_tag} column to 'Model'")
         resource_df = resource_df.rename(columns={resource_tag: "Model"})
-        cols_to_keep = ["Model" if col == resource_tag else col for col in cols_to_keep]
+        cols_to_keep.append("Model")
 
     # Final check that ALL the resource specific columns are present
     missing_cols = resource_specific_cols - set(cols_to_keep)
