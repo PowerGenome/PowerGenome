@@ -311,20 +311,6 @@ def main(**kwargs):
                     include_retired_cap=first_year is False,
                 )
                 gen_clusters = gc.create_all_generators()
-                if args.fuel and args.gens:
-                    fuels = fuel_cost_table(
-                        fuel_costs=gc.fuel_prices,
-                        generators=gc.all_resources,
-                        settings=_settings,
-                    )
-                    fuels.index.name = "Time_Index"
-                    write_results_file(
-                        df=remove_fuel_scenario_name(fuels, _settings),
-                        folder=case_folder,
-                        file_name="Fuels_data.csv",
-                        include_index=True,
-                        multi_period=args.multi_period,
-                    )
 
                 gen_clusters["Zone"] = gen_clusters["region"].map(zone_num_map)
                 gen_clusters = add_misc_gen_values(gen_clusters, _settings)
@@ -375,6 +361,21 @@ def main(**kwargs):
                     include_index=False,
                     multi_period=args.multi_period,
                 )
+                if args.fuel and args.gens:
+                    fuels = fuel_cost_table(
+                        fuel_costs=gc.fuel_prices,
+                        generators=gc.all_resources,
+                        settings=_settings,
+                        num_hours=len(gen_variability),
+                    )
+                    fuels.index.name = "Time_Index"
+                    write_results_file(
+                        df=remove_fuel_scenario_name(fuels, _settings),
+                        folder=case_folder,
+                        file_name="Fuels_data.csv",
+                        include_index=True,
+                        multi_period=args.multi_period,
+                    )
                 if not args.load:
                     write_results_file(
                         df=gen_variability,
@@ -546,6 +547,7 @@ def main(**kwargs):
                     fuel_costs=gc.fuel_prices,
                     generators=gc.all_resources,
                     settings=_settings,
+                    num_hours=len(gen_variability),
                 )
 
                 fuels.index.name = "Time_Index"

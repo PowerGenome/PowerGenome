@@ -185,18 +185,32 @@ def make_load_curves(
                     """
             params = keep_regions
             load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+            load_curves = add_load_growth(load_curves, settings)
     else:
         # With no sector or subsector columns, assume that table has total load in each hour
-        s = f"""
-            SELECT year, {region_col} as region, time_index, load_mw
-            FROM {pg_table}
-            WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
-            """
-        params = keep_regions
-        load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+        s = f"SELECT DISTINCT year from {pg_table}"
+        demand_years = pd.read_sql_query(sql=s, con=pg_engine)
+        if settings["model_year"] in demand_years["year"].to_list():
+            s = f"""
+                SELECT year, {region_col} as region, time_index, load_mw
+                FROM {pg_table}
+                WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
+                AND year = {settings['model_year']}
+                """
+            params = keep_regions
+            load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
 
-    # Increase demand to account for load growth
-    load_curves = add_load_growth(load_curves, settings)
+        else:
+            s = f"""
+                SELECT year, {region_col} as region, time_index, load_mw
+                FROM {pg_table}
+                WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
+                """
+            params = keep_regions
+            load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+
+            # Increase demand to account for load growth
+            load_curves = add_load_growth(load_curves, settings)
 
     load_curves.loc[load_curves.region.isin(region_agg_map), "region"] = (
         load_curves.region.map(region_agg_map)
