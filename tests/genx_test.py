@@ -223,8 +223,8 @@ def test_filter_empty_columns():
             "valid_col": [1, 2, 3],
             "zero_col": [0, 0, 0],
             "none_col": [None, None, None],
-            "string_none_col": ["None", "None", "None"],
-            "mixed_col": [1, None, "None"],
+            "string_no_fuel_col": ["No_fuel", "No_fuel", "No_fuel"],
+            "mixed_col": [1, None, "No_fuel"],
             "valid_string": ["a", "b", "c"],
         }
     )
@@ -242,7 +242,7 @@ def test_filter_empty_columns():
         {
             "zero_col": [0, 0],
             "none_col": [None, None],
-            "string_none_col": ["None", "None"],
+            "string_no_fuel_col": ["No_fuel", "No_fuel"],
         }
     )
     assert filter_empty_columns(df_invalid) == [], "All invalid columns case failed"

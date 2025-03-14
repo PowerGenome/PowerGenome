@@ -2258,7 +2258,7 @@ def add_fuel_labels(df, fuel_prices, settings):
     -------
     DataFrame
         Same as input, but with a new column "Fuel" that is either the name of the
-        corresponding fuel (coal, natural_gas, uranium, or distillate) or "None".
+        corresponding fuel (coal, natural_gas, uranium, or distillate) or "No_fuel".
 
     Raises
     ------
@@ -2436,7 +2436,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                     aeo_region, region
                 )
 
-    df.loc[df["Fuel"].isna(), "Fuel"] = "None"
+    df.loc[df["Fuel"].isna(), "Fuel"] = "No_fuel"
 
     return df
 
@@ -3119,7 +3119,7 @@ class GeneratorClusters:
 
         dr_rows = pd.concat(df_list)
         dr_rows["New_Build"] = -1
-        dr_rows["Fuel"] = "None"
+        dr_rows["Fuel"] = "No_fuel"
         dr_rows["cluster"] = 1
         dr_rows = dr_rows.fillna(0)
 
