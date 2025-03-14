@@ -11,7 +11,10 @@ from powergenome.eia_opendata import add_user_fuel_prices
 
 
 def fuel_cost_table(
-    fuel_costs: pd.DataFrame, generators: pd.DataFrame, settings: dict
+    fuel_costs: pd.DataFrame,
+    generators: pd.DataFrame,
+    settings: dict,
+    num_hours: int = None,
 ) -> pd.DataFrame:
     """Create a table of fuel costs formatted for the GenX model.
 
@@ -138,7 +141,7 @@ def fuel_cost_table(
         days = settings["time_domain_days_per_period"]
         time_periods = settings["time_domain_periods"]
         num_hours = days * time_periods * 24
-    else:
+    elif num_hours is None:
         num_hours = 8760
 
     fuel_df_prices = pd.DataFrame(

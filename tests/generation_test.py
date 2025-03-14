@@ -227,7 +227,6 @@ def test_group_technologies(generators_eia860_data, test_settings):
 
     grouped_by_tech = group_technologies(
         df,
-        test_settings.get("group_technologies"),
         test_settings.get("tech_groups", {}) or {},
         test_settings.get("regional_no_grouping", {}) or {},
     )
@@ -1336,3 +1335,90 @@ def test_filter_op_status_codes(test_df, caplog):
     assert len(result) == len(
         test_df
     ), "Filtered DataFrame should include all records when no specific status is provided."
+
+
+class TestLabelRetirementYear:
+
+    # Given a dataframe with a valid operating date column, when calling the function with default parameters and a model year, then a new retirement year column should be added to the dataframe with correct values based on the operating date, retirement ages, and the model year.
+    def test_default_parameters_with_model_year(self):
+        # Create a sample dataframe with valid operating date column
+        df = pd.DataFrame(
+            {
+                "operating_date": pd.to_datetime(
+                    ["2000-01-01", "2005-01-01", "2010-01-01"]
+                ),
+                "technology_description": ["Tech A", "Tech B", "Tech C"],
+            }
+        )
+
+        # Call the function with default parameters and a model year
+        labeled_df = label_retirement_year(df, model_year=2020)
+
+        # Check if the retirement year column is added
+        assert "retirement_year" in labeled_df.columns
+
+        # Check if the retirement year values are correct
+        assert labeled_df["retirement_year"].tolist() == [2500.0, 2505.0, 2510.0]
+
+    def test_with_retirement_ages(self):
+        # Create a sample dataframe with valid operating date column
+        df = pd.DataFrame(
+            {
+                "operating_date": pd.to_datetime(
+                    ["2000-01-01", "2005-01-01", "2010-01-01"]
+                ),
+                "technology_description": ["Tech A", "Tech B", "Tech C"],
+            }
+        )
+        retirement_ages = {"Tech A": 20, "Tech B": 20, "Tech C": 30}
+
+        # Call the function with default parameters and a model year
+        labeled_df = label_retirement_year(
+            df, model_year=2030, retirement_ages=retirement_ages
+        )
+
+        # Check if the retirement year column is added
+        assert "retirement_year" in labeled_df.columns
+
+        # Check if the retirement year values are correct
+        assert labeled_df["retirement_year"].tolist() == [2020.0, 2025.0, 2040.0]
+
+    def test_with_retirement_years(self):
+        # Create a sample dataframe with valid operating date column
+        df = pd.DataFrame(
+            {
+                "operating_date": pd.to_datetime(
+                    ["2000-01-01", "2005-01-01", "2010-01-01"]
+                ),
+                "technology_description": ["Tech A", "Tech B", "Tech C"],
+                "plant_id_eia": ["A", "A", "B"],
+                "generator_id": ["1", "2", "1"],
+                "capacity_mw": [100, 140, 30],
+            }
+        )
+        additional_retirements = [
+            ("A", 1, 2030),
+            ("A", 2, 2035),
+        ]
+
+        # Call the function with default parameters and a model year
+        labeled_df = label_retirement_year(
+            df, model_year=2030, additional_retirements=additional_retirements
+        )
+
+        # Check if the retirement year column is added
+        assert "retirement_year" in labeled_df.columns
+
+        # Check if the retirement year values are correct
+        assert labeled_df["retirement_year"].tolist() == [2030.0, 2035.0, 2510.0]
+
+    # Given a dataframe without an operating date column, when calling the function, then the original dataframe should be returned without any changes.
+    def test_no_operating_date_column(self):
+        # Create a sample dataframe without operating date column
+        df = pd.DataFrame({"technology_description": ["Tech A", "Tech B", "Tech C"]})
+
+        # Call the function
+        labeled_df = label_retirement_year(df, model_year=2030)
+
+        # Check if the original dataframe is returned without any changes
+        assert df.equals(labeled_df)
