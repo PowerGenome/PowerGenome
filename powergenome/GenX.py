@@ -1516,12 +1516,16 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
     # Filter rows for this resource type
     resource_df = df[df[resource_tag] > 0].copy()
 
-    # Find columns with non-zero values
-    valid_cols = set(filter_empty_columns(resource_df)) | set(DEFAULT_COLS)
-    logger.debug(f"Found {len(valid_cols)} valid columns for {resource_tag}")
-
     # Get columns to keep for this resource type
     resource_specific_cols = set(RESOURCE_COLUMNS[resource_tag])
+
+    # Find columns with non-zero values
+    valid_cols = (
+        set(filter_empty_columns(resource_df))
+        | set(DEFAULT_COLS)
+        | set(resource_specific_cols)
+    )
+    logger.debug(f"Found {len(valid_cols)} valid columns for {resource_tag}")
 
     # Get all columns specific to other resource types
     # i.e. columns that do not belong to this resource type
