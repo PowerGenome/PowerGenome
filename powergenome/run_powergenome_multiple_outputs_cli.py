@@ -312,7 +312,6 @@ def main(**kwargs):
                 gen_variability.index.name = "Time_Index"
                 gen_variability.columns = gen_data["Resource"]
                 check_vre_profiles(gen_data, gen_variability)
-                case_year_data["gen_variability"] = gen_variability
 
                 fuels = fuel_cost_table(
                     fuel_costs=gc.fuel_prices,
@@ -320,6 +319,7 @@ def main(**kwargs):
                     settings=_settings,
                 )
                 fuels.index.name = "Time_Index"
+                fuels = fuels.reset_index(drop=False)
                 case_year_data["fuels"] = fuels
 
             if args.load:
@@ -327,6 +327,7 @@ def main(**kwargs):
                 load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
                 if not args.gens:
                     gen_variability = pd.DataFrame(index=load.index)
+
                 (
                     reduced_resource_profile,
                     reduced_load_profile,
@@ -334,11 +335,21 @@ def main(**kwargs):
                     representative_point,
                 ) = reduce_time_domain(gen_variability, load, _settings)
                 reduced_resource_profile.index.name = "Time_Index"
+                reduced_resource_profile = reduced_resource_profile.reset_index(
+                    drop=False
+                )
+                case_year_data["gen_variability"] = reduced_resource_profile
 
                 if time_series_mapping is not None:
                     case_year_data["period_map"] = time_series_mapping
                 if representative_point is not None:
                     case_year_data["rep_period"] = representative_point
+
+            else:
+                gen_variability.index = range(1, len(reduced_resource_profile) + 1)
+                gen_variability.index.name = "Time_Index"
+                gen_variability = reduced_resource_profile.reset_index(drop=False)
+                case_year_data["gen_variability"] = gen_variability
 
             if args.transmission:
                 if args.gens is False:
@@ -395,18 +406,23 @@ def main(**kwargs):
                 if _settings.get("emission_policies_fn"):
                     energy_share_req = create_policy_req(_settings, col_str_match="ESR")
                     co2_cap = create_policy_req(_settings, col_str_match="CO_2")
-                    case_year_data["esr"] = energy_share_req
-                    case_year_data["co2_cap"] = co2_cap
+                    if energy_share_req is not None:
+                        case_year_data["esr"] = energy_share_req
+                    if co2_cap is not None:
+                        case_year_data["co2_cap"] = co2_cap
                 else:
                     energy_share_req = None
                     co2_cap = None
                 min_cap = min_cap_req(_settings)
+                if min_cap:
+                    case_year_data["min_cap"] = min_cap
                 max_cap = max_cap_req(_settings)
-                case_year_data["min_cap"] = min_cap
-                case_year_data["max_cap"] = max_cap
+                if max_cap:
+                    case_year_data["max_cap"] = max_cap
 
                 cap_res = create_regional_cap_res(_settings)
-                case_year_data["cap_reserves"] = cap_res
+                if cap_res:
+                    case_year_data["cap_reserves"] = cap_res
 
             if _settings.get("reserves_fn"):
                 case_year_data["op_reserves"] = pd.read_csv(
@@ -422,7 +438,7 @@ def main(**kwargs):
                 if not data.dataframe.empty:
                     write_results_file(
                         data.dataframe,
-                        case_folder,
+                        data.folder,
                         data.file_name,
                     )
 
