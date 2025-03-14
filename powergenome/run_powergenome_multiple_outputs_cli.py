@@ -254,40 +254,19 @@ def main(**kwargs):
 
     # Build a dictionary of settings for every planning year and case_id
     scenario_settings = build_scenario_settings(settings, scenario_definitions)
-    period_map = {}
-    for case, _df in scenario_definitions.groupby(["case_id"]):
-        period_map[case] = {}
-        for idx, year in enumerate(_df["year"].sort_values()):
-            period_map[case][year] = idx + 1
 
     model_regions_gdf = None
     first_year = True
-    for year in scenario_settings:
-        for case_id, _settings in scenario_settings[year].items():
-            if not args.multi_period:
-                if settings.get("case_name"):
-                    case_folder = (
-                        out_folder
-                        / f"{year}"
-                        / f"{case_id}_{year}_{_settings['case_name']}"
-                    )
-                else:
-                    case_folder = out_folder / f"{year}" / f"{case_id}_{year}"
-            else:
-                if settings.get("case_name"):
-                    case_folder = (
-                        out_folder
-                        / f"{case_id}_{_settings['case_name']}"
-                        / "Inputs"
-                        / f"Inputs_p{period_map[case_id][year]}"
-                    )
-                else:
-                    case_folder = (
-                        out_folder
-                        / f"{case_id}"
-                        / "Inputs"
-                        / f"Inputs_p{period_map[case_id][year]}"
-                    )
+    for year, year_settings in scenario_settings.items():
+        for case_id, _settings in year_settings.items():
+            case_folder = (
+                out_folder
+                / f"{case_id}"
+                / "Inputs"
+                / f"Inputs_p{_settings['case_period']}"
+            )
+            case_folder.mkdir(parents=True, exist_ok=True)
+
             _settings["extra_outputs"] = case_folder / "extra_outputs"
             _settings["extra_outputs"].mkdir(parents=True, exist_ok=True)
             logger.info(f"\n\nStarting year {year} scenario {case_id}\n\n")

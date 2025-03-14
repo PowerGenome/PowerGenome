@@ -905,29 +905,6 @@ def regions_to_keep(
     return keep_regions, region_agg_map
 
 
-def build_case_id_name_map(settings: dict) -> dict:
-    """Make a dictionary mapping of case IDs and case names from a CSV file
-
-    Parameters
-    ----------
-    settings : dict
-        Settings parameters. Must include `input_folder` and `case_id_description_fn`
-
-    Returns
-    -------
-    dict
-        Mapping of case id to case name
-    """
-    case_id_name_df = pd.read_csv(
-        Path(settings["input_folder"]) / settings["case_id_description_fn"],
-        index_col=0,
-    ).squeeze("columns")
-    case_id_name_df = case_id_name_df.str.replace(" ", "_")
-    case_id_name_map = case_id_name_df.to_dict()
-
-    return case_id_name_map
-
-
 def make_iterable(item: Union[int, str, Iterable]) -> Iterable:
     """Return an iterable version of the one or more items passed.
 
@@ -1095,20 +1072,18 @@ def build_scenario_settings(
             + scenario_definitions[dups].to_string(index=False)
         )
 
-    if settings.get("case_id_description_fn"):
-        case_id_name_map = build_case_id_name_map(settings)
-    else:
-        case_id_name_map = None
-
     all_category_levels = set()
     active_category_levels = set()
     scenario_settings = {}
     missing_flag = object()
+    case_period = {c: 1 for c in scenario_definitions["case_id"].unique()}
     for i, scenario_row in scenario_definitions.iterrows():
         year, case_id = scenario_row[["year", "case_id"]]
 
         _settings = deepcopy(settings)
         _settings["case_id"] = case_id
+        _settings["case_period"] = case_period[case_id]
+        case_period[case_id] += 1
 
         # first apply any settings under "all_years", then any settings for this year
         for settings_year in ["all_years", year]:
@@ -1160,9 +1135,6 @@ def build_scenario_settings(
 
         # make sure model year data appears in standard form
         assign_model_planning_years(_settings, year)
-
-        if case_id_name_map:
-            _settings["case_name"] = case_id_name_map[case_id]
 
         scenario_settings.setdefault(year, {})[case_id] = _settings
         if _settings.get("generator_columns"):
