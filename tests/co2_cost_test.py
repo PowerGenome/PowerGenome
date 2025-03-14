@@ -20,7 +20,7 @@ def test_merge_co2_costs():
         "Inv_Cost_per_MWyr": [10, 10000, 10000],
         "Fixed_OM_Cost_per_MWyr": [1, 1000, 1000],
         "Heat_Rate_MMBTU_per_MWh": [5000, 8000, 8000],
-        "Fuel": ["None", "coal", "coal"],
+        "Fuel": ["No_fuel", "coal", "coal"],
     }
     df = pd.DataFrame(data)
     region_aggregations = {"ERCOT": ["ERC_WEST", "ERC_REST"]}
@@ -74,7 +74,7 @@ def test_add_co2_costs_genx():
         "Inv_Cost_per_MWyr": [10, 10000, 10000],
         "Fixed_OM_Cost_per_MWyr": [1, 1000, 1000],
         "Heat_Rate_MMBTU_per_MWh": [5000, 8000, 8000],
-        "Fuel": ["None", "coal", "coal"],
+        "Fuel": ["No_fuel", "coal", "coal"],
     }
     co2_cost_data = {
         "co2_o_m_mw": [0, 2814, 471],
