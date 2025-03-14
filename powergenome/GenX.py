@@ -1439,7 +1439,7 @@ def update_newbuild_canretire(df: pd.DataFrame) -> pd.DataFrame:
     if "New_Build" not in df.columns:
         logger.warning("New_Build column not found in generator data")
         return df
-    
+
     if not df["New_Build"].isin([0, 1, -1]).all():
         logger.warning("New_Build column contains values other than 0, 1, or -1")
         return df
@@ -1542,7 +1542,7 @@ def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
     cols_to_keep = [
         col for col in df.columns if col in valid_cols and col not in cols_to_remove
     ]
-    
+
     # In the case of STOR and THERM, the resource tag column is also used as
     # 'model' type (e.g., SYM or ASYM for storage, and COMMIT or NOCOMMIT for thermal)
     # Therefore, we rename the resource tag column to 'Model'
@@ -1591,16 +1591,22 @@ def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFr
     # Check if the Resource column exists
     if "Resource" not in df.columns:
         raise KeyError("The 'Resource' column is missing from the dataframe.")
-    
+
     # Check that ESR_, MinCapTag_, and MaxCapTag_ columns only have values equal to 0 or 1
     # and CapRes_ columns only have values between 0 and 1
     for col in df.columns:
-        if col.startswith("ESR_") or col.startswith("MinCapTag_") or col.startswith("MaxCapTag_"):
+        if (
+            col.startswith("ESR_")
+            or col.startswith("MinCapTag_")
+            or col.startswith("MaxCapTag_")
+        ):
             if not df[col].isin([0, 1]).all():
                 raise ValueError(f"The column {col} can only have values 0 or 1.")
         elif col.startswith("CapRes_"):
             if not (df[col] >= 0).all() or not (df[col] <= 1).all():
-                raise ValueError(f"The column {col} can only have values between 0 and 1.")
+                raise ValueError(
+                    f"The column {col} can only have values between 0 and 1."
+                )
 
     # Check if any columns start with the policy tag
     if not any(col.startswith(policy_info["oldtag"]) for col in df.columns):
