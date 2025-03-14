@@ -1,9 +1,13 @@
 import logging
 
+import numpy as np
 import pandas as pd
 import pytest
 
-from powergenome.GenX import check_vre_profiles, set_must_run_generation
+from powergenome.GenX import (
+    check_vre_profiles,
+    set_must_run_generation,
+    update_newbuild_canretire,
 
 
 # Tests setting the generation of a single must run resource to 1 in all hours.
@@ -150,3 +154,47 @@ class TestCheckVreProfiles:
             "The variable resources ['VRE2'] have non-variable generation profiles."
             in caplog.records[0].message
         )
+
+def test_update_newbuild_canretire():
+    """Test the update_newbuild_canretire function."""
+    # Test case 1: Default behaviour
+    input_df = pd.DataFrame({
+        'New_Build': [1, -1, 0, 1],
+        'Other_Column': [1, 2, 3, 4]
+    })
+    expected_df = pd.DataFrame({
+        'New_Build': [1, 0, 0, 1],
+        'Other_Column': [1, 2, 3, 4],
+        'Can_Retire': [1, 0, 1, 1],
+    })
+    result_df = update_newbuild_canretire(input_df)
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+    # Test case 2: Missing New_Build column
+    input_df = pd.DataFrame({
+        'Other_Column': [1, 2, 3]
+    })
+    result_df = update_newbuild_canretire(input_df)
+    pd.testing.assert_frame_equal(result_df, input_df)
+
+    # Test case 3: Empty DataFrame
+    input_df = pd.DataFrame({'New_Build': pd.Series([], dtype=int), 'Other_Column': pd.Series([], dtype=int)})
+    expected_df = pd.DataFrame({
+        'New_Build': pd.Series([], dtype=int),
+        'Other_Column': pd.Series([], dtype=int),
+        'Can_Retire': pd.Series([], dtype=int),
+    })
+    result_df = update_newbuild_canretire(input_df)
+    pd.testing.assert_frame_equal(result_df, expected_df)
+
+    # Test case 4: DataFrame with NaN values
+    input_df = pd.DataFrame({
+        'New_Build': [1, np.nan, -1, 0],
+        'Other_Column': [1, 2, 3, 4]
+    })
+    expected_df = pd.DataFrame({
+        'New_Build': [1, np.nan, -1, 0],
+        'Other_Column': [1, 2, 3, 4]
+    })
+    result_df = update_newbuild_canretire(input_df)
+    pd.testing.assert_frame_equal(result_df, expected_df)

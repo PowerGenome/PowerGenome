@@ -1440,6 +1440,10 @@ def update_newbuild_canretire(df: pd.DataFrame) -> pd.DataFrame:
         logger.warning("New_Build column not found in generator data")
         return df
 
+    if not df["New_Build"].isin([0, 1, -1]).all():
+        logger.warning("New_Build column contains values other than 0, 1, or -1")
+        return df
+
     logger.warning("Upgrading the Can_Retire and New_Build interface")
     df["Can_Retire"] = (df["New_Build"] != -1).astype(int)
     df["New_Build"] = (df["New_Build"] == 1).astype(int)
