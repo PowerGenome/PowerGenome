@@ -131,7 +131,7 @@ def parse_command_line(argv):
         "-mp",
         "--multi-period",
         dest="multi_period",
-        action="store_true",
+        action="store_false",
         help=("Use multi-period output format."),
     )
     arguments = parser.parse_args(argv[1:])
