@@ -13,6 +13,7 @@ from powergenome.GenX import (
     RESOURCE_COLUMNS,
     DEFAULT_COLS,
     create_policy_df,
+    create_multistage_df,
 
 
 # Tests setting the generation of a single must run resource to 1 in all hours.
@@ -712,3 +713,123 @@ def test_create_policy_df_column_values():
         "Values should be preserved after filtering zeros"
     assert 'Other_Col' not in result.columns, \
         "Non-policy columns should be removed"
+
+def test_create_multistage_df_basic():
+    """Test basic functionality of create_multistage_df."""
+    # Mock data
+    input_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'WACC': [100, 200],
+        'Capital_Recovery_Period': [150, 250],
+        'Lifetime': [1, 2],
+        'Min_Retired_Cap_MW': [1, 2],
+        'Min_Retired_Energy_Cap_MW': [1, 2],
+        'Min_Retired_Charge_Cap_MW': [1, 2],
+        'Other_Col': [1, 2]
+    })
+    
+    multistage_cols = ['WACC', 'Capital_Recovery_Period', 'Lifetime', 'Min_Retired_Cap_MW', 'Min_Retired_Energy_Cap_MW', 'Min_Retired_Charge_Cap_MW']
+    
+    # Get result and verify
+    result = create_multistage_df(input_df.copy(), multistage_cols)
+    
+    assert list(result.columns) == ['Resource', 'WACC', 'Capital_Recovery_Period', 'Lifetime', 'Min_Retired_Cap_MW', 'Min_Retired_Energy_Cap_MW', 'Min_Retired_Charge_Cap_MW'], \
+        "Result should contain Resource and multistage columns"
+    assert len(result) == 2, "Should preserve all rows"
+    assert (result['WACC'] == [100, 200]).all(), "Should preserve WACC values"
+    assert (result['Capital_Recovery_Period'] == [150, 250]).all(), "Should preserve Capital_Recovery_Period values"
+    assert (result['Lifetime'] == [1, 2]).all(), "Should preserve Lifetime values"
+    assert (result['Min_Retired_Cap_MW'] == [1, 2]).all(), "Should preserve Min_Retired_Cap_MW values"
+    assert (result['Min_Retired_Energy_Cap_MW'] == [1, 2]).all(), "Should preserve Min_Retired_Energy_Cap_MW values"
+    assert (result['Min_Retired_Charge_Cap_MW'] == [1, 2]).all(), "Should preserve Min_Retired_Charge_Cap_MW values"
+
+def test_create_multistage_df_missing_cols():
+    """Test behavior when requested columns don't exist."""
+    input_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'WACC': [100, 200],
+        'Capital_Recovery_Period': [150, 250],
+        'Lifetime': [1, 2],
+        'Other_Col': [1, 2]
+    })
+    
+    multistage_cols = ['WACC', 'Capital_Recovery_Period', 'Lifetime', 'Min_Retired_Cap_MW', 'Min_Retired_Energy_Cap_MW', 'Min_Retired_Charge_Cap_MW']  # Stage_2 and Stage_3 don't exist
+    
+    result = create_multistage_df(input_df.copy(), multistage_cols)
+    
+    assert list(result.columns) == ['Resource', 'WACC', 'Capital_Recovery_Period', 'Lifetime'], \
+        "Should only include existing columns"
+    assert len(result.columns) == 4, "Should not include non-existent columns"
+
+def test_create_multistage_df_inplace_modification():
+    """Test that original DataFrame is modified correctly."""
+    input_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'WACC': [100, 200],
+        'Capital_Recovery_Period': [150, 250],
+        'Lifetime': [1, 2],
+        'Min_Retired_Cap_MW': [1, 2],
+        'Min_Retired_Energy_Cap_MW': [1, 2],
+        'Min_Retired_Charge_Cap_MW': [1, 2],
+        'Other_Col': [1, 2]
+    })
+    
+    multistage_cols = ['WACC', 'Capital_Recovery_Period', 'Lifetime', 'Min_Retired_Cap_MW', 'Min_Retired_Energy_Cap_MW', 'Min_Retired_Charge_Cap_MW']
+    
+    _ = create_multistage_df(input_df, multistage_cols)
+    
+    assert list(input_df.columns) == ['Resource', 'Other_Col'], \
+        "Should remove multistage columns from original DataFrame"
+    assert 'WACC' not in input_df.columns, "WACC should be removed"
+    assert 'Capital_Recovery_Period' not in input_df.columns, "Capital_Recovery_Period should be removed"
+    assert 'Lifetime' not in input_df.columns, "Lifetime should be removed"
+    assert 'Min_Retired_Cap_MW' not in input_df.columns, "Min_Retired_Cap_MW should be removed"
+    assert 'Min_Retired_Energy_Cap_MW' not in input_df.columns, "Min_Retired_Energy_Cap_MW should be removed"
+    assert 'Min_Retired_Charge_Cap_MW' not in input_df.columns, "Min_Retired_Charge_Cap_MW should be removed"
+
+def test_create_multistage_df_empty_cols():
+    """Test behavior with empty multistage columns list."""
+    input_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'WACC': [100, 200],
+        'Capital_Recovery_Period': [150, 250],
+        'Lifetime': [1, 2],
+        'Min_Retired_Cap_MW': [1, 2],
+        'Min_Retired_Energy_Cap_MW': [1, 2],
+        'Min_Retired_Charge_Cap_MW': [1, 2],
+        'Other_Col': [1, 2]
+    })
+    
+    result = create_multistage_df(input_df.copy(), [])
+    
+    assert list(result.columns) == ['Resource'], \
+        "Should only contain Resource column when no multistage columns specified"
+    assert len(result) == 2, "Should preserve all rows"
+
+def test_create_multistage_df_data_types():
+    """Test preservation of data types."""
+    input_df = pd.DataFrame({
+        'Resource': ['gen_1', 'gen_2'],
+        'WACC': [100.0, 200.0],  # float
+        'Capital_Recovery_Period': [1, 2],          # int
+        'Lifetime': [10, 20]     # int
+    })
+    
+    multistage_cols = ['WACC', 'Capital_Recovery_Period', 'Lifetime']
+    
+    result = create_multistage_df(input_df.copy(), multistage_cols)
+    
+    assert result['WACC'].dtype == float, "Should preserve float dtype"
+    assert result['Capital_Recovery_Period'].dtype == int, "Should preserve int dtype"
+    assert result['Lifetime'].dtype == int, "Should preserve int dtype"
+
+def test_create_multistage_df_empty_df():
+    """Test behavior with empty DataFrame."""
+    input_df = pd.DataFrame(columns=['Resource', 'WACC', 'Capital_Recovery_Period', 'Lifetime'])
+    multistage_cols = ['WACC', 'Capital_Recovery_Period', 'Lifetime']
+    
+    result = create_multistage_df(input_df.copy(), multistage_cols)
+    
+    assert result.empty, "Should return empty DataFrame"
+    assert list(result.columns) == ['Resource', 'WACC', 'Capital_Recovery_Period', 'Lifetime'], \
+        "Should preserve column structure even with empty DataFrame"
