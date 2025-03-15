@@ -546,7 +546,9 @@ def test_create_resource_df_all_zero_columns():
     assert (
         "Min_Power" in result.columns
     ), "Should remove all-zero columns unless in DEFAULT_COLS or THERM column"
-    assert "Eff_Up" not in result.columns, "Should remove all-zero columns unless in THERM column or DEFAULT_COLS"
+    assert (
+        "Eff_Up" not in result.columns
+    ), "Should remove all-zero columns unless in THERM column or DEFAULT_COLS"
 
 
 def test_create_resource_df_none_values():
@@ -570,9 +572,7 @@ def test_create_resource_df_none_values():
     assert (
         "Min_Power" in result.columns
     ), "Should not remove columns with all None values because it's a required column"
-    assert (
-        "Eff_Up" not in result.columns
-    ), "Should remove columns with all None values"
+    assert "Eff_Up" not in result.columns, "Should remove columns with all None values"
 
 
 def test_create_resource_df_column_order():
