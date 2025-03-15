@@ -536,6 +536,7 @@ def test_create_resource_df_all_zero_columns():
             "New_Build": [1, 0],
             "THERM": [1, 1],
             "Min_Power": [0, 0],  # All zeros
+            "Eff_Up": [0, 0],  # All zeros but not THERM column
             "Ramp_Up_Percentage": [0.1, 0.2],
         }
     )
@@ -543,8 +544,9 @@ def test_create_resource_df_all_zero_columns():
     result = create_resource_df(input_df, "THERM")
     assert "Ramp_Up_Percentage" in result.columns, "Should keep non-zero columns"
     assert (
-        "Min_Power" not in result.columns
-    ), "Should remove all-zero columns unless in DEFAULT_COLS"
+        "Min_Power" in result.columns
+    ), "Should remove all-zero columns unless in DEFAULT_COLS or THERM column"
+    assert "Eff_Up" not in result.columns, "Should remove all-zero columns unless in THERM column or DEFAULT_COLS"
 
 
 def test_create_resource_df_none_values():
@@ -556,6 +558,7 @@ def test_create_resource_df_none_values():
             "New_Build": [1, 0],
             "THERM": [1, 1],
             "Min_Power": [None, None],  # All None
+            "Eff_Up": [None, None],  # All None but not THERM column
             "Ramp_Up_Percentage": [0.1, None],  # Mixed None
         }
     )
@@ -565,7 +568,10 @@ def test_create_resource_df_none_values():
         "Ramp_Up_Percentage" in result.columns
     ), "Should keep columns with some valid values"
     assert (
-        "Min_Power" not in result.columns
+        "Min_Power" in result.columns
+    ), "Should not remove columns with all None values because it's a required column"
+    assert (
+        "Eff_Up" not in result.columns
     ), "Should remove columns with all None values"
 
 
@@ -1170,8 +1176,8 @@ def test_split_generators_resource_types(folder_structure, sample_gen_data):
         "Num_VRE_Bins" not in hydro_data.dataframe.columns
     ), "HYDRO should not have Num_VRE_Bins column"
     assert (
-        "Eff_Down" not in hydro_data.dataframe.columns
-    ), "HYDRO should not have Eff_Down column as the column has only zeros"
+        "Eff_Down" in hydro_data.dataframe.columns
+    ), "Even though the column has only zeros, HYDRO should have Eff_Down column because it's a required column"
     assert "Eff_Up" in hydro_data.dataframe.columns, "HYDRO should have Eff_Up column"
     assert (
         "Hydro_Energy_to_Power_Ratio" in hydro_data.dataframe.columns
