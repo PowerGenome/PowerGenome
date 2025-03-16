@@ -1778,7 +1778,7 @@ def process_genx_data(
     resource_folder = case_folder / "resources"
     policy_assignments_folder = resource_folder / "policy_assignments"
     system_folder = case_folder / "system"
-    policy_folder = case_folder / "policy"
+    policy_folder = case_folder / "policies"
 
     # Create folder structure
     folders = FolderStructure(
