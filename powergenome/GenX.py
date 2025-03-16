@@ -83,7 +83,7 @@ COL_ROUND_VALUES = {
 # RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO", "LDS"]
 RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO"]
 
-DEFAULT_COLS = ["Resource", "Zone", "New_Build", "Can_Retire"]
+DEFAULT_COLS = ["Resource", "Zone", "New_Build", "Can_Retire", "Existing_Cap_MW"]
 
 # Specific columns for each resource type
 THERM_COLUMNS = [
