@@ -16,6 +16,7 @@ from powergenome.GenX import (
     create_resource_df,
     filter_empty_columns,
     process_genx_data,
+    process_genx_data_old_format,
     set_must_run_generation,
     split_generators_data,
     update_newbuild_canretire,
@@ -1475,3 +1476,50 @@ def test_process_genx_data_dataframe_integrity(case_folder, sample_genx_data_dic
             assert (
                 data.dataframe["Target"].iloc[0] == 0.5
             ), "ESR data should preserve values"
+
+
+def test_process_genx_data_old_format():
+    case_folder = Path("/test_case_folder")
+    genx_data_dict = {
+        "gen_data": pd.DataFrame({"col1": [1, 2], "col2": [3, 4]}),
+        "gen_variability": pd.DataFrame({"var1": [0.1, 0.2], "var2": [0.3, 0.4]}),
+        "demand_data": pd.DataFrame({"Demand_1": [100, 200], "Demand_2": [300, 400]}),
+        "period_map": pd.DataFrame({"period": [1, 2], "map": [3, 4]}),
+        "rep_period": pd.DataFrame({"rep1": [5, 6], "rep2": [7, 8]}),
+        "network": pd.DataFrame({"net1": [9, 10], "net2": [11, 12]}),
+        "op_reserves": pd.DataFrame({"res1": [13, 14], "res2": [15, 16]}),
+        "fuels": pd.DataFrame({"fuel1": [17, 18], "fuel2": [19, 20]}),
+        "esr": pd.DataFrame({"esr1": [21, 22], "esr2": [23, 24]}),
+        "cap_reserves": pd.DataFrame({"cap1": [25, 26], "cap2": [27, 28]}),
+        "co2_cap": pd.DataFrame({"co2_1": [29, 30], "co2_2": [31, 32]}),
+        "min_cap": pd.DataFrame({"min1": [33, 34], "min2": [35, 36]}),
+        "max_cap": pd.DataFrame({"max1": [37, 38], "max2": [39, 40]}),
+    }
+
+    result = process_genx_data_old_format(case_folder, genx_data_dict)
+
+    assert len(result) == 13
+
+    expected_tags = [
+        "GENERATORS_DATA",
+        "GENERATORS_VARIABILITY",
+        "DEMAND",
+        "PERIOD_MAP",
+        "REP_PERIOD",
+        "NETWORK",
+        "OP_RESERVES",
+        "FUELS",
+        "ESR",
+        "CAP_RESERVES",
+        "CO2_CAP",
+        "MIN_CAP",
+        "MAX_CAP",
+    ]
+
+    for i, tag in enumerate(expected_tags):
+        assert result[i].tag == tag
+        assert result[i].folder == case_folder
+        assert isinstance(result[i].dataframe, pd.DataFrame)
+
+    assert "None" in genx_data_dict["fuels"].columns
+    assert all(genx_data_dict["demand_data"].columns.str.startswith("Load_"))
