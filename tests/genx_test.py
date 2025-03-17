@@ -320,6 +320,7 @@ def sample_gen_data():
             "FLEX": [0, 0, 0, 0, 0, 1, 0, 0, 0],
             "HYDRO": [0, 0, 0, 0, 0, 0, 0, 1, 0],
             # Resource specific columns
+            "Existing_Cap_MW": [100, 200, 300, 400, 500, 600, 700, 800, 900],
             "Min_Power": [0.4, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],  # THERM column
             "Down_Time": [6.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # THERM column
             "Up_Time": [6.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # THERM column
@@ -434,7 +435,7 @@ def test_create_resource_df(sample_gen_data):
     # Test case 1: THERM resource
     therm_result = create_resource_df(input_df, "THERM")
     assert (
-        list(therm_result.columns[:4]) == DEFAULT_COLS
+        list(therm_result.columns[:5]) == DEFAULT_COLS
     ), "Default columns should be first"
     assert "Model" in therm_result.columns, "THERM should be renamed to Model"
     assert therm_result["Model"].tolist() == [
@@ -450,7 +451,7 @@ def test_create_resource_df(sample_gen_data):
     # Test case 2: STOR resource
     stor_result = create_resource_df(input_df, "STOR")
     assert (
-        list(stor_result.columns[:4]) == DEFAULT_COLS
+        list(stor_result.columns[:5]) == DEFAULT_COLS
     ), "Default columns should be first"
     assert "Model" in stor_result.columns, "STOR should be renamed to Model"
     assert stor_result["Model"].tolist() == [
@@ -464,7 +465,7 @@ def test_create_resource_df(sample_gen_data):
     # Test case 3: VRE resource
     vre_result = create_resource_df(input_df, "VRE")
     assert (
-        list(vre_result.columns[:4]) == DEFAULT_COLS
+        list(vre_result.columns[:5]) == DEFAULT_COLS
     ), "Default columns should be first"
     assert "Model" not in vre_result.columns, "VRE should not be renamed to Model"
     assert "Min_Power" not in vre_result.columns, "THERM columns should be removed"
@@ -476,7 +477,7 @@ def test_create_resource_df(sample_gen_data):
     # Test case 4: MUST_RUN resource
     must_run_result = create_resource_df(input_df, "MUST_RUN")
     assert (
-        list(must_run_result.columns[:4]) == DEFAULT_COLS
+        list(must_run_result.columns[:5]) == DEFAULT_COLS
     ), "Default columns should be first"
     assert (
         "Model" not in must_run_result.columns
@@ -490,7 +491,7 @@ def test_create_resource_df(sample_gen_data):
     # Test case 5: FLEX resource
     flex_result = create_resource_df(input_df, "FLEX")
     assert (
-        list(flex_result.columns[:4]) == DEFAULT_COLS
+        list(flex_result.columns[:5]) == DEFAULT_COLS
     ), "Default columns should be first"
     assert "Model" not in flex_result.columns, "FLEX should not be renamed to Model"
     assert "Min_Power" not in flex_result.columns, "THERM columns should be removed"
@@ -502,7 +503,7 @@ def test_create_resource_df(sample_gen_data):
     # Test case 6: HYDRO resource
     hydro_result = create_resource_df(input_df, "HYDRO")
     assert (
-        list(hydro_result.columns[:4]) == DEFAULT_COLS
+        list(hydro_result.columns[:5]) == DEFAULT_COLS
     ), "Default columns should be first"
     assert "Model" not in hydro_result.columns, "HYDRO should not be renamed to Model"
     assert "Min_Power" in hydro_result.columns, "THERM columns should be removed"
@@ -584,6 +585,7 @@ def test_create_resource_df_column_order():
             "Zone": [1, 2],
             "New_Build": [1, 0],
             "Can_Retire": [1, 1],
+            "Existing_Cap_MW": [100, 200],
             "THERM": [1, 1],
             "Extra_Last": [3, 4],
         }
@@ -1391,7 +1393,7 @@ def test_process_genx_data_folder_structure(case_folder, sample_genx_data_dict):
     assert {data.tag for data in system_files} == system_tags
 
     # Check policy folder assignments
-    policy_files = [data for data in result if data.folder == case_folder / "policy"]
+    policy_files = [data for data in result if data.folder == case_folder / "policies"]
     policy_tags = {"ESR", "CAP_RESERVES", "CO2_CAP", "MIN_CAP", "MAX_CAP"}
     assert {data.tag for data in policy_files} == policy_tags
 
