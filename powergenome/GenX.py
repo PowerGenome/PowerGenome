@@ -1896,6 +1896,13 @@ def process_genx_data_old_format(
         List of GenXResourceData objects to be written out
     """
 
+    # Add 'None' column to fuels data if it doesn't exist -- causes error in old GenX otherwise
+    if (
+        "fuels" in genx_data_dict
+        and "None" not in genx_data_dict.get("fuels", pd.DataFrame()).columns
+    ):
+        genx_data_dict["fuels"]["None"] = 0
+
     # List of GenXInputData objects to be written out
     genx_data = []
 
@@ -1917,7 +1924,7 @@ def process_genx_data_old_format(
             GenXInputData(
                 tag="DEMAND",
                 folder=case_folder,
-                file_name="Demand_data.csv",
+                file_name="Load_data.csv",
                 dataframe=genx_data_dict.get("demand_data", pd.DataFrame()),
             ),
             GenXInputData(
