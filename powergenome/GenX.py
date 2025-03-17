@@ -1903,6 +1903,11 @@ def process_genx_data_old_format(
     ):
         genx_data_dict["fuels"]["None"] = 0
 
+    if "demand_data" in genx_data_dict:
+        genx_data_dict["demand_data"].columns = genx_data_dict[
+            "demand_data"
+        ].columns.str.replace("Demand_", "Load_")
+
     # List of GenXInputData objects to be written out
     genx_data = []
 

@@ -303,7 +303,7 @@ def main(**kwargs):
 
             if args.load:
                 load = make_final_load_curves(pg_engine=pg_engine, settings=_settings)
-                load.columns = "Load_MW_z" + load.columns.map(zone_num_map)
+                load.columns = "Demand_MW_z" + load.columns.map(zone_num_map)
                 if not args.gens:
                     gen_variability = pd.DataFrame(index=load.index)
 
