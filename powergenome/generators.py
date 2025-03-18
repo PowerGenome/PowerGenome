@@ -3991,17 +3991,9 @@ class GeneratorClusters:
                 "Lifetime",
             ] = 50
 
-            # Select relevant columns
-            cols = [
-                c for c in self.settings["generator_columns"] if c in self.all_resources
-            ]
-            cols.extend(["Capital_Recovery_Period", "WACC", "Lifetime"])
-
             # Apply transformations
             self.all_resources = (
-                remove_fuel_gen_scenario_name(
-                    self.all_resources[cols].fillna(0), self.settings
-                )
+                remove_fuel_gen_scenario_name(self.all_resources, self.settings)
                 .pipe(set_int_cols)
                 .pipe(round_col_values)
                 .pipe(check_resource_tags)
@@ -4069,8 +4061,7 @@ class GeneratorClusters:
         self.adjust_min_power_based_on_profile()
         self.apply_multi_period_transformations()
 
-        for col in self.settings.get("generator_columns", []):
-            if col not in self.all_resources.columns:
-                self.all_resources[col] = 0
+        # Fill NaN values with 0
+        self.all_resources.fillna(0, inplace=True)
 
         return self.all_resources

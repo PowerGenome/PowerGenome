@@ -1469,6 +1469,10 @@ def filter_empty_columns(df: pd.DataFrame) -> List[str]:
     List[str]
         List of column names that have at least one non-zero and non-None/"No_fuel" value
     """
+    # Drop columns that are known to have lists or array values
+    drop_cols = ["plant_id_eia", "unit_id_eia", "unit_id_pg", "generator_id", "profile"]
+    df = df.drop(columns=drop_cols, errors="ignore")
+
     # Check for non-None values
     notnull_mask = df.notna().sum() > 0
 
@@ -1628,7 +1632,9 @@ def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFr
     policy_df = df[policy_cols].copy()
 
     # Keep only rows with at least one non-zero value in policy columns
-    policy_data_cols = policy_df.columns[1:]  # All columns except Resource
+    policy_data_cols = policy_df.select_dtypes(
+        include=["number"]
+    ).columns  # All numeric columns
     policy_df = policy_df[policy_df[policy_data_cols].gt(0).any(axis=1)]
 
     # Rename columns replacing oldtag with newtag
