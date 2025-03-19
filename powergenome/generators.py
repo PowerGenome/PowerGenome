@@ -228,7 +228,7 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         for tech in atb_tech:
             df.loc[df["technology"] == tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
             df.loc[
-                df["technology"].str.contains(tech, case=False),
+                df["technology"].str.contains(tech, case=False, regex=False),
                 "Start_Fuel_MMBTU_per_MW",
             ] = fuel_use
 
@@ -289,7 +289,7 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     ).items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[
-            df["technology"].str.contains(existing_tech, case=False),
+            df["technology"].str.contains(existing_tech, case=False, regex=False),
             "Start_Cost_per_MW",
         ] = total_startup_costs
 
@@ -1561,7 +1561,7 @@ def add_resource_tags(
                 key=lambda item: len(str(item[0])),
             ):
                 tech = re.sub(ignored, "", tech)
-                mask = technology.str.contains(rf"^{tech}", case=False)
+                mask = technology.str.contains(rf"{tech}", case=False, regex=False)
                 _df.loc[mask, tag_col] = tag_value
         except (KeyError, AttributeError) as e:
             logger.warning(f"No model tag values found for {tag_col} ({e})")
@@ -1572,7 +1572,7 @@ def add_resource_tags(
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
         tech = re.sub(ignored, "", tech)
-        mask = technology.str.contains(rf"^{tech}", case=False)
+        mask = technology.str.contains(rf"{tech}", case=False, regex=False)
         _df.loc[(_df["region"] == region) & mask, tag_col] = tag_value
 
     return _df
@@ -2312,7 +2312,11 @@ def add_fuel_labels(df, fuel_prices, settings):
                     if atb_tech is not None:
                         for tech in atb_tech:
                             df.loc[
-                                (df["technology"].str.contains(tech, case=False))
+                                (
+                                    df["technology"].str.contains(
+                                        tech, case=False, regex=False
+                                    )
+                                )
                                 & (df["region"] == region)
                                 & (df["Fuel"].isna()),
                                 "Fuel",
@@ -2327,7 +2331,11 @@ def add_fuel_labels(df, fuel_prices, settings):
                 if atb_tech is not None:
                     for tech in atb_tech:
                         df.loc[
-                            (df["technology"].str.contains(tech, case=False))
+                            (
+                                df["technology"].str.contains(
+                                    tech, case=False, regex=False
+                                )
+                            )
                             & (df["Fuel"].isna()),
                             "Fuel",
                         ] = fuel
@@ -2342,7 +2350,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                 ), f"{fuel_name} doesn't show up in {model_year}"
 
                 df.loc[
-                    (df["technology"].str.contains(eia_tech, case=False))
+                    (df["technology"].str.contains(eia_tech, case=False, regex=False))
                     & df["region"].isin(model_regions),
                     "Fuel",
                 ] = fuel_name
@@ -2350,7 +2358,11 @@ def add_fuel_labels(df, fuel_prices, settings):
                 if atb_tech is not None:
                     for tech in atb_tech:
                         df.loc[
-                            (df["technology"].str.contains(tech, case=False))
+                            (
+                                df["technology"].str.contains(
+                                    tech, case=False, regex=False
+                                )
+                            )
                             & (df["region"].isin(model_regions))
                             & (df["Fuel"].isna()),
                             "Fuel",
@@ -2373,13 +2385,17 @@ def add_fuel_labels(df, fuel_prices, settings):
                 for region in settings["user_fuel_price"][ccs_base_name].keys():
                     ccs_fuel_name = ("_").join([region, ccs_fuel])
                     df.loc[
-                        (df["technology"].str.contains(ccs_tech, case=False))
+                        (
+                            df["technology"].str.contains(
+                                ccs_tech, case=False, regex=False
+                            )
+                        )
                         & (df["region"] == region),
                         "Fuel",
                     ] = ccs_fuel_name
             else:
                 df.loc[
-                    (df["technology"].str.contains(ccs_tech, case=False)),
+                    (df["technology"].str.contains(ccs_tech, case=False, regex=False)),
                     "Fuel",
                 ] = ccs_fuel
         else:

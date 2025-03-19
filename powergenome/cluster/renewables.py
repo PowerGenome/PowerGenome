@@ -703,7 +703,9 @@ def modify_renewable_group(
         # for group, mod in (group_modifiers or {}).items():
         for key, op_list in group_mod.items():
             if isinstance(op_list, float) | isinstance(op_list, int):
-                df.loc[df["cluster"].str.contains(group_id, case=False), key] = op_list
+                df.loc[
+                    df["cluster"].str.contains(group_id, case=False, regex=False), key
+                ] = op_list
             else:
                 if len(op_list) != 2:
                     raise ValueError(
@@ -721,10 +723,13 @@ def modify_renewable_group(
                         "properties of a renewable cluster.\n"
                     )
                 f = operator.attrgetter(op)
-                df.loc[df["cluster"].str.contains(group_id, case=False), key] = f(
-                    operator
-                )(
-                    df.loc[df["cluster"].str.contains(group_id, case=False), key],
+                df.loc[
+                    df["cluster"].str.contains(group_id, case=False, regex=False), key
+                ] = f(operator)(
+                    df.loc[
+                        df["cluster"].str.contains(group_id, case=False, regex=False),
+                        key,
+                    ],
                     op_value,
                 )
     return df
