@@ -513,7 +513,7 @@ def add_misc_gen_values(
     for tech, _df in misc_values.groupby(resource_col):
         num_tech_regions = len(
             gen_clusters.loc[
-                gen_clusters[resource_col].str.contains(tech, case=False)
+                gen_clusters[resource_col].str.contains(tech, case=False, regex=False)
             ].drop_duplicates(subset=["region"])
         )
         num_values = len(_df)
