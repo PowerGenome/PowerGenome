@@ -1187,11 +1187,11 @@ class TestAddResourceTags:
     # Given a DataFrame with a 'technology' column, when calling the function with a valid model_tag_values dictionary, then the function should add new columns to the DataFrame with the keys of the model_tag_values dictionary.
     def test_add_resource_tags_with_valid_model_tag_values(self):
         # Create a sample DataFrame
-        df = pd.DataFrame({"technology": ["solar", "wind", "nuclear"]})
+        df = pd.DataFrame({"technology": ["solar", "wind", "nuclear", "gas (h-frame)"]})
 
         # Define the model_tag_values dictionary
         model_tag_values = {
-            "THERM": {"gas": 1, "coal": 2},
+            "THERM": {"nuclear": 1, "coal": 2, "gas (h-frame)": 1},
             "RENEW": {"solar": 1, "wind": 2},
         }
 
@@ -1201,6 +1201,10 @@ class TestAddResourceTags:
         # Check if new columns are added to the DataFrame
         assert "THERM" in result.columns
         assert "RENEW" in result.columns
+
+        # Check if values are filled correctly for each technology
+        assert result["RENEW"].to_list() == [1, 2, 0, 0]
+        assert result["THERM"].to_list() == [0, 0, 1, 1]
 
     # Given a DataFrame without a 'technology' column, when calling the function, then the function should raise a KeyError.
     def test_add_resource_tags_without_technology_column(self):
@@ -1222,18 +1226,21 @@ class TestAddResourceTags:
         # Create a sample DataFrame
         df = pd.DataFrame(
             {
-                "technology": ["solar", "wind", "nuclear"] * 2,
-                "region": ["A"] * 3 + ["B"] * 3,
+                "technology": ["solar", "wind", "nuclear", "gas (h-frame)"] * 2,
+                "region": ["A"] * 4 + ["B"] * 4,
             }
         )
 
         # Define the regional_tag_values dictionary
         regional_tag_values = {
             "A": {
-                "THERM": {"nuclear": 1, "coal": 2},
+                "THERM": {"nuclear": 1, "coal": 2, "gas (h-frame)": 1},
                 "RENEW": {"solar": 1, "wind": 2},
             },
-            "B": {"THERM": {"nuclear": 3, "coal": 4}, "RENEW": {"solar": 3, "wind": 4}},
+            "B": {
+                "THERM": {"nuclear": 3, "coal": 4, "gas (h-frame)": 1},
+                "RENEW": {"solar": 3, "wind": 4},
+            },
         }
 
         # Call the add_resource_tags function
@@ -1244,8 +1251,8 @@ class TestAddResourceTags:
         assert "RENEW" in result.columns
 
         # Check if values are filled correctly for each technology in each region
-        assert result["RENEW"].to_list() == [1, 2, 0, 3, 4, 0]
-        assert result["THERM"].to_list() == [0, 0, 1, 0, 0, 3]
+        assert result["RENEW"].to_list() == [1, 2, 0, 0, 3, 4, 0, 0]
+        assert result["THERM"].to_list() == [0, 0, 1, 1, 0, 0, 3, 1]
 
     # Given a DataFrame with a 'technology' column and a valid regional_tag_values dictionary, but without a 'region' column, when calling the function with the correct arguments, then the function should raise a KeyError.
     def test_add_resource_tags_with_missing_region_column_fixed(self):
