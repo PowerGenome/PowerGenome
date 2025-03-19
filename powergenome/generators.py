@@ -30,7 +30,16 @@ from powergenome.external_data import (
     make_demand_response_profiles,
 )
 from powergenome.financials import investment_cost_calculator
-from powergenome.GenX import cap_retire_within_period, rename_gen_cols
+from powergenome.GenX import (
+    add_co2_costs_to_o_m,
+    add_misc_gen_values,
+    cap_retire_within_period,
+    check_resource_tags,
+    hydro_energy_to_power,
+    rename_gen_cols,
+    round_col_values,
+    set_int_cols,
+)
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
     atb_fixed_var_om_existing,
@@ -48,6 +57,7 @@ from powergenome.util import (
     load_ipm_shapefile,
     map_agg_region_names,
     regions_to_keep,
+    remove_fuel_gen_scenario_name,
     remove_leading_zero,
     reverse_dict_of_lists,
     snake_case_col,
@@ -218,7 +228,7 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         for tech in atb_tech:
             df.loc[df["technology"] == tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
             df.loc[
-                df["technology"].str.contains(tech, case=False),
+                df["technology"].str.contains(tech, case=False, regex=False),
                 "Start_Fuel_MMBTU_per_MW",
             ] = fuel_use
 
@@ -279,7 +289,7 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     ).items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[
-            df["technology"].str.contains(existing_tech, case=False),
+            df["technology"].str.contains(existing_tech, case=False, regex=False),
             "Start_Cost_per_MW",
         ] = total_startup_costs
 
@@ -1551,7 +1561,7 @@ def add_resource_tags(
                 key=lambda item: len(str(item[0])),
             ):
                 tech = re.sub(ignored, "", tech)
-                mask = technology.str.contains(rf"^{tech}", case=False)
+                mask = technology.str.contains(rf"{tech}", case=False, regex=False)
                 _df.loc[mask, tag_col] = tag_value
         except (KeyError, AttributeError) as e:
             logger.warning(f"No model tag values found for {tag_col} ({e})")
@@ -1562,7 +1572,7 @@ def add_resource_tags(
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
         tech = re.sub(ignored, "", tech)
-        mask = technology.str.contains(rf"^{tech}", case=False)
+        mask = technology.str.contains(rf"{tech}", case=False, regex=False)
         _df.loc[(_df["region"] == region) & mask, tag_col] = tag_value
 
     return _df
@@ -2248,7 +2258,7 @@ def add_fuel_labels(df, fuel_prices, settings):
     -------
     DataFrame
         Same as input, but with a new column "Fuel" that is either the name of the
-        corresponding fuel (coal, natural_gas, uranium, or distillate) or "None".
+        corresponding fuel (coal, natural_gas, uranium, or distillate) or "No_fuel".
 
     Raises
     ------
@@ -2302,7 +2312,11 @@ def add_fuel_labels(df, fuel_prices, settings):
                     if atb_tech is not None:
                         for tech in atb_tech:
                             df.loc[
-                                (df["technology"].str.contains(tech, case=False))
+                                (
+                                    df["technology"].str.contains(
+                                        tech, case=False, regex=False
+                                    )
+                                )
                                 & (df["region"] == region)
                                 & (df["Fuel"].isna()),
                                 "Fuel",
@@ -2317,7 +2331,11 @@ def add_fuel_labels(df, fuel_prices, settings):
                 if atb_tech is not None:
                     for tech in atb_tech:
                         df.loc[
-                            (df["technology"].str.contains(tech, case=False))
+                            (
+                                df["technology"].str.contains(
+                                    tech, case=False, regex=False
+                                )
+                            )
                             & (df["Fuel"].isna()),
                             "Fuel",
                         ] = fuel
@@ -2332,7 +2350,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                 ), f"{fuel_name} doesn't show up in {model_year}"
 
                 df.loc[
-                    (df["technology"].str.contains(eia_tech, case=False))
+                    (df["technology"].str.contains(eia_tech, case=False, regex=False))
                     & df["region"].isin(model_regions),
                     "Fuel",
                 ] = fuel_name
@@ -2340,7 +2358,11 @@ def add_fuel_labels(df, fuel_prices, settings):
                 if atb_tech is not None:
                     for tech in atb_tech:
                         df.loc[
-                            (df["technology"].str.contains(tech, case=False))
+                            (
+                                df["technology"].str.contains(
+                                    tech, case=False, regex=False
+                                )
+                            )
                             & (df["region"].isin(model_regions))
                             & (df["Fuel"].isna()),
                             "Fuel",
@@ -2363,13 +2385,17 @@ def add_fuel_labels(df, fuel_prices, settings):
                 for region in settings["user_fuel_price"][ccs_base_name].keys():
                     ccs_fuel_name = ("_").join([region, ccs_fuel])
                     df.loc[
-                        (df["technology"].str.contains(ccs_tech, case=False))
+                        (
+                            df["technology"].str.contains(
+                                ccs_tech, case=False, regex=False
+                            )
+                        )
                         & (df["region"] == region),
                         "Fuel",
                     ] = ccs_fuel_name
             else:
                 df.loc[
-                    (df["technology"].str.contains(ccs_tech, case=False)),
+                    (df["technology"].str.contains(ccs_tech, case=False, regex=False)),
                     "Fuel",
                 ] = ccs_fuel
         else:
@@ -2426,7 +2452,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                     aeo_region, region
                 )
 
-    df.loc[df["Fuel"].isna(), "Fuel"] = "None"
+    df.loc[df["Fuel"].isna(), "Fuel"] = "No_fuel"
 
     return df
 
@@ -3109,7 +3135,7 @@ class GeneratorClusters:
 
         dr_rows = pd.concat(df_list)
         dr_rows["New_Build"] = -1
-        dr_rows["Fuel"] = "None"
+        dr_rows["Fuel"] = "No_fuel"
         dr_rows["cluster"] = 1
         dr_rows = dr_rows.fillna(0)
 
@@ -3922,6 +3948,73 @@ class GeneratorClusters:
 
         return self.new_generators
 
+    def adjust_min_power_based_on_profile(self):
+        """
+        Adjust 'Min_Power' by ensuring it is not greater than the minimum value
+        in the corresponding 'profile' column (if 'profile' contains an array).
+        Uses np.frompyfunc for improved performance on large datasets.
+        """
+        # Vectorized function to extract the minimum value from arrays
+        get_min_value = np.frompyfunc(
+            lambda x: min(x) if isinstance(x, (list, np.ndarray)) else np.nan, 1, 1
+        )
+
+        # Compute the minimum values from the 'profile' column
+        self.all_resources["profile_min"] = get_min_value(self.all_resources["profile"])
+
+        # Update 'Min_Power' where necessary
+        self.all_resources.loc[
+            (self.all_resources["profile_min"].notna())
+            & (self.all_resources["Min_Power"] > self.all_resources["profile_min"]),
+            "Min_Power",
+        ] = self.all_resources["profile_min"]
+
+        # Drop the temporary column
+        self.all_resources.drop(columns=["profile_min"], inplace=True)
+
+    def remove_fuel_scenario_name(self, gen_fuels: List[str]):
+        """
+        Keeps fuels for used in by generators in the model. Removes the scenario name
+        from the `full_fuel_name` column of of the `fuel_prices` DataFrame.
+        """
+        self.fuel_prices = self.fuel_prices.loc[
+            self.fuel_prices["full_fuel_name"].isin(gen_fuels)
+        ]
+        scenarios = (self.settings.get("eia_series_scenario_names", {}) or {}).keys()
+        for s in scenarios:
+            self.fuel_prices["full_fuel_name"] = self.fuel_prices[
+                "full_fuel_name"
+            ].str.replace(f"_{s}", "")
+
+    def apply_multi_period_transformations(self):
+        """
+        Applies transformations to self.all_resources, renaming columns and modifying
+        specific values to ensure compatibility with multi-period analysis.
+        """
+        if self.all_resources is not None:
+            self.all_resources = self.all_resources.rename(
+                columns={
+                    "cap_recovery_years": "Capital_Recovery_Period",
+                    "wacc_real": "WACC",
+                }
+            )
+            self.all_resources["Lifetime"] = self.all_resources[
+                "Capital_Recovery_Period"
+            ]
+            self.all_resources.loc[
+                (self.all_resources["Lifetime"] == 0)
+                | (self.all_resources["Lifetime"].isna()),
+                "Lifetime",
+            ] = 50
+
+            # Apply transformations
+            self.all_resources = (
+                remove_fuel_gen_scenario_name(self.all_resources, self.settings)
+                .pipe(set_int_cols)
+                .pipe(round_col_values)
+                .pipe(check_resource_tags)
+            )
+
     def create_all_generators(self):
         if self.current_gens:
             self.existing_resources = self.create_region_technology_clusters()
@@ -3969,5 +4062,22 @@ class GeneratorClusters:
             logger.debug(
                 f"Capacity of {self.all_resources['Existing_Cap_MW'].sum()} MW in final clusters"
             )
+
+        self.all_resources = (
+            add_misc_gen_values(self.all_resources, self.settings)
+            .pipe(
+                hydro_energy_to_power,
+                self.settings.get("hydro_factor"),
+                self.settings.get("regional_hydro_factor", {}),
+            )
+            .pipe(add_co2_costs_to_o_m)
+        )
+
+        self.remove_fuel_scenario_name(self.all_resources["Fuel"].to_list())
+        self.adjust_min_power_based_on_profile()
+        self.apply_multi_period_transformations()
+
+        # Fill NaN values with 0
+        self.all_resources.fillna(0, inplace=True)
 
         return self.all_resources

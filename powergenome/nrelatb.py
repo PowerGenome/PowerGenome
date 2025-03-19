@@ -125,10 +125,10 @@ def fetch_atb_costs(
         SELECT technology, tech_detail, cost_case, parameter, basis_year, parameter_value, dollar_year
         from technology_costs_nrelatb
         where
-            technology == "{tech}"
-            AND tech_detail == "{tech_detail}"
-            AND financial_case == "{fin_case}"
-            AND cost_case == "{cost_case}"
+            technology == '{tech}'
+            AND tech_detail == '{tech_detail}'
+            AND financial_case == '{fin_case}'
+            AND cost_case == '{cost_case}'
             AND atb_year == {atb_year}
             AND parameter IN ({','.join('?'*len(cost_params))})
         """
@@ -142,17 +142,17 @@ def fetch_atb_costs(
             select technology, cost_case, basis_year, parameter_value
             from technology_costs_nrelatb
             where
-                technology == "{tech}"
-                AND financial_case == "{fin_case}"
-                AND cost_case == "{cost_case}"
+                technology == '{tech}'
+                AND financial_case == '{fin_case}'
+                AND cost_case == '{cost_case}'
                 AND atb_year == {atb_year}
-                AND parameter == "wacc_real"
+                AND parameter == 'wacc_real'
             """
             wacc_rows.extend(pg_engine.execute(wacc_s).fetchall())
 
         tech_list.append((tech, cost_case))
     tech_names = [t[0] for t in tech_list]
-    if "Battery" not in tech_names:
+    if not any("battery" in tech.lower() for tech in tech_names):
         df = pd.DataFrame(all_rows, columns=col_names)
         wacc_df = pd.DataFrame(
             wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_real"]
@@ -160,10 +160,14 @@ def fetch_atb_costs(
     else:
         # ATB doesn't have a WACC for battery storage. We use UtilityPV WACC as a default
         # stand-in -- make sure we have it in case.
-        s = 'SELECT DISTINCT("technology") from technology_costs_nrelatb WHERE parameter == "wacc_real"'
+        s = """
+        SELECT DISTINCT("technology")
+        from technology_costs_nrelatb
+        WHERE parameter == 'wacc_real'
+        """
         atb_techs = [x[0] for x in pg_engine.execute(s).fetchall()]
         battery_wacc_standin = settings.get("atb_battery_wacc")
-        battery_tech = [x for x in techs if x[0] == "Battery"][0]
+        battery_tech = [x for x in techs if "battery" in x[0].lower()][0]
         if isinstance(battery_wacc_standin, float):
             if battery_wacc_standin > 0.1:
                 logger.warning(
@@ -187,11 +191,11 @@ def fetch_atb_costs(
                 select technology, cost_case, basis_year, parameter_value
                 from technology_costs_nrelatb
                 where
-                    technology == "{battery_wacc_standin}"
-                    AND financial_case == "{fin_case}"
-                    AND cost_case == "{cost_case}"
+                    technology == '{battery_wacc_standin}'
+                    AND financial_case == '{fin_case}'
+                    AND cost_case == '{cost_case}'
                     AND atb_year == {atb_year}
-                    AND parameter == "wacc_real"
+                    AND parameter == 'wacc_real'
 
                 """
                 b_rows = pg_engine.execute(wacc_s).fetchall()
@@ -458,10 +462,10 @@ def atb_fixed_var_om_existing(
             technology_costs_nrelatb
         WHERE
             basis_year == ?
-            AND financial_case == "Market"
-            AND cost_case in("Mid", "Moderate")
+            AND financial_case == 'Market'
+            AND cost_case in('Mid', 'Moderate')
             AND atb_year == ?
-            AND parameter in("variable_o_m_mwh", "fixed_o_m_mw")
+            AND parameter in('variable_o_m_mwh', 'fixed_o_m_mw')
     """
     params = [existing_year, settings["atb_data_year"]]
     atb_om_names = pd.read_sql_query(
@@ -548,10 +552,10 @@ def atb_fixed_var_om_existing(
         from technology_costs_nrelatb
         where
             basis_year == ?
-            AND financial_case == "Market"
-            AND cost_case in ("Mid", "Moderate")
+            AND financial_case == 'Market'
+            AND cost_case in ('Mid', 'Moderate')
             AND atb_year == ?
-            AND parameter in ("variable_o_m_mwh", "fixed_o_m_mw", "fixed_o_m_mwh")
+            AND parameter in ('variable_o_m_mwh', 'fixed_o_m_mw', 'fixed_o_m_mwh')
             AND
                 ({' OR '.join(["(technology==? and tech_detail==?)"]*len(atb_techs))})
             GROUP BY technology, tech_detail, parameter
@@ -982,6 +986,7 @@ def regional_capex_multiplier(
     tech_map: Dict[str, str],
     regional_multipliers: pd.DataFrame,
 ) -> pd.DataFrame:
+    df = df.copy()
     cost_region = region_map[region]
     tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
     avg_multiplier = tech_multiplier.mean()
@@ -990,9 +995,11 @@ def regional_capex_multiplier(
 
     tech_multiplier_map = {}
     for atb_tech, eia_tech in tech_map.items():
-        if df["technology"].str.contains(atb_tech, case=False).sum() > 0:
+        if df["technology"].str.contains(atb_tech, case=False, regex=False).sum() > 0:
             full_atb_tech = df.loc[
-                df["technology"].str.contains(atb_tech, case=False).idxmax(),
+                df["technology"]
+                .str.contains(atb_tech, case=False, regex=False)
+                .idxmax(),
                 "technology",
             ]
             tech_multiplier_map[full_atb_tech] = tech_multiplier.at[eia_tech]

@@ -154,7 +154,7 @@ def add_resource_max_cap_spur(
         mask = (new_resource_df["region"] == region) & (
             new_resource_df["technology"]
             .str.replace("_\*", "_all")
-            .str.contains(tech.replace("_\*", "_all"), case=False)
+            .str.contains(tech.replace("_\*", "_all"), case=False, regex=False)
         )
         if mask.sum() > 1:
             resources = new_resource_df.loc[mask, "technology"].to_list()
