@@ -35,7 +35,10 @@ dependencies = [
     "pyyaml",
     "frozendict",
     "openpyxl>=3.0",
-    "geopandas>=0.11",
+    "geopandas>=0.12",
+    "xlrd",
+    "pyarrow",
+    "duckdb",
 ]
 
 [tool.hatch.version]

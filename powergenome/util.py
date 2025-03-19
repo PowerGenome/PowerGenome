@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Tuple, Union
 
 os.environ["USE_PYGEOS"] = "0"
 
+import duckdb
 import geopandas as gpd
 import pandas as pd
 import pudl
@@ -778,7 +779,6 @@ def write_results_file(
     file_name: str,
     include_index: bool = False,
     float_format: str = None,
-    multi_period: bool = True,
 ):
     """Write a finalized dataframe to one of the results csv files.
 
@@ -797,8 +797,6 @@ def write_results_file(
     multi_period : bool, optional
         If results should be formatted for multi-period, by default True
     """
-    if not multi_period:
-        folder = folder / "Inputs"
 
     folder.mkdir(exist_ok=True, parents=True)
 
@@ -906,29 +904,6 @@ def regions_to_keep(
         if x not in region_agg_map.values()
     ]
     return keep_regions, region_agg_map
-
-
-def build_case_id_name_map(settings: dict) -> dict:
-    """Make a dictionary mapping of case IDs and case names from a CSV file
-
-    Parameters
-    ----------
-    settings : dict
-        Settings parameters. Must include `input_folder` and `case_id_description_fn`
-
-    Returns
-    -------
-    dict
-        Mapping of case id to case name
-    """
-    case_id_name_df = pd.read_csv(
-        Path(settings["input_folder"]) / settings["case_id_description_fn"],
-        index_col=0,
-    ).squeeze("columns")
-    case_id_name_df = case_id_name_df.str.replace(" ", "_")
-    case_id_name_map = case_id_name_df.to_dict()
-
-    return case_id_name_map
 
 
 def make_iterable(item: Union[int, str, Iterable]) -> Iterable:
@@ -1098,20 +1073,18 @@ def build_scenario_settings(
             + scenario_definitions[dups].to_string(index=False)
         )
 
-    if settings.get("case_id_description_fn"):
-        case_id_name_map = build_case_id_name_map(settings)
-    else:
-        case_id_name_map = None
-
     all_category_levels = set()
     active_category_levels = set()
     scenario_settings = {}
     missing_flag = object()
+    case_period = {c: 1 for c in scenario_definitions["case_id"].unique()}
     for i, scenario_row in scenario_definitions.iterrows():
         year, case_id = scenario_row[["year", "case_id"]]
 
         _settings = deepcopy(settings)
         _settings["case_id"] = case_id
+        _settings["case_period"] = case_period[case_id]
+        case_period[case_id] += 1
 
         # first apply any settings under "all_years", then any settings for this year
         for settings_year in ["all_years", year]:
@@ -1163,9 +1136,6 @@ def build_scenario_settings(
 
         # make sure model year data appears in standard form
         assign_model_planning_years(_settings, year)
-
-        if case_id_name_map:
-            _settings["case_name"] = case_id_name_map[case_id]
 
         scenario_settings.setdefault(year, {})[case_id] = _settings
         if _settings.get("generator_columns"):
@@ -1465,3 +1435,193 @@ def add_row_to_csv(file: Path, new_row: List[str], headers: List[str] = None) ->
         with file.open("a", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(new_row)  # add the new row to the CSV file
+
+
+def get_all_table_names(data_location: Union[Path, str]) -> List[str]:
+    """
+    Retrieve all table names from the given SQLite or DuckDB database.
+
+    Parameters
+    ----------
+    data_location : str
+        The path to the SQLite or DuckDB database.
+
+    Returns
+    -------
+    List[str]
+        A list of table names in the database.
+    """
+    con = duckdb.connect(database=str(data_location))
+    table_names = con.execute("SHOW TABLES").fetchall()
+    con.close()
+    return [table[0] for table in table_names]
+
+
+def prepend_db_to_tables(
+    query: str, table_names: List[str], db_prefix: str = "db."
+) -> str:
+    """
+    Finds all table names within a query and appends them with the provided db_prefix.
+
+    Parameters
+    ----------
+    query : str
+        The SQL query containing table names.
+    table_names : List[str]
+        A list of table names in the database.
+    db_prefix : str, optional
+        The prefix to prepend to table names. Default is 'db.'.
+
+    Returns
+    -------
+    str
+        The modified query with table names prepended by db_prefix.
+    """
+    for table_name in table_names:
+        # Use regex to find table names not followed by a period
+        query = re.sub(rf"\b{table_name}\b(?!\s*\.)", f"{db_prefix}{table_name}", query)
+    return query
+
+
+def load_data_file(file_path: Union[Path, str]):
+    """
+    Load data from a CSV or Parquet file using duckdb.
+
+    Parameters
+    ----------
+    file_path : Union[Path, str]
+        The path to the CSV or Parquet file.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A pandas DataFrame containing the loaded data.
+
+    Raises
+    ------
+    ValueError
+        If the file extension is not supported.
+    """
+    # Create a duckdb connection
+    con = duckdb.connect(database=":memory:")
+
+    # Determine file type and load data
+    file_extension = os.path.splitext(file_path)[1].lower()
+    if file_extension == ".csv":
+        data = con.execute(f"SELECT * FROM read_csv_auto('{file_path}')").fetchdf()
+    elif file_extension == ".parquet":
+        data = con.execute(f"SELECT * FROM read_parquet('{file_path}')").fetchdf()
+    else:
+        con.close()
+        raise ValueError(f"Unsupported file type: {file_extension}")
+
+    con.close()
+    return data
+
+
+def load_table_from_db(
+    data_location: Union[Path, str], file_or_table_name: str = None, query: str = None
+) -> pd.DataFrame:
+    """
+    Load data from a SQLite or DuckDB database using duckdb.
+
+    Parameters
+    ----------
+    data_location : Union[Path, str]
+        The path to the SQLite or DuckDB database.
+    file_or_table_name : str, optional
+        The name of the table to load.
+    query : str, optional
+        The SQL query to run. If provided, the query will be executed instead of selecting from a single table.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A pandas DataFrame containing the loaded data.
+
+    Raises
+    ------
+    ValueError
+        If the database type is not supported.
+    """
+    # Create a duckdb connection
+    con = duckdb.connect(database=":memory:")
+
+    if str(data_location).endswith(".db") or str(data_location).endswith(".sqlite"):
+        con.execute(f"ATTACH '{data_location}' AS db")
+        if query:
+            table_names = get_all_table_names(data_location)
+            query = prepend_db_to_tables(query, table_names)
+            data = con.execute(query).fetchdf()
+        else:
+            query = f"SELECT * FROM db.{file_or_table_name}"
+            data = con.execute(query).fetchdf()
+    elif str(data_location).endswith(".duckdb"):
+        con = duckdb.connect(database=str(data_location))
+        if query:
+            data = con.execute(query).fetchdf()
+        else:
+            query = f"SELECT * FROM {file_or_table_name}"
+            data = con.execute(query).fetchdf()
+    else:
+        con.close()
+        raise ValueError(
+            "Unsupported database type. Use SQLite (.db, .sqlite) or DuckDB (.duckdb)"
+        )
+
+    con.close()
+    return data
+
+
+def load_data(
+    data_location: Union[Path, str], file_or_table_name: str = None, query: str = None
+) -> pd.DataFrame:
+    """
+    Load data from a database or folder of tabular files using duckdb.
+
+    Parameters
+    ----------
+    data_location : str
+        The folder containing CSV or Parquet files, or the name of the SQLite or DuckDB database.
+    file_or_table_name : str, optional
+        The name of the file (with extension .csv or .parquet) or table to load.
+    query : str, optional
+        The SQL query to run if data_location is a database.
+
+    Returns
+    -------
+    pd.DataFrame
+        A pandas DataFrame containing the loaded data.
+
+    Raises
+    ------
+    ValueError
+        If neither file_or_table_name nor query is provided.
+        If file_or_table_name has an extension and data_location is a database.
+        If the specified file is not found in the folder.
+        If an unsupported database type is used.
+    """
+    data_location = Path(data_location)
+    # Validate inputs
+    if not query and not file_or_table_name:
+        raise ValueError("Either file_or_table_name or query must be provided.")
+
+    # Check if data_location is a folder
+    if data_location.is_dir():
+        if file_or_table_name:
+            file_path = data_location / file_or_table_name
+            if not file_path.is_file():
+                raise ValueError(
+                    f"File '{file_or_table_name}' not found in folder '{data_location}'."
+                )
+            return load_data_file(file_path)
+        else:
+            raise ValueError(
+                "file_or_table_name must be provided for loading data from a folder."
+            )
+    else:
+        if file_or_table_name and os.path.splitext(file_or_table_name)[1].lower():
+            raise ValueError(
+                "file_or_table_name should not have an extension when data_location is a database."
+            )
+        return load_table_from_db(data_location, file_or_table_name, query)

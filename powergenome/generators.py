@@ -4,7 +4,7 @@ import os
 import re
 from numbers import Number
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 from zipfile import BadZipFile
 
 os.environ["USE_PYGEOS"] = "0"
@@ -30,7 +30,16 @@ from powergenome.external_data import (
     make_demand_response_profiles,
 )
 from powergenome.financials import investment_cost_calculator
-from powergenome.GenX import cap_retire_within_period, rename_gen_cols
+from powergenome.GenX import (
+    add_co2_costs_to_o_m,
+    add_misc_gen_values,
+    cap_retire_within_period,
+    check_resource_tags,
+    hydro_energy_to_power,
+    rename_gen_cols,
+    round_col_values,
+    set_int_cols,
+)
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
     atb_fixed_var_om_existing,
@@ -48,6 +57,7 @@ from powergenome.util import (
     load_ipm_shapefile,
     map_agg_region_names,
     regions_to_keep,
+    remove_fuel_gen_scenario_name,
     remove_leading_zero,
     reverse_dict_of_lists,
     snake_case_col,
@@ -218,7 +228,7 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         for tech in atb_tech:
             df.loc[df["technology"] == tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
             df.loc[
-                df["technology"].str.contains(tech, case=False),
+                df["technology"].str.contains(tech, case=False, regex=False),
                 "Start_Fuel_MMBTU_per_MW",
             ] = fuel_use
 
@@ -279,7 +289,7 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     ).items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[
-            df["technology"].str.contains(existing_tech, case=False),
+            df["technology"].str.contains(existing_tech, case=False, regex=False),
             "Start_Cost_per_MW",
         ] = total_startup_costs
 
@@ -297,35 +307,35 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
 def group_technologies(
     df: pd.DataFrame,
-    group_technologies: bool = False,
-    tech_groups: Dict[str, list] = {},
-    regional_no_grouping: Dict[str, list] = {},
+    tech_groups: Dict[str, list] = None,
+    regional_no_grouping: Dict[str, list] = None,
 ) -> pd.DataFrame:
-    """
-    Group different technologies together based on parameters in the settings file.
+    """Group different technologies together based on parameters in the settings file.
     An example would be to put a bunch of different technologies under the umbrella
     category of "biomass" or "peaker".
 
     Parameters
     ----------
-    df : dataframe
-        Pandas dataframe with
-    settings : dictionary
-        User-defined settings loaded from a YAML file. Must have key tech_groups.
+    df : pd.DataFrame
+        Each row represents one resource with a technology described in "technology_description"
+    tech_groups : Dict[str, list], optional
+        A mapping of existing technology names to group names, by default None
+    regional_no_grouping : Dict[str, list], optional
+        For each model region listed, the aggregated technologies to ignore, by default None
 
     Returns
     -------
-    dataframe
+    pd.DataFrame
         Same as incoming dataframe but with grouped technology types
     """
-    if not group_technologies:
+    if tech_groups is None:
         return df
     else:
         df["_technology"] = df["technology_description"]
         for tech, group in tech_groups.items():
             df.loc[df["technology_description"].isin(group), "_technology"] = tech
 
-        for region, tech_list in regional_no_grouping.items():
+        for region, tech_list in (regional_no_grouping or {}).items():
             df.loc[
                 (df["model_region"] == region)
                 & (df["technology_description"].isin(tech_list)),
@@ -476,10 +486,11 @@ def load_plant_region_map(
 
 def label_retirement_year(
     df: pd.DataFrame,
-    settings: dict,
+    model_year: int,
+    capacity_col: str = "capacity_mw",
+    retirement_ages: Dict[str, int] = None,
+    additional_retirements: List[Tuple[str, str, int]] = None,
     age_col: str = "operating_date",
-    settings_retirement_table: str = "retirement_ages",
-    add_additional_retirements: bool = True,
 ):
     """
     Add a retirement year column to the dataframe based on the year each generator
@@ -489,25 +500,27 @@ def label_retirement_year(
     ----------
     df : dataframe
         Dataframe of generators
-    settings : dictionary
-        The dictionary of settings with a dictionary of generator lifetimes
+    model_year : int
+        The model year, used to check how much capacity will have retired
+    capacity_col : str, optional
+        The dataframe column to use when calculating unit capacity, by default
+        "capacity_mw"
     age_col : str, optional
         The dataframe column to use when calculating the retirement year, by default
         "operating_date"
-    settings_retirement_table : str, optional
-        The settings dictionary key for another dictionary of generator retirement
-        lifetimes, by default "retirement_ages"
-    add_additional_retirements : bool, optional
-        Logic to determine if additional retirements from the settings file should
-        be checked. For example, this isn't necessary when adding proposed generators
-        because we probably won't be setting an artifically early retirement year.
+    retirement_ages : Dict[str, int], optional
+        The age at which different technologies will retire, by default None. If no
+        values are given, technology retirement ages are set to 500 years.
+    additional_retirements : List[Tuple[str, str, int]], optional
+        A list of tuples with plant, generator, and a new retirement year to use, by
+        default None.
     """
     if age_col not in df.columns:
         age_col = age_col.replace("operating_date", "generator_operating_date")
     if age_col not in df.columns:
         return df
     start_len = len(df)
-    retirement_ages = settings.get(settings_retirement_table, {}) or {}
+    retirement_ages = retirement_ages or {}
     if "retirement_year" not in df.columns:
         df["retirement_year"] = np.nan
 
@@ -531,16 +544,13 @@ def label_retirement_year(
         pass
 
     # Add additonal retirements from settings file
-    if settings.get("additional_retirements") and add_additional_retirements:
+    if additional_retirements:
         logger.debug("Changing retirement dates based on settings file")
-        model_year = settings["model_year"]
-        start_ret_cap = df.loc[
-            df["retirement_year"] <= model_year, settings["capacity_col"]
-        ].sum()
+        start_ret_cap = df.loc[df["retirement_year"] <= model_year, capacity_col].sum()
         logger.debug(f"Starting retirement capacity is {start_ret_cap} MW")
         i = 0
         ret_cap = 0
-        for record in settings["additional_retirements"]:
+        for record in additional_retirements:
             plant_id, gen_id, ret_year = record
             # gen ids are strings, not integers
             gen_id = str(gen_id)
@@ -553,12 +563,10 @@ def label_retirement_year(
             i += 1
             ret_cap += df.loc[
                 (df["plant_id_eia"] == plant_id) & (df["generator_id"] == gen_id),
-                settings["capacity_col"],
+                capacity_col,
             ].sum()
 
-        end_ret_cap = df.loc[
-            df["retirement_year"] <= model_year, settings["capacity_col"]
-        ].sum()
+        end_ret_cap = df.loc[df["retirement_year"] <= model_year, capacity_col].sum()
         logger.debug(f"Ending retirement capacity is {end_ret_cap} MW")
         if not end_ret_cap > start_ret_cap:
             logger.debug(
@@ -1553,7 +1561,7 @@ def add_resource_tags(
                 key=lambda item: len(str(item[0])),
             ):
                 tech = re.sub(ignored, "", tech)
-                mask = technology.str.contains(rf"^{tech}", case=False)
+                mask = technology.str.contains(rf"{tech}", case=False, regex=False)
                 _df.loc[mask, tag_col] = tag_value
         except (KeyError, AttributeError) as e:
             logger.warning(f"No model tag values found for {tag_col} ({e})")
@@ -1564,7 +1572,7 @@ def add_resource_tags(
     for tag_tuple, tag_value in flat_regional_tags.items():
         region, tag_col, tech = tag_tuple
         tech = re.sub(ignored, "", tech)
-        mask = technology.str.contains(rf"^{tech}", case=False)
+        mask = technology.str.contains(rf"{tech}", case=False, regex=False)
         _df.loc[(_df["region"] == region) & mask, tag_col] = tag_value
 
     return _df
@@ -1796,7 +1804,9 @@ def filter_op_status_codes(
 
 
 def label_gen_region(
-    df: pd.DataFrame, settings: dict, model_regions_gdf: gpd.GeoDataFrame
+    df: pd.DataFrame,
+    model_regions_gdf: gpd.GeoDataFrame,
+    capacity_col: str = "capacity_mw",
 ) -> pd.DataFrame:
     """Label the region that generators in a dataframe belong to based on their
     geographic location. This is done via geospaital join and may not always be accurate
@@ -1806,10 +1816,10 @@ def label_gen_region(
     ----------
     df : pd.DataFrame
         Generators that are not assigned to a model region.
-    settings : dict
-        Need the parameter `capacity_col` to determine which column has capacity.
     model_regions_gdf : gpd.GeoDataFrame
         Contains the name and geometry of each region being used in the study
+    capacity_col : str, optional
+        The column of `df` that gives the capacity of each plant, by default "capacity_mw"
 
     Returns
     -------
@@ -1821,7 +1831,7 @@ def label_gen_region(
         (df["latitude"].isnull()) | (df["longitude"].isnull()), :
     ].copy()
     if not no_lat_lon.empty:
-        no_lat_lon_cap = no_lat_lon[settings["capacity_col"]].sum()
+        no_lat_lon_cap = no_lat_lon[capacity_col].sum()
         logger.warning(
             "Some generators do not have lon/lat data. Check the source "
             "file to determine if they should be included in results. "
@@ -1850,13 +1860,16 @@ def label_gen_region(
 def import_new_generators(
     operating_860m: pd.DataFrame,
     gens_860: pd.DataFrame,
-    settings: dict,
     model_regions_gdf: gpd.GeoDataFrame,
+    proposed_gen_heat_rates: Dict[str, float],
+    proposed_min_load: Dict[str, float],
+    capacity_col: str = "capacity_mw",
 ) -> pd.DataFrame:
     """Find the set of generating units in 860m that are not in the annual 860 data.
 
     This is especially important for new wind, solar, and battery units, which are built
     on short timelines. Format the data for inclusion with other existing existing units.
+
 
     Parameters
     ----------
@@ -1864,13 +1877,15 @@ def import_new_generators(
         Operating generators from EIA 860m.
     gens_860 : pd.DataFrame
         The set of operating units from other sources (e.g. annual 860 data in PUDL).
-    settings : dict
-        Requires the parameter "model_regions". Optional parameters include
-        "proposed_gen_heat_rates", "proposed_min_load", "capacity_col", "group_technologies",
-        and "retirement_ages".
     model_regions_gdf : gpd.GeoDataFrame
         Geospatial representation of the model regions. Used to assign generators to
         model regions.
+    proposed_gen_heat_rates : Dict[str, float]
+        Heat rates to use for proposed technology types
+    proposed_min_load : Dict[str, float]
+        Min load to use for proposed technology types
+    capacity_col : str, optional
+        Column with capacity value, by default "capacity_mw"
 
     Returns
     -------
@@ -1888,14 +1903,14 @@ def import_new_generators(
 
     new_mask = [g not in gens_860_id for g in operating_860m_id]
     new_operating = label_gen_region(
-        _operating_860m.loc[new_mask, :], settings, model_regions_gdf
+        _operating_860m.loc[new_mask, :], model_regions_gdf, capacity_col
     )
     new_operating = new_operating.drop_duplicates(
         subset=["plant_id_eia", "generator_id"]
     )
     new_operating.loc[:, "heat_rate_mmbtu_mwh"] = new_operating.loc[
         :, "technology_description"
-    ].map(settings.get("proposed_gen_heat_rates", {}) or {})
+    ].map(proposed_gen_heat_rates or {})
 
     # The default EIA heat rate for non-thermal technologies is 9.21
     new_operating.loc[
@@ -1903,10 +1918,8 @@ def import_new_generators(
     ] = 9.21
 
     new_operating.loc[:, "minimum_load_mw"] = (
-        new_operating["technology_description"].map(
-            settings.get("proposed_min_load", {}) or {}
-        )
-        * new_operating[settings.get("capacity_col", "capacity_mw")]
+        new_operating["technology_description"].map(proposed_min_load or {})
+        * new_operating[capacity_col]
     )
 
     # Assume anything else being built at scale is wind/solar and will have a Min_power
@@ -1915,14 +1928,6 @@ def import_new_generators(
 
     new_operating = new_operating.set_index(
         ["plant_id_eia", "prime_mover_code", "energy_source_code_1"]
-    )
-
-    # Add a retirement year based on the planned start year
-    label_retirement_year(
-        df=new_operating,
-        settings=settings,
-        age_col="operating_year",
-        add_additional_retirements=False,
     )
     if (
         new_operating.loc[new_operating["technology_description"].isnull(), :].empty
@@ -1935,31 +1940,20 @@ def import_new_generators(
         )
         plant_capacity = new_operating.loc[
             new_operating["technology_description"].isnull(),
-            settings.get("capacity_col", "capacity_mw"),
+            capacity_col,
         ].sum()
 
         logger.debug(
             f"The EIA860 file has {len(plant_ids)} operating generator(s) without a technology "
             f"description. The plant IDs are {plant_ids}, and they have a combined "
-            f"capcity of {plant_capacity} MW."
-        )
-
-    if settings.get("group_technologies"):
-        new_operating = group_technologies(
-            new_operating,
-            settings["group_technologies"],
-            settings.get("tech_groups", {}) or {},
-            settings.get("regional_no_grouping", {}) or {},
-        )
-        logger.debug(
-            f"Existing technology groups are {new_operating['technology_description'].unique().tolist()}"
+            f"capacity of {plant_capacity} MW."
         )
 
     keep_cols = [
         "model_region",
         "technology_description",
         "generator_id",
-        settings.get("capacity_col", "capacity_mw"),
+        capacity_col,
         "capacity_mwh",
         "minimum_load_mw",
         "operational_status_code",
@@ -1973,81 +1967,48 @@ def import_new_generators(
 
 
 def import_proposed_generators(
-    planned: pd.DataFrame, settings: dict, model_regions_gdf: gpd.GeoDataFrame
+    planned: pd.DataFrame,
+    model_year: int,
+    model_regions_gdf: gpd.GeoDataFrame,
+    proposed_gen_heat_rates: Dict[str, float],
+    proposed_min_load: Dict[str, float],
+    capacity_col: str = "capacity_mw",
 ) -> pd.DataFrame:
-    """
-    Load the most recent proposed generating units from EIA860m. Will also add
-    any planned generators that are included in the settings file.
+    """Load the most recent proposed generating units from EIA860m. Add model region,
+    heat rate, and min load data for generators that will be built by the model year.
 
     Parameters
     ----------
     planned : pd.DataFrame
-        Generators that are not assigned to a model region.
-    settings : dict
-        User defined parameters from a settings YAML file
+        Planned generators that are not assigned to a model region. Should contain
+        columns "planned_operating_year", "generator_id", "technology_description",
+        "plant_id_eia", "prime_mover_code", "energy_source_code_1", and
+        "operational_status_code",
+    model_year : int
+        Year of the model, used to filter which proposed generators will be included
     model_regions_gdf : gpd.GeoDataFrame
-        Contains the name and geometry of each region being used in the study
+        GeoDataframe of the model regions
+    proposed_gen_heat_rates : Dict[str, float]
+        Heat rates to use for proposed technology types
+    proposed_min_load : Dict[str, float]
+        Min load to use for proposed technology types
+    capacity_col : str, optional
+        Column with capacity value, by default "capacity_mw"
 
     Returns
     -------
     pd.DataFrame
-        All proposed generators.
+        All proposed generators that will be built before or in the model year.
     """
-
-    # Some plants don't have lat/lon data. Log this now to determine if any action is
-    # needed, then drop them from the dataframe.
-    # no_lat_lon = planned.loc[
-    #     (planned["latitude"].isnull()) | (planned["longitude"].isnull()), :
-    # ].copy()
-    # if not no_lat_lon.empty:
-    #     no_lat_lon_cap = no_lat_lon[settings["capacity_col"]].sum()
-    #     logger.warning(
-    #         "Some generators do not have lon/lat data. Check the source "
-    #         "file to determine if they should be included in results. "
-    #         f"\nThe affected generators account for {no_lat_lon_cap} in balancing "
-    #         "authorities: "
-    #         f"\n{no_lat_lon['balancing_authority_code'].tolist()}"
-    #     )
-
-    # planned = planned.dropna(subset=["latitude", "longitude"])
-
-    # # Convert the lon/lat values to geo points. Need to add an initial CRS and then
-    # # change it to align with the IPM regions
-    # print("Creating gdf")
-    # planned_gdf = gpd.GeoDataFrame(
-    #     planned.copy(),
-    #     geometry=gpd.points_from_xy(planned.longitude.copy(), planned.latitude.copy()),
-    #     crs="EPSG:4326",
-    # )
-    # if planned_gdf.crs != model_regions_gdf.crs:
-    #     planned_gdf = planned_gdf.to_crs(model_regions_gdf.crs)
-
-    # planned_gdf = gpd.sjoin(model_regions_gdf.drop(columns="IPM_Region"), planned_gdf)
-    _planned = planned.copy()
+    _planned = planned.loc[planned["planned_operating_year"] <= model_year, :]
     _planned["generator_id"] = _planned["generator_id"].fillna("no_gen_id")
     _planned["generator_id"] = _planned["generator_id"].apply(remove_leading_zero)
-    planned_gdf = label_gen_region(_planned, settings, model_regions_gdf)
+    planned_gdf = label_gen_region(_planned, model_regions_gdf, capacity_col)
     planned_gdf = planned_gdf.drop_duplicates(subset=["plant_id_eia", "generator_id"])
-
-    # Add planned additions from the settings file
-    additional_planned = settings.get("additional_planned") or []
-    for record in additional_planned:
-        plant_id, gen_id, model_region = record
-        plant_record = planned.loc[
-            (planned["plant_id_eia"] == plant_id) & (planned["generator_id"] == gen_id),
-            :,
-        ]
-        plant_record["model_region"] = model_region
-
-        planned_gdf = planned_gdf.append(plant_record, sort=False)
-
-    logger.debug(
-        f"{len(additional_planned)} generators were added to the planned list based on settings"
-    )
 
     planned_gdf.loc[:, "heat_rate_mmbtu_mwh"] = planned_gdf.loc[
         :, "technology_description"
-    ].map(settings["proposed_gen_heat_rates"])
+    ].map(proposed_gen_heat_rates)
 
     # The default EIA heat rate for non-thermal technologies is 9.21
     planned_gdf.loc[
@@ -2055,8 +2016,8 @@ def import_proposed_generators(
     ] = 9.21
 
     planned_gdf.loc[:, "minimum_load_mw"] = (
-        planned_gdf["technology_description"].map(settings["proposed_min_load"])
-        * planned_gdf[settings["capacity_col"]]
+        planned_gdf["technology_description"].map(proposed_min_load)
+        * planned_gdf[capacity_col]
     )
 
     # Assume anything else being built at scale is wind/solar and will have a Min_Power
@@ -2077,44 +2038,24 @@ def import_proposed_generators(
             .to_numpy()
         )
         plant_capacity = planned_gdf.loc[
-            planned_gdf["technology_description"].isnull(), settings["capacity_col"]
+            planned_gdf["technology_description"].isnull(), capacity_col
         ].sum()
 
         logger.debug(
             f"The EIA860 file has {len(plant_ids)} proposed generator(s) without a technology "
             f"description. The plant IDs are {plant_ids}, and they have a combined "
-            f"capcity of {plant_capacity} MW."
-        )
-
-    # Add a retirement year based on the planned start year
-    label_retirement_year(
-        df=planned_gdf,
-        settings=settings,
-        age_col="planned_operating_year",
-        add_additional_retirements=False,
-    )
-
-    if settings.get("group_technologies"):
-        planned_gdf = group_technologies(
-            planned_gdf,
-            settings["group_technologies"],
-            settings.get("tech_groups", {}) or {},
-            settings.get("regional_no_grouping", {}) or {},
-        )
-        logger.debug(
-            f"Grouped planned technologies are {planned_gdf['technology_description'].unique().tolist()}"
+            f"capacity of {plant_capacity} MW."
         )
 
     keep_cols = [
         "model_region",
         "technology_description",
         "generator_id",
-        settings["capacity_col"],
+        capacity_col,
         "minimum_load_mw",
         "operational_status_code",
         "heat_rate_mmbtu_mwh",
         "planned_operating_year",
-        "retirement_year",
     ]
 
     return planned_gdf.loc[:, keep_cols]
@@ -2238,7 +2179,6 @@ def gentype_region_capacity_factor(
     if settings.get("group_technologies"):
         capacity_factor = group_technologies(
             capacity_factor,
-            settings["group_technologies"],
             settings.get("tech_groups", {}) or {},
             settings.get("regional_no_grouping", {}) or {},
         )
@@ -2318,7 +2258,7 @@ def add_fuel_labels(df, fuel_prices, settings):
     -------
     DataFrame
         Same as input, but with a new column "Fuel" that is either the name of the
-        corresponding fuel (coal, natural_gas, uranium, or distillate) or "None".
+        corresponding fuel (coal, natural_gas, uranium, or distillate) or "No_fuel".
 
     Raises
     ------
@@ -2372,7 +2312,11 @@ def add_fuel_labels(df, fuel_prices, settings):
                     if atb_tech is not None:
                         for tech in atb_tech:
                             df.loc[
-                                (df["technology"].str.contains(tech, case=False))
+                                (
+                                    df["technology"].str.contains(
+                                        tech, case=False, regex=False
+                                    )
+                                )
                                 & (df["region"] == region)
                                 & (df["Fuel"].isna()),
                                 "Fuel",
@@ -2387,7 +2331,11 @@ def add_fuel_labels(df, fuel_prices, settings):
                 if atb_tech is not None:
                     for tech in atb_tech:
                         df.loc[
-                            (df["technology"].str.contains(tech, case=False))
+                            (
+                                df["technology"].str.contains(
+                                    tech, case=False, regex=False
+                                )
+                            )
                             & (df["Fuel"].isna()),
                             "Fuel",
                         ] = fuel
@@ -2402,7 +2350,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                 ), f"{fuel_name} doesn't show up in {model_year}"
 
                 df.loc[
-                    (df["technology"].str.contains(eia_tech, case=False))
+                    (df["technology"].str.contains(eia_tech, case=False, regex=False))
                     & df["region"].isin(model_regions),
                     "Fuel",
                 ] = fuel_name
@@ -2410,7 +2358,11 @@ def add_fuel_labels(df, fuel_prices, settings):
                 if atb_tech is not None:
                     for tech in atb_tech:
                         df.loc[
-                            (df["technology"].str.contains(tech, case=False))
+                            (
+                                df["technology"].str.contains(
+                                    tech, case=False, regex=False
+                                )
+                            )
                             & (df["region"].isin(model_regions))
                             & (df["Fuel"].isna()),
                             "Fuel",
@@ -2433,13 +2385,17 @@ def add_fuel_labels(df, fuel_prices, settings):
                 for region in settings["user_fuel_price"][ccs_base_name].keys():
                     ccs_fuel_name = ("_").join([region, ccs_fuel])
                     df.loc[
-                        (df["technology"].str.contains(ccs_tech, case=False))
+                        (
+                            df["technology"].str.contains(
+                                ccs_tech, case=False, regex=False
+                            )
+                        )
                         & (df["region"] == region),
                         "Fuel",
                     ] = ccs_fuel_name
             else:
                 df.loc[
-                    (df["technology"].str.contains(ccs_tech, case=False)),
+                    (df["technology"].str.contains(ccs_tech, case=False, regex=False)),
                     "Fuel",
                 ] = ccs_fuel
         else:
@@ -2496,7 +2452,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                     aeo_region, region
                 )
 
-    df.loc[df["Fuel"].isna(), "Fuel"] = "None"
+    df.loc[df["Fuel"].isna(), "Fuel"] = "No_fuel"
 
     return df
 
@@ -3179,7 +3135,7 @@ class GeneratorClusters:
 
         dr_rows = pd.concat(df_list)
         dr_rows["New_Build"] = -1
-        dr_rows["Fuel"] = "None"
+        dr_rows["Fuel"] = "No_fuel"
         dr_rows["cluster"] = 1
         dr_rows = dr_rows.fillna(0)
 
@@ -3222,16 +3178,24 @@ class GeneratorClusters:
             .pipe(remove_retired_860m, self.retired_860m)
             .pipe(update_planned_retirement_date_860m, self.operating_860m.copy())
             .pipe(update_operating_date_860m, self.operating_860m.copy())
-            .pipe(label_retirement_year, self.settings, add_additional_retirements=True)
             .pipe(
                 label_retirement_year,
-                self.settings,
+                self.settings["model_year"],
+                self.settings.get("capacity_col", "capacity_mw"),
+                self.settings.get("retirement_ages", {}),
+                self.settings.get("additional_retirements"),
+            )
+            .pipe(
+                label_retirement_year,
+                self.settings["model_year"],
+                self.settings.get("capacity_col", "capacity_mw"),
+                self.settings.get("retirement_ages", {}),
+                self.settings.get("additional_retirements"),
                 age_col="original_planned_operating_date",
             )
             .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
             .pipe(
                 group_technologies,
-                self.settings.get("group_technologies"),
                 self.settings.get("tech_groups", {}) or {},
                 self.settings.get("regional_no_grouping", {}) or {},
             )
@@ -3334,16 +3298,53 @@ class GeneratorClusters:
                 f"Before adding proposed generators, {len(self.units_model)} units with "
                 f"{self.units_model[self.settings['capacity_col']].sum()} MW capacity"
             )
-            self.proposed_gens = import_proposed_generators(
-                planned=self.planned_860m,
-                settings=self.settings,
-                model_regions_gdf=self.model_regions_gdf,
+            self.proposed_gens = (
+                import_proposed_generators(
+                    planned=self.planned_860m,
+                    model_year=self.settings["model_year"],
+                    model_regions_gdf=self.model_regions_gdf,
+                    proposed_gen_heat_rates=self.settings.get(
+                        "proposed_gen_heat_rates", {}
+                    ),
+                    proposed_min_load=self.settings.get("proposed_min_load", {}),
+                    capacity_col=self.settings.get("capacity_col", "capacity_mw"),
+                )
+                .pipe(
+                    group_technologies,
+                    self.settings.get("tech_groups"),
+                    self.settings.get("regional_no_grouping"),
+                )
+                .pipe(
+                    label_retirement_year,
+                    self.settings["model_year"],
+                    self.settings.get("capacity_col", "capacity_mw"),
+                    self.settings.get("retirement_ages", {}),
+                    self.settings.get("additional_retirements"),
+                )
             )
-            self.new_860m_gens = import_new_generators(
-                operating_860m=self.operating_860m,
-                gens_860=self.gens_860_model,
-                settings=self.settings,
-                model_regions_gdf=self.model_regions_gdf,
+            self.new_860m_gens = (
+                import_new_generators(
+                    operating_860m=self.operating_860m,
+                    gens_860=self.gens_860_model,
+                    model_regions_gdf=self.model_regions_gdf,
+                    proposed_gen_heat_rates=self.settings.get(
+                        "proposed_gen_heat_rates", {}
+                    ),
+                    proposed_min_load=self.settings.get("proposed_min_load", {}),
+                    capacity_col=self.settings.get("capacity_col", "capacity_mw"),
+                )
+                .pipe(
+                    group_technologies,
+                    self.settings.get("tech_groups"),
+                    self.settings.get("regional_no_grouping"),
+                )
+                .pipe(
+                    label_retirement_year,
+                    self.settings["model_year"],
+                    self.settings.get("capacity_col", "capacity_mw"),
+                    self.settings.get("retirement_ages", {}),
+                    self.settings.get("additional_retirements"),
+                )
             )
             # Add new/proposed generators to plant_region_map
             self.plant_region_map = pd.concat(
@@ -3947,6 +3948,73 @@ class GeneratorClusters:
 
         return self.new_generators
 
+    def adjust_min_power_based_on_profile(self):
+        """
+        Adjust 'Min_Power' by ensuring it is not greater than the minimum value
+        in the corresponding 'profile' column (if 'profile' contains an array).
+        Uses np.frompyfunc for improved performance on large datasets.
+        """
+        # Vectorized function to extract the minimum value from arrays
+        get_min_value = np.frompyfunc(
+            lambda x: min(x) if isinstance(x, (list, np.ndarray)) else np.nan, 1, 1
+        )
+
+        # Compute the minimum values from the 'profile' column
+        self.all_resources["profile_min"] = get_min_value(self.all_resources["profile"])
+
+        # Update 'Min_Power' where necessary
+        self.all_resources.loc[
+            (self.all_resources["profile_min"].notna())
+            & (self.all_resources["Min_Power"] > self.all_resources["profile_min"]),
+            "Min_Power",
+        ] = self.all_resources["profile_min"]
+
+        # Drop the temporary column
+        self.all_resources.drop(columns=["profile_min"], inplace=True)
+
+    def remove_fuel_scenario_name(self, gen_fuels: List[str]):
+        """
+        Keeps fuels for used in by generators in the model. Removes the scenario name
+        from the `full_fuel_name` column of of the `fuel_prices` DataFrame.
+        """
+        self.fuel_prices = self.fuel_prices.loc[
+            self.fuel_prices["full_fuel_name"].isin(gen_fuels)
+        ]
+        scenarios = (self.settings.get("eia_series_scenario_names", {}) or {}).keys()
+        for s in scenarios:
+            self.fuel_prices["full_fuel_name"] = self.fuel_prices[
+                "full_fuel_name"
+            ].str.replace(f"_{s}", "")
+
+    def apply_multi_period_transformations(self):
+        """
+        Applies transformations to self.all_resources, renaming columns and modifying
+        specific values to ensure compatibility with multi-period analysis.
+        """
+        if self.all_resources is not None:
+            self.all_resources = self.all_resources.rename(
+                columns={
+                    "cap_recovery_years": "Capital_Recovery_Period",
+                    "wacc_real": "WACC",
+                }
+            )
+            self.all_resources["Lifetime"] = self.all_resources[
+                "Capital_Recovery_Period"
+            ]
+            self.all_resources.loc[
+                (self.all_resources["Lifetime"] == 0)
+                | (self.all_resources["Lifetime"].isna()),
+                "Lifetime",
+            ] = 50
+
+            # Apply transformations
+            self.all_resources = (
+                remove_fuel_gen_scenario_name(self.all_resources, self.settings)
+                .pipe(set_int_cols)
+                .pipe(round_col_values)
+                .pipe(check_resource_tags)
+            )
+
     def create_all_generators(self):
         if self.current_gens:
             self.existing_resources = self.create_region_technology_clusters()
@@ -3994,5 +4062,22 @@ class GeneratorClusters:
             logger.debug(
                 f"Capacity of {self.all_resources['Existing_Cap_MW'].sum()} MW in final clusters"
             )
+
+        self.all_resources = (
+            add_misc_gen_values(self.all_resources, self.settings)
+            .pipe(
+                hydro_energy_to_power,
+                self.settings.get("hydro_factor"),
+                self.settings.get("regional_hydro_factor", {}),
+            )
+            .pipe(add_co2_costs_to_o_m)
+        )
+
+        self.remove_fuel_scenario_name(self.all_resources["Fuel"].to_list())
+        self.adjust_min_power_based_on_profile()
+        self.apply_multi_period_transformations()
+
+        # Fill NaN values with 0
+        self.all_resources.fillna(0, inplace=True)
 
         return self.all_resources

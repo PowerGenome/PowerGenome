@@ -1,6 +1,7 @@
 "Functions specific to GenX outputs"
 
 import logging
+from dataclasses import dataclass
 from itertools import product
 from pathlib import Path
 from typing import Dict, List
@@ -17,6 +18,36 @@ from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import find_region_col, snake_case_col, snake_case_str
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class FolderStructure:
+    resource: Path
+    policy_assignments: Path
+    system: Path
+    policy: Path
+
+
+@dataclass(frozen=True, slots=True)
+class GenXInputData:
+    """A class to abstract the dataframes that will be written out in the GenX case folder."""
+
+    tag: str
+    folder: Path
+    file_name: str
+    dataframe: pd.DataFrame
+
+    def __post_init__(self):
+        """Validate the data after initialization."""
+        if not isinstance(self.folder, Path):
+            object.__setattr__(self, "folder", Path(self.folder))
+        if not self.file_name.endswith(".csv"):
+            raise ValueError(f"file_name must end with .csv, got {self.file_name}")
+        if not isinstance(self.dataframe, (pd.DataFrame, type(None))):
+            raise TypeError(
+                f"dataframe must be a pandas DataFrame or None, got {type(self.dataframe)}"
+            )
+
 
 INT_COLS = [
     "Inv_Cost_per_MWyr",
@@ -51,6 +82,113 @@ COL_ROUND_VALUES = {
 
 # RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO", "LDS"]
 RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO"]
+
+DEFAULT_COLS = ["Resource", "Zone", "New_Build", "Can_Retire", "Existing_Cap_MW"]
+
+# Specific columns for each resource type
+THERM_COLUMNS = [
+    "Down_Time",
+    "Min_Power",
+    "Ramp_Up_Percentage",
+    "Ramp_Dn_Percentage",
+    "Up_Time",
+]
+
+VRE_COLUMNS = ["Num_VRE_Bins"]
+
+MUST_RUN_COLUMNS = []
+
+STOR_COLUMNS = [
+    "Eff_Down",
+    "Eff_Up",
+    "Existing_Cap_MWh",
+    "Existing_Charge_Cap_MW",
+    "Fixed_OM_Cost_Charge_per_MWyr",
+    "Fixed_OM_Cost_per_MWhyr",
+    "Inv_Cost_Charge_per_MWyr",
+    "Inv_Cost_per_MWhyr",
+    "LDS",
+    "Max_Cap_MWh",
+    "Max_Charge_Cap_MW",
+    "Max_Duration",
+    "Min_Cap_MWh",
+    "Min_Charge_Cap_MW",
+    "Min_Duration",
+    "Self_Disch",
+    "Var_OM_Cost_per_MWh_In",
+]
+
+FLEX_COLUMNS = [
+    "Flexible_Demand_Energy_Eff",
+    "Max_Flexible_Demand_Delay",
+    "Max_Flexible_Demand_Advance",
+    "Var_OM_Cost_per_MWh_In",
+]
+
+HYDRO_COLUMNS = [
+    "Eff_Up",
+    "Eff_Down",
+    "Hydro_Energy_to_Power_Ratio",
+    "LDS",
+    "Min_Power",
+    "Ramp_Up_Percentage",
+    "Ramp_Dn_Percentage",
+]
+
+# For future use
+# HYDROGEN_COLUMNS = [
+#     "Hydrogen_MWh_Per_Tonne",
+#     "Hydrogen_Price_Per_Tonne",
+#     "Min_Power",
+#     "Ramp_Up_Percentage",
+#     "Ramp_Dn_Percentage",
+# ]
+
+# Create a mapping of resource tags -> columns
+RESOURCE_COLUMNS = {
+    "THERM": THERM_COLUMNS,
+    "VRE": VRE_COLUMNS,
+    "MUST_RUN": MUST_RUN_COLUMNS,
+    "STOR": STOR_COLUMNS,
+    "FLEX": FLEX_COLUMNS,
+    "HYDRO": HYDRO_COLUMNS,
+    # 'ELECTROLYZER': HYDROGEN_COLUMNS,
+}
+
+# Create a mapping of resource tags -> filenames
+RESOURCE_FILENAMES = {
+    "THERM": "Thermal.csv",
+    "VRE": "Vre.csv",
+    "MUST_RUN": "Must_run.csv",
+    "STOR": "Storage.csv",
+    "FLEX": "Flex_demand.csv",
+    "HYDRO": "Hydro.csv",
+    # "ELECTROLYZER": "Electrolyzer.csv",
+}
+
+MULTISTAGE_COLS = [
+    "WACC",
+    "Capital_Recovery_Period",
+    "Lifetime",
+    "Min_Retired_Cap_MW",
+    "Min_Retired_Energy_Cap_MW",
+    "Min_Retired_Charge_Cap_MW",
+]
+
+# Create a mapping to update the policy tag columns
+POLICY_TAGS = [
+    ("ESR", {"oldtag": "ESR_", "newtag": "ESR_"}),
+    ("CAP_RES", {"oldtag": "CapRes_", "newtag": "Derating_factor_"}),
+    ("MIN_CAP", {"oldtag": "MinCapTag_", "newtag": "Min_Cap_"}),
+    ("MAX_CAP", {"oldtag": "MaxCapTag_", "newtag": "Max_Cap_"}),
+]
+
+POLICY_TAGS_FILENAMES = {
+    "ESR": "Resource_energy_share_requirement.csv",
+    "CAP_RES": "Resource_capacity_reserve_margin.csv",
+    "MIN_CAP": "Resource_minimum_capacity_requirement.csv",
+    "MAX_CAP": "Resource_maximum_capacity_requirement.csv",
+}
 
 
 def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
@@ -375,7 +513,7 @@ def add_misc_gen_values(
     for tech, _df in misc_values.groupby(resource_col):
         num_tech_regions = len(
             gen_clusters.loc[
-                gen_clusters[resource_col].str.contains(tech, case=False)
+                gen_clusters[resource_col].str.contains(tech, case=False, regex=False)
             ].drop_duplicates(subset=["region"])
         )
         num_values = len(_df)
@@ -484,7 +622,7 @@ def reduce_time_domain(
 
     else:
         time_index = pd.Series(data=range(1, len(load_profiles) + 1), name="Time_Index")
-        sub_weights = pd.Series(data=[8760], name="Sub_Weights")
+        sub_weights = pd.Series(data=[len(time_index)], name="Sub_Weights")
         hours_per_period = pd.Series(
             data=[len(load_profiles)], name="Timesteps_per_Rep_Period"
         )
@@ -1279,3 +1417,588 @@ def check_vre_profiles(
             logger.warning(
                 f"The variable resources {non_variable} have non-variable generation profiles."
             )
+
+
+def update_newbuild_canretire(df: pd.DataFrame) -> pd.DataFrame:
+    """Update the New_Build and Can_Retire columns in generator data.
+
+    If Can_Retire column doesn't exist, creates it based on New_Build values:
+    - Can_Retire = 1 if New_Build != -1, else 0
+    - New_Build = 1 if New_Build == 1, else 0
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Generator data with New_Build column
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified dataframe with updated Can_Retire and New_Build columns
+    """
+    if "New_Build" not in df.columns:
+        logger.warning("New_Build column not found in generator data")
+        return df
+
+    if not df["New_Build"].isin([0, 1, -1]).all():
+        logger.warning("New_Build column contains values other than 0, 1, or -1")
+        return df
+
+    logger.warning("Upgrading the Can_Retire and New_Build interface")
+    df["Can_Retire"] = (df["New_Build"] != -1).astype(int)
+    df["New_Build"] = (df["New_Build"] == 1).astype(int)
+
+    return df
+
+
+def filter_empty_columns(df: pd.DataFrame) -> List[str]:
+    """Find columns that have at least one valid value.
+
+    A column is considered valid if it has at least one value that is:
+    - Non-zero
+    - Not None (Python None)
+    - Not "No_fuel" (string)
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe to check
+
+    Returns
+    -------
+    List[str]
+        List of column names that have at least one non-zero and non-None/"No_fuel" value
+    """
+    # Drop columns that are known to have lists or array values
+    drop_cols = ["plant_id_eia", "unit_id_eia", "unit_id_pg", "generator_id", "profile"]
+    df = df.drop(columns=drop_cols, errors="ignore")
+
+    # Check for non-None values
+    notnull_mask = df.notna().sum() > 0
+
+    # Check for non-"No_fuel" string values
+    string_notnone_mask = (
+        df.applymap(lambda x: str(x) != "No_fuel" if pd.notna(x) else False).sum() > 0
+    )
+
+    # Check for non-zero values
+    nonzero_mask = df.astype(bool).sum() > 0
+
+    # Combine all masks
+    valid_cols = nonzero_mask & notnull_mask & string_notnone_mask
+
+    return list(valid_cols[valid_cols].index)
+
+
+def create_resource_df(df: pd.DataFrame, resource_tag: str) -> pd.DataFrame:
+    """Create a dataframe with resource-specific columns for a specific resource type.
+
+    Filters generator data for a specific resource type and removes columns
+    specific to other resource types. For storage and thermal resources,
+    renames the resource tag column to 'Model'.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Generator data with resource type columns
+    resource_tag : str
+        Resource type tag (e.g., 'STOR', 'THERM', etc.)
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered and restructured data for the specific resource type.
+        Returns empty DataFrame if resource_tag not in columns.
+
+    """
+    logger.info(f"Creating resource data file for {resource_tag}")
+
+    if resource_tag not in df.columns:
+        logger.warning(f"Resource tag {resource_tag} not found in dataframe columns")
+        return pd.DataFrame()
+
+    # Filter rows for this resource type
+    resource_df = df[df[resource_tag] > 0].copy()
+
+    # Get columns to keep for this resource type
+    resource_specific_cols = set(RESOURCE_COLUMNS[resource_tag])
+
+    # Find columns with non-zero values
+    valid_cols = (
+        set(filter_empty_columns(resource_df))
+        | set(DEFAULT_COLS)
+        | set(resource_specific_cols)
+    )
+    logger.debug(f"Found {len(valid_cols)} valid columns for {resource_tag}")
+
+    # Get all columns specific to other resource types
+    # i.e. columns that do not belong to this resource type
+    other_resource_cols = {
+        col
+        for tag, cols in RESOURCE_COLUMNS.items()
+        if tag != resource_tag
+        for col in cols
+    }
+    # Add the resource tag column to the set of other resource columns
+    other_resource_cols.add(resource_tag)
+
+    # Find columns to remove: columns that are in other_resource_cols
+    # but NOT in resource_specific_cols
+    cols_to_remove = (other_resource_cols - resource_specific_cols) & set(df.columns)
+
+    # List of columns to keep
+    cols_to_keep = [
+        col for col in df.columns if col in valid_cols and col not in cols_to_remove
+    ]
+
+    # In the case of STOR and THERM, the resource tag column is also used as
+    # 'model' type (e.g., SYM or ASYM for storage, and COMMIT or NOCOMMIT for thermal)
+    # Therefore, we rename the resource tag column to 'Model'
+    if resource_tag in {"STOR", "THERM"}:
+        logger.debug(f"Renaming {resource_tag} column to 'Model'")
+        resource_df = resource_df.rename(columns={resource_tag: "Model"})
+        cols_to_keep.append("Model")
+
+    # Final check that ALL the resource specific columns are present
+    missing_cols = resource_specific_cols - set(cols_to_keep)
+    if missing_cols:
+        logger.warning(f"Missing columns for {resource_tag}: {missing_cols}")
+
+    # Make sure the first columns are DEFAULT_COLS defined at the top of this file
+    remaining_cols = [col for col in cols_to_keep if col not in DEFAULT_COLS]
+    final_cols = [col for col in DEFAULT_COLS if col in cols_to_keep] + remaining_cols
+
+    # Return the filtered and restructured dataframe
+    return resource_df[final_cols]
+
+
+def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFrame:
+    """Create a dataframe with policy-specific columns for a specific policy type.
+
+    Filters generator data for a specific policy type and removes columns
+    specific to other policy types.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Generator data with policy type columns
+    policy_info : Dict[str, str]
+        Policy type configuration
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe containing the policy tag columns
+    """
+    logger.info(f"Creating policy data file for {policy_info['newtag']}")
+
+    if df.empty:
+        logger.warning(f"DataFrame is empty, skipping policy {policy_info['newtag']}")
+        return pd.DataFrame()
+
+    # Check if the Resource column exists
+    if "Resource" not in df.columns:
+        raise KeyError("The 'Resource' column is missing from the dataframe.")
+
+    # Check that ESR_, MinCapTag_, and MaxCapTag_ columns only have values equal to 0 or 1
+    # and CapRes_ columns only have values between 0 and 1
+    for col in df.columns:
+        if (
+            col.startswith("ESR_")
+            or col.startswith("MinCapTag_")
+            or col.startswith("MaxCapTag_")
+        ):
+            if not df[col].isin([0, 1]).all():
+                raise ValueError(f"The column {col} can only have values 0 or 1.")
+        elif col.startswith("CapRes_"):
+            if not (df[col] >= 0).all() or not (df[col] <= 1).all():
+                raise ValueError(
+                    f"The column {col} can only have values between 0 and 1."
+                )
+
+    # Check if any columns start with the policy tag
+    if not any(col.startswith(policy_info["oldtag"]) for col in df.columns):
+        logger.debug(
+            f"No columns start with {policy_info['oldtag']}, skipping policy {policy_info['newtag']}"
+        )
+        return pd.DataFrame()
+
+    # Slice dataframe to include only Resource column and columns starting with oldtag
+    policy_cols = [
+        col
+        for col in df.columns
+        if col == "Resource" or col.startswith(policy_info["oldtag"])
+    ]
+    policy_df = df[policy_cols].copy()
+
+    # Keep only rows with at least one non-zero value in policy columns
+    policy_data_cols = policy_df.select_dtypes(
+        include=["number"]
+    ).columns  # All numeric columns
+    policy_df = policy_df[policy_df[policy_data_cols].gt(0).any(axis=1)]
+
+    # Rename columns replacing oldtag with newtag
+    rename_dict = {
+        col: col.replace(policy_info["oldtag"], policy_info["newtag"])
+        for col in policy_df.columns
+        if col.startswith(policy_info["oldtag"])
+    }
+    policy_df.rename(columns=rename_dict, inplace=True)
+
+    # Remove policy columns from original dataframe
+    df.drop(
+        columns=[col for col in policy_data_cols if col in df.columns], inplace=True
+    )
+
+    return policy_df
+
+
+def create_multistage_df(df: pd.DataFrame, multistage_cols: List[str]) -> pd.DataFrame:
+    """Create multistage data file from generator data.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Generator data
+    multistage_cols : List[str]
+        List of column names for multistage data
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing Resource column and multistage data
+    """
+    logger.info("Creating multistage data file")
+
+    # Select Resource column and multistage columns
+    cols_to_keep = ["Resource"] + [col for col in multistage_cols if col in df.columns]
+    multistage_df = df[cols_to_keep].copy()
+
+    # Remove multistage columns from original dataframe
+    df.drop(columns=[col for col in multistage_cols if col in df.columns], inplace=True)
+
+    return multistage_df
+
+
+def split_generators_data(
+    folder_structure: FolderStructure, gen_data: pd.DataFrame
+) -> List[GenXInputData]:
+    """Split generator data DataFrame into resource-specific files.
+
+    Parameters
+    ----------
+    gen_data : pd.DataFrame
+        DataFrame containing generator data
+
+    Returns
+    -------
+    List[GenXResourceData]
+        List of GenXResourceData objects containing the resource-specific data
+    """
+
+    # Paths to the folders to write the data to
+    resource_folder = folder_structure.resource
+    policy_assignments_folder = folder_structure.policy_assignments
+
+    # Create a copy of the generator data
+    generators_df = gen_data.copy()
+
+    # Drop the R_ID column if it exists, GenX will assign IDs internally
+    if "R_ID" in generators_df.columns:
+        generators_df = generators_df.drop(columns=["R_ID"])
+
+    # Check if New_Build and Can_Retire columns exist
+    if (
+        "New_Build" in generators_df.columns
+        and "Can_Retire" not in generators_df.columns
+    ):
+        generators_df = update_newbuild_canretire(generators_df)
+
+    # Process each POLICY_TAGS (defined at the top of this file) and return a dataframe
+    # with the policy files to be written out
+    resource_data = []
+    for policy_tag, policy_info in POLICY_TAGS:
+        policy_df = create_policy_df(generators_df, policy_info)
+        if not policy_df.empty:
+            out_file = POLICY_TAGS_FILENAMES[policy_tag]
+            resource_data.append(
+                GenXInputData(
+                    tag=f"RES_{policy_tag}",
+                    folder=policy_assignments_folder,
+                    file_name=out_file,
+                    dataframe=policy_df,
+                )
+            )
+
+    # Process multistage data
+    multistage_df = create_multistage_df(generators_df, MULTISTAGE_COLS)
+    if not multistage_df.empty:
+        out_file = "Resource_multistage_data.csv"
+        resource_data.append(
+            GenXInputData(
+                tag="MULTISTAGE",
+                folder=resource_folder,
+                file_name=out_file,
+                dataframe=multistage_df,
+            )
+        )
+
+    # Process each RESOURCE_TAGS defined at the top of this file
+    for resource_tag in RESOURCE_TAGS:
+        out_file = RESOURCE_FILENAMES[resource_tag]
+        resource_df = create_resource_df(generators_df, resource_tag)
+        if not resource_df.empty:
+            resource_data.append(
+                GenXInputData(
+                    tag=resource_tag,
+                    folder=resource_folder,
+                    file_name=out_file,
+                    dataframe=resource_df,
+                )
+            )
+        else:
+            logger.info(f"No data found for resource tag {resource_tag}")
+
+    # Return a list of GenXResourceData objects
+    return resource_data
+
+
+def process_genx_data(
+    case_folder: Path, genx_data_dict: Dict[str, pd.DataFrame]
+) -> List[GenXInputData]:
+    """Process genx data dictionary and return a list of GenXResourceData objects.
+
+    Parameters
+    ----------
+    case_folder : Path
+        Path to the case folder
+    genx_data_dict : Dict[str, pd.DataFrame]
+        Dictionary of resource-specific data
+
+    Returns
+    -------
+    List[GenXResourceData]
+        List of GenXResourceData objects to be written out
+    """
+
+    resource_folder = case_folder / "resources"
+    policy_assignments_folder = resource_folder / "policy_assignments"
+    system_folder = case_folder / "system"
+    policy_folder = case_folder / "policies"
+
+    # Create folder structure
+    folders = FolderStructure(
+        resource=resource_folder,
+        policy_assignments=policy_assignments_folder,
+        system=system_folder,
+        policy=policy_folder,
+    )
+
+    # List of GenXInputData objects to be written out
+    genx_data = []
+
+    # Process generator data separately
+    genx_data.extend(split_generators_data(folders, genx_data_dict["gen_data"]))
+
+    # Add all other data to the list
+    genx_data.extend(
+        [
+            # System folder data
+            GenXInputData(
+                tag="GENERATORS_VARIABILITY",
+                folder=system_folder,
+                file_name="Generators_variability.csv",
+                dataframe=genx_data_dict.get("gen_variability", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="DEMAND",
+                folder=system_folder,
+                file_name="Demand_data.csv",
+                dataframe=genx_data_dict.get("demand_data", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="PERIOD_MAP",
+                folder=system_folder,
+                file_name="Period_map.csv",
+                dataframe=genx_data_dict.get("period_map", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="REP_PERIOD",
+                folder=system_folder,
+                file_name="Representative_Period.csv",
+                dataframe=genx_data_dict.get("rep_period", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="NETWORK",
+                folder=system_folder,
+                file_name="Network.csv",
+                dataframe=genx_data_dict.get("network", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="OP_RESERVES",
+                folder=system_folder,
+                file_name="Operational_reserves.csv",
+                dataframe=genx_data_dict.get("op_reserves", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="FUELS",
+                folder=system_folder,
+                file_name="Fuels_data.csv",
+                dataframe=genx_data_dict.get("fuels", pd.DataFrame()),
+            ),
+            # Policy folder data
+            GenXInputData(
+                tag="ESR",
+                folder=policy_folder,
+                file_name="Energy_share_requirement.csv",
+                dataframe=genx_data_dict.get("esr", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="CAP_RESERVES",
+                folder=policy_folder,
+                file_name="Capacity_reserve_margin.csv",
+                dataframe=genx_data_dict.get("cap_reserves", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="CO2_CAP",
+                folder=policy_folder,
+                file_name="CO2_cap.csv",
+                dataframe=genx_data_dict.get("co2_cap", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="MIN_CAP",
+                folder=policy_folder,
+                file_name="Minimum_capacity_requirement.csv",
+                dataframe=genx_data_dict.get("min_cap", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="MAX_CAP",
+                folder=policy_folder,
+                file_name="Maximum_capacity_requirement.csv",
+                dataframe=genx_data_dict.get("max_cap", pd.DataFrame()),
+            ),
+        ]
+    )
+
+    return genx_data
+
+
+def process_genx_data_old_format(
+    case_folder: Path, genx_data_dict: Dict[str, pd.DataFrame]
+) -> List[GenXInputData]:
+    """Process genx data dictionary and return a list of GenXResourceData objects. Use
+    for GenX versions prior to 0.4.0.
+
+    Parameters
+    ----------
+    case_folder : Path
+        Path to the case folder
+    genx_data_dict : Dict[str, pd.DataFrame]
+        Dictionary of resource-specific data
+
+    Returns
+    -------
+    List[GenXResourceData]
+        List of GenXResourceData objects to be written out
+    """
+
+    # Add 'None' column to fuels data if it doesn't exist -- causes error in old GenX otherwise
+    if (
+        "fuels" in genx_data_dict
+        and "None" not in genx_data_dict.get("fuels", pd.DataFrame()).columns
+    ):
+        genx_data_dict["fuels"]["None"] = 0
+
+    if "demand_data" in genx_data_dict:
+        genx_data_dict["demand_data"].columns = genx_data_dict[
+            "demand_data"
+        ].columns.str.replace("Demand_", "Load_")
+
+    # List of GenXInputData objects to be written out
+    genx_data = []
+
+    # Add all other data to the list
+    genx_data.extend(
+        [
+            GenXInputData(
+                tag="GENERATORS_DATA",
+                folder=case_folder,
+                file_name="Generators_data.csv",
+                dataframe=genx_data_dict.get("gen_data", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="GENERATORS_VARIABILITY",
+                folder=case_folder,
+                file_name="Generators_variability.csv",
+                dataframe=genx_data_dict.get("gen_variability", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="DEMAND",
+                folder=case_folder,
+                file_name="Load_data.csv",
+                dataframe=genx_data_dict.get("demand_data", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="PERIOD_MAP",
+                folder=case_folder,
+                file_name="Period_map.csv",
+                dataframe=genx_data_dict.get("period_map", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="REP_PERIOD",
+                folder=case_folder,
+                file_name="Representative_Period.csv",
+                dataframe=genx_data_dict.get("rep_period", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="NETWORK",
+                folder=case_folder,
+                file_name="Network.csv",
+                dataframe=genx_data_dict.get("network", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="OP_RESERVES",
+                folder=case_folder,
+                file_name="Operational_reserves.csv",
+                dataframe=genx_data_dict.get("op_reserves", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="FUELS",
+                folder=case_folder,
+                file_name="Fuels_data.csv",
+                dataframe=genx_data_dict.get("fuels", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="ESR",
+                folder=case_folder,
+                file_name="Energy_share_requirement.csv",
+                dataframe=genx_data_dict.get("esr", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="CAP_RESERVES",
+                folder=case_folder,
+                file_name="Capacity_reserve_margin.csv",
+                dataframe=genx_data_dict.get("cap_reserves", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="CO2_CAP",
+                folder=case_folder,
+                file_name="CO2_cap.csv",
+                dataframe=genx_data_dict.get("co2_cap", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="MIN_CAP",
+                folder=case_folder,
+                file_name="Minimum_capacity_requirement.csv",
+                dataframe=genx_data_dict.get("min_cap", pd.DataFrame()),
+            ),
+            GenXInputData(
+                tag="MAX_CAP",
+                folder=case_folder,
+                file_name="Maximum_capacity_requirement.csv",
+                dataframe=genx_data_dict.get("max_cap", pd.DataFrame()),
+            ),
+        ]
+    )
+
+    return genx_data
