@@ -986,6 +986,7 @@ def regional_capex_multiplier(
     tech_map: Dict[str, str],
     regional_multipliers: pd.DataFrame,
 ) -> pd.DataFrame:
+    df = df.copy()
     cost_region = region_map[region]
     tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
     avg_multiplier = tech_multiplier.mean()
