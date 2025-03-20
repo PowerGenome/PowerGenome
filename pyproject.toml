@@ -36,6 +36,7 @@ dependencies = [
     "frozendict",
     "openpyxl>=3.0",
     "geopandas>=0.12",
+    "pyogrio",
     "xlrd",
     "pyarrow",
     "duckdb",
