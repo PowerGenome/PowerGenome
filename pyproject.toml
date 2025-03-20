@@ -62,6 +62,7 @@ dev = [
     "isort",
     "build",
     "twine",
+    "hypothesis",
 ]
 
 [project.scripts]
