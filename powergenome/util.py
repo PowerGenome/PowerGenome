@@ -1223,7 +1223,7 @@ def load_ipm_shapefile(settings: dict, path: Union[str, Path] = None):
     )
     try:
         ipm_regions = gpd.read_file(path, engine="pyogrio")
-    except ImportError:
+    except (ImportError, ModuleNotFoundError):
         ipm_regions = gpd.read_file(path, engine="fiona")
     ipm_regions = ipm_regions.rename(columns={"IPM_Region": "region"})
 
