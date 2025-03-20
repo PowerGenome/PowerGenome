@@ -1602,37 +1602,13 @@ def add_renewables_clusters(
         cache_cluster_fpath = cache_folder / cache_cluster_fn
         cache_site_assn_fpath = cache_folder / cache_site_assn_fn
         if precluster is False:
+            resource_groups, renew_data, site_map = load_renew_data(
+                cluster_builder, _scenario
+            )
             if cache_cluster_fpath.exists() and cache_site_assn_fpath.exists():
                 clusters = pd.read_parquet(cache_cluster_fpath)
                 data = pd.read_parquet(cache_site_assn_fpath)
             else:
-                drop_keys = [
-                    "min_capacity",
-                    "filter",
-                    "bin",
-                    "group",
-                    "cluster",
-                    "group_modifiers",
-                ]
-                group_kwargs = dict(
-                    [(k, v) for k, v in _scenario.items() if k not in drop_keys]
-                )
-                resource_groups = cluster_builder.find_groups(
-                    existing=False,
-                    **group_kwargs,
-                )
-                if not resource_groups:
-                    raise ValueError(
-                        f"Parameters do not match any resource groups: {group_kwargs}"
-                    )
-                if len(resource_groups) > 1:
-                    meta = [rg.group for rg in resource_groups]
-                    raise ValueError(
-                        f"Parameters match multiple resource groups: {meta}"
-                    )
-                renew_data, site_map = load_resource_group_data(
-                    resource_groups[0], cache=False
-                )
                 data = assign_site_cluster(
                     renew_data=renew_data,
                     profile_path=resource_groups[0].group.get("profiles"),
@@ -1705,6 +1681,54 @@ def add_renewables_clusters(
             )
         )
     return pd.concat([df[~mask]] + cdfs, sort=False)
+
+
+def load_renew_data(cluster_builder: ClusterBuilder, _scenario: dict):
+    """Load renewable energy data based on the provided scenario and cluster builder.
+
+    Parameters
+    ----------
+    cluster_builder : ClusterBuilder
+        An instance of ClusterBuilder used to find resource groups.
+    _scenario : dict
+        A dictionary containing scenario parameters.
+
+    Returns
+    -------
+    tuple
+       A tuple containing:
+        - resource_groups (list): A list of resource groups that match the scenario parameters.
+        - renew_data (DataFrame): The renewable energy data for the matched resource group.
+        - site_map (dict): A mapping of sites for the matched resource group.
+
+    Raises
+    ------
+    ValueError
+        If no resource groups match the scenario parameters
+    ValueError
+        if multiple resource groups match the scenario parameters
+    """
+    drop_keys = [
+        "min_capacity",
+        "filter",
+        "bin",
+        "group",
+        "cluster",
+        "group_modifiers",
+    ]
+    group_kwargs = dict([(k, v) for k, v in _scenario.items() if k not in drop_keys])
+    resource_groups = cluster_builder.find_groups(
+        existing=False,
+        **group_kwargs,
+    )
+    if not resource_groups:
+        raise ValueError(f"Parameters do not match any resource groups: {group_kwargs}")
+    if len(resource_groups) > 1:
+        meta = [rg.group for rg in resource_groups]
+        raise ValueError(f"Parameters match multiple resource groups: {meta}")
+    renew_data, site_map = load_resource_group_data(resource_groups[0], cache=False)
+
+    return resource_groups, renew_data, site_map
 
 
 def load_user_defined_techs(settings: dict) -> pd.DataFrame:
