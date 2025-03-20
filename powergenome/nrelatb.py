@@ -1900,6 +1900,8 @@ def plot_supply_curve(
     color_dict = {cluster: cmap(i) for i, cluster in enumerate(unique_clusters)}
     colors = merged["cluster"].map(color_dict)
 
+    plt.figure(figsize=(10, 6), facecolor="white")
+
     plt.bar(
         merged["left"],
         merged["lcoe"],
@@ -1908,25 +1910,33 @@ def plot_supply_curve(
         # edgecolor="black",
         color=colors,
     )
-    plt.xlabel("Cumulative Capacity (MW)")
-    plt.ylabel("LCOE ($/MWh)")
-    plt.title(f"Supply Curve of Sites in {region} for {technology}")
-    plt.grid(True)
+    # Axis labels and title
+    plt.xlabel("Cumulative Capacity (MW)", fontsize=12)
+    plt.ylabel("LCOE ($/MWh)", fontsize=12)
+    plt.title(f"{region} {technology}{new_tech_suffix} Supply Curve", fontsize=14)
 
-    # Create legend elements: one patch for each cluster
+    # Customize axes to mimic Altair's minimal style
+    ax = plt.gca()
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_color("#D0D0D0")
+    ax.spines["bottom"].set_color("#D0D0D0")
+    ax.yaxis.grid(True, color="#D0D0D0", linestyle="-", linewidth=0.5)
+    ax.xaxis.grid(False)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
+
+    # Create legend elements and add a legend on the right
     legend_elements = [
-        Patch(
-            facecolor=color_dict[cluster], edgecolor="black", label=f"Cluster {cluster}"
-        )
+        Patch(facecolor=color_dict[cluster], label=f"Cluster {cluster}")
         for cluster in unique_clusters
     ]
-
-    # Add the legend on the right side of the plot
     plt.legend(
         handles=legend_elements,
-        title="Cluster",
         loc="center left",
         bbox_to_anchor=(1, 0.5),
+        fontsize=10,
+        title_fontsize=12,
     )
 
     # Construct the filename and save the figure
