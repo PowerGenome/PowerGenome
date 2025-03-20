@@ -1411,7 +1411,7 @@ def load_resource_group_data(
         A tuple of the metadata dataframe and the site map as a Series with site ID as
         the index
     """
-    data = rg.metadata.read(cache=cache)
+    data = rg.metadata.read(cache=cache).copy()
     data.columns = snake_case_col(data.columns)
     if "metro_region" in data.columns and "region" not in data.columns:
         data["region"] = data.loc[:, "metro_region"]
@@ -1743,7 +1743,7 @@ def load_renew_data(cluster_builder: ClusterBuilder, _scenario: dict):
     if len(resource_groups) > 1:
         meta = [rg.group for rg in resource_groups]
         raise ValueError(f"Parameters match multiple resource groups: {meta}")
-    renew_data, site_map = load_resource_group_data(resource_groups[0], cache=False)
+    renew_data, site_map = load_resource_group_data(resource_groups[0], cache=True)
 
     return resource_groups, renew_data, site_map
 
