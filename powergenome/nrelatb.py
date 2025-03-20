@@ -9,10 +9,13 @@ import operator
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sqlalchemy
 from joblib import Parallel, delayed
+from matplotlib.patches import Patch
 
 from powergenome.cluster.renewables import (
     assign_site_cluster,
@@ -1632,13 +1635,27 @@ def add_renewables_clusters(
                 if not cache_site_assn_fpath.exists():
                     cols = ["cpa_id", "cluster"]
                     data[cols].to_parquet(cache_site_assn_fpath)
+
             if settings.get("extra_outputs"):
                 # fn = f"{region}_{technology}{new_tech_suffix}_site_cluster_assignments.csv"
                 Path(settings["extra_outputs"]).mkdir(parents=True, exist_ok=True)
+                (Path(settings["extra_outputs"]) / "plots").mkdir(
+                    parents=True, exist_ok=True
+                )
                 cols = ["cpa_id", "cluster"]
                 fn = f"{region}_{technology}{new_tech_suffix}_site_cluster_assignments.csv"
                 data.loc[:, cols].to_csv(
                     Path(settings["extra_outputs"]) / fn, index=False
+                )
+
+                # Add a plot of the renewable supply curve
+                plot_supply_curve(
+                    data,
+                    renew_data,
+                    region,
+                    technology,
+                    new_tech_suffix,
+                    Path(settings["extra_outputs"]) / "plots",
                 )
         else:
             if cache_cluster_fpath.exists():
@@ -1817,3 +1834,102 @@ def load_user_defined_techs(settings: dict) -> pd.DataFrame:
     ]
 
     return user_techs[cols]
+
+
+def plot_supply_curve(
+    data: pd.DataFrame,
+    renew_data: pd.DataFrame,
+    region: str,
+    technology: str,
+    new_tech_suffix: str,
+    folder: Path,
+):
+    """
+    Create a supply curve of sites using cumulative capacity and LCOE,
+    then save the plot using a filename based on region, technology, and new_tech_suffix.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        DataFrame with site information, including at least:
+          - 'cpa_id'
+          - 'lcoe'
+          - 'cluster'
+    renew_data : pd.DataFrame
+        DataFrame with renewable site capacity information; must include:
+          - 'cpa_id'
+          - 'cpa_mw'
+    region : str
+        A string representing the region.
+    technology : str
+        A string representing the technology.
+    new_tech_suffix : str
+        A suffix string to append to the filename.
+    folder : Path
+        Folder to save the plot to.
+
+    Returns
+    -------
+    None
+        The plot is saved to disk.
+    """
+    # Merge the two dataframes on 'cpa_id'
+    merged = data.merge(
+        renew_data[["cpa_id", "cpa_mw", "lcoe"]], on="cpa_id", how="inner"
+    )
+
+    # Ensure that 'lcoe' exists in the merged dataframe
+    if "lcoe" not in merged.columns:
+        raise ValueError("The merged dataframe must contain a 'lcoe' column.")
+
+    # Sort the merged data by lcoe (ascending order)
+    merged = merged.sort_values(by="lcoe").reset_index(drop=True)
+
+    # Compute the cumulative capacity from 'cpa_mw'
+    merged["cum_capacity"] = merged["cpa_mw"].cumsum()
+
+    # Create the supply curve plot
+    # plt.figure(figsize=(10, 6))
+
+    # Compute the left edge for each rectangle as the cumulative capacity minus the capacity of the current site
+    merged["left"] = merged["cum_capacity"] - merged["cpa_mw"]
+    # Map the "cluster" column to colors using a discrete colormap (tab10)
+
+    unique_clusters = sorted(merged["cluster"].unique())
+    cmap = cm.get_cmap("tab10", len(unique_clusters))
+    color_dict = {cluster: cmap(i) for i, cluster in enumerate(unique_clusters)}
+    colors = merged["cluster"].map(color_dict)
+
+    plt.bar(
+        merged["left"],
+        merged["lcoe"],
+        width=merged["cpa_mw"],
+        align="edge",
+        # edgecolor="black",
+        color=colors,
+    )
+    plt.xlabel("Cumulative Capacity (MW)")
+    plt.ylabel("LCOE ($/MWh)")
+    plt.title(f"Supply Curve of Sites in {region} for {technology}")
+    plt.grid(True)
+
+    # Create legend elements: one patch for each cluster
+    legend_elements = [
+        Patch(
+            facecolor=color_dict[cluster], edgecolor="black", label=f"Cluster {cluster}"
+        )
+        for cluster in unique_clusters
+    ]
+
+    # Add the legend on the right side of the plot
+    plt.legend(
+        handles=legend_elements,
+        title="Cluster",
+        loc="center left",
+        bbox_to_anchor=(1, 0.5),
+    )
+
+    # Construct the filename and save the figure
+    fn = f"{region}_{technology}{new_tech_suffix}site_supply_curve.png"
+    plt.savefig(folder / fn, dpi=300, bbox_inches="tight")
+    plt.close()
