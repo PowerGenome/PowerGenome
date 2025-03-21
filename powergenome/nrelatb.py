@@ -1884,15 +1884,16 @@ def plot_supply_curve(
 
     # Sort the merged data by lcoe (ascending order)
     merged = merged.sort_values(by="lcoe").reset_index(drop=True)
+    merged["cpa_gw"] = merged["cpa_mw"] / 1000
 
-    # Compute the cumulative capacity from 'cpa_mw'
-    merged["cum_capacity"] = merged["cpa_mw"].cumsum()
+    # Compute the cumulative capacity from 'cpa_gw'
+    merged["cum_capacity"] = merged["cpa_gw"].cumsum()
 
     # Create the supply curve plot
     # plt.figure(figsize=(10, 6))
 
     # Compute the left edge for each rectangle as the cumulative capacity minus the capacity of the current site
-    merged["left"] = merged["cum_capacity"] - merged["cpa_mw"]
+    merged["left"] = merged["cum_capacity"] - merged["cpa_gw"]
     # Map the "cluster" column to colors using a discrete colormap (tab10)
 
     unique_clusters = sorted(merged["cluster"].unique())
@@ -1900,46 +1901,101 @@ def plot_supply_curve(
     color_dict = {cluster: cmap(i) for i, cluster in enumerate(unique_clusters)}
     colors = merged["cluster"].map(color_dict)
 
-    plt.figure(figsize=(10, 6), facecolor="white")
+    # Calculate cluster statistics:
+    #   - Weighted average LCOE: sum(lcoe * capacity) / sum(capacity)
+    #   - Total capacity: sum(cpa_gw)
+    cluster_stats = (
+        merged.groupby("cluster")
+        .apply(
+            lambda df: pd.Series(
+                {
+                    "weighted_lcoe": (df["lcoe"] * df["cpa_gw"]).sum()
+                    / df["cpa_gw"].sum(),
+                    "total_capacity": df["cpa_gw"].sum(),
+                }
+            )
+        )
+        .reset_index()
+    )
 
-    plt.bar(
+    # Sort clusters by weighted average LCOE (ascending)
+    cluster_stats = cluster_stats.sort_values("weighted_lcoe").reset_index(drop=True)
+    # Compute cumulative capacity across clusters
+    cluster_stats["cum_capacity"] = cluster_stats["total_capacity"].cumsum()
+    cluster_stats["start"] = (
+        cluster_stats["cum_capacity"] - cluster_stats["total_capacity"]
+    )
+
+    # Create a figure with two subplots side-by-side
+    fig, (ax1, ax2) = plt.subplots(
+        1, 2, figsize=(8, 4), facecolor="white", sharey=True, dpi=200
+    )
+
+    # -------------------------------
+    # Left subplot: Site-level supply curve
+    # -------------------------------
+    ax1.bar(
         merged["left"],
         merged["lcoe"],
-        width=merged["cpa_mw"],
+        width=merged["cpa_gw"],
         align="edge",
-        # edgecolor="black",
         color=colors,
     )
-    # Axis labels and title
-    plt.xlabel("Cumulative Capacity (MW)", fontsize=12)
-    plt.ylabel("LCOE ($/MWh)", fontsize=12)
-    plt.title(f"{region} {technology}{new_tech_suffix} Supply Curve", fontsize=14)
+    ax1.set_xlabel("Cumulative Capacity (GW)", fontsize=12)
+    ax1.set_ylabel("LCOE ($/MWh)", fontsize=12)
+    ax1.set_title("Site-level Supply Curve", fontsize=14)
 
-    # Customize axes to mimic Altair's minimal style
-    ax = plt.gca()
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color("#D0D0D0")
-    ax.spines["bottom"].set_color("#D0D0D0")
-    ax.yaxis.grid(True, color="#D0D0D0", linestyle="-", linewidth=0.5)
-    ax.xaxis.grid(False)
-    plt.xticks(fontsize=10)
-    plt.yticks(fontsize=10)
+    # Minimal styling similar to Altair
+    ax1.spines["top"].set_visible(False)
+    ax1.spines["right"].set_visible(False)
+    ax1.spines["left"].set_color("gray")
+    ax1.spines["bottom"].set_color("gray")
+    ax1.yaxis.grid(True, color="#D0D0D0", linestyle="-", linewidth=0.5)
+    ax1.xaxis.grid(False)
+    ax1.tick_params(axis="both", labelsize=10, color="gray")
 
-    # Create legend elements and add a legend on the right
+    # -------------------------------
+    # Right subplot: Cluster-level supply curve
+    # -------------------------------
+    ax2.bar(
+        cluster_stats["start"],
+        cluster_stats["weighted_lcoe"],
+        width=cluster_stats["total_capacity"],
+        align="edge",
+        color=[
+            color_dict.get(cluster, "black") for cluster in cluster_stats["cluster"]
+        ],
+    )
+
+    ax2.set_xlabel("Cumulative Capacity (GW)", fontsize=12)
+    ax2.set_ylabel("Weighted Average LCOE ($/MWh)", fontsize=12)
+    ax2.set_title("Cluster-level Supply Curve", fontsize=14)
+
+    # Apply minimal styling for a clean look
+    ax2.spines["top"].set_visible(False)
+    ax2.spines["right"].set_visible(False)
+    ax2.spines["left"].set_color("gray")
+    ax2.spines["bottom"].set_color("gray")
+    ax2.yaxis.grid(True, color="#D0D0D0", linestyle="-", linewidth=0.5)
+    ax2.xaxis.grid(False)
+    ax2.tick_params(axis="both", labelsize=10, color="gray")
+
+    # Add legend for clusters centered below the subplots
     legend_elements = [
         Patch(facecolor=color_dict[cluster], label=f"Cluster {cluster}")
         for cluster in unique_clusters
     ]
-    plt.legend(
+    fig.legend(
         handles=legend_elements,
-        loc="center left",
-        bbox_to_anchor=(1, 0.5),
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.05),
         fontsize=10,
-        title_fontsize=12,
+        ncols=5,
     )
+    # Adjust layout to accommodate the legend below the subplots
+    plt.tight_layout(rect=[0, 0.05, 1, 1])
 
     # Construct the filename and save the figure
     fn = f"{region}_{technology}{new_tech_suffix}site_supply_curve.png"
-    plt.savefig(folder / fn, dpi=300, bbox_inches="tight")
+    plt.savefig(folder / fn, bbox_inches="tight")
     plt.close()
