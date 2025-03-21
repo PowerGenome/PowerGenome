@@ -9,6 +9,7 @@ dependencies:
   - jupyterlab
   - black
   - pytest
+  - pytest-mock
   - beautifulsoup4
   - pyyaml
   - isort
