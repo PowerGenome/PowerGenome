@@ -362,16 +362,12 @@ def main(**kwargs):
                         .pipe(network_line_loss, settings=_settings)
                         .pipe(network_reinforcement_cost, settings=_settings)
                     )
-                transmission = (
+                network = (
                     transmission.pipe(network_max_reinforcement, settings=_settings)
                     .pipe(set_int_cols)
                     .pipe(round_col_values)
                     .pipe(add_cap_res_network, settings=_settings)
                 )
-                zones = settings["model_regions"]
-                network_zones = [f"z{n+1}" for n in range(len(zones))]
-                nz_df = pd.Series(data=network_zones, name="Network_zones")
-                network = pd.concat([pd.DataFrame(nz_df), transmission], axis=1)
                 if args.multi_period:
                     for line in network["Network_Lines"].dropna():
                         network.loc[
