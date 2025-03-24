@@ -578,43 +578,36 @@ def insert_user_tx_costs(tx_df: pd.DataFrame, user_costs: pd.DataFrame) -> pd.Da
     if tx_df.empty:
         return tx_df
     user_costs = user_costs.dropna(subset=["zone_1", "zone_2"], how="any")
-    unused_lines = []
-    for row in user_costs.itertuples():
-        line_row = tx_df.loc[(tx_df[row.zone_1] != 0) & (tx_df[row.zone_2] != 0), :]
-        assert not len(line_row) > 1
-
-        if line_row.empty:
-            unused_lines.append(row)
-        tx_df.loc[line_row.index, "Line_Reinforcement_Cost_per_MWyr"] = (
-            row.total_interconnect_annuity_mw
-        )
-        tx_df.loc[line_row.index, "Line_Reinforcement_Cost_per_MW"] = (
-            row.total_interconnect_cost_mw
-        )
-        tx_df.loc[line_row.index, "Line_Loss_Percentage"] = row.total_line_loss_frac
-
-    unused_line_df = pd.DataFrame(unused_lines)
-    unused_line_df = unused_line_df.rename(
+    user_costs = user_costs.rename(
         columns={
             "total_interconnect_annuity_mw": "Line_Reinforcement_Cost_per_MWyr",
             "total_interconnect_cost_mw": "Line_Reinforcement_Cost_per_MW",
             "total_line_loss_frac": "Line_Loss_Percentage",
         }
     )
-
-    zone_cols = [c for c in tx_df.columns if c[0] == "z"]
-    unused_line_df[zone_cols] = 0
-    for idx, row in unused_line_df.iterrows():
-        unused_line_df.loc[idx, row["zone_1"]] = 1
-        unused_line_df.loc[idx, row["zone_2"]] = -1
-        unused_line_df.loc[idx, "transmission_path_name"] = (
-            f"{row.start_region}_to_{row.dest_region}"
-        )
-
-    cols = [c for c in tx_df.columns if c in unused_line_df.columns]
-    tx_df = pd.concat([tx_df, unused_line_df[cols]], ignore_index=True)
-    tx_df["Network_Lines"] = range(1, len(tx_df) + 1)
-    tx_df["Line_Max_Flow_MW"] = tx_df["Line_Max_Flow_MW"].fillna(0)
-    tx_df["Line_Min_Flow_MW"] = tx_df["Line_Max_Flow_MW"].fillna(0)
+    tx_df = pd.merge(
+        tx_df,
+        pd.concat(
+            [
+                user_costs,
+                user_costs.rename(
+                    columns={
+                        "start_region": "dest_region",
+                        "dest_region": "start_region",
+                    }
+                ),
+            ]
+        )[
+            [
+                "start_region",
+                "dest_region",
+                "Line_Reinforcement_Cost_per_MWyr",
+                "Line_Reinforcement_Cost_per_MW",
+                "Line_Loss_Percentage",
+            ]
+        ],
+        on=["start_region", "dest_region"],
+        how="left",
+    )
 
     return tx_df
