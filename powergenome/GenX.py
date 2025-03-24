@@ -362,7 +362,7 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         tx_df["transmission_path_name"] = tx_df["Transmission Path Name"]
     original_cols = tx_df.columns.to_list()
 
-    path_names = tx_df["transmission_path_name"].to_list()
+    path_names = tx_df["transmission_path_name"].dropna().to_list()
     policy_nums = []
 
     # Loop through capacity reserve constraints (CapRes_*) and determine network
@@ -378,9 +378,9 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         tx_df[f"DerateCapRes_{cap_res_num}"] = settings.get(
             "cap_res_network_derate_default", 0.95
         )
-        tx_df[f"CapRes_Excl_{cap_res_num}"] = label_cap_res_lines(
-            path_names, dest_regions
-        )
+        cap_res_excl = label_cap_res_lines(path_names, dest_regions)
+        for i, val in enumerate(cap_res_excl):
+            tx_df.loc[i, f"CapRes_Excl_{cap_res_num}"] = val
 
     policy_nums.sort()
     derate_cols = [f"DerateCapRes_{n}" for n in policy_nums]
