@@ -71,9 +71,7 @@ def agg_transmission_constraints(
         )
         tx_value_col = "firm_ttc_mw"
     zones = settings["model_regions"]
-    zone_num_map = {
-        zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
-    }
+    zone_num_map = {zone: number for number, zone in enumerate(zones, start=1)}
 
     combos = list(itertools.combinations(zones, 2))
     reverse_combos = [(combo[-1], combo[0]) for combo in combos]
@@ -183,45 +181,32 @@ def agg_transmission_constraints(
         ["model_region_from", "model_region_to"]
     ).sum()
 
-    # Build the final output dataframe
-    logger.debug(
-        "Build a new transmission constraints dataframe with a single line between "
-        "regions"
+    df = transmission_constraints_table.loc[
+        [c for c in combos if c in transmission_constraints_table.index]
+    ].reset_index()
+    df["Start_Zone"] = df["model_region_from"].map(zone_num_map)
+    df["End_Zone"] = df["model_region_to"].map(zone_num_map)
+    df["Network_Lines"] = range(1, len(df) + 1)
+    df = pd.concat([df, pd.Series(zones, name="Network_zones")], axis=1)
+    df["Line_Max_Flow_MW"] = df[tx_value_col]
+    df["transmission_path_name"] = (
+        df["model_region_from"] + "_to_" + df["model_region_to"]
     )
-    tc_joined = pd.DataFrame(
-        columns=["Network_Lines"] + zones + ["Line_Max_Flow_MW", "Line_Min_Flow_MW"],
-        index=transmission_constraints_table.reindex(combos).dropna().index,
-        data=0,
+
+    return df[
+        [
+            "Network_zones",
+            "Network_Lines",
+            "StartZone",
+            "EndZone",
+            "Line_Max_Flow_MW",
+            "model_region_from",
+            "model_region_to",
+            "transmission_path_name",
+        ]
+    ].rename(
+        columns={"model_region_from": "start_region", "model_region_to": "dest_region"}
     )
-
-    if tc_joined.empty:
-        logger.warning(f"No transmission lines exist between model regions {combos}")
-        tc_joined["transmission_path_name"] = None
-        tc_joined.rename(columns=zone_num_map, inplace=True)
-        return tc_joined.reset_index(drop=True)
-
-    tc_joined["Network_Lines"] = range(1, len(tc_joined) + 1)
-    tc_joined["Line_Max_Flow_MW"] = transmission_constraints_table.reindex(
-        combos
-    ).dropna()
-
-    reverse_tc = transmission_constraints_table.reindex(reverse_combos).dropna() * -1
-    reverse_tc.index = tc_joined.index
-    tc_joined["Line_Min_Flow_MW"] = reverse_tc
-
-    for idx, _ in tc_joined.iterrows():
-        tc_joined.loc[idx, idx[0]] = 1
-        tc_joined.loc[idx, idx[-1]] = -1
-
-    tc_joined.rename(columns=zone_num_map, inplace=True)
-    tc_joined = tc_joined.reset_index()
-    tc_joined["transmission_path_name"] = (
-        tc_joined["model_region_from"] + "_to_" + tc_joined["model_region_to"]
-    )
-    # tc_joined = tc_joined.set_index("Transmission Path Name")
-    tc_joined.drop(columns=["model_region_from", "model_region_to"], inplace=True)
-
-    return tc_joined
 
 
 def haversine(lon1, lat1, lon2, lat2, units="mile"):
