@@ -26,7 +26,9 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "catalystcoop.pudl>=0.6.0, <=2022.11.30",
+    "pandas >= 2.0.0",
+    "duckdb >= 1.0.0",
+    "pyarrow",
     "beautifulsoup4 >= 4.8.13",
     "statsmodels>=0.12.2",
     "python-dotenv",

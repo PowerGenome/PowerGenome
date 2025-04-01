@@ -3,9 +3,8 @@ channels:
   - conda-forge
   # - defaults
 dependencies:
-  - python=3.10 # Remove for tox.ini & setup.py
+  - python>=3.10 # Remove for tox.ini & setup.py
   - pip
-  - conda-forge::catalystcoop.pudl=2022.11.30
   - jupyterlab
   - black
   - pytest
@@ -22,6 +21,8 @@ dependencies:
   - conda-forge::hypothesis[pandas]
   - numpy
   - openpyxl>=3.0
+  - pandas>=2.0
+  - duckdb
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona
