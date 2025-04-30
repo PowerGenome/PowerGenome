@@ -19,6 +19,7 @@ from powergenome.cluster.renewables import (
     modify_renewable_group,
     num_bins_from_capacity,
     value_bin,
+    value_filter,
 )
 
 CWD = Path.cwd()
@@ -378,3 +379,69 @@ class TestModifyRenewableGroup:
         # Act & Assert
         with pytest.raises(ValueError):
             modify_renewable_group(df, group_modifiers)
+
+
+def test_value_filter_numeric_range():
+    data = pd.DataFrame(
+        {"feature": [1, 2, 3, 4, 5], "other": ["a", "b", "c", "d", "e"]}
+    )
+
+    # Test filtering with max_value
+    result = value_filter(data, feature="feature", max_value=3)
+    assert result["feature"].tolist() == [1, 2, 3]
+
+    # Test filtering with min_value
+    result = value_filter(data, feature="feature", min_value=3)
+    assert result["feature"].tolist() == [3, 4, 5]
+
+    # Test filtering with both min_value and max_value
+    result = value_filter(data, feature="feature", min_value=2, max_value=4)
+    assert result["feature"].tolist() == [2, 3, 4]
+
+
+def test_value_filter_categorical_values():
+    data = pd.DataFrame(
+        {"feature": ["a", "b", "c", "d", "e"], "other": [1, 2, 3, 4, 5]}
+    )
+
+    # Test filtering with a single value
+    result = value_filter(data, feature="feature", values="b")
+    assert result["feature"].tolist() == ["b"]
+
+    # Test filtering with a list of values
+    result = value_filter(data, feature="feature", values=["b", "d"])
+    assert result["feature"].tolist() == ["b", "d"]
+
+
+def test_value_filter_nonexistent_feature():
+    data = pd.DataFrame(
+        {"feature": [1, 2, 3, 4, 5], "other": ["a", "b", "c", "d", "e"]}
+    )
+
+    # Test filtering with a nonexistent feature
+    with pytest.raises(
+        KeyError,
+        match="The feature 'nonexistent' is not in the resource group metadata.",
+    ):
+        value_filter(data, feature="nonexistent", max_value=3)
+
+
+def test_value_filter_non_numeric_column_with_range():
+    data = pd.DataFrame(
+        {"feature": ["a", "b", "c", "d", "e"], "other": [1, 2, 3, 4, 5]}
+    )
+
+    # Test filtering with min_value and max_value on a non-numeric column
+    with pytest.raises(
+        TypeError,
+        match="Unable to filter renewable cluster feature 'feature'",
+    ):
+        value_filter(data, feature="feature", min_value=2, max_value=4)
+
+
+def test_value_filter_empty_dataframe():
+    data = pd.DataFrame(columns=["feature", "other"], dtype=int)
+
+    # Test filtering on an empty DataFrame
+    result = value_filter(data, feature="feature", max_value=3)
+    assert result.empty

@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Union
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
+from pandas.api.types import is_numeric_dtype
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.preprocessing import StandardScaler
 
@@ -300,13 +301,58 @@ def cluster_sites(binned: bool, data: pd.DataFrame, **kwargs) -> pd.DataFrame:
 
 
 def value_filter(
-    data: pd.DataFrame, feature: str, max_value: float = None, min_value: float = None
+    data: pd.DataFrame,
+    feature: str,
+    max_value: float = None,
+    min_value: float = None,
+    values: Union[list, str, int] = None,
 ) -> pd.DataFrame:
+    """
+    Filter a DataFrame based on numeric range or categorical values.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Input DataFrame to filter.
+    feature : str
+        Column name in the DataFrame on which to apply the filter.
+    max_value : float, optional
+        Maximum allowable value for the feature. Rows with values greater than this are excluded.
+    min_value : float, optional
+        Minimum allowable value for the feature. Rows with values less than this are excluded.
+    values : list, optional
+        List of allowed categorical values for the feature. Rows with feature values not in this list are excluded.
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered copy of the input DataFrame based on the specified conditions.
+    """
     df = data.copy()
-    if max_value:
-        df = df.loc[df[feature] <= max_value, :]
-    if min_value:
-        df = df.loc[df[feature] >= min_value, :]
+
+    if feature not in data.columns:
+        raise KeyError(
+            f"The feature '{feature}' is not in the resource group metadata."
+        )
+
+    # categorical filter takes precedence
+    if values is not None:
+        # ensure values is a list
+        if not isinstance(values, (list, tuple, set)):
+            values = [values]
+        return df.loc[df[feature].isin(values), :]
+
+    # otherwise, numeric range filter (only if the column is numeric)
+    if is_numeric_dtype(df[feature]):
+        if max_value is not None:
+            df = df[df[feature] <= max_value]
+        if min_value is not None:
+            df = df[df[feature] >= min_value]
+    else:
+        raise TypeError(
+            f"Unable to filter renewable cluster feature '{feature}' with min_value or "
+            "max_value because it is non-numeric."
+        )
 
     return df
 
@@ -484,6 +530,7 @@ def assign_site_cluster(
             feature=snake_case_str(filt["feature"]),
             max_value=filt.get("max"),
             min_value=filt.get("min"),
+            values=filt.get("values") or filt.get("value"),
         )
     if data.empty:
         data["cluster"] = []
