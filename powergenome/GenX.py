@@ -570,8 +570,9 @@ def reduce_time_domain(
     resource_profiles, load_profiles, settings, variable_resources_only=True
 ):
     demand_segments = load_demand_segments(settings)
+    num_hours = len(load_profiles)
 
-    if settings.get("reduce_time_domain"):
+    if settings.get("reduce_time_domain", False) is True and num_hours <= 8760:
         days = settings["time_domain_days_per_period"]
         time_periods = settings["time_domain_periods"]
         include_peak_day = settings["include_peak_day"]
@@ -620,29 +621,31 @@ def reduce_time_domain(
             representative_point,
         )
 
-    else:
-        time_index = pd.Series(data=range(1, len(load_profiles) + 1), name="Time_Index")
-        sub_weights = pd.Series(data=[len(time_index)], name="Sub_Weights")
-        hours_per_period = pd.Series(
-            data=[len(load_profiles)], name="Timesteps_per_Rep_Period"
+    if num_hours > 8760:
+        logger.warning(
+            f"Time series length is {num_hours} hours. Cannot select representative "
+            "periods on anything longer than 8760 hours at this time."
         )
-        subperiods = pd.Series(data=[1], name="Rep_Periods")
+    time_index = pd.Series(data=range(1, num_hours + 1), name="Time_Index")
+    sub_weights = pd.Series(data=[len(time_index)], name="Sub_Weights")
+    hours_per_period = pd.Series(data=[num_hours], name="Timesteps_per_Rep_Period")
+    subperiods = pd.Series(data=[1], name="Rep_Periods")
 
-        # Not actually reduced
-        load_output = pd.concat(
-            [
-                demand_segments,
-                subperiods,
-                hours_per_period,
-                sub_weights,
-                time_index,
-                load_profiles.reset_index(drop=True),
-            ],
-            axis=1,
-        )
-        resource_profiles.index = time_index
+    # Not actually reduced
+    load_output = pd.concat(
+        [
+            demand_segments,
+            subperiods,
+            hours_per_period,
+            sub_weights,
+            time_index,
+            load_profiles.reset_index(drop=True),
+        ],
+        axis=1,
+    )
+    resource_profiles.index = time_index
 
-        return resource_profiles, load_output, None, None
+    return resource_profiles, load_output, None, None
 
 
 def network_line_loss(transmission: pd.DataFrame, settings: dict) -> pd.DataFrame:
