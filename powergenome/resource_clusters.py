@@ -1,5 +1,6 @@
 import copy
 import json
+import logging
 import os
 import re
 from pathlib import Path
@@ -10,6 +11,8 @@ import pandas as pd
 import pyarrow
 import pyarrow.parquet as pq
 import scipy.cluster.hierarchy
+
+logger = logging.getLogger(__name__)
 
 CAPACITY = "mw"
 MERGE = {
@@ -315,7 +318,18 @@ class Table:
             df = self._dataset.read(columns=read_columns).to_pandas()
         if cache:
             self.df = df
-        return df[columns] if columns is not None else df
+
+        if columns is None:
+            # Usually when getting metadata, not profiles
+            return df
+        missing_cols = set(columns) - set(df.columns)
+        if missing_cols:
+            logger.warning(
+                f"The columns {missing_cols} were not found in {self.path} and will be "
+                "omitted. If no profiles exist for a region the value of '1' will be used "
+                "in all hours."
+            )
+        return df[[c for c in columns if c in df.columns]]
 
     def clear(self) -> None:
         """
@@ -648,11 +662,15 @@ class ResourceGroup:
         merge = copy.deepcopy(MERGE)
         # Prepare profiles
         if profiles and self.profiles is not None:
-            df["profile"] = list(
-                np.roll(
-                    self.profiles.read(columns=df.index.astype(str)).values.T,
-                    utc_offset,
+            p = self.profiles.read(columns=df.index.astype(str))
+            df["profile"] = (
+                list(
+                    np.roll(
+                        p.values.T,
+                        utc_offset,
+                    )
                 )
+                or None
             )
             merge["means"].append("profile")
         # Compute clusters
