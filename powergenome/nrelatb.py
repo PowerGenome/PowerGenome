@@ -1642,9 +1642,9 @@ def add_renewables_clusters(
                 (Path(settings["extra_outputs"]) / "plots").mkdir(
                     parents=True, exist_ok=True
                 )
-                cols = ["cpa_id", "cluster"]
+                cols = ["cpa_id", "cluster", "cpa_mw", "lcoe"]
                 fn = f"{region}_{technology}{new_tech_suffix}_site_cluster_assignments.csv"
-                data.loc[:, cols].to_csv(
+                pd.merge(data, renew_data, on="cpa_id").to_csv(
                     Path(settings["extra_outputs"]) / fn, index=False
                 )
 
