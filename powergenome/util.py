@@ -59,7 +59,7 @@ def load_settings(path: Union[str, Path]) -> dict:
         )
 
     if settings.get("input_folder"):
-        settings["input_folder"] = path.parent / settings["input_folder"]
+        settings["input_folder"] = path.parent / Path(settings["input_folder"]).name
 
     if settings.get("generator_columns"):
         settings["generator_columns"] = add_model_tags_to_gen_columns(
