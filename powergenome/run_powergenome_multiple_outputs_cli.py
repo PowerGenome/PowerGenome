@@ -225,8 +225,7 @@ def main(**kwargs):
         zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
 
-    input_folder = Path(args.settings_file).parent / Path(settings["input_folder"]).name
-    settings["input_folder"] = input_folder
+    input_folder = settings["input_folder"]
 
     scenario_definitions = pd.read_csv(
         input_folder / settings["scenario_definitions_fn"]
