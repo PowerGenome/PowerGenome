@@ -1191,6 +1191,7 @@ def rename_gen_cols(
     """
 
     rename = {
+        "capacity_mw": "Existing_Cap_MW",
         "capacity_mwh": "Existing_Cap_MWh",
     }
     if rename_cols:

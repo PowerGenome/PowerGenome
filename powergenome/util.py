@@ -630,8 +630,8 @@ def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, List[str]]:
 def map_agg_region_names(
     df: pd.DataFrame,
     region_agg_map: Dict[str, List[str]],
-    original_col_name: str,
-    new_col_name: str,
+    original_col_name: str = "region",
+    new_col_name: str = "model_region",
 ) -> pd.DataFrame:
     """Add a column that maps original region names to aggregated model region names.
 
