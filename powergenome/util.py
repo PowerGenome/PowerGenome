@@ -9,7 +9,7 @@ import subprocess
 from collections.abc import Iterable
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 os.environ["USE_PYGEOS"] = "0"
 
@@ -1515,7 +1515,29 @@ def prepend_db_to_tables(
     return query
 
 
-def load_data_file(file_path: Union[Path, str]):
+def extract_where_clause(sql: str) -> Optional[str]:
+    """
+    Extract the WHERE clause (including the keyword) from a SQL query string.
+    If no WHERE is present, returns None.
+
+    This will stop at the next major clause (GROUP BY, HAVING, ORDER BY, LIMIT) or at the end.
+    """
+    # Regex breakdown:
+    #   (?i)\bwhere\b      → case-insensitive match of the word WHERE
+    #   (.*?)              → non-greedy capture of any characters (including newlines)
+    #   (?=\b(group by|having|order by|limit)\b|$)
+    #                      → up to but not including the next clause keyword or end of string
+    pattern = re.compile(
+        r"(?i)\bwhere\b(.*?)(?=\b(group by|having|order by|limit)\b|$)", re.DOTALL
+    )
+    m = pattern.search(sql)
+    if not m:
+        return None
+    # m.group(0) includes the WHERE keyword plus everything up to the next clause
+    return m.group(0).strip()
+
+
+def load_data_file(file_path: Union[Path, str], query: str = None) -> pd.DataFrame:
     """
     Load data from a CSV or Parquet file using duckdb.
 
@@ -1523,6 +1545,9 @@ def load_data_file(file_path: Union[Path, str]):
     ----------
     file_path : Union[Path, str]
         The path to the CSV or Parquet file.
+    query : str, optional
+        The SQL query to run on the loaded data. If provided, the query will be executed
+        instead of loading the entire file.
 
     Returns
     -------
@@ -1536,16 +1561,25 @@ def load_data_file(file_path: Union[Path, str]):
     """
     # Create a duckdb connection
     con = duckdb.connect(database=":memory:")
-
     # Determine file type and load data
     file_extension = os.path.splitext(file_path)[1].lower()
-    if file_extension == ".csv":
-        data = con.execute(f"SELECT * FROM read_csv_auto('{file_path}')").fetchdf()
-    elif file_extension == ".parquet":
-        data = con.execute(f"SELECT * FROM read_parquet('{file_path}')").fetchdf()
-    else:
+    if file_extension not in [".csv", ".parquet"]:
         con.close()
         raise ValueError(f"Unsupported file type: {file_extension}")
+    read_type = {
+        ".csv": "read_csv_auto",
+        ".parquet": "read_parquet",
+    }
+
+    if query:
+        where = extract_where_clause(query)
+        # If a query is provided, use it directly
+        _query = f"SELECT * FROM {read_type[file_extension]}('{file_path}') {where if where else ''}"
+    else:
+        # If no query is provided, default to reading the entire file
+        _query = f"SELECT * FROM {read_type[file_extension]}('{file_path}')"
+
+    data = con.execute(_query).fetchdf()
 
     con.close()
     return data
@@ -1646,7 +1680,7 @@ def load_data(
                 raise ValueError(
                     f"File '{file_or_table_name}' not found in folder '{data_location}'."
                 )
-            return load_data_file(file_path)
+            return load_data_file(file_path, query)
         else:
             raise ValueError(
                 "file_or_table_name must be provided for loading data from a folder."
