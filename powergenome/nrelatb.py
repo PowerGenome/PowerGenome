@@ -32,6 +32,7 @@ from powergenome.util import (
     add_row_to_csv,
     apply_all_tag_to_regions,
     hash_string_sha256,
+    load_data,
     remove_leading_zero,
     reverse_dict_of_lists,
     snake_case_col,
@@ -41,10 +42,11 @@ idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
 
-def fetch_atb_costs(
-    pg_engine: sqlalchemy.engine.base.Engine,
+def fetch_resource_costs(
+    data_location: Path,
+    data_name: str,
     settings: dict,
-    offshore_spur_costs: pd.DataFrame = None,
+    resource_data_year: int = None,
 ) -> pd.DataFrame:
     """Get NREL ATB power plant cost data from database, filter where applicable.
 
@@ -73,7 +75,7 @@ def fetch_atb_costs(
        'basis_year', 'tech_detail', 'fixed_o_m_mw', 'variable_o_m_mwh', 'capex', 'cf',
        'fuel', 'lcoe', 'wacc_real']
     """
-    logger.debug("Loading NREL ATB data")
+    logger.debug("Loading resource cost data")
 
     col_names = [
         "technology",
@@ -84,21 +86,19 @@ def fetch_atb_costs(
         "parameter_value",
         "dollar_year",
     ]
-    atb_year = settings["atb_data_year"]
-    fin_case = settings.get("atb_financial_case", "Market")
+    # resource_data_year = settings["atb_data_year"]
+    fin_case = settings.get("resource_financial_case", "Market")
 
     # Fetch cost data from sqlite and create dataframe. Only get values for techs/cases
     # listed in the settings file.
     all_rows = []
     wacc_rows = []
     tech_list = []
-    techs = settings["atb_new_gen"]
+    techs = settings["new_resources"]
     mod_techs = []
-    if settings.get("modified_atb_new_gen"):
-        for _, m in settings.get("modified_atb_new_gen").items():
-            mod_techs.append(
-                [m["atb_technology"], m["atb_tech_detail"], m["atb_cost_case"], None]
-            )
+    if settings.get("modified_new_resources"):
+        for _, m in settings.get("modified_new_resources").items():
+            mod_techs.append([m["technology"], m["tech_detail"], m["cost_case"], None])
 
     cost_params = (
         "capex_mw",
@@ -108,112 +108,61 @@ def fetch_atb_costs(
         "fixed_o_m_mwh",
     )
     # add_pv_wacc = True
-    cols = ["technology", "tech_detail", "financial_case", "cost_case", "atb_year"]
-    valid_inputs = db_col_values(pg_engine, "technology_costs_nrelatb", cols)
+    cols = ["technology", "tech_detail", "financial_case", "cost_case", "data_year"]
+    # valid_inputs = db_col_values(data_location, data_name, cols)
     for tech in techs + mod_techs:
         tech, tech_detail, cost_case, _ = tech
-        # if tech == "UtilityPV":
-        #     add_pv_wacc = False
-        tech_params = [tech, tech_detail, fin_case, cost_case, atb_year]
-        for param in tech_params:
-            if param not in valid_inputs:
-                raise ValueError(
-                    f"When getting technology costs, the parameter {param} does not have "
-                    "a valid matching value in the database table."
-                )
+        quoted_params = ", ".join(f"'{p}'" for p in cost_params)
         s = f"""
-        SELECT technology, tech_detail, cost_case, parameter, basis_year, parameter_value, dollar_year
-        from technology_costs_nrelatb
         where
-            technology == "{tech}"
-            AND tech_detail == "{tech_detail}"
-            AND financial_case == "{fin_case}"
-            AND cost_case == "{cost_case}"
-            AND atb_year == {atb_year}
-            AND parameter IN ({','.join('?'*len(cost_params))})
+            technology == '{tech}'
+            AND tech_detail == '{tech_detail}'
+            AND financial_case == '{fin_case}'
+            AND cost_case == '{cost_case}'
+            AND parameter IN ({quoted_params})
         """
-        all_rows.extend(pg_engine.execute(s, cost_params).fetchall())
+        if resource_data_year:
+            # If a resource data year is specified, filter by that as well.
+            # This is useful for ATB data, which has a different data year than the
+            # planning year.
+            s += f"""
+            AND data_year == {resource_data_year}
+            """
+
+        all_rows.append(load_data(data_location, data_name, query=s))
+        # all_rows.extend(pg_engine.execute(s, cost_params).fetchall())
 
         if (tech, cost_case) not in tech_list:
             # ATB2020 summary file provides a single WACC for each technology and a single
             # tech detail of "*", so need to fetch this separately from other cost params.
             # Only need to fetch once per technology.
             wacc_s = f"""
-            select technology, cost_case, basis_year, parameter_value
-            from technology_costs_nrelatb
             where
-                technology == "{tech}"
-                AND financial_case == "{fin_case}"
-                AND cost_case == "{cost_case}"
-                AND atb_year == {atb_year}
-                AND parameter == "wacc_real"
+                technology == '{tech}'
+                AND financial_case == '{fin_case}'
+                AND cost_case == '{cost_case}'
+                AND parameter == 'wacc_real'
             """
-            wacc_rows.extend(pg_engine.execute(wacc_s).fetchall())
+            if resource_data_year:
+                # If a resource data year is specified, filter by that as well.
+                # This is useful for ATB data, which has a different data year than the
+                # planning year.
+                wacc_s += f"""
+                AND data_year == {resource_data_year}
+                """
+            wacc_rows.append(load_data(data_location, data_name, query=wacc_s))
+            # wacc_rows.extend(pg_engine.execute(wacc_s).fetchall())
 
         tech_list.append((tech, cost_case))
-    tech_names = [t[0] for t in tech_list]
-    if "Battery" not in tech_names:
-        df = pd.DataFrame(all_rows, columns=col_names)
-        wacc_df = pd.DataFrame(
-            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_real"]
-        )
-    else:
-        # ATB doesn't have a WACC for battery storage. We use UtilityPV WACC as a default
-        # stand-in -- make sure we have it in case.
-        s = 'SELECT DISTINCT("technology") from technology_costs_nrelatb WHERE parameter == "wacc_real"'
-        atb_techs = [x[0] for x in pg_engine.execute(s).fetchall()]
-        battery_wacc_standin = settings.get("atb_battery_wacc")
-        battery_tech = [x for x in techs if x[0] == "Battery"][0]
-        if isinstance(battery_wacc_standin, float):
-            if battery_wacc_standin > 0.1:
-                logger.warning(
-                    f"You defined a battery WACC of {battery_wacc_standin}, which seems"
-                    " very high. Check settings parameter `atb_battery_wacc`."
-                )
-            battery_wacc_rows = [
-                (battery_tech[0], battery_tech[2], year, battery_wacc_standin)
-                for year in range(2017, 2051)
-            ]
-            wacc_rows.extend(battery_wacc_rows)
-        elif battery_wacc_standin in atb_techs:
-            # if battery_wacc_standin in tech_list:
-            #     pass
-            # else:
-            logger.debug(
-                f"Using {battery_wacc_standin} {fin_case} WACC for Battery storage."
-            )
-            for cost_case in ["Mid", "Moderate"]:
-                wacc_s = f"""
-                select technology, cost_case, basis_year, parameter_value
-                from technology_costs_nrelatb
-                where
-                    technology == "{battery_wacc_standin}"
-                    AND financial_case == "{fin_case}"
-                    AND cost_case == "{cost_case}"
-                    AND atb_year == {atb_year}
-                    AND parameter == "wacc_real"
 
-                """
-                b_rows = pg_engine.execute(wacc_s).fetchall()
-                battery_wacc_rows = [
-                    (battery_tech[0], battery_tech[2], b_row[2], b_row[3])
-                    for b_row in b_rows
-                ]
-                wacc_rows.extend(battery_wacc_rows)
-        else:
-            raise ValueError(
-                f"The settings key `atb_battery_wacc` value is {battery_wacc_standin}. It "
-                f"should either be a float or a string from the list {atb_techs}."
-            )
-
-        df = pd.DataFrame(all_rows, columns=col_names)
-        wacc_df = pd.DataFrame(
-            wacc_rows, columns=["technology", "cost_case", "basis_year", "wacc_real"]
-        )
+    df = pd.concat(all_rows, ignore_index=True)[col_names]
+    wacc_df = pd.concat(wacc_rows, ignore_index=True)[
+        ["technology", "cost_case", "basis_year", "parameter_value"]
+    ].rename(columns={"parameter_value": "wacc_real"})
 
     # Transform from tidy to wide dataframe, which makes it easier to fill generator
     # rows with the correct values.
-    atb_costs = (
+    resource_costs = (
         df.drop_duplicates()
         .set_index(
             [
@@ -227,13 +176,13 @@ def fetch_atb_costs(
         )
         .unstack(level=-1)
     )
-    atb_costs.columns = atb_costs.columns.droplevel(0)
-    atb_costs = (
-        atb_costs.reset_index()
+    resource_costs.columns = resource_costs.columns.droplevel(0)
+    resource_costs = (
+        resource_costs.reset_index()
         .merge(wacc_df, on=["technology", "cost_case", "basis_year"], how="left")
         .drop_duplicates()
     )
-    atb_costs = atb_costs.fillna(0)
+    resource_costs = resource_costs.fillna(0)
 
     usd_columns = [
         "fixed_o_m_mw",
@@ -243,47 +192,25 @@ def fetch_atb_costs(
         "capex_mwh",
     ]
     for col in usd_columns:
-        if col not in atb_costs.columns:
-            atb_costs[col] = 0
+        if col not in resource_costs.columns:
+            resource_costs[col] = 0
 
-    atb_target_year = settings["target_usd_year"]
-    if not atb_costs.empty:
-        atb_costs[usd_columns] = atb_costs.apply(
+    target_usd_year = settings["target_usd_year"]
+    if not resource_costs.empty:
+        resource_costs[usd_columns] = resource_costs.apply(
             lambda row: inflation_price_adjustment(
                 row[usd_columns],
                 base_year=row["dollar_year"],
-                target_year=atb_target_year,
+                target_year=target_usd_year,
             ),
             axis=1,
         )
 
-    if any("PV" in tech for tech in tech_list) and atb_year == 2019:
-        print("Inflating ATB 2019 PV costs from DC to AC")
-        atb_costs.loc[
-            atb_costs["technology"].str.contains("PV"),
-            ["capex_mw", "fixed_o_m_mw", "variable_o_m_mwh"],
-        ] *= settings.get("pv_ac_dc_ratio", 1.3)
-    elif atb_year > 2019:
-        logger.debug("PV costs are already in AC units, not inflating the cost.")
-
-    if offshore_spur_costs is not None and "OffShoreWind" in atb_costs["technology"]:
-        idx_cols = ["technology", "tech_detail", "cost_case", "basis_year"]
-        offshore_spur_costs = offshore_spur_costs.set_index(idx_cols)
-        atb_costs = atb_costs.set_index(idx_cols)
-
-        atb_costs.loc[idx["OffShoreWind", :, :, :], "capex_mw"] = (
-            atb_costs.loc[idx["OffShoreWind", :, :, :], "capex_mw"]  # .values
-            - offshore_spur_costs.loc[
-                idx["OffShoreWind", :, :, :], "capex_mw"
-            ]  # .values
-        )
-        atb_costs = atb_costs.reset_index()
-
-    return atb_costs
+    return resource_costs
 
 
 def db_col_values(
-    engine: sqlalchemy.engine, table: str, cols: List[str]
+    data_location: sqlalchemy.engine, data_name: str, cols: List[str]
 ) -> List[Union[str, int]]:
     """Find all distinct values in one or more columns of a database table.
 
@@ -307,8 +234,8 @@ def db_col_values(
     """
     valid_inputs = []
     for col in cols:
-        s = f"SELECT DISTINCT {col} from {table}"
-        valid_inputs.extend(pd.read_sql_query(s, engine)[col].to_list())
+        s = f"SELECT DISTINCT {col} from {data_name}"
+        valid_inputs.extend(pd.read_sql_query(s, data_location)[col].to_list())
 
     return valid_inputs
 
@@ -350,20 +277,20 @@ def fetch_atb_offshore_spur_costs(
     return spur_costs
 
 
-def fetch_atb_heat_rates(
-    pg_engine: sqlalchemy.engine.base.Engine, settings: dict
+def fetch_heat_rates(
+    data_location: Path, data_name: str, data_year: int = None
 ) -> pd.DataFrame:
     """Get heat rate projections for power plants
 
-    Data is originally from AEO, NREL does a linear interpolation between current and
-    final years.
-
     Parameters
     ----------
-    pg_engine : sqlalchemy.Engine
-        A sqlalchemy connection for use by pandas
-    settings : dict
-        User-defined parameters from a settings file. Needs to have key `atb_data_year`.
+    data_location : Path
+        Path to the folder or database containing the input data file/table.
+    data_name : str
+        Name of the file or table with heat rate values.
+    data_year : int
+        Year of data vintage. Not the same as planning or technology year. Optional,
+        defaults to None.
 
     Returns
     -------
@@ -371,17 +298,19 @@ def fetch_atb_heat_rates(
         Power plant heat rate data by year with columns:
         ['technology', 'tech_detail', 'cost_case', 'basis_year', 'heat_rate']
     """
+    if data_year:
+        query = f"WHERE data_year = {data_year}"
+        heat_rates = load_data(data_location, data_name, query=query)
+    else:
+        heat_rates = load_data(data_location, data_name)
+    # heat_rates = heat_rates.loc[heat_rates["data_year"] == data_year, :]
 
-    heat_rates = pd.read_sql_table("technology_heat_rates_nrelatb", pg_engine)
-    if settings["atb_data_year"] not in heat_rates["atb_year"].unique():
-        max_atb_year = heat_rates["atb_year"].max()
-        logger.warning(
-            f"Your settings file has parameter `atb_year` of {settings['atb_data_year']}"
-            ", which isn't in the table `technology_heat_rates_nrelatb`. Using "
-            f"{max_atb_year} instead."
+    if heat_rates.empty:
+        s = (
+            f"Your settings file has parameter `data_year` of {data_year}"
+            f", which isn't in the table `{data_name}`."
         )
-        settings["atb_data_year"] = max_atb_year
-    heat_rates = heat_rates.loc[heat_rates["atb_year"] == settings["atb_data_year"], :]
+        raise ValueError(s)
 
     return heat_rates
 

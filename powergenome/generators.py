@@ -36,9 +36,9 @@ from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
     atb_fixed_var_om_existing,
     atb_new_generators,
-    fetch_atb_costs,
-    fetch_atb_heat_rates,
     fetch_atb_offshore_spur_costs,
+    fetch_heat_rates,
+    fetch_resource_costs,
 )
 from powergenome.params import DATA_PATHS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
@@ -3226,8 +3226,11 @@ class GeneratorClusters:
 
     def __init__(
         self,
-        pg_engine,
+        data_location,
+        generation_table,
         settings,
+        resource_heat_rate_table=None,
+        resource_cost_table=None,
         current_gens=True,
         supplement_with_860m=True,
         sort_gens=False,
@@ -3247,8 +3250,8 @@ class GeneratorClusters:
         settings : dictionary
             The dictionary of settings with a dictionary of region aggregations
         """
-        self.pg_engine = pg_engine
-        self.gen_table = settings.get("gen_table")
+        self.data_location = data_location
+        self.gen_table = generation_table
         self.plant_region_table = settings.get("plant_region_table")
         self.tech_groups = settings.get("tech_groups", {}) or {}
         self.regional_tech_no_grouping = settings.get("regional_no_grouping", {}) or {}
@@ -3263,13 +3266,16 @@ class GeneratorClusters:
             self.settings.get("RESOURCE_GROUPS"),
             self.settings.get("RESOURCE_GROUP_PROFILES"),
         )
+        self.resource_heat_rate_table = resource_heat_rate_table
+        self.resource_cost_table = resource_cost_table
 
         self.fuel_prices = fetch_fuel_prices(self.settings).pipe(
             modify_fuel_prices,
             self.settings.get("aeo_fuel_region_map"),
             self.settings.get("regional_fuel_adjustments"),
         )
-        # self.atb_hr = fetch_atb_heat_rates(self.pg_engine, self.settings)
+        # if resource_heat_rate_table:
+
         # self.coal_fgd = pd.read_csv(DATA_PATHS["coal_fgd"])
 
     def fill_na_heat_rates(self, s):
@@ -3452,8 +3458,8 @@ class GeneratorClusters:
             self.settings["model_regions"],
             self.settings.get("alt_num_clusters", {}),
         )
-        gen_df = load_data(self.pg_engine, self.gen_table)
-        plant_region_map = load_data(self.pg_engine, self.plant_region_table)
+        gen_df = load_data(self.data_location, self.gen_table)
+        plant_region_map = load_data(self.data_location, self.plant_region_table)
         gen_df = pd.merge(gen_df, plant_region_map, on="plant_id")
         self.results, self.all_gens = (
             map_agg_region_names(
@@ -3489,7 +3495,9 @@ class GeneratorClusters:
                 f"{self.settings.get('avg_distribution_loss', 0):%} to account for no "
                 "distribution losses.\n"
             )
-            self.results = add_dg_resources(self.pg_engine, self.settings, self.results)
+            self.results = add_dg_resources(
+                self.data_location, self.settings, self.results
+            )
         else:
             self.results["profile"] = None
 
@@ -3600,15 +3608,23 @@ class GeneratorClusters:
 
     def create_new_generators(self):
         logger.info("Starting to build new generation resources")
-        self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
-            self.pg_engine, self.settings
+        # self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
+        #     self.data_location, self.settings
+        # )
+        self.resource_hr = fetch_heat_rates(
+            self.data_location,
+            self.resource_heat_rate_table,
+            self.settings.get("resource_data_year"),
         )
-        self.atb_costs = fetch_atb_costs(
-            self.pg_engine, self.settings, self.offshore_spur_costs
+        self.resource_costs = fetch_resource_costs(
+            self.data_location,
+            self.resource_cost_table,
+            self.settings,
+            self.settings.get("resource_data_year"),
         )
 
         self.new_generators = atb_new_generators(
-            self.atb_costs, self.atb_hr, self.settings, self.cluster_builder
+            self.resource_costs, self.resource_hr, self.settings, self.cluster_builder
         )
 
         if not self.new_generators.empty:
@@ -3631,7 +3647,9 @@ class GeneratorClusters:
             else:
                 logger.warning("No settings parameter for max capacity/spur file")
             self.new_generators = self.new_generators.pipe(
-                calculate_transmission_inv_cost, self.settings, self.offshore_spur_costs
+                calculate_transmission_inv_cost,
+                self.settings,
+                # None or self.offshore_spur_costs,
             ).pipe(add_transmission_inv_cost, self.settings)
 
         if self.settings.get("demand_response_fn") or self.settings.get(
