@@ -3205,8 +3205,10 @@ def check_cluster_cols(df: pd.DataFrame, cluster_cols: List[str]) -> List[str]:
             valid_cols.remove(col)
         elif col_na.any():
             # Some but not all values are missing
+            missing_plant_ids = df.loc[df[col_na].isna(), "plant_id"].unique()
             raise ValueError(
-                f"Column '{col}' of the existing generators table contains some missing values but not all"
+                f"Column '{col}' of the existing generators table contains some missing "
+                f"values for plants {missing_plant_ids}."
             )
     if not valid_cols:
         raise ValueError(
