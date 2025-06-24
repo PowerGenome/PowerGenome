@@ -3199,13 +3199,13 @@ def check_cluster_cols(df: pd.DataFrame, cluster_cols: List[str]) -> List[str]:
     for col in cluster_cols:
         if col not in df.columns:
             raise KeyError(f"Column '{col}' not found in existing generators table")
-        col_na = df[col].isna()
+        col_na = df.loc[df["operating"] == True, col].isna()
         if col_na.all():
             # Drop columns that are entirely missing
             valid_cols.remove(col)
         elif col_na.any():
             # Some but not all values are missing
-            missing_plant_ids = df.loc[df[col_na].isna(), "plant_id"].unique()
+            missing_plant_ids = df.loc[col_na, "plant_id"].unique()
             raise ValueError(
                 f"Column '{col}' of the existing generators table contains some missing "
                 f"values for plants {missing_plant_ids}."
