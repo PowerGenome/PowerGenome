@@ -40,10 +40,9 @@ from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
 )
-from powergenome.util import (
+from powergenome.util import (  # init_pudl_connection,
     build_scenario_settings,
     check_settings,
-    init_pudl_connection,
     load_ipm_shapefile,
     load_settings,
     remove_fuel_gen_scenario_name,
@@ -198,32 +197,32 @@ def main(**kwargs):
 
     logger.debug("Initiating PUDL connections")
 
-    pudl_engine, pudl_out, pg_engine = init_pudl_connection(
-        freq="AS",
-        start_year=min(settings.get("eia_data_years")),
-        end_year=max(settings.get("eia_data_years")),
-        pudl_db=settings.get("PUDL_DB"),
-        pg_db=settings.get("PG_DB"),
-    )
+    # pudl_engine, pudl_out, pg_engine = init_pudl_connection(
+    #     freq="AS",
+    #     start_year=min(settings.get("eia_data_years")),
+    #     end_year=max(settings.get("eia_data_years")),
+    #     pudl_db=settings.get("PUDL_DB"),
+    #     pg_db=settings.get("PG_DB"),
+    # )
 
-    check_settings(settings, pg_engine)
+    # check_settings(settings, pg_engine)
 
     # Make sure everything in model_regions is either an aggregate region
     # or an IPM region. Will need to change this once we start using non-IPM
     # regions.
-    ipm_regions = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
-        "region_id_epaipm"
-    ]
-    all_valid_regions = ipm_regions.tolist() + list(
-        settings.get("region_aggregations", {}) or {}
-    )
-    good_regions = [region in all_valid_regions for region in settings["model_regions"]]
+    # ipm_regions = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
+    #     "region_id_epaipm"
+    # ]
+    # all_valid_regions = ipm_regions.tolist() + list(
+    #     settings.get("region_aggregations", {}) or {}
+    # )
+    # good_regions = [region in all_valid_regions for region in settings["model_regions"]]
 
-    if not all(good_regions):
-        logger.warning(
-            "One or more model regions is not valid. Check to make sure all regions "
-            "are either in IPM or region_aggregations in the settings YAML file."
-        )
+    # if not all(good_regions):
+    #     logger.warning(
+    #         "One or more model regions is not valid. Check to make sure all regions "
+    #         "are either in IPM or region_aggregations in the settings YAML file."
+    #     )
 
     # Sort zones in the settings to make sure they are correctly sorted everywhere.
     settings["model_regions"] = sorted(settings["model_regions"])
@@ -301,10 +300,13 @@ def main(**kwargs):
             logger.info(f"\n\nStarting year {year} scenario {case_id}\n\n")
             if args.gens:
                 gc = GeneratorClusters(
-                    pudl_engine=pudl_engine,
-                    pudl_out=pudl_out,
-                    pg_engine=pg_engine,
+                    # pudl_engine=pudl_engine,
+                    # pudl_out=pudl_out,
+                    data_location=_settings["data_location"],
+                    generation_table=_settings["generation_table"],
                     settings=_settings,
+                    resource_heat_rate_table=_settings["resource_heat_rate_table"],
+                    resource_cost_table=_settings["resource_cost_table"],
                     current_gens=args.current_gens,
                     sort_gens=args.sort_gens,
                     multi_period=args.multi_period,
