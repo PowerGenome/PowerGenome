@@ -1594,6 +1594,9 @@ def load_table_from_db(
     elif str(data_location).endswith(".duckdb"):
         con = duckdb.connect(database=str(data_location))
         if query:
+            if file_or_table_name is not None and "SELECT" not in query.upper():
+                query = f"SELECT * FROM {file_or_table_name} {query}"
+
             data = con.execute(query).fetchdf()
         else:
             query = f"SELECT * FROM {file_or_table_name}"
