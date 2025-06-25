@@ -387,10 +387,10 @@ def atb_fixed_var_om_existing(
             technology_costs_nrelatb
         WHERE
             basis_year == ?
-            AND financial_case == "Market"
-            AND cost_case in("Mid", "Moderate")
+            AND financial_case == 'Market'
+            AND cost_case in('Mid', 'Moderate')
             AND atb_year == ?
-            AND parameter in("variable_o_m_mwh", "fixed_o_m_mw")
+            AND parameter in('variable_o_m_mwh', 'fixed_o_m_mw')
     """
     params = [existing_year, settings["atb_data_year"]]
     atb_om_names = pd.read_sql_query(
@@ -477,10 +477,10 @@ def atb_fixed_var_om_existing(
         from technology_costs_nrelatb
         where
             basis_year == ?
-            AND financial_case == "Market"
-            AND cost_case in ("Mid", "Moderate")
+            AND financial_case == 'Market'
+            AND cost_case in ('Mid', 'Moderate')
             AND atb_year == ?
-            AND parameter in ("variable_o_m_mwh", "fixed_o_m_mw", "fixed_o_m_mwh")
+            AND parameter in ('variable_o_m_mwh', 'fixed_o_m_mw', 'fixed_o_m_mwh')
             AND
                 ({' OR '.join(["(technology==? and tech_detail==?)"]*len(atb_techs))})
             GROUP BY technology, tech_detail, parameter
@@ -911,6 +911,7 @@ def regional_capex_multiplier(
     tech_map: Dict[str, str],
     regional_multipliers: pd.DataFrame,
 ) -> pd.DataFrame:
+    df = df.copy()
     cost_region = region_map[region]
     tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
     avg_multiplier = tech_multiplier.mean()
@@ -919,9 +920,11 @@ def regional_capex_multiplier(
 
     tech_multiplier_map = {}
     for atb_tech, eia_tech in tech_map.items():
-        if df["technology"].str.contains(atb_tech, case=False).sum() > 0:
+        if df["technology"].str.contains(atb_tech, case=False, regex=False).sum() > 0:
             full_atb_tech = df.loc[
-                df["technology"].str.contains(atb_tech, case=False).idxmax(),
+                df["technology"]
+                .str.contains(atb_tech, case=False, regex=False)
+                .idxmax(),
                 "technology",
             ]
             tech_multiplier_map[full_atb_tech] = tech_multiplier.at[eia_tech]
@@ -1227,7 +1230,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
 
         df_list = Parallel(n_jobs=settings.get("clustering_n_jobs", 1))(
             delayed(parallel_region_renewables)(
-                settings,
+                copy.deepcopy(settings),
                 new_gen_df,
                 regional_cost_multipliers,
                 rev_mult_region_map,
@@ -1301,7 +1304,7 @@ def parallel_region_renewables(
     _df = add_renewables_clusters(
         _df,
         region,
-        settings,
+        copy.deepcopy(settings),
         cluster_builder,
     )
 
@@ -1444,7 +1447,7 @@ def add_renewables_clusters(
         regions.append(region)  # Add model region, sometimes listed in RG file
     else:
         regions = [region]
-    for scenario in settings.get("renewables_clusters", []) or []:
+    for scenario in copy.deepcopy(settings).get("renewables_clusters", []) or []:
         if scenario["region"] != region:
             continue
         # Match cluster technology to NREL ATB technologies
@@ -1502,7 +1505,9 @@ def add_renewables_clusters(
         detail_suffix = flatten_cluster_def(
             {k: v for (k, v) in _scenario.items() if k != "group_modifiers"}, "_"
         )
-        unique_hash = hash_string_sha256(f"{region}_{technology}_{detail_suffix}")
+        unique_hash = hash_string_sha256(
+            f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}"
+        )
         cache_cluster_fn = unique_hash + "_cluster_data.parquet"
         cache_site_assn_fn = unique_hash + "_site_assn.parquet"
 
@@ -1514,7 +1519,10 @@ def add_renewables_clusters(
         add_row_to_csv(
             cache_folder / "hash_map.csv",
             headers=["name", "hash"],
-            new_row=[f"{region}_{technology}_{detail_suffix}", unique_hash],
+            new_row=[
+                f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}",
+                unique_hash,
+            ],
         )
         cache_cluster_fpath = cache_folder / cache_cluster_fn
         cache_site_assn_fpath = cache_folder / cache_site_assn_fn

@@ -81,6 +81,9 @@ celerybeat-schedule
 # SageMath parsed files
 *.sage.py
 
+#Qodo stuff
+.qodo
+
 # Environments
 .env
 .venv
@@ -135,3 +138,4 @@ data/transformed_data/*
 /data/random/*
 /data/resource_groups/*
 /data/cache/*
+cluster_assignments*

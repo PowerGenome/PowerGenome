@@ -320,7 +320,18 @@ class Table:
             df = self._dataset.read(columns=read_columns).to_pandas()
         if cache:
             self.df = df
-        return df[columns] if columns is not None else df
+
+        if columns is None:
+            # Usually when getting metadata, not profiles
+            return df
+        missing_cols = set(columns) - set(df.columns)
+        if missing_cols:
+            logger.warning(
+                f"The columns {missing_cols} were not found in {self.path} and will be "
+                "omitted. If no profiles exist for a region the value of '1' will be used "
+                "in all hours."
+            )
+        return df[[c for c in columns if c in df.columns]]
 
     def clear(self) -> None:
         """
@@ -654,25 +665,16 @@ class ResourceGroup:
         merge = copy.deepcopy(MERGE)
         # Prepare profiles
         if profiles and self.profiles is not None:
-            try:
-                df["profile"] = list(
+            p = self.profiles.read(columns=df.index.astype(str))
+            df["profile"] = (
+                list(
                     np.roll(
-                        self.profiles.read(columns=df.index.astype(str)).values.T,
+                        p.values.T,
                         utc_offset,
                     )
                 )
-            except KeyError:
-                # Profiles not available for some resources
-                tech = self.group.get("technology")
-                tech_cap = df["capacity_mw"].sum()
-                logger.warning(
-                    f"Profiles not available for technology {tech} in regions {df.index.tolist()},"
-                    f" with total capacity of {tech_cap} MW. Using default profile of 1.0"
-                    " in all hours."
-                )
-                df["profile"] = list(
-                    np.ones((len(self.profiles.read([self.profiles.columns[0]])), 1)).T
-                )
+                or None
+            )
             merge["means"].append("profile")
         # Compute clusters
         if tree:

@@ -124,8 +124,8 @@ def value_bin(
     return labels
 
 
-@deep_freeze_args
-@lru_cache()
+# @deep_freeze_args
+# @lru_cache()
 def agg_cluster_profile(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
     if len(s) == 0:
         return []
@@ -153,8 +153,8 @@ def agg_cluster_profile(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
     return labels
 
 
-@deep_freeze_args
-@lru_cache()
+# @deep_freeze_args
+# @lru_cache()
 def agg_cluster_other(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
     if len(s) == 0:
         return []
@@ -493,7 +493,14 @@ def assign_site_cluster(
     if min_capacity:
         data = min_capacity_mw(data, min_cap=min_capacity)
     if site_map is not None:
-        site_ids = [site_map.loc[i] for i in data["cpa_id"]]
+        # site_ids = [site_map.loc[i] for i in data["cpa_id"]]
+        missing_site_ids = data.loc[
+            data["cpa_id"].map(site_map).isna(), "cpa_id"
+        ].to_list()
+        if missing_site_ids:
+            print(f"missing site IDs {missing_site_ids}")
+            data = data.loc[~data["cpa_id"].isin(missing_site_ids), :]
+        site_ids = data["cpa_id"].map(site_map).to_list()
     else:
         site_ids = [str(int(i)) for i in data["cpa_id"]]
     if profile_path is not None:
@@ -696,7 +703,9 @@ def modify_renewable_group(
         # for group, mod in (group_modifiers or {}).items():
         for key, op_list in group_mod.items():
             if isinstance(op_list, float) | isinstance(op_list, int):
-                df.loc[df["cluster"].str.contains(group_id, case=False), key] = op_list
+                df.loc[
+                    df["cluster"].str.contains(group_id, case=False, regex=False), key
+                ] = op_list
             else:
                 if len(op_list) != 2:
                     raise ValueError(
@@ -714,10 +723,13 @@ def modify_renewable_group(
                         "properties of a renewable cluster.\n"
                     )
                 f = operator.attrgetter(op)
-                df.loc[df["cluster"].str.contains(group_id, case=False), key] = f(
-                    operator
-                )(
-                    df.loc[df["cluster"].str.contains(group_id, case=False), key],
+                df.loc[
+                    df["cluster"].str.contains(group_id, case=False, regex=False), key
+                ] = f(operator)(
+                    df.loc[
+                        df["cluster"].str.contains(group_id, case=False, regex=False),
+                        key,
+                    ],
                     op_value,
                 )
     return df

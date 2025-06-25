@@ -41,10 +41,10 @@ This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl
 
 1. Clone this repository to your local machine and navigate to the top level (PowerGenome) folder.
 
-2. Create a conda environment named `powergenome` using the provided `environment.yml` file. If you don't already use conda it is easiest to download and install [Mambaforge](https://github.com/conda-forge/miniforge#mambaforge), which will install conda with mamba in the `base` environment. See [this description](https://bioconda.github.io/faqs.html#what-s-the-difference-between-miniconda-miniforge-mambaforge-micromamba) for more information on the difference between different ways to install conda and mamba. Conda usually fail to resolve dependencies in under a day so I highly recommend that you either start with Mambaforge or [install mamba in your `base` environment](https://mamba.readthedocs.io/en/latest/installation.html#existing-conda-install) and use it instead.
+2. Use the provided `environment.yml` file to create a conda environment named `powergenome`. If you don't already use conda it is easiest to download and install [Miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install).
 
 ```sh
-mamba env create -f environment.yml
+conda env create -f environment.yml
 ```
 
 3. Activate the `powergenome` environment.
@@ -79,13 +79,13 @@ pip install -e .
 - `RESOURCE_GROUP_PROFILES=YOUR_PATH_HERE` (your path to the folder with hourly wind/solar generation parquet files)
 - `EFS_DATA=YOUR_PATH_HERE` (your path to the folder with EFS derived data files)
 - `DISTRIBUTED_GEN_DATA=YOUR_PATH_HERE` (your path to the folder with distributed generation profiles)
-- OPTIONAL: `RESOURCE_GROUPS=YOUR_PATH_HERE` (your path to the resource groups data for a project -- **this can be included in your settings file instead of the .env file**)
+- OPTIONAL: `RESOURCE_GROUPS=YOUR_PATH_HERE` (your path to the resource groups data for a project -- **this can be included in a settings file such as env.yml instead of the .env file**)
 
 Quotation marks are only needed if your values contain spaces. The `.env` file is included in `.gitignore` and will not be synced with the repository.
 
-## Installation with a packaged version (pip/conda-forge)
+## Installation with a packaged version (pip)
 
-Installing Powergenome with pip has only been tested within a conda environment but it should work in other environment management systems. Make sure that you have an updated version of pip installed. If you hit dependency errors I suggest trying to install them using mamba or conda. PowerGenome has `catalystcoop.pudl` as a dependency, which has a large number of its own dependencies. I have not (yet) had to install `catalystcoop.pudl` using mamba but doing so may help clear up errors.
+Installing Powergenome with pip has only been tested within a conda environment but it should work in other environment management systems. Make sure that you have an updated version of pip installed. If you hit dependency errors I suggest trying to install them using conda. PowerGenome has `catalystcoop.pudl` as a dependency, which has a large number of its own dependencies.
 
 Depending on your operating system you might also have issues installing some other packages from pip. The example code below is what works for me on a Mac, where python-snappy fails to build wheels.
 
@@ -95,9 +95,7 @@ Depending on your operating system you might also have issues installing some ot
 (powergenome) pip install powergenome
 ```
 
-PowerGenome has been submitted to conda-forge but is not yet available.
-
-If you are installing a packaged version of PowerGenome you won't be able to easily use a .env file. Instead, add the environment parameters (`PUDL_DB`, `PG_DB`, etc) to a YAML file in the same folder as the rest of your settings. It doesn't really matter which file these parameters are included in but creating a new file such as `env_params.yml` will help keep them separate from other settings parameters that might be shared with other PowerGenome users.
+If you are installing a packaged version of PowerGenome you won't be able to easily use a .env file. Instead, add the environment parameters (`PUDL_DB`, `PG_DB`, etc) to a YAML file in the same folder as the rest of your settings. It doesn't really matter which file these parameters are included in but creating a new file such as `env.yml` will help keep them separate from other settings parameters that might be shared with other PowerGenome users.
 
 ## Running code
 
@@ -127,12 +125,6 @@ Functions from each module can be imported and used in an interactive environmen
 
 ```sh
 run_powergenome_multiple --settings_file settings --results_folder test_system
-```
-
-Or to set up files for multi-period runs in GenX
-
-```sh
-run_powergenome_multiple --settings_file settings --results_folder test_system --multi-period
 ```
 
 The command line arguments `--settings_file` and `--results_folder` can be shortened to `-sf` and `-rf` respectively. For all options, run:

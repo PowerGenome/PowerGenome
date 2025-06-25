@@ -226,12 +226,18 @@ def mass_to_energy_costs(
     fuel_col = fuel_col[0]
     for fuel, ef in fuel_emission_factors.items():
         df.loc[
-            df[fuel_col].str.contains(fuel, case=False), "tonne_co2_captured_mwh"
+            df[fuel_col].str.contains(fuel, case=False, regex=False),
+            "tonne_co2_captured_mwh",
         ] = (
-            df.loc[df[fuel_col].str.contains(fuel, case=False), heat_rate_col]
+            df.loc[
+                df[fuel_col].str.contains(fuel, case=False, regex=False), heat_rate_col
+            ]
             * ef
             * (
-                df.loc[df[fuel_col].str.contains(fuel, case=False), "capture_rate"]
+                df.loc[
+                    df[fuel_col].str.contains(fuel, case=False, regex=False),
+                    "capture_rate",
+                ]
                 / 100
             )
         )
