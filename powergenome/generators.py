@@ -3867,7 +3867,12 @@ class GeneratorClusters:
             )
 
         self.all_resources = (
-            add_misc_gen_values(self.all_resources, self.settings)
+            add_misc_gen_values(
+                self.all_resources,
+                self.data_location,
+                self.settings["operational_constraints_table"],
+                # self.settings,
+            )
             .pipe(
                 hydro_energy_to_power,
                 self.settings.get("hydro_factor"),
