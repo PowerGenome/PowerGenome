@@ -4,8 +4,13 @@ Test util functions
 
 import csv
 import logging
+import os
+import sqlite3
 from collections.abc import Iterable
+from pathlib import Path
 
+import duckdb
+import pandas as pd
 import pytest
 
 import powergenome
@@ -14,8 +19,13 @@ from powergenome.util import (
     add_row_to_csv,
     apply_all_tag_to_regions,
     assign_model_planning_years,
+    get_all_table_names,
     hash_string_sha256,
+    load_data,
+    load_data_file,
+    load_table_from_db,
     make_iterable,
+    prepend_db_to_tables,
     sort_nested_dict,
 )
 
@@ -382,3 +392,156 @@ class TestAddModelTagsToGenColumns:
         )
 
         assert sorted(result) == sorted(expected_result)
+
+
+@pytest.fixture
+def tmp_sqlite_db(tmp_path):
+    db_path = tmp_path / "test.db"
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE foo (a INTEGER, b TEXT)")
+    conn.execute("INSERT INTO foo VALUES (1,'x'), (2,'y')")
+    conn.commit()
+    conn.close()
+    return str(db_path)
+
+
+@pytest.fixture
+def tmp_duckdb(tmp_path):
+    db_path = tmp_path / "test.duckdb"
+    con = duckdb.connect(database=str(db_path))
+    con.execute("CREATE TABLE bar(c FLOAT);")
+    con.execute("INSERT INTO bar VALUES (3.14), (2.71);")
+    con.close()
+    return str(db_path)
+
+
+def test_get_all_table_names_duckdb(tmp_duckdb):
+    # should list "bar"
+    tables = get_all_table_names(tmp_duckdb)
+    assert "bar" in tables
+
+
+def test_prepend_db_to_tables_simple():
+    q = "SELECT * FROM foo JOIN baz ON foo.id = baz.fk"
+    out = prepend_db_to_tables(q, table_names=["foo", "baz"], db_prefix="db.")
+    # every standalone foo/baz should be prefixed, but not foo.id
+    assert "db.foo JOIN db.baz" in out
+    assert "db.foo.id" not in out
+
+
+def test_load_data_file_csv(tmp_path):
+    p = tmp_path / "data.csv"
+    df_orig = pd.DataFrame({"x": [1, 2, 3], "y": ["a", "b", "c"]})
+    df_orig.to_csv(p, index=False)
+    df = load_data_file(str(p))
+    pd.testing.assert_frame_equal(df, df_orig)
+
+
+def test_load_data_file_parquet(tmp_path):
+    p = tmp_path / "data.parquet"
+    df_orig = pd.DataFrame({"m": [3.5, 4.5], "n": [True, False]})
+    df_orig.to_parquet(p)
+    df = load_data_file(str(p))
+    pd.testing.assert_frame_equal(df, df_orig)
+
+
+@pytest.mark.parametrize(
+    "db_fixture,table_name",
+    [
+        ("tmp_sqlite_db", "foo"),
+        ("tmp_duckdb", "bar"),
+    ],
+)
+def test_load_table_from_db(request, tmp_path, db_fixture, table_name):
+    db = request.getfixturevalue(db_fixture)
+    df = load_table_from_db(db, file_or_table_name=table_name)
+    # check it has rows
+    assert len(df) > 0
+    # columns match known names
+    assert table_name in df.columns or len(df.columns) > 0
+
+
+def test_load_data_folder_mode(tmp_path):
+    # create folder with a CSV
+    d = tmp_path / "folder"
+    d.mkdir()
+    df_orig = pd.DataFrame({"u": [10, 20]})
+    (d / "u.csv").write_text(df_orig.to_csv(index=False))
+    df = load_data(str(d), file_or_table_name="u.csv")
+    pd.testing.assert_frame_equal(df.reset_index(drop=True), df_orig)
+
+
+def test_load_data_file_with_query(tmp_path):
+    # Create a temporary CSV file
+    file_path = tmp_path / "test.csv"
+    df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+    df.to_csv(file_path, index=False)
+
+    # Query to select only rows where a > 1
+    query = "SELECT * WHERE a > 1"
+    result = load_data_file(file_path, query=query)
+
+    # Check that the result is as expected
+    assert isinstance(result, pd.DataFrame)
+    assert list(result["a"]) == [2, 3]
+    assert list(result["b"]) == ["y", "z"]
+
+
+def test_load_data_db_mode_sqlite(tmp_path, tmp_sqlite_db):
+    # no extension on file_or_table_name
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo")
+    assert "a" in df.columns and "b" in df.columns
+
+
+def test_load_data_db_mode_duckdb(tmp_path, tmp_duckdb):
+    # no extension on file_or_table_name
+    df = load_data(tmp_duckdb, file_or_table_name="bar")
+    assert "c" in df.columns
+
+
+def test_load_data_query(tmp_sqlite_db):
+    # tmp_sqlite_db has table foo with rows (1,'x'), (2,'y')
+    # Run a SQL query instead of passing a table name
+    df = load_data(tmp_sqlite_db, query="SELECT a, b FROM foo WHERE a = 2")
+    # Build expected
+    expected = pd.DataFrame({"a": [2], "b": ["y"]})
+    # Compare
+    pd.testing.assert_frame_equal(df.reset_index(drop=True), expected)
+
+
+def test_load_data_file_unsupported_extension(tmp_path):
+    # .txt is not supported by load_data_file
+    p = tmp_path / "data.txt"
+    p.write_text("just some text")
+    with pytest.raises(ValueError, match=r"Unsupported file type"):
+        load_data_file(str(p))
+
+
+def test_load_data_no_params(tmp_path):
+    # Neither file_or_table_name nor query provided
+    with pytest.raises(ValueError, match=r"Either file_or_table_name or query"):
+        load_data(str(tmp_path))
+
+
+def test_load_data_folder_no_filename(tmp_path):
+    # Loading from a folder without specifying file_or_table_name
+    d = tmp_path / "empty_folder"
+    d.mkdir()
+    with pytest.raises(
+        ValueError, match=r"file_or_table_name or query must be provided"
+    ):
+        load_data(str(d))
+
+
+def test_load_data_db_with_extension(tmp_sqlite_db):
+    # Passing a file name with extension when data_location is a DB
+    with pytest.raises(ValueError, match=r"should not have an extension"):
+        load_data(tmp_sqlite_db, file_or_table_name="foo.csv")
+
+
+def test_load_table_from_db_unsupported_type(tmp_path):
+    # Using an unsupported database type
+    fake_db = tmp_path / "not_a_db.txt"
+    fake_db.write_text("dummy")
+    with pytest.raises(ValueError, match=r"Unsupported database type"):
+        load_table_from_db(str(fake_db), file_or_table_name="foo")
