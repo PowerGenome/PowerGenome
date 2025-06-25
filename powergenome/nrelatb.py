@@ -1174,12 +1174,14 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         .agg("_".join, axis=1)
     )
 
-    new_gen_df["cap_recovery_years"] = settings["atb_cap_recovery_years"]
+    new_gen_df["cap_recovery_years"] = settings["resource_cap_recovery_years"]
 
     if new_gen_df.empty:
         results = new_gen_df.copy()
     else:
-        for tech, years in (settings.get("alt_atb_cap_recovery_years") or {}).items():
+        for tech, years in (
+            settings.get("alt_resource_cap_recovery_years") or {}
+        ).items():
             new_gen_df.loc[
                 new_gen_df["technology"].str.lower().str.contains(tech.lower()),
                 "cap_recovery_years",
