@@ -1467,9 +1467,6 @@ def calc_unit_cluster_values(
         }
     )
     df_values.index = df_values["cluster"].values
-    if df_values["heat_rate_mmbtu_mwh"].isnull().values.any():
-        print(gen_df)
-        print(df_values)
     df_values["heat_rate_mmbtu_mwh_iqr"] = gen_df.groupby("cluster").agg(
         {"heat_rate_mmbtu_mwh": iqr}
     )
