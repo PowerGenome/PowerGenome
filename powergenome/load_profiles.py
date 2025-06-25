@@ -19,6 +19,7 @@ from powergenome.load_construction import electrification_profiles
 from powergenome.util import (
     deep_freeze_args,
     find_region_col,
+    load_data,
     map_agg_region_names,
     regions_to_keep,
     remove_feb_29,
@@ -119,7 +120,7 @@ def read_subsector_demand(
 
 
 def make_load_curves(
-    pg_engine: sa.engine.base.Engine,
+    data_location: Path | str,
     settings: dict,
     pg_table: str = "load_curves_nrel_efs",
 ) -> pd.DataFrame:
@@ -157,60 +158,64 @@ def make_load_curves(
     # I'd rather use a sql query and only pull the regions of interest but
     # sqlalchemy doesn't allow table names to be parameterized.
     logger.debug("Loading demand profiles from the database")
-    inst = sa.inspect(pg_engine)
-    if not inst.has_table(pg_table):
-        raise KeyError(
-            f"There is no load curves table with the name {pg_table} in the 'PG_DB' "
-            "database specified in your .env file."
-        )
-    table_cols = [c["name"] for c in inst.get_columns(pg_table)]
-    context = f"Load curves table ({pg_table} in database {pg_engine}."
-    region_col = find_region_col(table_cols, context)
-    if "sector" in table_cols or "subsector" in table_cols:
-        if settings.get("electrification_stock_fn") and settings.get(
-            "electrification_scenario"
-        ):
-            load_curves = read_subsector_demand(
-                pg_engine_str=str(pg_engine)[7:-1],
-                keep_regions=keep_regions,
-                pg_table=pg_table,
-                region_col=region_col,
-            )
-        else:
-            s = f"""
-                    SELECT year, {region_col} as region, time_index, sector, sum(load_mw) as load_mw
-                    FROM {pg_table}
-                    WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
-                    GROUP BY year, region, sector, time_index
-                    """
-            params = keep_regions
-            load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
-            load_curves = add_load_growth(load_curves, settings)
+    # inst = sa.inspect(pg_engine)
+    # if not inst.has_table(pg_table):
+    #     raise KeyError(
+    #         f"There is no load curves table with the name {pg_table} in the 'PG_DB' "
+    #         "database specified in your .env file."
+    #     )
+    # table_cols = [c["name"] for c in inst.get_columns(pg_table)]
+    # context = f"Load curves table ({pg_table} in database {pg_engine}."
+    # region_col = find_region_col(table_cols, context)
+    # if "sector" in table_cols or "subsector" in table_cols:
+    #     if settings.get("electrification_stock_fn") and settings.get(
+    #         "electrification_scenario"
+    #     ):
+    #         load_curves = read_subsector_demand(
+    #             pg_engine_str=str(pg_engine)[7:-1],
+    #             keep_regions=keep_regions,
+    #             pg_table=pg_table,
+    #             region_col=region_col,
+    #         )
+    #     else:
+    #         s = f"""
+    #                 SELECT year, {region_col} as region, time_index, sector, sum(load_mw) as load_mw
+    #                 FROM {pg_table}
+    #                 WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
+    #                 GROUP BY year, region, sector, time_index
+    #                 """
+    #         params = keep_regions
+    #         load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+    #         load_curves = add_load_growth(load_curves, settings)
+    # else:
+    # With no sector or subsector columns, assume that table has total load in each hour
+    s = f"SELECT DISTINCT year from {pg_table}"
+    # demand_years = pd.read_sql_query(sql=s, con=pg_engine)
+    demand_years = load_data(data_location, pg_table, query=s)
+    region_params = ", ".join(f"'{r}'" for r in keep_regions)
+    if settings["model_year"] in demand_years["year"].to_list():
+        s = f"""
+            SELECT year, region, time_index, load_mw
+            FROM {pg_table}
+            WHERE region in ({region_params})
+            AND year = {settings['model_year']}
+            """
+        params = keep_regions
+        # load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+        load_curves = load_data(data_location, pg_table, query=s)
+
     else:
-        # With no sector or subsector columns, assume that table has total load in each hour
-        s = f"SELECT DISTINCT year from {pg_table}"
-        demand_years = pd.read_sql_query(sql=s, con=pg_engine)
-        if settings["model_year"] in demand_years["year"].to_list():
-            s = f"""
-                SELECT year, {region_col} as region, time_index, load_mw
-                FROM {pg_table}
-                WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
-                AND year = {settings['model_year']}
-                """
-            params = keep_regions
-            load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+        s = f"""
+            SELECT year, region, time_index, load_mw
+            FROM {pg_table}
+            WHERE region in ({','.join(['?']*len(keep_regions))})
+            """
+        params = keep_regions
+        # load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+        load_curves = load_data(data_location, pg_table, query=s)
 
-        else:
-            s = f"""
-                SELECT year, {region_col} as region, time_index, load_mw
-                FROM {pg_table}
-                WHERE {region_col} in ({','.join(['?']*len(keep_regions))})
-                """
-            params = keep_regions
-            load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
-
-            # Increase demand to account for load growth
-            load_curves = add_load_growth(load_curves, settings)
+        # Increase demand to account for load growth
+        load_curves = add_load_growth(load_curves, settings)
 
     load_curves.loc[load_curves.region.isin(region_agg_map), "region"] = (
         load_curves.region.map(region_agg_map)
@@ -620,7 +625,7 @@ def load_usr_demand_profiles(settings):
 
 
 def make_final_load_curves(
-    pg_engine: sa.engine.base.Engine,
+    data_location: Path | str,
     settings: dict,
 ):
     """Create final load profiles from base year including growth, dg, and flexible loads
@@ -671,7 +676,7 @@ def make_final_load_curves(
         # parentheses.
         load_curves_before_dr = [
             filter_load_by_region(load_source)(make_load_curves)(
-                pg_engine, settings, load_table
+                data_location, settings, load_table
             )
             for load_source, load_table in load_sources.items()
         ]
@@ -736,7 +741,7 @@ def make_final_load_curves(
         or settings.get("distributed_gen_fn")
     ) and not settings.get("dg_as_resource"):
         final_load_curves = subtract_distributed_generation(
-            load_curves_before_dg, pg_engine, settings
+            load_curves_before_dg, data_location, settings
         )
     else:
         final_load_curves = load_curves_before_dg

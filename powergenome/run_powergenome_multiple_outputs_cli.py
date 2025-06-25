@@ -305,7 +305,9 @@ def main(**kwargs):
                 case_year_data["fuels"] = fuels
 
             if args.load:
-                load = make_final_load_curves(pg_engine=pg_engine, settings=_settings)
+                load = make_final_load_curves(
+                    data_location=_settings["data_location"], settings=_settings
+                )
                 load.columns = "Demand_MW_z" + load.columns.map(zone_num_map)
                 if not args.gens:
                     gen_variability = pd.DataFrame(index=load.index)
@@ -334,9 +336,9 @@ def main(**kwargs):
                 gen_variability = reduced_resource_profile.reset_index(drop=False)
                 case_year_data["gen_variability"] = gen_variability
 
-            if args.transmission:
-                if args.gens is False:
-                    model_regions_gdf = load_ipm_shapefile(_settings)
+            # if args.transmission:
+            #     if args.gens is False:
+            #         model_regions_gdf = load_ipm_shapefile(_settings)
 
             if args.transmission:
                 if _settings.get("user_transmission_costs"):
@@ -347,13 +349,13 @@ def main(**kwargs):
                         _settings.get("target_usd_year"),
                     )
                     transmission = agg_transmission_constraints(
-                        pg_engine=pg_engine, settings=_settings
+                        data_location=_settings["data_location"], settings=_settings
                     ).pipe(insert_user_tx_costs, user_costs=user_tx_costs)
                 else:
                     model_regions_gdf = gc.model_regions_gdf
                     transmission = (
                         agg_transmission_constraints(
-                            pg_engine=pg_engine, settings=_settings
+                            data_location=_settings["data_location"], settings=_settings
                         )
                         .pipe(
                             transmission_line_distance,
