@@ -5,6 +5,10 @@ import os
 import sqlite3
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+import pytest
+
 from powergenome.eia_opendata import add_user_fuel_prices
 from powergenome.external_data import load_policy_scenarios, make_generator_variability
 from powergenome.fuels import fuel_cost_table
@@ -45,11 +49,16 @@ import powergenome
 from powergenome.generators import (
     GeneratorClusters,
     add_resource_tags,
+    check_cluster_cols,
+    cluster_existing_generators,
+    create_resource_label,
     energy_storage_mwh,
     fill_missing_tech_descriptions,
+    fill_num_regional_clusters,
     filter_op_status_codes,
     gentype_region_capacity_factor,
     group_technologies,
+    label_retired_gens,
     label_retirement_year,
     label_small_hydro,
     load_860m,
@@ -68,11 +77,10 @@ from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
 )
-from powergenome.util import (
+from powergenome.util import (  # init_pudl_connection,
     build_scenario_settings,
     check_settings,
     find_region_col,
-    init_pudl_connection,
     load_settings,
     map_agg_region_names,
     regions_to_keep,
@@ -102,12 +110,12 @@ if os.name == "nt":
     sql_prefix = "sqlite:///"
 else:
     sql_prefix = "sqlite:////"
-pudl_engine, pudl_out, pg_engine = init_pudl_connection(
-    start_year=2018,
-    end_year=2020,
-    pudl_db=sql_prefix + str(DATA_PATHS["test_data"] / "pudl_test_data.db"),
-    pg_db=sql_prefix + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3"),
-)
+# pudl_engine, pudl_out, pg_engine = init_pudl_connection(
+#     start_year=2018,
+#     end_year=2020,
+#     pudl_db=sql_prefix + str(DATA_PATHS["test_data"] / "pudl_test_data.db"),
+#     pg_db=sql_prefix + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3"),
+# )
 
 
 @pytest.fixture(scope="module")
@@ -1336,3 +1344,332 @@ def test_filter_op_status_codes(test_df, caplog):
     assert len(result) == len(
         test_df
     ), "Filtered DataFrame should include all records when no specific status is provided."
+
+
+def test_label_retired_gens_basic_period():
+    # Generators 1–4 with various operating and retirement years
+    df = pd.DataFrame(
+        {
+            "gen_id": [1, 2, 3, 4],
+            "operating_year": [2005, 2010, 2020, 2025],
+            "retirement_year": [2000, 2020, 2021, 2030],
+        }
+    )
+    # Label for period 2010–2020
+    result = label_retired_gens(df.copy(), start_year=2010, end_year=2020)
+    # operating: retirement_year > 2020 and operating_year ≤ 2020 ⇒ only gen 3
+    assert result["operating"].tolist() == [False, False, True, False]
+    # period_retired: retirement_year ∈ [2010,2020] ⇒ only gen 2
+    assert result["period_retired"].tolist() == [False, True, False, False]
+
+
+def test_label_retired_gens_missing_operating_year():
+    # NaN operating_year should get filled to 1900
+    df = pd.DataFrame(
+        {"gen_id": [1], "operating_year": [np.nan], "retirement_year": [2050]}
+    )
+    result = label_retired_gens(df.copy(), start_year=2000, end_year=2025)
+    # retirement_year > 2025 and filled operating_year (1900) ≤ 2025 ⇒ operating True
+    assert bool(result.loc[0, "operating"]) is True
+    # but retirement_year not in [2000,2025] ⇒ period_retired False
+    assert bool(result.loc[0, "period_retired"]) is False
+
+
+def test_label_retired_gens_out_of_range():
+    # Generators entirely before or after the window get no flags
+    df = pd.DataFrame(
+        {
+            "gen_id": [1, 2],
+            "operating_year": [1990, 2030],
+            "retirement_year": [1980, 2040],
+        }
+    )
+    result = label_retired_gens(df.copy(), start_year=2000, end_year=2020)
+    assert result["operating"].tolist() == [False, False]
+    assert result["period_retired"].tolist() == [False, False]
+
+
+def test_label_retired_gens_edge_inclusive():
+    # Boundary conditions are inclusive
+    df = pd.DataFrame(
+        {
+            "gen_id": [1, 2, 3],
+            "operating_year": [2000, 2010, 1900],
+            "retirement_year": [2020, 2021, 1990],
+        }
+    )
+    # start=2000, end=2020
+    result = label_retired_gens(df.copy(), start_year=2000, end_year=2020)
+    # gen 1: retirement_year=2020 → not operating (2020>2020 is False), but retired this period
+    # gen 2: retirement_year=2000 → <=2020 and >=2000 → period_retired True; operating_year<=2020 and retirement_year>2020 False
+    assert result.loc[0, "operating"] == False
+    assert result.loc[0, "period_retired"] == True
+    assert result.loc[1, "operating"] == True
+    assert result.loc[1, "period_retired"] == False
+    assert result.loc[2, "operating"] == False
+    assert result.loc[2, "period_retired"] == False
+
+
+@pytest.fixture
+def base_num():
+    # Base clusters for two techs
+    return {"solar": 3, "wind": 2}
+
+
+def test_no_alt_num_clusters(base_num):
+    # When alt_num_clusters is None, every region just gets a copy of base_num
+    regions = ["A", "B", "C"]
+    out = fill_num_regional_clusters(base_num, regions)
+    # Should have exactly one entry per region
+    assert set(out) == set(regions)
+    # Each region dict equals base_num
+    for r in regions:
+        assert out[r] == base_num
+        # But must be a shallow copy, not the same object
+        assert out[r] is not base_num
+
+
+def test_with_alt_override(base_num):
+    regions = ["A", "B"]
+    alt = {"B": {"wind": 5}}
+    out = fill_num_regional_clusters(base_num, regions, alt_num_clusters=alt)
+    # Region A unchanged
+    assert out["A"] == {"solar": 3, "wind": 2}
+    # Region B wind overridden
+    assert out["B"] == {"solar": 3, "wind": 5}
+
+
+def test_alt_adds_new_tech(base_num):
+    regions = ["X"]
+    # alt specifies a tech not in base_num
+    alt = {"X": {"hydro": 7}}
+    out = fill_num_regional_clusters(base_num, regions, alt_num_clusters=alt)
+    # Should merge hydro into the dict
+    assert out["X"] == {"solar": 3, "wind": 2, "hydro": 7}
+
+
+def test_original_dict_not_mutated(base_num):
+    regions = ["R1"]
+    alt = {"R1": {"wind": 10}}
+    copy_of_base = base_num.copy()
+    fill_num_regional_clusters(base_num, regions, alt_num_clusters=alt)
+    # base_num must remain unchanged
+    assert base_num == copy_of_base
+
+
+def test_override_only_affects_specified_regions(base_num):
+    regions = ["R1", "R2"]
+    alt = {"R1": {"solar": 0}, "R2": {"wind": 9}}
+    out = fill_num_regional_clusters(base_num, regions, alt_num_clusters=alt)
+    # Both overrides applied
+    assert out["R1"]["solar"] == 0
+    assert out["R1"]["wind"] == 2  # wind untouched in R1
+    assert out["R2"]["wind"] == 9
+    assert out["R2"]["solar"] == 3  # solar untouched in R2
+
+
+def test_basic_concat_series_default_sep():
+    s1 = pd.Series(["a", "b", "c"], index=[0, 1, 2])
+    s2 = pd.Series(["x", "y", "z"], index=[0, 1, 2])
+    out = create_resource_label(s1, s2)
+    # Default sep is "_"
+    expected = pd.Series(["a_x", "b_y", "c_z"], index=[0, 1, 2])
+    pd.testing.assert_series_equal(out, expected)
+
+
+def test_concat_three_inputs_custom_sep():
+    s1 = pd.Series([1, 2])
+    s2 = ["foo", "bar"]
+    s3 = np.array(["A", "B"])
+    out = create_resource_label(s1, s2, s3, sep="|")
+    expected = pd.Series(["1|foo|A", "2|bar|B"])
+    pd.testing.assert_series_equal(out, expected)
+
+
+def test_mixed_types_and_index_alignment():
+    # s1 has index [0,1,2], s2 only [1,2]
+    s1 = pd.Series(["u", "v", "w"], index=[0, 1, 2])
+    s2 = pd.Series([10, 20], index=[1, 2])
+    # Expect a ValueError because input lengths differ
+    with pytest.raises(ValueError) as excinfo:
+        create_resource_label(s1, s2)
+    assert "must have the same length" in str(excinfo.value)
+
+
+def test_non_string_values_cast_to_str():
+    s1 = pd.Series([True, False])
+    s2 = pd.Series([None, 3.14])
+    out = create_resource_label(s1, s2)
+    expected = pd.Series(["True_nan", "False_3.14"])
+    pd.testing.assert_series_equal(out, expected)
+
+
+def test_non_sequence_input_raises_value_error():
+    # Passing a non‐sequence (int) should trigger the sequence‐length check
+    s1 = pd.Series(["a", "b", "c"])
+    non_seq = 123
+    with pytest.raises(ValueError) as excinfo:
+        create_resource_label(s1, non_seq)
+    # We expect our “must be sequence-like” message
+    assert "sequence-like" in str(excinfo.value)
+
+
+# ─── Tests for check_cluster_cols ─────────────────────────────────────────────
+
+
+def test_check_cluster_cols_all_valid():
+    df = pd.DataFrame(
+        {
+            "col1": [1, 2, 3],
+            "col2": [4, 5, 6],
+        }
+    )
+    # Both columns present, no NaNs → returns both
+    assert check_cluster_cols(df, ["col1", "col2"]) == ["col1", "col2"]
+
+
+def test_check_cluster_cols_drop_all_missing():
+    df = pd.DataFrame(
+        {
+            "col1": [np.nan, np.nan],
+            "col2": [np.nan, np.nan],
+        }
+    )
+    # All columns entirely NaN → ValueError
+    with pytest.raises(ValueError) as excinfo:
+        check_cluster_cols(df, ["col1", "col2"])
+    assert "entirely missing" in str(excinfo.value)
+
+
+def test_check_cluster_cols_drop_one_missing_column():
+    df = pd.DataFrame(
+        {
+            "col1": [np.nan, np.nan],
+            "col2": [1, 2],
+        }
+    )
+    # col1 all-missing → dropped, returns only ['col2']
+    assert check_cluster_cols(df, ["col1", "col2"]) == ["col2"]
+
+
+def test_check_cluster_cols_partial_missing_raises():
+    df = pd.DataFrame(
+        {
+            "col1": [1, np.nan],
+            "col2": [1, 2],
+        }
+    )
+    # col1 has some—but not all—NaNs → ValueError
+    with pytest.raises(ValueError) as excinfo:
+        check_cluster_cols(df, ["col1", "col2"])
+    assert "contains some missing values but not all" in str(excinfo.value)
+
+
+def test_check_cluster_cols_missing_column_raises():
+    df = pd.DataFrame(
+        {
+            "col2": [1, 2],
+        }
+    )
+    # col1 not in df → KeyError
+    with pytest.raises(KeyError) as excinfo:
+        check_cluster_cols(df, ["col1", "col2"])
+    assert "Column 'col1' not found" in str(excinfo.value)
+
+
+# ─── Tests for cluster_existing_generators ────────────────────────────────────
+
+
+def test_cluster_existing_generators_len_equal(monkeypatch):
+    # Monkey-patch the internal calc_unit_cluster_values to a simple aggregator
+    def dummy_calc(df, cap_col):
+        # Group on the 'cluster' labels and return capacity_mw sum + count as num_units
+        grp = (
+            df.groupby("cluster")[cap_col]
+            .agg(["sum", "count"])
+            .reset_index()
+            .rename(columns={"sum": "capacity_mw", "count": "num_units"})
+        )
+        return grp
+
+    monkeypatch.setattr("powergenome.generators.calc_unit_cluster_values", dummy_calc)
+
+    # Build a minimal generator DataFrame
+    df = pd.DataFrame(
+        {
+            "model_region": ["R", "R", "R"],
+            "technology": ["T", "T", "T"],
+            "capacity_mw": [10, 20, 30],
+            "capacity_mwh": [1, 2, 3],
+            "heat_rate_mmbtu_mwh": [5, 5, 5],
+            "fom_per_mwyr": [1, 1, 1],
+            "vom_per_mwh": [0.1, 0.2, 0.3],
+        }
+    )
+
+    # Use None so the function picks up `n_clusters == len(df)` behavior
+    num_clusters = {"R": {"T": None}}
+
+    results, all_gens = cluster_existing_generators(df, num_clusters)
+
+    # --- all_gens checks ---
+    # Should have assigned cluster labels 1, 2, 3 for each row
+    assert list(all_gens["cluster"]) == [1, 2, 3]
+    # Resource labels should be "<region>_<snake_case(tech)>_<cluster>"
+    # snake_case of "T" → "t"
+    assert list(all_gens["Resource"]) == ["R_t_1", "R_t_2", "R_t_3"]
+
+    # --- results checks ---
+    # Sort by cluster so we can check row-wise
+    sorted_res = results.sort_values("cluster").reset_index(drop=True)
+
+    # Cluster IDs
+    assert list(sorted_res["cluster"]) == [1, 2, 3]
+    # capacity_mw sums should match the original 10,20,30
+    assert list(sorted_res["capacity_mw"]) == [10, 20, 30]
+    # num_units should be 1 per cluster
+    assert list(sorted_res["num_units"]) == [1, 1, 1]
+    # cap_size = capacity_mw / num_units → same as capacity_mw
+    assert list(sorted_res["cap_size"]) == [10, 20, 30]
+    # Resource labels in the aggregated results get recomputed the same way
+    assert list(sorted_res["Resource"]) == ["R_t_1", "R_t_2", "R_t_3"]
+
+
+def test_cluster_existing_generators_with_int_clusters(monkeypatch):
+    # 1) Dummy aggregation (as before)
+    def dummy_calc(df, cap_col):
+        grp = (
+            df.groupby("cluster")[cap_col]
+            .agg(["sum", "count"])
+            .reset_index()
+            .rename(columns={"sum": "capacity_mw", "count": "num_units"})
+        )
+        return grp
+
+    monkeypatch.setattr("powergenome.generators.calc_unit_cluster_values", dummy_calc)
+
+    # 2) A simple 3-row DataFrame
+    df = pd.DataFrame(
+        {
+            "model_region": ["R", "R", "R"],
+            "technology": ["T", "T", "T"],
+            "capacity_mw": [10, 20, 30],
+            "capacity_mwh": [1, 2, 3],
+            "heat_rate_mmbtu_mwh": [5, 5, 5],
+            "fom_per_mwyr": [1, 2, 2],
+            "vom_per_mwh": [0.1, 0.2, 0.3],
+        }
+    )
+
+    # 3) Force exactly 2 clusters for region R / tech T
+    num_clusters = {"R": {"T": 2}}
+    results, all_gens = cluster_existing_generators(df, num_clusters)
+
+    # all_gens: cluster labels should be [1, 2, 2]
+    # assert list(all_gens["cluster"]) == [1, 2, 2]
+    assert set(all_gens["cluster"]) == {1, 2}
+
+    assert set(results["cap_size"]) == {10, 25}
+    assert set(results["capacity_mw"]) == {50, 10}
+    assert set(results["num_units"]) == {1, 2}
+    assert set(results["Resource"]) == {"R_t_1", "R_t_2"}
