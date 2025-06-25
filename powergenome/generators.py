@@ -1,5 +1,6 @@
 import collections
 import logging
+import operator
 import os
 import re
 from functools import reduce
@@ -3193,6 +3194,8 @@ def check_cluster_cols(df: pd.DataFrame, cluster_cols: List[str]) -> List[str]:
         If a column has some but not all values missing, or if all specified columns are entirely missing.
     """
     valid_cols = list(cluster_cols)
+    if (df["operating"] == False).all():
+        return valid_cols
     for col in cluster_cols:
         if col not in df.columns:
             raise KeyError(f"Column '{col}' not found in existing generators table")
@@ -3212,6 +3215,106 @@ def check_cluster_cols(df: pd.DataFrame, cluster_cols: List[str]) -> List[str]:
             f"All cluster columns {cluster_cols} are entirely missing from the existing generators table"
         )
     return valid_cols
+
+
+def add_gen_age_column(
+    gen_df: pd.DataFrame, planning_year: int, age_col: str = "age"
+) -> pd.DataFrame:
+    """
+    Add a column with the age of each generator in years.
+
+    Parameters
+    ----------
+    gen_df : pd.DataFrame
+        DataFrame containing generator data with an 'operating_year' column.
+    planning_year : int, optional
+        The planning year to calculate the age from.
+    age_col : str, optional
+        Name of the column to store the age in, by default "age".
+
+    Returns
+    -------
+    pd.DataFrame
+        The modified DataFrame with an additional 'age' column.
+    """
+    gen_df[age_col] = planning_year - gen_df["operating_year"]
+    return gen_df
+
+
+def apply_custom_gen_formula(
+    gen_df: pd.DataFrame, formula_dict: Dict[str, List[dict]]
+) -> pd.DataFrame:
+    """
+    Apply a custom modifier formula to costs or other attributes of specific generator
+    technologies.
+
+    Parameters
+    ----------
+    gen_df : pd.DataFrame
+        DataFrame containing generator data with a technology column the attribute of each
+        generator.
+    formula_dict : Dict[str, List[dict]]
+        A dictionary where keys are technology names and values are lists of dictionaries
+        with 'attribute' and 'factor' keys. The 'attribute' is the column to modify, and
+        'factor' is the formula to apply.
+
+    Returns
+    -------
+    pd.DataFrame
+        The modified DataFrame with the specified attributes adjusted according to the
+        provided formulas.
+
+    Raises
+    ------
+    KeyError
+        If a technology in the formula_dict is not found in the generator DataFrame.
+        If an attribute specified in the formula is not found in the generator DataFrame.
+        If a formula does not contain 'attribute' or 'formula' keys.
+
+    Example dictionary:
+    formula_dict = {
+        "coal": [
+            {
+                "attribute": "fom_per_mwyr",
+                "formula": {
+                    "op": "add", # Use "replace" to ignore existing values
+                    "rate": 126,
+                    "multiplier": "age"}
+            },
+        ]
+    }
+    """
+    allowed_operators = ["add", "mul", "truediv", "sub"]
+    ignored = r"_"
+    technology = gen_df["technology"].str.replace(ignored, "")
+    for tech, modifiers in formula_dict.items():
+
+        tech = re.sub(ignored, "", tech)
+        mask = technology.str.contains(rf"{tech}", case=False)
+        for modifier in modifiers:
+            if "attribute" not in modifier or "formula" not in modifier:
+                raise KeyError(
+                    f"Formula for technology '{tech}' is missing 'attribute' or 'factor' keys."
+                )
+            attr = modifier["attribute"]
+            f = modifier["formula"]
+            op = f["op"]
+            multiplier = f["multiplier"]
+            if attr not in gen_df.columns:
+                raise KeyError(
+                    f"Attribute '{attr}' not found in generator DataFrame columns."
+                )
+            if op == "replace":
+                gen_df.loc[mask, attr] = f["rate"] * gen_df.loc[mask, multiplier]
+            else:
+                assert op in allowed_operators
+                _f = operator.attrgetter(op)
+                gen_df.loc[mask, attr] = _f(operator)(
+                    gen_df.loc[mask, attr],
+                    f["rate"] * gen_df.loc[mask, multiplier],
+                )
+
+    return gen_df
 
 
 class GeneratorClusters:
@@ -3457,7 +3560,14 @@ class GeneratorClusters:
             self.settings["model_regions"],
             self.settings.get("alt_num_clusters", {}),
         )
-        gen_df = load_data(self.data_location, self.gen_table)
+        gen_df = (
+            load_data(self.data_location, self.gen_table)
+            .pipe(add_gen_age_column, self.settings["model_year"])
+            .pipe(
+                apply_custom_gen_formula,
+                self.settings.get("resource_attr_modifiers", {}),
+            )
+        )
         plant_region_map = load_data(self.data_location, self.plant_region_table)
         gen_df = pd.merge(gen_df, plant_region_map, on="plant_id")
         self.results, self.all_gens = (
