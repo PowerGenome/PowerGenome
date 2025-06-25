@@ -14,7 +14,7 @@ from powergenome.external_data import (
 )
 from powergenome.financials import investment_cost_calculator
 from powergenome.time_reduction import kmeans_time_clustering
-from powergenome.util import find_region_col, snake_case_col, snake_case_str
+from powergenome.util import find_region_col, load_data, snake_case_col, snake_case_str
 
 logger = logging.getLogger(__name__)
 
@@ -323,54 +323,76 @@ def add_emission_policies(transmission_df, settings):
 
 
 def add_misc_gen_values(
-    gen_clusters: pd.DataFrame, settings: dict, resource_col: str = "Resource"
+    gen_clusters: pd.DataFrame,
+    data_location: Path,
+    data_name: str,
+    resource_col: str = "Resource",
 ) -> pd.DataFrame:
-    """Add parameter values from a CSV file to resources.
+    """Add parameter values from a file or table to resources in a generator clusters DataFrame.
+    This function loads miscellaneous generator parameter values from a user-supplied file
+    and assigns them to the appropriate resources in the `gen_clusters` DataFrame. The data
+    file should contain at least a column matching `resource_col` (default "Resource"), and
+    optionally a "region" column. If the "region" column is missing, values are applied
+    across all regions. If both "all" and specific region values are provided for a resource,
+    the specific region value takes precedence.
 
     Parameters
     ----------
     gen_clusters : pd.DataFrame
-        Resource dataframe with columns "region" and `resource_col`.
-    settings : dict
-        Model settings, with parameters "input_folder" and "misc_gen_inputs_fn". The
-        misc gen CSV file should have the column `resource_col`. If it has the column
-        "region" then regional values will be applied, otherwise values for each resource
-        will be applied across all regions.
+        DataFrame containing generator clusters, with columns "region" and `resource_col`.
+    data_location : Path
+        Path to the folder or database containing the input data file/table.
+    data_name : str
+        Name of the file or table with miscellaneous generator parameter values.
     resource_col : str, optional
-        Name of the column with resource name in both gen_clusters and the CSV file, by
-        default "Resource".
+        Name of the column with resource names in both `gen_clusters` and the CSV file,
+        by default "Resource".
 
     Returns
     -------
     pd.DataFrame
-        A modified version of gen_clusters with new parameter values for resources.
+        Modified version of `gen_clusters` with new parameter values assigned to resources.
+
+    Notes
+    -----
+    - Issues a warning if parameter values are missing for any resource in any region.
+    - Issues a warning if resources in `gen_clusters` are not found in the input data.
     """
-    path = Path(settings["input_folder"]) / settings["misc_gen_inputs_fn"]
-    misc_values = pd.read_csv(path)
+    misc_values = load_data(data_location, data_name)
     misc_values[resource_col] = snake_case_col(misc_values[resource_col])
 
-    context = f"Assigning misc generator values from the user-supplied file {path}."
+    regions = gen_clusters["region"].unique()
+
+    context = (
+        f"Assigning misc generator values from the user-supplied data {data_name}."
+    )
     try:
         region_col = find_region_col(misc_values.columns, context)
     except ValueError:
         region_col = "region"
         misc_values["region"] = "all"
-    regions = [
-        r for r in misc_values[region_col].fillna("all").unique() if r.lower() != "all"
-    ]
-    wrong_regions = [r for r in regions if r not in settings["model_regions"]]
-    if wrong_regions:
-        raise ValueError(
-            f"The `misc_gen_inputs_fn` CSV has regions {wrong_regions}, which are not "
-            f"valid model regions. Valid model regions are {settings['model_regions']}."
-        )
 
-    for region in settings["model_regions"]:
+    for region in regions:
         _df = misc_values.loc[misc_values[region_col].str.lower() == "all", :]
         _df.loc[:, "region"] = region
         misc_values = misc_values.append(_df)
 
-    misc_values = misc_values.loc[misc_values[region_col].str.lower() != "all", :]
+    # If a user has specific a value for "all" regions plus a value for a specific region,
+    # keep the specific region value.
+    misc_values = misc_values.loc[
+        misc_values[region_col].str.lower() != "all", :
+    ].drop_duplicates(subset=[region_col, resource_col], keep="first")
+
+    # regions = [
+    #     r for r in misc_values[region_col].fillna("all").unique() if r.lower() != "all"
+    # ]
+
+    # missing_regions = [r for r in gen_clusters["region"].unique() if r not in regions]
+    # # wrong_regions = [r for r in regions if r not in settings["model_regions"]]
+    # if missing_regions:
+    #     raise ValueError(
+    #         f"The operational data {data_name} is missing regions {missing_regions}."
+    #     )
 
     for tech, _df in misc_values.groupby(resource_col):
         num_tech_regions = len(
@@ -381,13 +403,13 @@ def add_misc_gen_values(
         num_values = len(_df)
         if num_values < num_tech_regions:
             logger.warning(
-                f"The `misc_gen_inputs_fn` CSV has {num_values} region(s) for the resource "
+                f"The operational data {data_name} has {num_values} region(s) for the resource "
                 f"'{tech}', but the resource is in {num_tech_regions} regions. Check "
                 "your input file to ensure values are provided for all appropriate regions."
             )
     generic_resources = []
     for gen_resource in gen_clusters[resource_col].unique():
-        for r in sorted(settings["model_regions"])[::-1]:
+        for r in regions[::-1]:
             if r in gen_resource:
                 gen_resource = gen_resource.replace(r + "_", "")
                 generic_resources.append(snake_case_str(gen_resource))
@@ -405,8 +427,8 @@ def add_misc_gen_values(
 
     if missing_resources:
         logger.warning(
-            f"The resources {missing_resources} are not included in your `misc_gen_inputs_fn` "
-            "CSV file. This is a warning in case they should have parameters in that file."
+            f"The resources {missing_resources} are not included in your operational data "
+            f"{data_name}. This is a warning in case they should have parameters in that file."
         )
 
     misc_values = misc_values.reset_index(drop=True)
