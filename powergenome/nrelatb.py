@@ -1112,19 +1112,19 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
     # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
     # ATB average of advanced and conventional.
     # This is now generalized for changes to ATB values for any technology type.
-    for tech, _tech_modifiers in (settings.get("atb_modifiers") or {}).items():
+    for tech, _tech_modifiers in (settings.get("resource_modifiers") or {}).items():
         tech_modifiers = copy.deepcopy(_tech_modifiers)
         assert isinstance(tech_modifiers, dict), (
-            "The settings parameter 'atb_modifiers' must be a nested list.\n"
+            "The settings parameter 'resource_modifiers' must be a nested list.\n"
             "Each top-level key is a short name of the technology, with a nested"
             " dictionary of items below it."
         )
         assert (
             "technology" in tech_modifiers
-        ), "Each nested dictionary in atb_modifiers must have a 'technology' key."
+        ), "Each nested dictionary in resource_modifiers must have a 'technology' key."
         assert (
             "tech_detail" in tech_modifiers
-        ), "Each nested dictionary in atb_modifiers must have a 'tech_detail' key."
+        ), "Each nested dictionary in resource_modifiers must have a 'tech_detail' key."
 
         technology = tech_modifiers.pop("technology")
         tech_detail = tech_modifiers.pop("tech_detail")
@@ -1141,7 +1141,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
             else:
                 assert len(op_list) == 2, (
                     "Two values, an operator and a numeric value, are needed in the parameter\n"
-                    f"'{key}' for technology '{tech}' in 'atb_modifiers'."
+                    f"'{key}' for technology '{tech}' in 'resource_modifiers'."
                 )
                 op, op_value = op_list
 
