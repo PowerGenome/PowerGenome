@@ -8,6 +8,7 @@ import logging
 import operator
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
+import ast
 
 import numpy as np
 import pandas as pd
@@ -1763,6 +1764,13 @@ def load_user_defined_techs(settings: dict) -> pd.DataFrame:
         user_techs["cost_case"] = ""
     if "Cap_Size" not in user_techs.columns:
         user_techs["Cap_Size"] = 1
+    if "profile" not in user_techs.columns:
+        user_techs["profile"] = 0
+    else:
+        user_techs['profile'] = user_techs['profile'].apply(
+            lambda x: np.array(ast.literal_eval(x)) if isinstance(x, str) else x
+        )
+
 
     if "dollar_year" in user_techs.columns:
         for idx, row in user_techs.iterrows():
@@ -1790,6 +1798,7 @@ def load_user_defined_techs(settings: dict) -> pd.DataFrame:
         "heat_rate",
         "Cap_Size",
         "dollar_year",
+        "profile",
     ]
 
     return user_techs[cols]
