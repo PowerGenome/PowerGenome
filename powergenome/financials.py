@@ -1,4 +1,5 @@
 "Functions for financial calculation of investment costs from capex and WACC"
+
 import json
 import logging
 from datetime import date
@@ -28,6 +29,8 @@ def investment_cost_calculator(
     wacc: Union[ListLike, float],
     cap_rec_years: Union[ListLike, int],
     compound_method: str = "discrete",
+    resource_names: Union[ListLike, str] = None,
+    error_context: str = None,
 ) -> np.array:
     """Calculate annualized investment cost using either discrete or continuous compounding.
 
@@ -44,6 +47,12 @@ def investment_cost_calculator(
     compound_method : str, optional
         The method to compound interest. Either "discrete" or "continuous", by default
         "discrete"
+    resource_names : Union[LIST_LIKE, str], optional
+        A list-like object of resource names to use in error messages, by default None.
+    error_context : str, optional
+        A string to prepend to error messages, by default None. This can be used to provide
+        additional context for the error, such as the name of the function or module where
+        the error occurred.
 
     Returns
     -------
@@ -85,15 +94,26 @@ def investment_cost_calculator(
     for idx, (var, dtype) in enumerate(zip(vars, dtypes)):
         vars[idx] = np.asarray(var, dtype=dtype)
     capex, wacc, cap_rec_years = vars
-    # capex = np.asarray(capex, dtype=float)
-    # wacc = np.asarray(wacc, dtype=float)
-    # cap_rec_years = np.asarray(cap_rec_years, dtype=int)
 
+    # Check for nulls and report resource names if provided
     for var, name in zip(
         [capex, wacc, cap_rec_years], ["capex", "wacc", "capital recovery years"]
     ):
-        if np.isnan(var).any() or pd.isnull(var).any():
-            raise ValueError(f"Investment variable {name} costs contains nan values")
+        null_mask = np.isnan(var) | pd.isnull(var)
+        if null_mask.any():
+            error_msg = f"Investment variable {name} contains nan values "
+            if resource_names is not None:
+                # Try to make resource_names an array of strings
+                resource_names_arr = np.asarray(resource_names)
+                if (
+                    resource_names_arr.shape
+                    and resource_names_arr.shape[0] == var.shape[0]
+                ):
+                    null_resources = resource_names_arr[null_mask]
+                    error_msg = f"{error_msg} for resource(s): {list(null_resources)}"
+            if error_context is not None:
+                error_msg = f"{error_context}: {error_msg}"
+            raise ValueError(error_msg)
 
     if compound_method.lower() == "discrete":
         inv_cost = _discrete_inv_cost_calc(

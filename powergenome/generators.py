@@ -2578,6 +2578,8 @@ def calculate_transmission_inv_cost(resource_df, settings, offshore_spur_costs=N
             params["wacc"],
             params["investment_years"],
             settings.get("interest_compound_method", "discrete"),
+            resource_names=resource_df["Resource"],
+            error_context="Calculating transmission investment costs",
         )
     return resource_df
 

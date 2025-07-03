@@ -1192,6 +1192,8 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
             wacc=new_gen_df["wacc_real"],
             cap_rec_years=new_gen_df["cap_recovery_years"],
             compound_method=settings.get("interest_compound_method", "discrete"),
+            resource_names=new_gen_df["technology"],
+            error_context="New resource investment cost calculation",
         )
 
         new_gen_df["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
@@ -1199,6 +1201,8 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
             wacc=new_gen_df["wacc_real"],
             cap_rec_years=new_gen_df["cap_recovery_years"],
             compound_method=settings.get("interest_compound_method", "discrete"),
+            resource_names=new_gen_df["technology"],
+            error_context="New resource investment cost calculation",
         )
 
         # Set no capacity limit on new resources that aren't renewables.

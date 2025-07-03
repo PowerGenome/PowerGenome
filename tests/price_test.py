@@ -134,6 +134,19 @@ class TestInvestmentCostCalculator:
         with pytest.raises(ValueError):
             investment_cost_calculator(capex, wacc, cap_rec_years)
 
+    # Tests that a ValueError is raised when one of the capex values is nan, with resource names and context
+    def test_nan_capex_value_names_context(self):
+        capex = [1000, np.nan, 2000]
+        wacc = 0.05
+        cap_rec_years = 5
+        names = ["resource1", "resource2", "resource3"]
+        context = "Test context"
+
+        with pytest.raises(ValueError):
+            investment_cost_calculator(
+                capex, wacc, cap_rec_years, resource_names=names, error_context=context
+            )
+
     # Tests that the function correctly calculates the investment cost with list-like capex, wacc, and cap_rec_years as pandas Series
     def test_list_like_capex_wacc_cap_rec_years_as_pandas_series(self):
         capex = pd.Series([1000, 2000, 3000])
