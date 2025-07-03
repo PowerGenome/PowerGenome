@@ -981,7 +981,7 @@ def add_modified_atb_generators(
     allowed_operators = ["add", "mul", "truediv", "sub"]
 
     mod_tech_list = []
-    for name, mod_tech in _settings["modified_atb_new_gen"].items():
+    for name, mod_tech in _settings["modified_new_resources"].items():
         atb_technology = mod_tech.pop("atb_technology")
         atb_tech_detail = mod_tech.pop("atb_tech_detail")
         atb_cost_case = mod_tech.pop("atb_cost_case")
@@ -1051,7 +1051,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
        'Cap_Size', 'region']
     """
     logger.debug("Creating new resources for each region.")
-    new_gen_types = settings["atb_new_gen"]
+    new_gen_types = settings["new_resources"]
     model_year = settings["model_year"]
     try:
         first_planning_year = settings["model_first_planning_year"]
@@ -1095,7 +1095,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
                 " were specified in the settings file."
             )
 
-    if settings.get("modified_atb_new_gen"):
+    if settings.get("modified_new_resources"):
         modified_gens = add_modified_atb_generators(
             settings, atb_costs_hr, model_year_range
         )
