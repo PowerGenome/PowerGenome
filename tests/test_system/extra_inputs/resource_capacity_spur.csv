@@ -1,0 +1,13 @@
+﻿region,technology,cluster,spur_miles,max_capacity
+p1_2,naturalgas_1-on-1 combined cycle (h-frame),,0,-1
+p1_2,naturalgas_combustion turbine (f-frame),,0,-1
+p1_2,Battery,,0,-1
+p1_2,Nuclear,,50,-1
+p3,naturalgas_1-on-1 combined cycle (h-frame),,0,-1
+p3,naturalgas_combustion turbine (f-frame),,0,-1
+p3,Battery,,0,-1
+p3,Nuclear,,50,-1
+p4,naturalgas_1-on-1 combined cycle (h-frame),,0,-1
+p4,naturalgas_combustion turbine (f-frame),,0,-1
+p4,Battery,,0,-1
+p4,Nuclear,,50,-1
