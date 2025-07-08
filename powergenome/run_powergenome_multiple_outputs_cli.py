@@ -349,7 +349,11 @@ def main(**kwargs):
                         _settings.get("target_usd_year"),
                     )
                     transmission = agg_transmission_constraints(
-                        data_location=_settings["data_location"], settings=_settings
+                        data_location=_settings["data_location"],
+                        settings=_settings,
+                        data_table=settings.get(
+                            "transmission_constraints_table",
+                        ),
                     ).pipe(insert_user_tx_costs, user_costs=user_tx_costs)
                 else:
                     model_regions_gdf = gc.model_regions_gdf
