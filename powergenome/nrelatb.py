@@ -946,7 +946,7 @@ def regional_capex_multiplier(
     return df
 
 
-def add_modified_atb_generators(
+def add_modified_generators(
     settings: dict,
     atb_costs_hr: pd.DataFrame,
     model_year_range: Union[Tuple[int], List[int]],
@@ -982,12 +982,12 @@ def add_modified_atb_generators(
 
     mod_tech_list = []
     for name, mod_tech in _settings["modified_new_resources"].items():
-        atb_technology = mod_tech.pop("atb_technology")
-        atb_tech_detail = mod_tech.pop("atb_tech_detail")
-        atb_cost_case = mod_tech.pop("atb_cost_case")
+        technology = mod_tech.pop("technology")
+        tech_detail = mod_tech.pop("tech_detail")
+        cost_case = mod_tech.pop("cost_case")
         size_mw = mod_tech.pop("size_mw")
 
-        new_gen_type = (atb_technology, atb_tech_detail, atb_cost_case, size_mw)
+        new_gen_type = (technology, tech_detail, cost_case, size_mw)
 
         gen = single_generator_row(atb_costs_hr, new_gen_type, model_year_range)
         gen["technology"] = mod_tech.pop("new_technology")
@@ -1096,7 +1096,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
             )
 
     if settings.get("modified_new_resources"):
-        modified_gens = add_modified_atb_generators(
+        modified_gens = add_modified_generators(
             settings, atb_costs_hr, model_year_range
         )
         new_gen_df = pd.concat(
