@@ -691,19 +691,6 @@ def snake_case_str(s: str) -> str:
         return clean
 
 
-def get_git_hash():
-    try:
-        git_head_hash = (
-            subprocess.check_output(["git", "rev-parse", "HEAD"])
-            .strip()
-            .decode("ascii")
-        )
-    except FileNotFoundError:
-        git_head_hash = "Git hash unknown"
-
-    return git_head_hash
-
-
 def download_save(url: str, save_path: Union[str, Path]):
     """
     Download a file that isn't zipped and save it to a given path
