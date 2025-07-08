@@ -1643,6 +1643,11 @@ def add_renewables_clusters(
                     **_scenario,
                 )
                 if data.empty:
+                    logger.warning(
+                        f"Site assignment empty for renewables cluster in region {region} "
+                        f"for technology {technology} with profile {resource_groups[0].group.get('profiles')}"
+                        f" and site map {site_map if site_map is None else site_map.name}."
+                    )
                     continue
                 clusters = (
                     data.groupby("cluster", as_index=False)
@@ -1704,6 +1709,12 @@ def add_renewables_clusters(
             clusters.assign(**kwargs).pipe(
                 modify_renewable_group, _scenario.get("group_modifiers")
             )
+        )
+    if len(cdfs) != sum(mask):
+        logger.warning(
+            f"Problem with renewables clustering for region {region}. "
+            f"Expected to create {sum(mask)} clusters, but actually made {len(cdfs)}. "
+            "Check that RESOURCE_GROUPS aligns with your region aggregations."
         )
     return pd.concat([df[~mask]] + cdfs, sort=False)
 
