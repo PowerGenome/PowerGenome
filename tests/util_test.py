@@ -14,11 +14,13 @@ import pandas as pd
 import pytest
 
 import powergenome
+import powergenome.util as util
 from powergenome.util import (
     add_model_tags_to_gen_columns,
     add_row_to_csv,
     apply_all_tag_to_regions,
     assign_model_planning_years,
+    build_scenario_settings,
     get_all_table_names,
     hash_string_sha256,
     load_data,
@@ -27,6 +29,7 @@ from powergenome.util import (
     make_iterable,
     prepend_db_to_tables,
     sort_nested_dict,
+    update_dictionary,
 )
 
 logger = logging.getLogger(powergenome.__name__)
@@ -545,3 +548,124 @@ def test_load_table_from_db_unsupported_type(tmp_path):
     fake_db.write_text("dummy")
     with pytest.raises(ValueError, match=r"Unsupported database type"):
         load_table_from_db(str(fake_db), file_or_table_name="foo")
+
+
+def test_update_flat_dict():
+    d = {"a": 1, "bb": 2}
+    u = {"c": 3, "bb": 20}
+    result = update_dictionary(d.copy(), u)
+    # keys sorted by length: "a" (1), "c" (1), "bb" (2)
+    assert list(result.keys()) == ["a", "c", "bb"]
+    assert result["bb"] == 20
+    assert result["c"] == 3
+
+
+def test_update_nested_dict():
+    d = {"x": {"y": 1}, "zz": 2}
+    u = {"x": {"z": 3}}
+    result = update_dictionary(d.copy(), u)
+    # should merge into nested dict rather than overwrite completely
+    assert isinstance(result["x"], dict)
+    assert result["x"] == {"y": 1, "z": 3}
+    assert "zz" in result
+
+
+def test_update_none_initial():
+    # Treat None as empty mapping
+    result = update_dictionary(None, {"aa": 5})
+    assert result == {"aa": 5}
+
+
+def test_invalid_inputs_raise_type_error():
+    with pytest.raises(TypeError):
+        update_dictionary(123, {})
+    with pytest.raises(TypeError):
+        update_dictionary({}, 123)
+
+
+def test_key_length_sorting_with_non_str_keys():
+    d = {}
+    u = {10: "ten", "x": "ex", (1, 2, 3): "tuple"}
+    result = update_dictionary(d.copy(), u)
+    # str(key) lengths: '10' -> 2, 'x' -> 1, '(1, 2, 3)' -> 9
+    # sort by length: 'x'(1), '10'(2), '(1, 2, 3)'(9)
+    keys = list(result.keys())
+    assert keys[0] == "x"
+    assert keys[1] == 10  # int key appears second
+    assert keys[2] == (1, 2, 3)
+    assert result[10] == "ten"
+    assert result["x"] == "ex"
+
+
+@pytest.fixture(autouse=True)
+def noop_assign_and_tags(monkeypatch):
+    # Prevent assign_model_planning_years and tagging from altering our settings
+    monkeypatch.setattr(
+        util, "assign_model_planning_years", lambda settings, year: None
+    )
+    monkeypatch.setattr(
+        util,
+        "add_model_tags_to_gen_columns",
+        lambda **kwargs: kwargs["generator_columns"],
+    )
+
+
+def test_duplicate_case_year_raises():
+    # Two identical rows for case 'X' in year 2030 should trigger the duplicate check
+    df = pd.DataFrame(
+        [
+            {"case_id": "X", "year": 2030},
+            {"case_id": "X", "year": 2030},
+        ]
+    )
+    with pytest.raises(ValueError) as exc:
+        build_scenario_settings({}, df)
+    assert "are repeated" in str(exc.value)
+
+
+def test_all_years_all_cases_applied():
+    # settings_management with an all_years->all_cases entry should apply to every scenario
+    settings = {"settings_management": {"all_years": {"all_cases": {"foo": 100}}}}
+    df = pd.DataFrame([{"case_id": 1, "year": 2040}])
+    result = build_scenario_settings(settings, df)
+
+    # Check that our "foo" parameter was injected
+    assert 2040 in result
+    assert 1 in result[2040]
+    out = result[2040][1]
+    assert out["foo"] == 100
+
+    # Also verify the built-in fields
+    assert out["case_id"] == 1
+    assert out["case_period"] == 1
+
+
+def test_year_specific_category_level_applied():
+    # settings_management for a specific year & category should override correctly
+    settings = {
+        "settings_management": {2035: {"category1": {"levelA": {"paramA": "valueA"}}}}
+    }
+    df = pd.DataFrame([{"case_id": "A", "year": 2035, "category1": "levelA"}])
+    result = build_scenario_settings(settings, df)
+    out = result[2035]["A"]
+
+    # Expect our year-specific setting
+    assert out["paramA"] == "valueA"
+    assert out["case_id"] == "A"
+    assert out["case_period"] == 1
+
+
+def test_case_period_increments_per_case():
+    # Same case 'C' appears in two different years, period should increment
+    settings = {"settings_management": {}}
+    df = pd.DataFrame(
+        [
+            {"case_id": "C", "year": 2025},
+            {"case_id": "C", "year": 2030},
+        ]
+    )
+    result = build_scenario_settings(settings, df)
+
+    # First appearance: period 1; second: period 2
+    assert result[2025]["C"]["case_period"] == 1
+    assert result[2030]["C"]["case_period"] == 2
