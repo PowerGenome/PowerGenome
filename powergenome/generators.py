@@ -2562,7 +2562,9 @@ def calculate_transmission_inv_cost(resource_df, settings, offshore_spur_costs=N
                     raise KeyError(
                         f"{SETTING}.{ttype}.capex_mw_mile missing regions {missing_regions}"
                     )
-                capex_mw_mile = resource_df["region"].map(params["capex_mw_mile"])
+                capex_mw_mile = (
+                    resource_df["region"].map(params["capex_mw_mile"]).fillna(0)
+                )
         elif isinstance(params["capex_mw_mile"], Number):
             capex_mw_mile = params["capex_mw_mile"]
         else:
@@ -2570,9 +2572,7 @@ def calculate_transmission_inv_cost(resource_df, settings, offshore_spur_costs=N
                 f"{SETTING}.{ttype}.capex_mw_mile should be numeric or a dictionary"
                 f" of <region>: <capex>, not {params['capex_mw_mile']}"
             )
-        resource_df[f"{ttype}_capex"] = (
-            capex_mw_mile.fillna(0) * resource_df[f"{ttype}_miles"]
-        )
+        resource_df[f"{ttype}_capex"] = capex_mw_mile * resource_df[f"{ttype}_miles"]
         resource_df[f"{ttype}_inv_mwyr"] = investment_cost_calculator(
             resource_df[f"{ttype}_capex"],
             params["wacc"],
