@@ -174,18 +174,16 @@ def test_add_transmission_inv_cost():
 
 
 def test_add_dg_resources():
-    # Minimal stub for make_distributed_gen_profiles
-    import types
-
     import powergenome.generators as generators_mod
 
-    def fake_make_distributed_gen_profiles(pg_engine, settings):
+    # Minimal stub for make_distributed_gen_profiles (catch-all signature)
+    def fake_make_distributed_gen_profiles(*args, **kwargs):
         return pd.DataFrame({"A": [0.5, 1.0], "B": [0.2, 0.8]})
 
     old_func = generators_mod.make_distributed_gen_profiles
     generators_mod.make_distributed_gen_profiles = fake_make_distributed_gen_profiles
     try:
-        out = add_dg_resources(None, {"model_year": 2020}, pd.DataFrame())
+        out = add_dg_resources({"model_year": 2020}, pd.DataFrame())
         assert "technology" in out.columns and "region" in out.columns
     finally:
         generators_mod.make_distributed_gen_profiles = old_func
