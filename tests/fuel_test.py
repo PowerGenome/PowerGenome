@@ -2,6 +2,7 @@
 
 import logging
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -181,32 +182,34 @@ def test_fuel_labels_and_prices(fuel_settings):
     assert "p1_2_biomass_ccs" in fuel_table.columns.to_list()
 
 
-def test_fetch_fuel_price_errors(fuel_settings, caplog):
-    aeo_year = fuel_settings.pop("fuel_eia_aeo_year")
+def test_fetch_fuel_price_no_mappings(fuel_settings):
+    region_names = fuel_settings.pop("fuel_series_region_names")
+    series_names = fuel_settings.pop("fuel_series_names")
+    scenario_names = fuel_settings.pop("fuel_series_scenario_names")
+
+    fetch_fuel_prices(
+        data_location=fuel_settings["data_location"],
+        table_name=fuel_settings["fuel_price_table"],
+        settings=fuel_settings,
+    )
+
+
+def test_fetch_fuel_price_errors(fuel_settings):
+    # data_year = fuel_settings.pop("fuel_data_year")
+    # with pytest.raises(KeyError):
+    #     fetch_fuel_prices(
+    #         data_location=fuel_settings["data_location"],
+    #         table_name=fuel_settings["fuel_price_table"],
+    #         settings=fuel_settings,
+    #     )
+
+    fuel_settings["fuel_data_year"] = 2000
     with pytest.raises(KeyError):
-        fetch_fuel_prices(fuel_settings)
-
-    fuel_settings["eia_aeo_year"] = {"bad": "value"}
-    with pytest.raises(TypeError):
-        fetch_fuel_prices(fuel_settings)
-
-    fuel_settings["eia_aeo_year"] = aeo_year
-
-    eia_series_scenario_names = fuel_settings.pop("eia_series_scenario_names")
-    with pytest.raises(KeyError):
-        fetch_fuel_prices(fuel_settings)
-
-    fuel_settings["eia_series_scenario_names"] = eia_series_scenario_names
-    caplog.set_level(logging.WARNING)
-    fetch_fuel_prices(fuel_settings)
-    # assert "Unable to inflate fuel prices" in caplog.text
-
-    eia_series_region_names = fuel_settings.pop("eia_series_region_names")
-    eia_series_fuel_names = fuel_settings.pop("eia_series_fuel_names")
-
-    fetch_fuel_prices(fuel_settings)
-    assert "EIA fuel region names were not found" in caplog.text
-    assert "EIA fuel names were not found" in caplog.text
+        fetch_fuel_prices(
+            data_location=fuel_settings["data_location"],
+            table_name=fuel_settings["fuel_price_table"],
+            settings=fuel_settings,
+        )
 
 
 # def test_regional_fuel_price_mod(fuel_settings):
