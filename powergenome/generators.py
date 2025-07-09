@@ -3318,7 +3318,11 @@ class GeneratorClusters:
         self.resource_heat_rate_table = resource_heat_rate_table
         self.resource_cost_table = resource_cost_table
 
-        self.fuel_prices = fetch_fuel_prices(self.settings).pipe(
+        self.fuel_prices = fetch_fuel_prices(
+            data_location=data_location,
+            table_name=self.settings.get("fuel_price_table"),
+            settings=self.settings,
+        ).pipe(
             modify_fuel_prices,
             self.settings.get("aeo_fuel_region_map"),
             self.settings.get("regional_fuel_adjustments"),
