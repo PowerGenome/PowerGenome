@@ -16,10 +16,7 @@ os.environ["USE_PYGEOS"] = "0"
 import duckdb
 import geopandas as gpd
 import pandas as pd
-
-# import pudl
 import requests
-import sqlalchemy as sa
 import yaml
 from flatten_dict import flatten
 from ruamel.yaml import YAML
@@ -71,11 +68,6 @@ def load_settings(path: Union[str, Path]) -> dict:
 
     settings = apply_all_tag_to_regions(settings)
     settings = sort_nested_dict(settings)
-
-    for key in ["PUDL_DB", "PG_DB"]:
-        # Add correct connection string prefix if it isn't there
-        if settings.get(key):
-            settings[key] = sqlalchemy_prefix(settings[key])
 
     for key in [
         "EFS_DATA",
@@ -169,29 +161,6 @@ def sort_nested_dict(d: Dict[str, Any]) -> Dict[str, Any]:
             sorted_dict[key] = value
 
     return sorted_dict
-
-
-def sqlalchemy_prefix(db_path: str) -> str:
-    """Check the database path and add sqlite prefix if needed
-
-    Parameters
-    ----------
-    db_path : str
-        Path to the sqlite database. May or may not include sqlite://// (OS specific)
-
-    Returns
-    -------
-    str
-        SqlAlchemy connection string
-    """
-    sql_prefix = "sqlite:///"
-
-    if not db_path:
-        return None
-    if sql_prefix in db_path:
-        return db_path
-    else:
-        return sql_prefix + str(Path(db_path))
 
 
 def apply_all_tag_to_regions(settings: dict) -> dict:
@@ -323,220 +292,215 @@ def findkeys(node: Union[dict, list], kv: str):
                 yield x
 
 
-def check_atb_scenario(settings: dict, pg_engine: sa.engine.base.Engine):
-    """Check the
+# def check_atb_scenario(settings: dict, pg_engine: sa.engine.base.Engine):
+#     """Check the
 
-    Parameters
-    ----------
-    settings : dict
-        Parameters and values from the YAML settings file.
-    pg_engine : sa.engine.base.Engine
-        Connection to the PG sqlite database.
+#     Parameters
+#     ----------
+#     settings : dict
+#         Parameters and values from the YAML settings file.
+#     pg_engine : sa.engine.base.Engine
+#         Connection to the PG sqlite database.
 
-    Raises
-    ------
-    KeyError
-        Raises an error if an ATB technology scenario in the settings file doesn't match
-        the list of available values for that year of ATB data.
-    """
-    atb_year = settings.get("atb_data_year")
+#     Raises
+#     ------
+#     KeyError
+#         Raises an error if an ATB technology scenario in the settings file doesn't match
+#         the list of available values for that year of ATB data.
+#     """
+#     atb_year = settings.get("atb_data_year")
 
-    s = f"""
-    SELECT DISTINCT cost_case
-    FROM technology_costs_nrelatb
-    WHERE
-        atb_year == {atb_year}
-    """
+#     s = f"""
+#     SELECT DISTINCT cost_case
+#     FROM technology_costs_nrelatb
+#     WHERE
+#         atb_year == {atb_year}
+#     """
 
-    atb_cases = [c[0] for c in pg_engine.execute(s).fetchall()]
+#     atb_cases = [c[0] for c in pg_engine.execute(s).fetchall()]
 
-    techs = []
-    for l in findkeys(settings, "atb_new_gen"):
-        techs.extend(l)
+#     techs = []
+#     for l in findkeys(settings, "atb_new_gen"):
+#         techs.extend(l)
 
-    cases = [tech[2] for tech in techs]
+#     cases = [tech[2] for tech in techs]
 
-    for l in findkeys(settings, "atb_cost_case"):
-        cases.append(l)
+#     for l in findkeys(settings, "atb_cost_case"):
+#         cases.append(l)
 
-    bad_case_names = []
-    for case in cases:
-        if case not in atb_cases:
-            bad_case_names.append(case)
-    if bad_case_names:
-        bad_names = list(set(bad_case_names))
-        raise KeyError(
-            f"There is an error with the ATB tech scenario key in your settings file."
-            f" You are using ATB data from {atb_year}, which has cost cases of:\n\n "
-            f"{atb_cases}\n\n"
-            "Under either 'atb_new_gen' or 'modified_atb_new_gen' you have cost cases "
-            f"of:\n\n{bad_names}\n\n "
-            "Try searching your settings file for these "
-            "values and replacing them with valid cost cases for your ATB year."
-        )
+#     bad_case_names = []
+#     for case in cases:
+#         if case not in atb_cases:
+#             bad_case_names.append(case)
+#     if bad_case_names:
+#         bad_names = list(set(bad_case_names))
+#         raise KeyError(
+#             f"There is an error with the ATB tech scenario key in your settings file."
+#             f" You are using ATB data from {atb_year}, which has cost cases of:\n\n "
+#             f"{atb_cases}\n\n"
+#             "Under either 'atb_new_gen' or 'modified_atb_new_gen' you have cost cases "
+#             f"of:\n\n{bad_names}\n\n "
+#             "Try searching your settings file for these "
+#             "values and replacing them with valid cost cases for your ATB year."
+#         )
 
 
-def check_settings(settings: dict, pg_engine: sa.engine) -> None:
-    """Check for user errors in the settings file.
+# def check_settings(settings: dict, pg_engine: sa.engine) -> None:
+#     """Check for user errors in the settings file.
 
-    The YAML settings file is loaded as a dictionary object. It has many different parts
-    that need to have consistent values. This function checks a few (but not all!) of
-    the parameters for common errors or misspelled words.
+#     The YAML settings file is loaded as a dictionary object. It has many different parts
+#     that need to have consistent values. This function checks a few (but not all!) of
+#     the parameters for common errors or misspelled words.
 
-    Parameters
-    ----------
-    settings : dict
-        Parameters and values from the YAML settings file.
-    pg_engine : sa.engine
-        Connection to the PG sqlite database.
-    """
-    if settings.get("atb_data_year"):
-        check_atb_scenario(settings, pg_engine)
-    ipm_region_list = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
-        "region_id_epaipm"
-    ].to_list()
+#     Parameters
+#     ----------
+#     settings : dict
+#         Parameters and values from the YAML settings file.
+#     pg_engine : sa.engine
+#         Connection to the PG sqlite database.
+#     """
 
-    cost_mult_regions = list(
-        itertools.chain.from_iterable(
-            settings.get("cost_multiplier_region_map", {}).values()
-        )
-    )
+#     cost_mult_regions = list(
+#         itertools.chain.from_iterable(
+#             settings.get("cost_multiplier_region_map", {}).values()
+#         )
+#     )
 
-    aeo_fuel_regions = list(
-        itertools.chain.from_iterable(settings.get("aeo_fuel_region_map", {}).values())
-    )
+#     aeo_fuel_regions = list(
+#         itertools.chain.from_iterable(settings.get("aeo_fuel_region_map", {}).values())
+#     )
 
-    atb_techs = settings.get("atb_new_gen", []) or []
-    atb_mod_techs = settings.get("modified_atb_new_gen", {}) or {}
-    add_new_techs = settings.get("additional_new_gen", []) or []
-    cost_mult_techs = []
-    for k, v in settings.get("cost_multiplier_technology_map", {}).items():
-        for t in v:
-            cost_mult_techs.append(t)
+#     atb_techs = settings.get("atb_new_gen", []) or []
+#     atb_mod_techs = settings.get("modified_atb_new_gen", {}) or {}
+#     add_new_techs = settings.get("additional_new_gen", []) or []
+#     cost_mult_techs = []
+#     for k, v in settings.get("cost_multiplier_technology_map", {}).items():
+#         for t in v:
+#             cost_mult_techs.append(t)
 
-    # Make sure atb techs are spelled correctly and are in the cost_multiplier_technology_map
-    for tech in atb_techs:
-        tech, tech_detail, cost_case, _ = tech
+#     # Make sure atb techs are spelled correctly and are in the cost_multiplier_technology_map
+#     for tech in atb_techs:
+#         tech, tech_detail, cost_case, _ = tech
 
-        s = f"""
-        SELECT technology, tech_detail
-        from technology_costs_nrelatb
-        where
-            technology == '{tech}'
-            AND tech_detail == '{tech_detail}'
-        """
-        if len(pg_engine.execute(s).fetchall()) == 0:
-            s = f"""
-    *****************************
-    The technology {tech} - {tech_detail} listed in your settings file under 'atb_new_gen'
-    does not match any NREL ATB technologies. Check your settings file to ensure it is
-    spelled correctly"
-    *****************************
-    """
-            logger.warning(s)
+#         s = f"""
+#         SELECT technology, tech_detail
+#         from technology_costs_nrelatb
+#         where
+#             technology == '{tech}'
+#             AND tech_detail == '{tech_detail}'
+#         """
+#         if len(pg_engine.execute(s).fetchall()) == 0:
+#             s = f"""
+#     *****************************
+#     The technology {tech} - {tech_detail} listed in your settings file under 'atb_new_gen'
+#     does not match any NREL ATB technologies. Check your settings file to ensure it is
+#     spelled correctly"
+#     *****************************
+#     """
+#             logger.warning(s)
 
-        if f"{tech}_{tech_detail}" not in cost_mult_techs:
-            s = f"""
-    *****************************
-    The ATB technology "{tech}_{tech_detail}" listed in your settings file under 'atb_new_gen'
-    is not fully specified in the 'cost_multiplier_technology_map' settings parameter.
-    Part of the <tech>_<tech_detail> string might be included, but it is best practice to
-    include the full name in this format. Check your settings file.
-        """
-            logger.warning((s))
+#         if f"{tech}_{tech_detail}" not in cost_mult_techs:
+#             s = f"""
+#     *****************************
+#     The ATB technology "{tech}_{tech_detail}" listed in your settings file under 'atb_new_gen'
+#     is not fully specified in the 'cost_multiplier_technology_map' settings parameter.
+#     Part of the <tech>_<tech_detail> string might be included, but it is best practice to
+#     include the full name in this format. Check your settings file.
+#         """
+#             logger.warning((s))
 
-    for mod_tech in atb_mod_techs.values():
-        mt_name = f"{mod_tech['new_technology']}_{mod_tech['new_tech_detail']}"
-        if mt_name not in cost_mult_techs:
-            s = f"""
-    *****************************
-    The modified ATB technology "{mt_name}" listed in your settings file under
-    'modified_atb_new_gen' is not fully specified in the 'cost_multiplier_technology_map'
-    settings parameter. Part of the <new_technology>_<new_tech_detail> string might be
-    included, but it is best practice to include the full name in this format. Check
-    your settings file.
-        """
-            logger.warning((s))
+#     for mod_tech in atb_mod_techs.values():
+#         mt_name = f"{mod_tech['new_technology']}_{mod_tech['new_tech_detail']}"
+#         if mt_name not in cost_mult_techs:
+#             s = f"""
+#     *****************************
+#     The modified ATB technology "{mt_name}" listed in your settings file under
+#     'modified_atb_new_gen' is not fully specified in the 'cost_multiplier_technology_map'
+#     settings parameter. Part of the <new_technology>_<new_tech_detail> string might be
+#     included, but it is best practice to include the full name in this format. Check
+#     your settings file.
+#         """
+#             logger.warning((s))
 
-    for add_tech in add_new_techs:
-        if add_tech not in cost_mult_techs:
-            s = f"""
-    *****************************
-    The additional user-specified technology "{add_tech}" listed in your settings file under
-    'additional_new_gen' is not fully specified in the 'cost_multiplier_technology_map'
-    settings parameter. Part of the name string might be included, but it is best practice
-    to include the full name in this format. Check your settings file.
-        """
-            logger.warning((s))
+#     for add_tech in add_new_techs:
+#         if add_tech not in cost_mult_techs:
+#             s = f"""
+#     *****************************
+#     The additional user-specified technology "{add_tech}" listed in your settings file under
+#     'additional_new_gen' is not fully specified in the 'cost_multiplier_technology_map'
+#     settings parameter. Part of the name string might be included, but it is best practice
+#     to include the full name in this format. Check your settings file.
+#         """
+#             logger.warning((s))
 
-    for agg_region, ipm_regions in (settings.get("region_aggregations") or {}).items():
-        for ipm_region in ipm_regions:
-            if ipm_region not in ipm_region_list:
-                s = f"""
-    *****************************
-    There is no IPM region {ipm_region}, which is listed in {agg_region}"
-    *****************************
-    """
-                logger.warning(s)
+#     for agg_region, ipm_regions in (settings.get("region_aggregations") or {}).items():
+#         for ipm_region in ipm_regions:
+#             if ipm_region not in ipm_region_list:
+#                 s = f"""
+#     *****************************
+#     There is no IPM region {ipm_region}, which is listed in {agg_region}"
+#     *****************************
+#     """
+#                 logger.warning(s)
 
-    for model_region in settings["model_regions"]:
-        if model_region not in cost_mult_regions:
-            s = f"""
-    *****************************
-    The model region {model_region} is not included in the settings parameter `cost_multiplier_region_map`"
-    *****************************
-            """
-            logger.warning(s)
+#     for model_region in settings["model_regions"]:
+#         if model_region not in cost_mult_regions:
+#             s = f"""
+#     *****************************
+#     The model region {model_region} is not included in the settings parameter `cost_multiplier_region_map`"
+#     *****************************
+#             """
+#             logger.warning(s)
 
-        if model_region not in aeo_fuel_regions:
-            s = f"""
-    *****************************
-    The model region {model_region} is not included in the settings parameter `aeo_fuel_region_map`"
-    *****************************
-            """
-            logger.warning(s)
+#         if model_region not in aeo_fuel_regions:
+#             s = f"""
+#     *****************************
+#     The model region {model_region} is not included in the settings parameter `aeo_fuel_region_map`"
+#     *****************************
+#             """
+#             logger.warning(s)
 
-    gen_col_count = collections.Counter(settings.get("generator_columns", []))
-    duplicate_cols = [c for c, num in gen_col_count.items() if num > 1]
-    if duplicate_cols:
-        raise KeyError(
-            f"The settings parameter 'generator_columns' has duplicates of {duplicate_cols}."
-            " Remove the duplicates and try again."
-        )
+#     gen_col_count = collections.Counter(settings.get("generator_columns", []))
+#     duplicate_cols = [c for c, num in gen_col_count.items() if num > 1]
+#     if duplicate_cols:
+#         raise KeyError(
+#             f"The settings parameter 'generator_columns' has duplicates of {duplicate_cols}."
+#             " Remove the duplicates and try again."
+#         )
 
-    if settings.get("eia_aeo_year") or settings.get("fuel_eia_aeo_year"):
-        fuel_aeo_year = settings.get("fuel_eia_aeo_year") or settings.get(
-            "eia_aeo_year"
-        )
-        for k, v in settings.get("eia_series_scenario_names", {}).items():
-            if "REF" in v and str(fuel_aeo_year) not in v:
-                logger.warning(
-                    "The settings EIA fuel scenario (eia_series_scenario_names) key "
-                    f"{k} has a value of {v}, which does not match the aeo data year "
-                    f"{fuel_aeo_year}. It has been changed to REF{fuel_aeo_year}."
-                )
-                settings["eia_series_scenario_names"][k] = f"REF{fuel_aeo_year}"
+#     if settings.get("eia_aeo_year") or settings.get("fuel_eia_aeo_year"):
+#         fuel_aeo_year = settings.get("fuel_eia_aeo_year") or settings.get(
+#             "eia_aeo_year"
+#         )
+#         for k, v in settings.get("eia_series_scenario_names", {}).items():
+#             if "REF" in v and str(fuel_aeo_year) not in v:
+#                 logger.warning(
+#                     "The settings EIA fuel scenario (eia_series_scenario_names) key "
+#                     f"{k} has a value of {v}, which does not match the aeo data year "
+#                     f"{fuel_aeo_year}. It has been changed to REF{fuel_aeo_year}."
+#                 )
+#                 settings["eia_series_scenario_names"][k] = f"REF{fuel_aeo_year}"
 
-    if settings.get("eia_aeo_year") or settings.get("load_eia_aeo_year"):
-        load_aeo_year = settings.get("load_eia_aeo_year") or settings.get(
-            "eia_aeo_year"
-        )
-        growth_scenario = settings.get("growth_scenario", "")
-        if "REF" in growth_scenario and str(load_aeo_year) not in growth_scenario:
-            logger.warning(
-                "The settings EIA demand growth scenario (growth_scenario) key "
-                f"value is {growth_scenario}, which does not match the aeo data year "
-                f"{load_aeo_year}. It has been changed to REF{load_aeo_year}."
-            )
-            settings["growth_scenario"] = f"REF{load_aeo_year}"
+#     if settings.get("eia_aeo_year") or settings.get("load_eia_aeo_year"):
+#         load_aeo_year = settings.get("load_eia_aeo_year") or settings.get(
+#             "eia_aeo_year"
+#         )
+#         growth_scenario = settings.get("growth_scenario", "")
+#         if "REF" in growth_scenario and str(load_aeo_year) not in growth_scenario:
+#             logger.warning(
+#                 "The settings EIA demand growth scenario (growth_scenario) key "
+#                 f"value is {growth_scenario}, which does not match the aeo data year "
+#                 f"{load_aeo_year}. It has been changed to REF{load_aeo_year}."
+#             )
+#             settings["growth_scenario"] = f"REF{load_aeo_year}"
 
-    if not settings.get("interest_compound_method"):
-        logger.info(
-            "The default interest compounding method for calculating annuities has "
-            "changed from continuous to discrete. This method can be set with the parameter "
-            "'interest_compound_method', using values `discrete` or `continuous`.\n"
-            "This message will be removed after version 0.7.0."
-        )
+#     if not settings.get("interest_compound_method"):
+#         logger.info(
+#             "The default interest compounding method for calculating annuities has "
+#             "changed from continuous to discrete. This method can be set with the parameter "
+#             "'interest_compound_method', using values `discrete` or `continuous`.\n"
+#             "This message will be removed after version 0.7.0."
+#         )
 
 
 # def init_pudl_connection(

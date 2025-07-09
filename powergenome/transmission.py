@@ -8,7 +8,6 @@ from math import asin, cos, radians, sin, sqrt
 from pathlib import Path
 
 import pandas as pd
-import sqlalchemy as sa
 
 from powergenome.util import (
     find_centroid,

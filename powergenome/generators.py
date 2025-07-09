@@ -7,23 +7,15 @@ from functools import reduce
 from numbers import Number
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple, Union
-from zipfile import BadZipFile
 
 os.environ["USE_PYGEOS"] = "0"
 
-import geopandas as gpd
 import numpy as np
 import pandas as pd
-import pudl
-import requests
-import sqlalchemy
-from bs4 import BeautifulSoup
 from flatten_dict import flatten
 from scipy.stats import iqr
 from sklearn import cluster, preprocessing
-from xlrd import XLRDError
 
-from powergenome.cluster_method import cluster_by_owner
 from powergenome.co2_pipeline_cost import merge_co2_pipeline_costs
 from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
 from powergenome.external_data import (
@@ -44,9 +36,7 @@ from powergenome.GenX import (
 )
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
-    atb_fixed_var_om_existing,
     atb_new_generators,
-    fetch_atb_offshore_spur_costs,
     fetch_heat_rates,
     fetch_resource_costs,
 )
@@ -54,14 +44,11 @@ from powergenome.params import DATA_PATHS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_eia_technology
 from powergenome.util import (
-    download_save,
     find_region_col,
     load_data,
-    load_ipm_shapefile,
     map_agg_region_names,
     regions_to_keep,
     remove_fuel_gen_scenario_name,
-    remove_leading_zero,
     reverse_dict_of_lists,
     snake_case_col,
     snake_case_str,
@@ -2634,7 +2621,6 @@ def add_transmission_inv_cost(
 
 
 def add_dg_resources(
-    pg_engine: sqlalchemy.engine.Engine,
     settings: dict,
     gen_df: pd.DataFrame = pd.DataFrame(),
 ) -> pd.DataFrame:
@@ -2642,9 +2628,6 @@ def add_dg_resources(
 
     Parameters
     ----------
-    pg_engine : sqlalchemy.engine.Engine
-        Connection to database with hourly generation values. Needed if installed DG
-        capacity is calculated as a fraction of load.
     settings : dict
         Settings dictionary with parameters "model_year", "input_folder", "distributed_gen_profiles_fn",
         "distributed_gen_method", "distributed_gen_values", and "avg_distribution_loss".
@@ -2658,7 +2641,7 @@ def add_dg_resources(
         "distributed_gen_profiles_fn" file. Each dg resource is one row and includes
         values for the columns "technology", "region", "capacity_mw", and "profile".
     """
-    dg_profiles = make_distributed_gen_profiles(pg_engine, settings)
+    dg_profiles = make_distributed_gen_profiles(settings)
     df = pd.DataFrame(
         columns=["technology", "region", "cluster", "capacity_mw", "profile"],
         index=range(len(dg_profiles.columns)),
@@ -3315,6 +3298,7 @@ class GeneratorClusters:
         settings : dictionary
             The dictionary of settings with a dictionary of region aggregations
         """
+        # TODO: #404 Update GeneratorClusters init docstring
         self.data_location = data_location
         self.gen_table = generation_table
         self.plant_region_table = settings.get("plant_region_table")

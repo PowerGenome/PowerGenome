@@ -15,16 +15,11 @@ from powergenome.external_data import (
 )
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters
-from powergenome.GenX import (
+from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; check_resource_tags,; fix_min_power_values,; hydro_energy_to_power,; set_must_run_generation,
     add_cap_res_network,
-    add_co2_costs_to_o_m,
-    add_misc_gen_values,
-    check_resource_tags,
     check_vre_profiles,
     create_policy_req,
     create_regional_cap_res,
-    fix_min_power_values,
-    hydro_energy_to_power,
     max_cap_req,
     min_cap_req,
     network_line_loss,
@@ -35,20 +30,15 @@ from powergenome.GenX import (
     reduce_time_domain,
     round_col_values,
     set_int_cols,
-    set_must_run_generation,
 )
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
 )
-from powergenome.util import (  # init_pudl_connection,
+from powergenome.util import (  # init_pudl_connection,; check_settings,; load_ipm_shapefile,; remove_fuel_gen_scenario_name,; remove_fuel_scenario_name,
     build_scenario_settings,
-    check_settings,
-    load_ipm_shapefile,
     load_settings,
-    remove_fuel_gen_scenario_name,
-    remove_fuel_scenario_name,
     write_case_settings_file,
     write_results_file,
 )

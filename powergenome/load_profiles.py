@@ -10,7 +10,6 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
-import sqlalchemy as sa
 
 from powergenome.distributed_gen import distributed_gen_profiles
 from powergenome.eia_opendata import get_aeo_load
@@ -569,8 +568,8 @@ def add_demand_response_resource_load(load_curves, settings):
     return load_curves
 
 
-def subtract_distributed_generation(load_curves, pg_engine, settings):
-    dg_profiles = make_distributed_gen_profiles(pg_engine, settings)
+def subtract_distributed_generation(load_curves, settings):
+    dg_profiles = make_distributed_gen_profiles(settings)
     dg_profiles.index = dg_profiles.index + 1
 
     for col in dg_profiles.columns:
@@ -741,7 +740,7 @@ def make_final_load_curves(
         or settings.get("distributed_gen_fn")
     ) and not settings.get("dg_as_resource"):
         final_load_curves = subtract_distributed_generation(
-            load_curves_before_dg, data_location, settings
+            load_curves_before_dg, settings
         )
     else:
         final_load_curves = load_curves_before_dg
@@ -762,15 +761,13 @@ def make_final_load_curves(
     return final_load_curves
 
 
-def make_distributed_gen_profiles(pg_engine, settings):
+def make_distributed_gen_profiles(settings):
     """Create 8760 annual generation profiles for distributed generation in regions.
     Uses a distribution loss parameter in the settings file when DG generation is
     defined a fraction of delivered load.
 
     Parameters
     ----------
-    pg_engine : sqlalchemy.Engine
-        A sqlalchemy connection for use by pandas. Needed to create base load profiles.
     settings : dict
         User-defined parameters from a settings file
 
@@ -785,86 +782,87 @@ def make_distributed_gen_profiles(pg_engine, settings):
     KeyError
         If the calculation method specified in settings is not 'capacity' or 'fraction_load'
     """
+    # TODO: #403 refactor this function to use a data location argument
     logger.info("Creating distributed generation profiles")
     year = settings["model_year"]
 
-    if settings.get("distributed_gen_fn"):
-        scenario = settings.get("distributed_gen_scenario")
-        if settings.get("region_aggregations"):
-            regions = [
-                r
-                for r in settings["model_regions"]
-                if r not in settings["region_aggregations"].keys()
-            ]
-            regions.extend(
-                list(reverse_dict_of_lists(settings["region_aggregations"]).keys())
-            )
-            regions = [
-                r for r in regions if r not in settings["region_aggregations"].keys()
-            ]
-        else:
-            regions = settings["model_regions"]
-
-        dg_profiles = distributed_gen_profiles(
-            settings.get("distributed_gen_fn"),
-            settings["model_year"],
-            scenario,
-            regions,
-            settings.get("DISTRIBUTED_GEN_DATA"),
-            settings.get("region_aggregations"),
-            settings.get("utc_offset"),
+    # if settings.get("distributed_gen_fn"):
+    scenario = settings.get("distributed_gen_scenario")
+    if settings.get("region_aggregations"):
+        regions = [
+            r
+            for r in settings["model_regions"]
+            if r not in settings["region_aggregations"].keys()
+        ]
+        regions.extend(
+            list(reverse_dict_of_lists(settings["region_aggregations"]).keys())
         )
-        return dg_profiles
+        regions = [
+            r for r in regions if r not in settings["region_aggregations"].keys()
+        ]
+    else:
+        regions = settings["model_regions"]
 
-    dg_profiles_path = (
-        Path(settings["input_folder"]) / settings["distributed_gen_profiles_fn"]
+    dg_profiles = distributed_gen_profiles(
+        settings.get("distributed_gen_fn"),
+        settings["model_year"],
+        scenario,
+        regions,
+        settings.get("DISTRIBUTED_GEN_DATA"),
+        settings.get("region_aggregations"),
+        settings.get("utc_offset"),
     )
+    return dg_profiles
 
-    hourly_norm_profiles = pd.read_csv(dg_profiles_path)
-    profile_regions = hourly_norm_profiles.columns
+    # dg_profiles_path = (
+    #     Path(settings["input_folder"]) / settings["distributed_gen_profiles_fn"]
+    # )
 
-    dg_calc_methods = settings["distributed_gen_method"]
-    dg_calc_values = settings["distributed_gen_values"]
+    # hourly_norm_profiles = pd.read_csv(dg_profiles_path)
+    # profile_regions = hourly_norm_profiles.columns
 
-    assert (
-        year in dg_calc_values
-    ), "The years in settings parameter 'distributed_gen_values' do not match the model years."
+    # dg_calc_methods = settings["distributed_gen_method"]
+    # dg_calc_values = settings["distributed_gen_values"]
 
-    for region in dg_calc_values[year]:
-        assert region in set(profile_regions), (
-            "The profile regions in settings parameter 'distributed_gen_values' do not\n"
-            f"match the regions in {settings['distributed_gen_profiles_fn']} for year {year}"
-        )
+    # assert (
+    #     year in dg_calc_values
+    # ), "The years in settings parameter 'distributed_gen_values' do not match the model years."
 
-    if "fraction_load" in dg_calc_methods.values():
-        regional_load = make_load_curves(pg_engine, settings)
+    # for region in dg_calc_values[year]:
+    #     assert region in set(profile_regions), (
+    #         "The profile regions in settings parameter 'distributed_gen_values' do not\n"
+    #         f"match the regions in {settings['distributed_gen_profiles_fn']} for year {year}"
+    #     )
 
-    dg_hourly_gen = pd.DataFrame(columns=dg_calc_methods.keys())
+    # if "fraction_load" in dg_calc_methods.values():
+    #     regional_load = make_load_curves(pg_engine, settings)
 
-    for region, method in dg_calc_methods.items():
-        region_norm_profile = hourly_norm_profiles[region]
-        region_calc_value = dg_calc_values[year][region]
+    # dg_hourly_gen = pd.DataFrame(columns=dg_calc_methods.keys())
 
-        if method == "capacity":
-            dg_hourly_gen[region] = calc_dg_capacity_method(
-                region_norm_profile, region_calc_value
-            )
-        elif method == "fraction_load":
-            region_load = regional_load[region]
-            dg_hourly_gen[region] = calc_dg_frac_load_method(
-                region_norm_profile, region_calc_value, region_load, settings
-            )
-        else:
-            raise KeyError(
-                "The settings parameter 'distributed_gen_method' can only have key "
-                "values of 'capapacity' or 'fraction_load' for each region.\n"
-                f"The value in your settings file is {method}"
-            )
+    # for region, method in dg_calc_methods.items():
+    #     region_norm_profile = hourly_norm_profiles[region]
+    #     region_calc_value = dg_calc_values[year][region]
 
-    if len(dg_hourly_gen) == 8784:
-        remove_feb_29(dg_hourly_gen)
+    #     if method == "capacity":
+    #         dg_hourly_gen[region] = calc_dg_capacity_method(
+    #             region_norm_profile, region_calc_value
+    #         )
+    #     elif method == "fraction_load":
+    #         region_load = regional_load[region]
+    #         dg_hourly_gen[region] = calc_dg_frac_load_method(
+    #             region_norm_profile, region_calc_value, region_load, settings
+    #         )
+    #     else:
+    #         raise KeyError(
+    #             "The settings parameter 'distributed_gen_method' can only have key "
+    #             "values of 'capapacity' or 'fraction_load' for each region.\n"
+    #             f"The value in your settings file is {method}"
+    #         )
 
-    return dg_hourly_gen
+    # if len(dg_hourly_gen) == 8784:
+    #     remove_feb_29(dg_hourly_gen)
+
+    # return dg_hourly_gen
 
 
 def calc_dg_capacity_method(dg_profile, dg_capacity):
