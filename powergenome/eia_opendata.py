@@ -181,11 +181,11 @@ def fetch_fuel_prices(
     else:
         fuel_data = all_fuel_data.copy()
 
-    if settings.get("fuel_series_fuel_names"):
+    if settings.get("fuel_series_names"):
         fuel_data["fuel"] = (
             fuel_data["fuel"]
             .str.lower()
-            .map({v.lower(): k for k, v in settings["fuel_series_fuel_names"].items()})
+            .map({v.lower(): k for k, v in settings["fuel_series_names"].items()})
         )
     if settings.get("fuel_series_scenario_names"):
         fuel_data["scenario"] = (
@@ -237,7 +237,7 @@ def fetch_fuel_prices(
 
 def modify_fuel_prices(
     prices: pd.DataFrame,
-    aeo_fuel_region_map: dict,
+    fuel_region_map: dict,
     regional_fuel_adjustments: dict = None,
 ) -> pd.DataFrame:
     """Modify the AEO fuel prices by model region or fuel within a model region.
@@ -247,7 +247,7 @@ def modify_fuel_prices(
     prices : pd.DataFrame
         Fuel prices from AEO, with columns ['year', 'price', 'fuel', 'region', 'scenario',
         'full_fuel_name']
-    aeo_fuel_region_map : dict
+    fuel_region_map : dict
         Mapping of AEO census division fuel names to lists of model regions
     regional_fuel_adjustments : dict, optional
         Modifications of fuel prices by region or fuel within region, by default None
@@ -261,9 +261,9 @@ def modify_fuel_prices(
     Raises
     ------
     KeyError
-        The required parameter 'aeo_fuel_region_map' is missing
+        The required parameter 'fuel_region_map' is missing
     KeyError
-        One or more model regions having fuel prices modified is not in `aeo_fuel_region_map`
+        One or more model regions having fuel prices modified is not in `fuel_region_map`
     KeyError
         Invalid operator type
     KeyError
@@ -277,16 +277,16 @@ def modify_fuel_prices(
     if not regional_fuel_adjustments:
         return prices
 
-    if not aeo_fuel_region_map:
-        raise KeyError("The required parameter 'aeo_fuel_region_map' is missing.")
+    if not fuel_region_map:
+        raise KeyError("The required parameter 'fuel_region_map' is missing.")
 
     allowed_operators = ["add", "mul", "truediv", "sub"]
     model_regions = list(regional_fuel_adjustments)
-    model_aeo_region_map = reverse_dict_of_lists(aeo_fuel_region_map)
+    model_aeo_region_map = reverse_dict_of_lists(fuel_region_map)
     if not all(r in model_aeo_region_map for r in model_regions):
         raise KeyError(
             "All model regions listed in the settings parameter 'regional_fuel_adjustments' "
-            "should also be included in `aeo_fuel_region_map`. One or more regions was "
+            "should also be included in `fuel_region_map`. One or more regions was "
             "not found."
         )
 

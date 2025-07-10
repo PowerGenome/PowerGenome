@@ -137,8 +137,8 @@ def test_add_fuel_labels():
     settings = {
         "tech_fuel_map": {"coal": "coal"},
         "eia_atb_tech_map": {"coal": ["coal"]},
-        "aeo_fuel_scenarios": {"coal": "REF"},
-        "aeo_fuel_region_map": {"A": ["A"]},
+        "fuel_scenarios": {"coal": "REF"},
+        "fuel_region_map": {"A": ["A"]},
         "model_year": 2020,
         "user_fuel_price": {},
     }

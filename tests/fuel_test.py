@@ -99,7 +99,7 @@ def fuel_settings():
         # "aeo_fuel_region_map": {"south_atlantic": ["S_VACA", "PJM_Dom"]},
         # "eia_series_region_names": {"south_atlantic": "SOATL"},
         # "eia_series_fuel_names": {"naturalgas": "NG"},
-        # "aeo_fuel_scenarios": {"naturalgas": "reference"},
+        # "fuel_scenarios": {"naturalgas": "reference"},
         "user_fuel_price": {
             "zerocarbonfuel1": 14,
             "zerocarbonfuel2": 10,
@@ -533,7 +533,7 @@ class TestFuelCostTable:
             "reduce_time_domain": True,
             "time_domain_days_per_period": 7,
             "time_domain_periods": 52,
-            "aeo_fuel_scenarios": {
+            "fuel_scenarios": {
                 "coal": "reference",
                 "naturalgas": "reference",
             },
@@ -577,7 +577,7 @@ class TestFuelCostTable:
         settings = {
             "model_year": 2022,
             "fuel_emission_factors": {"coal": 2.5, "naturalgas": 1.8, "hydrogen": 0},
-            "aeo_fuel_scenarios": {
+            "fuel_scenarios": {
                 "coal": "reference",
                 "naturalgas": "reference",
             },
@@ -620,7 +620,7 @@ class TestFuelCostTable:
         settings = {
             "model_year": 2022,
             "fuel_emission_factors": {"coal": 2.5, "naturalgas": 1.8},
-            "aeo_fuel_scenarios": {
+            "fuel_scenarios": {
                 "coal": "reference",
                 "naturalgas": "reference",
             },
