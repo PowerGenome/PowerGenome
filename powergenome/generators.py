@@ -3922,7 +3922,7 @@ class GeneratorClusters:
         ):
             dr_rows = self.create_demand_response_gen_rows()
             self.new_generators = pd.concat(
-                [self.new_generators, dr_rows], sort=False, ignore_index=True
+                [self.new_generators.convert_dtypes(), dr_rows.convert_dtypes()], sort=False, ignore_index=True
             )
         self.new_generators = add_resource_tags(
             self.new_generators,
