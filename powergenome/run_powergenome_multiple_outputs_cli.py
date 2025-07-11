@@ -261,8 +261,8 @@ def main(**kwargs):
             case_folder = (
                 out_folder
                 / f"{case_id}"
-                / "Inputs"
-                / f"Inputs_p{_settings['case_period']}"
+                / "inputs"
+                / f"inputs_p{_settings['case_period']}"
             )
             case_folder.mkdir(parents=True, exist_ok=True)
 
