@@ -68,7 +68,13 @@ def test_load_user_tx(tmp_path):
     target_usd_year = 2020
 
     user_tx_costs = load_user_tx_costs(
-        tmp_path / "tx_lines.csv", model_regions, target_usd_year
+        tmp_path / "tx_lines.csv",
+        model_regions,
+        target_usd_year,
+        settings={
+            "data_location": "tests/test_system/test_data",
+            "dollar_year_table": "cpi_test_data.csv",
+        },
     )
 
     assert all(

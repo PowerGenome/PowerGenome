@@ -337,6 +337,7 @@ def main(**kwargs):
                         / _settings["user_transmission_costs"],
                         _settings["model_regions"],
                         _settings.get("target_usd_year"),
+                        _settings,
                     )
                     transmission = agg_transmission_constraints(
                         data_location=_settings["data_location"],
