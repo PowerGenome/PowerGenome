@@ -219,6 +219,8 @@ def fetch_fuel_prices(
                     price=_df.loc[:, "price"],
                     base_year=year,
                     target_year=settings["target_usd_year"],
+                    data_location=settings["data_location"],
+                    table_name=settings["dollar_year_table"],
                 )
                 df_list.append(_df)
             fuel_data = pd.concat(df_list, ignore_index=True, sort=False)
@@ -415,6 +417,8 @@ def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFram
                     user_fuel_price.loc[user_fuel_price["fuel"] == fuel, "price"],
                     year,
                     settings["target_usd_year"],
+                    data_location=settings["data_location"],
+                    table_name=settings["dollar_year_table"],
                 )
             )
     if df is not None:

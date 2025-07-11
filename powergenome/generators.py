@@ -254,7 +254,11 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         )
         for key, cost in vom_costs.items():
             vom_costs[key] = inflation_price_adjustment(
-                price=cost, base_year=vom_usd_year, target_year=target_usd_year
+                price=cost,
+                base_year=vom_usd_year,
+                target_year=target_usd_year,
+                data_location=settings["data_location"],
+                table_name=settings["dollar_year_table"],
             )
 
     startup_type = settings.get("startup_costs_type")
@@ -270,6 +274,8 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
                 price=cost,
                 base_year=startup_costs_usd_year,
                 target_year=target_usd_year,
+                data_location=settings["data_location"],
+                table_name=settings["dollar_year_table"],
             )
 
     df["Start_Cost_per_MW"] = 0
@@ -3831,6 +3837,7 @@ class GeneratorClusters:
                 fuel_emission_factors=self.settings["fuel_emission_factors"],
                 target_usd_year=self.settings.get("target_usd_year"),
                 extra_ccs_cost_tonne=self.settings.get("ccs_disposal_cost"),
+                settings=self.settings,
             )
 
         self.all_resources = self.all_resources.round(3)

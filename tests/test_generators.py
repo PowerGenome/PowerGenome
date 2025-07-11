@@ -48,6 +48,8 @@ def test_startup_nonfuel_costs():
         "existing_startup_costs_tech_map": {"a": "x"},
         "new_build_startup_costs": {"b": "x"},
         "target_usd_year": 2020,
+        "data_location": "tests/test_system/test_data",
+        "dollar_year_table": "cpi_test_data.csv",
     }
     out = startup_nonfuel_costs(df.copy(), settings)
     assert "Start_Cost_per_MW" in out.columns

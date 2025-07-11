@@ -199,6 +199,8 @@ def fetch_resource_costs(
                 row[usd_columns],
                 base_year=row["dollar_year"],
                 target_year=target_usd_year,
+                data_location=settings["data_location"],
+                table_name=settings["dollar_year_table"],
             ),
             axis=1,
         )
@@ -1698,7 +1700,11 @@ def load_user_defined_techs(settings: dict) -> pd.DataFrame:
                 "variable_o_m_mwh",
             ]:
                 user_techs.loc[idx, col] = inflation_price_adjustment(
-                    row[col], row["dollar_year"], settings["target_usd_year"]
+                    row[col],
+                    row["dollar_year"],
+                    settings["target_usd_year"],
+                    data_location=settings["data_location"],
+                    table_name=settings["dollar_year_table"],
                 )
 
     cols = [
