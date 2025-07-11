@@ -510,10 +510,14 @@ def add_misc_gen_values(
         region_col = "region"
         misc_values["region"] = "all"
 
-    for region in regions:
-        _df = misc_values.loc[misc_values[region_col].str.lower() == "all", :]
-        _df.loc[:, "region"] = region
-        misc_values = misc_values.append(_df)
+    if "all" in misc_values[region_col].str.lower().to_list():
+        df_list = [misc_values]
+        for region in regions:
+            _df = misc_values.loc[misc_values[region_col].str.lower() == "all", :]
+            _df.loc[:, "region"] = region
+            df_list.append(_df)
+
+        misc_values = pd.concat(df_list, ignore_index=True)
 
     # If a user has specific a value for "all" regions plus a value for a specific region,
     # keep the specific region value.

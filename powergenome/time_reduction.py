@@ -290,29 +290,33 @@ def kmeans_time_clustering(
         EachClusterRepPoint[k] = min(dist, key=lambda k: dist[k])
 
         # Creating a list that matches each week to a representative week
+        df_list = [time_series_mapping]
         for j in range(EachClusterWeight[k]):
-            time_series_mapping = time_series_mapping.append(
+            _df = pd.DataFrame(
+                {
+                    "Period_Index": int(
+                        ClusteringInputDF.loc[:, model.labels_ == k].columns[j][1:]
+                    ),
+                    "Rep_Period_Index": k + 1,
+                },
+                index=[0],
+            )
+            df_list.append(_df)
+        time_series_mapping = pd.concat(df_list, ignore_index=True)
+
+    if include_peak_day:
+        # appending the week representing peak load
+        time_series_mapping = pd.concat(
+            [
+                time_series_mapping,
                 pd.DataFrame(
                     {
-                        "Period_Index": int(
-                            ClusteringInputDF.loc[:, model.labels_ == k].columns[j][1:]
-                        ),
-                        "Rep_Period_Index": k + 1,
+                        "Period_Index": int(GroupingwithPeakLoad[0][1:]),
+                        "Rep_Period_Index": k + 2,
                     },
                     index=[0],
                 ),
-                ignore_index=True,
-            )
-    if include_peak_day:
-        # appending the week representing peak load
-        time_series_mapping = time_series_mapping.append(
-            pd.DataFrame(
-                {
-                    "Period_Index": int(GroupingwithPeakLoad[0][1:]),
-                    "Rep_Period_Index": k + 2,
-                },
-                index=[0],
-            ),
+            ],
             ignore_index=True,
         )
 
@@ -395,6 +399,7 @@ def kmeans_time_clustering(
 
     # Calculating error metrics and Annual profile
     FullLengthOutputs = final_output_data
+    df_list = [FullLengthOutputs]
     for j in range(len(EachClusterWeight)):
         # Selecting rows of the FinalOutputData dataframe to append
         df_try = final_output_data.truncate(
@@ -404,9 +409,11 @@ def kmeans_time_clustering(
         if (
             EachClusterWeight[j] > 1
         ):  # Need to duplicate entries only weight is greater than 1
-            FullLengthOutputs = FullLengthOutputs.append(
-                [df_try] * (EachClusterWeight[j] - 1), ignore_index=True
-            )
+            df_list.append(df_try * (EachClusterWeight[j] - 1))
+            # FullLengthOutputs = FullLengthOutputs.append(
+            #     [df_try] * (EachClusterWeight[j] - 1), ignore_index=True
+            # )
+    FullLengthOutputs = pd.concat(df_list, ignore_index=True)
 
     #  Root mean square error between the duration curves of each time series
     # Only conisder the points consider in the k-means clustering - ignoring any days

@@ -2645,7 +2645,7 @@ def add_dg_resources(
         index=range(len(dg_profiles.columns)),
     )
 
-    for idx, (region, s) in enumerate(dg_profiles.iteritems()):
+    for idx, (region, s) in enumerate(dg_profiles.items()):
         cap = s.max()
         df.loc[idx, "profile"] = (s / cap).round(3).to_numpy()
         df.loc[idx, "capacity_mw"] = cap.round(0).astype(int)
