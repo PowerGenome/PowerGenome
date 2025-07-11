@@ -136,10 +136,14 @@ def add_resource_max_cap_spur(
     # Let users omit the "region" column or set a value of "all"
     if "region" not in df.columns:
         df["region"] = "all"
-    for region in settings["model_regions"]:
-        _df = df.loc[df["region"].str.lower() == "all", :]
-        _df.loc[:, "region"] = region
-        df = df.append(_df)
+
+    if "all" in df["region"].str.lower().to_list():
+        df_list = [df]
+        for region in settings["model_regions"]:
+            _df = df.loc[df["region"].str.lower() == "all", :]
+            _df.loc[:, "region"] = region
+            df_list.append(_df)
+        df = pd.concat(df_list, ignore_index=True)
 
     df = df.loc[df["region"].str.lower() != "all", :]
 

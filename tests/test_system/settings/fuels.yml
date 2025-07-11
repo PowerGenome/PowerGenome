@@ -2,8 +2,7 @@
 
 # Which year of AEO to use. Note that different years have different scenario names
 # so those may need to be modified accordingly.
-fuel_eia_aeo_year: 2025
-aeo_fuel_usd_year: 2024
+fuel_data_year: 2025
 
 # FUEL SCENARIOS
 # These parameters map the EIA scenario names to user names (e.g. reference is used inplace
@@ -12,7 +11,7 @@ aeo_fuel_usd_year: 2024
 
 # This is a subset of AEO 2020 scenarios. For a full list, look at the eia open data
 # page https://www.eia.gov/opendata/qb.php?category=3604304
-eia_series_scenario_names:
+fuel_series_scenario_names:
   reference: REF2025 # Includes 111(d) policy that retires nearly all coal plants -- leads to very low coal prices
   no_111d: nocaa111 # No 111(d) policy that would retire coal plants
   low_price: LOWPRICE # Low oil price scenario
@@ -20,13 +19,13 @@ eia_series_scenario_names:
   high_resource: HIGHOGS # High oil and gas resource scenario -- lowest gas prices
   low_resource: LOWOGS # Low oil and gas resource scenario -- highest gas prices
 
-eia_series_fuel_names:
+fuel_series_names:
   coal: STC
   naturalgas: NG
   distillate: DFO
   uranium: U
 
-aeo_fuel_scenarios:
+fuel_scenarios:
   coal: reference
   naturalgas: reference
   distillate: reference
@@ -37,7 +36,7 @@ aeo_fuel_scenarios:
 # See the PowerGenome wiki for a map of Census Divisions and IPM regions
 # https://github.com/PowerGenome/PowerGenome/wiki/Geospatial-Mappings
 
-aeo_fuel_region_map:
+fuel_region_map:
   east_north_central: [p103, p104, p105, p106, p107, p111, p112, p113, p114, p46, p74, p75, p76, p77, p78, p79, p80, p81, p82, p83]
   east_south_central: [p108, p109, p110, p87, p88, p89, p90, p92, p93]
   middle_atlantic: [p115, p119, p120, p122, p126, p127, p128, p144, p145, p146, p147]
@@ -49,7 +48,7 @@ aeo_fuel_region_map:
   west_south_central: [p47, p48, p49, p50, p51, p56, p57, p58, p60, p61, p62, p63, p64, p65, p66, p67, p85, p86]
 
 # Map the user fuel regions to EIA region codes.
-eia_series_region_names:
+fuel_series_region_names:
   mountain: MTN
   pacific: PCF
   west_south_central: WSC

@@ -2269,7 +2269,7 @@ def add_fuel_labels(df, fuel_prices, settings):
     Raises
     ------
     KeyError
-        The model region is not mapped to a fuel region in 'aeo_fuel_region_map'
+        The model region is not mapped to a fuel region in 'fuel_region_map'
     """
 
     df["Fuel"] = np.nan
@@ -2294,13 +2294,13 @@ def add_fuel_labels(df, fuel_prices, settings):
         except KeyError:
             # No corresponding ATB technology
             atb_tech = None
-        scenario = settings.get("aeo_fuel_scenarios", {}).get(fuel)
+        scenario = settings.get("fuel_scenarios", {}).get(fuel)
         model_year = settings["model_year"]
         if not scenario:
             if fuel not in settings.get("user_fuel_price", []) or []:
                 raise KeyError(
                     f"The fuel type '{fuel}' is not in the settings parameters "
-                    "'aeo_fuel_scenarios' or 'user_fuel_price'. All fuels listed in "
+                    "'fuel_scenarios' or 'user_fuel_price'. All fuels listed in "
                     "'tech_fuel_map' must be included in one of these."
                 )
             if isinstance(settings["user_fuel_price"][fuel], dict):
@@ -2346,7 +2346,7 @@ def add_fuel_labels(df, fuel_prices, settings):
                             "Fuel",
                         ] = fuel
         else:
-            for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
+            for aeo_region, model_regions in settings["fuel_region_map"].items():
                 fuel_name = ("_").join([aeo_region, scenario, fuel])
                 assert (
                     fuel_prices.query(
@@ -2376,9 +2376,9 @@ def add_fuel_labels(df, fuel_prices, settings):
 
     for ccs_tech, ccs_fuel in (settings.get("ccs_fuel_map") or {}).items():
         ccs_base_name = ("_").join(ccs_fuel.split("_")[:-1])
-        if ccs_base_name in (settings.get("aeo_fuel_scenarios", {}) or {}).keys():
-            scenario = settings["aeo_fuel_scenarios"][ccs_base_name]
-            for aeo_region, model_regions in settings["aeo_fuel_region_map"].items():
+        if ccs_base_name in (settings.get("fuel_scenarios", {}) or {}).keys():
+            scenario = settings["fuel_scenarios"][ccs_base_name]
+            for aeo_region, model_regions in settings["fuel_region_map"].items():
                 ccs_fuel_name = ("_").join([aeo_region, scenario, ccs_fuel])
 
                 df.loc[
@@ -2409,20 +2409,18 @@ def add_fuel_labels(df, fuel_prices, settings):
                 f"The fuel {ccs_fuel} is included in settings parameter `ccs_fuel_map` "
                 "but it can't be matched against an AEO or user fuel. CCS fuels should "
                 "have the format <fuel name>_ccs<capture rate>, where the capture rate "
-                "is optional. The <fuel name> should match a fuel from `aeo_fuel_scenarios' "
+                "is optional. The <fuel name> should match a fuel from `fuel_scenarios' "
                 "or `user_fuel_prices`."
             )
 
     # Replace AEO region name with model region in cases where users are modifying AEO price
-    model_aeo_region_map = reverse_dict_of_lists(
-        settings.get("aeo_fuel_region_map", {})
-    )
+    model_aeo_region_map = reverse_dict_of_lists(settings.get("fuel_region_map", {}))
     for region, adj in (settings.get("regional_fuel_adjustments", {}) or {}).items():
         aeo_region = model_aeo_region_map.get(region)
         if not aeo_region:
             raise KeyError(
                 f"There is no mapping of the model region {region} to an AEO fuel region "
-                "in the settings parameter 'aeo_fuel_region_map'."
+                "in the settings parameter 'fuel_region_map'."
             )
         if isinstance(adj, list):
             # Replace the aeo region name with model region for all resources
@@ -2647,7 +2645,7 @@ def add_dg_resources(
         index=range(len(dg_profiles.columns)),
     )
 
-    for idx, (region, s) in enumerate(dg_profiles.iteritems()):
+    for idx, (region, s) in enumerate(dg_profiles.items()):
         cap = s.max()
         df.loc[idx, "profile"] = (s / cap).round(3).to_numpy()
         df.loc[idx, "capacity_mw"] = cap.round(0).astype(int)
@@ -3318,9 +3316,13 @@ class GeneratorClusters:
         self.resource_heat_rate_table = resource_heat_rate_table
         self.resource_cost_table = resource_cost_table
 
-        self.fuel_prices = fetch_fuel_prices(self.settings).pipe(
+        self.fuel_prices = fetch_fuel_prices(
+            data_location=data_location,
+            table_name=self.settings.get("fuel_price_table"),
+            settings=self.settings,
+        ).pipe(
             modify_fuel_prices,
-            self.settings.get("aeo_fuel_region_map"),
+            self.settings.get("fuel_region_map"),
             self.settings.get("regional_fuel_adjustments"),
         )
         # if resource_heat_rate_table:
