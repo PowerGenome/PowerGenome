@@ -57,6 +57,8 @@ INT_COLS = [
     "Line_Reinforcement_Cost_per_MW_yr",
     "Up_Time",
     "Down_Time",
+    "Lifetime",
+    "cap_recovery_years",
 ]
 
 COL_ROUND_VALUES = {
@@ -554,15 +556,15 @@ def add_misc_gen_values(
 
     for idx, row in misc_values.iterrows():
         row_cols = row[value_cols].dropna().index
-        gen_clusters.loc[
-            (gen_clusters["region"] == row[region_col])
-            & (
-                snake_case_col(gen_clusters[resource_col]).str.contains(
-                    row[resource_col], case=False
-                )
-            ),
-            row_cols,
-        ] = row[row_cols].values
+        mask = (gen_clusters["region"] == row[region_col]) & (
+            snake_case_col(gen_clusters[resource_col]).str.contains(
+                row[resource_col], case=False
+            )
+        )
+        gen_clusters.loc[mask, row_cols] = row[row_cols].values
+    
+    # Apply standardized integer column conversion after all values are assigned
+    gen_clusters = set_int_cols(gen_clusters)
     return gen_clusters
 
 
@@ -846,7 +848,8 @@ def set_int_cols(df: pd.DataFrame, cols: list = None) -> pd.DataFrame:
     cols = [c for c in cols if c in df.columns]
 
     for col in cols:
-        df[col] = df[col].fillna(0).astype(int)
+        # Use Int64 (nullable integer) to handle NaN values better
+        df[col] = df[col].fillna(0).astype('Int64', errors='ignore')
     return df
 
 

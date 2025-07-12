@@ -37,6 +37,7 @@ from powergenome.util import (
     reverse_dict_of_lists,
     snake_case_col,
 )
+from powergenome.GenX import set_int_cols
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
@@ -1319,16 +1320,9 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
 
         results = pd.concat(df_list, ignore_index=True, sort=False)
 
-        int_cols = [
-            "Fixed_OM_Cost_per_MWyr",
-            "Fixed_OM_Cost_per_MWhyr",
-            "Inv_Cost_per_MWyr",
-            "Inv_Cost_per_MWhyr",
-            # "cluster",
-        ]
-        int_cols = [c for c in int_cols if c in results.columns]
+        # Use standardized function to convert appropriate columns to integers
         results = results.fillna(0)
-        results[int_cols] = results[int_cols].astype(int)
+        results = set_int_cols(results)
         results["Var_OM_Cost_per_MWh"] = results["Var_OM_Cost_per_MWh"].astype(float)
 
     return results

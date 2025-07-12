@@ -3922,8 +3922,9 @@ class GeneratorClusters:
         ):
             dr_rows = self.create_demand_response_gen_rows()
             self.new_generators = pd.concat(
-                [self.new_generators.convert_dtypes(), dr_rows.convert_dtypes()], sort=False, ignore_index=True
+                [self.new_generators, dr_rows], sort=False, ignore_index=True
             )
+            
         self.new_generators = add_resource_tags(
             self.new_generators,
             model_tag_values=self.settings.get("model_tag_values", {}),
@@ -3933,9 +3934,7 @@ class GeneratorClusters:
         )
         if "cluster" not in self.new_generators.columns:
             self.new_generators["cluster"] = 1
-        self.new_generators["cluster"] = self.new_generators["cluster"].astype(
-            "Int64", errors="ignore"
-        )
+        self.new_generators = set_int_cols(self.new_generators, ['cluster', 'New_Build', 'Can_Retire'])
         self.new_generators["Resource"] = (
             self.new_generators["region"]
             + "_"
