@@ -49,8 +49,8 @@ def interp_dg(df: pd.DataFrame, year1: int, year2: int, target_year: int) -> pd.
     if year1 > year2:
         year1, year2 = year2, year1
 
-    s1 = df.loc[df["year"] == year1, :].set_index("time_index")["region_distpv_mwh"]
-    s2 = df.loc[df["year"] == year2, :].set_index("time_index")["region_distpv_mwh"]
+    s1 = df.loc[df["year"] == year1, :].sort_values(by='time_index').set_index("time_index")["region_distpv_mwh"]
+    s2 = df.loc[df["year"] == year2, :].sort_values(by='time_index').set_index("time_index")["region_distpv_mwh"]
 
     if year1 < target_year < year2:
         w1 = 1 / abs(target_year - year1)

@@ -114,6 +114,9 @@ def read_subsector_demand(
         item for sublist in base_sector_subsectors for item in sublist
     ]
     load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+    
+    # Ensure time series data is sorted by time_index
+    load_curves = load_curves.sort_values(by=['region', 'time_index'])
 
     return load_curves
 
@@ -185,6 +188,8 @@ def make_load_curves(
                     """
             params = keep_regions
             load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+            # Ensure time series data is sorted by time_index
+            load_curves = load_curves.sort_values(by=['region', 'time_index'])
             load_curves = add_load_growth(load_curves, settings)
     else:
         # With no sector or subsector columns, assume that table has total load in each hour
@@ -199,6 +204,8 @@ def make_load_curves(
                 """
             params = keep_regions
             load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+            # Ensure time series data is sorted by time_index
+            load_curves = load_curves.sort_values(by=['region', 'time_index'])
 
         else:
             s = f"""
@@ -208,6 +215,8 @@ def make_load_curves(
                 """
             params = keep_regions
             load_curves = pd.read_sql_query(sql=s, con=pg_engine, params=params)
+            # Ensure time series data is sorted by time_index
+            load_curves = load_curves.sort_values(by=['region', 'time_index'])
 
             # Increase demand to account for load growth
             load_curves = add_load_growth(load_curves, settings)

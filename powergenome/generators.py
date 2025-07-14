@@ -2851,7 +2851,7 @@ def load_demand_response_efs_profile(
         )
     dr_profile = elec_profiles.loc[
         elec_profiles["resource"] == resource, ["time_index", "region", "load_mw"]
-    ].pivot(index="time_index", columns="region")
+    ].sort_values(by="time_index").pivot(index="time_index", columns="region")
     dr_profile.columns = dr_profile.columns.droplevel()
     for model_region, base_regs in region_aggregations.items():
         base_regs = [r for r in base_regs if r != model_region]

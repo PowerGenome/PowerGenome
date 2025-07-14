@@ -52,7 +52,7 @@ def max_rep_periods(
     for Period_Index in time_series_mapping["Period_Index"]:
         dayOfYear = days_in_group * Period_Index
         d = datetime.datetime.strptime("{} {}".format(dayOfYear, 2011), "%j %Y")
-        time_series_mapping["Month"][Period_Index - 1] = d.month
+        time_series_mapping.loc[time_series_mapping["Period_Index"] == Period_Index, "Month"] = d.month
     rep_point = [f"p{i}" for i in range(1, 1 + num_clusters)]
     rep_point_df = pd.DataFrame(data=rep_point, columns=["slot"])
 
@@ -291,7 +291,8 @@ def kmeans_time_clustering(
 
         # Creating a list that matches each week to a representative week
         for j in range(EachClusterWeight[k]):
-            time_series_mapping = time_series_mapping.append(
+            time_series_mapping = pd.concat([
+                time_series_mapping,
                 pd.DataFrame(
                     {
                         "Period_Index": int(
@@ -300,19 +301,20 @@ def kmeans_time_clustering(
                         "Rep_Period_Index": k + 1,
                     },
                     index=[0],
-                ),
+                )],
                 ignore_index=True,
             )
     if include_peak_day:
         # appending the week representing peak load
-        time_series_mapping = time_series_mapping.append(
+        time_series_mapping = pd.concat([
+            time_series_mapping,
             pd.DataFrame(
                 {
                     "Period_Index": int(GroupingwithPeakLoad[0][1:]),
                     "Rep_Period_Index": k + 2,
                 },
                 index=[0],
-            ),
+            )],
             ignore_index=True,
         )
 
@@ -325,7 +327,7 @@ def kmeans_time_clustering(
     for Period_Index in time_series_mapping["Period_Index"]:
         dayOfYear = days_in_group * Period_Index
         d = datetime.datetime.strptime("{} {}".format(dayOfYear, 2011), "%j %Y")
-        time_series_mapping["Month"][Period_Index - 1] = d.month
+        time_series_mapping.loc[time_series_mapping["Period_Index"] == Period_Index, "Month"] = d.month
 
     # Storing selected groupings in a new data frame with appropriate dimensions
     # (E.g. load in GW)
@@ -404,8 +406,10 @@ def kmeans_time_clustering(
         if (
             EachClusterWeight[j] > 1
         ):  # Need to duplicate entries only weight is greater than 1
-            FullLengthOutputs = FullLengthOutputs.append(
-                [df_try] * (EachClusterWeight[j] - 1), ignore_index=True
+            FullLengthOutputs = pd.concat([
+                FullLengthOutputs,
+                *([df_try] * (EachClusterWeight[j] - 1))],
+                ignore_index=True
             )
 
     #  Root mean square error between the duration curves of each time series

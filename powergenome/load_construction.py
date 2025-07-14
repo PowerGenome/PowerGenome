@@ -195,6 +195,7 @@ def create_subsector_ts(
     timeseries = (
         timeseries[["state", "time_index", "load_mw"]]
         .dropna()
+        .sort_values(by=["state", "time_index"])  # Ensure time series is sorted before time shifting
         .groupby("state")
         .apply(utc_offset_state_load, utc_offset)
     )
