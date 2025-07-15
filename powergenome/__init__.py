@@ -24,7 +24,10 @@ def get_settings(**kwargs):
         raise ValueError(
             "Settings not initialized. Call initialize_settings(path) first."
         )
-    s = _settings.copy()
+    if _settings is None:
+        s = {}
+    else:
+        s = _settings.copy()
     if kwargs:
         s.update(kwargs)
     return s
