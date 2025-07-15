@@ -562,7 +562,7 @@ def add_misc_gen_values(
             )
         )
         gen_clusters.loc[mask, row_cols] = row[row_cols].values
-    
+
     # Apply standardized integer column conversion after all values are assigned
     gen_clusters = set_int_cols(gen_clusters)
     return gen_clusters
@@ -849,7 +849,7 @@ def set_int_cols(df: pd.DataFrame, cols: list = None) -> pd.DataFrame:
 
     for col in cols:
         # Use Int64 (nullable integer) to handle NaN values better
-        df[col] = df[col].fillna(0).astype('Int64', errors='ignore')
+        df[col] = df[col].fillna(0).astype("Int64", errors="ignore")
     return df
 
 

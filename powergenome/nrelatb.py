@@ -2,13 +2,13 @@
 Functions to fetch and modify NREL ATB data from PUDL
 """
 
+import ast
 import collections
 import copy
 import logging
 import operator
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
-import ast
 
 import numpy as np
 import pandas as pd
@@ -21,6 +21,7 @@ from powergenome.cluster.renewables import (
     modify_renewable_group,
 )
 from powergenome.financials import investment_cost_calculator
+from powergenome.GenX import set_int_cols
 from powergenome.params import DATA_PATHS, SETTINGS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import (
@@ -37,7 +38,6 @@ from powergenome.util import (
     reverse_dict_of_lists,
     snake_case_col,
 )
-from powergenome.GenX import set_int_cols
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
@@ -1772,10 +1772,9 @@ def load_user_defined_techs(settings: dict) -> pd.DataFrame:
     if "profile" not in user_techs.columns:
         user_techs["profile"] = 0
     else:
-        user_techs['profile'] = user_techs['profile'].apply(
+        user_techs["profile"] = user_techs["profile"].apply(
             lambda x: np.array(ast.literal_eval(x)) if isinstance(x, str) else x
         )
-
 
     if "dollar_year" in user_techs.columns:
         for idx, row in user_techs.iterrows():
