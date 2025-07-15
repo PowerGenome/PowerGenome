@@ -21,9 +21,12 @@ logger = logging.getLogger(__name__)
 
 def agg_transmission_constraints(
     data_location: Path | str,
-    settings: dict,
+    model_regions: list[str],
+    tx_value_col: str | None = None,
+    user_transmission_constraints_fn: str | None = None,
+    input_folder: Path | str | None = None,
+    region_aggregations: dict | None = None,
     data_table: str = "reeds_ba_tx_NARIS_avg",
-    settings_agg_key: str = "region_aggregations",
 ) -> pd.DataFrame:
     """Aggregate transmission constraints/capacity between model regions
 
@@ -65,7 +68,7 @@ def agg_transmission_constraints(
     KeyError
         The user transmission table has duplicate lines in the same direction
     """
-    tx_value_col = settings.get("tx_value_col")
+
     if not tx_value_col:
         logger.warning(
             "No transmission value column (e.g. firm vs non-firm) was specified in the "
@@ -74,7 +77,7 @@ def agg_transmission_constraints(
             "capacity is lower or equal to non-firm capacity."
         )
         tx_value_col = "firm_ttc_mw"
-    zones = settings["model_regions"]
+    zones = model_regions
     zone_num_map = {
         zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
     }
@@ -105,11 +108,10 @@ def agg_transmission_constraints(
             "The transmission table has duplicate lines. This table should only have unique lines.\n",
             dup_lines,
         )
-    if settings.get("user_transmission_constraints_fn"):
+    if user_transmission_constraints_fn:
         logger.debug("Adding user-supplied transmission constraint data")
         user_tx_constraints = pd.read_csv(
-            Path(settings["input_folder"])
-            / settings["user_transmission_constraints_fn"]
+            Path(input_folder) / user_transmission_constraints_fn
         )
         if tx_value_col not in user_tx_constraints.columns:
             raise KeyError(
@@ -151,13 +153,13 @@ def agg_transmission_constraints(
 
     # Settings has a dictionary of lists for regional aggregations. Need
     # to reverse this to use in a map method.
-    region_agg_map = reverse_dict_of_lists(settings.get(settings_agg_key))
+    region_agg_map = reverse_dict_of_lists(region_aggregations)
 
     # IPM regions to keep. Regions not in this list will be dropped from the
     # dataframe
     keep_regions = [
         x
-        for x in settings["model_regions"] + list(region_agg_map)
+        for x in model_regions + list(region_agg_map)
         if x not in region_agg_map.values()
     ]
 

@@ -341,16 +341,28 @@ def main(**kwargs):
                     )
                     transmission = agg_transmission_constraints(
                         data_location=_settings["data_location"],
-                        settings=_settings,
-                        data_table=settings.get(
-                            "transmission_constraints_table",
+                        model_regions=_settings["model_regions"],
+                        tx_value_col=_settings.get("tx_value_col"),
+                        user_transmission_constraints_fn=_settings.get(
+                            "user_transmission_constraints_fn"
                         ),
+                        input_folder=_settings["input_folder"],
+                        region_aggregations=_settings.get("region_aggregations"),
+                        data_table=_settings.get("transmission_constraints_table"),
                     ).pipe(insert_user_tx_costs, user_costs=user_tx_costs)
                 else:
                     model_regions_gdf = gc.model_regions_gdf
                     transmission = (
                         agg_transmission_constraints(
-                            data_location=_settings["data_location"], settings=_settings
+                            data_location=_settings["data_location"],
+                            model_regions=_settings["model_regions"],
+                            tx_value_col=_settings.get("tx_value_col"),
+                            user_transmission_constraints_fn=_settings.get(
+                                "user_transmission_constraints_fn"
+                            ),
+                            input_folder=_settings["input_folder"],
+                            region_aggregations=_settings.get("region_aggregations"),
+                            data_table=_settings.get("transmission_constraints_table"),
                         )
                         .pipe(
                             transmission_line_distance,
