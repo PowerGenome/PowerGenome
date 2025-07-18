@@ -217,14 +217,6 @@ def main(**kwargs):
             "are either in IPM or region_aggregations in the settings YAML file."
         )
 
-    # Sort zones in the settings to make sure they are correctly sorted everywhere.
-    settings["model_regions"] = sorted(settings["model_regions"])
-    zones = settings["model_regions"]
-    logger.info(f"Sorted model regions are {', '.join(zones)}")
-    zone_num_map = {
-        zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))
-    }
-
     input_folder = Path(args.settings_file).parent / Path(settings["input_folder"]).name
     settings["input_folder"] = input_folder
 
@@ -284,7 +276,7 @@ def main(**kwargs):
                     include_retired_cap=first_year is False,
                 )
                 gen_data = gc.create_all_generators()
-                gen_data["Zone"] = gen_data["region"].map(zone_num_map)
+                gen_data["Zone"] = gen_data["region"].map(_settings["zone_num_map"])
                 case_year_data["gen_data"] = gen_data
 
                 gen_variability = make_generator_variability(gen_data)
@@ -304,7 +296,9 @@ def main(**kwargs):
 
             if args.load:
                 load = make_final_load_curves(pg_engine=pg_engine, settings=_settings)
-                load.columns = "Demand_MW_z" + load.columns.map(zone_num_map)
+                load.columns = "Demand_MW_z" + load.columns.map(
+                    _settings["zone_num_map"]
+                )
                 if not args.gens:
                     gen_variability = pd.DataFrame(index=load.index)
 

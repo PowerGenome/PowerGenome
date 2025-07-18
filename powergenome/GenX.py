@@ -218,9 +218,7 @@ def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
         year_case_policy = year_case_policy.squeeze()  # convert to series
 
     zones = settings["model_regions"]
-    zone_num_map = {
-        zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
-    }
+    zone_num_map = settings["zone_num_map"]
 
     zone_cols = ["Region_description", "Network_zones"] + policy_cols
     zone_df = pd.DataFrame(columns=zone_cols, dtype=float)
@@ -277,9 +275,7 @@ def create_regional_cap_res(settings: dict) -> pd.DataFrame:
         return None
     else:
         zones = settings["model_regions"]
-        zone_num_map = {
-            zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
-        }
+        zone_num_map = settings["zone_num_map"]
         cap_res_cols = list(settings["regional_capacity_reserves"])
         cap_res_df = pd.DataFrame(index=zones, columns=["Network_zones"] + cap_res_cols)
         cap_res_df["Network_zones"] = cap_res_df.index.map(zone_num_map)
@@ -422,9 +418,7 @@ def add_emission_policies(transmission_df, settings):
         year_case_policy = year_case_policy.squeeze()  # convert to series
 
     zones = settings["model_regions"]
-    zone_num_map = {
-        zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
-    }
+    zone_num_map = settings["zone_num_map"]
 
     zone_cols = ["Region description", "Network_zones"] + list(policies.columns)
     zone_df = pd.DataFrame(columns=zone_cols)

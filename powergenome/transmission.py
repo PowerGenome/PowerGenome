@@ -71,7 +71,7 @@ def agg_transmission_constraints(
         )
         tx_value_col = "firm_ttc_mw"
     zones = settings["model_regions"]
-    zone_num_map = {zone: number for number, zone in enumerate(zones, start=1)}
+    zone_num_map = settings["zone_num_map"]
 
     combos = list(itertools.combinations(zones, 2))
     reverse_combos = [(combo[-1], combo[0]) for combo in combos]

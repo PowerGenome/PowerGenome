@@ -85,6 +85,14 @@ def load_settings(path: Union[str, Path]) -> dict:
         if settings.get(key):
             settings[key] = Path(settings[key])
 
+    settings["model_regions"] = sorted(settings["model_regions"])
+    zones = settings["model_regions"]
+    logger.info(f"Sorted model regions are {', '.join(zones)}")
+    zone_num_map = {
+        zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))
+    }
+    settings["zone_num_map"] = zone_num_map
+
     return fix_param_names(settings)
 
 
