@@ -11,7 +11,8 @@ import numpy as np
 import pandas as pd
 
 from powergenome.params import SETTINGS
-from powergenome.util import load_settings, map_agg_region_names, regions_to_keep
+from powergenome.util import map_agg_region_names, regions_to_keep
+from powergenome.settings import Settings
 
 
 def parse_command_line(argv):
@@ -88,7 +89,7 @@ def main():
     resource_position = find_resource_idx(meta_files[0].stem)
 
     if args.settings_file:
-        settings = load_settings(args.settings_file)
+        settings = Settings(config_path=args.settings_file)
         keep_regions, region_agg_map = regions_to_keep(
             settings["model_regions"], settings.get("region_aggregations")
         )

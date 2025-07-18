@@ -28,12 +28,13 @@ from powergenome.resource_clusters import (
 )
 from powergenome.util import (
     add_row_to_csv,
-    apply_all_tag_to_regions,
     hash_string_sha256,
     load_data,
     reverse_dict_of_lists,
     snake_case_col,
 )
+from powergenome.settings import apply_all_tag_to_regions
+
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)

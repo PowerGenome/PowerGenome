@@ -18,9 +18,8 @@ from powergenome.fuels import (
 )
 from powergenome.generators import GeneratorClusters
 from powergenome.params import DATA_PATHS
-from powergenome.util import load_settings
+from powergenome.settings import Settings
 
-# from powergenome.util import init_pudl_connection
 
 logger = logging.getLogger(powergenome.__name__)
 logger.setLevel(logging.INFO)
@@ -49,7 +48,7 @@ else:
 
 @pytest.fixture()
 def fuel_settings():
-    settings = load_settings("tests/test_system/settings")
+    settings = Settings(config_path="tests/test_system/settings")
     settings["RESOURCE_GROUPS"] = "tests/test_system/test_data/resource_groups"
     settings["data_location"] = "tests/test_system/test_data"
     settings_modifications = {
