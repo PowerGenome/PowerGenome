@@ -186,19 +186,34 @@ def agg_transmission_constraints(
     ].reset_index()
     df["Start_Zone"] = df["model_region_from"].map(zone_num_map)
     df["End_Zone"] = df["model_region_to"].map(zone_num_map)
-    df["Network_Lines"] = range(1, len(df) + 1)
-    df = pd.concat([df, pd.Series(zones, name="Network_zones")], axis=1)
+    network_lines = pd.Series(range(1, len(df) + 1), name="Network_Lines")
+    network_zones = pd.Series(zones, name="Network_zones")
+    df = pd.concat([df, network_lines, network_zones], axis=1)
     df["Line_Max_Flow_MW"] = df[tx_value_col]
     df["transmission_path_name"] = (
         df["model_region_from"] + "_to_" + df["model_region_to"]
+    )
+
+    # Collect all the dtype conversions and apply them here
+    df = df.astype(
+        {
+            "Network_zones": "string",
+            "Network_Lines": "Int64",
+            "Start_Zone": "Int64",
+            "End_Zone": "Int64",
+            "Line_Max_Flow_MW": "Float64",
+            "model_region_from": "string",
+            "model_region_to": "string",
+            "transmission_path_name": "string",
+        }
     )
 
     return df[
         [
             "Network_zones",
             "Network_Lines",
-            "StartZone",
-            "EndZone",
+            "Start_Zone",
+            "End_Zone",
             "Line_Max_Flow_MW",
             "model_region_from",
             "model_region_to",
