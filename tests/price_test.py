@@ -13,12 +13,12 @@ from powergenome.financials import (  # load_cpi_data,
     load_dollar_year_data,
 )
 from powergenome.params import SETTINGS
-from powergenome.util import load_settings
+from powergenome.settings import Settings
 
 
 @pytest.fixture
 def settings():
-    settings = load_settings("tests/test_system/settings")
+    settings = Settings(config_path="tests/test_system/settings")
     settings["data_location"] = "tests/test_system/test_data"
     initialize_data_manager(settings, settings["data_location"])
 
