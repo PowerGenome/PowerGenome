@@ -187,7 +187,9 @@ def agg_transmission_constraints(
     df["Start_Zone"] = df["model_region_from"].map(zone_num_map)
     df["End_Zone"] = df["model_region_to"].map(zone_num_map)
     network_lines = pd.Series(range(1, len(df) + 1), name="Network_Lines")
-    network_zones = pd.Series(zones, name="Network_zones")
+    network_zones = pd.Series(
+        [f"z{zone_num_map[zone]}" for zone in zones], name="Network_zones"
+    )
     df = pd.concat([df, network_lines, network_zones], axis=1)
     df["Line_Max_Flow_MW"] = df[tx_value_col]
     df["transmission_path_name"] = (
