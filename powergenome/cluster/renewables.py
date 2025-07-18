@@ -22,11 +22,14 @@ logger = logging.getLogger(__name__)
 
 def load_site_profiles(path: Path, site_ids: List[str]) -> pd.DataFrame:
     suffix = path.suffix
-    site_ids = [s.replace(".0", "") for s in site_ids]
+    for i, s in enumerate(site_ids):
+        if isinstance(s, str) and s.endswith(".0"):
+            site_ids[i] = s.replace(".0", "")
     if suffix == ".parquet":
         df = pq.read_table(path, columns=site_ids).to_pandas()
     elif suffix == ".csv":
-        df = pd.read_csv(path, usecols=site_ids)
+        _site_ids = [str(s) for s in site_ids]
+        df = pd.read_csv(path, usecols=_site_ids)
     return df
 
 
@@ -500,7 +503,7 @@ def assign_site_cluster(
         if missing_site_ids:
             print(f"missing site IDs {missing_site_ids}")
             data = data.loc[~data["cpa_id"].isin(missing_site_ids), :]
-        site_ids = data["cpa_id"].map(site_map).to_list()
+        site_ids = data["cpa_id"].map(site_map).astype(str).to_list()
     else:
         site_ids = [str(int(i)) for i in data["cpa_id"]]
     if profile_path is not None:

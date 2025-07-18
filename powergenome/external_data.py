@@ -136,10 +136,14 @@ def add_resource_max_cap_spur(
     # Let users omit the "region" column or set a value of "all"
     if "region" not in df.columns:
         df["region"] = "all"
-    for region in settings["model_regions"]:
-        _df = df.loc[df["region"].str.lower() == "all", :]
-        _df.loc[:, "region"] = region
-        df = df.append(_df)
+
+    if "all" in df["region"].str.lower().to_list():
+        df_list = [df]
+        for region in settings["model_regions"]:
+            _df = df.loc[df["region"].str.lower() == "all", :]
+            _df.loc[:, "region"] = region
+            df_list.append(_df)
+        df = pd.concat(df_list, ignore_index=True)
 
     df = df.loc[df["region"].str.lower() != "all", :]
 
@@ -175,7 +179,11 @@ def add_resource_max_cap_spur(
         f"{settings['target_usd_year']}"
     )
     new_resource_df["interconnect_annuity"] = inflation_price_adjustment(
-        new_resource_df["interconnect_annuity"], 2017, settings["target_usd_year"]
+        new_resource_df["interconnect_annuity"],
+        2017,
+        settings["target_usd_year"],
+        data_location=settings["data_location"],
+        table_name=settings["dollar_year_table"],
     )
     return new_resource_df
 
@@ -499,7 +507,10 @@ def make_usr_demand_profiles(path, settings):
 
 
 def load_user_tx_costs(
-    path: Path, model_regions: List[str], target_usd_year: int = None
+    path: Path,
+    model_regions: List[str],
+    target_usd_year: int = None,
+    settings: dict = None,
 ) -> pd.DataFrame:
     """Load a user data file with cost and line loss of each interregional transmission
     line. Map the region names to zones (z1 to zM) and adjust the total cost columns
@@ -539,12 +550,20 @@ def load_user_tx_costs(
         adjusted_costs = []
         for row in df.itertuples():
             adj_annuity = inflation_price_adjustment(
-                row.total_interconnect_annuity_mw, row.dollar_year, target_usd_year
+                row.total_interconnect_annuity_mw,
+                row.dollar_year,
+                target_usd_year,
+                data_location=settings["data_location"],
+                table_name=settings["dollar_year_table"],
             ).round(0)
             adjusted_annuities.append(adj_annuity)
 
             adj_cost = inflation_price_adjustment(
-                row.total_interconnect_cost_mw, row.dollar_year, target_usd_year
+                row.total_interconnect_cost_mw,
+                row.dollar_year,
+                target_usd_year,
+                data_location=settings["data_location"],
+                table_name=settings["dollar_year_table"],
             ).round(0)
             adjusted_costs.append(adj_cost)
         df["total_interconnect_annuity_mw"] = adjusted_annuities

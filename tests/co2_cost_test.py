@@ -41,6 +41,10 @@ def test_merge_co2_costs():
         region_aggregations,
         fuel_emission_factors,
         target_usd_year=2020,
+        settings={
+            "data_location": "tests/test_system/test_data",
+            "dollar_year_table": "cpi_test_data.csv",
+        },
     )
     assert len(merge_df) == 3
     assert merge_df.loc[1:, :].notna().all().all()
@@ -62,6 +66,10 @@ def test_merge_co2_costs():
         region_aggregations,
         fuel_emission_factors,
         target_usd_year=2020,
+        settings={
+            "data_location": "tests/test_system/test_data",
+            "dollar_year_table": "cpi_test_data.csv",
+        },
     )
     assert len(merge_df) == 2
 

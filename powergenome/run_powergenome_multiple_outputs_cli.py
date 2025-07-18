@@ -15,16 +15,11 @@ from powergenome.external_data import (
 )
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters
-from powergenome.GenX import (
+from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; check_resource_tags,; fix_min_power_values,; hydro_energy_to_power,; set_must_run_generation,
     add_cap_res_network,
-    add_co2_costs_to_o_m,
-    add_misc_gen_values,
-    check_resource_tags,
     check_vre_profiles,
     create_policy_req,
     create_regional_cap_res,
-    fix_min_power_values,
-    hydro_energy_to_power,
     max_cap_req,
     min_cap_req,
     network_line_loss,
@@ -35,21 +30,15 @@ from powergenome.GenX import (
     reduce_time_domain,
     round_col_values,
     set_int_cols,
-    set_must_run_generation,
 )
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
 )
-from powergenome.util import (
+from powergenome.util import (  # init_pudl_connection,; check_settings,; load_ipm_shapefile,; remove_fuel_gen_scenario_name,; remove_fuel_scenario_name,
     build_scenario_settings,
-    check_settings,
-    init_pudl_connection,
-    load_ipm_shapefile,
     load_settings,
-    remove_fuel_gen_scenario_name,
-    remove_fuel_scenario_name,
     write_case_settings_file,
     write_results_file,
 )
@@ -190,32 +179,32 @@ def main(**kwargs):
 
     logger.debug("Initiating PUDL connections")
 
-    pudl_engine, pudl_out, pg_engine = init_pudl_connection(
-        freq="AS",
-        start_year=min(settings.get("eia_data_years")),
-        end_year=max(settings.get("eia_data_years")),
-        pudl_db=settings.get("PUDL_DB"),
-        pg_db=settings.get("PG_DB"),
-    )
+    # pudl_engine, pudl_out, pg_engine = init_pudl_connection(
+    #     freq="AS",
+    #     start_year=min(settings.get("eia_data_years")),
+    #     end_year=max(settings.get("eia_data_years")),
+    #     pudl_db=settings.get("PUDL_DB"),
+    #     pg_db=settings.get("PG_DB"),
+    # )
 
-    check_settings(settings, pg_engine)
+    # check_settings(settings, pg_engine)
 
     # Make sure everything in model_regions is either an aggregate region
     # or an IPM region. Will need to change this once we start using non-IPM
     # regions.
-    ipm_regions = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
-        "region_id_epaipm"
-    ]
-    all_valid_regions = ipm_regions.tolist() + list(
-        settings.get("region_aggregations", {}) or {}
-    )
-    good_regions = [region in all_valid_regions for region in settings["model_regions"]]
+    # ipm_regions = pd.read_sql_table("regions_entity_epaipm", pg_engine)[
+    #     "region_id_epaipm"
+    # ]
+    # all_valid_regions = ipm_regions.tolist() + list(
+    #     settings.get("region_aggregations", {}) or {}
+    # )
+    # good_regions = [region in all_valid_regions for region in settings["model_regions"]]
 
-    if not all(good_regions):
-        logger.warning(
-            "One or more model regions is not valid. Check to make sure all regions "
-            "are either in IPM or region_aggregations in the settings YAML file."
-        )
+    # if not all(good_regions):
+    #     logger.warning(
+    #         "One or more model regions is not valid. Check to make sure all regions "
+    #         "are either in IPM or region_aggregations in the settings YAML file."
+    #     )
 
     input_folder = Path(args.settings_file).parent / Path(settings["input_folder"]).name
     settings["input_folder"] = input_folder
@@ -266,10 +255,13 @@ def main(**kwargs):
             case_year_data = {}
             if args.gens:
                 gc = GeneratorClusters(
-                    pudl_engine=pudl_engine,
-                    pudl_out=pudl_out,
-                    pg_engine=pg_engine,
+                    # pudl_engine=pudl_engine,
+                    # pudl_out=pudl_out,
+                    data_location=_settings["data_location"],
+                    generation_table=_settings["generation_table"],
                     settings=_settings,
+                    resource_heat_rate_table=_settings["resource_heat_rate_table"],
+                    resource_cost_table=_settings["resource_cost_table"],
                     current_gens=args.current_gens,
                     sort_gens=args.sort_gens,
                     multi_period=args.multi_period,
@@ -295,10 +287,10 @@ def main(**kwargs):
                 case_year_data["fuels"] = fuels
 
             if args.load:
-                load = make_final_load_curves(pg_engine=pg_engine, settings=_settings)
-                load.columns = "Demand_MW_z" + load.columns.map(
-                    _settings["zone_num_map"]
+                load = make_final_load_curves(
+                    data_location=_settings["data_location"], settings=_settings
                 )
+                load.columns = "Demand_MW_z" + load.columns.map(zone_num_map)
                 if not args.gens:
                     gen_variability = pd.DataFrame(index=load.index)
 
@@ -326,9 +318,9 @@ def main(**kwargs):
                 gen_variability = reduced_resource_profile.reset_index(drop=False)
                 case_year_data["gen_variability"] = gen_variability
 
-            if args.transmission:
-                if args.gens is False:
-                    model_regions_gdf = load_ipm_shapefile(_settings)
+            # if args.transmission:
+            #     if args.gens is False:
+            #         model_regions_gdf = load_ipm_shapefile(_settings)
 
             if args.transmission:
                 if _settings.get("user_transmission_costs"):
@@ -337,15 +329,20 @@ def main(**kwargs):
                         / _settings["user_transmission_costs"],
                         _settings["model_regions"],
                         _settings.get("target_usd_year"),
+                        _settings,
                     )
                     transmission = agg_transmission_constraints(
-                        pg_engine=pg_engine, settings=_settings
+                        data_location=_settings["data_location"],
+                        settings=_settings,
+                        data_table=settings.get(
+                            "transmission_constraints_table",
+                        ),
                     ).pipe(insert_user_tx_costs, user_costs=user_tx_costs)
                 else:
                     model_regions_gdf = gc.model_regions_gdf
                     transmission = (
                         agg_transmission_constraints(
-                            pg_engine=pg_engine, settings=_settings
+                            data_location=_settings["data_location"], settings=_settings
                         )
                         .pipe(
                             transmission_line_distance,

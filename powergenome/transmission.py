@@ -8,17 +8,21 @@ from math import asin, cos, radians, sin, sqrt
 from pathlib import Path
 
 import pandas as pd
-import sqlalchemy as sa
 
-from powergenome.util import find_centroid, map_agg_region_names, reverse_dict_of_lists
+from powergenome.util import (
+    find_centroid,
+    load_data,
+    map_agg_region_names,
+    reverse_dict_of_lists,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def agg_transmission_constraints(
-    pg_engine: sa.engine.base.Engine,
+    data_location: Path | str,
     settings: dict,
-    pg_table: str = "transmission_single_epaipm",
+    data_table: str = "reeds_ba_tx_NARIS_avg",
     settings_agg_key: str = "region_aggregations",
 ) -> pd.DataFrame:
     """Aggregate transmission constraints/capacity between model regions
@@ -77,11 +81,13 @@ def agg_transmission_constraints(
     reverse_combos = [(combo[-1], combo[0]) for combo in combos]
 
     logger.debug("Loading transmission constraints from the database")
-    transmission_constraints_table = pd.read_sql_table(pg_table, con=pg_engine)
+    transmission_constraints_table = load_data(
+        data_location, data_table
+    )  # pd.read_sql_table(data_table, con=data_location)
 
     if tx_value_col not in transmission_constraints_table.columns:
         raise KeyError(
-            f"There is no column {tx_value_col} in the transmission capacity table '{pg_table}'"
+            f"There is no column {tx_value_col} in the transmission capacity table '{data_table}'"
         )
     if transmission_constraints_table.duplicated(
         subset=["region_from", "region_to"]
