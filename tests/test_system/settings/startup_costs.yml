@@ -9,6 +9,8 @@ startup_fuel_use:
   Natural Gas Fired Combined Cycle: 2.0
   Natural Gas Fired Combustion Turbine: 3.5
   Natural Gas Steam Turbine: 13.7
+  NaturalGas_1-on-1: 2.0
+  NaturalGas_Combustion: 3.5
 
 # Digitally extracted VOM startup costs for each generator type from the NREL Western
 # wind/solar integration study
@@ -55,3 +57,5 @@ new_build_startup_costs:
   NaturalGas_CC: gas_cc
   NaturalGas_CCS100: gas_cc
   Nuclear_Nuclear: nuclear
+  NaturalGas_1-on-1: gas_cc
+  NaturalGas_Combustion: gas_large_ct
