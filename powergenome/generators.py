@@ -199,7 +199,7 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         and NRELATB technology names.
     settings : dictionary
         User-defined settings loaded from a YAML file. Keys in "startup_fuel_use"
-        must match those in "eia_atb_tech_map".
+        should match technology names directly.
 
     Returns
     -------
@@ -207,20 +207,12 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         Modified dataframe with the new column "Start_Fuel_MMBTU_per_MW".
     """
     df["Start_Fuel_MMBTU_per_MW"] = 0
-    for eia_tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
-        if not isinstance(settings.get("eia_atb_tech_map", {}).get(eia_tech), list):
-            settings["eia_atb_tech_map"][eia_tech] = [
-                settings["eia_atb_tech_map"][eia_tech]
-            ]
-
-        atb_tech = settings["eia_atb_tech_map"][eia_tech]
-        atb_tech.append(eia_tech)
-        for tech in atb_tech:
-            df.loc[df["technology"] == tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
-            df.loc[
-                df["technology"].str.contains(tech, case=False, regex=False),
-                "Start_Fuel_MMBTU_per_MW",
-            ] = fuel_use
+    for tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
+        df.loc[df["technology"] == tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
+        df.loc[
+            df["technology"].str.contains(tech, case=False, regex=False),
+            "Start_Fuel_MMBTU_per_MW",
+        ] = fuel_use
 
     return df
 
@@ -292,6 +284,13 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     for new_tech, cost_tech in settings.get("new_build_startup_costs", {}).items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[df["technology"].str.contains(new_tech), "Start_Cost_per_MW"] = (
+            total_startup_costs
+        )
+    df.loc[:, "Start_Cost_per_MW"] = df.loc[:, "Start_Cost_per_MW"]
+
+    for tech, cost_tech in settings.get("startup_costs", {}).items():
+        total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
+        df.loc[df["technology"].str.contains(tech), "Start_Cost_per_MW"] = (
             total_startup_costs
         )
     df.loc[:, "Start_Cost_per_MW"] = df.loc[:, "Start_Cost_per_MW"]
@@ -2279,27 +2278,8 @@ def add_fuel_labels(df, fuel_prices, settings):
     """
 
     df["Fuel"] = np.nan
-    # This variable is called eia_tech but it can be any tech name or a mapping from
-    # EIA technologies through to other techs via "eia_atb_tech_map"
-    for eia_tech, fuel in (settings.get("tech_fuel_map") or {}).items():
-        try:
-            if eia_tech == "Natural Gas Steam Turbine":
-                # No ATB natural gas steam turbine and I match it with coal for O&M
-                # which would screw this up and list natural gas as a fuel for ATB
-                # coal plants
-                atb_tech = None
-            else:
-                if not isinstance(settings["eia_atb_tech_map"][eia_tech], list):
-                    settings["eia_atb_tech_map"][eia_tech] = [
-                        settings["eia_atb_tech_map"][eia_tech]
-                    ]
-                atb_tech = [
-                    tech.split("_")[0] + "_"
-                    for tech in settings["eia_atb_tech_map"][eia_tech]
-                ]
-        except KeyError:
-            # No corresponding ATB technology
-            atb_tech = None
+    # Direct technology to fuel mapping - no intermediate mapping needed
+    for tech, fuel in (settings.get("tech_fuel_map") or {}).items():
         scenario = settings.get("fuel_scenarios", {}).get(fuel)
         model_year = settings["model_year"]
         if not scenario:
@@ -2313,44 +2293,16 @@ def add_fuel_labels(df, fuel_prices, settings):
                 for region, price in settings["user_fuel_price"][fuel].items():
                     fuel_name = f"{region}_{fuel}"
                     df.loc[
-                        (
-                            df["technology"].str.rstrip("_").str.lower()
-                            == eia_tech.lower()
-                        )
+                        (df["technology"].str.contains(tech, case=False, regex=False))
                         & (df["region"] == region),
                         "Fuel",
                     ] = fuel_name
-
-                    if atb_tech is not None:
-                        for tech in atb_tech:
-                            df.loc[
-                                (
-                                    df["technology"].str.contains(
-                                        tech, case=False, regex=False
-                                    )
-                                )
-                                & (df["region"] == region)
-                                & (df["Fuel"].isna()),
-                                "Fuel",
-                            ] = fuel_name
             else:
                 df.loc[
-                    (df["technology"].str.rstrip("_").str.lower() == eia_tech.lower())
+                    df["technology"].str.contains(tech, case=False, regex=False)
                     & (df["Fuel"].isna()),
                     "Fuel",
                 ] = fuel
-
-                if atb_tech is not None:
-                    for tech in atb_tech:
-                        df.loc[
-                            (
-                                df["technology"].str.contains(
-                                    tech, case=False, regex=False
-                                )
-                            )
-                            & (df["Fuel"].isna()),
-                            "Fuel",
-                        ] = fuel
         else:
             for aeo_region, model_regions in settings["fuel_region_map"].items():
                 fuel_name = ("_").join([aeo_region, scenario, fuel])
@@ -2362,23 +2314,10 @@ def add_fuel_labels(df, fuel_prices, settings):
                 ), f"{fuel_name} doesn't show up in {model_year}"
 
                 df.loc[
-                    (df["technology"].str.contains(eia_tech, case=False, regex=False))
+                    (df["technology"].str.contains(tech, case=False, regex=False))
                     & df["region"].isin(model_regions),
                     "Fuel",
                 ] = fuel_name
-
-                if atb_tech is not None:
-                    for tech in atb_tech:
-                        df.loc[
-                            (
-                                df["technology"].str.contains(
-                                    tech, case=False, regex=False
-                                )
-                            )
-                            & (df["region"].isin(model_regions))
-                            & (df["Fuel"].isna()),
-                            "Fuel",
-                        ] = fuel_name
 
     for ccs_tech, ccs_fuel in (settings.get("ccs_fuel_map") or {}).items():
         ccs_base_name = ("_").join(ccs_fuel.split("_")[:-1])

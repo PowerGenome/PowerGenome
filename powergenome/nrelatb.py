@@ -910,6 +910,34 @@ def regional_capex_multiplier(
     tech_map: Dict[str, str],
     regional_multipliers: pd.DataFrame,
 ) -> pd.DataFrame:
+    """
+    Adjusts investment costs in the input DataFrame by applying regional capital expenditure
+    (capex) multipliers based on technology and region.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing technology and investment cost columns.
+    region : str
+        Name of the region for which to apply cost multipliers.
+    region_map : Dict[str, str]
+        Mapping from region names to cost region identifiers.
+    tech_map : Dict[str, str]
+        Mapping from new technology names to reference technology names used for multipliers.
+    regional_multipliers : pd.DataFrame
+        DataFrame of regional cost multipliers indexed by cost region and technology.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with updated investment cost columns and a new column for the applied regional cost multiplier.
+
+    Notes
+    -----
+    - If a technology name matches more than one entry in the DataFrame, only the first match receives a valid multiplier.
+    - Technologies without a specific multiplier receive the average multiplier for the region.
+    - Issues with ambiguous technology mapping are logged as warnings.
+    """
     df = df.copy()
     cost_region = region_map[region]
     tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
@@ -918,23 +946,23 @@ def regional_capex_multiplier(
     tech_multiplier = tech_multiplier.fillna(avg_multiplier)
 
     tech_multiplier_map = {}
-    for atb_tech, eia_tech in tech_map.items():
-        if df["technology"].str.contains(atb_tech, case=False, regex=False).sum() > 0:
-            full_atb_tech = df.loc[
+    for new_tech, reference_tech in tech_map.items():
+        if df["technology"].str.contains(new_tech, case=False, regex=False).sum() > 0:
+            full_new_tech = df.loc[
                 df["technology"]
-                .str.contains(atb_tech, case=False, regex=False)
+                .str.contains(new_tech, case=False, regex=False)
                 .idxmax(),
                 "technology",
             ]
-            tech_multiplier_map[full_atb_tech] = tech_multiplier.at[eia_tech]
-        if df["technology"].str.contains(atb_tech).sum() > 1:
+            tech_multiplier_map[full_new_tech] = tech_multiplier.at[reference_tech]
+        if df["technology"].str.contains(new_tech).sum() > 1:
             s = f"""
     ***************************
     There is an issue with assigning regional cost multipliers. In your settings file
-    under the parameter 'cost_multiplier_technology_map`, the EIA technology '{eia_tech}'
-    has an ATB technology '{atb_tech}'. This ATB name matches more than one new ATB tech
-    listed in the settings parameter 'atb_new_gen'. Only the first matching tech in
-    'atb_new_gen' will get a valid regional cost multiplier; the rest will have values of
+    under the parameter 'cost_multiplier_technology_map`, the technology '{reference_tech}'
+    has a matching reference technology '{new_tech}'. This name matches more than one new
+    resource listed in the settings parameter 'new_resources'. Only the first matching tech in
+    'new_resources' will get a valid regional cost multiplier; the rest will have values of
     0, which will lead to annual investment costs of $0.
         """
             logger.warning(s)
