@@ -182,8 +182,6 @@ def agg_transmission_constraints(
     KeyError
         The database transmission table has duplicate lines in the same direction
     """
-    # Determine transmission value column
-    # tx_value_col = settings.get("tx_value_col")
     if not tx_value_col:
         logger.warning(
             "No transmission value column (e.g. firm vs non-firm) was specified in the "
