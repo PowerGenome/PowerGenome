@@ -8,11 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 import powergenome
-from powergenome.external_data import (
-    insert_user_tx_costs,
-    load_user_tx_costs,
-    make_generator_variability,
-)
+from powergenome.external_data import make_generator_variability
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters
 from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; check_resource_tags,; fix_min_power_values,; hydro_energy_to_power,; set_must_run_generation,
@@ -34,7 +30,8 @@ from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; c
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.transmission import (
     agg_transmission_constraints,
-    transmission_line_distance,
+    insert_tx_costs,
+    load_tx_costs,
 )
 from powergenome.util import (  # init_pudl_connection,; check_settings,; load_ipm_shapefile,; remove_fuel_gen_scenario_name,; remove_fuel_scenario_name,
     build_scenario_settings,
@@ -290,7 +287,9 @@ def main(**kwargs):
                 load = make_final_load_curves(
                     data_location=_settings["data_location"], settings=_settings
                 )
-                load.columns = "Demand_MW_z" + load.columns.map(zone_num_map)
+                load.columns = "Demand_MW_z" + load.columns.map(
+                    _settings["zone_num_map"]
+                )
                 if not args.gens:
                     gen_variability = pd.DataFrame(index=load.index)
 
@@ -323,36 +322,23 @@ def main(**kwargs):
             #         model_regions_gdf = load_ipm_shapefile(_settings)
 
             if args.transmission:
-                if _settings.get("user_transmission_costs"):
-                    user_tx_costs = load_user_tx_costs(
-                        _settings["input_folder"]
-                        / _settings["user_transmission_costs"],
-                        _settings["model_regions"],
-                        _settings.get("target_usd_year"),
-                        _settings,
-                    )
-                    transmission = agg_transmission_constraints(
-                        data_location=_settings["data_location"],
-                        settings=_settings,
-                        data_table=settings.get(
-                            "transmission_constraints_table",
-                        ),
-                    ).pipe(insert_user_tx_costs, user_costs=user_tx_costs)
-                else:
-                    model_regions_gdf = gc.model_regions_gdf
-                    transmission = (
-                        agg_transmission_constraints(
-                            data_location=_settings["data_location"], settings=_settings
-                        )
-                        .pipe(
-                            transmission_line_distance,
-                            ipm_shapefile=model_regions_gdf,
-                            settings=_settings,
-                            units="mile",
-                        )
-                        .pipe(network_line_loss, settings=_settings)
-                        .pipe(network_reinforcement_cost, settings=_settings)
-                    )
+                tx_costs = load_tx_costs(
+                    data_location=_settings["data_location"],
+                    table_name=_settings["transmission_cost_table"],
+                    target_usd_year=_settings.get("target_usd_year"),
+                    zone_num_map=_settings["zone_num_map"],
+                    dollar_year_table=_settings.get("dollar_year_table"),
+                )
+
+                transmission = agg_transmission_constraints(
+                    data_location=_settings["data_location"],
+                    data_table=_settings.get("transmission_constraints_table"),
+                    model_regions=_settings["model_regions"],
+                    regional_aggregations=_settings["region_aggregations"],
+                    zone_num_map=_settings["zone_num_map"],
+                    tx_value_col=_settings.get("tx_value_col", "firm_ttc_mw"),
+                ).pipe(insert_tx_costs, tx_costs=tx_costs)
+
                 network = (
                     transmission.pipe(network_max_reinforcement, settings=_settings)
                     .pipe(set_int_cols)
