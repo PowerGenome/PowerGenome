@@ -669,3 +669,85 @@ def test_case_period_increments_per_case():
     # First appearance: period 1; second: period 2
     assert result[2025]["C"]["case_period"] == 1
     assert result[2030]["C"]["case_period"] == 2
+
+
+def test_load_data_sorts_by_time_index(tmp_path):
+    """Test that load_data sorts by time_index column when it exists"""
+    # Create test data with time_index column out of order
+    df_original = pd.DataFrame({
+        'time_index': [3, 1, 4, 2],
+        'value': ['C', 'A', 'D', 'B'],
+        'measurement': [30, 10, 40, 20]
+    })
+    
+    # Save to CSV
+    csv_path = tmp_path / 'test_sorting.csv'
+    df_original.to_csv(csv_path, index=False)
+    
+    # Load using load_data
+    df_loaded = load_data(tmp_path, 'test_sorting.csv')
+    
+    # Verify the data is sorted by time_index
+    expected_time_index_order = [1, 2, 3, 4]
+    actual_time_index_order = df_loaded['time_index'].tolist()
+    assert actual_time_index_order == expected_time_index_order, f"Expected {expected_time_index_order}, got {actual_time_index_order}"
+    
+    # Verify corresponding values are also reordered
+    expected_values = ['A', 'B', 'C', 'D']
+    actual_values = df_loaded['value'].tolist()
+    assert actual_values == expected_values, f"Expected {expected_values}, got {actual_values}"
+
+
+def test_load_data_preserves_order_without_time_index(tmp_path):
+    """Test that load_data preserves original order when time_index column doesn't exist"""
+    # Create test data without time_index column
+    df_original = pd.DataFrame({
+        'id': [3, 1, 4, 2],
+        'value': ['C', 'A', 'D', 'B'],
+        'measurement': [30, 10, 40, 20]
+    })
+    
+    # Save to CSV
+    csv_path = tmp_path / 'test_no_sorting.csv'
+    df_original.to_csv(csv_path, index=False)
+    
+    # Load using load_data
+    df_loaded = load_data(tmp_path, 'test_no_sorting.csv')
+    
+    # Verify the order is preserved
+    expected_ids = [3, 1, 4, 2]
+    actual_ids = df_loaded['id'].tolist()
+    assert actual_ids == expected_ids, f"Expected {expected_ids}, got {actual_ids}"
+    
+    expected_values = ['C', 'A', 'D', 'B']
+    actual_values = df_loaded['value'].tolist()
+    assert actual_values == expected_values, f"Expected {expected_values}, got {actual_values}"
+
+
+def test_load_data_handles_time_index_duplicates(tmp_path):
+    """Test that load_data correctly sorts with duplicate time_index values"""
+    # Create test data with duplicate time_index values
+    df_original = pd.DataFrame({
+        'time_index': [3, 1, 3, 2, 1],
+        'value': ['C1', 'A1', 'C2', 'B', 'A2'],
+        'sequence': [1, 2, 3, 4, 5]
+    })
+    
+    # Save to CSV
+    csv_path = tmp_path / 'test_duplicates.csv'
+    df_original.to_csv(csv_path, index=False)
+    
+    # Load using load_data
+    df_loaded = load_data(tmp_path, 'test_duplicates.csv')
+    
+    # Verify the data is sorted by time_index
+    expected_time_index_order = [1, 1, 2, 3, 3]
+    actual_time_index_order = df_loaded['time_index'].tolist()
+    assert actual_time_index_order == expected_time_index_order, f"Expected {expected_time_index_order}, got {actual_time_index_order}"
+    
+    # Verify that values are properly sorted (stable sort maintains relative order)
+    # Values with time_index=1 should be ['A1', 'A2'], values with time_index=3 should be ['C1', 'C2']
+    time_1_values = df_loaded[df_loaded['time_index'] == 1]['value'].tolist()
+    time_3_values = df_loaded[df_loaded['time_index'] == 3]['value'].tolist()
+    assert len(time_1_values) == 2 and 'A1' in time_1_values and 'A2' in time_1_values
+    assert len(time_3_values) == 2 and 'C1' in time_3_values and 'C2' in time_3_values

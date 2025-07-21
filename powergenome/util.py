@@ -1575,6 +1575,9 @@ def load_data(
 ) -> pd.DataFrame:
     """
     Load data from a database or folder of tabular files using duckdb.
+    
+    If the loaded DataFrame contains a 'time_index' column, the data will be 
+    sorted by that column in ascending order.
 
     Parameters
     ----------
@@ -1588,7 +1591,8 @@ def load_data(
     Returns
     -------
     pd.DataFrame
-        A pandas DataFrame containing the loaded data.
+        A pandas DataFrame containing the loaded data. If a 'time_index' column
+        exists, the DataFrame will be sorted by that column.
 
     Raises
     ------
@@ -1611,7 +1615,7 @@ def load_data(
                 raise ValueError(
                     f"File '{file_or_table_name}' not found in folder '{data_location}'."
                 )
-            return load_data_file(file_path, query)
+            data = load_data_file(file_path, query)
         else:
             raise ValueError(
                 "file_or_table_name must be provided for loading data from a folder."
@@ -1621,4 +1625,10 @@ def load_data(
             raise ValueError(
                 "file_or_table_name should not have an extension when data_location is a database."
             )
-        return load_table_from_db(data_location, file_or_table_name, query)
+        data = load_table_from_db(data_location, file_or_table_name, query)
+    
+    # Sort by time_index column if it exists
+    if 'time_index' in data.columns:
+        data = data.sort_values('time_index')
+    
+    return data
