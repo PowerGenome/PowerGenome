@@ -74,6 +74,19 @@ EIA_TECHNOLOGY_MAP = {
     "onshorewindturbine": {"technology": "landbasedwind"},
     "offshorewindturbine": {"technology": "offshorewind"},
     "solarphotovoltaic": {"technology": "utilitypv"},
+    "hydnd": {"technology": "hydro", "type": "hydend"},
+    "hydd": {"technology": "hydro", "type": "hydd"},
+    "hyded": {"technology": "hydro", "type": "hyded"},
+    "hydnd": {"technology": "hydro", "type": "hydnd"},
+    "hydnpd": {"technology": "hydro", "type": "hydnpd"},
+    "hydnpnd": {"technology": "hydro", "type": "hydnpnd"},
+    "hydsd": {"technology": "hydro", "type": "hydsd"},
+    "hydsnd": {"technology": "hydro", "type": "hydsnd"},
+    "hydud": {"technology": "hydro", "type": "hydud"},
+    "hydund": {"technology": "hydro", "type": "hydund"},
+    "wind-ons": {"technology": "landbasedwind"},
+    "upv": {"technology": "utilitypv"},
+    "pvb": {"technology": "utilitypv"},
 }
 
 
