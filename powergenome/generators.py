@@ -36,7 +36,7 @@ from powergenome.GenX import (
 )
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
-    atb_new_generators,
+    build_new_resources,
     fetch_heat_rates,
     fetch_resource_costs,
 )
@@ -3626,7 +3626,7 @@ class GeneratorClusters:
             self.settings.get("resource_data_year"),
         )
 
-        self.new_generators = atb_new_generators(
+        self.new_generators = build_new_resources(
             self.resource_costs, self.resource_hr, self.settings, self.cluster_builder
         )
 
