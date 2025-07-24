@@ -912,7 +912,9 @@ def regional_capex_multiplier(
 ) -> pd.DataFrame:
     df = df.copy()
     cost_region = region_map[region]
-    tech_multiplier = regional_multipliers.loc[cost_region, :].squeeze()
+    tech_multiplier = regional_multipliers.loc[
+        regional_multipliers["region"] == cost_region, "reg_cap_cost_mult"
+    ]
     avg_multiplier = tech_multiplier.mean()
 
     tech_multiplier = tech_multiplier.fillna(avg_multiplier)
@@ -1203,28 +1205,30 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         # Set no capacity limit on new resources that aren't renewables.
         new_gen_df["Max_Cap_MW"] = -1
         new_gen_df["Max_Cap_MWh"] = -1
-        regional_cost_multipliers = pd.read_csv(
-            DATA_PATHS["cost_multipliers"]
-            / settings.get(
-                "cost_multiplier_fn", "AEO_2020_regional_cost_corrections.csv"
-            ),
-            index_col=0,
+
+        regional_cost_multipliers = load_data(
+            settings["data_location"],
+            settings.get("regional_cost_factor_table", "regional_cost_multipliers.csv"),
         )
-        if settings.get("user_regional_cost_multiplier_fn"):
-            user_cost_multipliers = pd.read_csv(
-                Path(settings["input_folder"])
-                / settings["user_regional_cost_multiplier_fn"],
-                index_col=0,
+
+        if settings.get("cost_multiplier_region_map"):
+            rev_mult_region_map = reverse_dict_of_lists(
+                settings["cost_multiplier_region_map"]
             )
-            regional_cost_multipliers = pd.concat(
-                [regional_cost_multipliers, user_cost_multipliers], axis=1
+        else:
+            rev_mult_region_map = {
+                region: region for region in settings["model_regions"]
+            }
+        if settings.get("cost_multiplier_technology_map"):
+            rev_mult_tech_map = reverse_dict_of_lists(
+                settings["cost_multiplier_technology_map"]
             )
-        rev_mult_region_map = reverse_dict_of_lists(
-            settings["cost_multiplier_region_map"]
-        )
-        rev_mult_tech_map = reverse_dict_of_lists(
-            settings["cost_multiplier_technology_map"]
-        )
+        else:
+            tech_list = (
+                new_gen_df[["technology", "tech_detail", "cost_case"]]
+                .astype(str)
+                .agg("_".join, axis=1)
+            )
 
         df_list = []
         settings = apply_all_tag_to_regions(settings)
