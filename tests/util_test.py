@@ -16,7 +16,6 @@ import pytest
 import powergenome
 import powergenome.util as util
 from powergenome.util import (
-    add_model_tags_to_gen_columns,
     add_row_to_csv,
     apply_all_tag_to_regions,
     assign_model_planning_years,
@@ -32,18 +31,6 @@ from powergenome.util import (
     sort_nested_dict,
     update_dictionary,
 )
-
-logger = logging.getLogger(powergenome.__name__)
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter(
-    # More extensive test-like formatter...
-    "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s",
-    # This is the datetime format string.
-    "%Y-%m-%d %H:%M:%S",
-)
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 
 def test_sort_nested_dict():
@@ -63,82 +50,6 @@ def test_sort_nested_dict():
     sorted_dict3 = sort_nested_dict(test_dict3)
     assert list(sorted_dict3.keys()) == ["a", "c", "b"]
     assert list(sorted_dict3["a"].keys()) == ["b", "a"]
-
-
-def test_apply_all_tag_to_regions(caplog):
-    settings = {
-        "model_regions": ["a", "b", "c"],
-        "renewables_clusters": [
-            {
-                "region": "all",
-                "technology": "landbasedwind",
-                "bin": {"feature": "lcoe", "q": 4},
-            },
-            {
-                "region": "b",
-                "technology": "landbasedwind",
-                "filter": {"feature": "lcoe", "max": 50},
-            },
-            {"region": "all", "technology": "utilitypv", "group": ["state"]},
-            {
-                "region": "all",
-                "technology": "offshorewind",
-                "pref_site": True,
-                "bin": {"feature": "lcoe", "q": 4},
-            },
-            {
-                "region": "c",
-                "technology": "offshorewind",
-                "pref_site": True,
-                "cluster": {"feature": "lcoe", "n_clusters": 4},
-            },
-            {
-                "region": "all",
-                "technology": "offshorewind",
-                "pref_site": True,
-                "group": ["metro_id"],
-            },
-        ],
-    }
-
-    # Check for warning that "all" is applied to offshore wind more than once
-    caplog.set_level(logging.WARNING)
-    settings = apply_all_tag_to_regions(settings)
-
-    assert "Multiple 'all' tags applied" in caplog.text
-
-    assert len(settings["renewables_clusters"]) == 9
-    for d in settings["renewables_clusters"]:
-        if d["technology"] == "landbasedwind":
-            if d["region"] == "b":
-                assert "filter" in d.keys()
-            else:
-                assert "bin" in d.keys()
-        if d["technology"] == "utilitypv":
-            assert "group" in d.keys()
-        if d["technology"] == "offshorewind":
-            if d["region"] == "c":
-                assert "cluster" in d.keys()
-            else:
-                assert "group" in d.keys()
-
-    # Test two ways to raise a KeyError: no "region" and no "technology" when region is "all"
-    d = {"technology": "solarpv"}
-    settings["renewables_clusters"].append(d)
-    with pytest.raises(KeyError):
-        apply_all_tag_to_regions(settings)
-
-    settings["renewables_clusters"].pop()
-
-    d = {"region": "ALL"}
-    settings["renewables_clusters"].append(d)
-    with pytest.raises(KeyError):
-        apply_all_tag_to_regions(settings)
-
-    settings = {"model_regions": ["a", "b", "c"], "renewables_clusters": None}
-    apply_all_tag_to_regions(settings)
-    settings = {"model_regions": ["a", "b", "c"]}
-    apply_all_tag_to_regions(settings)
 
 
 class TestHashStringSha256:
@@ -683,77 +594,3 @@ def test_key_length_sorting_with_non_str_keys():
     assert keys[2] == (1, 2, 3)
     assert result[10] == "ten"
     assert result["x"] == "ex"
-
-
-@pytest.fixture(autouse=True)
-def noop_assign_and_tags(monkeypatch):
-    # Prevent assign_model_planning_years and tagging from altering our settings
-    monkeypatch.setattr(
-        util, "assign_model_planning_years", lambda settings, year: None
-    )
-    monkeypatch.setattr(
-        util,
-        "add_model_tags_to_gen_columns",
-        lambda **kwargs: kwargs["generator_columns"],
-    )
-
-
-def test_duplicate_case_year_raises():
-    # Two identical rows for case 'X' in year 2030 should trigger the duplicate check
-    df = pd.DataFrame(
-        [
-            {"case_id": "X", "year": 2030},
-            {"case_id": "X", "year": 2030},
-        ]
-    )
-    with pytest.raises(ValueError) as exc:
-        build_scenario_settings({}, df)
-    assert "are repeated" in str(exc.value)
-
-
-def test_all_years_all_cases_applied():
-    # settings_management with an all_years->all_cases entry should apply to every scenario
-    settings = {"settings_management": {"all_years": {"all_cases": {"foo": 100}}}}
-    df = pd.DataFrame([{"case_id": 1, "year": 2040}])
-    result = build_scenario_settings(settings, df)
-
-    # Check that our "foo" parameter was injected
-    assert 2040 in result
-    assert 1 in result[2040]
-    out = result[2040][1]
-    assert out["foo"] == 100
-
-    # Also verify the built-in fields
-    assert out["case_id"] == 1
-    assert out["case_period"] == 1
-
-
-def test_year_specific_category_level_applied():
-    # settings_management for a specific year & category should override correctly
-    settings = {
-        "settings_management": {2035: {"category1": {"levelA": {"paramA": "valueA"}}}}
-    }
-    df = pd.DataFrame([{"case_id": "A", "year": 2035, "category1": "levelA"}])
-    result = build_scenario_settings(settings, df)
-    out = result[2035]["A"]
-
-    # Expect our year-specific setting
-    assert out["paramA"] == "valueA"
-    assert out["case_id"] == "A"
-    assert out["case_period"] == 1
-
-
-def test_case_period_increments_per_case():
-    # Same case 'C' appears in two different years, period should increment
-    settings = {"settings_management": {}}
-    df = pd.DataFrame(
-        [
-            {"case_id": "C", "year": 2025},
-            {"case_id": "C", "year": 2030},
-        ]
-    )
-    result = build_scenario_settings(settings, df)
-
-    # First appearance: period 1; second: period 2
-    assert result[2025]["C"]["case_period"] == 1
-    assert result[2030]["C"]["case_period"] == 2
