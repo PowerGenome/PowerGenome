@@ -1,5 +1,5 @@
 """
-Functions to fetch and modify NREL ATB data from PUDL
+Functions to fetch and modify new-build resource data
 """
 
 import collections
@@ -25,7 +25,7 @@ from powergenome.resource_clusters import (
     ClusterBuilder,
     ResourceGroup,
     Table,
-    map_nrel_atb_technology,
+    map_technologies,
 )
 from powergenome.settings import apply_all_tag_to_regions
 from powergenome.util import (
@@ -45,15 +45,18 @@ def fetch_resource_costs(
 ) -> pd.DataFrame:
     """Get resource cost data from the DataManager, filter where applicable.
 
-    This function can also remove NREL ATB offshore spur costs if more accurate costs
-    will be included elsewhere (e.g. as part of total interconnection costs).
 
     Parameters
     ----------
     settings : dict
-        User-defined parameters from a settings file. Needs to have keys
-        `atb_data_year`, `atb_new_gen`, and `target_usd_year`. If the key
-        `atb_financial_case` is not included, the default value will be "Market".
+        User-defined parameters from a settings file. Required keys:
+        `new_resources` (list): List of new resource technologies to include,
+        `target_usd_year` (int): Target dollar year for price adjustments,
+        `data_location` (Path): Location of inflation adjustment data,
+        `dollar_year_table` (str): Name of the table containing dollar year data.
+        Optional keys:
+        `modified_new_resources` (dict): Dictionary of modified resource technologies,
+        `resource_financial_case` (str): Financial case for cost data, defaults to "Market".
     resource_data_year : int, optional
         Year of data vintage. Not the same as planning or technology year. If not
         specified, defaults to None, which will not filter by data year.
@@ -232,7 +235,7 @@ def fetch_heat_rates(data_year: int = None) -> pd.DataFrame:
 
 
 def single_generator_row(
-    atb_costs_hr: pd.DataFrame,
+    resource_costs_hr: pd.DataFrame,
     new_gen_type: str,
     model_year_range: Union[Tuple[int], List[int]],
 ) -> pd.DataFrame:
@@ -240,8 +243,8 @@ def single_generator_row(
 
     Parameters
     ----------
-    atb_costs : pd.DataFrame
-        Data from the sqlite tables of both resources costs and heat rates
+    resource_costs_hr : pd.DataFrame
+        Data from the tables of both resources costs and heat rates
     new_gen_type : str
         type of generating resource
     model_year_range : Union[Tuple[int], List[int]]
@@ -250,7 +253,7 @@ def single_generator_row(
     Returns
     -------
     pd.DataFrame
-        A single row dataframe with average cost and performence values over the study
+        A single row dataframe with average cost and performance values over the study
         period.
     """
 
@@ -265,11 +268,11 @@ def single_generator_row(
         "wacc_real",
         "heat_rate",
     ]
-    s = atb_costs_hr.loc[
-        (atb_costs_hr["technology"] == technology)
-        & (atb_costs_hr["tech_detail"] == tech_detail)
-        & (atb_costs_hr["cost_case"] == cost_case)
-        & (atb_costs_hr["basis_year"].isin(model_year_range)),
+    s = resource_costs_hr.loc[
+        (resource_costs_hr["technology"] == technology)
+        & (resource_costs_hr["tech_detail"] == tech_detail)
+        & (resource_costs_hr["cost_case"] == cost_case)
+        & (resource_costs_hr["basis_year"].isin(model_year_range)),
         numeric_cols,
     ].mean()
     cols = ["technology", "cost_case", "tech_detail"] + numeric_cols
@@ -352,28 +355,28 @@ def regional_capex_multiplier(
 
 def add_modified_generators(
     settings: dict,
-    atb_costs_hr: pd.DataFrame,
+    resource_costs_hr: pd.DataFrame,
     model_year_range: Union[Tuple[int], List[int]],
 ) -> pd.DataFrame:
-    """Create a modified version of an ATB generator.
+    """Create a modified version of a resource.
 
     For each parameter (capex, heat_rate, etc) that users want modified they should
     specify a list of [<operator>, <value>]. The operator can be add, mul, truediv, or
-    sub (substract). This is used to modify individual parameters of the ATB resource.
+    sub (substract). This is used to modify individual parameters of the resource.
 
     Parameters
     ----------
     settings : dict
         User-defined parameters from a settings file
-    atb_costs_hr : pd.DataFrame
-        Cost and heat rate data for ATB resources
+    resource_costs_hr : pd.DataFrame
+        Cost and heat rate data for resources
     model_year_range : Union[Tuple[int], List[int]]
-        A list or range of years to average ATB values from.
+        A list or range of years to average resource values from.
 
     Returns
     -------
     pd.DataFrame
-        Row or rows of modified ATB resources. Each row includes the colums:
+        Row or rows of modified resources. Each row includes the columns:
         ['technology', 'cost_case', 'tech_detail', 'basis_year', 'fixed_o_m_mw',
        'fixed_o_m_mwh', 'variable_o_m_mwh', 'capex', 'capex_mwh', 'cf', 'fuel',
        'lcoe', 'o_m', 'wacc_real', 'heat_rate', 'Cap_Size'].
@@ -393,7 +396,7 @@ def add_modified_generators(
 
         new_gen_type = (technology, tech_detail, cost_case, size_mw)
 
-        gen = single_generator_row(atb_costs_hr, new_gen_type, model_year_range)
+        gen = single_generator_row(resource_costs_hr, new_gen_type, model_year_range)
         gen["technology"] = mod_tech.pop("new_technology")
         gen["tech_detail"] = mod_tech.pop("new_tech_detail", "")
         gen["cost_case"] = mod_tech.pop("new_cost_case")
@@ -404,13 +407,13 @@ def add_modified_generators(
             else:
                 assert len(op_list) == 2, (
                     "Two values, an operator and a numeric value, are needed in the parameter\n"
-                    f"'{parameter}' for technology '{name}' in 'modified_atb_new_gen'."
+                    f"'{parameter}' for technology '{name}' in 'modified_new_resources'."
                 )
                 op, op_value = op_list
 
                 assert parameter in gen.columns, (
                     f"'{parameter}' is not a valid parameter for new resources. Check '{name}'\n"
-                    "in 'modified_atb_new_gen' of the settings file."
+                    "in 'modified_new_resources' of the settings file."
                 )
                 assert op in allowed_operators, (
                     f"The key {parameter} for technology {name} needs a valid operator from the list\n"
@@ -428,18 +431,18 @@ def add_modified_generators(
     return mod_gens
 
 
-def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
+def build_new_resources(resource_costs, resource_hr, settings, cluster_builder=None):
     """Add rows for new generators in each region
 
     Parameters
     ----------
-    atb_costs : DataFrame
-        All cost parameters from the SQL table for new generators. Should include:
+    resource_costs : DataFrame
+        All cost parameters for new resources. Should include:
         ['technology', 'cost_case', 'financial_case', 'basis_year', 'tech_detail',
         'capex', 'capex_mwh', 'fixed_o_m_mw', 'fixed_o_m_mwh', 'variable_o_m_mwh',
         'wacc_real']
-    atb_hr : DataFrame
-        The technology, tech_detail, and heat_rate of new generators from ATB.
+    resource_hr : DataFrame
+        The technology, tech_detail, and heat_rate of new resources.
     settings : dict
         User-defined parameters from a settings file
     cluster_builder : ClusterBuilder
@@ -465,14 +468,16 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
 
     regions = settings["model_regions"]
 
-    atb_costs_hr = atb_costs.merge(
-        atb_hr, on=["technology", "tech_detail", "cost_case", "basis_year"], how="left"
+    resource_costs_hr = resource_costs.merge(
+        resource_hr,
+        on=["technology", "tech_detail", "cost_case", "basis_year"],
+        how="left",
     )
 
     if new_gen_types:
         new_gen_df = pd.concat(
             [
-                single_generator_row(atb_costs_hr, new_gen, model_year_range)
+                single_generator_row(resource_costs_hr, new_gen, model_year_range)
                 for new_gen in new_gen_types
             ],
             ignore_index=True,
@@ -482,7 +487,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
             columns=["region", "technology", "tech_detail", "cost_case"]
         )
     # Add user-defined technologies
-    # This should probably be separate from ATB techs, and the regional cost multipliers
+    # This should probably be separate from resource techs, and the regional cost multipliers
     # should be its own function.
     if settings.get("additional_technologies_fn"):
         if isinstance(settings.get("additional_new_gen"), list):
@@ -492,7 +497,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
             new_gen_df = pd.concat(
                 [new_gen_df, user_tech], ignore_index=True, sort=False
             )
-            # atb_hr = pd.concat([atb_hr, user_hr], ignore_index=True, sort=False)
+            # resource_hr = pd.concat([resource_hr, user_hr], ignore_index=True, sort=False)
         else:
             logger.warning(
                 "A filename for additional technologies was included but no technologies"
@@ -501,7 +506,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
 
     if settings.get("modified_new_resources"):
         modified_gens = add_modified_generators(
-            settings, atb_costs_hr, model_year_range
+            settings, resource_costs_hr, model_year_range
         )
         new_gen_df = pd.concat(
             [new_gen_df, modified_gens], ignore_index=True, sort=False
@@ -516,9 +521,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         }
     )
 
-    # Adjust values for CT/CC generators to match advanced techs in NEMS rather than
-    # ATB average of advanced and conventional.
-    # This is now generalized for changes to ATB values for any technology type.
+    # This is now generalized for changes to resource values for any technology type.
     for tech, _tech_modifiers in (settings.get("resource_modifiers") or {}).items():
         tech_modifiers = copy.deepcopy(_tech_modifiers)
         assert isinstance(tech_modifiers, dict), (
@@ -806,7 +809,7 @@ def add_renewables_clusters(
     ----------
     df
         New generation technologies.
-            - `technology`: NREL ATB technology in the format
+            - `technology`: Resource technology in the format
                 <technology>_<tech_detail>_<cost_case>. Must be unique.
             - `region`: Model region.
     region
@@ -821,16 +824,16 @@ def add_renewables_clusters(
     -------
     pd.DataFrame
         Copy of the input dataframe joined to rows for renewables clusters
-        on matching NREL ATB technology and model region.
+        on matching resource technology and model region.
 
     Raises
     ------
     ValueError
-        NREL ATB technologies are not unique.
+        Resource technologies are not unique.
     ValueError
-        Renewables clusters do not match NREL ATB technologies.
+        Renewables clusters do not match resource technologies.
     ValueError
-        Renewables clusters match multiple NREL ATB technologies.
+        Renewables clusters match multiple resource technologies.
     """
     if not cluster_builder:
         cluster_builder = build_resource_clusters(
@@ -838,15 +841,14 @@ def add_renewables_clusters(
         )
     if not df["technology"].is_unique:
         raise ValueError(
-            f"NREL ATB technologies are not unique: {df['technology'].to_list()}"
+            f"Resource technologies are not unique: {df['technology'].to_list()}"
         )
-    atb_map = {
-        x: map_nrel_atb_technology(x.split("_")[0], x.split("_")[1])
-        for x in df["technology"]
+    resource_map = {
+        x: map_technologies(x.split("_")[0], x.split("_")[1]) for x in df["technology"]
     }
-    mask = df["technology"].isin([tech for tech, match in atb_map.items() if match]) & (
-        df["region"] == region
-    )
+    mask = df["technology"].isin(
+        [tech for tech, match in resource_map.items() if match]
+    ) & (df["region"] == region)
     cdfs = []
     if region in (settings.get("region_aggregations", {}) or {}):
         regions = settings.get("region_aggregations", {})[region]
@@ -856,10 +858,10 @@ def add_renewables_clusters(
     for scenario in copy.deepcopy(settings).get("renewables_clusters", []) or []:
         if scenario["region"] != region:
             continue
-        # Match cluster technology to NREL ATB technologies
+        # Match cluster technology to resource technologies
         technologies = [
             k
-            for k, v in atb_map.items()
+            for k, v in resource_map.items()
             if v and all([scenario.get(ki) == vi for ki, vi in v.items()])
         ]
         if not technologies:
@@ -873,7 +875,7 @@ def add_renewables_clusters(
             continue
         if len(technologies) > 1:
             raise ValueError(
-                f"Renewables clusters match multiple NREL ATB technologies: {scenario}"
+                f"Renewables clusters match multiple resource technologies: {scenario}"
             )
         technology = technologies[0]
         _scenario = scenario.copy()
