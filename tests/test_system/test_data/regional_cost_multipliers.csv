@@ -1,0 +1,551 @@
+region,technology,value
+TRE,Ultra-supercritical coal (USC),0.929254302
+FRCC,Ultra-supercritical coal (USC),0.962305381
+MISW,Ultra-supercritical coal (USC),1.063097514
+MISC,Ultra-supercritical coal (USC),1.071565146
+MISE,Ultra-supercritical coal (USC),1.085222617
+MISS,Ultra-supercritical coal (USC),0.961759082
+ISNE,Ultra-supercritical coal (USC),1.158699809
+NYCW,Ultra-supercritical coal (USC),
+NYUP,Ultra-supercritical coal (USC),1.132477465
+PJME,Ultra-supercritical coal (USC),1.169079486
+PJMW,Ultra-supercritical coal (USC),0.997268506
+PJMC,Ultra-supercritical coal (USC),1.256760448
+PJMD,Ultra-supercritical coal (USC),1.076208686
+SRCA,Ultra-supercritical coal (USC),0.962032232
+SRSE,Ultra-supercritical coal (USC),0.987435127
+SRCE,Ultra-supercritical coal (USC),0.98142584
+SPPS,Ultra-supercritical coal (USC),0.968587818
+SPPC,Ultra-supercritical coal (USC),1.029226987
+SPPN,Ultra-supercritical coal (USC),0.979513794
+SRSG,Ultra-supercritical coal (USC),1.020759355
+CANO,Ultra-supercritical coal (USC),
+CASO,Ultra-supercritical coal (USC),
+NWPP,Ultra-supercritical coal (USC),1.081398525
+RMRG,Ultra-supercritical coal (USC),1.010925977
+BASN,Ultra-supercritical coal (USC),1.054629883
+TRE,USC with 30% CCS,0.937661221
+FRCC,USC with 30% CCS,0.96711092
+MISW,USC with 30% CCS,1.054600172
+MISC,USC with 30% CCS,1.065993121
+MISE,USC with 30% CCS,1.07566638
+MISS,USC with 30% CCS,0.968615649
+ISNE,USC with 30% CCS,1.147463457
+NYCW,USC with 30% CCS,
+NYUP,USC with 30% CCS,1.124462597
+PJME,USC with 30% CCS,1.154772141
+PJMW,USC with 30% CCS,0.999785039
+PJMC,USC with 30% CCS,1.227429063
+PJMD,USC with 30% CCS,1.074806535
+SRCA,USC with 30% CCS,0.969260533
+SRSE,USC with 30% CCS,0.990971625
+SRCE,USC with 30% CCS,0.984092863
+SPPS,USC with 30% CCS,0.97205503
+SPPC,USC with 30% CCS,1.025795357
+SPPN,USC with 30% CCS,0.981083405
+SRSG,USC with 30% CCS,1.023430782
+CANO,USC with 30% CCS,
+CASO,USC with 30% CCS,
+NWPP,USC with 30% CCS,1.07566638
+RMRG,USC with 30% CCS,1.012682717
+BASN,USC with 30% CCS,1.050730868
+TRE,USC with 90% CCS,0.943805236
+FRCC,USC with 90% CCS,0.971485743
+MISW,USC with 90% CCS,1.046023012
+MISC,USC with 90% CCS,1.066366517
+MISE,USC with 90% CCS,1.068367517
+MISS,USC with 90% CCS,0.977155244
+ISNE,USC with 90% CCS,1.131399033
+NYCW,USC with 90% CCS,
+NYUP,USC with 90% CCS,1.102384526
+PJME,USC with 90% CCS,1.133233283
+PJMW,USC with 90% CCS,0.996331499
+PJMC,USC with 90% CCS,1.206603302
+PJMD,USC with 90% CCS,1.058862765
+SRCA,USC with 90% CCS,0.978989495
+SRSE,USC with 90% CCS,0.996498249
+SRCE,USC with 90% CCS,0.992329498
+SPPS,USC with 90% CCS,0.973653493
+SPPC,USC with 90% CCS,1.023178256
+SPPN,USC with 90% CCS,0.980656995
+SRSG,USC with 90% CCS,1.020010005
+CANO,USC with 90% CCS,
+CASO,USC with 90% CCS,
+NWPP,USC with 90% CCS,1.070201768
+RMRG,USC with 90% CCS,1.005002501
+BASN,USC with 90% CCS,1.051525763
+TRE,CC - single shaft,0.902687674
+FRCC,CC - single shaft,0.936978684
+MISW,CC - single shaft,1.042632067
+MISC,CC - single shaft,1.037071362
+MISE,CC - single shaft,1.063021316
+MISS,CC - single shaft,0.929564411
+ISNE,CC - single shaft,1.199258573
+NYCW,CC - single shaft,1.59128823
+NYUP,CC - single shaft,1.202965709
+PJME,CC - single shaft,1.201112141
+PJMW,CC - single shaft,0.996292864
+PJMC,CC - single shaft,1.203892493
+PJMD,CC - single shaft,1.146431881
+SRCA,CC - single shaft,0.918443003
+SRSE,CC - single shaft,0.929564411
+SRCE,CC - single shaft,0.948100093
+SPPS,CC - single shaft,0.927710843
+SPPC,CC - single shaft,0.985171455
+SPPN,CC - single shaft,0.919369787
+SRSG,CC - single shaft,0.903614458
+CANO,CC - single shaft,1.34476367
+CASO,CC - single shaft,1.273401297
+NWPP,CC - single shaft,1.051899907
+RMRG,CC - single shaft,0.851714551
+BASN,CC - single shaft,0.921223355
+TRE,CC - multi shaft,0.888888889
+FRCC,CC - multi shaft,0.928721174
+MISW,CC - multi shaft,1.051362683
+MISC,CC - multi shaft,1.052410901
+MISE,CC - multi shaft,1.07966457
+MISS,CC - multi shaft,0.922431866
+ISNE,CC - multi shaft,1.185534591
+NYCW,CC - multi shaft,1.623689727
+NYUP,CC - multi shaft,1.165618449
+PJME,CC - multi shaft,1.191823899
+PJMW,CC - multi shaft,0.975890985
+PJMC,CC - multi shaft,1.249475891
+PJMD,CC - multi shaft,1.101677149
+SRCA,CC - multi shaft,0.910901468
+SRSE,CC - multi shaft,0.92557652
+SRCE,CC - multi shaft,0.944444444
+SPPS,CC - multi shaft,0.921383648
+SPPC,CC - multi shaft,0.98951782
+SPPN,CC - multi shaft,0.914046122
+SRSG,CC - multi shaft,0.879454927
+CANO,CC - multi shaft,1.339622642
+CASO,CC - multi shaft,1.259958071
+NWPP,CC - multi shaft,1.032494759
+RMRG,CC - multi shaft,0.828092243
+BASN,CC - multi shaft,0.929769392
+TRE,CC with 90% CCS,0.937718957
+FRCC,CC with 90% CCS,0.959906578
+MISW,CC with 90% CCS,1.017516543
+MISC,CC with 90% CCS,1.013623978
+MISE,CC with 90% CCS,1.029194239
+MISS,CC with 90% CCS,0.9552355
+ISNE,CC with 90% CCS,1.061891787
+NYCW,CC with 90% CCS,1.202802647
+NYUP,CC with 90% CCS,1.037757882
+PJME,CC with 90% CCS,1.053328143
+PJMW,CC with 90% CCS,0.968470222
+PJMC,CC with 90% CCS,1.097703387
+PJMD,CC with 90% CCS,1.0089529
+SRCA,CC with 90% CCS,0.943557805
+SRSE,CC with 90% CCS,0.943947061
+SRCE,CC with 90% CCS,0.9641884
+SPPS,CC with 90% CCS,0.944725574
+SPPC,CC with 90% CCS,0.976255352
+SPPN,CC with 90% CCS,0.930323083
+SRSG,CC with 90% CCS,0.860646166
+CANO,CC with 90% CCS,1.090696769
+CASO,CC with 90% CCS,1.054106656
+NWPP,CC with 90% CCS,0.995718178
+RMRG,CC with 90% CCS,0.809264305
+BASN,CC with 90% CCS,0.908913974
+TRE,Internal combustion engine,0.940621532
+FRCC,Internal combustion engine,0.967813541
+MISW,Internal combustion engine,1.038290788
+MISC,Internal combustion engine,1.067702553
+MISE,Internal combustion engine,1.056048835
+MISS,Internal combustion engine,0.974472808
+ISNE,Internal combustion engine,1.094339623
+NYCW,Internal combustion engine,1.371809101
+NYUP,Internal combustion engine,1.05327414
+PJME,Internal combustion engine,1.094894562
+PJMW,Internal combustion engine,0.981132075
+PJMC,Internal combustion engine,1.193118757
+PJMD,Internal combustion engine,1.018867925
+SRCA,Internal combustion engine,0.979467259
+SRSE,Internal combustion engine,0.990566038
+SRCE,Internal combustion engine,0.990566038
+SPPS,Internal combustion engine,0.972253052
+SPPC,Internal combustion engine,1.024972253
+SPPN,Internal combustion engine,0.982241953
+SRSG,Internal combustion engine,0.991675916
+CANO,Internal combustion engine,1.19700333
+CASO,Internal combustion engine,1.164261931
+NWPP,Internal combustion engine,1.056603774
+RMRG,Internal combustion engine,0.97891232
+BASN,Internal combustion engine,1.04772475
+TRE,CT - aeroderivative,0.884615385
+FRCC,CT - aeroderivative,0.929059829
+MISW,CT - aeroderivative,1.061538462
+MISC,CT - aeroderivative,1.048717949
+MISE,CT - aeroderivative,1.08034188
+MISS,CT - aeroderivative,0.921367521
+ISNE,CT - aeroderivative,1.124786325
+NYCW,CT - aeroderivative,1.44017094
+NYUP,CT - aeroderivative,1.085470085
+PJME,CT - aeroderivative,1.118803419
+PJMW,CT - aeroderivative,0.958974359
+PJMC,CT - aeroderivative,1.229059829
+PJMD,CT - aeroderivative,1.017948718
+SRCA,CT - aeroderivative,0.916239316
+SRSE,CT - aeroderivative,0.923931624
+SRCE,CT - aeroderivative,0.947863248
+SPPS,CT - aeroderivative,0.923076923
+SPPC,CT - aeroderivative,0.988034188
+SPPN,CT - aeroderivative,0.929059829
+SRSG,CT - aeroderivative,0.838461538
+CANO,CT - aeroderivative,1.201709402
+CASO,CT - aeroderivative,1.131623932
+NWPP,CT - aeroderivative,1.035897436
+RMRG,CT - aeroderivative,0.811965812
+BASN,CT - aeroderivative,0.924786325
+TRE,CT - industrial frame,0.881690141
+FRCC,CT - industrial frame,0.926760563
+MISW,CT - industrial frame,1.061971831
+MISC,CT - industrial frame,1.050704225
+MISE,CT - industrial frame,1.083098592
+MISS,CT - industrial frame,0.91971831
+ISNE,CT - industrial frame,1.128169014
+NYCW,CT - industrial frame,1.456338028
+NYUP,CT - industrial frame,1.087323944
+PJME,CT - industrial frame,1.122535211
+PJMW,CT - industrial frame,0.957746479
+PJMC,CT - industrial frame,1.236619718
+PJMD,CT - industrial frame,1.018309859
+SRCA,CT - industrial frame,0.914084507
+SRSE,CT - industrial frame,0.923943662
+SRCE,CT - industrial frame,0.947887324
+SPPS,CT - industrial frame,0.921126761
+SPPC,CT - industrial frame,0.988732394
+SPPN,CT - industrial frame,0.928169014
+SRSG,CT - industrial frame,0.836619718
+CANO,CT - industrial frame,1.211267606
+CASO,CT - industrial frame,1.138028169
+NWPP,CT - industrial frame,1.038028169
+RMRG,CT - industrial frame,0.809859155
+BASN,CT - industrial frame,0.926760563
+TRE,Fuel cells,0.959531271
+FRCC,Fuel cells,0.979833765
+MISW,Fuel cells,1.026161602
+MISC,Fuel cells,1.061861289
+MISE,Fuel cells,1.042785121
+MISS,Fuel cells,0.990870691
+ISNE,Fuel cells,1.081755007
+NYCW,Fuel cells,1.2734705
+NYUP,Fuel cells,1.03787982
+PJME,Fuel cells,1.07248944
+PJMW,Fuel cells,0.988009266
+PJMC,Fuel cells,1.143480038
+PJMD,Fuel cells,1.018394877
+SRCA,Fuel cells,0.998092383
+SRSE,Fuel cells,1.004496525
+SRCE,Fuel cells,1.003951492
+SPPS,Fuel cells,0.979833765
+SPPC,Fuel cells,1.020847527
+SPPN,Fuel cells,0.988690557
+SRSG,Fuel cells,1.00245265
+CANO,Fuel cells,1.155470773
+CASO,Fuel cells,1.131625562
+NWPP,Fuel cells,1.049870555
+RMRG,Fuel cells,0.983240223
+BASN,Fuel cells,1.047281646
+TRE,Advanced nuclear,0.943960741
+FRCC,Advanced nuclear,0.968814311
+MISW,Advanced nuclear,1.02801963
+MISC,Advanced nuclear,1.109387367
+MISE,Advanced nuclear,1.071078043
+MISS,Advanced nuclear,0.995725819
+ISNE,Advanced nuclear,1.13281621
+NYCW,Advanced nuclear,
+NYUP,Advanced nuclear,1.056830774
+PJME,Advanced nuclear,1.10685452
+PJMW,Advanced nuclear,0.97831249
+PJMC,Advanced nuclear,1.217033402
+PJMD,Advanced nuclear,1.018204844
+SRCA,Advanced nuclear,1.008548362
+SRSE,Advanced nuclear,1.010289694
+SRCE,Advanced nuclear,1.019154662
+SPPS,Advanced nuclear,0.968181099
+SPPC,Advanced nuclear,1.023903752
+SPPN,Advanced nuclear,0.967864493
+SRSG,Advanced nuclear,1.003957575
+CANO,Advanced nuclear,
+CASO,Advanced nuclear,
+NWPP,Advanced nuclear,1.08675004
+RMRG,Advanced nuclear,0.972455279
+BASN,Advanced nuclear,1.087858161
+TRE,Dist. Generation base,0.890032154
+FRCC,Dist. Generation base,0.916398714
+MISW,Dist. Generation base,0.98778135
+MISC,Dist. Generation base,1.027009646
+MISE,Dist. Generation base,1.016720257
+MISS,Dist. Generation base,0.893890675
+ISNE,Dist. Generation base,1.14340836
+NYCW,Dist. Generation base,1.633440514
+NYUP,Dist. Generation base,1.156913183
+PJME,Dist. Generation base,1.197427653
+PJMW,Dist. Generation base,1.026366559
+PJMC,Dist. Generation base,1.027009646
+PJMD,Dist. Generation base,0.873311897
+SRCA,Dist. Generation base,0.873311897
+SRSE,Dist. Generation base,0.911897106
+SRCE,Dist. Generation base,0.906109325
+SPPS,Dist. Generation base,0.938906752
+SPPC,Dist. Generation base,0.974276527
+SPPN,Dist. Generation base,0.978135048
+SRSG,Dist. Generation base,1.0
+CANO,Dist. Generation base,1.243086817
+CASO,Dist. Generation base,1.243086817
+NWPP,Dist. Generation base,1.009003215
+RMRG,Dist. Generation base,1.053376206
+BASN,Dist. Generation base,1.009003215
+TRE,Dist. Generation - peak,0.960920771
+FRCC,Dist. Generation - peak,0.997858672
+MISW,Dist. Generation - peak,0.98875803
+MISC,Dist. Generation - peak,1.019807281
+MISE,Dist. Generation - peak,0.99143469
+MISS,Dist. Generation - peak,0.973233405
+ISNE,Dist. Generation - peak,1.038543897
+NYCW,Dist. Generation - peak,1.408458244
+NYUP,Dist. Generation - peak,1.0251606
+PJME,Dist. Generation - peak,1.100107066
+PJMW,Dist. Generation - peak,1.01391863
+PJMC,Dist. Generation - peak,1.016595289
+PJMD,Dist. Generation - peak,0.945931478
+SRCA,Dist. Generation - peak,0.945931478
+SRSE,Dist. Generation - peak,1.0
+SRCE,Dist. Generation - peak,0.956102784
+SPPS,Dist. Generation - peak,0.990364026
+SPPC,Dist. Generation - peak,1.010706638
+SPPN,Dist. Generation - peak,0.989293362
+SRSG,Dist. Generation - peak,1.154710921
+CANO,Dist. Generation - peak,1.148286938
+CASO,Dist. Generation - peak,1.148286938
+NWPP,Dist. Generation - peak,1.047109208
+RMRG,Dist. Generation - peak,1.20235546
+BASN,Dist. Generation - peak,1.047109208
+TRE,Battery storage,1.0
+FRCC,Battery storage,1.001446132
+MISW,Battery storage,0.985538684
+MISC,Battery storage,1.034707158
+MISE,Battery storage,1.002169197
+MISS,Battery storage,1.023138106
+ISNE,Battery storage,1.030368764
+NYCW,Battery storage,1.026753435
+NYUP,Battery storage,1.003615329
+PJME,Battery storage,1.006507592
+PJMW,Battery storage,0.997107737
+PJMC,Battery storage,1.010122921
+PJMD,Battery storage,1.006507592
+SRCA,Battery storage,1.032537961
+SRSE,Battery storage,1.018076645
+SRCE,Battery storage,1.026030369
+SPPS,Battery storage,0.994938539
+SPPC,Battery storage,1.001446132
+SPPN,Battery storage,0.989154013
+SRSG,Battery storage,1.012292119
+CANO,Battery storage,1.041214751
+CASO,Battery storage,1.041937816
+NWPP,Battery storage,1.023861171
+RMRG,Battery storage,0.99132321
+BASN,Battery storage,1.031091829
+TRE,Biomass,0.927875244
+FRCC,Biomass,0.961013645
+MISW,Biomass,1.045808967
+MISC,Biomass,1.06505848
+MISE,Biomass,1.068469786
+MISS,Biomass,0.961013645
+ISNE,Biomass,1.187378168
+NYCW,Biomass,1.611598441
+NYUP,Biomass,1.191033138
+PJME,Biomass,1.211988304
+PJMW,Biomass,1.019005848
+PJMC,Biomass,1.213937622
+PJMD,Biomass,1.161306043
+SRCA,Biomass,0.964668616
+SRSE,Biomass,0.982699805
+SRCE,Biomass,0.976851852
+SPPS,Biomass,0.96539961
+SPPC,Biomass,1.025584795
+SPPN,Biomass,0.985623782
+SRSG,Biomass,1.05579922
+CANO,Biomass,1.368421053
+CASO,Biomass,1.313109162
+NWPP,Biomass,1.091617934
+RMRG,Biomass,1.045808967
+BASN,Biomass,1.045808967
+TRE,Geothermal,
+FRCC,Geothermal,
+MISW,Geothermal,
+MISC,Geothermal,
+MISE,Geothermal,
+MISS,Geothermal,
+ISNE,Geothermal,
+NYCW,Geothermal,
+NYUP,Geothermal,
+PJME,Geothermal,
+PJMW,Geothermal,
+PJMC,Geothermal,
+PJMD,Geothermal,
+SRCA,Geothermal,
+SRSE,Geothermal,
+SRCE,Geothermal,
+SPPS,Geothermal,
+SPPC,Geothermal,
+SPPN,Geothermal,
+SRSG,Geothermal,1.051119403
+CANO,Geothermal,1.042537313
+CASO,Geothermal,0.844029851
+NWPP,Geothermal,1.020149254
+RMRG,Geothermal,
+BASN,Geothermal,1.0
+TRE,MSW - landfill gas,0.942196532
+FRCC,MSW - landfill gas,0.969171484
+MISW,MSW - landfill gas,1.035966602
+MISC,MSW - landfill gas,1.06743738
+MISE,MSW - landfill gas,1.054592164
+MISS,MSW - landfill gas,0.976236352
+ISNE,MSW - landfill gas,1.09312781
+NYCW,MSW - landfill gas,1.361592807
+NYUP,MSW - landfill gas,1.051380861
+PJME,MSW - landfill gas,1.092485549
+PJMW,MSW - landfill gas,0.981374438
+PJMC,MSW - landfill gas,1.188182402
+PJMD,MSW - landfill gas,1.019267823
+SRCA,MSW - landfill gas,0.982016699
+SRSE,MSW - landfill gas,0.992292871
+SRCE,MSW - landfill gas,0.992292871
+SPPS,MSW - landfill gas,0.973025048
+SPPC,MSW - landfill gas,1.024405909
+SPPN,MSW - landfill gas,0.982016699
+SRSG,MSW - landfill gas,0.992292871
+CANO,MSW - landfill gas,1.193962749
+CASO,MSW - landfill gas,1.161849711
+NWPP,MSW - landfill gas,1.056518947
+RMRG,MSW - landfill gas,0.979447656
+BASN,MSW - landfill gas,1.048169557
+TRE,Conventional hydropower,
+FRCC,Conventional hydropower,1.782340116
+MISW,Conventional hydropower,0.584665698
+MISC,Conventional hydropower,
+MISE,Conventional hydropower,
+MISS,Conventional hydropower,
+ISNE,Conventional hydropower,0.656976744
+NYCW,Conventional hydropower,
+NYUP,Conventional hydropower,1.344113372
+PJME,Conventional hydropower,1.396438953
+PJMW,Conventional hydropower,1.282703488
+PJMC,Conventional hydropower,1.21693314
+PJMD,Conventional hydropower,1.235101744
+SRCA,Conventional hydropower,0.6875
+SRSE,Conventional hydropower,1.491642442
+SRCE,Conventional hydropower,0.471293605
+SPPS,Conventional hydropower,
+SPPC,Conventional hydropower,0.621729651
+SPPN,Conventional hydropower,0.716206395
+SRSG,Conventional hydropower,1.185319767
+CANO,Conventional hydropower,1.207485465
+CASO,Conventional hydropower,1.627180233
+NWPP,Conventional hydropower,1.0
+RMRG,Conventional hydropower,1.194040698
+BASN,Conventional hydropower,1.304869186
+TRE,Wind,0.93328279
+FRCC,Wind,
+MISW,Wind,0.955269143
+MISC,Wind,0.954510993
+MISE,Wind,1.144048522
+MISS,Wind,0.955269143
+ISNE,Wind,1.26611069
+NYCW,Wind,
+NYUP,Wind,1.544351782
+PJME,Wind,1.26611069
+PJMW,Wind,0.955269143
+PJMC,Wind,1.26459439
+PJMD,Wind,1.318423048
+SRCA,Wind,1.139499621
+SRSE,Wind,1.291129644
+SRCE,Wind,0.955269143
+SPPS,Wind,0.955269143
+SPPC,Wind,0.955269143
+SPPN,Wind,0.955269143
+SRSG,Wind,0.955269143
+CANO,Wind,2.109173616
+CASO,Wind,1.656557998
+NWPP,Wind,1.26611069
+RMRG,Wind,0.955269143
+BASN,Wind,0.955269143
+TRE,Wind offshore,0.976680132
+FRCC,Wind offshore,1.0
+MISW,Wind offshore,1.0
+MISC,Wind offshore,
+MISE,Wind offshore,1.197392582
+MISS,Wind offshore,
+ISNE,Wind offshore,1.0
+NYCW,Wind offshore,1.005875872
+NYUP,Wind offshore,1.219794344
+PJME,Wind offshore,1.0
+PJMW,Wind offshore,1.0
+PJMC,Wind offshore,1.323907455
+PJMD,Wind offshore,1.041498347
+SRCA,Wind offshore,0.899926552
+SRSE,Wind offshore,
+SRCE,Wind offshore,
+SPPS,Wind offshore,
+SPPC,Wind offshore,
+SPPN,Wind offshore,
+SRSG,Wind offshore,
+CANO,Wind offshore,1.30848329
+CASO,Wind offshore,1.0
+NWPP,Wind offshore,1.0
+RMRG,Wind offshore,
+BASN,Wind offshore,
+TRE,Solar thermal,0.96467807
+FRCC,Solar thermal,0.980253094
+MISW,Solar thermal,
+MISC,Solar thermal,
+MISE,Solar thermal,
+MISS,Solar thermal,
+ISNE,Solar thermal,
+NYCW,Solar thermal,
+NYUP,Solar thermal,
+PJME,Solar thermal,
+PJMW,Solar thermal,
+PJMC,Solar thermal,
+PJMD,Solar thermal,
+SRCA,Solar thermal,
+SRSE,Solar thermal,
+SRCE,Solar thermal,
+SPPS,Solar thermal,0.97441246
+SPPC,Solar thermal,1.012237519
+SPPN,Solar thermal,0.964539007
+SRSG,Solar thermal,1.010707829
+CANO,Solar thermal,1.197886247
+CASO,Solar thermal,1.172298707
+NWPP,Solar thermal,1.075789181
+RMRG,Solar thermal,0.971214018
+BASN,Solar thermal,1.077875122
+TRE,Solar PV - tracking,0.968444778
+FRCC,Solar PV - tracking,0.950413223
+MISW,Solar PV - tracking,0.990232908
+MISC,Solar PV - tracking,1.018031555
+MISE,Solar PV - tracking,1.007513148
+MISS,Solar PV - tracking,0.957926371
+ISNE,Solar PV - tracking,1.01728024
+NYCW,Solar PV - tracking,1.196844478
+NYUP,Solar PV - tracking,1.007513148
+PJME,Solar PV - tracking,1.03756574
+PJMW,Solar PV - tracking,0.9797145
+PJMC,Solar PV - tracking,1.069120962
+PJMD,Solar PV - tracking,0.977460556
+SRCA,Solar PV - tracking,0.996994741
+SRSE,Solar PV - tracking,0.964688204
+SRCE,Solar PV - tracking,0.963185575
+SPPS,Solar PV - tracking,0.948910594
+SPPC,Solar PV - tracking,0.986476334
+SPPN,Solar PV - tracking,0.955672427
+SRSG,Solar PV - tracking,0.965439519
+CANO,Solar PV - tracking,1.084147258
+CASO,Solar PV - tracking,1.058602554
+NWPP,Solar PV - tracking,0.989481593
+RMRG,Solar PV - tracking,0.976709241
+BASN,Solar PV - tracking,0.985725019
