@@ -913,7 +913,7 @@ def regional_capex_multiplier(
     df = df.copy()
     cost_region = region_map[region]
     tech_multiplier = regional_multipliers.loc[
-        regional_multipliers["region"] == cost_region, "reg_cap_cost_mult"
+        regional_multipliers["region"] == cost_region, "value"
     ]
     avg_multiplier = tech_multiplier.mean()
 
@@ -1209,7 +1209,7 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
         regional_cost_multipliers = load_data(
             settings["data_location"],
             settings.get("regional_cost_factor_table", "regional_cost_multipliers.csv"),
-        )
+        ).set_index("technology")
 
         if settings.get("cost_multiplier_region_map"):
             rev_mult_region_map = reverse_dict_of_lists(
