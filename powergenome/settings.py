@@ -2,7 +2,7 @@
 Parameters and settings management for PowerGenome.
 
 This module provides a Settings class and utility functions for managing PowerGenome
-configuration parameters. 
+configuration parameters.
 
 Key Features:
 - Load settings from YAML files or directories
@@ -12,39 +12,39 @@ Key Features:
 
 Architecture:
 The Settings class uses Python's contextvars for managing the current settings
-instance across different execution contexts (see Example below). 
-This allows multiple settings to coexist (useful for testing and parallel processing) 
+instance across different execution contexts (see Example below).
+This allows multiple settings to coexist (useful for testing and parallel processing)
 while providing a clean API for accessing the current settings.
 
 Examples:
     # Basic usage
     settings = Settings(config_path="path/to/settings.yml")
-    
+
     # Access settings
     regions = settings["model_regions"]
     fuel_cost = settings.get("fuel_cost", default=0.0)
-    
+
     # Context management
     with settings:
         current = get_current_settings()  # Returns the settings instance
         # All code in this block can access current settings
-    
+
     # Scenario-specific settings
     base_settings = Settings(config_path="base.yml")
     scenario_settings = Settings.for_scenario(
-        base_settings, 
+        base_settings,
         {"model_year": 2030, "carbon_tax": 50}
     )
-    
+
     # Load multiple YAML files from directory
     settings = Settings(config_path="path/to/settings/directory")
-    
+
     # Create from dictionary
     settings = Settings.from_dict({"model_regions": ["CA", "TX"]})
-    
+
     # Update settings
     settings.update({"new_param": "value"})
-    
+
     # Convert to dictionary
     settings_dict = settings.to_dict()
 
@@ -53,23 +53,26 @@ See Also:
     - powergenome.params: Legacy parameter definitions
 """
 
+import copy
+
 # Standard library imports
 import logging
-import copy
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Dict, List, Union
-from contextvars import ContextVar
-from ruamel.yaml import YAML
+
 import pandas as pd
 from flatten_dict import flatten
+from ruamel.yaml import YAML
 
 # Local imports
-from powergenome.util import update_dictionary, sort_nested_dict, make_iterable 
+from powergenome.util import make_iterable, sort_nested_dict, update_dictionary
 
 logger = logging.getLogger(__name__)
 
 # Context variable for current settings
-_current_settings: ContextVar = ContextVar('current_settings', default=None)
+_current_settings: ContextVar = ContextVar("current_settings", default=None)
+
 
 class Settings:
     def __init__(self, config_path: Union[str, Path] = None, data: dict = None):
@@ -90,13 +93,13 @@ class Settings:
         --------
         >>> # Load from file
         >>> settings = Settings(config_path="settings.yml")
-        
+
         >>> # Load from directory
         >>> settings = Settings(config_path="settings/")
-        
+
         >>> # Create from dictionary
         >>> settings = Settings(data={"model_regions": ["CA", "TX"]})
-        
+
         >>> # Combine data and file
         >>> settings = Settings(
         ...     data={"base_param": "value"},
@@ -133,9 +136,9 @@ class Settings:
         ['CA', 'TX']
         """
         return cls(data=data)
-    
+
     @classmethod
-    def for_scenario(cls, base_settings: 'Settings', scenario_data: dict):
+    def for_scenario(cls, base_settings: "Settings", scenario_data: dict):
         """
         Create a Settings instance specifically for a scenario.
 
@@ -160,7 +163,7 @@ class Settings:
         --------
         >>> base = Settings(data={"model_year": 2020, "regions": ["CA"]})
         >>> scenario = Settings.for_scenario(
-        ...     base, 
+        ...     base,
         ...     {"model_year": 2030, "carbon_tax": 50}
         ... )
         >>> scenario["model_year"]  # Overridden
@@ -197,7 +200,7 @@ class Settings:
         """
         self._token = _current_settings.set(self)
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """
         Context manager exit - restore previous settings.
@@ -292,7 +295,9 @@ class Settings:
         KeyError: Setting 'missing_key' not found in settings...
         """
         if key not in self._data:
-            raise KeyError(f"Setting '{key}' not found in settings. Available keys: {list(self._data.keys())}")
+            raise KeyError(
+                f"Setting '{key}' not found in settings. Available keys: {list(self._data.keys())}"
+            )
         return self._data[key]
 
     def __setitem__(self, key, value):
@@ -317,14 +322,14 @@ class Settings:
 
     def pop(self, key, default=None):
         """Remove and return the value for key if key is in the settings, else return default.
-        
+
         Parameters
         ----------
         key : str
             The key to remove from settings.
         default : any, optional
             Value to return if key is not found.
-            
+
         Returns
         -------
         any
@@ -436,7 +441,7 @@ class Settings:
         True
         """
         return self._data.copy()
-    
+
     def update(self, updates: dict):
         """
         Update the settings with new values.
@@ -459,12 +464,12 @@ class Settings:
         50
         """
         self._data.update(updates)
-    
+
     def get_data(self) -> dict:
         """
         Get a reference to the internal data dictionary.
 
-        Warning: This returns a reference to the internal data. 
+        Warning: This returns a reference to the internal data.
         Modifying it will affect the Settings object.
 
         Returns
@@ -515,7 +520,9 @@ def get_current_settings() -> Settings:
     """
     settings = _current_settings.get()
     if settings is None:
-        raise RuntimeError("No settings are currently set. Use 'with settings:' context manager.")
+        raise RuntimeError(
+            "No settings are currently set. Use 'with settings:' context manager."
+        )
     return settings
 
 
@@ -752,6 +759,7 @@ def fix_param_names(settings: dict) -> dict:
             logger.warning(s)
     return settings
 
+
 def assign_model_planning_years(_settings: dict, year: int) -> dict:
     """Make sure "model_year" and "model_first_planning_year" appear as scalars.
 
@@ -793,7 +801,9 @@ def assign_model_planning_years(_settings: dict, year: int) -> dict:
         The model year from scenario definitions is not in the settings
     """
     if "model_periods" in _settings:
-        if not all([isinstance(t, tuple) for t in make_iterable(_settings["model_periods"])]):
+        if not all(
+            [isinstance(t, tuple) for t in make_iterable(_settings["model_periods"])]
+        ):
             raise ValueError(
                 "The settings parameter 'model_periods' must be a list of tuples. It is "
                 f"currently {_settings['model_periods']}"
@@ -871,10 +881,10 @@ def build_scenario_settings(
     Parameters
     ----------
     settings : Union[dict, Settings]
-        The full settings file (as dict or Settings object), including the 
+        The full settings file (as dict or Settings object), including the
         "settings_management" section with alternate values for each scenario.
     scenario_definitions : pd.DataFrame
-        DataFrame from the CSV file defined in the settings file 
+        DataFrame from the CSV file defined in the settings file
         "scenario_definitions_fn" parameter. Must have columns:
         - case_id: Unique identifier for each case
         - year: Planning year for the case

@@ -21,7 +21,6 @@ from powergenome.generators import GeneratorClusters
 from powergenome.params import DATA_PATHS
 from powergenome.settings import Settings
 
-
 logger = logging.getLogger(powergenome.__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()

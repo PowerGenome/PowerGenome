@@ -48,6 +48,7 @@ def sort_nested_dict(d: Dict[str, Any]) -> Dict[str, Any]:
 
     return sorted_dict
 
+
 def findkeys(node: Union[dict, list], kv: str):
     """
     Return all values in a dictionary from a matching key
@@ -653,6 +654,7 @@ def make_iterable(item: Union[int, str, Iterable]) -> Iterable:
         except TypeError:
             i = iter([item])
     return i
+
 
 def remove_feb_29(df: pd.DataFrame) -> pd.DataFrame:
     """Remove Feb 29 from a wide format leap-year dataseries
