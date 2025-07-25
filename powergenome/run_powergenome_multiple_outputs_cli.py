@@ -28,6 +28,7 @@ from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; c
     set_int_cols,
 )
 from powergenome.load_profiles import make_final_load_curves
+from powergenome.settings import Settings, build_scenario_settings
 from powergenome.transmission import (
     agg_transmission_constraints,
     insert_tx_costs,
@@ -37,8 +38,6 @@ from powergenome.util import (  # init_pudl_connection,; check_settings,; load_i
     write_case_settings_file,
     write_results_file,
 )
-from powergenome.settings import Settings, build_scenario_settings
-
 
 if not sys.warnoptions:
     import warnings
@@ -355,13 +354,18 @@ def main(**kwargs):
                                 "Line_Max_Flow_Possible_MW",
                             ] = 1e6
                             network.loc[
-                                network["Network_Lines"] == line, "Capital_Recovery_Period"
+                                network["Network_Lines"] == line,
+                                "Capital_Recovery_Period",
                             ] = 60
-                            network.loc[network["Network_Lines"] == line, "WACC"] = 0.044
+                            network.loc[network["Network_Lines"] == line, "WACC"] = (
+                                0.044
+                            )
                     case_year_data["network"] = network
 
                     if _settings.get("emission_policies_fn"):
-                        energy_share_req = create_policy_req(_settings, col_str_match="ESR")
+                        energy_share_req = create_policy_req(
+                            _settings, col_str_match="ESR"
+                        )
                         co2_cap = create_policy_req(_settings, col_str_match="CO_2")
                         case_year_data["esr"] = energy_share_req
                         case_year_data["co2_cap"] = co2_cap
@@ -382,7 +386,9 @@ def main(**kwargs):
                 if _settings.get("old_genx_format", False) is not True:
                     genx_data = process_genx_data(case_folder, case_year_data)
                 else:
-                    genx_data = process_genx_data_old_format(case_folder, case_year_data)
+                    genx_data = process_genx_data_old_format(
+                        case_folder, case_year_data
+                    )
 
                 for data in genx_data:
                     if data.dataframe is not None and not data.dataframe.empty:

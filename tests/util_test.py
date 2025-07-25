@@ -47,6 +47,7 @@ def test_sort_nested_dict():
     assert list(sorted_dict3.keys()) == ["a", "c", "b"]
     assert list(sorted_dict3["a"].keys()) == ["b", "a"]
 
+
 class TestHashStringSha256:
     # Returns a hash string for a given input string
     def test_returns_hash_string(self):
@@ -179,6 +180,7 @@ class TestMakeIterable:
         # Assert
         assert isinstance(result, Iterable)
         assert list(result) == item
+
 
 @pytest.fixture
 def tmp_sqlite_db(tmp_path):
@@ -378,5 +380,3 @@ def test_key_length_sorting_with_non_str_keys():
     assert keys[2] == (1, 2, 3)
     assert result[10] == "ten"
     assert result["x"] == "ex"
-
-

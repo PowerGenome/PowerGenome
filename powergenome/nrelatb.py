@@ -26,6 +26,7 @@ from powergenome.resource_clusters import (
     Table,
     map_nrel_atb_technology,
 )
+from powergenome.settings import apply_all_tag_to_regions
 from powergenome.util import (
     add_row_to_csv,
     hash_string_sha256,
@@ -33,8 +34,6 @@ from powergenome.util import (
     reverse_dict_of_lists,
     snake_case_col,
 )
-from powergenome.settings import apply_all_tag_to_regions
-
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)

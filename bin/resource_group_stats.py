@@ -11,8 +11,8 @@ import numpy as np
 import pandas as pd
 
 from powergenome.params import SETTINGS
-from powergenome.util import map_agg_region_names, regions_to_keep
 from powergenome.settings import Settings
+from powergenome.util import map_agg_region_names, regions_to_keep
 
 
 def parse_command_line(argv):

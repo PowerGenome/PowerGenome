@@ -25,6 +25,7 @@ from powergenome.generators import (
 )
 from powergenome.settings import Settings
 
+
 def test_startup_fuel():
     df = pd.DataFrame({"technology": ["tech1", "tech2", "tech1"]})
     settings = {
