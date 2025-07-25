@@ -912,7 +912,7 @@ def build_scenario_settings(
         If conflicting settings are defined for the same parameter.
     """
 
-    # Convert Settings object to dict if it needed
+    # Convert Settings object to dict if needed
     if isinstance(settings, Settings) and hasattr(settings, "to_dict"):
         settings = settings.to_dict()
 
