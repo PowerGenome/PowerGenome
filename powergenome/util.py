@@ -1456,6 +1456,10 @@ def build_where_clause_from_filters(
     if not filters:
         return None
 
+    # Handle case where a single conjunction is passed as a list of tuples
+    if isinstance(filters[0], tuple):
+        filters = [filters]
+
     def format_value(value):
         if isinstance(value, str):
             return f"'{value}'"

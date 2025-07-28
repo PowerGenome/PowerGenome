@@ -579,6 +579,17 @@ def test_load_data_with_filters(tmp_sqlite_db):
     pd.testing.assert_frame_equal(df, expected, check_dtype=False)
 
 
+def test_load_data_with_filters_single_list(tmp_sqlite_db):
+    # tmp_sqlite_db has table foo with rows (1,'x'), (2,'y')
+    # Run a SQL query instead of passing a table name
+    filters = [("a", "=", 2)]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", filters=filters)
+    # Build expected
+    expected = pd.DataFrame({"a": [2], "b": ["y"]})
+    # Compare
+    pd.testing.assert_frame_equal(df, expected, check_dtype=False)
+
+
 def test_load_data_with_columns(tmp_sqlite_db):
     # tmp_sqlite_db has table foo with columns 'a' and 'b'
     # Load only column 'b'
