@@ -193,14 +193,16 @@ def make_load_curves(
     # demand_years = load_data(data_location, pg_table, query=s)
     # region_params = ", ".join(f"'{r}'" for r in keep_regions)
     filters = [
-        ("year", "=", settings["model_year"]),
-        ("region", "in", keep_regions),
+        [
+            ("year", "=", settings["model_year"]),
+            ("region", "in", keep_regions),
+        ]
     ]
     load_curves = load_data(
         data_location,
         pg_table,
-        select_cols="year, region, time_index, load_mw",
-        where=filters,
+        columns=["year", "region", "time_index", "load_mw"],
+        filters=filters,
     )
     # if settings["model_year"] in demand_years["year"].to_list():
     #     s = f"""
