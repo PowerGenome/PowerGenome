@@ -1443,29 +1443,53 @@ def prepend_db_to_tables(
     return query
 
 
-def extract_where_clause(sql: str) -> Optional[str]:
+def build_where_clause_from_filters(
+    filters: List[List[Tuple[str, str, Any]]],
+) -> Optional[str]:
     """
-    Extract the WHERE clause (including the keyword) from a SQL query string.
-    If no WHERE is present, returns None.
+    Build a SQL WHERE clause from a list of filters in DNF.
 
-    This will stop at the next major clause (GROUP BY, HAVING, ORDER BY, LIMIT) or at the end.
+    Parameters
+    ----------
+    filters : List[List[Tuple[str, str, Any]]]
+        The filters in disjunctive normal form (DNF).
+        e.g., [[('col1', '=', 'val1'), ('col2', '>', 5)], [('col3', '!=', 'val3')]]
+        translates to "WHERE (col1 = 'val1' AND col2 > 5) OR (col3 != 'val3')"
+
+    Returns
+    -------
+    str
+        The SQL WHERE clause string or None if no filters are provided.
     """
-    # Regex breakdown:
-    #   (?i)\bwhere\b      → case-insensitive match of the word WHERE
-    #   (.*?)              → non-greedy capture of any characters (including newlines)
-    #   (?=\b(group by|having|order by|limit)\b|$)
-    #                      → up to but not including the next clause keyword or end of string
-    pattern = re.compile(
-        r"(?i)\bwhere\b(.*?)(?=\b(group by|having|order by|limit)\b|$)", re.DOTALL
-    )
-    m = pattern.search(sql)
-    if not m:
+    if not filters:
         return None
-    # m.group(0) includes the WHERE keyword plus everything up to the next clause
-    return m.group(0).strip()
+
+    # Handle case where a single conjunction is passed as a list of tuples
+    if isinstance(filters[0], tuple):
+        filters = [filters]
+
+    def format_value(value):
+        if isinstance(value, str):
+            return f"'{value}'"
+        if isinstance(value, (list, tuple)):
+            return f"({', '.join(format_value(v) for v in value)})"
+        return str(value)
+
+    conjunctions = []
+    for conjunction in filters:
+        disjunctions = []
+        for col, op, val in conjunction:
+            disjunctions.append(f"{col} {op} {format_value(val)}")
+        conjunctions.append(f"({' AND '.join(disjunctions)})")
+
+    return "WHERE " + " OR ".join(conjunctions)
 
 
-def load_data_file(file_path: Union[Path, str], query: str = None) -> pd.DataFrame:
+def load_data_file(
+    file_path: Union[Path, str],
+    filters: List[List[Tuple[str, str, Any]]] = None,
+    columns: List[str] = None,
+) -> pd.DataFrame:
     """
     Load data from a CSV or Parquet file using duckdb.
 
@@ -1473,9 +1497,10 @@ def load_data_file(file_path: Union[Path, str], query: str = None) -> pd.DataFra
     ----------
     file_path : Union[Path, str]
         The path to the CSV or Parquet file.
-    query : str, optional
-        The SQL query to run on the loaded data. If provided, the query will be executed
-        instead of loading the entire file.
+    filters : List[List[Tuple[str, str, Any]]], optional
+        The filters to apply to the data.
+    columns : List[str], optional
+        A list of column names to load. If None, all columns are loaded.
 
     Returns
     -------
@@ -1499,13 +1524,9 @@ def load_data_file(file_path: Union[Path, str], query: str = None) -> pd.DataFra
         ".parquet": "read_parquet",
     }
 
-    if query:
-        where = extract_where_clause(query)
-        # If a query is provided, use it directly
-        _query = f"SELECT * FROM {read_type[file_extension]}('{file_path}') {where if where else ''}"
-    else:
-        # If no query is provided, default to reading the entire file
-        _query = f"SELECT * FROM {read_type[file_extension]}('{file_path}')"
+    select_cols = ", ".join(columns) if columns else "*"
+    where = build_where_clause_from_filters(filters)
+    _query = f"SELECT {select_cols} FROM {read_type[file_extension]}('{file_path}') {where if where else ''}"
 
     data = con.execute(_query).fetchdf()
 
@@ -1514,7 +1535,10 @@ def load_data_file(file_path: Union[Path, str], query: str = None) -> pd.DataFra
 
 
 def load_table_from_db(
-    data_location: Union[Path, str], file_or_table_name: str = None, query: str = None
+    data_location: Union[Path, str],
+    file_or_table_name: str = None,
+    filters: List[List[Tuple[str, str, Any]]] = None,
+    columns: List[str] = None,
 ) -> pd.DataFrame:
     """
     Load data from a SQLite or DuckDB database using duckdb.
@@ -1525,8 +1549,10 @@ def load_table_from_db(
         The path to the SQLite or DuckDB database.
     file_or_table_name : str, optional
         The name of the table to load.
-    query : str, optional
-        The SQL query to run. If provided, the query will be executed instead of selecting from a single table.
+    filters : List[List[Tuple[str, str, Any]]], optional
+        The filters to apply to the data.
+    columns : List[str], optional
+        A list of column names to load. If None, all columns are loaded.
 
     Returns
     -------
@@ -1540,26 +1566,19 @@ def load_table_from_db(
     """
     # Create a duckdb connection
     con = duckdb.connect(database=":memory:")
+    where = build_where_clause_from_filters(filters)
+    select_cols = ", ".join(columns) if columns else "*"
 
     if str(data_location).endswith(".db") or str(data_location).endswith(".sqlite"):
         con.execute(f"ATTACH '{data_location}' AS db")
-        if query:
-            table_names = get_all_table_names(data_location)
-            query = prepend_db_to_tables(query, table_names)
-            data = con.execute(query).fetchdf()
-        else:
-            query = f"SELECT * FROM db.{file_or_table_name}"
-            data = con.execute(query).fetchdf()
+        query = f"SELECT {select_cols} FROM db.{file_or_table_name} {where if where else ''}"
+        data = con.execute(query).fetchdf()
     elif str(data_location).endswith(".duckdb"):
         con = duckdb.connect(database=str(data_location))
-        if query:
-            if file_or_table_name is not None and "SELECT" not in query.upper():
-                query = f"SELECT * FROM {file_or_table_name} {query}"
-
-            data = con.execute(query).fetchdf()
-        else:
-            query = f"SELECT * FROM {file_or_table_name}"
-            data = con.execute(query).fetchdf()
+        query = (
+            f"SELECT {select_cols} FROM {file_or_table_name} {where if where else ''}"
+        )
+        data = con.execute(query).fetchdf()
     else:
         con.close()
         raise ValueError(
@@ -1571,7 +1590,10 @@ def load_table_from_db(
 
 
 def load_data(
-    data_location: Union[Path, str], file_or_table_name: str = None, query: str = None
+    data_location: Union[Path, str],
+    file_or_table_name: str = None,
+    filters: List[List[Tuple[str, str, Any]]] = None,
+    columns: List[str] = None,
 ) -> pd.DataFrame:
     """
     Load data from a database or folder of tabular files using duckdb.
@@ -1582,8 +1604,10 @@ def load_data(
         The folder containing CSV or Parquet files, or the name of the SQLite or DuckDB database.
     file_or_table_name : str, optional
         The name of the file (with extension .csv or .parquet) or table to load.
-    query : str, optional
-        The SQL query to run if data_location is a database.
+    filters : List[List[Tuple[str, str, Any]]], optional
+        The filters to apply to the data.
+    columns : List[str], optional
+        A list of column names to load. If None, all columns are loaded.
 
     Returns
     -------
@@ -1593,32 +1617,27 @@ def load_data(
     Raises
     ------
     ValueError
-        If neither file_or_table_name nor query is provided.
+        If file_or_table_name is not provided.
         If file_or_table_name has an extension and data_location is a database.
         If the specified file is not found in the folder.
         If an unsupported database type is used.
     """
     data_location = Path(data_location)
     # Validate inputs
-    if not query and not file_or_table_name:
-        raise ValueError("Either file_or_table_name or query must be provided.")
+    if not file_or_table_name:
+        raise ValueError("file_or_table_name must be provided.")
 
     # Check if data_location is a folder
     if data_location.is_dir():
-        if file_or_table_name:
-            file_path = data_location / file_or_table_name
-            if not file_path.is_file():
-                raise ValueError(
-                    f"File '{file_or_table_name}' not found in folder '{data_location}'."
-                )
-            return load_data_file(file_path, query)
-        else:
+        file_path = data_location / file_or_table_name
+        if not file_path.is_file():
             raise ValueError(
-                "file_or_table_name must be provided for loading data from a folder."
+                f"File '{file_or_table_name}' not found in folder '{data_location}'."
             )
+        return load_data_file(file_path, filters, columns)
     else:
         if file_or_table_name and os.path.splitext(file_or_table_name)[1].lower():
             raise ValueError(
                 "file_or_table_name should not have an extension when data_location is a database."
             )
-        return load_table_from_db(data_location, file_or_table_name, query)
+        return load_table_from_db(data_location, file_or_table_name, filters, columns)
