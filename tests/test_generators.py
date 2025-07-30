@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from powergenome.database import initialize_data_manager
 from powergenome.generators import (
     GeneratorClusters,
     add_dg_resources,
@@ -385,6 +386,9 @@ class TestGeneratorCluster:
         settings["RESOURCE_GROUPS"] = "tests/test_system/test_data/resource_groups"
         settings["data_location"] = "tests/test_system/test_data"
 
+        # Initialize DataManager before creating GeneratorClusters
+        initialize_data_manager(settings, settings["data_location"])
+
         if isinstance(settings["model_year"], list):
             settings["model_year"] = settings["model_year"][0]
             settings["model_first_planning_year"] = settings[
@@ -395,11 +399,7 @@ class TestGeneratorCluster:
     def test_cluster_existing_generators(self):
         settings = self.load_settings()
         self.gc = GeneratorClusters(
-            data_location=settings["data_location"],
-            generation_table=settings["generation_table"],
             settings=settings,
-            resource_heat_rate_table=settings["resource_heat_rate_table"],
-            resource_cost_table=settings["resource_cost_table"],
             multi_period=True,
             include_retired_cap=True,
         )
@@ -408,11 +408,7 @@ class TestGeneratorCluster:
     def test_create_new_generators(self):
         settings = self.load_settings()
         self.gc = GeneratorClusters(
-            data_location=settings["data_location"],
-            generation_table=settings["generation_table"],
             settings=settings,
-            resource_heat_rate_table=settings["resource_heat_rate_table"],
-            resource_cost_table=settings["resource_cost_table"],
             multi_period=True,
             include_retired_cap=True,
         )
@@ -426,11 +422,7 @@ class TestGeneratorCluster:
         )  # Ensure the directory exists
         settings["extra_outputs_path"] = extra_outputs_path
         self.gc = GeneratorClusters(
-            data_location=settings["data_location"],
-            generation_table=settings["generation_table"],
             settings=settings,
-            resource_heat_rate_table=settings["resource_heat_rate_table"],
-            resource_cost_table=settings["resource_cost_table"],
             multi_period=False,
             include_retired_cap=False,
             sort_gens=True,

@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 import powergenome
+from powergenome.database import initialize_data_manager
 from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
 from powergenome.fuels import (
     add_carbon_tax,
@@ -152,6 +153,12 @@ def fuel_settings():
     }
     settings.update(settings_modifications)
     settings["tech_fuel_map"].update(updated_tech_fuel_map)
+
+    # Initialize DataManager with the test settings
+    # Note: The DataManager is a singleton, so this will either initialize it
+    # or reinitialize it with new settings
+    initialize_data_manager(settings, settings["data_location"])
+
     return settings
 
 
@@ -166,10 +173,6 @@ def test_fuel_labels_and_prices(fuel_settings):
         assert fuel in df_base["full_fuel_name"].unique()
 
     gc = GeneratorClusters(
-        data_location=fuel_settings["data_location"],
-        generation_table=fuel_settings["generation_table"],
-        resource_heat_rate_table=fuel_settings["resource_heat_rate_table"],
-        resource_cost_table=fuel_settings["resource_cost_table"],
         settings=fuel_settings,
     )
     gens = gc.create_new_generators()
@@ -188,8 +191,6 @@ def test_fetch_fuel_price_no_mappings(fuel_settings):
     scenario_names = fuel_settings.pop("fuel_series_scenario_names")
 
     fetch_fuel_prices(
-        data_location=fuel_settings["data_location"],
-        table_name=fuel_settings["fuel_price_table"],
         settings=fuel_settings,
     )
 
@@ -206,8 +207,6 @@ def test_fetch_fuel_price_errors(fuel_settings):
     fuel_settings["fuel_data_year"] = 2000
     with pytest.raises(KeyError):
         fetch_fuel_prices(
-            data_location=fuel_settings["data_location"],
-            table_name=fuel_settings["fuel_price_table"],
             settings=fuel_settings,
         )
 
@@ -319,10 +318,6 @@ def test_regional_mod_fuel_labels(fuel_settings):
     }
     fuel_settings["target_usd_year"] = 2020
     gc = GeneratorClusters(
-        data_location=fuel_settings["data_location"],
-        generation_table=fuel_settings["generation_table"],
-        resource_heat_rate_table=fuel_settings["resource_heat_rate_table"],
-        resource_cost_table=fuel_settings["resource_cost_table"],
         settings=fuel_settings,
     )
     gens = gc.create_new_generators()
