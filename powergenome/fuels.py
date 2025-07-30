@@ -91,7 +91,7 @@ def fuel_cost_table(
     for full_fuel_name in fuel_price_map:
         if (
             full_fuel_name.split("_")[-1]
-            in (settings.get("aeo_fuel_scenarios", {}) or {}).keys()
+            in (settings.get("fuel_scenarios", {}) or {}).keys()
         ):
             base_fuel_name = full_fuel_name.split("_")[-1]
         elif (

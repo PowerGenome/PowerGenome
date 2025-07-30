@@ -4,19 +4,33 @@ Test util functions
 
 import csv
 import logging
+import os
+import sqlite3
 from collections.abc import Iterable
+from pathlib import Path
 
+import duckdb
+import pandas as pd
 import pytest
 
 import powergenome
+import powergenome.util as util
 from powergenome.util import (
     add_model_tags_to_gen_columns,
     add_row_to_csv,
     apply_all_tag_to_regions,
     assign_model_planning_years,
+    build_scenario_settings,
+    build_where_clause_from_filters,
+    get_all_table_names,
     hash_string_sha256,
+    load_data,
+    load_data_file,
+    load_table_from_db,
     make_iterable,
+    prepend_db_to_tables,
     sort_nested_dict,
+    update_dictionary,
 )
 
 logger = logging.getLogger(powergenome.__name__)
@@ -382,3 +396,364 @@ class TestAddModelTagsToGenColumns:
         )
 
         assert sorted(result) == sorted(expected_result)
+
+
+class TestBuildWhereClauseFromFilters:
+    def test_empty_filters(self):
+        assert build_where_clause_from_filters(None) is None
+        assert build_where_clause_from_filters([]) is None
+
+    def test_single_conjunction(self):
+        filters = [[("col1", "=", "val1")]]
+        expected = "WHERE (col1 = 'val1')"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_multiple_conjunctions_and(self):
+        filters = [[("col1", "=", "val1"), ("col2", ">", 5)]]
+        expected = "WHERE (col1 = 'val1' AND col2 > 5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_multiple_disjunctions_or(self):
+        filters = [[("col1", "=", "val1")], [("col2", ">", 5)]]
+        expected = "WHERE (col1 = 'val1') OR (col2 > 5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_string_value_formatting(self):
+        filters = [[("col1", "=", "string value")]]
+        expected = "WHERE (col1 = 'string value')"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_numeric_value_formatting(self):
+        filters = [[("col1", "<", 10.5)]]
+        expected = "WHERE (col1 < 10.5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_in_clause_with_list(self):
+        filters = [[("col1", "IN", [1, 2, 3])]]
+        expected = "WHERE (col1 IN (1, 2, 3))"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_in_clause_with_tuple_of_strings(self):
+        filters = [[("col1", "IN", ("a", "b", "c"))]]
+        expected = "WHERE (col1 IN ('a', 'b', 'c'))"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_complex_dnf(self):
+        filters = [
+            [("col1", "=", "val1"), ("col2", ">", 5)],
+            [("col3", "!=", "val3"), ("col4", "IN", [1, 2])],
+        ]
+        expected = (
+            "WHERE (col1 = 'val1' AND col2 > 5) OR (col3 != 'val3' AND col4 IN (1, 2))"
+        )
+        assert build_where_clause_from_filters(filters) == expected
+
+
+@pytest.fixture
+def tmp_sqlite_db(tmp_path):
+    db_path = tmp_path / "test.db"
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE foo (a INTEGER, b TEXT)")
+    conn.execute("INSERT INTO foo VALUES (1,'x'), (2,'y')")
+    conn.commit()
+    conn.close()
+    return str(db_path)
+
+
+@pytest.fixture
+def tmp_duckdb(tmp_path):
+    db_path = tmp_path / "test.duckdb"
+    con = duckdb.connect(database=str(db_path))
+    con.execute("CREATE TABLE bar(c FLOAT);")
+    con.execute("INSERT INTO bar VALUES (3.14), (2.71);")
+    con.close()
+    return str(db_path)
+
+
+def test_get_all_table_names_duckdb(tmp_duckdb):
+    # should list "bar"
+    tables = get_all_table_names(tmp_duckdb)
+    assert "bar" in tables
+
+
+def test_prepend_db_to_tables_simple():
+    q = "SELECT * FROM foo JOIN baz ON foo.id = baz.fk"
+    out = prepend_db_to_tables(q, table_names=["foo", "baz"], db_prefix="db.")
+    # every standalone foo/baz should be prefixed, but not foo.id
+    assert "db.foo JOIN db.baz" in out
+    assert "db.foo.id" not in out
+
+
+def test_load_data_file_csv(tmp_path):
+    p = tmp_path / "data.csv"
+    df_orig = pd.DataFrame({"x": [1, 2, 3], "y": ["a", "b", "c"]})
+    df_orig.to_csv(p, index=False)
+    df = load_data_file(str(p))
+    pd.testing.assert_frame_equal(df, df_orig)
+
+
+def test_load_data_file_parquet(tmp_path):
+    p = tmp_path / "data.parquet"
+    df_orig = pd.DataFrame({"m": [3.5, 4.5], "n": [True, False]})
+    df_orig.to_parquet(p)
+    df = load_data_file(str(p))
+    pd.testing.assert_frame_equal(df, df_orig)
+
+
+@pytest.mark.parametrize(
+    "db_fixture,table_name",
+    [
+        ("tmp_sqlite_db", "foo"),
+        ("tmp_duckdb", "bar"),
+    ],
+)
+def test_load_table_from_db(request, tmp_path, db_fixture, table_name):
+    db = request.getfixturevalue(db_fixture)
+    df = load_table_from_db(db, file_or_table_name=table_name)
+    # check it has rows
+    assert len(df) > 0
+    # columns match known names
+    assert table_name in df.columns or len(df.columns) > 0
+
+
+def test_load_data_folder_mode(tmp_path):
+    # create folder with a CSV
+    d = tmp_path / "folder"
+    d.mkdir()
+    df_orig = pd.DataFrame({"u": [10, 20]})
+    (d / "u.csv").write_text(df_orig.to_csv(index=False))
+    df = load_data(str(d), file_or_table_name="u.csv")
+    pd.testing.assert_frame_equal(df.reset_index(drop=True), df_orig)
+
+
+def test_load_data_file_with_filters(tmp_path):
+    # Create a temporary CSV file
+    file_path = tmp_path / "test.csv"
+    df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+    df.to_csv(file_path, index=False)
+
+    # filters to select only rows where a > 1
+    filters = [[("a", ">", 1)]]
+    result = load_data_file(file_path, filters=filters)
+
+    # Check that the result is as expected
+    expected = pd.DataFrame({"a": [2, 3], "b": ["y", "z"]})
+    pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+
+
+def test_load_data_file_with_columns(tmp_path):
+    # Create a temporary CSV file
+    file_path = tmp_path / "test.csv"
+    df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"], "c": [True, False, True]})
+    df.to_csv(file_path, index=False)
+
+    # Load only columns 'a' and 'c'
+    columns = ["a", "c"]
+    result = load_data_file(file_path, columns=columns)
+
+    # Check that the result is as expected
+    expected = pd.DataFrame({"a": [1, 2, 3], "c": [True, False, True]})
+    pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+
+
+def test_load_data_db_mode_sqlite(tmp_path, tmp_sqlite_db):
+    # no extension on file_or_table_name
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo")
+    assert "a" in df.columns and "b" in df.columns
+
+
+def test_load_data_db_mode_duckdb(tmp_path, tmp_duckdb):
+    # no extension on file_or_table_name
+    df = load_data(tmp_duckdb, file_or_table_name="bar")
+    assert "c" in df.columns
+
+
+def test_load_data_with_filters(tmp_sqlite_db):
+    # tmp_sqlite_db has table foo with rows (1,'x'), (2,'y')
+    # Run a SQL query instead of passing a table name
+    filters = [[("a", "=", 2)]]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", filters=filters)
+    # Build expected
+    expected = pd.DataFrame({"a": [2], "b": ["y"]})
+    # Compare
+    pd.testing.assert_frame_equal(df, expected, check_dtype=False)
+
+
+def test_load_data_with_filters_single_list(tmp_sqlite_db):
+    # tmp_sqlite_db has table foo with rows (1,'x'), (2,'y')
+    # Run a SQL query instead of passing a table name
+    filters = [("a", "=", 2)]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", filters=filters)
+    # Build expected
+    expected = pd.DataFrame({"a": [2], "b": ["y"]})
+    # Compare
+    pd.testing.assert_frame_equal(df, expected, check_dtype=False)
+
+
+def test_load_data_with_columns(tmp_sqlite_db):
+    # tmp_sqlite_db has table foo with columns 'a' and 'b'
+    # Load only column 'b'
+    columns = ["b"]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", columns=columns)
+
+    # Build expected
+    expected = pd.DataFrame({"b": ["x", "y"]})
+    # Compare
+    pd.testing.assert_frame_equal(df, expected)
+
+
+def test_load_data_file_unsupported_extension(tmp_path):
+    # .txt is not supported by load_data_file
+    p = tmp_path / "data.txt"
+    p.write_text("just some text")
+    with pytest.raises(ValueError, match=r"Unsupported file type"):
+        load_data_file(str(p))
+
+
+def test_load_data_no_params(tmp_path):
+    # Neither file_or_table_name nor query provided
+    with pytest.raises(ValueError, match=r"file_or_table_name must be provided"):
+        load_data(str(tmp_path))
+
+
+def test_load_data_folder_no_filename(tmp_path):
+    # Loading from a folder without specifying file_or_table_name
+    d = tmp_path / "empty_folder"
+    d.mkdir()
+    with pytest.raises(ValueError, match=r"file_or_table_name must be provided"):
+        load_data(str(d))
+
+
+def test_load_data_db_with_extension(tmp_sqlite_db):
+    # Passing a file name with extension when data_location is a DB
+    with pytest.raises(ValueError, match=r"should not have an extension"):
+        load_data(tmp_sqlite_db, file_or_table_name="foo.csv")
+
+
+def test_load_table_from_db_unsupported_type(tmp_path):
+    # Using an unsupported database type
+    fake_db = tmp_path / "not_a_db.txt"
+    fake_db.write_text("dummy")
+    with pytest.raises(ValueError, match=r"Unsupported database type"):
+        load_table_from_db(str(fake_db), file_or_table_name="foo")
+
+
+def test_update_flat_dict():
+    d = {"a": 1, "bb": 2}
+    u = {"c": 3, "bb": 20}
+    result = update_dictionary(d.copy(), u)
+    # keys sorted by length: "a" (1), "c" (1), "bb" (2)
+    assert list(result.keys()) == ["a", "c", "bb"]
+    assert result["bb"] == 20
+    assert result["c"] == 3
+
+
+def test_update_nested_dict():
+    d = {"x": {"y": 1}, "zz": 2}
+    u = {"x": {"z": 3}}
+    result = update_dictionary(d.copy(), u)
+    # should merge into nested dict rather than overwrite completely
+    assert isinstance(result["x"], dict)
+    assert result["x"] == {"y": 1, "z": 3}
+    assert "zz" in result
+
+
+def test_update_none_initial():
+    # Treat None as empty mapping
+    result = update_dictionary(None, {"aa": 5})
+    assert result == {"aa": 5}
+
+
+def test_invalid_inputs_raise_type_error():
+    with pytest.raises(TypeError):
+        update_dictionary(123, {})
+    with pytest.raises(TypeError):
+        update_dictionary({}, 123)
+
+
+def test_key_length_sorting_with_non_str_keys():
+    d = {}
+    u = {10: "ten", "x": "ex", (1, 2, 3): "tuple"}
+    result = update_dictionary(d.copy(), u)
+    # str(key) lengths: '10' -> 2, 'x' -> 1, '(1, 2, 3)' -> 9
+    # sort by length: 'x'(1), '10'(2), '(1, 2, 3)'(9)
+    keys = list(result.keys())
+    assert keys[0] == "x"
+    assert keys[1] == 10  # int key appears second
+    assert keys[2] == (1, 2, 3)
+    assert result[10] == "ten"
+    assert result["x"] == "ex"
+
+
+@pytest.fixture(autouse=True)
+def noop_assign_and_tags(monkeypatch):
+    # Prevent assign_model_planning_years and tagging from altering our settings
+    monkeypatch.setattr(
+        util, "assign_model_planning_years", lambda settings, year: None
+    )
+    monkeypatch.setattr(
+        util,
+        "add_model_tags_to_gen_columns",
+        lambda **kwargs: kwargs["generator_columns"],
+    )
+
+
+def test_duplicate_case_year_raises():
+    # Two identical rows for case 'X' in year 2030 should trigger the duplicate check
+    df = pd.DataFrame(
+        [
+            {"case_id": "X", "year": 2030},
+            {"case_id": "X", "year": 2030},
+        ]
+    )
+    with pytest.raises(ValueError) as exc:
+        build_scenario_settings({}, df)
+    assert "are repeated" in str(exc.value)
+
+
+def test_all_years_all_cases_applied():
+    # settings_management with an all_years->all_cases entry should apply to every scenario
+    settings = {"settings_management": {"all_years": {"all_cases": {"foo": 100}}}}
+    df = pd.DataFrame([{"case_id": 1, "year": 2040}])
+    result = build_scenario_settings(settings, df)
+
+    # Check that our "foo" parameter was injected
+    assert 2040 in result
+    assert 1 in result[2040]
+    out = result[2040][1]
+    assert out["foo"] == 100
+
+    # Also verify the built-in fields
+    assert out["case_id"] == 1
+    assert out["case_period"] == 1
+
+
+def test_year_specific_category_level_applied():
+    # settings_management for a specific year & category should override correctly
+    settings = {
+        "settings_management": {2035: {"category1": {"levelA": {"paramA": "valueA"}}}}
+    }
+    df = pd.DataFrame([{"case_id": "A", "year": 2035, "category1": "levelA"}])
+    result = build_scenario_settings(settings, df)
+    out = result[2035]["A"]
+
+    # Expect our year-specific setting
+    assert out["paramA"] == "valueA"
+    assert out["case_id"] == "A"
+    assert out["case_period"] == 1
+
+
+def test_case_period_increments_per_case():
+    # Same case 'C' appears in two different years, period should increment
+    settings = {"settings_management": {}}
+    df = pd.DataFrame(
+        [
+            {"case_id": "C", "year": 2025},
+            {"case_id": "C", "year": 2030},
+        ]
+    )
+    result = build_scenario_settings(settings, df)
+
+    # First appearance: period 1; second: period 2
+    assert result[2025]["C"]["case_period"] == 1
+    assert result[2030]["C"]["case_period"] == 2

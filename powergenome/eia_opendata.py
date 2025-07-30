@@ -6,13 +6,14 @@ import logging
 import operator
 import zipfile
 from itertools import product
+from pathlib import Path
 from typing import Union
 
 import pandas as pd
 
 from powergenome.params import DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.util import download_save, reverse_dict_of_lists
+from powergenome.util import download_save, load_data, reverse_dict_of_lists
 
 logger = logging.getLogger(__name__)
 
@@ -112,168 +113,117 @@ def load_aeo_series(series_id: str) -> pd.DataFrame:
     return df
 
 
-def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFrame:
+def fetch_fuel_prices(
+    data_location: Path, table_name: str, settings: dict, inflate_price: bool = True
+) -> pd.DataFrame:
     """
-    Get EIA AEO fuel prices for all regions, fuel types, and scenarios (series IDs)
-    included in the settings.
+    Get fuel prices for all regions, fuel types, and scenarios (series IDs)
+    included in the settings. Combine the region, scenario, and fuel name into a full
+    fuel name column. Optionally, adjust the prices to the target dollar year.
 
     Parameters
     ----------
+    data_location : Path
+        Path to the directory containing the saved fuel price data table.
+    table_name : str
+        Name of the CSV file or table containing the fuel price data.
     settings : dict
         Should include the following keys:
-            eia_aeo_year (int)
-            eia_series_region_names (list)
-            eia_series_fuel_names (list)
-            eia_series_scenario_names (list)
-    inflate_price: bool
-        If True, adjust the AEO prices to the year "target_usd_year" from the settings.
-        If False, do not adjust the AEO prices. Requires the additional settings keys
-        "target_usd_year" and "aeo_fuel_usd_year".
+            fuel_data_year (int)
+            fuel_series_region_names (dict)
+            fuel_series_names (dict)
+            fuel_series_scenario_names (dict)
+    inflate_price : bool, optional
+        If True, adjust the fuel prices to the year "target_usd_year" from the settings.
+        If False, do not adjust the prices. Requires the column "dollar_year" in the
+        fuel price data table.
 
     Returns
     -------
     pd.DataFrame
-        All fuel price data from AEO for the product of regions, fuels, and scenarios
-        included in the settings dictionary.
+        All fuel price data for the specified data year, with columns:
+        ['year', 'price', 'fuel', 'region', 'scenario', 'full_fuel_name'].
 
     Raises
     ------
     KeyError
-        The settings parameter "eia_series_scenario_names" is missing.
-    KeyError
-        The AEO data year is not specified by either of the settings parameters
-        "fuel_eia_aeo_year" or "eia_aeo_year".
-    TypeError
-        The parameter value of "fuel_eia_aeo_year" or "eia_aeo_year" is not an integer.
-
-    Examples
-    --------
-    Prepare the settings dictionary
-    >>> settings = {}
-    >>> settings["eia_aeo_year"] = 2020
-    >>> settings["aeo_fuel_usd_year"] = 2019
-    >>> settings["eia_series_scenario_names"] = {"reference": "REF2020"}
-    >>> settings["eia_series_fuel_names"] = {"coal": "STC"}
-    >>> settings["eia_series_region_names"] = {"mountain": "MTN"}
-
-    Find the fuel cost with inflating costs.
-
-    >>> fuel_price = fetch_fuel_prices(settings, inflate_price=False)
-    >>> print(fuel_price.head())
-       year     price  fuel    region   scenario           full_fuel_name
-    0  2050  1.501850  coal  mountain  reference  mountain_reference_coal
-    1  2049  1.488098  coal  mountain  reference  mountain_reference_coal
-    2  2048  1.508208  coal  mountain  reference  mountain_reference_coal
-    3  2047  1.506809  coal  mountain  reference  mountain_reference_coal
-    4  2046  1.497366  coal  mountain  reference  mountain_reference_coal
-
-    If either of the keys "target_usd_year" or "aeo_fuel_usd_year" is missing, fuel prices
-    cannot be inflated.
-
-    >>> fuel_price = fetch_fuel_prices(settings)
-    ************
-    Unable to inflate fuel prices. Check your settings file to ensure the keys
-    "target_usd_year" and "aeo_fuel_usd_year" exist and are valid integers.
-    ************
+        If 'fuel_data_year' is missing from settings and the data file contains multiple data years.
+        If the specified 'fuel_data_year' is not found in the 'data_year' column of the data file.
+    FileNotFoundError
+        If the specified data file is empty.
     """
 
-    if settings.get("fuel_eia_aeo_year"):
-        aeo_year = settings.get("fuel_eia_aeo_year")
-    else:
-        aeo_year = settings.get("eia_aeo_year")
+    data_year = settings.get("fuel_data_year")
 
-    if not aeo_year:
-        raise KeyError(
-            "The parameter 'fuel_eia_aeo_year' is not in your settings files. This is a "
-            "required settings parameter when using fuel price data from EIA's AEO."
+    all_fuel_data = load_data(data_location, table_name)
+    if all_fuel_data.empty:
+        raise FileNotFoundError(
+            f"The file {data_location / table_name} does is empty. "
+            "Please check the data location and table name."
         )
-    if not isinstance(aeo_year, int):
-        raise TypeError(
-            "The settings parameter 'fuel_eia_aeo_year' (or 'eia_aeo_year') must be an "
-            f"integer, representing the AEO data year. Your parameter is {aeo_year}."
-        )
-    if not settings.get("eia_series_region_names"):
-        logger.warning(
-            "EIA fuel region names were not found in the settings ('eia_series_region_names'). "
-            "Applying default values."
-        )
-        settings["eia_series_region_names"] = dict(
-            mountain="MTN",
-            pacific="PCF",
-            west_south_central="WSC",
-            east_south_central="ESC",
-            south_atlantic="SOATL",
-            west_north_central="WNC",
-            east_north_central="ENC",
-            middle_atlantic="MDATL",
-            new_england="NEENGL",
-        )
-    if not settings.get("eia_series_fuel_names"):
-        settings["eia_series_fuel_names"] = {
-            "coal": "STC",
-            "naturalgas": "NG",
-            "distillate": "DFO",
-            "uranium": "U",
-        }
-        logger.warning(
-            "EIA fuel names were not found in the settings ('eia_series_fuel_names'). "
-            "Applying default values:\n\n"
-            f"{settings['eia_series_fuel_names']}"
-        )
-    if not settings.get("eia_series_scenario_names"):
-        raise KeyError(
-            "The settings parameter 'eia_series_scenario_names' is missing. This mapping "
-            "of AEO scenario API names (e.g. REF2020) to plain english is required."
-        )
-
-    fuel_price_cases = product(
-        settings.get("eia_series_region_names", {}).items(),
-        settings.get("eia_series_fuel_names", {}).items(),
-        settings.get("eia_series_scenario_names", {}).items(),
-    )
-    if not aeo_year or not fuel_price_cases:
-        w = False
-        for f in ["coal", "naturalgas", "distillate", "uranium"]:
-            if f in settings.get("tech_fuel_map", {}).values():
-                w = True
-        if w:
-            logger.warning(
-                "Unable to get AEO fuel prices due to missing settings parameter 'eia_aeo_year', "
-                "'eia_series_region_names', 'eia_series_fuel_names', or 'eia_series_scenario_names'. "
-                "You have listed at least one AEO fuel in your settings 'tech_fuel_map' "
-                "parameter, but no prices for these fuels are being included."
+    if data_year is not None and "data_year" in all_fuel_data.columns:
+        if data_year not in all_fuel_data["data_year"].unique():
+            raise KeyError(
+                f"The data year specified in parameter 'fuel_data_year' ({data_year}) is "
+                "not in the 'data_year' column of your fuel price data table. "
+                "Please check the data file and the settings parameter."
             )
-        return pd.DataFrame(
-            columns=["fuel", "region", "scenario", "full_fuel_name", "year"]
+        fuel_data = all_fuel_data.query("data_year == @data_year")
+    elif (
+        data_year is None
+        and "year" in all_fuel_data.columns
+        and all_fuel_data["data_year"].nunique() > 1
+    ):
+        raise KeyError(
+            "The parameter 'fuel_data_year' is not in your settings files and the fuel price "
+            "data table contains multiple data years."
         )
-    df_list = []
-    for region, fuel, scenario in fuel_price_cases:
-        region_name, region_series = region
-        fuel_name, fuel_series = fuel
-        scenario_name, scenario_series = scenario
+    else:
+        fuel_data = all_fuel_data.copy()
 
-        SERIES_ID = f"AEO.{aeo_year}.{scenario_series}.PRCE_REAL_ELEP_NA_{fuel_series}_NA_{region_series}_Y13DLRPMMBTU.A"
-
-        df = load_aeo_series(series_id=SERIES_ID)
-        df["fuel"] = fuel_name
-        df["region"] = region_name
-        df["scenario"] = scenario_name
-        df["full_fuel_name"] = df.region + "_" + df.scenario + "_" + df.fuel
-        df["year"] = df["year"].astype(int)
-
-        df_list.append(df)
-
-    final = pd.concat(df_list, ignore_index=True)
+    if settings.get("fuel_series_names"):
+        fuel_data["fuel"] = (
+            fuel_data["fuel"]
+            .str.lower()
+            .map({v.lower(): k for k, v in settings["fuel_series_names"].items()})
+        )
+    if settings.get("fuel_series_scenario_names"):
+        fuel_data["scenario"] = (
+            fuel_data["scenario"]
+            .str.lower()
+            .map(
+                {
+                    v.lower(): k
+                    for k, v in settings["fuel_series_scenario_names"].items()
+                }
+            )
+        )
+    if settings.get("fuel_series_region_names"):
+        fuel_data["region"] = (
+            fuel_data["region"]
+            .str.lower()
+            .map(
+                {v.lower(): k for k, v in settings["fuel_series_region_names"].items()}
+            )
+        )
+    fuel_data["full_fuel_name"] = (
+        fuel_data["region"] + "_" + fuel_data["scenario"] + "_" + fuel_data["fuel"]
+    )
+    fuel_data = fuel_data.dropna(subset=["full_fuel_name"])
 
     if inflate_price:
         try:
-            fuel_price_base_year = settings["aeo_fuel_usd_year"]
-            fuel_price_target_year = settings["target_usd_year"]
-            final.loc[:, "price"] = inflation_price_adjustment(
-                price=final.loc[:, "price"],
-                base_year=fuel_price_base_year,
-                target_year=fuel_price_target_year,
-            )
+            df_list = []
+            for year, _df in fuel_data.groupby("dollar_year"):
+                _df.loc[:, "price"] = inflation_price_adjustment(
+                    price=_df.loc[:, "price"],
+                    base_year=year,
+                    target_year=settings["target_usd_year"],
+                    data_location=settings["data_location"],
+                    table_name=settings["dollar_year_table"],
+                )
+                df_list.append(_df)
+            fuel_data = pd.concat(df_list, ignore_index=True, sort=False)
         except (KeyError, TypeError):
             logger.warning(
                 """
@@ -284,12 +234,12 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
                 """
             )
 
-    return final
+    return fuel_data
 
 
 def modify_fuel_prices(
     prices: pd.DataFrame,
-    aeo_fuel_region_map: dict,
+    fuel_region_map: dict,
     regional_fuel_adjustments: dict = None,
 ) -> pd.DataFrame:
     """Modify the AEO fuel prices by model region or fuel within a model region.
@@ -299,7 +249,7 @@ def modify_fuel_prices(
     prices : pd.DataFrame
         Fuel prices from AEO, with columns ['year', 'price', 'fuel', 'region', 'scenario',
         'full_fuel_name']
-    aeo_fuel_region_map : dict
+    fuel_region_map : dict
         Mapping of AEO census division fuel names to lists of model regions
     regional_fuel_adjustments : dict, optional
         Modifications of fuel prices by region or fuel within region, by default None
@@ -313,9 +263,9 @@ def modify_fuel_prices(
     Raises
     ------
     KeyError
-        The required parameter 'aeo_fuel_region_map' is missing
+        The required parameter 'fuel_region_map' is missing
     KeyError
-        One or more model regions having fuel prices modified is not in `aeo_fuel_region_map`
+        One or more model regions having fuel prices modified is not in `fuel_region_map`
     KeyError
         Invalid operator type
     KeyError
@@ -329,16 +279,16 @@ def modify_fuel_prices(
     if not regional_fuel_adjustments:
         return prices
 
-    if not aeo_fuel_region_map:
-        raise KeyError("The required parameter 'aeo_fuel_region_map' is missing.")
+    if not fuel_region_map:
+        raise KeyError("The required parameter 'fuel_region_map' is missing.")
 
     allowed_operators = ["add", "mul", "truediv", "sub"]
     model_regions = list(regional_fuel_adjustments)
-    model_aeo_region_map = reverse_dict_of_lists(aeo_fuel_region_map)
+    model_aeo_region_map = reverse_dict_of_lists(fuel_region_map)
     if not all(r in model_aeo_region_map for r in model_regions):
         raise KeyError(
             "All model regions listed in the settings parameter 'regional_fuel_adjustments' "
-            "should also be included in `aeo_fuel_region_map`. One or more regions was "
+            "should also be included in `fuel_region_map`. One or more regions was "
             "not found."
         )
 
@@ -467,6 +417,8 @@ def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFram
                     user_fuel_price.loc[user_fuel_price["fuel"] == fuel, "price"],
                     year,
                     settings["target_usd_year"],
+                    data_location=settings["data_location"],
+                    table_name=settings["dollar_year_table"],
                 )
             )
     if df is not None:

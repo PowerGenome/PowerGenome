@@ -136,10 +136,14 @@ def add_resource_max_cap_spur(
     # Let users omit the "region" column or set a value of "all"
     if "region" not in df.columns:
         df["region"] = "all"
-    for region in settings["model_regions"]:
-        _df = df.loc[df["region"].str.lower() == "all", :]
-        _df.loc[:, "region"] = region
-        df = df.append(_df)
+
+    if "all" in df["region"].str.lower().to_list():
+        df_list = [df]
+        for region in settings["model_regions"]:
+            _df = df.loc[df["region"].str.lower() == "all", :]
+            _df.loc[:, "region"] = region
+            df_list.append(_df)
+        df = pd.concat(df_list, ignore_index=True)
 
     df = df.loc[df["region"].str.lower() != "all", :]
 
@@ -175,7 +179,11 @@ def add_resource_max_cap_spur(
         f"{settings['target_usd_year']}"
     )
     new_resource_df["interconnect_annuity"] = inflation_price_adjustment(
-        new_resource_df["interconnect_annuity"], 2017, settings["target_usd_year"]
+        new_resource_df["interconnect_annuity"],
+        2017,
+        settings["target_usd_year"],
+        data_location=settings["data_location"],
+        table_name=settings["dollar_year_table"],
     )
     return new_resource_df
 
@@ -499,7 +507,10 @@ def make_usr_demand_profiles(path, settings):
 
 
 def load_user_tx_costs(
-    path: Path, model_regions: List[str], target_usd_year: int = None
+    path: Path,
+    model_regions: List[str],
+    target_usd_year: int = None,
+    settings: dict = None,
 ) -> pd.DataFrame:
     """Load a user data file with cost and line loss of each interregional transmission
     line. Map the region names to zones (z1 to zM) and adjust the total cost columns
@@ -539,12 +550,20 @@ def load_user_tx_costs(
         adjusted_costs = []
         for row in df.itertuples():
             adj_annuity = inflation_price_adjustment(
-                row.total_interconnect_annuity_mw, row.dollar_year, target_usd_year
+                row.total_interconnect_annuity_mw,
+                row.dollar_year,
+                target_usd_year,
+                data_location=settings["data_location"],
+                table_name=settings["dollar_year_table"],
             ).round(0)
             adjusted_annuities.append(adj_annuity)
 
             adj_cost = inflation_price_adjustment(
-                row.total_interconnect_cost_mw, row.dollar_year, target_usd_year
+                row.total_interconnect_cost_mw,
+                row.dollar_year,
+                target_usd_year,
+                data_location=settings["data_location"],
+                table_name=settings["dollar_year_table"],
             ).round(0)
             adjusted_costs.append(adj_cost)
         df["total_interconnect_annuity_mw"] = adjusted_annuities
@@ -578,43 +597,36 @@ def insert_user_tx_costs(tx_df: pd.DataFrame, user_costs: pd.DataFrame) -> pd.Da
     if tx_df.empty:
         return tx_df
     user_costs = user_costs.dropna(subset=["zone_1", "zone_2"], how="any")
-    unused_lines = []
-    for row in user_costs.itertuples():
-        line_row = tx_df.loc[(tx_df[row.zone_1] != 0) & (tx_df[row.zone_2] != 0), :]
-        assert not len(line_row) > 1
-
-        if line_row.empty:
-            unused_lines.append(row)
-        tx_df.loc[line_row.index, "Line_Reinforcement_Cost_per_MWyr"] = (
-            row.total_interconnect_annuity_mw
-        )
-        tx_df.loc[line_row.index, "Line_Reinforcement_Cost_per_MW"] = (
-            row.total_interconnect_cost_mw
-        )
-        tx_df.loc[line_row.index, "Line_Loss_Percentage"] = row.total_line_loss_frac
-
-    unused_line_df = pd.DataFrame(unused_lines)
-    unused_line_df = unused_line_df.rename(
+    user_costs = user_costs.rename(
         columns={
             "total_interconnect_annuity_mw": "Line_Reinforcement_Cost_per_MWyr",
             "total_interconnect_cost_mw": "Line_Reinforcement_Cost_per_MW",
             "total_line_loss_frac": "Line_Loss_Percentage",
         }
     )
-
-    zone_cols = [c for c in tx_df.columns if c[0] == "z"]
-    unused_line_df[zone_cols] = 0
-    for idx, row in unused_line_df.iterrows():
-        unused_line_df.loc[idx, row["zone_1"]] = 1
-        unused_line_df.loc[idx, row["zone_2"]] = -1
-        unused_line_df.loc[idx, "transmission_path_name"] = (
-            f"{row.start_region}_to_{row.dest_region}"
-        )
-
-    cols = [c for c in tx_df.columns if c in unused_line_df.columns]
-    tx_df = pd.concat([tx_df, unused_line_df[cols]], ignore_index=True)
-    tx_df["Network_Lines"] = range(1, len(tx_df) + 1)
-    tx_df["Line_Max_Flow_MW"] = tx_df["Line_Max_Flow_MW"].fillna(0)
-    tx_df["Line_Min_Flow_MW"] = tx_df["Line_Max_Flow_MW"].fillna(0)
+    tx_df = pd.merge(
+        tx_df,
+        pd.concat(
+            [
+                user_costs,
+                user_costs.rename(
+                    columns={
+                        "start_region": "dest_region",
+                        "dest_region": "start_region",
+                    }
+                ),
+            ]
+        )[
+            [
+                "start_region",
+                "dest_region",
+                "Line_Reinforcement_Cost_per_MWyr",
+                "Line_Reinforcement_Cost_per_MW",
+                "Line_Loss_Percentage",
+            ]
+        ],
+        on=["start_region", "dest_region"],
+        how="left",
+    )
 
     return tx_df

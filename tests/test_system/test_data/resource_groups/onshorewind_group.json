@@ -1,0 +1,6 @@
+{
+    "technology": "landbasedwind",
+    "metadata": "onshorewind_lcoe_ReEDS.csv",
+    "profiles": "onshorewind_profiles_test_data.csv",
+    "site_map": "site_map_test_data.csv"
+}
