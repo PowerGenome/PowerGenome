@@ -197,8 +197,7 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     Parameters
     ----------
     df : DataFrame
-        All generator clusters. Must have a column "technology". Can include both EIA
-        and NRELATB technology names.
+        All generator clusters. Must have a column "technology".
     settings : dictionary
         User-defined settings loaded from a YAML file. Keys in "startup_fuel_use"
         should match technology names directly.
@@ -3492,7 +3491,6 @@ class GeneratorClusters:
         else:
             self.results["profile"] = None
 
-        # Add fixed/variable O&M based on NREL atb
         self.results = (
             self.results.pipe(startup_fuel, self.settings)
             .pipe(add_fuel_labels, self.fuel_prices, self.settings)
@@ -3599,9 +3597,6 @@ class GeneratorClusters:
 
     def create_new_generators(self):
         logger.info("Starting to build new generation resources")
-        # self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
-        #     self.data_location, self.settings
-        # )
         self.resource_hr = fetch_heat_rates(
             self.settings.get("resource_data_year"),
         )
