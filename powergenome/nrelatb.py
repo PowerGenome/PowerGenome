@@ -17,6 +17,7 @@ from powergenome.cluster.renewables import (
     calc_cluster_values,
     modify_renewable_group,
 )
+from powergenome.database import get_data
 from powergenome.financials import investment_cost_calculator
 from powergenome.params import DATA_PATHS, SETTINGS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
@@ -30,7 +31,6 @@ from powergenome.util import (
     add_row_to_csv,
     apply_all_tag_to_regions,
     hash_string_sha256,
-    load_data,
     reverse_dict_of_lists,
     snake_case_col,
 )
@@ -40,22 +40,16 @@ logger = logging.getLogger(__name__)
 
 
 def fetch_resource_costs(
-    data_location: Path,
-    data_name: str,
     settings: dict,
     resource_data_year: int = None,
 ) -> pd.DataFrame:
-    """Get NREL ATB power plant cost data from database, filter where applicable.
+    """Get resource cost data from the DataManager, filter where applicable.
 
     This function can also remove NREL ATB offshore spur costs if more accurate costs
     will be included elsewhere (e.g. as part of total interconnection costs).
 
     Parameters
     ----------
-    data_location : Path
-        Location of the database file or folder containing the input data.
-    data_name : str
-        Name of the database file or table with resource cost data.
     settings : dict
         User-defined parameters from a settings file. Needs to have keys
         `atb_data_year`, `atb_new_gen`, and `target_usd_year`. If the key
@@ -124,7 +118,7 @@ def fetch_resource_costs(
             # planning year.
             filters[0].append(("data_year", "=", resource_data_year))
 
-        all_rows.append(load_data(data_location, data_name, filters=filters))
+        all_rows.append(get_data("resource_cost", filters=filters))
         # all_rows.extend(pg_engine.execute(s, cost_params).fetchall())
 
         if (tech, cost_case) not in tech_list:
@@ -144,7 +138,7 @@ def fetch_resource_costs(
                 # This is useful for ATB data, which has a different data year than the
                 # planning year.
                 wacc_filters[0].append(("data_year", "=", resource_data_year))
-            wacc_rows.append(load_data(data_location, data_name, filters=wacc_filters))
+            wacc_rows.append(get_data("resource_cost", filters=wacc_filters))
             # wacc_rows.extend(pg_engine.execute(wacc_s).fetchall())
 
         tech_list.append((tech, cost_case))
@@ -273,17 +267,11 @@ def fetch_resource_costs(
 #     return spur_costs
 
 
-def fetch_heat_rates(
-    data_location: Path, data_name: str, data_year: int = None
-) -> pd.DataFrame:
-    """Get heat rate projections for power plants
+def fetch_heat_rates(data_year: int = None) -> pd.DataFrame:
+    """Get heat rate projections for power plants from the DataManager
 
     Parameters
     ----------
-    data_location : Path
-        Path to the folder or database containing the input data file/table.
-    data_name : str
-        Name of the file or table with heat rate values.
     data_year : int
         Year of data vintage. Not the same as planning or technology year. Optional,
         defaults to None.
@@ -296,15 +284,15 @@ def fetch_heat_rates(
     """
     if data_year:
         filters = [[("data_year", "=", data_year)]]
-        heat_rates = load_data(data_location, data_name, filters=filters)
+        heat_rates = get_data("resource_heat_rate", filters=filters)
     else:
-        heat_rates = load_data(data_location, data_name)
+        heat_rates = get_data("resource_heat_rate")
     # heat_rates = heat_rates.loc[heat_rates["data_year"] == data_year, :]
 
     if heat_rates.empty:
         s = (
             f"Your settings file has parameter `data_year` of {data_year}"
-            f", which isn't in the table `{data_name}`."
+            f", which isn't in the resource heat rate table."
         )
         raise ValueError(s)
 

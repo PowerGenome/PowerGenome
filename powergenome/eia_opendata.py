@@ -11,9 +11,10 @@ from typing import Union
 
 import pandas as pd
 
+from powergenome.database import get_data
 from powergenome.params import DATA_PATHS
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.util import download_save, load_data, reverse_dict_of_lists
+from powergenome.util import download_save, reverse_dict_of_lists
 
 logger = logging.getLogger(__name__)
 
@@ -113,20 +114,15 @@ def load_aeo_series(series_id: str) -> pd.DataFrame:
     return df
 
 
-def fetch_fuel_prices(
-    data_location: Path, table_name: str, settings: dict, inflate_price: bool = True
-) -> pd.DataFrame:
+def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFrame:
     """
     Get fuel prices for all regions, fuel types, and scenarios (series IDs)
-    included in the settings. Combine the region, scenario, and fuel name into a full
+    included in the settings from the DataManager's standardized "fuel_price" table.
+    Combine the region, scenario, and fuel name into a full
     fuel name column. Optionally, adjust the prices to the target dollar year.
 
     Parameters
     ----------
-    data_location : Path
-        Path to the directory containing the saved fuel price data table.
-    table_name : str
-        Name of the CSV file or table containing the fuel price data.
     settings : dict
         Should include the following keys:
             fuel_data_year (int)
@@ -155,10 +151,10 @@ def fetch_fuel_prices(
 
     data_year = settings.get("fuel_data_year")
 
-    all_fuel_data = load_data(data_location, table_name)
+    all_fuel_data = get_data("fuel_price")
     if all_fuel_data.empty:
         raise FileNotFoundError(
-            f"The file {data_location / table_name} does is empty. "
+            f"The fuel price table is empty. "
             "Please check the data location and table name."
         )
     if data_year is not None and "data_year" in all_fuel_data.columns:

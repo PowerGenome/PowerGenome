@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 import powergenome
+from powergenome.database import initialize_data_manager
 from powergenome.external_data import make_generator_variability
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters
@@ -166,6 +167,14 @@ def main(**kwargs):
     logger.info("Reading settings file")
     settings = load_settings(path=args.settings_file)
 
+    # Initialize DataManager early with settings
+    logger.info("Initializing data manager")
+    initialize_data_manager(
+        settings=settings,
+        data_location=settings.get("data_location"),
+        lazy_loading=settings.get("lazy_loading", True),
+    )
+
     # Copy the settings file to results folder
     if Path(args.settings_file).is_file():
         shutil.copy(args.settings_file, out_folder)
@@ -237,6 +246,15 @@ def main(**kwargs):
     first_year = True
     for year, year_settings in scenario_settings.items():
         for case_id, _settings in year_settings.items():
+            # Update DataManager for this specific case if data location changes
+            if _settings.get("data_location") != settings.get("data_location"):
+                logger.info(f"Updating data manager for case {case_id}")
+                initialize_data_manager(
+                    settings=_settings,
+                    data_location=_settings.get("data_location"),
+                    lazy_loading=_settings.get("lazy_loading", True),
+                )
+
             case_folder = (
                 out_folder
                 / f"{case_id}"
@@ -252,13 +270,7 @@ def main(**kwargs):
             case_year_data = {}
             if args.gens:
                 gc = GeneratorClusters(
-                    # pudl_engine=pudl_engine,
-                    # pudl_out=pudl_out,
-                    data_location=_settings["data_location"],
-                    generation_table=_settings["generation_table"],
                     settings=_settings,
-                    resource_heat_rate_table=_settings["resource_heat_rate_table"],
-                    resource_cost_table=_settings["resource_cost_table"],
                     current_gens=args.current_gens,
                     sort_gens=args.sort_gens,
                     multi_period=args.multi_period,
@@ -323,16 +335,11 @@ def main(**kwargs):
 
             if args.transmission:
                 tx_costs = load_tx_costs(
-                    data_location=_settings["data_location"],
-                    table_name=_settings["transmission_cost_table"],
                     target_usd_year=_settings.get("target_usd_year"),
                     zone_num_map=_settings["zone_num_map"],
-                    dollar_year_table=_settings.get("dollar_year_table"),
                 )
 
                 transmission = agg_transmission_constraints(
-                    data_location=_settings["data_location"],
-                    data_table=_settings.get("transmission_constraints_table"),
                     model_regions=_settings["model_regions"],
                     regional_aggregations=_settings["region_aggregations"],
                     zone_num_map=_settings["zone_num_map"],
