@@ -17,6 +17,7 @@ from powergenome.database import (
     initialize_data_manager,
     list_tables,
     table_info,
+    update_data_manager,
 )
 
 
@@ -649,6 +650,376 @@ class TestValidation:
             # Only the correctly named file should load
             assert "generation" in dm.available_tables
             assert len(dm.available_tables) == 1
+
+
+class TestDataManagerUpdate:
+    """Test suite for DataManager update functionality."""
+
+    def test_update_table_configuration_string_to_string(
+        self, sample_data, temp_csv_folder
+    ):
+        """Test updating a table configuration from one string to another."""
+        # Create two different CSV files
+        sample_data["generators"].to_csv(
+            temp_csv_folder / "generators_v1.csv", index=False
+        )
+        sample_data["plant_regions"].to_csv(
+            temp_csv_folder / "generators_v2.csv", index=False
+        )
+
+        # Initial setup
+        initial_settings = {"generation_table": "generators_v1.csv"}
+        dm = DataManager()
+        dm.initialize(initial_settings, temp_csv_folder)
+
+        # Verify initial state
+        assert "generation" in dm.available_tables
+        initial_data = dm.get_data("generation")
+        assert "technology" in initial_data.columns
+
+        # Update to different file
+        updated_settings = {"generation_table": "generators_v2.csv"}
+        dm.update(updated_settings)
+
+        # Verify update
+        assert "generation" in dm.available_tables
+        updated_data = dm.get_data("generation")
+        assert "state" in updated_data.columns  # plant_regions has state column
+        assert "technology" not in updated_data.columns
+
+    def test_update_table_configuration_string_to_dict(
+        self, sample_data, temp_csv_folder
+    ):
+        """Test updating a table configuration from string to dictionary."""
+        sample_data["generators"].to_csv(
+            temp_csv_folder / "generators.csv", index=False
+        )
+
+        # Initial setup with string config
+        initial_settings = {"generation_table": "generators.csv"}
+        dm = DataManager()
+        dm.initialize(initial_settings, temp_csv_folder)
+
+        initial_data = dm.get_data("generation")
+        assert len(initial_data) == 3
+
+        # Update to dictionary config with filters
+        updated_settings = {
+            "generation_table": {
+                "table_name": "generators.csv",
+                "filters": [[("technology", "=", "solar")]],
+                "columns": ["plant_id", "technology"],
+            }
+        }
+        dm.update(updated_settings)
+
+        # Verify filtered data
+        updated_data = dm.get_data("generation")
+        assert len(updated_data) == 1
+        assert list(updated_data.columns) == ["plant_id", "technology"]
+        assert updated_data.iloc[0]["technology"] == "solar"
+
+    def test_update_add_new_table(self, sample_data, temp_csv_folder):
+        """Test adding a new table via update."""
+        sample_data["generators"].to_csv(
+            temp_csv_folder / "generators.csv", index=False
+        )
+        sample_data["plant_regions"].to_csv(
+            temp_csv_folder / "plant_regions.csv", index=False
+        )
+
+        # Initial setup with one table
+        initial_settings = {"generation_table": "generators.csv"}
+        dm = DataManager()
+        dm.initialize(initial_settings, temp_csv_folder)
+
+        assert len(dm.available_tables) == 1
+        assert "generation" in dm.available_tables
+
+        # Add new table via update
+        updated_settings = {
+            "generation_table": "generators.csv",
+            "plant_region_table": "plant_regions.csv",
+        }
+        dm.update(updated_settings)
+
+        # Verify both tables are available
+        assert len(dm.available_tables) == 2
+        assert "generation" in dm.available_tables
+        assert "plant_region" in dm.available_tables
+
+        # Verify data is accessible
+        plant_data = dm.get_data("plant_region")
+        assert len(plant_data) == 3
+        assert "state" in plant_data.columns
+
+    def test_update_no_changes(self, sample_data, temp_csv_folder):
+        """Test update when no changes are made."""
+        sample_data["generators"].to_csv(
+            temp_csv_folder / "generators.csv", index=False
+        )
+
+        initial_settings = {"generation_table": "generators.csv"}
+        dm = DataManager()
+        dm.initialize(initial_settings, temp_csv_folder)
+
+        initial_tables = dm.available_tables.copy()
+        initial_configs = dm.table_configurations.copy()
+
+        # Update with same settings
+        dm.update(initial_settings)
+
+        # Verify nothing changed
+        assert dm.available_tables == initial_tables
+        assert dm.table_configurations == initial_configs
+
+    def test_update_without_settings_parameter(self, sample_data, temp_csv_folder):
+        """Test update without providing updated_settings parameter."""
+        sample_data["generators"].to_csv(
+            temp_csv_folder / "generators.csv", index=False
+        )
+        sample_data["plant_regions"].to_csv(
+            temp_csv_folder / "plant_regions.csv", index=False
+        )
+
+        initial_settings = {"generation_table": "generators.csv"}
+        dm = DataManager()
+        dm.initialize(initial_settings, temp_csv_folder)
+
+        # Manually modify settings
+        dm.settings["plant_region_table"] = "plant_regions.csv"
+
+        # Update without parameters (should use current settings)
+        dm.update()
+
+        # Verify new table was added
+        assert len(dm.available_tables) == 2
+        assert "plant_region" in dm.available_tables
+
+    def test_update_with_invalid_table_config(
+        self, sample_data, temp_csv_folder, caplog
+    ):
+        """Test update with invalid table configuration."""
+        sample_data["generators"].to_csv(
+            temp_csv_folder / "generators.csv", index=False
+        )
+
+        initial_settings = {"generation_table": "generators.csv"}
+        dm = DataManager()
+        dm.initialize(initial_settings, temp_csv_folder)
+
+        # Update with invalid config (nonexistent file)
+        updated_settings = {"generation_table": "nonexistent.csv"}
+
+        with caplog.at_level(logging.ERROR):
+            dm.update(updated_settings)
+
+        # Verify error was logged and table was removed
+        error_messages = [
+            record.message
+            for record in caplog.records
+            if record.levelno >= logging.ERROR
+        ]
+        assert any("Failed to update table generation" in msg for msg in error_messages)
+        assert "generation" not in dm.available_tables
+
+    def test_update_mixed_changes(self, sample_data, temp_csv_folder):
+        """Test update with mixed changes (modify, add, remove)."""
+        # Create test files
+        sample_data["generators"].to_csv(
+            temp_csv_folder / "generators_v1.csv", index=False
+        )
+        sample_data["plant_regions"].to_csv(
+            temp_csv_folder / "generators_v2.csv", index=False
+        )
+        sample_data["plant_regions"].to_csv(
+            temp_csv_folder / "plant_regions.csv", index=False
+        )
+        sample_data["fuel_prices"].to_csv(
+            temp_csv_folder / "fuel_prices.csv", index=False
+        )
+
+        # Initial setup
+        initial_settings = {
+            "generation_table": "generators_v1.csv",
+            "plant_region_table": "plant_regions.csv",
+            "fuel_price_table": "fuel_prices.csv",
+        }
+        dm = DataManager()
+        dm.initialize(initial_settings, temp_csv_folder)
+
+        assert len(dm.available_tables) == 3
+
+        # Mixed update: modify generation, remove fuel_price, add demand
+        sample_data["load_data"].to_csv(temp_csv_folder / "load_data.csv", index=False)
+        updated_settings = {
+            "generation_table": "generators_v2.csv",  # Changed
+            "plant_region_table": "plant_regions.csv",  # Unchanged
+            "demand_table": "load_data.csv",  # New
+            # fuel_price_table unchanged
+        }
+        dm.update(updated_settings)
+
+        # Verify results
+        assert len(dm.available_tables) == 4
+        assert "generation" in dm.available_tables
+        assert "plant_region" in dm.available_tables
+        assert "demand" in dm.available_tables
+        assert "fuel_price" in dm.available_tables
+
+        # Verify modified table has new data structure
+        gen_data = dm.get_data("generation")
+        assert "state" in gen_data.columns  # Should now have plant_regions structure
+
+    def test_update_lazy_vs_materialized(self, sample_data, temp_csv_folder):
+        """Test update works with both lazy and materialized loading."""
+        sample_data["generators"].to_csv(
+            temp_csv_folder / "generators_v1.csv", index=False
+        )
+        sample_data["plant_regions"].to_csv(
+            temp_csv_folder / "generators_v2.csv", index=False
+        )
+
+        # Test with lazy loading
+        dm_lazy = DataManager()
+        dm_lazy.initialize(
+            {"generation_table": "generators_v1.csv"},
+            temp_csv_folder,
+            lazy_loading=True,
+        )
+        dm_lazy.update({"generation_table": "generators_v2.csv"})
+
+        lazy_data = dm_lazy.get_data("generation")
+        assert "state" in lazy_data.columns
+
+        # Test with materialized loading
+        dm_mat = DataManager()
+        dm_mat.initialize(
+            {"generation_table": "generators_v1.csv"},
+            temp_csv_folder,
+            lazy_loading=False,
+        )
+        dm_mat.update({"generation_table": "generators_v2.csv"})
+
+        mat_data = dm_mat.get_data("generation")
+        assert "state" in mat_data.columns
+
+        # Data should be equivalent
+        pd.testing.assert_frame_equal(lazy_data, mat_data)
+
+    def test_update_with_database_file(self, sample_data, temp_sqlite_db):
+        """Test update functionality with database files."""
+        # Remove CSV-specific table and create different tables in DB
+        settings_v1 = {"generation_table": "generators"}
+        settings_v2 = {"generation_table": "plant_regions"}  # Different table
+
+        dm = DataManager()
+        dm.initialize(settings_v1, temp_sqlite_db)
+
+        initial_data = dm.get_data("generation")
+        assert "technology" in initial_data.columns
+
+        # Update to different table
+        dm.update(settings_v2)
+
+        updated_data = dm.get_data("generation")
+        assert "state" in updated_data.columns
+        assert "technology" not in updated_data.columns
+
+    def test_update_error_handling_uninitialized(self):
+        """Test error handling when updating uninitialized DataManager."""
+        dm = DataManager()
+        dm.connection = None  # Force uninitialized state
+
+        with pytest.raises(ValueError, match="DataManager not initialized"):
+            dm.update({"generation_table": "test.csv"})
+
+    def test_update_preserves_table_configurations(self, sample_data, temp_csv_folder):
+        """Test that update properly maintains table_configurations."""
+        sample_data["generators"].to_csv(
+            temp_csv_folder / "generators.csv", index=False
+        )
+        sample_data["plant_regions"].to_csv(
+            temp_csv_folder / "plant_regions.csv", index=False
+        )
+
+        initial_settings = {"generation_table": "generators.csv"}
+        dm = DataManager()
+        dm.initialize(initial_settings, temp_csv_folder)
+
+        # Verify initial configuration is stored
+        assert "generation" in dm.table_configurations
+        assert dm.table_configurations["generation"]["config"] == "generators.csv"
+        assert (
+            dm.table_configurations["generation"]["setting_key"] == "generation_table"
+        )
+
+        # Update
+        updated_settings = {
+            "generation_table": "plant_regions.csv",
+            "plant_region_table": "plant_regions.csv",
+        }
+        dm.update(updated_settings)
+
+        # Verify configurations are properly updated
+        assert dm.table_configurations["generation"]["config"] == "plant_regions.csv"
+        assert "plant_region" in dm.table_configurations
+        assert dm.table_configurations["plant_region"]["config"] == "plant_regions.csv"
+
+
+class TestGlobalUpdateFunction:
+    """Test suite for the global update_data_manager function."""
+
+    def test_global_update_function(self, sample_data, temp_csv_folder):
+        """Test the global update_data_manager function."""
+        sample_data["generators"].to_csv(
+            temp_csv_folder / "generators.csv", index=False
+        )
+        sample_data["plant_regions"].to_csv(
+            temp_csv_folder / "plant_regions.csv", index=False
+        )
+
+        # Initialize using global function
+        initial_settings = {"generation_table": "generators.csv"}
+        initialize_data_manager(initial_settings, temp_csv_folder)
+
+        assert len(list_tables()) == 1
+        assert "generation" in list_tables()
+
+        # Update using global function
+        updated_settings = {
+            "generation_table": "generators.csv",
+            "plant_region_table": "plant_regions.csv",
+        }
+        update_data_manager(updated_settings)
+
+        # Verify update worked
+        assert len(list_tables()) == 2
+        assert "plant_region" in list_tables()
+
+        plant_data = get_data("plant_region")
+        assert len(plant_data) == 3
+
+    def test_global_update_function_no_settings(self, sample_data, temp_csv_folder):
+        """Test global update function without providing settings."""
+        sample_data["generators"].to_csv(
+            temp_csv_folder / "generators.csv", index=False
+        )
+        sample_data["plant_regions"].to_csv(
+            temp_csv_folder / "plant_regions.csv", index=False
+        )
+
+        initial_settings = {"generation_table": "generators.csv"}
+        initialize_data_manager(initial_settings, temp_csv_folder)
+
+        # Manually update global manager's settings
+        _data_manager.settings["plant_region_table"] = "plant_regions.csv"
+
+        # Update without parameters
+        update_data_manager()
+
+        # Verify new table was added
+        assert "plant_region" in list_tables()
 
 
 @pytest.fixture(autouse=True)

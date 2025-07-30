@@ -52,6 +52,7 @@ class DataManager:
             self.connection = None
             self.data_location = None
             self.available_tables = set()
+            self.table_configurations = {}  # Store original table configs
             self._initialized = True
             self.sqlite_attached = False
             self.duckdb_attached = False
@@ -83,6 +84,7 @@ class DataManager:
         self.data_location = Path(data_location) if data_location else None
         self.settings = settings
         self.lazy_loading = lazy_loading
+        self.table_configurations = {}  # Reset configurations
 
         # Setup tables based on settings
         self._setup_tables()
@@ -100,6 +102,12 @@ class DataManager:
                 continue
 
             try:
+                # Store the configuration for potential updates
+                self.table_configurations[standard_name] = {
+                    "setting_key": setting_key,
+                    "config": table_config,
+                }
+
                 self._create_table_view(table_config, standard_name)
                 self.available_tables.add(standard_name)
                 logger.debug(f"Created table/view: {standard_name}")
@@ -413,12 +421,100 @@ class DataManager:
 
         return self.connection.execute(query).fetchdf()
 
+    def update(self, updated_settings: Dict[str, Any] = None):
+        """
+        Update source tables with new configurations.
+
+        Parameters
+        ----------
+        updated_settings : Dict[str, Any], optional
+            New settings dictionary with updated table configurations.
+            If None, uses current settings to refresh all tables.
+        """
+        if self.connection is None:
+            raise ValueError("DataManager not initialized. Call initialize() first.")
+
+        # Use provided settings or current settings
+        if updated_settings is not None:
+            self.settings.update(updated_settings)
+
+        # Find tables where configuration has changed
+        tables_to_update = set()
+        for setting_key, standard_name in self.STANDARD_TABLE_MAPPING.items():
+            new_config = self.settings.get(setting_key)
+            old_config = self.table_configurations.get(standard_name, {}).get("config")
+
+            if new_config != old_config:
+                tables_to_update.add(standard_name)
+
+        # Update each table
+        for standard_name in tables_to_update:
+            setting_key = None
+            # Find the setting key for this table
+            for key, name in self.STANDARD_TABLE_MAPPING.items():
+                if name == standard_name:
+                    setting_key = key
+                    break
+
+            if not setting_key:
+                logger.warning(f"Could not find setting key for table {standard_name}")
+                continue
+
+            table_config = self.settings.get(setting_key)
+
+            if not table_config:
+                # Remove table if no longer configured
+                self._remove_table(standard_name)
+                continue
+
+            try:
+                # Remove existing table/view
+                self._remove_table(standard_name)
+
+                # Update stored configuration
+                self.table_configurations[standard_name] = {
+                    "setting_key": setting_key,
+                    "config": table_config,
+                }
+
+                # Recreate table/view
+                self._create_table_view(table_config, standard_name)
+                self.available_tables.add(standard_name)
+
+                logger.info(f"Updated table/view: {standard_name}")
+
+            except Exception as e:
+                logger.error(f"Failed to update table {standard_name}: {e}")
+                # Remove from available tables if update failed
+                self.available_tables.discard(standard_name)
+                self.table_configurations.pop(standard_name, None)
+
+    def _remove_table(self, table_name: str):
+        """Remove a table or view from the in-memory database."""
+        try:
+            # Try to drop as view first, then as table
+            try:
+                self.connection.execute(f"DROP VIEW IF EXISTS {table_name}")
+            except:
+                pass
+            try:
+                self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
+            except:
+                pass
+
+            self.available_tables.discard(table_name)
+            logger.debug(f"Removed table/view: {table_name}")
+
+        except Exception as e:
+            logger.warning(f"Error removing table {table_name}: {e}")
+
     def close(self):
         """Close the database connection."""
         if self.connection:
             self.connection.close()
             self.connection = None
             self.available_tables.clear()
+            self.table_configurations.clear()
             self.sqlite_attached = False
             self.duckdb_attached = False
             logger.info("DataManager connection closed")
@@ -512,3 +608,16 @@ def table_info(table_name: str) -> pd.DataFrame:
 def execute_query(query: str) -> pd.DataFrame:
     """Execute a custom SQL query on the in-memory database."""
     return _data_manager.execute_query(query)
+
+
+def update_data_manager(updated_settings: Dict[str, Any] = None):
+    """
+    Update source tables in the global DataManager instance.
+
+    Parameters
+    ----------
+    updated_settings : Dict[str, Any], optional
+        New settings dictionary with updated table configurations.
+        If None, uses current settings to refresh all tables.
+    """
+    _data_manager.update(updated_settings)

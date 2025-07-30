@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 import powergenome
-from powergenome.database import initialize_data_manager
+from powergenome.database import initialize_data_manager, update_data_manager
 from powergenome.external_data import make_generator_variability
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters
@@ -246,14 +246,8 @@ def main(**kwargs):
     first_year = True
     for year, year_settings in scenario_settings.items():
         for case_id, _settings in year_settings.items():
-            # Update DataManager for this specific case if data location changes
-            if _settings.get("data_location") != settings.get("data_location"):
-                logger.info(f"Updating data manager for case {case_id}")
-                initialize_data_manager(
-                    settings=_settings,
-                    data_location=_settings.get("data_location"),
-                    lazy_loading=_settings.get("lazy_loading", True),
-                )
+            # Update DataManager for this specific case
+            update_data_manager(settings=_settings)
 
             case_folder = (
                 out_folder
