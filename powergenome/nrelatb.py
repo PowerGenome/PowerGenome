@@ -86,7 +86,7 @@ def fetch_resource_costs(
         "parameter_value",
         "dollar_year",
     ]
-    # resource_data_year = settings["atb_data_year"]
+
     fin_case = settings.get("resource_financial_case", "Market")
 
     # Fetch cost data from sqlite and create dataframe. Only get values for techs/cases
@@ -123,8 +123,6 @@ def fetch_resource_costs(
         """
         if resource_data_year:
             # If a resource data year is specified, filter by that as well.
-            # This is useful for ATB data, which has a different data year than the
-            # planning year.
             s += f"""
             AND data_year == {resource_data_year}
             """
@@ -144,9 +142,6 @@ def fetch_resource_costs(
                 AND parameter == 'wacc_real'
             """
             if resource_data_year:
-                # If a resource data year is specified, filter by that as well.
-                # This is useful for ATB data, which has a different data year than the
-                # planning year.
                 wacc_s += f"""
                 AND data_year == {resource_data_year}
                 """
@@ -254,7 +249,7 @@ def single_generator_row(
     new_gen_type: str,
     model_year_range: Union[Tuple[int], List[int]],
 ) -> pd.DataFrame:
-    """Create a data row with NREL ATB costs and performace for a single technology
+    """Create a data row with costs and performace for a single technology
 
     Parameters
     ----------
