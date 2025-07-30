@@ -112,40 +112,38 @@ def fetch_resource_costs(
     # valid_inputs = db_col_values(data_location, data_name, cols)
     for tech in techs + mod_techs:
         tech, tech_detail, cost_case, _ = tech
-        quoted_params = ", ".join(f"'{p}'" for p in cost_params)
-        s = f"""
-        where
-            technology == '{tech}'
-            AND tech_detail == '{tech_detail}'
-            AND financial_case == '{fin_case}'
-            AND cost_case == '{cost_case}'
-            AND parameter IN ({quoted_params})
-        """
+        filters = [
+            [
+                ("technology", "=", tech),
+                ("tech_detail", "=", tech_detail),
+                ("financial_case", "=", fin_case),
+                ("cost_case", "=", cost_case),
+                ("parameter", "IN", cost_params),
+            ]
+        ]
         if resource_data_year:
             # If a resource data year is specified, filter by that as well.
-            s += f"""
-            AND data_year == {resource_data_year}
-            """
+            filters[0].append(("data_year", "=", resource_data_year))
 
-        all_rows.append(load_data(data_location, data_name, query=s))
+        all_rows.append(load_data(data_location, data_name, filters=filters))
         # all_rows.extend(pg_engine.execute(s, cost_params).fetchall())
 
         if (tech, cost_case) not in tech_list:
             # ATB2020 summary file provides a single WACC for each technology and a single
             # tech detail of "*", so need to fetch this separately from other cost params.
             # Only need to fetch once per technology.
-            wacc_s = f"""
-            where
-                technology == '{tech}'
-                AND financial_case == '{fin_case}'
-                AND cost_case == '{cost_case}'
-                AND parameter == 'wacc_real'
-            """
+            wacc_filters = [
+                [
+                    ("technology", "=", tech),
+                    ("financial_case", "=", fin_case),
+                    ("cost_case", "=", cost_case),
+                    ("parameter", "=", "wacc_real"),
+                ]
+            ]
             if resource_data_year:
-                wacc_s += f"""
-                AND data_year == {resource_data_year}
-                """
-            wacc_rows.append(load_data(data_location, data_name, query=wacc_s))
+                # If a resource data year is specified, filter by that as well.
+                wacc_filters[0].append(("data_year", "=", resource_data_year))
+            wacc_rows.append(load_data(data_location, data_name, filters=wacc_filters))
             # wacc_rows.extend(pg_engine.execute(wacc_s).fetchall())
 
         tech_list.append((tech, cost_case))
@@ -228,8 +226,8 @@ def fetch_heat_rates(
         ['technology', 'tech_detail', 'cost_case', 'basis_year', 'heat_rate']
     """
     if data_year:
-        query = f"WHERE data_year = {data_year}"
-        heat_rates = load_data(data_location, data_name, query=query)
+        filters = [[("data_year", "=", data_year)]]
+        heat_rates = load_data(data_location, data_name, filters=filters)
     else:
         heat_rates = load_data(data_location, data_name)
     # heat_rates = heat_rates.loc[heat_rates["data_year"] == data_year, :]

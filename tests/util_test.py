@@ -21,6 +21,7 @@ from powergenome.util import (
     apply_all_tag_to_regions,
     assign_model_planning_years,
     build_scenario_settings,
+    build_where_clause_from_filters,
     get_all_table_names,
     hash_string_sha256,
     load_data,
@@ -397,6 +398,57 @@ class TestAddModelTagsToGenColumns:
         assert sorted(result) == sorted(expected_result)
 
 
+class TestBuildWhereClauseFromFilters:
+    def test_empty_filters(self):
+        assert build_where_clause_from_filters(None) is None
+        assert build_where_clause_from_filters([]) is None
+
+    def test_single_conjunction(self):
+        filters = [[("col1", "=", "val1")]]
+        expected = "WHERE (col1 = 'val1')"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_multiple_conjunctions_and(self):
+        filters = [[("col1", "=", "val1"), ("col2", ">", 5)]]
+        expected = "WHERE (col1 = 'val1' AND col2 > 5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_multiple_disjunctions_or(self):
+        filters = [[("col1", "=", "val1")], [("col2", ">", 5)]]
+        expected = "WHERE (col1 = 'val1') OR (col2 > 5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_string_value_formatting(self):
+        filters = [[("col1", "=", "string value")]]
+        expected = "WHERE (col1 = 'string value')"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_numeric_value_formatting(self):
+        filters = [[("col1", "<", 10.5)]]
+        expected = "WHERE (col1 < 10.5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_in_clause_with_list(self):
+        filters = [[("col1", "IN", [1, 2, 3])]]
+        expected = "WHERE (col1 IN (1, 2, 3))"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_in_clause_with_tuple_of_strings(self):
+        filters = [[("col1", "IN", ("a", "b", "c"))]]
+        expected = "WHERE (col1 IN ('a', 'b', 'c'))"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_complex_dnf(self):
+        filters = [
+            [("col1", "=", "val1"), ("col2", ">", 5)],
+            [("col3", "!=", "val3"), ("col4", "IN", [1, 2])],
+        ]
+        expected = (
+            "WHERE (col1 = 'val1' AND col2 > 5) OR (col3 != 'val3' AND col4 IN (1, 2))"
+        )
+        assert build_where_clause_from_filters(filters) == expected
+
+
 @pytest.fixture
 def tmp_sqlite_db(tmp_path):
     db_path = tmp_path / "test.db"
@@ -474,20 +526,34 @@ def test_load_data_folder_mode(tmp_path):
     pd.testing.assert_frame_equal(df.reset_index(drop=True), df_orig)
 
 
-def test_load_data_file_with_query(tmp_path):
+def test_load_data_file_with_filters(tmp_path):
     # Create a temporary CSV file
     file_path = tmp_path / "test.csv"
     df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
     df.to_csv(file_path, index=False)
 
-    # Query to select only rows where a > 1
-    query = "SELECT * WHERE a > 1"
-    result = load_data_file(file_path, query=query)
+    # filters to select only rows where a > 1
+    filters = [[("a", ">", 1)]]
+    result = load_data_file(file_path, filters=filters)
 
     # Check that the result is as expected
-    assert isinstance(result, pd.DataFrame)
-    assert list(result["a"]) == [2, 3]
-    assert list(result["b"]) == ["y", "z"]
+    expected = pd.DataFrame({"a": [2, 3], "b": ["y", "z"]})
+    pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+
+
+def test_load_data_file_with_columns(tmp_path):
+    # Create a temporary CSV file
+    file_path = tmp_path / "test.csv"
+    df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"], "c": [True, False, True]})
+    df.to_csv(file_path, index=False)
+
+    # Load only columns 'a' and 'c'
+    columns = ["a", "c"]
+    result = load_data_file(file_path, columns=columns)
+
+    # Check that the result is as expected
+    expected = pd.DataFrame({"a": [1, 2, 3], "c": [True, False, True]})
+    pd.testing.assert_frame_equal(result, expected, check_dtype=False)
 
 
 def test_load_data_db_mode_sqlite(tmp_path, tmp_sqlite_db):
@@ -502,14 +568,38 @@ def test_load_data_db_mode_duckdb(tmp_path, tmp_duckdb):
     assert "c" in df.columns
 
 
-def test_load_data_query(tmp_sqlite_db):
+def test_load_data_with_filters(tmp_sqlite_db):
     # tmp_sqlite_db has table foo with rows (1,'x'), (2,'y')
     # Run a SQL query instead of passing a table name
-    df = load_data(tmp_sqlite_db, query="SELECT a, b FROM foo WHERE a = 2")
+    filters = [[("a", "=", 2)]]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", filters=filters)
     # Build expected
     expected = pd.DataFrame({"a": [2], "b": ["y"]})
     # Compare
-    pd.testing.assert_frame_equal(df.reset_index(drop=True), expected)
+    pd.testing.assert_frame_equal(df, expected, check_dtype=False)
+
+
+def test_load_data_with_filters_single_list(tmp_sqlite_db):
+    # tmp_sqlite_db has table foo with rows (1,'x'), (2,'y')
+    # Run a SQL query instead of passing a table name
+    filters = [("a", "=", 2)]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", filters=filters)
+    # Build expected
+    expected = pd.DataFrame({"a": [2], "b": ["y"]})
+    # Compare
+    pd.testing.assert_frame_equal(df, expected, check_dtype=False)
+
+
+def test_load_data_with_columns(tmp_sqlite_db):
+    # tmp_sqlite_db has table foo with columns 'a' and 'b'
+    # Load only column 'b'
+    columns = ["b"]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", columns=columns)
+
+    # Build expected
+    expected = pd.DataFrame({"b": ["x", "y"]})
+    # Compare
+    pd.testing.assert_frame_equal(df, expected)
 
 
 def test_load_data_file_unsupported_extension(tmp_path):
@@ -522,7 +612,7 @@ def test_load_data_file_unsupported_extension(tmp_path):
 
 def test_load_data_no_params(tmp_path):
     # Neither file_or_table_name nor query provided
-    with pytest.raises(ValueError, match=r"Either file_or_table_name or query"):
+    with pytest.raises(ValueError, match=r"file_or_table_name must be provided"):
         load_data(str(tmp_path))
 
 
@@ -530,9 +620,7 @@ def test_load_data_folder_no_filename(tmp_path):
     # Loading from a folder without specifying file_or_table_name
     d = tmp_path / "empty_folder"
     d.mkdir()
-    with pytest.raises(
-        ValueError, match=r"file_or_table_name or query must be provided"
-    ):
+    with pytest.raises(ValueError, match=r"file_or_table_name must be provided"):
         load_data(str(d))
 
 
