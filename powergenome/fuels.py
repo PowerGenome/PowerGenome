@@ -8,12 +8,14 @@ from typing import Dict, List
 import pandas as pd
 
 from powergenome.eia_opendata import add_user_fuel_prices
+from powergenome.settings import auto_fill_settings
 
 
+@auto_fill_settings()
 def fuel_cost_table(
     fuel_costs: pd.DataFrame,
     generators: pd.DataFrame,
-    settings: dict,
+    settings: dict = None,
     num_hours: int = None,
 ) -> pd.DataFrame:
     """Create a table of fuel costs formatted for the GenX model.

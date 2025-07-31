@@ -54,12 +54,14 @@ See Also:
 """
 
 import copy
-
-# Standard library imports
 import logging
 from contextvars import ContextVar
+
+# Standard library imports
+from functools import wraps
+from inspect import signature
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Callable, Dict, List, Union
 
 import pandas as pd
 from flatten_dict import flatten
@@ -1022,3 +1024,80 @@ def build_scenario_settings(
         )
 
     return scenario_settings
+
+
+def auto_fill_settings(**setting_mappings: str):
+    """
+    Decorator that automatically fills function arguments with values from Settings
+    when None is passed or argument is not provided.
+
+    Parameters
+    ----------
+    **setting_mappings : str
+        Keyword arguments mapping function parameter names to settings keys.
+        If a parameter name matches a settings key exactly, you can omit the mapping.
+
+    Examples
+    --------
+    # Direct mapping (parameter name = settings key)
+    @auto_fill_settings()
+    def my_function(model_regions=None, model_year=None):
+        pass
+
+    # Custom mapping
+    @auto_fill_settings(regions='model_regions', year='model_year')
+    def my_function(regions=None, year=None):
+        pass
+
+    # Mixed approach
+    @auto_fill_settings(pg_table='load_source_table_name')
+    def my_function(settings=None, model_year=None, pg_table=None):
+        pass
+    """
+
+    def decorator(func: Callable) -> Callable:
+        func_sig = signature(func)
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Get current settings
+            try:
+                current_settings = get_current_settings()
+            except RuntimeError:
+                # No settings available, proceed with original function
+                return func(*args, **kwargs)
+
+            # Build a dictionary of all arguments (positional + keyword)
+            bound_args = func_sig.bind_partial(*args, **kwargs)
+            bound_args.apply_defaults()
+
+            # Fill in missing arguments from settings
+            for param_name, param in func_sig.parameters.items():
+                # Skip if argument was explicitly provided and is not None
+                if (
+                    param_name in bound_args.arguments
+                    and bound_args.arguments[param_name] is not None
+                ):
+                    continue
+
+                # Determine settings key to look up
+                if param_name in setting_mappings:
+                    settings_key = setting_mappings[param_name]
+                elif param_name == "settings":
+                    # Special case: pass the entire settings object
+                    bound_args.arguments[param_name] = current_settings
+                    continue
+                else:
+                    # Try to use parameter name as settings key
+                    settings_key = param_name
+
+                # Get value from settings if available
+                settings_value = current_settings.get(settings_key)
+                if settings_value is not None:
+                    bound_args.arguments[param_name] = settings_value
+
+            return func(*bound_args.args, **bound_args.kwargs)
+
+        return wrapper
+
+    return decorator

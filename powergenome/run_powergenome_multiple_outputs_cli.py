@@ -254,13 +254,6 @@ def main(**kwargs):
                 case_year_data = {}
                 if args.gens:
                     gc = GeneratorClusters(
-                        # pudl_engine=pudl_engine,
-                        # pudl_out=pudl_out,
-                        data_location=_settings["data_location"],
-                        generation_table=_settings["generation_table"],
-                        settings=_settings,
-                        resource_heat_rate_table=_settings["resource_heat_rate_table"],
-                        resource_cost_table=_settings["resource_cost_table"],
                         current_gens=args.current_gens,
                         sort_gens=args.sort_gens,
                         multi_period=args.multi_period,
@@ -278,7 +271,7 @@ def main(**kwargs):
                     fuels = fuel_cost_table(
                         fuel_costs=gc.fuel_prices,
                         generators=gc.all_resources,
-                        settings=_settings,
+                        # settings=_settings,
                         num_hours=len(gen_variability),
                     )
                     fuels.index.name = "Time_Index"
@@ -286,9 +279,7 @@ def main(**kwargs):
                     case_year_data["fuels"] = fuels
 
                 if args.load:
-                    load = make_final_load_curves(
-                        data_location=_settings["data_location"], settings=_settings
-                    )
+                    load = make_final_load_curves()
                     load.columns = "Demand_MW_z" + load.columns.map(
                         _settings["zone_num_map"]
                     )
@@ -302,7 +293,7 @@ def main(**kwargs):
                         reduced_load_profile,
                         time_series_mapping,
                         representative_point,
-                    ) = reduce_time_domain(gen_variability, load, _settings)
+                    ) = reduce_time_domain(gen_variability, load)
                     case_year_data["demand_data"] = reduced_load_profile
                     reduced_resource_profile.index.name = "Time_Index"
                     reduced_resource_profile = reduced_resource_profile.reset_index(
@@ -324,28 +315,17 @@ def main(**kwargs):
                 #         model_regions_gdf = load_ipm_shapefile(_settings)
 
                 if args.transmission:
-                    tx_costs = load_tx_costs(
-                        data_location=_settings["data_location"],
-                        table_name=_settings["transmission_cost_table"],
-                        target_usd_year=_settings.get("target_usd_year"),
-                        zone_num_map=_settings["zone_num_map"],
-                        dollar_year_table=_settings.get("dollar_year_table"),
-                    )
+                    tx_costs = load_tx_costs()
 
                     transmission = agg_transmission_constraints(
-                        data_location=_settings["data_location"],
-                        data_table=_settings.get("transmission_constraints_table"),
-                        model_regions=_settings["model_regions"],
-                        regional_aggregations=_settings["region_aggregations"],
-                        zone_num_map=_settings["zone_num_map"],
                         tx_value_col=_settings.get("tx_value_col", "firm_ttc_mw"),
                     ).pipe(insert_tx_costs, tx_costs=tx_costs)
 
                     network = (
-                        transmission.pipe(network_max_reinforcement, settings=_settings)
+                        transmission.pipe(network_max_reinforcement)
                         .pipe(set_int_cols)
                         .pipe(round_col_values)
-                        .pipe(add_cap_res_network, settings=_settings)
+                        .pipe(add_cap_res_network)
                     )
                     if args.multi_period:
                         for line in network["Network_Lines"].dropna():
@@ -364,18 +344,18 @@ def main(**kwargs):
 
                     if _settings.get("emission_policies_fn"):
                         energy_share_req = create_policy_req(
-                            _settings, col_str_match="ESR"
+                            col_str_match="ESR",
                         )
-                        co2_cap = create_policy_req(_settings, col_str_match="CO_2")
+                        co2_cap = create_policy_req(col_str_match="CO_2")
                         case_year_data["esr"] = energy_share_req
                         case_year_data["co2_cap"] = co2_cap
 
-                    min_cap = min_cap_req(_settings)
+                    min_cap = min_cap_req()
                     case_year_data["min_cap"] = min_cap
-                    max_cap = max_cap_req(_settings)
+                    max_cap = max_cap_req()
                     case_year_data["max_cap"] = max_cap
 
-                    cap_res = create_regional_cap_res(_settings)
+                    cap_res = create_regional_cap_res()
                     case_year_data["cap_reserves"] = cap_res
 
                 if _settings.get("reserves_fn"):
