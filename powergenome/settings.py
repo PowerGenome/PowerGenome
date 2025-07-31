@@ -1,0 +1,1103 @@
+"""
+Parameters and settings management for PowerGenome.
+
+This module provides a Settings class and utility functions for managing PowerGenome
+configuration parameters.
+
+Key Features:
+- Load settings from YAML files or directories
+- Context-based settings management for concurrent operations
+- Scenario-specific settings creation
+- Dictionary-like access with validation
+
+Architecture:
+The Settings class uses Python's contextvars for managing the current settings
+instance across different execution contexts (see Example below).
+This allows multiple settings to coexist (useful for testing and parallel processing)
+while providing a clean API for accessing the current settings.
+
+Examples:
+    # Basic usage
+    settings = Settings(config_path="path/to/settings.yml")
+
+    # Access settings
+    regions = settings["model_regions"]
+    fuel_cost = settings.get("fuel_cost", default=0.0)
+
+    # Context management
+    with settings:
+        current = get_current_settings()  # Returns the settings instance
+        # All code in this block can access current settings
+
+    # Scenario-specific settings
+    base_settings = Settings(config_path="base.yml")
+    scenario_settings = Settings.for_scenario(
+        base_settings,
+        {"model_year": 2030, "carbon_tax": 50}
+    )
+
+    # Load multiple YAML files from directory
+    settings = Settings(config_path="path/to/settings/directory")
+
+    # Create from dictionary
+    settings = Settings.from_dict({"model_regions": ["CA", "TX"]})
+
+    # Update settings
+    settings.update({"new_param": "value"})
+
+    # Convert to dictionary
+    settings_dict = settings.to_dict()
+
+See Also:
+    - powergenome.util: Utility functions for settings processing
+    - powergenome.params: Legacy parameter definitions
+"""
+
+import copy
+import logging
+from contextvars import ContextVar
+
+# Standard library imports
+from functools import wraps
+from inspect import signature
+from pathlib import Path
+from typing import Callable, Dict, List, Union
+
+import pandas as pd
+from flatten_dict import flatten
+from ruamel.yaml import YAML
+
+# Local imports
+from powergenome.util import make_iterable, sort_nested_dict, update_dictionary
+
+logger = logging.getLogger(__name__)
+
+# Context variable for current settings
+_current_settings: ContextVar = ContextVar("current_settings", default=None)
+
+
+class Settings:
+    def __init__(self, config_path: Union[str, Path] = None, data: dict = None):
+        """
+        Initialize Settings instance.
+
+        Parameters
+        ----------
+        config_path : str or Path, optional
+            Path to settings file or directory. If a file, loads single YAML file.
+            If a directory, loads all .yml files in the directory and merges them.
+            File settings override data settings if both are provided.
+        data : dict, optional
+            Dictionary of settings data. If both config_path and data are provided,
+            data is loaded first, then file settings are loaded and may override data.
+
+        Examples
+        --------
+        >>> # Load from file
+        >>> settings = Settings(config_path="settings.yml")
+
+        >>> # Load from directory
+        >>> settings = Settings(config_path="settings/")
+
+        >>> # Create from dictionary
+        >>> settings = Settings(data={"model_regions": ["CA", "TX"]})
+
+        >>> # Combine data and file
+        >>> settings = Settings(
+        ...     data={"base_param": "value"},
+        ...     config_path="settings.yml"
+        ... )
+        """
+        self._data = {}
+        if data:
+            self._data.update(data)
+        if config_path:
+            logger.info(f"Loading settings from {config_path}")
+            self.load_settings(config_path)
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        """
+        Create a Settings instance from a dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary containing settings data.
+
+        Returns
+        -------
+        Settings
+            New Settings instance with the provided data.
+
+        Examples
+        --------
+        >>> data = {"model_regions": ["CA", "TX"], "model_year": 2030}
+        >>> settings = Settings.from_dict(data)
+        >>> settings["model_regions"]
+        ['CA', 'TX']
+        """
+        return cls(data=data)
+
+    @classmethod
+    def for_scenario(cls, base_settings: "Settings", scenario_data: dict):
+        """
+        Create a Settings instance specifically for a scenario.
+
+        This method creates a new Settings instance by copying the base settings
+        and then applying scenario-specific overrides. The base settings remain
+        unchanged.
+
+        Parameters
+        ----------
+        base_settings : Settings
+            Base settings instance to copy from.
+        scenario_data : dict
+            Dictionary of scenario-specific settings that will override
+            or add to the base settings.
+
+        Returns
+        -------
+        Settings
+            New Settings instance with base settings plus scenario overrides.
+
+        Examples
+        --------
+        >>> base = Settings(data={"model_year": 2020, "regions": ["CA"]})
+        >>> scenario = Settings.for_scenario(
+        ...     base,
+        ...     {"model_year": 2030, "carbon_tax": 50}
+        ... )
+        >>> scenario["model_year"]  # Overridden
+        2030
+        >>> scenario["regions"]     # Preserved from base
+        ['CA']
+        >>> scenario["carbon_tax"]  # Added from scenario
+        50
+        """
+        new_settings = cls()
+        new_settings._data = base_settings._data.copy()
+        new_settings._data.update(scenario_data)
+        return new_settings
+
+    def __enter__(self):
+        """
+        Context manager entry - set this as the current settings.
+
+        When entering a context, this settings instance becomes the current
+        settings that can be accessed via get_current_settings().
+
+        Returns
+        -------
+        Settings
+            Self reference for use in the context.
+
+        Examples
+        --------
+        >>> settings = Settings(data={"model_year": 2030})
+        >>> with settings:
+        ...     current = get_current_settings()
+        ...     print(current["model_year"])
+        2030
+        """
+        self._token = _current_settings.set(self)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Context manager exit - restore previous settings.
+
+        When exiting a context, the previous settings are restored,
+        allowing nested contexts to work correctly.
+
+        Parameters
+        ----------
+        exc_type : type, optional
+            Exception type if an exception occurred.
+        exc_val : Exception, optional
+            Exception value if an exception occurred.
+        exc_tb : traceback, optional
+            Exception traceback if an exception occurred.
+        """
+        _current_settings.reset(self._token)
+
+    def load_settings(self, config_path: Union[str, Path]):
+        """
+        Load settings from a file or directory and update current data.
+
+        This method loads settings from the specified path and merges them
+        with the current settings data. New settings override existing ones.
+
+        Parameters
+        ----------
+        config_path : str or Path
+            Path to settings file or directory containing YAML files.
+
+        Examples
+        --------
+        >>> settings = Settings()
+        >>> settings.load_settings("path/to/settings.yml")
+        >>> settings.load_settings("path/to/settings/directory")
+        """
+        self._data.update(load_settings(config_path))
+
+    def get(self, key, default=None):
+        """
+        Get a setting value with optional default.
+
+        Parameters
+        ----------
+        key : str
+            The setting key to retrieve.
+        default : any, optional
+            Default value to return if key is not found.
+
+        Returns
+        -------
+        any
+            The setting value or default if not found.
+
+        Examples
+        --------
+        >>> settings = Settings(data={"model_year": 2030})
+        >>> settings.get("model_year")
+        2030
+        >>> settings.get("missing_key", "default_value")
+        'default_value'
+        >>> settings.get("missing_key")  # Returns None
+        None
+        """
+        return self._data.get(key, default)
+
+    def __getitem__(self, key):
+        """
+        Get a setting value using dictionary-style access.
+
+        Parameters
+        ----------
+        key : str
+            The setting key to retrieve.
+
+        Returns
+        -------
+        any
+            The setting value.
+
+        Raises
+        ------
+        KeyError
+            If the key is not found in settings.
+
+        Examples
+        --------
+        >>> settings = Settings(data={"model_year": 2030})
+        >>> settings["model_year"]
+        2030
+        >>> settings["missing_key"]  # Raises KeyError
+        KeyError: Setting 'missing_key' not found in settings...
+        """
+        if key not in self._data:
+            raise KeyError(
+                f"Setting '{key}' not found in settings. Available keys: {list(self._data.keys())}"
+            )
+        return self._data[key]
+
+    def __setitem__(self, key, value):
+        """
+        Set a setting value using dictionary-style access.
+
+        Parameters
+        ----------
+        key : str
+            The setting key to set.
+        value : any
+            The value to assign to the setting.
+
+        Examples
+        --------
+        >>> settings = Settings()
+        >>> settings["model_year"] = 2030
+        >>> settings["model_year"]
+        2030
+        """
+        self._data[key] = value
+
+    def pop(self, key, default=None):
+        """Remove and return the value for key if key is in the settings, else return default.
+
+        Parameters
+        ----------
+        key : str
+            The key to remove from settings.
+        default : any, optional
+            Value to return if key is not found.
+
+        Returns
+        -------
+        any
+            The value associated with the key, or default if key not found.
+        """
+        # Check if the key exists first
+        if key not in self._data:
+            if default is None:
+                # No default provided and key doesn't exist, raise KeyError
+                raise KeyError(key)
+            else:
+                # Default provided, return it
+                return default
+        # Key exists, remove and return it
+        return self._data.pop(key)
+
+    def __getattr__(self, key):
+        """
+        Get a setting value using attribute-style access.
+
+        This method allows accessing settings as attributes (e.g., settings.model_year).
+        Returns None if the attribute is not found (does not raise AttributeError).
+
+        Parameters
+        ----------
+        key : str
+            The setting key to retrieve.
+
+        Returns
+        -------
+        any
+            The setting value or None if not found.
+
+        Examples
+        --------
+        >>> settings = Settings(data={"model_year": 2030})
+        >>> settings.model_year
+        2030
+        >>> settings.missing_attr  # Returns None, doesn't raise AttributeError
+        None
+        """
+        return self._data.get(key, None)
+
+    def __copy__(self):
+        """
+        Create a shallow copy of the Settings object.
+
+        Returns
+        -------
+        Settings
+            A new Settings instance with a shallow copy of the data.
+
+        Examples
+        --------
+        >>> settings = Settings(data={"nested": {"key": "value"}})
+        >>> copy_settings = copy.copy(settings)
+        >>> copy_settings["nested"] is settings["nested"]  # Same reference
+        True
+        """
+        new_settings = Settings()
+        new_settings._data = self._data.copy()
+        return new_settings
+
+    def __deepcopy__(self, memo):
+        """
+        Create a deep copy of the Settings object.
+
+        Parameters
+        ----------
+        memo : dict
+            Memoization dictionary for deep copy.
+
+        Returns
+        -------
+        Settings
+            A new Settings instance with a deep copy of the data.
+
+        Examples
+        --------
+        >>> settings = Settings(data={"nested": {"key": "value"}})
+        >>> deep_copy = copy.deepcopy(settings)
+        >>> deep_copy["nested"] is settings["nested"]  # Different reference
+        False
+        """
+        if id(self) in memo:
+            return memo[id(self)]
+
+        new_settings = Settings()
+        memo[id(self)] = new_settings
+        new_settings._data = copy.deepcopy(self._data, memo)
+        return new_settings
+
+    def to_dict(self) -> dict:
+        """
+        Convert the Settings object to a dictionary.
+
+        Returns
+        -------
+        dict
+            A copy of the settings data as a dictionary.
+
+        Examples
+        --------
+        >>> settings = Settings(data={"model_year": 2030, "regions": ["CA"]})
+        >>> settings_dict = settings.to_dict()
+        >>> settings_dict
+        {'model_year': 2030, 'regions': ['CA']}
+        >>> settings_dict is not settings._data  # Returns a copy
+        True
+        """
+        return self._data.copy()
+
+    def update(self, updates: dict):
+        """
+        Update the settings with new values.
+
+        This method merges the provided dictionary with the current settings.
+        Existing keys are overwritten, new keys are added.
+
+        Parameters
+        ----------
+        updates : dict
+            Dictionary of settings to update.
+
+        Examples
+        --------
+        >>> settings = Settings(data={"model_year": 2020})
+        >>> settings.update({"model_year": 2030, "carbon_tax": 50})
+        >>> settings["model_year"]  # Updated
+        2030
+        >>> settings["carbon_tax"]  # Added
+        50
+        """
+        self._data.update(updates)
+
+    def get_data(self) -> dict:
+        """
+        Get a reference to the internal data dictionary.
+
+        Warning: This returns a reference to the internal data.
+        Modifying it will affect the Settings object.
+
+        Returns
+        -------
+        dict
+            Reference to the internal data dictionary.
+
+        Examples
+        --------
+        >>> settings = Settings(data={"model_year": 2030})
+        >>> data = settings.get_data()
+        >>> data["new_key"] = "new_value"  # Modifies the settings
+        >>> settings["new_key"]
+        'new_value'
+        """
+        return self._data
+
+
+def get_current_settings() -> Settings:
+    """
+    Get the current settings from the context.
+
+    This function returns the Settings instance that is currently active
+    in the context. It must be called within a context where a Settings
+    instance has been set using the context manager.
+
+    Returns
+    -------
+    Settings
+        The current settings instance.
+
+    Raises
+    ------
+    RuntimeError
+        If no settings are currently set in the context.
+
+    Examples
+    --------
+    >>> settings = Settings(data={"model_year": 2030})
+    >>> with settings:
+    ...     current = get_current_settings()
+    ...     print(current["model_year"])
+    2030
+
+    >>> # Outside of context - raises RuntimeError
+    >>> get_current_settings()
+    RuntimeError: No settings are currently set. Use 'with settings:' context manager.
+    """
+    settings = _current_settings.get()
+    if settings is None:
+        raise RuntimeError(
+            "No settings are currently set. Use 'with settings:' context manager."
+        )
+    return settings
+
+
+def load_settings(path: Union[str, Path]) -> dict:
+    """
+    Load a YAML file or a directory of YAML files with settings parameters.
+
+    This function loads settings from YAML files and performs post-processing
+    including path resolution, tag processing, and parameter name fixes.
+
+    Parameters
+    ----------
+    path : Union[str, Path]
+        Path to the settings file or directory. If a file, loads single YAML.
+        If a directory, loads all .yml files and merges them.
+
+    Returns
+    -------
+    dict
+        All parameters from the YAML file(s) with post-processing applied.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the path does not exist or is not a file/directory.
+    """
+
+    path = Path(path)
+    if path.is_file():
+        with open(path, "r") as f:
+            #     settings = yaml.safe_load(f)
+            yaml = YAML(typ="safe")
+            settings = yaml.load(f)
+    elif path.is_dir():
+        settings = {}
+        for sf in path.glob("*.yml"):
+            yaml = YAML(typ="safe")
+            s = yaml.load(sf)
+            if s:
+                settings.update(s)
+    else:
+        raise FileNotFoundError(
+            "Path is not recognized. Check that your path is valid."
+        )
+
+    if settings.get("input_folder"):
+        settings["input_folder"] = path.parent / settings["input_folder"]
+
+    if settings.get("generator_columns"):
+        settings["generator_columns"] = add_model_tags_to_gen_columns(
+            model_tag_values=settings.get("model_tag_values", {}),
+            regional_tag_values=settings.get("regional_tag_values", {}),
+            generator_columns=settings["generator_columns"],
+        )
+
+    settings = apply_all_tag_to_regions(settings)
+    settings = sort_nested_dict(settings)
+
+    for key in [
+        "EFS_DATA",
+        "RESOURCE_GROUPS",
+        "DISTRIBUTED_GEN_DATA",
+        "RESOURCE_GROUP_PROFILES",
+    ]:
+        if settings.get(key):
+            settings[key] = Path(settings[key])
+
+    settings["model_regions"] = sorted(settings["model_regions"])
+    zones = settings["model_regions"]
+    logger.info(f"Sorted model regions are {', '.join(zones)}")
+    zone_num_map = {
+        zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))
+    }
+    settings["zone_num_map"] = zone_num_map
+
+    return fix_param_names(settings)
+
+
+def add_model_tags_to_gen_columns(
+    model_tag_values: Dict[str, Dict[str, int]],
+    regional_tag_values: Dict[str, Dict[str, Dict[str, int]]],
+    generator_columns: List[str],
+) -> List[str]:
+    """Add model resource tag keys to the list of columns that will be included in
+    generator outputs.
+
+    Parameters
+    ----------
+    model_tag_values : Dict[str, Dict[str, int]]
+        Tags applied to resources in all regions. Top level is the tag name, which will
+        become a column in the generators output. The next level is technology names
+        and the value for each technology.
+    regional_tag_values : Dict[str, Dict[str, Dict[str, int]]]
+        Regional values applied to technologies. Top level is the region, then the tag
+        name, then the technology name and value.
+    generator_columns : List[str]
+        List of columns to include in generator outputs from the settings.
+
+    Returns
+    -------
+    List[str]
+        Updated list of column names, now including any resource tags/columns.
+
+    Example
+    -------
+    >>> model_tag_values = {'cost': {'solar': 100, 'wind': 150}}
+    >>> regional_tag_values = {'NA': {'other_tag': {'solar': 20, 'wind': 25}}}
+    >>> generator_columns = ['capacity', 'output']
+    >>> add_model_tags_to_gen_columns(model_tag_values, regional_tag_values, generator_columns)
+    ['capacity', 'output', 'cost', 'other_tag']
+
+    """
+
+    if not isinstance(generator_columns, list):
+        logger.warning(
+            "There is a parameter 'generator_columns' in your settings but it is not a "
+            "list. This parameter will not have any effect in it's current form."
+        )
+        return generator_columns
+
+    tag_keys = list((model_tag_values or {}).keys())
+    regional_keys = []
+    for region, regional_tags in (regional_tag_values or {}).items():
+        regional_keys.extend(list(regional_tags.keys()))
+
+    tag_keys = set(tag_keys + regional_keys)
+    for tag in tag_keys:
+        if tag not in generator_columns:
+            generator_columns.append(tag)
+
+    return generator_columns
+
+
+def apply_all_tag_to_regions(settings: dict) -> dict:
+    """Make copies of renewables_clusters dicts with region "all"
+
+    If a renewables clustering object doesn't already existing for a region/technology
+    then make a copy for use. This is helpful with large numbers of regions when
+    the clustering parameters can be applied everywhere.
+
+    Parameters
+    ----------
+    settings : dict
+        All user-specified settings from YAML files
+
+    Returns
+    -------
+    dict
+        Copy of the input settings with renewables_clusters objects for all regions
+
+    Raises
+    ------
+    KeyError
+        The dictionary is missing the tag "region"
+    KeyError
+        The dictionary with region "all" is missing the tag "technology"
+    """
+
+    settings_all = dict()
+    all_regions = settings["model_regions"]
+
+    # Keeps a list of which regions should be modified by "all" (are not specifically tagged)
+    techs_tagged_w_all = []
+    techs_tagged_by_region = dict()
+
+    i = 0
+    to_delete = []
+
+    # These are the keys in settings which will not be used to determine whether 'all' should apply to that region
+    identifier_keys = ["technology", "pref_site", "turbine_type"]
+
+    for d in settings.get("renewables_clusters", []) or []:
+        if "region" not in d:
+            raise KeyError("Entry missing 'region' tag.")
+
+        reg = d["region"]
+
+        keys = sorted(d.keys())
+        tech = ""
+        for key in keys:
+            if key in identifier_keys:
+                if tech != "":
+                    tech += "_"
+                tech += str(d[key])
+
+        # Update the dict stating that this technology is specified for this region
+        if tech in techs_tagged_by_region:
+            techs_tagged_by_region[tech].append(reg)
+        elif reg.lower() == "all":
+            techs_tagged_by_region[tech] = []
+        else:
+            techs_tagged_by_region[tech] = [reg]
+
+        if reg.lower() == "all":
+            settings_all[tech] = d
+
+            if "technology" not in d:
+                raise KeyError(f"""Entry for {reg} missing 'technology' tag.""")
+
+            if tech in techs_tagged_w_all:
+                s = f"""
+                Multiple 'all' tags applied to technology {tech}. Only last one will be used.
+                """
+                logger.warning(s)
+
+            else:
+                techs_tagged_w_all.append(tech)
+
+            to_delete.append(i)
+
+        # Keeps track of the "all" tags so that they can be deleted later in the function
+        i += 1
+
+    for i in reversed(to_delete):
+        del settings["renewables_clusters"][i]
+
+    for tech in techs_tagged_w_all:
+        for reg in all_regions:
+            if reg not in techs_tagged_by_region[tech]:
+                temp_entry = settings_all[tech].copy()
+                temp_entry["region"] = reg
+
+                settings["renewables_clusters"].append(temp_entry)
+
+    return settings
+
+
+def fix_param_names(settings: dict) -> dict:
+    fix_params = {
+        "historical_load_region_maps": "historical_load_region_map",
+        "demand_response_resources": "flexible_demand_resources",
+        "data_years": "eia_data_years",
+    }
+    for k, v in fix_params.items():
+        if k in settings:
+            settings[v] = settings[k]
+            s = f"""
+            The settings parameter named {k} has been changed to {v}. Please correct it in
+            your settings file.
+
+            """
+            logger.warning(s)
+    return settings
+
+
+def assign_model_planning_years(_settings: dict, year: int) -> dict:
+    """Make sure "model_year" and "model_first_planning_year" appear as scalars.
+
+    These can originally be set in any of these forms, in either the default
+    settings or in the settings_management dictionary:
+
+    model_year: 2040 and model_first_planning_year: 2031
+    model_year: [2040, 2050] and model_first_planning_year: [2031, 2041]
+    model_periods: (2031, 2040)
+    model_periods: [(2031, 2040), (2041, 2050)]
+
+    This function looks up the right values for the current year and assigns
+    them as scalars (the first form above).
+
+    Parameters
+    ----------
+    _settings : dict
+        Model settings dictionary. Must have either "model_periods", "model_year"
+        AND "model_first_planning_year", or "model_first_planning_year" as keys.
+    year : int
+        Model year.
+
+    Returns
+    -------
+    dict
+        Modified settings with scaler versions of "model_year" and "model_first_planning_year".
+
+    Raises
+    ------
+    ValueError
+        model_periods is not a series of tuples
+    ValueError
+        model_periods tuples are not all length 2
+    ValueError
+        model_year and model_first_planning_year must all be integer
+    KeyError
+        None of the required keys found
+    ValueError
+        The model year from scenario definitions is not in the settings
+    """
+    if "model_periods" in _settings:
+        if not all(
+            [isinstance(t, tuple) for t in make_iterable(_settings["model_periods"])]
+        ):
+            raise ValueError(
+                "The settings parameter 'model_periods' must be a list of tuples. It is "
+                f"currently {_settings['model_periods']}"
+            )
+        if not all(len(t) == 2 for t in make_iterable(_settings["model_periods"])):
+            raise ValueError(
+                "The tuples in settings parameter 'model_periods' must all be 2 years. "
+                f"The values found are {_settings['model_periods']}"
+            )
+        model_planning_period_dict = {
+            year: (start_year, year)
+            for (start_year, year) in make_iterable(_settings["model_periods"])
+        }
+    elif "model_year" in _settings and "model_first_planning_year" in _settings:
+        model_year = make_iterable(_settings["model_year"])
+        first_planning_year = make_iterable(_settings["model_first_planning_year"])
+        if not all(isinstance(y, int) for y in model_year) and all(
+            isinstance(y, int) for y in first_planning_year
+        ):
+            raise ValueError(
+                "Both 'model_year' and 'model_first_planning_year' parameters must be "
+                f"integers or lists of integers. The values found are {model_year} and "
+                f"{first_planning_year}."
+            )
+        model_planning_period_dict = {
+            year: (start_year, year)
+            for year, start_year in zip(
+                make_iterable(_settings["model_year"]),
+                make_iterable(_settings["model_first_planning_year"]),
+            )
+        }
+    elif "model_first_planning_year" in _settings:
+        # we also allow leaving out the model_year tag and just specifying
+        # model_first_planning_year
+        model_planning_period_dict = {
+            year: (
+                _settings["model_first_planning_year"],
+                _settings["model_first_planning_year"],
+            )
+        }
+    else:
+        raise KeyError(
+            "To build a dictionary of scenario settings your settings file should include "
+            "either the key 'model_periods' (a list of 2-element lists) or the keys "
+            "'model_year' and 'model_first_planning_year' (each a list of years)."
+        )
+
+    # remove any model period data already there
+    for key in ["model_periods", "model_year", "model_first_planning_year"]:
+        try:
+            del _settings[key]
+        except KeyError:
+            pass
+
+    if year not in model_planning_period_dict:
+        raise ValueError(
+            f"The year {year} is in your scenario definition file for case {_settings.get('case_id')} "
+            "but was not found in the 'model_year' or 'model_periods' settings parameters. "
+            "Either it is missing in the main settings file or was removed in the "
+            "'settings_management' section."
+        )
+    # assign the scalar values
+    _settings["model_first_planning_year"] = model_planning_period_dict[year][0]
+    _settings["model_year"] = model_planning_period_dict[year][1]
+
+    return _settings
+
+
+def build_scenario_settings(
+    settings: Union[dict, Settings], scenario_definitions: pd.DataFrame
+) -> Dict[int, Dict[Union[int, str], dict]]:
+    """
+    Build a nested dictionary of settings for each planning year/scenario.
+
+    Parameters
+    ----------
+    settings : Union[dict, Settings]
+        The full settings file (as dict or Settings object), including the
+        "settings_management" section with alternate values for each scenario.
+    scenario_definitions : pd.DataFrame
+        DataFrame from the CSV file defined in the settings file
+        "scenario_definitions_fn" parameter. Must have columns:
+        - case_id: Unique identifier for each case
+        - year: Planning year for the case
+        - Additional columns corresponding to categories in settings_management
+
+    Returns
+    -------
+    dict
+        A nested dictionary with structure:
+        {year: {case_id: settings_dict}}
+        where each settings_dict contains the complete settings for that case/year.
+
+    Raises
+    ------
+    ValueError
+        If duplicate case/year combinations exist in scenario_definitions.
+        If conflicting settings are defined for the same parameter.
+    """
+
+    # Convert Settings object to dict if needed
+    if isinstance(settings, Settings) and hasattr(settings, "to_dict"):
+        settings = settings.to_dict()
+
+    # don't allow duplicate rows in the scenario definitions table, since they
+    # could give unexpected results
+    dups = scenario_definitions[["case_id", "year"]].duplicated()
+    if dups.sum() > 0:
+        raise ValueError(
+            "The following cases and years are repeated in your scenario definitions file:\n\n"
+            + scenario_definitions[dups].to_string(index=False)
+        )
+
+    all_category_levels = set()
+    active_category_levels = set()
+    scenario_settings = {}
+    missing_flag = object()
+    case_period = {c: 1 for c in scenario_definitions["case_id"].unique()}
+    for i, scenario_row in scenario_definitions.iterrows():
+        year, case_id = scenario_row[["year", "case_id"]]
+
+        _settings = copy.deepcopy(settings)
+        _settings["case_id"] = case_id
+        _settings["case_period"] = case_period[case_id]
+        case_period[case_id] += 1
+
+        # first apply any settings under "all_years", then any settings for this year
+        for settings_year in ["all_years", year]:
+
+            planning_year_settings_management = (
+                settings.get("settings_management", {}).get(settings_year) or {}
+            )
+
+            # update settings from all_cases entry if available (these settings
+            # are applied to all cases for this year, and don't use the category
+            # names or levels from the scenario definitions table)
+            if "all_cases" in planning_year_settings_management:
+                new_parameter = planning_year_settings_management["all_cases"]
+                _settings = update_dictionary(_settings, new_parameter)
+
+            modified_settings = {}
+            for category, level in scenario_row.drop(["case_id", "year"]).items():
+                # category is a column from the scenario definitions table, e.g. ccs_capex
+                # level is the selection for this category for this case/year, e.g., "mid" or "none"
+
+                new_parameter = planning_year_settings_management.get(category, {}).get(
+                    level, missing_flag
+                )
+
+                # Remember category/levels that were selected and that actually
+                # had an effect.
+                all_category_levels.add((case_id, year, category, level))
+                if new_parameter is not missing_flag:
+                    # note: user could set None or {} as the setting, to indicate
+                    # this flag should use the default settings as-is
+                    active_category_levels.add((case_id, year, category, level))
+                if new_parameter in [missing_flag, None, {}]:
+                    continue
+
+                _settings = update_dictionary(_settings, new_parameter)
+
+                # report any conflicts between these settings and previous ones
+                for key in flatten(new_parameter).keys():
+                    if key in modified_settings:
+                        raise ValueError(
+                            f"The setting {key} is modified by both the "
+                            f"`{modified_settings[key]}` flag and the "
+                            f"`{category}={level}` flag in the scenario "
+                            f"definition for case {case_id}, {year}."
+                        )
+                    else:
+                        # remember this setting for later
+                        modified_settings[key] = f"{category}={level}"
+
+        # make sure model year data appears in standard form
+        assign_model_planning_years(_settings, year)
+
+        scenario_settings.setdefault(year, {})[case_id] = _settings
+        if _settings.get("generator_columns"):
+            _settings["generator_columns"] = add_model_tags_to_gen_columns(
+                model_tag_values=_settings.get("model_tag_values", {}),
+                regional_tag_values=_settings.get("regional_tag_values", {}),
+                generator_columns=_settings["generator_columns"],
+            )
+
+    # Report any settings in the scenario definitions that had no effect. Values
+    # can be changed via either the "all_years" key or a specific year, so we
+    # have to wait till the end to decide which tags had no effect.
+    missing_category_levels = all_category_levels - active_category_levels
+    if missing_category_levels:
+        missing = (
+            pd.DataFrame(
+                missing_category_levels,
+                columns=["case_id", "year", "category", "level"],
+            )
+            .pivot(index=["case_id", "year"], columns="category", values="level")
+            .fillna("")
+            .reset_index()
+        )
+        logger.warning(
+            "The following parameter value(s) in your scenario definitions file "
+            "are not included in the 'settings_management' dictionary for the "
+            "specified year(s). Settings will not be modified to reflect these "
+            "entries:\n\n"
+            + missing.to_string(index=False)
+            + "\n\nYou can place empty entries (~) for these in the "
+            "settings_management dictionary to avoid this message.\n"
+        )
+
+    return scenario_settings
+
+
+def auto_fill_settings(**setting_mappings: str):
+    """
+    Decorator that automatically fills function arguments with values from Settings
+    when None is passed or argument is not provided.
+
+    Parameters
+    ----------
+    **setting_mappings : str
+        Keyword arguments mapping function parameter names to settings keys.
+        If a parameter name matches a settings key exactly, you can omit the mapping.
+
+    Examples
+    --------
+    # Direct mapping (parameter name = settings key)
+    @auto_fill_settings()
+    def my_function(model_regions=None, model_year=None):
+        pass
+
+    # Custom mapping
+    @auto_fill_settings(regions='model_regions', year='model_year')
+    def my_function(regions=None, year=None):
+        pass
+
+    # Mixed approach
+    @auto_fill_settings(pg_table='load_source_table_name')
+    def my_function(settings=None, model_year=None, pg_table=None):
+        pass
+    """
+
+    def decorator(func: Callable) -> Callable:
+        func_sig = signature(func)
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Get current settings
+            try:
+                current_settings = get_current_settings()
+            except RuntimeError:
+                # No settings available, proceed with original function
+                return func(*args, **kwargs)
+
+            # Build a dictionary of all arguments (positional + keyword)
+            bound_args = func_sig.bind_partial(*args, **kwargs)
+            bound_args.apply_defaults()
+
+            # Fill in missing arguments from settings
+            for param_name, param in func_sig.parameters.items():
+                # Skip if argument was explicitly provided and is not None
+                if (
+                    param_name in bound_args.arguments
+                    and bound_args.arguments[param_name] is not None
+                ):
+                    continue
+
+                # Determine settings key to look up
+                if param_name in setting_mappings:
+                    settings_key = setting_mappings[param_name]
+                elif param_name == "settings":
+                    # Special case: pass the entire settings object
+                    bound_args.arguments[param_name] = current_settings
+                    continue
+                else:
+                    # Try to use parameter name as settings key
+                    settings_key = param_name
+
+                # Get value from settings if available
+                settings_value = current_settings.get(settings_key)
+                if settings_value is not None:
+                    bound_args.arguments[param_name] = settings_value
+
+            return func(*bound_args.args, **bound_args.kwargs)
+
+        return wrapper
+
+    return decorator

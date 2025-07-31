@@ -14,6 +14,7 @@ from powergenome.external_data import (
     make_generator_variability,
 )
 from powergenome.financials import investment_cost_calculator
+from powergenome.settings import auto_fill_settings
 from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import find_region_col, load_data, snake_case_col, snake_case_str
 
@@ -191,7 +192,8 @@ POLICY_TAGS_FILENAMES = {
 }
 
 
-def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
+@auto_fill_settings()
+def create_policy_req(col_str_match: str, settings: dict = None) -> pd.DataFrame:
     model_year = settings["model_year"]
     case_id = settings["case_id"]
 
@@ -250,7 +252,8 @@ def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
     return zone_df
 
 
-def create_regional_cap_res(settings: dict) -> pd.DataFrame:
+@auto_fill_settings()
+def create_regional_cap_res(settings: dict = None) -> pd.DataFrame:
     """Create a dataframe of regional capacity reserve constraints from settings params
 
     Parameters
@@ -330,7 +333,8 @@ def label_cap_res_lines(path_names: List[str], dest_regions: List[str]) -> List[
     return cap_res_list
 
 
-def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
+@auto_fill_settings()
+def add_cap_res_network(tx_df: pd.DataFrame, settings: dict = None) -> pd.DataFrame:
     """Add capacity reserve colums to the transmission dataframe (Network.csv)
 
     Parameters
@@ -385,7 +389,8 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     return tx_df[original_cols + derate_cols + excl_cols].fillna(0)
 
 
-def add_emission_policies(transmission_df, settings):
+@auto_fill_settings()
+def add_emission_policies(transmission_df, settings=None):
     """Add emission policies to the transmission dataframe
 
     Parameters
@@ -586,8 +591,9 @@ def add_misc_gen_values(
     return gen_clusters
 
 
+@auto_fill_settings()
 def reduce_time_domain(
-    resource_profiles, load_profiles, settings, variable_resources_only=True
+    resource_profiles, load_profiles, settings=None, variable_resources_only=True
 ):
     demand_segments = load_demand_segments(settings)
     num_hours = len(load_profiles)
@@ -782,8 +788,9 @@ def network_reinforcement_cost(
     return transmission
 
 
+@auto_fill_settings()
 def network_max_reinforcement(
-    transmission: pd.DataFrame, settings: dict
+    transmission: pd.DataFrame, settings: dict = None
 ) -> pd.DataFrame:
     """Add the maximum amount that transmission lines between regions can be reinforced
     in a planning period.
@@ -837,9 +844,12 @@ def network_max_reinforcement(
     #         )
 
     # else:
-    transmission.loc[:, "Line_Max_Reinforcement_MW"] = [
-        max(tx * max_expansion, expansion_mw) for tx in transmission["Line_Max_Flow_MW"]
-    ]
+    line_max_flow = transmission["Line_Max_Flow_MW"]
+    calculated_values = line_max_flow * max_expansion
+    transmission.loc[:, "Line_Max_Reinforcement_MW"] = calculated_values.where(
+        calculated_values >= expansion_mw, expansion_mw
+    )
+
     transmission["Line_Max_Reinforcement_MW"] = transmission[
         "Line_Max_Reinforcement_MW"
     ].round(0)
@@ -1108,7 +1118,8 @@ def fix_min_power_values(
     return resource_df
 
 
-def min_cap_req(settings: dict) -> pd.DataFrame:
+@auto_fill_settings()
+def min_cap_req(settings: dict = None) -> pd.DataFrame:
     """Create a dataframe of minimum capacity requirements for GenX
 
     Parameters
@@ -1168,7 +1179,8 @@ def min_cap_req(settings: dict) -> pd.DataFrame:
         return None
 
 
-def max_cap_req(settings: dict) -> pd.DataFrame:
+@auto_fill_settings()
+def max_cap_req(settings: dict = None) -> pd.DataFrame:
     """Create a dataframe of maximum capacity requirements for GenX
 
     Parameters
@@ -1276,10 +1288,11 @@ def check_resource_tags(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+@auto_fill_settings()
 def hydro_energy_to_power(
     df: pd.DataFrame,
     default_factor: float = None,
-    regional_factors: Dict[str, float] = {},
+    regional_factors: Dict[str, float] = None,
 ) -> pd.DataFrame:
     """Calculate the hydro energy to power ratio. Uses average hydro inflow rate and
     multiplied by a factor to calculate the rated number of hours of reservoir hydro

@@ -23,7 +23,7 @@ from powergenome.generators import (
     startup_fuel,
     startup_nonfuel_costs,
 )
-from powergenome.util import load_settings
+from powergenome.settings import Settings
 
 
 def test_startup_fuel():
@@ -379,7 +379,7 @@ def test_apply_custom_gen_formula_unknown_operation():
 class TestGeneratorCluster:
 
     def load_settings(self):
-        settings = load_settings("tests/test_system/settings")
+        settings = Settings(config_path="tests/test_system/settings")
         settings["RESOURCE_GROUPS"] = "tests/test_system/test_data/resource_groups"
         settings["data_location"] = "tests/test_system/test_data"
 

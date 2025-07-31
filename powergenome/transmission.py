@@ -11,6 +11,7 @@ from typing import Dict, List
 import pandas as pd
 
 from powergenome.financials import inflation_price_adjustment
+from powergenome.settings import auto_fill_settings
 from powergenome.util import (
     find_centroid,
     load_data,
@@ -44,11 +45,11 @@ def _validate_transmission_data(
 def _filter_and_map_regions(
     df: pd.DataFrame,
     model_regions: List[str],
-    regional_aggregations: Dict[str, List[str]],
+    region_aggregations: Dict[str, List[str]],
     tx_value_col: str,
 ) -> pd.DataFrame:
     """Filter regions and map aggregated region names."""
-    region_agg_map = reverse_dict_of_lists(regional_aggregations or {})
+    region_agg_map = reverse_dict_of_lists(region_aggregations or {})
 
     keep_regions = [
         x
@@ -134,11 +135,12 @@ def _format_transmission_output(
     )
 
 
+@auto_fill_settings(data_table="transmission_constraints_table")
 def agg_transmission_constraints(
-    data_location: Path | str,
-    data_table: str = "reeds_ba_tx_NARIS_avg",
+    data_location: Path | str = None,
+    data_table: str = None,
     model_regions: List[str] = None,
-    regional_aggregations: Dict[str, List[str]] = None,
+    region_aggregations: Dict[str, List[str]] = None,
     zone_num_map: Dict[str, int] = None,
     tx_value_col: str = "firm_ttc_mw",
 ) -> pd.DataFrame:
@@ -158,7 +160,7 @@ def agg_transmission_constraints(
         Name of the database table with transmission capacity, by default "reeds_ba_tx_NARIS_avg"
     model_regions : List[str], optional
         List of model region names. If not provided, it will be taken from `settings["model_regions"]`.
-    regional_aggregations : Dict[str, List[str]], optional
+    region_aggregations : Dict[str, List[str]], optional
         Dictionary mapping aggregated region names to lists of individual regions.
         If not provided, it will be taken from `settings["region_aggregations"]`.
     zone_num_map : Dict[str, int], optional
@@ -203,7 +205,7 @@ def agg_transmission_constraints(
     aggregated_data = _filter_and_map_regions(
         transmission_constraints_table,
         model_regions,
-        regional_aggregations,
+        region_aggregations,
         tx_value_col,
     )
 
@@ -213,9 +215,10 @@ def agg_transmission_constraints(
     )
 
 
+@auto_fill_settings(table_name="transmission_cost_table")
 def load_tx_costs(
-    data_location: Path | str,
-    table_name: str,
+    data_location: Path | str = None,
+    table_name: str = None,
     # model_regions: List[str],
     target_usd_year: int = None,
     zone_num_map: Dict[str, int] = None,
