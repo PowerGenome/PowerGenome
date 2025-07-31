@@ -8,6 +8,8 @@ from numbers import Number
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple, Union
 
+from powergenome.settings import auto_fill_settings
+
 os.environ["USE_PYGEOS"] = "0"
 
 import numpy as np
@@ -3267,6 +3269,7 @@ def apply_custom_gen_formula(
     return gen_df
 
 
+@auto_fill_settings()
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -3282,8 +3285,6 @@ class GeneratorClusters:
         current_gens=True,
         supplement_with_860m=True,
         sort_gens=False,
-        plant_region_map_table="plant_region_map_epaipm",
-        settings_agg_key="region_aggregations",
         multi_period=False,
         include_retired_cap=False,
     ):

@@ -16,6 +16,7 @@ from powergenome.distributed_gen import distributed_gen_profiles
 from powergenome.eia_opendata import get_aeo_load
 from powergenome.external_data import make_demand_response_profiles
 from powergenome.load_construction import electrification_profiles
+from powergenome.settings import auto_fill_settings
 from powergenome.util import (
     deep_freeze_args,
     map_agg_region_names,
@@ -627,9 +628,10 @@ def load_usr_demand_profiles(settings):
         return None
 
 
+@auto_fill_settings()
 def make_final_load_curves(
-    data_location: Path | str,
-    settings: dict,
+    data_location: Path | str = None,
+    settings: dict = None,
 ):
     """Create final load profiles from base year including growth, dg, and flexible loads
 
