@@ -105,12 +105,12 @@ class TestFilterAndMapRegions:
     def test_with_region_aggregations(self, sample_transmission_data):
         """Test filtering and mapping with region aggregations."""
         model_regions = ["AB", "C"]
-        regional_aggregations = {"AB": ["A", "B"]}
+        region_aggregations = {"AB": ["A", "B"]}
 
         result = _filter_and_map_regions(
             sample_transmission_data,
             model_regions,
-            regional_aggregations,
+            region_aggregations,
             "firm_ttc_mw",
         )
 
@@ -342,9 +342,7 @@ class TestAggTransmissionConstraints:
         mock_load_data.assert_called_once_with("fake_path", "custom_table")
 
     @patch("powergenome.transmission.load_data")
-    def test_custom_regional_aggregations(
-        self, mock_load_data, sample_transmission_data
-    ):
+    def test_custom_region_aggregations(self, mock_load_data, sample_transmission_data):
         """Test using custom regional aggregations."""
         mock_load_data.return_value = sample_transmission_data
 
@@ -352,7 +350,7 @@ class TestAggTransmissionConstraints:
             "fake_path",
             model_regions=["AB", "C"],
             zone_num_map={"AB": 1, "C": 2},
-            regional_aggregations={"AB": ["A", "B"]},
+            region_aggregations={"AB": ["A", "B"]},
             tx_value_col="firm_ttc_mw",
         )
 
@@ -382,7 +380,7 @@ class TestTransmissionIntegration:
             "fake_path",
             model_regions=["AB", "CD"],
             zone_num_map={"AB": 1, "CD": 2},
-            regional_aggregations={"AB": ["A", "B"], "CD": ["C", "D"]},
+            region_aggregations={"AB": ["A", "B"], "CD": ["C", "D"]},
             tx_value_col="firm_ttc_mw",
         )
 
