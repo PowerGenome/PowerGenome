@@ -115,12 +115,12 @@ class TestFilterAndMapRegions:
     def test_with_region_aggregations(self, sample_transmission_data):
         """Test filtering and mapping with region aggregations."""
         model_regions = ["AB", "C"]
-        regional_aggregations = {"AB": ["A", "B"]}
+        region_aggregations = {"AB": ["A", "B"]}
 
         result = _filter_and_map_regions(
             sample_transmission_data,
             model_regions,
-            regional_aggregations,
+            region_aggregations,
             "firm_ttc_mw",
         )
 
@@ -341,7 +341,7 @@ class TestAggTransmissionConstraints:
         result = agg_transmission_constraints(
             model_regions=["AB", "C"],
             zone_num_map={"AB": 1, "C": 2},
-            regional_aggregations={"AB": ["A", "B"]},
+            region_aggregations={"AB": ["A", "B"]},
             tx_value_col="firm_ttc_mw",
         )
 
@@ -370,7 +370,7 @@ class TestTransmissionIntegration:
         result = agg_transmission_constraints(
             model_regions=["AB", "CD"],
             zone_num_map={"AB": 1, "CD": 2},
-            regional_aggregations={"AB": ["A", "B"], "CD": ["C", "D"]},
+            region_aggregations={"AB": ["A", "B"], "CD": ["C", "D"]},
             tx_value_col="firm_ttc_mw",
         )
 
