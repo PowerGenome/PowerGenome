@@ -60,6 +60,8 @@ dev = [
     "black[jupyter] == 24.3.0",
     "pre-commit",
     "pytest",
+    "pytest-mock",
+    "pytest-cov",
     "isort",
     "build",
     "twine",

@@ -9,10 +9,13 @@ import operator
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sqlalchemy
 from joblib import Parallel, delayed
+from matplotlib.patches import Patch
 
 from powergenome.cluster.renewables import (
     assign_site_cluster,
@@ -1408,7 +1411,7 @@ def load_resource_group_data(
         A tuple of the metadata dataframe and the site map as a Series with site ID as
         the index
     """
-    data = rg.metadata.read(cache=cache)
+    data = rg.metadata.read(cache=cache).copy()
     data.columns = snake_case_col(data.columns)
     if "metro_region" in data.columns and "region" not in data.columns:
         data["region"] = data.loc[:, "metro_region"]
@@ -1602,37 +1605,13 @@ def add_renewables_clusters(
         cache_cluster_fpath = cache_folder / cache_cluster_fn
         cache_site_assn_fpath = cache_folder / cache_site_assn_fn
         if precluster is False:
+            resource_groups, renew_data, site_map = load_renew_data(
+                cluster_builder, _scenario
+            )
             if cache_cluster_fpath.exists() and cache_site_assn_fpath.exists():
                 clusters = pd.read_parquet(cache_cluster_fpath)
                 data = pd.read_parquet(cache_site_assn_fpath)
             else:
-                drop_keys = [
-                    "min_capacity",
-                    "filter",
-                    "bin",
-                    "group",
-                    "cluster",
-                    "group_modifiers",
-                ]
-                group_kwargs = dict(
-                    [(k, v) for k, v in _scenario.items() if k not in drop_keys]
-                )
-                resource_groups = cluster_builder.find_groups(
-                    existing=False,
-                    **group_kwargs,
-                )
-                if not resource_groups:
-                    raise ValueError(
-                        f"Parameters do not match any resource groups: {group_kwargs}"
-                    )
-                if len(resource_groups) > 1:
-                    meta = [rg.group for rg in resource_groups]
-                    raise ValueError(
-                        f"Parameters match multiple resource groups: {meta}"
-                    )
-                renew_data, site_map = load_resource_group_data(
-                    resource_groups[0], cache=False
-                )
                 data = assign_site_cluster(
                     renew_data=renew_data,
                     profile_path=resource_groups[0].group.get("profiles"),
@@ -1656,13 +1635,27 @@ def add_renewables_clusters(
                 if not cache_site_assn_fpath.exists():
                     cols = ["cpa_id", "cluster"]
                     data[cols].to_parquet(cache_site_assn_fpath)
+
             if settings.get("extra_outputs"):
                 # fn = f"{region}_{technology}{new_tech_suffix}_site_cluster_assignments.csv"
                 Path(settings["extra_outputs"]).mkdir(parents=True, exist_ok=True)
-                cols = ["cpa_id", "cluster"]
-                fn = f"{region}_{technology}{new_tech_suffix}_site_cluster_assignments.csv"
-                data.loc[:, cols].to_csv(
+                (Path(settings["extra_outputs"]) / "plots").mkdir(
+                    parents=True, exist_ok=True
+                )
+                cols = ["cpa_id", "cluster", "cpa_mw", "lcoe"]
+                fn = f"{region}_{technology}_{new_tech_suffix.lstrip('_')}_site_cluster_assignments.csv"
+                pd.merge(data, renew_data, on="cpa_id").to_csv(
                     Path(settings["extra_outputs"]) / fn, index=False
+                )
+
+                # Add a plot of the renewable supply curve
+                plot_supply_curve(
+                    data,
+                    renew_data,
+                    region,
+                    technology,
+                    new_tech_suffix,
+                    Path(settings["extra_outputs"]) / "plots",
                 )
         else:
             if cache_cluster_fpath.exists():
@@ -1705,6 +1698,54 @@ def add_renewables_clusters(
             )
         )
     return pd.concat([df[~mask]] + cdfs, sort=False)
+
+
+def load_renew_data(cluster_builder: ClusterBuilder, _scenario: dict):
+    """Load renewable energy data based on the provided scenario and cluster builder.
+
+    Parameters
+    ----------
+    cluster_builder : ClusterBuilder
+        An instance of ClusterBuilder used to find resource groups.
+    _scenario : dict
+        A dictionary containing scenario parameters.
+
+    Returns
+    -------
+    tuple
+       A tuple containing:
+        - resource_groups (list): A list of resource groups that match the scenario parameters.
+        - renew_data (DataFrame): The renewable energy data for the matched resource group.
+        - site_map (dict): A mapping of sites for the matched resource group.
+
+    Raises
+    ------
+    ValueError
+        If no resource groups match the scenario parameters
+    ValueError
+        if multiple resource groups match the scenario parameters
+    """
+    drop_keys = [
+        "min_capacity",
+        "filter",
+        "bin",
+        "group",
+        "cluster",
+        "group_modifiers",
+    ]
+    group_kwargs = dict([(k, v) for k, v in _scenario.items() if k not in drop_keys])
+    resource_groups = cluster_builder.find_groups(
+        existing=False,
+        **group_kwargs,
+    )
+    if not resource_groups:
+        raise ValueError(f"Parameters do not match any resource groups: {group_kwargs}")
+    if len(resource_groups) > 1:
+        meta = [rg.group for rg in resource_groups]
+        raise ValueError(f"Parameters match multiple resource groups: {meta}")
+    renew_data, site_map = load_resource_group_data(resource_groups[0], cache=True)
+
+    return resource_groups, renew_data, site_map
 
 
 def load_user_defined_techs(settings: dict) -> pd.DataFrame:
@@ -1793,3 +1834,168 @@ def load_user_defined_techs(settings: dict) -> pd.DataFrame:
     ]
 
     return user_techs[cols]
+
+
+def plot_supply_curve(
+    data: pd.DataFrame,
+    renew_data: pd.DataFrame,
+    region: str,
+    technology: str,
+    new_tech_suffix: str,
+    folder: Path,
+):
+    """
+    Create a supply curve of sites using cumulative capacity and LCOE,
+    then save the plot using a filename based on region, technology, and new_tech_suffix.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        DataFrame with site information, including at least:
+          - 'cpa_id'
+          - 'lcoe'
+          - 'cluster'
+    renew_data : pd.DataFrame
+        DataFrame with renewable site capacity information; must include:
+          - 'cpa_id'
+          - 'cpa_mw'
+    region : str
+        A string representing the region.
+    technology : str
+        A string representing the technology.
+    new_tech_suffix : str
+        A suffix string to append to the filename.
+    folder : Path
+        Folder to save the plot to.
+
+    Returns
+    -------
+    None
+        The plot is saved to disk.
+    """
+    # Merge the two dataframes on 'cpa_id'
+    merged = data.merge(
+        renew_data[["cpa_id", "cpa_mw", "lcoe"]], on="cpa_id", how="inner"
+    )
+
+    # Ensure that 'lcoe' exists in the merged dataframe
+    if "lcoe" not in merged.columns:
+        raise ValueError("The merged dataframe must contain a 'lcoe' column.")
+
+    # Sort the merged data by lcoe (ascending order)
+    merged = merged.sort_values(by="lcoe").reset_index(drop=True)
+    merged["cpa_gw"] = merged["cpa_mw"] / 1000
+
+    # Compute the cumulative capacity from 'cpa_gw'
+    merged["cum_capacity"] = merged["cpa_gw"].cumsum()
+
+    # Create the supply curve plot
+    # plt.figure(figsize=(10, 6))
+
+    # Compute the left edge for each rectangle as the cumulative capacity minus the capacity of the current site
+    merged["left"] = merged["cum_capacity"] - merged["cpa_gw"]
+    # Map the "cluster" column to colors using a discrete colormap (tab10)
+
+    unique_clusters = sorted(merged["cluster"].unique())
+    cmap = cm.get_cmap("tab10", len(unique_clusters))
+    color_dict = {cluster: cmap(i) for i, cluster in enumerate(unique_clusters)}
+    colors = merged["cluster"].map(color_dict)
+
+    # Calculate cluster statistics:
+    #   - Weighted average LCOE: sum(lcoe * capacity) / sum(capacity)
+    #   - Total capacity: sum(cpa_gw)
+    cluster_stats = (
+        merged.groupby("cluster")
+        .apply(
+            lambda df: pd.Series(
+                {
+                    "weighted_lcoe": (df["lcoe"] * df["cpa_gw"]).sum()
+                    / df["cpa_gw"].sum(),
+                    "total_capacity": df["cpa_gw"].sum(),
+                }
+            )
+        )
+        .reset_index()
+    )
+
+    # Sort clusters by weighted average LCOE (ascending)
+    cluster_stats = cluster_stats.sort_values("weighted_lcoe").reset_index(drop=True)
+    # Compute cumulative capacity across clusters
+    cluster_stats["cum_capacity"] = cluster_stats["total_capacity"].cumsum()
+    cluster_stats["start"] = (
+        cluster_stats["cum_capacity"] - cluster_stats["total_capacity"]
+    )
+
+    # Create a figure with two subplots side-by-side
+    fig, (ax1, ax2) = plt.subplots(
+        1, 2, figsize=(8, 4), facecolor="white", sharey=True, dpi=200
+    )
+
+    # -------------------------------
+    # Left subplot: Site-level supply curve
+    # -------------------------------
+    ax1.bar(
+        merged["left"],
+        merged["lcoe"],
+        width=merged["cpa_gw"],
+        align="edge",
+        color=colors,
+    )
+    ax1.set_xlabel("Cumulative Capacity (GW)", fontsize=12)
+    ax1.set_ylabel("LCOE ($/MWh)", fontsize=12)
+    ax1.set_title("Site-level Supply Curve", fontsize=14)
+
+    # Minimal styling similar to Altair
+    ax1.spines["top"].set_visible(False)
+    ax1.spines["right"].set_visible(False)
+    ax1.spines["left"].set_color("gray")
+    ax1.spines["bottom"].set_color("gray")
+    ax1.yaxis.grid(True, color="#D0D0D0", linestyle="-", linewidth=0.5)
+    ax1.xaxis.grid(False)
+    ax1.tick_params(axis="both", labelsize=10, color="gray")
+
+    # -------------------------------
+    # Right subplot: Cluster-level supply curve
+    # -------------------------------
+    ax2.bar(
+        cluster_stats["start"],
+        cluster_stats["weighted_lcoe"],
+        width=cluster_stats["total_capacity"],
+        align="edge",
+        color=[
+            color_dict.get(cluster, "black") for cluster in cluster_stats["cluster"]
+        ],
+    )
+
+    ax2.set_xlabel("Cumulative Capacity (GW)", fontsize=12)
+    ax2.set_ylabel("Weighted Average LCOE ($/MWh)", fontsize=12)
+    ax2.set_title("Cluster-level Supply Curve", fontsize=14)
+
+    # Apply minimal styling for a clean look
+    ax2.spines["top"].set_visible(False)
+    ax2.spines["right"].set_visible(False)
+    ax2.spines["left"].set_color("gray")
+    ax2.spines["bottom"].set_color("gray")
+    ax2.yaxis.grid(True, color="#D0D0D0", linestyle="-", linewidth=0.5)
+    ax2.xaxis.grid(False)
+    ax2.tick_params(axis="both", labelsize=10, color="gray")
+
+    # Add legend for clusters centered below the subplots
+    legend_elements = [
+        Patch(facecolor=color_dict[cluster], label=f"Cluster {cluster}")
+        for cluster in unique_clusters
+    ]
+    fig.legend(
+        handles=legend_elements,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.05),
+        fontsize=10,
+        ncols=5,
+    )
+    # Adjust layout to accommodate the legend below the subplots
+    plt.tight_layout(rect=[0, 0.05, 1, 1])
+
+    # Construct the filename and save the figure
+    fn = f"{region}_{technology}_{new_tech_suffix.lstrip('_')}site_supply_curve.png"
+    plt.savefig(folder / fn, bbox_inches="tight")
+    plt.close()
