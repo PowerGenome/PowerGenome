@@ -837,9 +837,12 @@ def network_max_reinforcement(
     #         )
 
     # else:
-    transmission.loc[:, "Line_Max_Reinforcement_MW"] = [
-        max(tx * max_expansion, expansion_mw) for tx in transmission["Line_Max_Flow_MW"]
-    ]
+    line_max_flow = transmission["Line_Max_Flow_MW"]
+    calculated_values = line_max_flow * max_expansion
+    transmission.loc[:, "Line_Max_Reinforcement_MW"] = calculated_values.where(
+        calculated_values >= expansion_mw, expansion_mw
+    )
+
     transmission["Line_Max_Reinforcement_MW"] = transmission[
         "Line_Max_Reinforcement_MW"
     ].round(0)
