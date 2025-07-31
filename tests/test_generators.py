@@ -30,7 +30,6 @@ def test_startup_fuel():
     df = pd.DataFrame({"technology": ["tech1", "tech2", "tech1"]})
     settings = {
         "startup_fuel_use": {"tech1": 5},
-        "eia_atb_tech_map": {"tech1": ["tech1a"]},
     }
     out = startup_fuel(df.copy(), settings)
     assert "Start_Fuel_MMBTU_per_MW" in out.columns
@@ -138,7 +137,6 @@ def test_add_fuel_labels():
     )
     settings = {
         "tech_fuel_map": {"coal": "coal"},
-        "eia_atb_tech_map": {"coal": ["coal"]},
         "fuel_scenarios": {"coal": "REF"},
         "fuel_region_map": {"A": ["A"]},
         "model_year": 2020,
@@ -417,6 +415,7 @@ class TestGeneratorCluster:
             include_retired_cap=True,
         )
         new_gen = self.gc.create_new_generators()
+        assert (new_gen.Inv_Cost_per_MWyr > 0).all()
 
     def test_create_all_generators(self, tmp_path):
         settings = self.load_settings()

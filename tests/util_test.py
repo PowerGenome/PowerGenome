@@ -17,6 +17,10 @@ import powergenome
 import powergenome.util as util
 from powergenome.util import (
     add_row_to_csv,
+    apply_all_tag_to_regions,
+    assign_model_planning_years,
+    build_scenario_settings,
+    build_where_clause_from_filters,
     get_all_table_names,
     hash_string_sha256,
     load_data,
@@ -182,6 +186,180 @@ class TestMakeIterable:
         assert list(result) == item
 
 
+class TestAssignModelPlanningYears:
+
+    # The function is called with a dictionary containing the key 'model_periods' with a list of tuples as value, and an integer year.
+    def test_with_model_periods(self):
+        # Prepare input
+        _settings = {
+            "model_periods": [(2030, 2040), (2041, 2050)],
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2030, 2041],
+        }
+        year = 2040
+
+        # Execute function
+        result = assign_model_planning_years(_settings, year)
+
+        # Check output
+        assert result["model_first_planning_year"] == 2030
+        assert result["model_year"] == 2040
+
+    # The function is called with an empty dictionary.
+    def test_with_empty_dictionary(self):
+        # Prepare input
+        _settings = {}
+        year = 2022
+
+        # Execute function
+        with pytest.raises(KeyError):
+            assign_model_planning_years(_settings, year)
+
+    # The function is called with a dictionary containing the key 'model_first_planning_year' with an integer value, and an integer year.
+    def test_with_model_first_planning_year(self):
+        # Prepare input
+        _settings = {"model_first_planning_year": 2030}
+        year = 2030
+
+        # Execute function
+        result = assign_model_planning_years(_settings, year)
+
+        # Check output
+        assert result["model_first_planning_year"] == 2030
+        assert result["model_year"] == 2030
+
+    # The function is called with a dictionary containing the keys 'model_year' and 'model_first_planning_year' with integer values, and an integer year.
+    def test_with_model_year_first_planning_year(self):
+        # Prepare input
+        _settings = {
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2030, 2035],
+        }
+        year = 2040
+
+        # Execute function
+        result = assign_model_planning_years(_settings, year)
+
+        # Check output
+        assert result["model_first_planning_year"] == 2035
+        assert result["model_year"] == 2040
+
+    # The function is called with a dictionary containing the key 'model_periods' with a list of tuples where at least one tuple has length different from 2.
+    def test_with_invalid_model_periods_length(self):
+        # Prepare input
+        _settings = {
+            "model_periods": [(2030, 2040), (2041, 2050), (2051,)],
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2030, 2041],
+        }
+        year = 2030
+
+        # Execute function and assert ValueError is raised
+        with pytest.raises(ValueError):
+            assign_model_planning_years(_settings, year)
+
+    # The function is called with a dictionary containing the key 'model_periods' with a non-list value.
+    def test_with_non_list_model_periods(self):
+        # Prepare input
+        _settings = {
+            "model_periods": "2030-2040",
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2030, 2041],
+        }
+        year = 2030
+
+        # Execute function
+        with pytest.raises(ValueError):
+            assign_model_planning_years(_settings, year)
+
+    # The function is called with a dictionary containing the keys 'model_year' and 'model_first_planning_year' with values that are not integers or lists of integers.
+    def test_invalid_values(self):
+        # Prepare input
+        _settings = {"model_year": "2040", "model_first_planning_year": "2031"}
+        year = 2022
+
+        # Execute function
+        with pytest.raises(ValueError):
+            assign_model_planning_years(_settings, year)
+
+
+class TestAddModelTagsToGenColumns:
+
+    # Returns the input 'generator_columns' list unmodified if it is not a list.
+    def test_returns_input_unmodified_if_not_list(self):
+        generator_columns = "not a list"
+        model_tag_values = {}
+        regional_tag_values = {}
+        result = add_model_tags_to_gen_columns(
+            model_tag_values, regional_tag_values, generator_columns
+        )
+        assert result == generator_columns
+
+    # Adds model resource tag keys to the 'generator_columns' list if they are not already present.
+    def test_adds_model_tags_to_gen_columns(self):
+        generator_columns = ["capacity", "output"]
+        model_tag_values = {"cost": {"solar": 100, "wind": 150}}
+        regional_tag_values = {"NA": {"efficiency": {"solar": 20, "wind": 25}}}
+        expected_result = ["capacity", "output", "cost", "efficiency"]
+
+        result = add_model_tags_to_gen_columns(
+            model_tag_values, regional_tag_values, generator_columns
+        )
+
+        assert sorted(result) == sorted(expected_result)
+
+
+class TestBuildWhereClauseFromFilters:
+    def test_empty_filters(self):
+        assert build_where_clause_from_filters(None) is None
+        assert build_where_clause_from_filters([]) is None
+
+    def test_single_conjunction(self):
+        filters = [[("col1", "=", "val1")]]
+        expected = "WHERE (col1 = 'val1')"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_multiple_conjunctions_and(self):
+        filters = [[("col1", "=", "val1"), ("col2", ">", 5)]]
+        expected = "WHERE (col1 = 'val1' AND col2 > 5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_multiple_disjunctions_or(self):
+        filters = [[("col1", "=", "val1")], [("col2", ">", 5)]]
+        expected = "WHERE (col1 = 'val1') OR (col2 > 5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_string_value_formatting(self):
+        filters = [[("col1", "=", "string value")]]
+        expected = "WHERE (col1 = 'string value')"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_numeric_value_formatting(self):
+        filters = [[("col1", "<", 10.5)]]
+        expected = "WHERE (col1 < 10.5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_in_clause_with_list(self):
+        filters = [[("col1", "IN", [1, 2, 3])]]
+        expected = "WHERE (col1 IN (1, 2, 3))"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_in_clause_with_tuple_of_strings(self):
+        filters = [[("col1", "IN", ("a", "b", "c"))]]
+        expected = "WHERE (col1 IN ('a', 'b', 'c'))"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_complex_dnf(self):
+        filters = [
+            [("col1", "=", "val1"), ("col2", ">", 5)],
+            [("col3", "!=", "val3"), ("col4", "IN", [1, 2])],
+        ]
+        expected = (
+            "WHERE (col1 = 'val1' AND col2 > 5) OR (col3 != 'val3' AND col4 IN (1, 2))"
+        )
+        assert build_where_clause_from_filters(filters) == expected
+
+
 @pytest.fixture
 def tmp_sqlite_db(tmp_path):
     db_path = tmp_path / "test.db"
@@ -259,20 +437,34 @@ def test_load_data_folder_mode(tmp_path):
     pd.testing.assert_frame_equal(df.reset_index(drop=True), df_orig)
 
 
-def test_load_data_file_with_query(tmp_path):
+def test_load_data_file_with_filters(tmp_path):
     # Create a temporary CSV file
     file_path = tmp_path / "test.csv"
     df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
     df.to_csv(file_path, index=False)
 
-    # Query to select only rows where a > 1
-    query = "SELECT * WHERE a > 1"
-    result = load_data_file(file_path, query=query)
+    # filters to select only rows where a > 1
+    filters = [[("a", ">", 1)]]
+    result = load_data_file(file_path, filters=filters)
 
     # Check that the result is as expected
-    assert isinstance(result, pd.DataFrame)
-    assert list(result["a"]) == [2, 3]
-    assert list(result["b"]) == ["y", "z"]
+    expected = pd.DataFrame({"a": [2, 3], "b": ["y", "z"]})
+    pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+
+
+def test_load_data_file_with_columns(tmp_path):
+    # Create a temporary CSV file
+    file_path = tmp_path / "test.csv"
+    df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"], "c": [True, False, True]})
+    df.to_csv(file_path, index=False)
+
+    # Load only columns 'a' and 'c'
+    columns = ["a", "c"]
+    result = load_data_file(file_path, columns=columns)
+
+    # Check that the result is as expected
+    expected = pd.DataFrame({"a": [1, 2, 3], "c": [True, False, True]})
+    pd.testing.assert_frame_equal(result, expected, check_dtype=False)
 
 
 def test_load_data_db_mode_sqlite(tmp_path, tmp_sqlite_db):
@@ -287,14 +479,38 @@ def test_load_data_db_mode_duckdb(tmp_path, tmp_duckdb):
     assert "c" in df.columns
 
 
-def test_load_data_query(tmp_sqlite_db):
+def test_load_data_with_filters(tmp_sqlite_db):
     # tmp_sqlite_db has table foo with rows (1,'x'), (2,'y')
     # Run a SQL query instead of passing a table name
-    df = load_data(tmp_sqlite_db, query="SELECT a, b FROM foo WHERE a = 2")
+    filters = [[("a", "=", 2)]]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", filters=filters)
     # Build expected
     expected = pd.DataFrame({"a": [2], "b": ["y"]})
     # Compare
-    pd.testing.assert_frame_equal(df.reset_index(drop=True), expected)
+    pd.testing.assert_frame_equal(df, expected, check_dtype=False)
+
+
+def test_load_data_with_filters_single_list(tmp_sqlite_db):
+    # tmp_sqlite_db has table foo with rows (1,'x'), (2,'y')
+    # Run a SQL query instead of passing a table name
+    filters = [("a", "=", 2)]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", filters=filters)
+    # Build expected
+    expected = pd.DataFrame({"a": [2], "b": ["y"]})
+    # Compare
+    pd.testing.assert_frame_equal(df, expected, check_dtype=False)
+
+
+def test_load_data_with_columns(tmp_sqlite_db):
+    # tmp_sqlite_db has table foo with columns 'a' and 'b'
+    # Load only column 'b'
+    columns = ["b"]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", columns=columns)
+
+    # Build expected
+    expected = pd.DataFrame({"b": ["x", "y"]})
+    # Compare
+    pd.testing.assert_frame_equal(df, expected)
 
 
 def test_load_data_file_unsupported_extension(tmp_path):
@@ -307,7 +523,7 @@ def test_load_data_file_unsupported_extension(tmp_path):
 
 def test_load_data_no_params(tmp_path):
     # Neither file_or_table_name nor query provided
-    with pytest.raises(ValueError, match=r"Either file_or_table_name or query"):
+    with pytest.raises(ValueError, match=r"file_or_table_name must be provided"):
         load_data(str(tmp_path))
 
 
@@ -315,9 +531,7 @@ def test_load_data_folder_no_filename(tmp_path):
     # Loading from a folder without specifying file_or_table_name
     d = tmp_path / "empty_folder"
     d.mkdir()
-    with pytest.raises(
-        ValueError, match=r"file_or_table_name or query must be provided"
-    ):
+    with pytest.raises(ValueError, match=r"file_or_table_name must be provided"):
         load_data(str(d))
 
 
