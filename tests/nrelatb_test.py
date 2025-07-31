@@ -54,47 +54,6 @@ def test_load_renew_data_single_matching_group(mocker):
     mock_load_resource_group_data.assert_called_once_with(resource_group, cache=True)
 
 
-def test_load_renew_data_no_matching_groups(mocker):
-    cluster_builder = mocker.Mock()
-    cluster_builder.find_groups.return_value = []
-    _scenario = {"technology": "solar", "region": "region1"}
-
-    with pytest.raises(ValueError, match="Parameters do not match any resource groups"):
-        load_renew_data(cluster_builder, _scenario)
-
-
-def test_load_renew_data_multiple_matching_groups(mocker):
-    cluster_builder = mocker.Mock()
-    resource_group1 = mocker.Mock()
-    resource_group2 = mocker.Mock()
-    cluster_builder.find_groups.return_value = [resource_group1, resource_group2]
-    _scenario = {"technology": "solar", "region": "region1"}
-
-    with pytest.raises(ValueError, match="Parameters match multiple resource groups"):
-        load_renew_data(cluster_builder, _scenario)
-
-
-def test_load_renew_data_single_matching_group(mocker):
-    cluster_builder = mocker.Mock()
-    resource_group = mocker.Mock()
-    cluster_builder.find_groups.return_value = [resource_group]
-    _scenario = {"technology": "solar", "region": "region1"}
-
-    mock_renew_data = pd.DataFrame({"data": [1, 2, 3]})
-    mock_site_map = {"site1": "map1"}
-    mock_load_resource_group_data = mocker.patch(
-        "powergenome.nrelatb.load_resource_group_data"
-    )
-    mock_load_resource_group_data.return_value = (mock_renew_data, mock_site_map)
-
-    resource_groups, renew_data, site_map = load_renew_data(cluster_builder, _scenario)
-
-    assert resource_groups == [resource_group]
-    assert renew_data.equals(mock_renew_data)
-    assert site_map == mock_site_map
-    mock_load_resource_group_data.assert_called_once_with(resource_group, cache=True)
-
-
 def test_plot_supply_curve(mocker, tmp_path: Path):
     data = pd.DataFrame({"cpa_id": [1, 2, 3], "cluster": [1, 2, 1]})
     renew_data = pd.DataFrame(
