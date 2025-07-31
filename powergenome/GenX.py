@@ -387,7 +387,7 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict = None) -> pd.DataFr
     derate_cols = [f"DerateCapRes_{n}" for n in policy_nums]
     excl_cols = [f"CapRes_Excl_{n}" for n in policy_nums]
 
-    return tx_df[original_cols + derate_cols + excl_cols]  # .fillna(0)
+    return tx_df[original_cols + derate_cols + excl_cols].fillna(0)
 
 
 @auto_fill_settings()

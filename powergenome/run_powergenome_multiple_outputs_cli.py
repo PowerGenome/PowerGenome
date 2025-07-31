@@ -275,7 +275,6 @@ def main(**kwargs):
                     fuels = fuel_cost_table(
                         fuel_costs=gc.fuel_prices,
                         generators=gc.all_resources,
-                        # settings=_settings,
                         num_hours=len(gen_variability),
                     )
                     fuels.index.name = "Time_Index"
