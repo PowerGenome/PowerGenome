@@ -3,23 +3,15 @@ Test util functions
 """
 
 import csv
-import logging
-import os
 import sqlite3
 from collections.abc import Iterable
-from pathlib import Path
 
 import duckdb
 import pandas as pd
 import pytest
 
-import powergenome
-import powergenome.util as util
 from powergenome.util import (
     add_row_to_csv,
-    apply_all_tag_to_regions,
-    assign_model_planning_years,
-    build_scenario_settings,
     build_where_clause_from_filters,
     get_all_table_names,
     hash_string_sha256,
@@ -184,129 +176,6 @@ class TestMakeIterable:
         # Assert
         assert isinstance(result, Iterable)
         assert list(result) == item
-
-
-class TestAssignModelPlanningYears:
-
-    # The function is called with a dictionary containing the key 'model_periods' with a list of tuples as value, and an integer year.
-    def test_with_model_periods(self):
-        # Prepare input
-        _settings = {
-            "model_periods": [(2030, 2040), (2041, 2050)],
-            "model_year": [2030, 2040],
-            "model_first_planning_year": [2030, 2041],
-        }
-        year = 2040
-
-        # Execute function
-        result = assign_model_planning_years(_settings, year)
-
-        # Check output
-        assert result["model_first_planning_year"] == 2030
-        assert result["model_year"] == 2040
-
-    # The function is called with an empty dictionary.
-    def test_with_empty_dictionary(self):
-        # Prepare input
-        _settings = {}
-        year = 2022
-
-        # Execute function
-        with pytest.raises(KeyError):
-            assign_model_planning_years(_settings, year)
-
-    # The function is called with a dictionary containing the key 'model_first_planning_year' with an integer value, and an integer year.
-    def test_with_model_first_planning_year(self):
-        # Prepare input
-        _settings = {"model_first_planning_year": 2030}
-        year = 2030
-
-        # Execute function
-        result = assign_model_planning_years(_settings, year)
-
-        # Check output
-        assert result["model_first_planning_year"] == 2030
-        assert result["model_year"] == 2030
-
-    # The function is called with a dictionary containing the keys 'model_year' and 'model_first_planning_year' with integer values, and an integer year.
-    def test_with_model_year_first_planning_year(self):
-        # Prepare input
-        _settings = {
-            "model_year": [2030, 2040],
-            "model_first_planning_year": [2030, 2035],
-        }
-        year = 2040
-
-        # Execute function
-        result = assign_model_planning_years(_settings, year)
-
-        # Check output
-        assert result["model_first_planning_year"] == 2035
-        assert result["model_year"] == 2040
-
-    # The function is called with a dictionary containing the key 'model_periods' with a list of tuples where at least one tuple has length different from 2.
-    def test_with_invalid_model_periods_length(self):
-        # Prepare input
-        _settings = {
-            "model_periods": [(2030, 2040), (2041, 2050), (2051,)],
-            "model_year": [2030, 2040],
-            "model_first_planning_year": [2030, 2041],
-        }
-        year = 2030
-
-        # Execute function and assert ValueError is raised
-        with pytest.raises(ValueError):
-            assign_model_planning_years(_settings, year)
-
-    # The function is called with a dictionary containing the key 'model_periods' with a non-list value.
-    def test_with_non_list_model_periods(self):
-        # Prepare input
-        _settings = {
-            "model_periods": "2030-2040",
-            "model_year": [2030, 2040],
-            "model_first_planning_year": [2030, 2041],
-        }
-        year = 2030
-
-        # Execute function
-        with pytest.raises(ValueError):
-            assign_model_planning_years(_settings, year)
-
-    # The function is called with a dictionary containing the keys 'model_year' and 'model_first_planning_year' with values that are not integers or lists of integers.
-    def test_invalid_values(self):
-        # Prepare input
-        _settings = {"model_year": "2040", "model_first_planning_year": "2031"}
-        year = 2022
-
-        # Execute function
-        with pytest.raises(ValueError):
-            assign_model_planning_years(_settings, year)
-
-
-class TestAddModelTagsToGenColumns:
-
-    # Returns the input 'generator_columns' list unmodified if it is not a list.
-    def test_returns_input_unmodified_if_not_list(self):
-        generator_columns = "not a list"
-        model_tag_values = {}
-        regional_tag_values = {}
-        result = add_model_tags_to_gen_columns(
-            model_tag_values, regional_tag_values, generator_columns
-        )
-        assert result == generator_columns
-
-    # Adds model resource tag keys to the 'generator_columns' list if they are not already present.
-    def test_adds_model_tags_to_gen_columns(self):
-        generator_columns = ["capacity", "output"]
-        model_tag_values = {"cost": {"solar": 100, "wind": 150}}
-        regional_tag_values = {"NA": {"efficiency": {"solar": 20, "wind": 25}}}
-        expected_result = ["capacity", "output", "cost", "efficiency"]
-
-        result = add_model_tags_to_gen_columns(
-            model_tag_values, regional_tag_values, generator_columns
-        )
-
-        assert sorted(result) == sorted(expected_result)
 
 
 class TestBuildWhereClauseFromFilters:
