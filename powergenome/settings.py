@@ -75,6 +75,9 @@ logger = logging.getLogger(__name__)
 # Context variable for current settings
 _current_settings: ContextVar = ContextVar("current_settings", default=None)
 
+# Global settings variable (alternative to context-based approach)
+_global_settings: "Settings" = None
+
 
 class Settings:
     def __init__(self, config_path: Union[str, Path] = None, data: dict = None):
@@ -489,43 +492,121 @@ class Settings:
         """
         return self._data
 
+    @classmethod
+    def set_global(cls, settings: "Settings"):
+        """
+        Set a Settings instance as the global default.
+
+        This allows accessing settings without using a context manager.
+        The settings can then be accessed via get_current_settings() or
+        Settings.get_global() from anywhere in the code.
+
+        Parameters
+        ----------
+        settings : Settings
+            The Settings instance to set as global.
+
+        Examples
+        --------
+        >>> settings = Settings(config_path="settings.yml")
+        >>> Settings.set_global(settings)
+        >>> current = get_current_settings()  # Works without "with" statement
+        >>> current["model_year"]
+        2030
+        """
+        global _global_settings
+        _global_settings = settings
+
+    @classmethod
+    def get_global(cls) -> "Settings":
+        """
+        Get the global Settings instance.
+
+        Returns
+        -------
+        Settings
+            The global settings instance.
+
+        Raises
+        ------
+        RuntimeError
+            If no global settings have been set.
+
+        Examples
+        --------
+        >>> settings = Settings(data={"model_year": 2030})
+        >>> Settings.set_global(settings)
+        >>> global_settings = Settings.get_global()
+        >>> global_settings["model_year"]
+        2030
+        """
+        if _global_settings is None:
+            raise RuntimeError(
+                "No global settings have been set. Use Settings.set_global(settings) first."
+            )
+        return _global_settings
+
+    @classmethod
+    def clear_global(cls):
+        """
+        Clear the global Settings instance.
+
+        Examples
+        --------
+        >>> Settings.clear_global()
+        >>> Settings.get_global()  # Raises RuntimeError
+        """
+        global _global_settings
+        _global_settings = None
+
 
 def get_current_settings() -> Settings:
     """
-    Get the current settings from the context.
+    Get the current settings from context or global settings.
 
-    This function returns the Settings instance that is currently active
-    in the context. It must be called within a context where a Settings
-    instance has been set using the context manager.
+    This function first tries to get settings from the current context (if using
+    a "with" statement), then falls back to global settings if available.
 
     Returns
     -------
     Settings
-        The current settings instance.
+        The current settings instance from context or global settings.
 
     Raises
     ------
     RuntimeError
-        If no settings are currently set in the context.
+        If no settings are available in either context or global scope.
 
     Examples
     --------
+    # Using context (original approach)
     >>> settings = Settings(data={"model_year": 2030})
     >>> with settings:
     ...     current = get_current_settings()
     ...     print(current["model_year"])
     2030
 
-    >>> # Outside of context - raises RuntimeError
-    >>> get_current_settings()
-    RuntimeError: No settings are currently set. Use 'with settings:' context manager.
+    # Using global settings (new approach)
+    >>> settings = Settings(data={"model_year": 2030})
+    >>> Settings.set_global(settings)
+    >>> current = get_current_settings()  # Works without "with"
+    >>> current["model_year"]
+    2030
     """
+    # First try to get from context
     settings = _current_settings.get()
-    if settings is None:
-        raise RuntimeError(
-            "No settings are currently set. Use 'with settings:' context manager."
-        )
-    return settings
+    if settings is not None:
+        return settings
+
+    # Fall back to global settings
+    if _global_settings is not None:
+        return _global_settings
+
+    # No settings available
+    raise RuntimeError(
+        "No settings are currently available. Either use 'with settings:' context manager "
+        "or call Settings.set_global(settings) to set global settings."
+    )
 
 
 def load_settings(path: Union[str, Path]) -> dict:

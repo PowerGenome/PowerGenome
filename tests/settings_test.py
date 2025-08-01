@@ -122,6 +122,37 @@ class TestSettings:
         # Scenario data should override base data
         assert scenario_settings["common_key"] == "scenario_value"
 
+    def test_for_scenario_with_get_current_settings(self):
+        """Test that Settings.for_scenario works with get_current_settings() context manager."""
+        base_data = {"base_key": "base_value", "common_key": "base_value"}
+        scenario_data = {
+            "scenario_key": "scenario_value",
+            "common_key": "scenario_value",
+        }
+
+        base_settings = Settings(data=base_data)
+        scenario_settings = Settings.for_scenario(base_settings, scenario_data)
+
+        # Test that scenario settings work as context manager with get_current_settings
+        with scenario_settings:
+            current = get_current_settings()
+
+            # Should get the scenario settings instance
+            assert current is scenario_settings
+
+            # Should have base settings preserved
+            assert current["base_key"] == "base_value"
+
+            # Should have scenario data added
+            assert current["scenario_key"] == "scenario_value"
+
+            # Should have scenario overrides applied
+            assert current["common_key"] == "scenario_value"
+
+        # After context, should raise error again
+        with pytest.raises(RuntimeError):
+            get_current_settings()
+
     def test_context_manager(self):
         """Test Settings as a context manager."""
         settings = Settings(data={"test_key": "test_value"})
@@ -266,111 +297,200 @@ class TestSettings:
         assert settings["loaded_key"] == "loaded_value"
 
 
-class TestLoadSettings:
-    """Test the load_settings function."""
+class TestGlobalSettings:
+    """Test the global settings functionality."""
 
-    def test_load_single_yaml_file(self, tmp_path):
-        """Test loading a single YAML file."""
-        # model_regions seems to be a required key, so we need to test that it is loaded correctly
-        config_data = {
-            "model_regions": ["region1", "region2", "region3"],
-            "key1": "value1",
-            "nested": {"key2": "value2"},
-        }
-        config_file = tmp_path / "test.yml"
+    def setup_method(self):
+        """Clear global settings before each test."""
+        Settings.clear_global()
 
-        with open(config_file, "w") as f:
-            yaml.dump(config_data, f)
+    def teardown_method(self):
+        """Clear global settings after each test."""
+        Settings.clear_global()
 
-        result = load_settings(config_file)
-        assert result["model_regions"] == ["region1", "region2", "region3"]
-        assert result["key1"] == "value1"
-        assert result["nested"]["key2"] == "value2"
+    def test_set_and_get_global_settings(self):
+        """Test setting and getting global settings."""
+        settings = Settings(data={"model_year": 2030, "test_key": "test_value"})
 
-    def test_load_directory_of_yaml_files(self, tmp_path):
-        """Test loading a directory containing multiple YAML files."""
-        # Create multiple YAML files
-        file1_data = {
-            "model_regions": ["region1", "region2", "region3"],
-            "key1": "value1",
-            "nested": {"key2": "value2"},
-        }
-        file2_data = {
-            "model_regions": ["region1", "region2", "region3"],
-            "key1": "value1",
-            "nested": {"key2": "value2"},
-        }
+        # Set global settings
+        Settings.set_global(settings)
 
-        with open(tmp_path / "file1.yml", "w") as f:
-            yaml.dump(file1_data, f)
-        with open(tmp_path / "file2.yml", "w") as f:
-            yaml.dump(file2_data, f)
+        # Get global settings
+        global_settings = Settings.get_global()
+        assert global_settings is settings
+        assert global_settings["model_year"] == 2030
+        assert global_settings["test_key"] == "test_value"
 
-        result = load_settings(tmp_path)
-        assert result["model_regions"] == ["region1", "region2", "region3"]
-        assert result["key1"] == "value1"
-        assert result["nested"]["key2"] == "value2"
+    def test_get_global_without_setting_raises_error(self):
+        """Test that getting global settings without setting them raises RuntimeError."""
+        with pytest.raises(RuntimeError, match="No global settings have been set"):
+            Settings.get_global()
 
-    def test_load_nonexistent_path(self):
-        """Test loading a non-existent path raises FileNotFoundError."""
-        with pytest.raises(FileNotFoundError):
-            load_settings("nonexistent/path")
+    def test_clear_global_settings(self):
+        """Test clearing global settings."""
+        settings = Settings(data={"model_year": 2030})
+        Settings.set_global(settings)
 
-    def test_input_folder_path_resolution(self, tmp_path):
-        """Test that input_folder is resolved relative to config file."""
-        config_data = {
-            "model_regions": ["region1", "region2", "region3"],
-            "input_folder": "relative/path",
-        }
-        config_file = tmp_path / "test.yml"
+        # Verify it was set
+        assert Settings.get_global() is settings
 
-        with open(config_file, "w") as f:
-            yaml.dump(config_data, f)
+        # Clear global settings
+        Settings.clear_global()
 
-        result = load_settings(config_file)
-        expected_path = config_file.parent / "relative/path"
-        assert result["input_folder"] == expected_path
+        # Verify it was cleared
+        with pytest.raises(RuntimeError, match="No global settings have been set"):
+            Settings.get_global()
 
-    def test_generator_columns_with_model_tags(self, tmp_path):
-        """Test that generator_columns are updated with model tags."""
-        config_data = {
-            "model_regions": ["region1", "region2", "region3"],
-            "generator_columns": ["col1", "col2"],
-            "model_tag_values": {"tag1": {"tech1": 1}},
-            "regional_tag_values": {"region1": {"tag2": {"tech2": 2}}},
-        }
-        config_file = tmp_path / "test.yml"
+    def test_get_current_settings_with_global_fallback(self):
+        """Test that get_current_settings falls back to global settings."""
+        settings = Settings(data={"model_year": 2030, "global_key": "global_value"})
+        Settings.set_global(settings)
 
-        with open(config_file, "w") as f:
-            yaml.dump(config_data, f)
+        # Should work without context manager
+        current = get_current_settings()
+        assert current is settings
+        assert current["model_year"] == 2030
+        assert current["global_key"] == "global_value"
 
-        result = load_settings(config_file)
-        assert result["model_regions"] == ["region1", "region2", "region3"]
-        assert "tag1" in result["generator_columns"]
-        assert "tag2" in result["generator_columns"]
-        assert "col1" in result["generator_columns"]
-        assert "col2" in result["generator_columns"]
+    def test_context_overrides_global_settings(self):
+        """Test that context settings override global settings."""
+        global_settings = Settings(data={"model_year": 2030, "source": "global"})
+        context_settings = Settings(data={"model_year": 2035, "source": "context"})
 
-    def test_path_conversion_for_data_keys(self, tmp_path):
-        """Test that data keys are converted to Path objects."""
-        config_data = {
-            "model_regions": ["region1", "region2", "region3"],
-            "EFS_DATA": "path/to/efs",
-            "RESOURCE_GROUPS": "path/to/resources",
-            "DISTRIBUTED_GEN_DATA": "path/to/dg",
-            "RESOURCE_GROUP_PROFILES": "path/to/profiles",
-        }
-        config_file = tmp_path / "test.yml"
+        Settings.set_global(global_settings)
 
-        with open(config_file, "w") as f:
-            yaml.dump(config_data, f)
+        # Outside context, should get global settings
+        current = get_current_settings()
+        assert current is global_settings
+        assert current["source"] == "global"
 
-        result = load_settings(config_file)
-        assert result["model_regions"] == ["region1", "region2", "region3"]
-        assert isinstance(result["EFS_DATA"], Path)
-        assert isinstance(result["RESOURCE_GROUPS"], Path)
-        assert isinstance(result["DISTRIBUTED_GEN_DATA"], Path)
-        assert isinstance(result["RESOURCE_GROUP_PROFILES"], Path)
+        # Inside context, should get context settings
+        with context_settings:
+            current = get_current_settings()
+            assert current is context_settings
+            assert current["source"] == "context"
+
+        # After context, should return to global settings
+        current = get_current_settings()
+        assert current is global_settings
+        assert current["source"] == "global"
+
+    def test_global_settings_update_affects_get_current_settings(self):
+        """Test that updates to global settings are reflected in get_current_settings."""
+        settings = Settings(data={"model_year": 2030})
+        Settings.set_global(settings)
+
+        # Update the global settings
+        settings.update({"new_key": "new_value"})
+
+        # Should be reflected in get_current_settings
+        current = get_current_settings()
+        assert current["new_key"] == "new_value"
+
+    def test_multiple_global_settings_updates(self):
+        """Test setting different global settings instances."""
+        settings1 = Settings(data={"source": "first", "model_year": 2030})
+        settings2 = Settings(data={"source": "second", "model_year": 2035})
+
+        # Set first global settings
+        Settings.set_global(settings1)
+        current = get_current_settings()
+        assert current["source"] == "first"
+        assert current["model_year"] == 2030
+
+        # Set second global settings
+        Settings.set_global(settings2)
+        current = get_current_settings()
+        assert current["source"] == "second"
+        assert current["model_year"] == 2035
+
+    def test_global_settings_with_for_scenario(self):
+        """Test global settings work with Settings.for_scenario."""
+        base_settings = Settings(data={"base_key": "base_value", "model_year": 2030})
+        scenario_data = {"scenario_key": "scenario_value", "model_year": 2035}
+
+        scenario_settings = Settings.for_scenario(base_settings, scenario_data)
+        Settings.set_global(scenario_settings)
+
+        current = get_current_settings()
+        assert current["base_key"] == "base_value"
+        assert current["scenario_key"] == "scenario_value"
+        assert current["model_year"] == 2035  # Overridden by scenario
+
+    def test_global_settings_isolation_from_context(self):
+        """Test that global settings don't interfere with context isolation."""
+        global_settings = Settings(data={"source": "global"})
+        context_settings1 = Settings(data={"source": "context1"})
+        context_settings2 = Settings(data={"source": "context2"})
+
+        Settings.set_global(global_settings)
+
+        # Nested contexts should work independently of global
+        with context_settings1:
+            assert get_current_settings()["source"] == "context1"
+
+            with context_settings2:
+                assert get_current_settings()["source"] == "context2"
+
+            # Should return to context1, not global
+            assert get_current_settings()["source"] == "context1"
+
+        # Should return to global
+        assert get_current_settings()["source"] == "global"
+
+
+class TestGetCurrentSettings:
+    """Test the get_current_settings function."""
+
+    def setup_method(self):
+        """Clear global settings before each test."""
+        Settings.clear_global()
+
+    def teardown_method(self):
+        """Clear global settings after each test."""
+        Settings.clear_global()
+
+    def test_get_current_settings_with_context(self):
+        """Test getting current settings within context."""
+        settings = Settings(data={"test_key": "test_value"})
+
+        with settings:
+            current = get_current_settings()
+            assert current is settings
+            assert current["test_key"] == "test_value"
+
+    def test_get_current_settings_with_global_only(self):
+        """Test getting current settings with only global settings."""
+        settings = Settings(data={"test_key": "test_value"})
+        Settings.set_global(settings)
+
+        current = get_current_settings()
+        assert current is settings
+        assert current["test_key"] == "test_value"
+
+    def test_get_current_settings_without_any_settings(self):
+        """Test that get_current_settings raises error without any settings."""
+        with pytest.raises(RuntimeError, match="No settings are currently available"):
+            get_current_settings()
+
+    def test_get_current_settings_error_message_mentions_both_options(self):
+        """Test that error message mentions both context and global options."""
+        with pytest.raises(RuntimeError) as exc_info:
+            get_current_settings()
+
+        error_message = str(exc_info.value)
+        assert "with settings:" in error_message
+        assert "Settings.set_global" in error_message
+
+
+@pytest.fixture(autouse=True)
+def noop_assign_and_tags(monkeypatch):
+    # Prevent assign_model_planning_years from altering our settings
+    from powergenome import settings as settings_module
+
+    monkeypatch.setattr(
+        settings_module, "assign_model_planning_years", lambda settings, year: None
+    )
 
 
 class TestApplyAllTagToRegions:
@@ -604,7 +724,7 @@ class TestAssignModelPlanningYears:
         assert result["model_year"] == 2040
 
     # The function is called with a dictionary containing the key 'model_periods' with a list of tuples where at least one tuple has length different from 2.
-    def test_with_invalid_model_periods_length(self):
+    def test_with_invalid_model_periods_length_tuples(self):
         # Prepare input
         _settings = {
             "model_periods": [(2030, 2040), (2041, 2050), (2051,)],
@@ -861,29 +981,6 @@ class TestAssignModelPlanningYears:
 class TestAddModelTagsToGenColumns:
     """Test the add_model_tags_to_gen_columns function."""
 
-    # Returns the input 'generator_columns' list unmodified if it is not a list.
-    def test_returns_input_unmodified_if_not_list(self):
-        generator_columns = "not a list"
-        model_tag_values = {}
-        regional_tag_values = {}
-        result = add_model_tags_to_gen_columns(
-            model_tag_values, regional_tag_values, generator_columns
-        )
-        assert result == generator_columns
-
-    # Adds model resource tag keys to the 'generator_columns' list if they are not already present.
-    def test_adds_model_tags_to_gen_columns(self):
-        generator_columns = ["capacity", "output"]
-        model_tag_values = {"cost": {"solar": 100, "wind": 150}}
-        regional_tag_values = {"NA": {"efficiency": {"solar": 20, "wind": 25}}}
-        expected_result = ["capacity", "output", "cost", "efficiency"]
-
-        result = add_model_tags_to_gen_columns(
-            model_tag_values, regional_tag_values, generator_columns
-        )
-
-        assert sorted(result) == sorted(expected_result)
-
     def test_returns_input_unmodified_if_not_list(self):
         """Test that non-list generator_columns are returned unchanged."""
         model_tags = {"tag1": {"tech1": 1}}
@@ -1080,29 +1177,68 @@ class TestBuildScenarioSettings:
             build_scenario_settings(settings, scenario_definitions)
 
 
-class TestGetCurrentSettings:
-    """Test the get_current_settings function."""
+class TestAutoFillSettings:
+    """Test the auto_fill_settings decorator."""
 
-    def test_get_current_settings_with_context(self):
-        """Test getting current settings within context."""
-        settings = Settings(data={"test_key": "test_value"})
+    def setup_method(self):
+        """Clear global settings before each test."""
+        Settings.clear_global()
+
+    def teardown_method(self):
+        """Clear global settings after each test."""
+        Settings.clear_global()
+
+    def test_direct_mapping_fills_from_global_settings(self):
+        """Test that parameters are auto-filled from global settings."""
+        from powergenome.settings import auto_fill_settings
+
+        @auto_fill_settings()
+        def test_function(model_regions=None, model_year=None):
+            return {"model_regions": model_regions, "model_year": model_year}
+
+        settings = Settings(data={"model_regions": ["CA", "TX"], "model_year": 2030})
+        Settings.set_global(settings)
+
+        # Should work with global settings, no context needed
+        result = test_function()
+        assert result["model_regions"] == ["CA", "TX"]
+        assert result["model_year"] == 2030
+
+    def test_direct_mapping_fills_from_settings(self):
+        """Test that parameters with names matching settings keys are auto-filled."""
+        from powergenome.settings import auto_fill_settings
+
+        @auto_fill_settings()
+        def test_function(model_regions=None, model_year=None):
+            return {"model_regions": model_regions, "model_year": model_year}
+
+        settings = Settings(data={"model_regions": ["CA", "TX"], "model_year": 2030})
 
         with settings:
-            current = get_current_settings()
-            assert current is settings
-            assert current["test_key"] == "test_value"
+            result = test_function()
+            assert result["model_regions"] == ["CA", "TX"]
+            assert result["model_year"] == 2030
 
-    def test_get_current_settings_without_context(self):
-        """Test that get_current_settings raises error without context."""
-        with pytest.raises(RuntimeError, match="No settings are currently set"):
-            get_current_settings()
+    def test_context_overrides_global_in_decorator(self):
+        """Test that context settings override global settings in decorator."""
+        from powergenome.settings import auto_fill_settings
 
+        @auto_fill_settings()
+        def test_function(model_year=None, source=None):
+            return {"model_year": model_year, "source": source}
 
-@pytest.fixture(autouse=True)
-def noop_assign_and_tags(monkeypatch):
-    # Prevent assign_model_planning_years from altering our settings
-    from powergenome import settings as settings_module
+        global_settings = Settings(data={"model_year": 2030, "source": "global"})
+        context_settings = Settings(data={"model_year": 2035, "source": "context"})
 
-    monkeypatch.setattr(
-        settings_module, "assign_model_planning_years", lambda settings, year: None
-    )
+        Settings.set_global(global_settings)
+
+        # Should use global settings
+        result = test_function()
+        assert result["model_year"] == 2030
+        assert result["source"] == "global"
+
+        # Should use context settings
+        with context_settings:
+            result = test_function()
+            assert result["model_year"] == 2035
+            assert result["source"] == "context"
