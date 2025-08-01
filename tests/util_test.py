@@ -3,23 +3,15 @@ Test util functions
 """
 
 import csv
-import logging
-import os
 import sqlite3
 from collections.abc import Iterable
-from pathlib import Path
 
 import duckdb
 import pandas as pd
 import pytest
 
-import powergenome
-import powergenome.util as util
 from powergenome.util import (
     add_row_to_csv,
-    apply_all_tag_to_regions,
-    assign_model_planning_years,
-    build_scenario_settings,
     build_where_clause_from_filters,
     get_all_table_names,
     hash_string_sha256,
@@ -184,6 +176,57 @@ class TestMakeIterable:
         # Assert
         assert isinstance(result, Iterable)
         assert list(result) == item
+
+
+class TestBuildWhereClauseFromFilters:
+    def test_empty_filters(self):
+        assert build_where_clause_from_filters(None) is None
+        assert build_where_clause_from_filters([]) is None
+
+    def test_single_conjunction(self):
+        filters = [[("col1", "=", "val1")]]
+        expected = "WHERE (col1 = 'val1')"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_multiple_conjunctions_and(self):
+        filters = [[("col1", "=", "val1"), ("col2", ">", 5)]]
+        expected = "WHERE (col1 = 'val1' AND col2 > 5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_multiple_disjunctions_or(self):
+        filters = [[("col1", "=", "val1")], [("col2", ">", 5)]]
+        expected = "WHERE (col1 = 'val1') OR (col2 > 5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_string_value_formatting(self):
+        filters = [[("col1", "=", "string value")]]
+        expected = "WHERE (col1 = 'string value')"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_numeric_value_formatting(self):
+        filters = [[("col1", "<", 10.5)]]
+        expected = "WHERE (col1 < 10.5)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_in_clause_with_list(self):
+        filters = [[("col1", "IN", [1, 2, 3])]]
+        expected = "WHERE (col1 IN (1, 2, 3))"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_in_clause_with_tuple_of_strings(self):
+        filters = [[("col1", "IN", ("a", "b", "c"))]]
+        expected = "WHERE (col1 IN ('a', 'b', 'c'))"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_complex_dnf(self):
+        filters = [
+            [("col1", "=", "val1"), ("col2", ">", 5)],
+            [("col3", "!=", "val3"), ("col4", "IN", [1, 2])],
+        ]
+        expected = (
+            "WHERE (col1 = 'val1' AND col2 > 5) OR (col3 != 'val3' AND col4 IN (1, 2))"
+        )
+        assert build_where_clause_from_filters(filters) == expected
 
 
 @pytest.fixture
