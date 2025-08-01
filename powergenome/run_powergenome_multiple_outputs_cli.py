@@ -239,20 +239,23 @@ def main(**kwargs):
         for case_id, _settings in year_settings.items():
             # Use the factory method to create scenario-specific settings
             # This ensures each scenario has independent settings based on the base configuration
-            with Settings.for_scenario(settings, _settings) as _settings:
+            with Settings.for_scenario(settings, _settings) as scenario_settings_obj:
+
                 # Update DataManager for this specific case
-                update_data_manager(settings=_settings)
+                update_data_manager(settings=scenario_settings_obj)
 
                 case_folder = (
                     out_folder
                     / f"{case_id}"
                     / "Inputs"
-                    / f"Inputs_p{_settings['case_period']}"
+                    / f"Inputs_p{scenario_settings_obj['case_period']}"
                 )
                 case_folder.mkdir(parents=True, exist_ok=True)
 
-                _settings["extra_outputs"] = case_folder / "extra_outputs"
-                _settings["extra_outputs"].mkdir(parents=True, exist_ok=True)
+                scenario_settings_obj["extra_outputs"] = case_folder / "extra_outputs"
+                scenario_settings_obj["extra_outputs"].mkdir(
+                    parents=True, exist_ok=True
+                )
                 logger.info(f"\n\nStarting year {year} scenario {case_id}\n\n")
 
                 case_year_data = {}
@@ -264,7 +267,9 @@ def main(**kwargs):
                         include_retired_cap=first_year is False,
                     )
                     gen_data = gc.create_all_generators()
-                    gen_data["Zone"] = gen_data["region"].map(_settings["zone_num_map"])
+                    gen_data["Zone"] = gen_data["region"].map(
+                        scenario_settings_obj["zone_num_map"]
+                    )
                     case_year_data["gen_data"] = gen_data
 
                     gen_variability = make_generator_variability(gen_data)
@@ -284,7 +289,7 @@ def main(**kwargs):
                 if args.load:
                     load = make_final_load_curves()
                     load.columns = "Demand_MW_z" + load.columns.map(
-                        _settings["zone_num_map"]
+                        scenario_settings_obj["zone_num_map"]
                     )
                     if not args.gens:
                         gen_variability = pd.DataFrame(index=load.index)
@@ -321,7 +326,9 @@ def main(**kwargs):
                     tx_costs = load_tx_costs()
 
                     transmission = agg_transmission_constraints(
-                        tx_value_col=_settings.get("tx_value_col", "firm_ttc_mw"),
+                        tx_value_col=scenario_settings_obj.get(
+                            "tx_value_col", "firm_ttc_mw"
+                        ),
                     ).pipe(insert_tx_costs, tx_costs=tx_costs)
 
                     network = (
@@ -345,7 +352,7 @@ def main(**kwargs):
                             )
                     case_year_data["network"] = network
 
-                    if _settings.get("emission_policies_fn"):
+                    if scenario_settings_obj.get("emission_policies_fn"):
                         energy_share_req = create_policy_req(
                             col_str_match="ESR",
                         )
@@ -361,12 +368,13 @@ def main(**kwargs):
                     cap_res = create_regional_cap_res()
                     case_year_data["cap_reserves"] = cap_res
 
-                if _settings.get("reserves_fn"):
+                if scenario_settings_obj.get("reserves_fn"):
                     case_year_data["op_reserves"] = pd.read_csv(
-                        _settings["input_folder"] / _settings["reserves_fn"]
+                        scenario_settings_obj["input_folder"]
+                        / scenario_settings_obj["reserves_fn"]
                     )
 
-                if _settings.get("old_genx_format", False) is not True:
+                if scenario_settings_obj.get("old_genx_format", False) is not True:
                     genx_data = process_genx_data(case_folder, case_year_data)
                 else:
                     genx_data = process_genx_data_old_format(
@@ -382,7 +390,7 @@ def main(**kwargs):
                         )
 
                 write_case_settings_file(
-                    settings=_settings,
+                    settings=scenario_settings_obj,
                     folder=case_folder,
                     file_name="powergenome_case_settings.yml",
                 )
