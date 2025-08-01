@@ -1,4 +1,5 @@
 import logging
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -26,6 +27,7 @@ class DataManager:
 
     _instance = None
     _initialized = False
+    _lock = threading.Lock()
 
     # Mapping of settings parameters to standardized table names
     STANDARD_TABLE_MAPPING = {
@@ -44,18 +46,24 @@ class DataManager:
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(DataManager, cls).__new__(cls)
+            with cls._lock:
+                # Double-check pattern
+                if cls._instance is None:
+                    cls._instance = super(DataManager, cls).__new__(cls)
         return cls._instance
 
     def __init__(self):
         if not self._initialized:
-            self.connection = None
-            self.data_location = None
-            self.available_tables = set()
-            self.table_configurations = {}  # Store original table configs
-            self._initialized = True
-            self.sqlite_attached = False
-            self.duckdb_attached = False
+            with self._lock:
+                # Double-check pattern
+                if not self._initialized:
+                    self.connection = None
+                    self.data_location = None
+                    self.available_tables = set()
+                    self.table_configurations = {}  # Store original table configs
+                    self._initialized = True
+                    self.sqlite_attached = False
+                    self.duckdb_attached = False
 
     def initialize(
         self,
@@ -495,12 +503,12 @@ class DataManager:
             # Try to drop as view first, then as table
             try:
                 self.connection.execute(f"DROP VIEW IF EXISTS {table_name}")
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to drop view {table_name}: {e}")
             try:
                 self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to drop table {table_name}: {e}")
 
             self.available_tables.discard(table_name)
             logger.debug(f"Removed table/view: {table_name}")
@@ -520,8 +528,13 @@ class DataManager:
             logger.info("DataManager connection closed")
 
     def __del__(self):
-        """Ensure connection is closed when object is destroyed."""
-        self.close()
+        """Fallback cleanup - not guaranteed to be called."""
+        try:
+            if hasattr(self, "connection") and self.connection:
+                self.connection.close()
+        except Exception:
+            # Suppress all exceptions in __del__ to avoid issues during shutdown
+            pass
 
 
 # Convenience functions for global access
