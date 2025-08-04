@@ -3219,7 +3219,7 @@ class GeneratorClusters:
 
     def __init__(
         self,
-        settings,
+        settings=None,
         current_gens=True,
         supplement_with_860m=True,
         sort_gens=False,
