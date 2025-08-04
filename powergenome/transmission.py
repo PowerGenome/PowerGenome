@@ -13,10 +13,7 @@ import pandas as pd
 from powergenome.database import get_data
 from powergenome.financials import inflation_price_adjustment
 from powergenome.settings import auto_fill_settings
-from powergenome.util import (
-    map_agg_region_names,
-    reverse_dict_of_lists,
-)
+from powergenome.util import map_agg_region_names, reverse_dict_of_lists
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +131,7 @@ def _format_transmission_output(
     )
 
 
-@auto_fill_settings(data_table="transmission_constraints_table")
+@auto_fill_settings()
 def agg_transmission_constraints(
     model_regions: List[str] = None,
     region_aggregations: Dict[str, List[str]] = None,
@@ -208,7 +205,7 @@ def agg_transmission_constraints(
     )
 
 
-@auto_fill_settings(table_name="transmission_cost_table")
+@auto_fill_settings()
 def load_tx_costs(
     target_usd_year: int = None,
     zone_num_map: Dict[str, int] = None,

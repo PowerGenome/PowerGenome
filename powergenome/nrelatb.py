@@ -117,8 +117,6 @@ def fetch_resource_costs(
         ]
         if resource_data_year:
             # If a resource data year is specified, filter by that as well.
-            # This is useful for ATB data, which has a different data year than the
-            # planning year.
             filters[0].append(("data_year", "=", resource_data_year))
 
         all_rows.append(get_data("resource_cost", filters=filters))
@@ -138,8 +136,6 @@ def fetch_resource_costs(
             ]
             if resource_data_year:
                 # If a resource data year is specified, filter by that as well.
-                # This is useful for ATB data, which has a different data year than the
-                # planning year.
                 wacc_filters[0].append(("data_year", "=", resource_data_year))
             wacc_rows.append(get_data("resource_cost", filters=wacc_filters))
             # wacc_rows.extend(pg_engine.execute(wacc_s).fetchall())
