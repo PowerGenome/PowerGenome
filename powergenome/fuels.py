@@ -9,7 +9,6 @@ from typing import Dict, List
 import pandas as pd
 
 from powergenome.database import get_data
-from powergenome.eia_opendata import add_user_fuel_prices
 from powergenome.financials import inflation_price_adjustment
 from powergenome.settings import auto_fill_settings
 from powergenome.util import reverse_dict_of_lists
