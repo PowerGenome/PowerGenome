@@ -165,6 +165,7 @@ def main(**kwargs):
 
     logger.info("Reading settings file")
     settings = Settings(config_path=args.settings_file)
+    initialize_data_manager(settings, settings["data_location"])
 
     # Copy the settings file to results folder
     if Path(args.settings_file).is_file():
