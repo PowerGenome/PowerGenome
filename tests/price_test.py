@@ -5,14 +5,12 @@ import pandas as pd
 import pytest
 
 from powergenome.database import initialize_data_manager
-from powergenome.eia_opendata import load_aeo_series
 from powergenome.financials import (  # load_cpi_data,
     inflation_price_adjustment,
     interpolate_values,
     investment_cost_calculator,
     load_dollar_year_data,
 )
-from powergenome.params import SETTINGS
 from powergenome.settings import Settings
 
 
