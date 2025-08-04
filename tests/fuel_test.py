@@ -10,12 +10,13 @@ import pytest
 
 import powergenome
 from powergenome.database import initialize_data_manager
-from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
 from powergenome.fuels import (
     add_carbon_tax,
     add_user_fuel_prices,
     adjust_ccs_fuels,
+    fetch_fuel_prices,
     fuel_cost_table,
+    modify_fuel_prices,
 )
 from powergenome.generators import GeneratorClusters
 from powergenome.params import DATA_PATHS

@@ -20,13 +20,13 @@ from sklearn import cluster, preprocessing
 
 from powergenome.co2_pipeline_cost import merge_co2_pipeline_costs
 from powergenome.database import get_data
-from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
 from powergenome.external_data import (
     add_resource_max_cap_spur,
     demand_response_resource_capacity,
     make_demand_response_profiles,
 )
 from powergenome.financials import investment_cost_calculator
+from powergenome.fuels import fetch_fuel_prices, modify_fuel_prices
 from powergenome.GenX import (
     add_co2_costs_to_o_m,
     add_misc_gen_values,
