@@ -482,19 +482,6 @@ class TestLoadTxCosts:
         assert result["adjusted_dollar_year"].iloc[0] == 2022
         assert mock_inflation.call_count == 6  # 2 cost columns × 3 rows
 
-    # @patch("powergenome.database.DataManager.get_data")
-    # def test_inflation_adjustment_missing_dollar_year_table(
-    #     self, mock_get_data, sample_tx_cost_data, sample_settings_with_costs
-    # ):
-    #     """Test error when dollar_year_table missing for inflation adjustment."""
-    #     mock_get_data.return_value = sample_tx_cost_data
-
-    #     with pytest.raises(ValueError, match="Dollar year table is required"):
-    #         load_tx_costs(
-    #             target_usd_year=2022,
-    #             zone_num_map=sample_settings_with_costs["zone_num_map"],
-    #         )
-
     @patch("powergenome.database.DataManager.get_data")
     def test_filters_invalid_regions(
         self, mock_get_data, sample_model_regions, sample_settings_with_costs
