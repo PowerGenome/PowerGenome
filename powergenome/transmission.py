@@ -10,14 +10,10 @@ from typing import Dict, List
 
 import pandas as pd
 
+from powergenome.database import get_data
 from powergenome.financials import inflation_price_adjustment
 from powergenome.settings import auto_fill_settings
-from powergenome.util import (
-    find_centroid,
-    load_data,
-    map_agg_region_names,
-    reverse_dict_of_lists,
-)
+from powergenome.util import map_agg_region_names, reverse_dict_of_lists
 
 logger = logging.getLogger(__name__)
 
@@ -135,10 +131,8 @@ def _format_transmission_output(
     )
 
 
-@auto_fill_settings(data_table="transmission_constraints_table")
+@auto_fill_settings()
 def agg_transmission_constraints(
-    data_location: Path | str = None,
-    data_table: str = None,
     model_regions: List[str] = None,
     region_aggregations: Dict[str, List[str]] = None,
     zone_num_map: Dict[str, int] = None,
@@ -154,10 +148,6 @@ def agg_transmission_constraints(
 
     Parameters
     ----------
-    data_location : Path | str
-        Path to data location
-    data_table : str, optional
-        Name of the database table with transmission capacity, by default "reeds_ba_tx_NARIS_avg"
     model_regions : List[str], optional
         List of model region names. If not provided, it will be taken from `settings["model_regions"]`.
     region_aggregations : Dict[str, List[str]], optional
@@ -167,7 +157,7 @@ def agg_transmission_constraints(
         Dictionary mapping region names to zone numbers (e.g., {"region1": 1, "region2": 2}).
         If not provided, it will be taken from `settings["zone_num_map"]`.
     tx_value_col : str, optional
-        Name of the data column in `data_table` that contains transmission capacity values.
+        Name of the data column that contains transmission capacity values.
         Default is "firm_ttc_mw". If not specified, a warning will be logged and "firm_ttc_mw"
         will be used as the default value.
 
@@ -195,9 +185,9 @@ def agg_transmission_constraints(
 
     # Load and validate transmission data
     logger.debug("Loading transmission constraints from the database")
-    transmission_constraints_table = load_data(data_location, data_table)
+    transmission_constraints_table = get_data("transmission_constraints")
     _validate_transmission_data(
-        transmission_constraints_table, data_table, tx_value_col
+        transmission_constraints_table, "transmission_constraints", tx_value_col
     )
 
     # Filter regions and aggregate transmission capacity
@@ -215,14 +205,10 @@ def agg_transmission_constraints(
     )
 
 
-@auto_fill_settings(table_name="transmission_cost_table")
+@auto_fill_settings()
 def load_tx_costs(
-    data_location: Path | str = None,
-    table_name: str = None,
-    # model_regions: List[str],
     target_usd_year: int = None,
     zone_num_map: Dict[str, int] = None,
-    dollar_year_table: str = None,
 ) -> pd.DataFrame:
     """Load transmission cost data and adjust for inflation.
 
@@ -232,21 +218,11 @@ def load_tx_costs(
 
     Parameters
     ----------
-    data_location : Path | str
-        Path to the data location containing the transmission cost table.
-    table_name : str
-        Name of the table/file containing transmission costs. Should have columns
-        "start_region", "dest_region", "total_interconnect_annuity_mw",
-        "total_interconnect_cost_mw", and "dollar_year".
-    model_regions : List[str]
-        List of model region names. Should be sorted to match order in other functions.
     target_usd_year : int, optional
         Desired final dollar year for cost columns, by default None. If None, no
         inflation adjustment is made.
     zone_num_map : Dict[str, int], optional
         Dictionary mapping region names to zone numbers (e.g., {"region1": 1, "region2": 2}).
-    dollar_year_table : str, optional
-        Name of the table containing dollar year inflation data, by default "dollar_years".
 
     Returns
     -------
@@ -258,12 +234,10 @@ def load_tx_costs(
 
     Raises
     ------
-    ValueError
-        If target_usd_year is specified but settings is None or missing required keys.
     KeyError
         If required columns are missing from the loaded data.
     """
-    df = load_data(data_location, table_name)
+    df = get_data("transmission_cost")
 
     # Validate required columns
     required_cols = [
@@ -284,11 +258,6 @@ def load_tx_costs(
     df = df.dropna(subset=["zone_1", "zone_2"])
 
     if target_usd_year:
-        if dollar_year_table is None:
-            raise ValueError(
-                "Dollar year table is required when target_usd_year is specified"
-            )
-
         # Apply inflation adjustment
         adjusted_annuities = []
         adjusted_costs = []
@@ -297,8 +266,6 @@ def load_tx_costs(
                 row.total_interconnect_annuity_mw,
                 row.dollar_year,
                 target_usd_year,
-                data_location=data_location,
-                table_name=dollar_year_table,
             )  # .round(0)
             adjusted_annuities.append(adj_annuity)
 
@@ -306,8 +273,6 @@ def load_tx_costs(
                 row.total_interconnect_cost_mw,
                 row.dollar_year,
                 target_usd_year,
-                data_location=data_location,
-                table_name=dollar_year_table,
             )  # .round(0)
             adjusted_costs.append(adj_cost)
 

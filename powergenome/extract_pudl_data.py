@@ -199,7 +199,9 @@ def main():
         else:
             model_regions_gdf = gc.model_regions_gdf
         transmission = agg_transmission_constraints(
-            pudl_engine=pudl_engine, settings=settings
+            model_regions=settings["model_regions"],
+            regional_aggregations=settings.get("region_aggregations"),
+            zone_num_map=settings["zone_num_map"],
         )
         transmission = transmission.pipe(
             transmission_line_distance,

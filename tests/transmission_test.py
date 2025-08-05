@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+from powergenome.database import initialize_data_manager
 from powergenome.transmission import (
     _filter_and_map_regions,
     _format_transmission_output,
@@ -35,12 +36,21 @@ def sample_transmission_data():
 @pytest.fixture
 def sample_settings():
     """Sample settings dictionary for testing."""
-    return {
+    settings = {
         "model_regions": ["A", "B", "C"],
         "zone_num_map": {"A": 1, "B": 2, "C": 3},
         "tx_value_col": "firm_ttc_mw",
         "region_aggregations": {},
+        "data_location": "tests/test_system/test_data",
+        "transmission_table": "transmission_constraints",
+        "transmission_cost_table": "transmission_cost",
+        "dollar_year_table": "dollar_year",
     }
+
+    # Initialize DataManager for testing
+    initialize_data_manager(settings, settings["data_location"])
+
+    return settings
 
 
 class TestValidateTransmissionData:
@@ -253,16 +263,15 @@ class TestFormatTransmissionOutput:
 class TestAggTransmissionConstraints:
     """Tests for the main agg_transmission_constraints function."""
 
-    @patch("powergenome.transmission.load_data")
+    @patch("powergenome.database.DataManager.get_data")
     def test_default_tx_value_col(
-        self, mock_load_data, sample_transmission_data, sample_settings
+        self, mock_get_data, sample_transmission_data, sample_settings
     ):
         """Test that default tx_value_col is used when not specified."""
-        mock_load_data.return_value = sample_transmission_data
+        mock_get_data.return_value = sample_transmission_data
 
         with patch("powergenome.transmission.logger") as mock_logger:
             result = agg_transmission_constraints(
-                "fake_path",
                 model_regions=sample_settings["model_regions"],
                 zone_num_map=sample_settings["zone_num_map"],
                 tx_value_col="",  # Empty string to trigger default
@@ -272,15 +281,14 @@ class TestAggTransmissionConstraints:
             mock_logger.warning.assert_called_once()
             assert "firm_ttc_mw" in mock_logger.warning.call_args[0][0]
 
-    @patch("powergenome.transmission.load_data")
+    @patch("powergenome.database.DataManager.get_data")
     def test_successful_execution(
-        self, mock_load_data, sample_transmission_data, sample_settings
+        self, mock_get_data, sample_transmission_data, sample_settings
     ):
         """Test successful execution of the main function."""
-        mock_load_data.return_value = sample_transmission_data
+        mock_get_data.return_value = sample_transmission_data
 
         result = agg_transmission_constraints(
-            "fake_path",
             model_regions=sample_settings["model_regions"],
             zone_num_map=sample_settings["zone_num_map"],
             tx_value_col=sample_settings["tx_value_col"],
@@ -303,8 +311,8 @@ class TestAggTransmissionConstraints:
         for col in expected_cols:
             assert col in result.columns
 
-    @patch("powergenome.transmission.load_data")
-    def test_validation_error_propagated(self, mock_load_data, sample_settings):
+    @patch("powergenome.database.DataManager.get_data")
+    def test_validation_error_propagated(self, mock_get_data, sample_settings):
         """Test that validation errors are properly propagated."""
         # Create data with missing column
         bad_data = pd.DataFrame(
@@ -314,40 +322,23 @@ class TestAggTransmissionConstraints:
                 "wrong_col": [100],
             }
         )
-        mock_load_data.return_value = bad_data
+        mock_get_data.return_value = bad_data
 
         with pytest.raises(KeyError, match="There is no column firm_ttc_mw"):
             agg_transmission_constraints(
-                "fake_path",
                 model_regions=sample_settings["model_regions"],
                 zone_num_map=sample_settings["zone_num_map"],
                 tx_value_col="firm_ttc_mw",
             )
 
-    @patch("powergenome.transmission.load_data")
-    def test_custom_data_table(
-        self, mock_load_data, sample_transmission_data, sample_settings
+    @patch("powergenome.database.DataManager.get_data")
+    def test_custom_regional_aggregations(
+        self, mock_get_data, sample_transmission_data
     ):
-        """Test using custom data table name."""
-        mock_load_data.return_value = sample_transmission_data
-
-        agg_transmission_constraints(
-            "fake_path",
-            data_table="custom_table",
-            model_regions=sample_settings["model_regions"],
-            zone_num_map=sample_settings["zone_num_map"],
-            tx_value_col=sample_settings["tx_value_col"],
-        )
-
-        mock_load_data.assert_called_once_with("fake_path", "custom_table")
-
-    @patch("powergenome.transmission.load_data")
-    def test_custom_region_aggregations(self, mock_load_data, sample_transmission_data):
         """Test using custom regional aggregations."""
-        mock_load_data.return_value = sample_transmission_data
+        mock_get_data.return_value = sample_transmission_data
 
         result = agg_transmission_constraints(
-            "fake_path",
             model_regions=["AB", "C"],
             zone_num_map={"AB": 1, "C": 2},
             region_aggregations={"AB": ["A", "B"]},
@@ -361,8 +352,8 @@ class TestAggTransmissionConstraints:
 class TestTransmissionIntegration:
     """Integration tests for the transmission functions."""
 
-    @patch("powergenome.transmission.load_data")
-    def test_end_to_end_with_aggregation(self, mock_load_data):
+    @patch("powergenome.database.DataManager.get_data")
+    def test_end_to_end_with_aggregation(self, mock_get_data):
         """Test complete workflow with region aggregation."""
         # Create more complex test data
         test_data = pd.DataFrame(
@@ -374,10 +365,9 @@ class TestTransmissionIntegration:
             }
         )
 
-        mock_load_data.return_value = test_data
+        mock_get_data.return_value = test_data
 
         result = agg_transmission_constraints(
-            "fake_path",
             model_regions=["AB", "CD"],
             zone_num_map={"AB": 1, "CD": 2},
             region_aggregations={"AB": ["A", "B"], "CD": ["C", "D"]},
@@ -425,20 +415,18 @@ class TestLoadTxCosts:
             "dollar_year_table": "inflation_table",
         }
 
-    @patch("powergenome.transmission.load_data")
+    @patch("powergenome.database.DataManager.get_data")
     def test_basic_load_without_adjustment(
         self,
-        mock_load_data,
+        mock_get_data,
         sample_tx_cost_data,
         sample_model_regions,
         sample_settings_with_costs,
     ):
         """Test basic loading without inflation adjustment."""
-        mock_load_data.return_value = sample_tx_cost_data
+        mock_get_data.return_value = sample_tx_cost_data
 
         result = load_tx_costs(
-            "fake_path",
-            "cost_table",
             zone_num_map=sample_settings_with_costs["zone_num_map"],
         )
 
@@ -452,9 +440,9 @@ class TestLoadTxCosts:
         assert result.loc[0, "zone_1"] == "z1"  # A -> z1
         assert result.loc[0, "zone_2"] == "z2"  # B -> z2
 
-    @patch("powergenome.transmission.load_data")
+    @patch("powergenome.database.DataManager.get_data")
     def test_missing_required_columns(
-        self, mock_load_data, sample_model_regions, sample_settings_with_costs
+        self, mock_get_data, sample_model_regions, sample_settings_with_costs
     ):
         """Test error when required columns are missing."""
         incomplete_data = pd.DataFrame(
@@ -464,60 +452,39 @@ class TestLoadTxCosts:
                 # Missing required cost and dollar_year columns
             }
         )
-        mock_load_data.return_value = incomplete_data
+        mock_get_data.return_value = incomplete_data
 
         with pytest.raises(KeyError, match="Missing required columns"):
             load_tx_costs(
-                "fake_path",
-                "cost_table",
                 zone_num_map=sample_settings_with_costs["zone_num_map"],
             )
 
-    @patch("powergenome.transmission.load_data")
+    @patch("powergenome.database.DataManager.get_data")
     @patch("powergenome.transmission.inflation_price_adjustment")
     def test_inflation_adjustment(
         self,
         mock_inflation,
-        mock_load_data,
+        mock_get_data,
         sample_tx_cost_data,
         sample_model_regions,
         sample_settings_with_costs,
     ):
         """Test inflation adjustment functionality."""
-        mock_load_data.return_value = sample_tx_cost_data
+        mock_get_data.return_value = sample_tx_cost_data
         mock_inflation.return_value = 1100.0  # Mock adjusted value
 
         result = load_tx_costs(
-            "fake_path",
-            "cost_table",
             target_usd_year=2022,
             zone_num_map=sample_settings_with_costs["zone_num_map"],
-            dollar_year_table=sample_settings_with_costs["dollar_year_table"],
         )
 
         assert "adjusted_dollar_year" in result.columns
         assert result["adjusted_dollar_year"].iloc[0] == 2022
         assert mock_inflation.call_count == 6  # 2 cost columns × 3 rows
 
-    @patch("powergenome.transmission.load_data")
-    def test_inflation_adjustment_missing_dollar_year_table(
-        self, mock_load_data, sample_tx_cost_data, sample_settings_with_costs
-    ):
-        """Test error when dollar_year_table missing for inflation adjustment."""
-        mock_load_data.return_value = sample_tx_cost_data
-
-        with pytest.raises(ValueError, match="Dollar year table is required"):
-            load_tx_costs(
-                "fake_path",
-                "cost_table",
-                target_usd_year=2022,
-                zone_num_map=sample_settings_with_costs["zone_num_map"],
-                dollar_year_table=None,
-            )
-
-    @patch("powergenome.transmission.load_data")
+    @patch("powergenome.database.DataManager.get_data")
     def test_filters_invalid_regions(
-        self, mock_load_data, sample_model_regions, sample_settings_with_costs
+        self, mock_get_data, sample_model_regions, sample_settings_with_costs
     ):
         """Test that rows with unmapped regions are filtered out."""
         data_with_invalid = pd.DataFrame(
@@ -529,11 +496,9 @@ class TestLoadTxCosts:
                 "dollar_year": [2020, 2019, 2021],
             }
         )
-        mock_load_data.return_value = data_with_invalid
+        mock_get_data.return_value = data_with_invalid
 
         result = load_tx_costs(
-            "fake_path",
-            "cost_table",
             zone_num_map=sample_settings_with_costs["zone_num_map"],
         )
 

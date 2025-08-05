@@ -19,13 +19,14 @@ from scipy.stats import iqr
 from sklearn import cluster, preprocessing
 
 from powergenome.co2_pipeline_cost import merge_co2_pipeline_costs
-from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
+from powergenome.database import get_data
 from powergenome.external_data import (
     add_resource_max_cap_spur,
     demand_response_resource_capacity,
     make_demand_response_profiles,
 )
 from powergenome.financials import investment_cost_calculator
+from powergenome.fuels import fetch_fuel_prices, modify_fuel_prices
 from powergenome.GenX import (
     add_co2_costs_to_o_m,
     add_misc_gen_values,
@@ -47,7 +48,6 @@ from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_eia_technology
 from powergenome.util import (
     find_region_col,
-    load_data,
     map_agg_region_names,
     regions_to_keep,
     remove_fuel_gen_scenario_name,
@@ -3219,11 +3219,7 @@ class GeneratorClusters:
 
     def __init__(
         self,
-        data_location=None,
-        generation_table=None,
         settings=None,
-        resource_heat_rate_table=None,
-        resource_cost_table=None,
         current_gens=True,
         supplement_with_860m=True,
         sort_gens=False,
@@ -3242,9 +3238,6 @@ class GeneratorClusters:
             The dictionary of settings with a dictionary of region aggregations
         """
         # TODO: #404 Update GeneratorClusters init docstring
-        self.data_location = data_location
-        self.gen_table = generation_table
-        self.plant_region_table = settings.get("plant_region_table")
         self.tech_groups = settings.get("tech_groups", {}) or {}
         self.regional_tech_no_grouping = settings.get("regional_no_grouping", {}) or {}
         self.settings = settings
@@ -3258,12 +3251,8 @@ class GeneratorClusters:
             self.settings.get("RESOURCE_GROUPS"),
             self.settings.get("RESOURCE_GROUP_PROFILES"),
         )
-        self.resource_heat_rate_table = resource_heat_rate_table
-        self.resource_cost_table = resource_cost_table
 
         self.fuel_prices = fetch_fuel_prices(
-            data_location=data_location,
-            table_name=self.settings.get("fuel_price_table"),
             settings=self.settings,
         ).pipe(
             modify_fuel_prices,
@@ -3455,14 +3444,14 @@ class GeneratorClusters:
             self.settings.get("alt_num_clusters", {}),
         )
         gen_df = (
-            load_data(self.data_location, self.gen_table)
+            get_data("generation")
             .pipe(add_gen_age_column, self.settings["model_year"])
             .pipe(
                 apply_custom_gen_formula,
                 self.settings.get("resource_attr_modifiers", {}),
             )
         )
-        plant_region_map = load_data(self.data_location, self.plant_region_table)
+        plant_region_map = get_data("plant_region")
         gen_df = pd.merge(gen_df, plant_region_map, on="plant_id")
         self.results, self.all_gens = (
             map_agg_region_names(
@@ -3498,9 +3487,7 @@ class GeneratorClusters:
                 f"{self.settings.get('avg_distribution_loss', 0):%} to account for no "
                 "distribution losses.\n"
             )
-            self.results = add_dg_resources(
-                self.data_location, self.settings, self.results
-            )
+            self.results = add_dg_resources(self.settings, self.results)
         else:
             self.results["profile"] = None
 
@@ -3611,13 +3598,9 @@ class GeneratorClusters:
     def create_new_generators(self):
         logger.info("Starting to build new generation resources")
         self.resource_hr = fetch_heat_rates(
-            self.data_location,
-            self.resource_heat_rate_table,
             self.settings.get("resource_data_year"),
         )
         self.resource_costs = fetch_resource_costs(
-            self.data_location,
-            self.resource_cost_table,
             self.settings,
             self.settings.get("resource_data_year"),
         )
@@ -3801,8 +3784,6 @@ class GeneratorClusters:
         self.all_resources = (
             add_misc_gen_values(
                 self.all_resources,
-                self.data_location,
-                self.settings["operational_constraints_table"],
                 # self.settings,
             )
             .pipe(

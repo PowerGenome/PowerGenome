@@ -11,8 +11,8 @@ import numpy as np
 import pandas as pd
 import requests
 
+from powergenome.database import get_data
 from powergenome.params import DATA_PATHS
-from powergenome.util import load_data
 
 logger = logging.getLogger(__name__)
 
@@ -174,22 +174,13 @@ def _discrete_inv_cost_calc(
     return inv_cost
 
 
-def load_dollar_year_data(data_location: Path | str, table_name: str) -> pd.DataFrame:
+def load_dollar_year_data() -> pd.DataFrame:
     """
-    Load dollar year data from a specified data location and table.
+    Load dollar year data from the DataManager.
 
     This function retrieves a DataFrame containing dollar year information from the
-    given data location and table name. It validates that the DataFrame is not empty and
+    DataManager's standardized "dollar_year" table. It validates that the DataFrame is not empty and
     contains the required 'year' and 'value' columns.
-
-    Parameters
-    ----------
-    data_location : Path | str
-        The path to the data file or directory containing the table. Can be a folder
-        or the path to a database.
-    table_name : str
-        The name of the table to load from the data location. Either the name of a CSV
-        or parquet file, or the name of a table in a database.
 
     Returns
     -------
@@ -202,11 +193,10 @@ def load_dollar_year_data(data_location: Path | str, table_name: str) -> pd.Data
         If the loaded table is empty or does not contain the required columns.
     """
 
-    df = load_data(data_location=data_location, file_or_table_name=table_name)
+    df = get_data("dollar_year")
     if df.empty:
         raise ValueError(
-            f"The dollar year table {table_name} is empty. "
-            "Please check the data file."
+            f"The dollar year table is empty. " "Please check the data file."
         )
     if "year" not in df.columns or "value" not in df.columns:
         raise ValueError(
@@ -268,12 +258,8 @@ def inflation_price_adjustment(
 
     base_year = int(base_year)
     target_year = int(target_year)
-    data_location = kwargs.pop("data_location", None)
-    table_name = kwargs.pop("table_name")
 
-    dollar_year_df = load_dollar_year_data(
-        data_location=data_location, table_name=table_name
-    )
+    dollar_year_df = load_dollar_year_data()
 
     min_year = dollar_year_df["year"].min()
     max_year = dollar_year_df["year"].max()
