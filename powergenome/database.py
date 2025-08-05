@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import duckdb
 import pandas as pd
 
+from powergenome.settings import Settings
 from powergenome.util import (
     build_where_clause_from_filters,
     get_all_table_names,
@@ -67,7 +68,7 @@ class DataManager:
 
     def initialize(
         self,
-        settings: Dict[str, Any],
+        settings: Union[Dict[str, Any], Settings],
         data_location: Union[Path, str] = None,
         lazy_loading: bool = True,
     ):
@@ -76,8 +77,8 @@ class DataManager:
 
         Parameters
         ----------
-        settings : Dict[str, Any]
-            Settings dictionary containing table configuration parameters
+        settings : Union[Dict[str, Any], Settings]
+            Settings dictionary or Settings object containing table configuration parameters
         data_location : Union[Path, str], optional
             Path to database file or folder containing data files
         lazy_loading : bool, optional
@@ -90,7 +91,7 @@ class DataManager:
         # Create in-memory DuckDB connection
         self.connection = duckdb.connect(database=":memory:")
         self.data_location = Path(data_location) if data_location else None
-        self.settings = settings
+        self.settings = self._convert_settings_to_dict(settings)
         self.lazy_loading = lazy_loading
         self.table_configurations = {}  # Reset configurations
 
@@ -98,6 +99,36 @@ class DataManager:
         self._setup_tables()
 
         logger.info(f"DataManager initialized with {len(self.available_tables)} tables")
+
+    def _convert_settings_to_dict(
+        self, settings: Union[Dict[str, Any], Settings]
+    ) -> Dict[str, Any]:
+        """
+        Convert Settings object to dictionary if needed.
+
+        Parameters
+        ----------
+        settings : Union[Dict[str, Any], Settings]
+            Settings dictionary or Settings object
+
+        Returns
+        -------
+        Dict[str, Any]
+            Settings as a dictionary
+        """
+        # Check if it's a Settings object (has to_dict method)
+        if hasattr(settings, "to_dict") and callable(getattr(settings, "to_dict")):
+            return settings.to_dict()
+        # Check if it's a Settings object (has get_data method)
+        elif hasattr(settings, "get_data") and callable(getattr(settings, "get_data")):
+            return settings.get_data()
+        # Check if it's dictionary-like (has .get method)
+        elif hasattr(settings, "get"):
+            return dict(settings)
+        else:
+            raise TypeError(
+                f"Settings must be a dictionary or Settings object, got {type(settings)}"
+            )
 
     def _setup_tables(self):
         """Setup standardized tables/views based on settings parameters."""
@@ -429,14 +460,14 @@ class DataManager:
 
         return self.connection.execute(query).fetchdf()
 
-    def update(self, updated_settings: Dict[str, Any] = None):
+    def update(self, updated_settings: Union[Dict[str, Any], Settings] = None):
         """
         Update source tables with new configurations.
 
         Parameters
         ----------
-        updated_settings : Dict[str, Any], optional
-            New settings dictionary with updated table configurations.
+        updated_settings : Union[Dict[str, Any], Settings], optional
+            New settings dictionary or Settings object with updated table configurations.
             If None, uses current settings to refresh all tables.
         """
         if self.connection is None:
@@ -444,7 +475,8 @@ class DataManager:
 
         # Use provided settings or current settings
         if updated_settings is not None:
-            self.settings.update(updated_settings)
+            updated_settings_dict = self._convert_settings_to_dict(updated_settings)
+            self.settings.update(updated_settings_dict)
 
         # Find tables where configuration has changed
         tables_to_update = set()
@@ -542,7 +574,7 @@ _data_manager = DataManager()
 
 
 def initialize_data_manager(
-    settings: Dict[str, Any],
+    settings: Union[Dict[str, Any], Settings],
     data_location: Union[Path, str] = None,
     lazy_loading: bool = True,
 ):
@@ -551,8 +583,8 @@ def initialize_data_manager(
 
     Parameters
     ----------
-    settings : Dict[str, Any]
-        Settings dictionary containing table configuration parameters
+    settings : Union[Dict[str, Any], Settings]
+        Settings dictionary or Settings object containing table configuration parameters
     data_location : Union[Path, str], optional
         Path to database file or folder containing data files
     lazy_loading : bool, optional

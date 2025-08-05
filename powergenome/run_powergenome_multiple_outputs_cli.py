@@ -243,7 +243,7 @@ def main(**kwargs):
             with Settings.for_scenario(settings, _settings) as scenario_settings_obj:
 
                 # Update DataManager for this specific case
-                update_data_manager(settings=scenario_settings_obj)
+                update_data_manager(updated_settings=scenario_settings_obj)
 
                 case_folder = (
                     out_folder
