@@ -1880,6 +1880,7 @@ def plot_supply_curve(
 
     # Ensure that 'lcoe' exists in the merged dataframe
     if "lcoe" not in merged.columns:
+        print(merged)
         raise ValueError("The merged dataframe must contain a 'lcoe' column.")
 
     # Sort the merged data by lcoe (ascending order)
