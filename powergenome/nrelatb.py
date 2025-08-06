@@ -1874,7 +1874,7 @@ def plot_supply_curve(
         The plot is saved to disk.
     """
     # Merge the two dataframes on 'cpa_id'
-    merged = data.merge(
+    merged = data.drop(columns=["cpa_mw", "lcoe"], errors="ignore").merge(
         renew_data[["cpa_id", "cpa_mw", "lcoe"]], on="cpa_id", how="inner"
     )
 
