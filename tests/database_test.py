@@ -13,6 +13,7 @@ from powergenome.database import (
     _data_manager,
     execute_query,
     get_data,
+    get_timeseries_data,
     get_unique_values,
     initialize_data_manager,
     list_tables,
@@ -458,6 +459,176 @@ class TestDataManager:
         out = dm.get_data("demand")
         assert len(out) == 1
         assert out.iloc[0]["scenario"] == "HighEV"
+
+    def test_get_timeseries_data_aggregation(self, temp_csv_folder):
+        """Validate grouping/sum over time_index across regions/sectors."""
+        df = pd.DataFrame(
+            {
+                "time_index": [0, 0, 1, 1],
+                "region": ["A", "B", "A", "B"],
+                "sector": ["res", "res", "res", "res"],
+                "value": [1.0, 2.0, 3.0, 4.0],
+            }
+        )
+        (temp_csv_folder / "demand.csv").write_text(df.to_csv(index=False))
+
+        settings = {"demand_table": "demand.csv"}
+        dm = DataManager()
+        dm.initialize(settings, temp_csv_folder)
+
+        # Sum across regions, grouped by time_index
+        out = dm.get_timeseries_data(
+            "demand", group_by=["time_index"], value_col="value", agg="sum"
+        )
+        # Expect time_index 0 -> 3.0, 1 -> 7.0
+        assert list(out.columns) == ["time_index", "value"]
+        assert out.loc[out["time_index"] == 0, "value"].iloc[0] == 3.0
+        assert out.loc[out["time_index"] == 1, "value"].iloc[0] == 7.0
+
+    def test_get_timeseries_data_with_filters_list_shapes(self, temp_csv_folder):
+        """List-shaped filters should work with GROUP BY path too."""
+        df = pd.DataFrame(
+            {
+                "time_index": [0, 0, 1, 1],
+                "region": ["A", "B", "A", "B"],
+                "value": [10, 20, 30, 40],
+            }
+        )
+        (temp_csv_folder / "ts.csv").write_text(df.to_csv(index=False))
+
+        dm = DataManager()
+        dm.initialize({"demand_table": "ts.csv"}, temp_csv_folder)
+
+        # Filter region = 'A' using list form and group by time_index
+        filters = [
+            ["region", "=", "A"],
+        ]
+        out = dm.get_timeseries_data(
+            "demand", group_by=["time_index"], value_col="value", filters=filters
+        )
+        assert list(out["value"]) == [10, 30]
+
+    def test_global_wrapper_get_timeseries_data(self, temp_csv_folder):
+        df = pd.DataFrame(
+            {
+                "time_index": [0, 0, 1, 1],
+                "region": ["A", "B", "A", "B"],
+                "value": [5, 7, 11, 13],
+            }
+        )
+        (temp_csv_folder / "ts2.csv").write_text(df.to_csv(index=False))
+        initialize_data_manager({"demand_table": "ts2.csv"}, temp_csv_folder)
+        out = get_timeseries_data("demand", group_by=["time_index"], value_col="value")
+        assert list(out["value"]) == [12, 24]
+
+    def test_get_timeseries_data_wide_pivot(self, temp_csv_folder):
+        df = pd.DataFrame(
+            {
+                "time_index": [0, 0, 1, 1],
+                "region": ["A", "B", "A", "B"],
+                "value": [1.0, 2.0, 3.0, 4.0],
+            }
+        )
+        (temp_csv_folder / "ts_wide.csv").write_text(df.to_csv(index=False))
+
+        dm = DataManager()
+        dm.initialize({"demand_table": "ts_wide.csv"}, temp_csv_folder)
+
+        # Aggregate by time_index and region, then pivot wide on region
+        tall = dm.get_timeseries_data(
+            "demand",
+            group_by=["time_index", "region"],
+            value_col="value",
+            agg="sum",
+        )
+        assert set(tall.columns) == {"time_index", "region", "value"}
+
+        wide = dm.get_timeseries_data(
+            "demand",
+            group_by=["time_index", "region"],
+            value_col="value",
+            agg="sum",
+            wide=True,
+            pivot_columns="region",
+        )
+        # Expect columns time_index, A, B
+        assert "time_index" in wide.columns
+        assert "A" in wide.columns and "B" in wide.columns
+        # Values per time_index
+        assert wide.loc[wide["time_index"] == 0, "A"].iloc[0] == 1.0
+        assert wide.loc[wide["time_index"] == 0, "B"].iloc[0] == 2.0
+        assert wide.loc[wide["time_index"] == 1, "A"].iloc[0] == 3.0
+        assert wide.loc[wide["time_index"] == 1, "B"].iloc[0] == 4.0
+
+    def test_get_timeseries_data_wide_with_pivot_index_and_fill(self, temp_csv_folder):
+        df = pd.DataFrame(
+            {
+                "time_index": [0, 0, 1],
+                "region": ["A", "B", "A"],
+                "sector": ["res", "res", "res"],
+                "value": [10, 20, 30],
+            }
+        )
+        (temp_csv_folder / "ts_wide2.csv").write_text(df.to_csv(index=False))
+
+        dm = DataManager()
+        dm.initialize({"demand_table": "ts_wide2.csv"}, temp_csv_folder)
+
+        wide = dm.get_timeseries_data(
+            "demand",
+            group_by=["time_index", "sector", "region"],
+            value_col="value",
+            agg="sum",
+            wide=True,
+            pivot_columns=["region"],
+            pivot_index=["time_index", "sector"],
+            fill_value=0,
+        )
+        # Expect A column present and B column present, with fill applied for missing combos
+        assert set(["A", "B"]).issubset(set(wide.columns))
+        # time_index=1 has only region A -> B should be 0 due to fill_value
+        row = wide.loc[wide["time_index"] == 1].iloc[0]
+        assert row["A"] == 30
+        assert row["B"] == 0
+
+    def test_get_timeseries_data_wide_multi_pivot(self, temp_csv_folder):
+        df = pd.DataFrame(
+            {
+                "time_index": [0, 0, 0, 0, 1, 1, 1, 1],
+                "region": ["A", "A", "B", "B", "A", "A", "B", "B"],
+                "sector": ["res", "com", "res", "com", "res", "com", "res", "com"],
+                "value": [1, 2, 3, 4, 10, 20, 30, 40],
+            }
+        )
+        (temp_csv_folder / "ts_wide_multi.csv").write_text(df.to_csv(index=False))
+
+        dm = DataManager()
+        dm.initialize({"demand_table": "ts_wide_multi.csv"}, temp_csv_folder)
+
+        wide = dm.get_timeseries_data(
+            "demand",
+            group_by=["time_index", "region", "sector"],
+            value_col="value",
+            agg="sum",
+            wide=True,
+            pivot_columns=["region", "sector"],
+            pivot_index=["time_index"],
+        )
+        # Expect flattened multi-pivot columns like A_res, A_com, B_res, B_com
+        expected_cols = {"time_index", "A_res", "A_com", "B_res", "B_com"}
+        assert expected_cols.issubset(set(wide.columns))
+        # Check values for time_index 0
+        row0 = wide.loc[wide["time_index"] == 0].iloc[0]
+        assert row0["A_res"] == 1
+        assert row0["A_com"] == 2
+        assert row0["B_res"] == 3
+        assert row0["B_com"] == 4
+        # Check values for time_index 1
+        row1 = wide.loc[wide["time_index"] == 1].iloc[0]
+        assert row1["A_res"] == 10
+        assert row1["A_com"] == 20
+        assert row1["B_res"] == 30
+        assert row1["B_com"] == 40
 
 
 class TestConvenienceFunctions:

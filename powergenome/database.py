@@ -458,6 +458,174 @@ class DataManager:
         result = self.connection.execute(query).fetchall()
         return [row[0] for row in result]
 
+    def get_timeseries_data(
+        self,
+        table_name: str,
+        group_by: Optional[List[str]] = None,
+        value_col: str = "value",
+        agg: str = "sum",
+        filters: List[List[Tuple[str, str, Any]]] = None,
+        order_by: Optional[List[str]] = None,
+        limit: Optional[int] = None,
+        wide: bool = False,
+        pivot_columns: Optional[Union[str, List[str]]] = None,
+        pivot_index: Optional[List[str]] = None,
+        fill_value: Any = None,
+    ) -> pd.DataFrame:
+        """
+        Aggregate timeseries data with SQL GROUP BY, returning one row per group.
+
+        Parameters
+        ----------
+        table_name : str
+            Name of the standardized table (e.g., "demand").
+        group_by : List[str], optional
+            Columns to group by. Defaults to ["time_index"].
+        value_col : str
+            Name of the numeric value column to aggregate. Defaults to "value".
+        agg : str
+            Aggregation function: one of {"sum", "avg", "min", "max", "count"}. Defaults to "sum".
+        filters : List[List[Tuple[str, str, Any]]], optional
+            Filters to apply in DNF format (same shapes as get_data).
+        order_by : List[str], optional
+            Columns to order by; defaults to group_by if not provided.
+        limit : int, optional
+            Optional LIMIT on the number of output rows.
+
+        Returns
+        -------
+        pd.DataFrame
+            - If wide is False: DataFrame containing group_by columns and a single aggregated column named "value".
+            - If wide is True: Wide DataFrame pivoted by pivot_columns with values in "value". Index defaults to group_by \ pivot_columns.
+
+        Raises
+        ------
+        ValueError
+            If DataManager is not initialized, table is unavailable, or inputs are invalid.
+        RuntimeError
+            If the query fails to execute.
+        """
+        if self.connection is None:
+            raise ValueError("DataManager not initialized. Call initialize() first.")
+
+        if table_name not in self.available_tables:
+            raise ValueError(
+                f"Table '{table_name}' not available. Available tables: {self.available_tables}"
+            )
+
+        # Validate aggregation
+        agg_lc = (agg or "").lower()
+        allowed_aggs = {"sum", "avg", "min", "max", "count"}
+        if agg_lc not in allowed_aggs:
+            raise ValueError(
+                f"Unsupported aggregation '{agg}'. Allowed: {sorted(allowed_aggs)}"
+            )
+
+        # Group-by defaults to time_index
+        if group_by is None:
+            group_by = ["time_index"]
+        if not isinstance(group_by, (list, tuple)) or not all(
+            isinstance(c, str) for c in group_by
+        ):
+            raise TypeError("group_by must be a list of column names")
+
+        # Order by default mirrors group_by
+        if order_by is None:
+            order_by = list(group_by)
+
+        select_group = ", ".join(group_by) if group_by else ""
+        select_clause = (
+            f"{select_group}, {agg_lc}({value_col}) AS value"
+            if select_group
+            else f"{agg_lc}({value_col}) AS value"
+        )
+        from_clause = table_name
+        where_clause = build_where_clause_from_filters(filters) if filters else ""
+        group_clause = f"GROUP BY {select_group}" if select_group else ""
+        order_clause = f"ORDER BY {', '.join(order_by)}" if order_by else ""
+        limit_clause = (
+            f"LIMIT {int(limit)}" if isinstance(limit, int) and limit >= 0 else ""
+        )
+
+        query = f"SELECT {select_clause} FROM {from_clause} {where_clause} {group_clause} {order_clause} {limit_clause}"
+
+        try:
+            df = self.connection.execute(query).fetchdf()
+        except Exception as e:
+            raise RuntimeError(f"Timeseries aggregation query failed: {e}")
+
+        # Optional wide pivot using pandas for simplicity and portability
+        if wide:
+            # Normalize pivot_columns to list
+            if pivot_columns is None:
+                raise ValueError("wide=True requires pivot_columns to be specified")
+            if isinstance(pivot_columns, str):
+                pivot_cols_list = [pivot_columns]
+            elif isinstance(pivot_columns, (list, tuple)) and all(
+                isinstance(c, str) for c in pivot_columns
+            ):
+                pivot_cols_list = list(pivot_columns)
+            else:
+                raise TypeError("pivot_columns must be a string or list of strings")
+
+            # Determine index columns: default to group_by excluding pivot columns
+            if pivot_index is None:
+                pivot_index_cols = [
+                    c for c in group_by if c not in set(pivot_cols_list)
+                ]
+                if not pivot_index_cols:
+                    # If nothing left for index, use time_index if present or raise
+                    pivot_index_cols = [c for c in ["time_index"] if c in df.columns]
+                    if not pivot_index_cols:
+                        raise ValueError(
+                            "Cannot infer pivot index. Provide pivot_index or include a non-pivot column in group_by."
+                        )
+            else:
+                if not isinstance(pivot_index, (list, tuple)) or not all(
+                    isinstance(c, str) for c in pivot_index
+                ):
+                    raise TypeError("pivot_index must be a list of column names")
+                pivot_index_cols = list(pivot_index)
+
+            # Validate columns exist
+            for c in pivot_index_cols + pivot_cols_list + ["value"]:
+                if c not in df.columns:
+                    raise ValueError(
+                        f"Column '{c}' required for pivot is not in result"
+                    )
+
+            # Support single pivot column primarily; allow multi for advanced users
+            if len(pivot_cols_list) == 1:
+                wide_df = df.pivot_table(
+                    index=pivot_index_cols,
+                    columns=pivot_cols_list[0],
+                    values="value",
+                    fill_value=fill_value,
+                    aggfunc="first",
+                ).reset_index()
+                # Flatten potential Index name on columns
+                wide_df.columns.name = None
+                return wide_df
+            else:
+                wide_df = df.pivot_table(
+                    index=pivot_index_cols,
+                    columns=pivot_cols_list,
+                    values="value",
+                    fill_value=fill_value,
+                    aggfunc="first",
+                ).reset_index()
+                # Flatten MultiIndex columns to strings
+                if isinstance(wide_df.columns, pd.MultiIndex):
+                    wide_df.columns = [
+                        "_".join(
+                            [str(x) for x in tup if x is not None and x != ""]
+                        ).strip("_")
+                        for tup in wide_df.columns.values
+                    ]
+                return wide_df
+
+        return df
+
     def list_tables(self) -> List[str]:
         """
         List all available standardized tables.
@@ -716,3 +884,36 @@ def update_data_manager(updated_settings: Dict[str, Any] = None):
         If None, uses current settings to refresh all tables.
     """
     _data_manager.update(updated_settings)
+
+
+def get_timeseries_data(
+    table_name: str,
+    group_by: Optional[List[str]] = None,
+    value_col: str = "value",
+    agg: str = "sum",
+    filters: List[List[Tuple[str, str, Any]]] = None,
+    order_by: Optional[List[str]] = None,
+    limit: Optional[int] = None,
+    wide: bool = False,
+    pivot_columns: Optional[Union[str, List[str]]] = None,
+    pivot_index: Optional[List[str]] = None,
+    fill_value: Any = None,
+) -> pd.DataFrame:
+    """
+    Global convenience wrapper for DataManager.get_timeseries_data.
+
+    See DataManager.get_timeseries_data for parameter details.
+    """
+    return _data_manager.get_timeseries_data(
+        table_name=table_name,
+        group_by=group_by,
+        value_col=value_col,
+        agg=agg,
+        filters=filters,
+        order_by=order_by,
+        limit=limit,
+        wide=wide,
+        pivot_columns=pivot_columns,
+        pivot_index=pivot_index,
+        fill_value=fill_value,
+    )
