@@ -188,6 +188,18 @@ class TestBuildWhereClauseFromFilters:
         expected = "WHERE (col1 = 'val1')"
         assert build_where_clause_from_filters(filters) == expected
 
+    def test_single_condition_flat_list(self):
+        # [col, op, val]
+        filters = ["col1", "=", 3]
+        expected = "WHERE (col1 = 3)"
+        assert build_where_clause_from_filters(filters) == expected
+
+    def test_single_conjunction_list_of_lists(self):
+        # [[col, op, val], [col2, op, val]]
+        filters = [["a", ">", 1], ["b", "=", "x"]]
+        expected = "WHERE (a > 1 AND b = 'x')"
+        assert build_where_clause_from_filters(filters) == expected
+
     def test_multiple_conjunctions_and(self):
         filters = [[("col1", "=", "val1"), ("col2", ">", 5)]]
         expected = "WHERE (col1 = 'val1' AND col2 > 5)"

@@ -853,6 +853,11 @@ def build_where_clause_from_filters(
     """
     Build a SQL WHERE clause from a list of filters in DNF.
 
+    Accepts:
+    - Single condition: [col, op, val] or (col, op, val)
+    - Single conjunction: [[col, op, val], ...] or [(col, op, val), ...]
+    - Full DNF: [[(...), (...)] , [(...)]]
+
     Parameters
     ----------
     filters : List[List[Tuple[str, str, Any]]]
@@ -868,9 +873,32 @@ def build_where_clause_from_filters(
     if not filters:
         return None
 
-    # Handle case where a single conjunction is passed as a list of tuples
-    if isinstance(filters[0], tuple):
-        filters = [filters]
+    # Normalize common shapes into DNF with tuples
+    # 1) Single condition: [col, op, val] or (col, op, val)
+    if (
+        isinstance(filters, (list, tuple))
+        and len(filters) == 3
+        and all(not isinstance(x, (list, tuple)) for x in filters)
+    ):
+        filters = [[tuple(filters)]]
+    # 2) Single conjunction: [[col, op, val], ...] or [(col, op, val), ...]
+    elif (
+        isinstance(filters, (list, tuple))
+        and filters
+        and all(
+            isinstance(c, (list, tuple))
+            and len(c) == 3
+            and all(not isinstance(x, (list, tuple)) for x in c)
+            for c in filters
+        )
+    ):
+        filters = [[tuple(c) if isinstance(c, list) else c for c in filters]]
+    # 3) Full DNF: normalize inner lists to tuples
+    else:
+        filters = [
+            [tuple(c) if isinstance(c, list) else c for c in conjunction]
+            for conjunction in filters
+        ]
 
     def format_value(value):
         if isinstance(value, str):

@@ -24,6 +24,18 @@ class DataManager:
     Creates an in-memory DuckDB database with standardized table names based on
     settings parameters. Supports loading data from both database files and
     CSV/Parquet files.
+
+    Table configuration in settings
+    - Each standardized table (e.g., generation_table, demand_table) can be provided as:
+        - A string: the file name (for folder data) or table name (for DBs)
+        - A dict with keys:
+            - table_name (or name): source file/table
+            - columns (optional): list[str] projection
+            - filters (optional): DNF filters; accepts lists or tuples in shapes like
+                [[("col", "=", val)], [("col2", ">", 0)]], [["col","=",val]], or ["col","=",val]
+            - scenario (optional): convenience filter; ANDed into every OR-clause as (scenario = <value>)
+    - If both filters and scenario are provided, scenario is added to each clause unless
+        a scenario condition already exists in that clause.
     """
 
     _instance = None
@@ -162,14 +174,22 @@ class DataManager:
         Parameters
         ----------
         table_config : Union[str, Dict]
-            Either a string table name or dict with table configuration
+            Either a string table name or dict with table configuration.
+            Dict keys supported:
+            - table_name/name: source file/table
+            - columns (optional): list[str] projection
+            - filters (optional): DNF filters; lists or tuples are accepted. Shapes:
+                [col, op, val], [[col, op, val], ...], or [[(...), ...], [...]]
+            - scenario (optional): value for a "scenario" column; this is ANDed into
+                every OR-clause. If a clause already contains a scenario condition, it is
+                not duplicated.
         standard_name : str
             Standardized name for the table in the in-memory database
 
         Returns
         -------
         Tuple[str, List, List[str]]
-            Normalized source table name, filters, and columns
+            Normalized source table name, filters (DNF, normalized), and columns
 
         Raises
         ------
@@ -180,15 +200,45 @@ class DataManager:
             source_table = table_config
             filters = None
             columns = None
+            scenario = None
         elif isinstance(table_config, dict):
             source_table = table_config.get("table_name") or table_config.get("name")
             filters = table_config.get("filters")
             columns = table_config.get("columns")
+            scenario = table_config.get("scenario")
         else:
             raise ValueError(f"Invalid table configuration: {table_config}")
 
         if not source_table:
             raise ValueError(f"No table name found in configuration: {table_config}")
+
+        # If a scenario is provided, fold it into filters (DNF). We AND the scenario
+        # condition into every OR-clause. If no filters exist, create a single clause.
+        if scenario is not None:
+            # Ensure DNF structure: List[List[cond]]
+            if filters is None:
+                filters = [[("scenario", "=", scenario)]]
+            else:
+                # Defensive: make tuples if lists are provided
+                def as_tuple(cond):
+                    return tuple(cond) if isinstance(cond, list) else cond
+
+                # Normalize and append scenario condition if not already present
+                normalized = []
+                for clause in filters:
+                    clause_conds = [as_tuple(c) for c in clause]
+                    has_scenario = any(
+                        (
+                            isinstance(c, (list, tuple))
+                            and len(c) >= 1
+                            and c[0] == "scenario"
+                        )
+                        for c in clause_conds
+                    )
+                    if not has_scenario:
+                        clause_conds.append(("scenario", "=", scenario))
+                    normalized.append(clause_conds)
+                filters = normalized
 
         # Validate file/table name format based on data location type
         if self.data_location and self.data_location.is_dir():

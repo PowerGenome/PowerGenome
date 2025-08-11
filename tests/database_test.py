@@ -376,6 +376,89 @@ class TestDataManager:
         assert len(new_tables) < len(initial_tables)
         assert "generation" in new_tables
 
+    def test_scenario_filter_applied_csv(self, temp_csv_folder):
+        """Scenario in config should be converted into a filter and applied."""
+        # Prepare a load_data.csv with a scenario column
+        df = pd.DataFrame(
+            {
+                "region": ["A", "A", "B", "B"],
+                "year": [2030, 2030, 2030, 2030],
+                "scenario": ["HighEV", "Base", "HighEV", "Base"],
+                "load": [1000, 900, 1500, 1400],
+            }
+        )
+        (temp_csv_folder / "load_data.csv").write_text(df.to_csv(index=False))
+
+        settings = {
+            "demand_table": {"table_name": "load_data.csv", "scenario": "HighEV"}
+        }
+
+        dm = DataManager()
+        dm.initialize(settings, temp_csv_folder)
+
+        out = dm.get_data("demand")
+        # Only HighEV rows should be present
+        assert set(out["scenario"]) == {"HighEV"}
+        assert len(out) == 2
+
+    def test_scenario_augments_existing_filters(self, temp_csv_folder):
+        """Scenario should be ANDed into each OR-clause when filters exist."""
+        df = pd.DataFrame(
+            {
+                "region": ["A", "A", "B", "B", "C"],
+                "year": [2030, 2030, 2030, 2030, 2030],
+                "scenario": ["Base", "HighEV", "Base", "HighEV", "Base"],
+                "load": [1, 2, 3, 4, 5],
+            }
+        )
+        (temp_csv_folder / "load_data.csv").write_text(df.to_csv(index=False))
+
+        settings = {
+            "demand_table": {
+                "table_name": "load_data.csv",
+                "scenario": "Base",
+                # region=A OR region=B
+                "filters": [[["region", "=", "A"]], [["region", "=", "B"]]],
+            }
+        }
+
+        dm = DataManager()
+        dm.initialize(settings, temp_csv_folder)
+
+        out = dm.get_data("demand")
+        # Expect only Base rows for regions A and B -> rows with loads 1 and 3
+        assert set(out["region"]) <= {"A", "B"}
+        assert set(out["scenario"]) == {"Base"}
+        assert sorted(out["load"].tolist()) == [1, 3]
+
+    def test_scenario_not_duplicated_if_present(self, temp_csv_folder):
+        """If scenario is already in a clause, it shouldn't be duplicated."""
+        df = pd.DataFrame(
+            {
+                "region": ["A", "A"],
+                "year": [2030, 2030],
+                "scenario": ["HighEV", "Base"],
+                "load": [10, 20],
+            }
+        )
+        (temp_csv_folder / "load_data.csv").write_text(df.to_csv(index=False))
+
+        settings = {
+            "demand_table": {
+                "table_name": "load_data.csv",
+                "scenario": "HighEV",
+                # Clause already has scenario
+                "filters": [[("scenario", "=", "HighEV")]],
+            }
+        }
+
+        dm = DataManager()
+        dm.initialize(settings, temp_csv_folder)
+
+        out = dm.get_data("demand")
+        assert len(out) == 1
+        assert out.iloc[0]["scenario"] == "HighEV"
+
 
 class TestConvenienceFunctions:
     """Tests for the global convenience functions."""
