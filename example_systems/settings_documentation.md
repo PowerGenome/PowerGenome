@@ -399,6 +399,55 @@ type: Dict[str, Dict[str, Union[int, float, str]]]
 
 description: This nested dictionary should have top-level keys equal to the `model_tag_names` values. The second level keys will be string matched against EIA, ATB, or user-added technologies/resources. The values are "tags" or other identification infomation populated in the column for each matched resource.
 
+## Data tables and scenarios
+
+PowerGenome reads input data from either a folder of CSV/Parquet files or from a database (SQLite/DuckDB). The settings file lets you specify the source for each standardized table (e.g., `generation_table`, `demand_table`, etc.). You can provide each table as either a simple string or a dictionary with additional options.
+
+### Table configuration
+
+- As a string: the file name (for folder data) or table name (for DBs).
+  - Example: `generation_table: generators.csv` (folder mode)
+  - Example: `generation_table: generators` (database mode)
+
+- As a dictionary: supports filtering and scenario selection.
+  - Keys:
+    - `table_name` (or `name`): source file/table.
+    - `columns` (optional): list of columns to select.
+    - `filters` (optional): filters in disjunctive normal form (DNF). Accepted shapes:
+      - Single condition: `[col, op, val]` or `(col, op, val)`
+      - Single conjunction: `[[col, op, val], ...]`
+      - Full DNF: `[[(...), (...)] , [(...)]]`
+    - `scenario` (optional): convenience selector for a `scenario` column. This is automatically ANDed into every OR-clause of `filters`. If a clause already includes a `scenario` condition, it is not duplicated.
+
+The DataManager converts the configuration into a view or in-memory table with a standardized name (`generation`, `demand`, etc.). When `lazy_loading` is true (default), views are created so data are not fully loaded into memory.
+
+### Scenario usage examples
+
+Single table with scenario column (recommended when data contain multiple scenarios in one logical dataset):
+
+```yaml
+demand_table:
+  table_name: demand_timeseries.csv   # or a DB table name, e.g. demand_timeseries
+  scenario: HighEV                    # injects WHERE scenario = 'HighEV'
+  # optional: additional filters combined with scenario
+  # filters:
+  #   - - [region, '=', CA]
+  #     - [year, '=', 2035]
+  # columns: [region, year, time_index, value, scenario]
+```
+
+Separate table per scenario (useful for operational isolation or very large datasets):
+
+```yaml
+demand_table: demand_timeseries_HighEV  # swap this value to pick another scenario
+```
+
+Notes
+
+- In folder mode, file names should include an extension (`.csv` or `.parquet`).
+- In database mode (`.db`, `.sqlite`, or `.duckdb`), provide table names without extensions.
+- Filter normalization is YAML-friendly: lists or tuples are accepted, including flat forms like `[col, op, val]` or `[[col, op, val], ...]`.
+
 Case insensitive string matching is used to identify technologies, so is not necessary to use full resource names. This is helpful when switching between ATB cost cases, because the resource name will include the cost case. Be careful though, because some resources may be matched against two different tag values.
 
 ### regional_tag_values
