@@ -4,21 +4,21 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from powergenome.eia_opendata import load_aeo_series
+from powergenome.database import initialize_data_manager
 from powergenome.financials import (  # load_cpi_data,
     inflation_price_adjustment,
     interpolate_values,
     investment_cost_calculator,
     load_dollar_year_data,
 )
-from powergenome.params import SETTINGS
-from powergenome.util import load_settings
+from powergenome.settings import Settings
 
 
 @pytest.fixture
 def settings():
-    settings = load_settings("tests/test_system/settings")
+    settings = Settings(config_path="tests/test_system/settings")
     settings["data_location"] = "tests/test_system/test_data"
+    initialize_data_manager(settings, settings["data_location"])
 
     if isinstance(settings["model_year"], list):
         settings["model_year"] = settings["model_year"][0]
@@ -234,10 +234,10 @@ def test_load_dollar_year_data_success(monkeypatch):
     # Simulate a valid DataFrame with the required columns
     sample_df = pd.DataFrame({"year": [2000], "value": [1.0]})
     monkeypatch.setattr(
-        "powergenome.financials.load_data",
-        lambda data_location, file_or_table_name: sample_df,
+        "powergenome.financials.get_data",
+        lambda *args, **kwargs: sample_df,
     )
-    result = load_dollar_year_data("ignored_path", "ignored_table")
+    result = load_dollar_year_data()
     # Should return the exact DataFrame
     assert result is sample_df
 
@@ -246,11 +246,11 @@ def test_load_dollar_year_data_empty(monkeypatch):
     # Simulate an empty DataFrame
     empty_df = pd.DataFrame(columns=["year", "value"])
     monkeypatch.setattr(
-        "powergenome.financials.load_data",
-        lambda data_location, file_or_table_name: empty_df,
+        "powergenome.financials.get_data",
+        lambda *args, **kwargs: empty_df,
     )
     with pytest.raises(ValueError) as excinfo:
-        load_dollar_year_data("loc", "tbl")
+        load_dollar_year_data()
     assert "empty" in str(excinfo.value).lower()
 
 
@@ -265,11 +265,11 @@ def test_load_dollar_year_data_empty(monkeypatch):
 def test_load_dollar_year_data_missing_columns(monkeypatch, bad_df, missing_cols):
     # Simulate a DataFrame missing one or both required columns
     monkeypatch.setattr(
-        "powergenome.financials.load_data",
-        lambda data_location, file_or_table_name: bad_df,
+        "powergenome.financials.get_data",
+        lambda *args, **kwargs: bad_df,
     )
     with pytest.raises(ValueError) as excinfo:
-        load_dollar_year_data("loc", "tbl")
+        load_dollar_year_data()
     msg = str(excinfo.value).lower()
     # Ensure the error mentions missing 'year' and 'value'
     for col in missing_cols:

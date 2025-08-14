@@ -11,6 +11,7 @@ from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters, load_ipm_shapefile
 from powergenome.load_profiles import make_final_load_curves
 from powergenome.params import DATA_PATHS
+from powergenome.settings import Settings
 from powergenome.transmission import (
     agg_transmission_constraints,
     transmission_line_distance,
@@ -18,7 +19,6 @@ from powergenome.transmission import (
 from powergenome.util import (
     get_git_hash,
     init_pudl_connection,
-    load_settings,
     remove_fuel_scenario_name,
 )
 
@@ -140,7 +140,7 @@ def main():
     logger.info(f"Current git hash is {git_hash}")
 
     logger.info("Reading settings file")
-    settings = load_settings(path=args.settings_file)
+    settings = Settings(config_path=args.settings_file)
 
     # Copy the settings file to results folder
     shutil.copy(args.settings_file, out_folder)
@@ -199,7 +199,9 @@ def main():
         else:
             model_regions_gdf = gc.model_regions_gdf
         transmission = agg_transmission_constraints(
-            pudl_engine=pudl_engine, settings=settings
+            model_regions=settings["model_regions"],
+            regional_aggregations=settings.get("region_aggregations"),
+            zone_num_map=settings["zone_num_map"],
         )
         transmission = transmission.pipe(
             transmission_line_distance,

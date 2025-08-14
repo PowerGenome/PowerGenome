@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from powergenome.database import initialize_data_manager
 from powergenome.generators import (
     GeneratorClusters,
     add_dg_resources,
@@ -23,14 +24,13 @@ from powergenome.generators import (
     startup_fuel,
     startup_nonfuel_costs,
 )
-from powergenome.util import load_settings
+from powergenome.settings import Settings
 
 
 def test_startup_fuel():
     df = pd.DataFrame({"technology": ["tech1", "tech2", "tech1"]})
     settings = {
         "startup_fuel_use": {"tech1": 5},
-        "eia_atb_tech_map": {"tech1": ["tech1a"]},
     }
     out = startup_fuel(df.copy(), settings)
     assert "Start_Fuel_MMBTU_per_MW" in out.columns
@@ -138,7 +138,6 @@ def test_add_fuel_labels():
     )
     settings = {
         "tech_fuel_map": {"coal": "coal"},
-        "eia_atb_tech_map": {"coal": ["coal"]},
         "fuel_scenarios": {"coal": "REF"},
         "fuel_region_map": {"A": ["A"]},
         "model_year": 2020,
@@ -381,9 +380,12 @@ def test_apply_custom_gen_formula_unknown_operation():
 class TestGeneratorCluster:
 
     def load_settings(self):
-        settings = load_settings("tests/test_system/settings")
+        settings = Settings(config_path="tests/test_system/settings")
         settings["RESOURCE_GROUPS"] = "tests/test_system/test_data/resource_groups"
         settings["data_location"] = "tests/test_system/test_data"
+
+        # Initialize DataManager before creating GeneratorClusters
+        initialize_data_manager(settings, settings["data_location"])
 
         if isinstance(settings["model_year"], list):
             settings["model_year"] = settings["model_year"][0]
@@ -395,11 +397,7 @@ class TestGeneratorCluster:
     def test_cluster_existing_generators(self):
         settings = self.load_settings()
         self.gc = GeneratorClusters(
-            data_location=settings["data_location"],
-            generation_table=settings["generation_table"],
             settings=settings,
-            resource_heat_rate_table=settings["resource_heat_rate_table"],
-            resource_cost_table=settings["resource_cost_table"],
             multi_period=True,
             include_retired_cap=True,
         )
@@ -408,15 +406,12 @@ class TestGeneratorCluster:
     def test_create_new_generators(self):
         settings = self.load_settings()
         self.gc = GeneratorClusters(
-            data_location=settings["data_location"],
-            generation_table=settings["generation_table"],
             settings=settings,
-            resource_heat_rate_table=settings["resource_heat_rate_table"],
-            resource_cost_table=settings["resource_cost_table"],
             multi_period=True,
             include_retired_cap=True,
         )
         new_gen = self.gc.create_new_generators()
+        assert (new_gen.Inv_Cost_per_MWyr > 0).all()
 
     def test_create_all_generators(self, tmp_path):
         settings = self.load_settings()
@@ -426,11 +421,7 @@ class TestGeneratorCluster:
         )  # Ensure the directory exists
         settings["extra_outputs_path"] = extra_outputs_path
         self.gc = GeneratorClusters(
-            data_location=settings["data_location"],
-            generation_table=settings["generation_table"],
             settings=settings,
-            resource_heat_rate_table=settings["resource_heat_rate_table"],
-            resource_cost_table=settings["resource_cost_table"],
             multi_period=False,
             include_retired_cap=False,
             sort_gens=True,

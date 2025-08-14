@@ -67,6 +67,7 @@ tech_fuel_map:
   Natural Gas Fired Combined Cycle: naturalgas
   Natural Gas Fired Combustion Turbine: naturalgas
   Natural Gas Steam Turbine: naturalgas
+  NaturalGas: naturalgas
   Nuclear: uranium
   Petroleum Liquids: distillate
   Other_peaker: naturalgas

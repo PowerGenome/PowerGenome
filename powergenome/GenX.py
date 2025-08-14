@@ -8,14 +8,16 @@ from typing import Dict, List
 
 import pandas as pd
 
+from powergenome.database import get_data
 from powergenome.external_data import (
     load_demand_segments,
     load_policy_scenarios,
     make_generator_variability,
 )
 from powergenome.financials import investment_cost_calculator
+from powergenome.settings import auto_fill_settings
 from powergenome.time_reduction import kmeans_time_clustering
-from powergenome.util import find_region_col, load_data, snake_case_col, snake_case_str
+from powergenome.util import find_region_col, snake_case_col, snake_case_str
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +193,8 @@ POLICY_TAGS_FILENAMES = {
 }
 
 
-def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
+@auto_fill_settings()
+def create_policy_req(col_str_match: str, settings: dict = None) -> pd.DataFrame:
     model_year = settings["model_year"]
     case_id = settings["case_id"]
 
@@ -250,7 +253,8 @@ def create_policy_req(settings: dict, col_str_match: str) -> pd.DataFrame:
     return zone_df
 
 
-def create_regional_cap_res(settings: dict) -> pd.DataFrame:
+@auto_fill_settings()
+def create_regional_cap_res(settings: dict = None) -> pd.DataFrame:
     """Create a dataframe of regional capacity reserve constraints from settings params
 
     Parameters
@@ -330,7 +334,8 @@ def label_cap_res_lines(path_names: List[str], dest_regions: List[str]) -> List[
     return cap_res_list
 
 
-def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
+@auto_fill_settings()
+def add_cap_res_network(tx_df: pd.DataFrame, settings: dict = None) -> pd.DataFrame:
     """Add capacity reserve colums to the transmission dataframe (Network.csv)
 
     Parameters
@@ -385,7 +390,8 @@ def add_cap_res_network(tx_df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     return tx_df[original_cols + derate_cols + excl_cols].fillna(0)
 
 
-def add_emission_policies(transmission_df, settings):
+@auto_fill_settings()
+def add_emission_policies(transmission_df, settings=None):
     """Add emission policies to the transmission dataframe
 
     Parameters
@@ -456,29 +462,23 @@ def add_emission_policies(transmission_df, settings):
 
 def add_misc_gen_values(
     gen_clusters: pd.DataFrame,
-    data_location: Path,
-    data_name: str,
     resource_col: str = "Resource",
 ) -> pd.DataFrame:
-    """Add parameter values from a file or table to resources in a generator clusters DataFrame.
-    This function loads miscellaneous generator parameter values from a user-supplied file
-    and assigns them to the appropriate resources in the `gen_clusters` DataFrame. The data
-    file should contain at least a column matching `resource_col` (default "Resource"), and
-    optionally a "region" column. If the "region" column is missing, values are applied
-    across all regions. If both "all" and specific region values are provided for a resource,
-    the specific region value takes precedence.
+    """Add parameter values from the operational constraints table to resources in a generator clusters DataFrame.
+    This function loads miscellaneous generator parameter values from the DataManager's
+    "operational_constraints" table and assigns them to the appropriate resources in the
+    `gen_clusters` DataFrame. The table should contain at least a column matching `resource_col`
+    (default "Resource"), and optionally a "region" column. If the "region" column is missing,
+    values are applied across all regions. If both "all" and specific region values are provided
+    for a resource, the specific region value takes precedence.
 
     Parameters
     ----------
     gen_clusters : pd.DataFrame
         DataFrame containing generator clusters, with columns "region" and `resource_col`.
-    data_location : Path
-        Path to the folder or database containing the input data file/table.
-    data_name : str
-        Name of the file or table with miscellaneous generator parameter values.
     resource_col : str, optional
-        Name of the column with resource names in both `gen_clusters` and the CSV file,
-        by default "Resource".
+        Name of the column with resource names in both `gen_clusters` and the operational
+        constraints table, by default "Resource".
 
     Returns
     -------
@@ -490,14 +490,12 @@ def add_misc_gen_values(
     - Issues a warning if parameter values are missing for any resource in any region.
     - Issues a warning if resources in `gen_clusters` are not found in the input data.
     """
-    misc_values = load_data(data_location, data_name)
+    misc_values = get_data("operational_constraints")
     misc_values[resource_col] = snake_case_col(misc_values[resource_col])
 
     regions = gen_clusters["region"].unique()
 
-    context = (
-        f"Assigning misc generator values from the user-supplied data {data_name}."
-    )
+    context = f"Assigning misc generator values from the operational constraints table."
     try:
         region_col = find_region_col(misc_values.columns, context)
     except ValueError:
@@ -539,7 +537,7 @@ def add_misc_gen_values(
         num_values = len(_df)
         if num_values < num_tech_regions:
             logger.warning(
-                f"The operational data {data_name} has {num_values} region(s) for the resource "
+                f"The operational constraints table has {num_values} region(s) for the resource "
                 f"'{tech}', but the resource is in {num_tech_regions} regions. Check "
                 "your input file to ensure values are provided for all appropriate regions."
             )
@@ -564,7 +562,7 @@ def add_misc_gen_values(
     if missing_resources:
         logger.warning(
             f"The resources {missing_resources} are not included in your operational data "
-            f"{data_name}. This is a warning in case they should have parameters in that file."
+            f"operational constraints table. This is a warning in case they should have parameters in that table."
         )
 
     misc_values = misc_values.reset_index(drop=True)
@@ -586,8 +584,9 @@ def add_misc_gen_values(
     return gen_clusters
 
 
+@auto_fill_settings()
 def reduce_time_domain(
-    resource_profiles, load_profiles, settings, variable_resources_only=True
+    resource_profiles, load_profiles, settings=None, variable_resources_only=True
 ):
     demand_segments = load_demand_segments(settings)
     num_hours = len(load_profiles)
@@ -782,8 +781,9 @@ def network_reinforcement_cost(
     return transmission
 
 
+@auto_fill_settings()
 def network_max_reinforcement(
-    transmission: pd.DataFrame, settings: dict
+    transmission: pd.DataFrame, settings: dict = None
 ) -> pd.DataFrame:
     """Add the maximum amount that transmission lines between regions can be reinforced
     in a planning period.
@@ -837,9 +837,12 @@ def network_max_reinforcement(
     #         )
 
     # else:
-    transmission.loc[:, "Line_Max_Reinforcement_MW"] = [
-        max(tx * max_expansion, expansion_mw) for tx in transmission["Line_Max_Flow_MW"]
-    ]
+    line_max_flow = transmission["Line_Max_Flow_MW"]
+    calculated_values = line_max_flow * max_expansion
+    transmission.loc[:, "Line_Max_Reinforcement_MW"] = calculated_values.where(
+        calculated_values >= expansion_mw, expansion_mw
+    )
+
     transmission["Line_Max_Reinforcement_MW"] = transmission[
         "Line_Max_Reinforcement_MW"
     ].round(0)
@@ -1108,7 +1111,8 @@ def fix_min_power_values(
     return resource_df
 
 
-def min_cap_req(settings: dict) -> pd.DataFrame:
+@auto_fill_settings()
+def min_cap_req(settings: dict = None) -> pd.DataFrame:
     """Create a dataframe of minimum capacity requirements for GenX
 
     Parameters
@@ -1168,7 +1172,8 @@ def min_cap_req(settings: dict) -> pd.DataFrame:
         return None
 
 
-def max_cap_req(settings: dict) -> pd.DataFrame:
+@auto_fill_settings()
+def max_cap_req(settings: dict = None) -> pd.DataFrame:
     """Create a dataframe of maximum capacity requirements for GenX
 
     Parameters
@@ -1276,10 +1281,11 @@ def check_resource_tags(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+@auto_fill_settings()
 def hydro_energy_to_power(
     df: pd.DataFrame,
     default_factor: float = None,
-    regional_factors: Dict[str, float] = {},
+    regional_factors: Dict[str, float] = None,
 ) -> pd.DataFrame:
     """Calculate the hydro energy to power ratio. Uses average hydro inflow rate and
     multiplied by a factor to calculate the rated number of hours of reservoir hydro

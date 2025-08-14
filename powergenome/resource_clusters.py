@@ -110,7 +110,7 @@ def _normalize(x: Optional[str]) -> Optional[str]:
     return re.sub(r"\s+|_", "", x.lower())
 
 
-def map_nrel_atb_technology(tech: str, detail: str = None) -> Dict[str, Any]:
+def map_technologies(tech: str, detail: str = None) -> Dict[str, Any]:
     """
     Map NREL ATB technology to resource groups.
 
@@ -128,21 +128,21 @@ def map_nrel_atb_technology(tech: str, detail: str = None) -> Dict[str, Any]:
 
     Examples
     --------
-    >>> map_nrel_atb_technology('UtilityPV', 'LosAngeles')
+    >>> map_technologies('UtilityPV', 'LosAngeles')
     {'technology': 'utilitypv'}
-    >>> map_nrel_atb_technology('LandbasedWind', 'LTRG1')
+    >>> map_technologies('LandbasedWind', 'LTRG1')
     {'technology': 'landbasedwind'}
-    >>> map_nrel_atb_technology('OffShoreWind')
+    >>> map_technologies('OffShoreWind')
     {'technology': 'offshorewind'}
-    >>> map_nrel_atb_technology('OffShoreWind', 'OTRG3')
+    >>> map_technologies('OffShoreWind', 'OTRG3')
     {'technology': 'offshorewind', 'turbine_type': 'fixed'}
-    >>> map_nrel_atb_technology('OffShoreWind', 'OTRG7')
+    >>> map_technologies('OffShoreWind', 'OTRG7')
     {'technology': 'offshorewind', 'turbine_type': 'floating'}
-    >>> map_nrel_atb_technology('Hydropower')
+    >>> map_technologies('Hydropower')
     {'technology': 'hydro'}
-    >>> map_nrel_atb_technology('Hydropower', 'NSD4')
+    >>> map_technologies('Hydropower', 'NSD4')
     {'technology': 'hydro'}
-    >>> map_nrel_atb_technology('Unknown')
+    >>> map_technologies('Unknown')
     {}
     """
     tech = _normalize(tech)

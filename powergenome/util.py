@@ -18,130 +18,8 @@ import geopandas as gpd
 import pandas as pd
 import requests
 import yaml
-from flatten_dict import flatten
-from ruamel.yaml import YAML
 
 logger = logging.getLogger(__name__)
-
-
-def load_settings(path: Union[str, Path]) -> dict:
-    """Load a YAML file or a dictionary of YAML files with settings parameters
-
-    Parameters
-    ----------
-    path : Union[str, Path]
-        Name of the settings file or folder
-
-    Returns
-    -------
-    dict
-        All parameters listed in the YAML file(s)
-    """
-
-    path = Path(path)
-    if path.is_file():
-        with open(path, "r") as f:
-            #     settings = yaml.safe_load(f)
-            yaml = YAML(typ="safe")
-            settings = yaml.load(f)
-    elif path.is_dir():
-        settings = {}
-        for sf in path.glob("*.yml"):
-            yaml = YAML(typ="safe")
-            s = yaml.load(sf)
-            if s:
-                settings.update(s)
-    else:
-        raise FileNotFoundError(
-            "Path is not recognized. Check that your path is valid."
-        )
-
-    if settings.get("input_folder"):
-        settings["input_folder"] = path.parent / settings["input_folder"]
-
-    if settings.get("generator_columns"):
-        settings["generator_columns"] = add_model_tags_to_gen_columns(
-            model_tag_values=settings.get("model_tag_values", {}),
-            regional_tag_values=settings.get("regional_tag_values", {}),
-            generator_columns=settings["generator_columns"],
-        )
-
-    settings = apply_all_tag_to_regions(settings)
-    settings = sort_nested_dict(settings)
-
-    for key in [
-        "EFS_DATA",
-        "RESOURCE_GROUPS",
-        "DISTRIBUTED_GEN_DATA",
-        "RESOURCE_GROUP_PROFILES",
-    ]:
-        if settings.get(key):
-            settings[key] = Path(settings[key])
-
-    settings["model_regions"] = sorted(settings["model_regions"])
-    zones = settings["model_regions"]
-    logger.info(f"Sorted model regions are {', '.join(zones)}")
-    zone_num_map = {
-        zone: f"{number + 1}" for zone, number in zip(zones, range(len(zones)))
-    }
-    settings["zone_num_map"] = zone_num_map
-
-    return fix_param_names(settings)
-
-
-def add_model_tags_to_gen_columns(
-    model_tag_values: Dict[str, Dict[str, int]],
-    regional_tag_values: Dict[str, Dict[str, Dict[str, int]]],
-    generator_columns: List[str],
-) -> List[str]:
-    """Add model resource tag keys to the list of columns that will be included in
-    generator outputs.
-
-    Parameters
-    ----------
-    model_tag_values : Dict[str, Dict[str, int]]
-        Tags applied to resources in all regions. Top level is the tag name, which will
-        become a column in the generators output. The next level is technology names
-        and the value for each technology.
-    regional_tag_values : Dict[str, Dict[str, Dict[str, int]]]
-        Regional values applied to technologies. Top level is the region, then the tag
-        name, then the technology name and value.
-    generator_columns : List[str]
-        List of columns to include in generator outputs from the settings.
-
-    Returns
-    -------
-    List[str]
-        Updated list of column names, now including any resource tags/columns.
-
-    Example
-    -------
-    >>> model_tag_values = {'cost': {'solar': 100, 'wind': 150}}
-    >>> regional_tag_values = {'NA': {'other_tag': {'solar': 20, 'wind': 25}}}
-    >>> generator_columns = ['capacity', 'output']
-    >>> add_model_tags_to_gen_columns(model_tag_values, regional_tag_values, generator_columns)
-    ['capacity', 'output', 'cost', 'other_tag']
-
-    """
-
-    if not isinstance(generator_columns, list):
-        logger.warning(
-            "There is a parameter 'generator_columns' in your settings but it is not a "
-            "list. This parameter will not have any effect in it's current form."
-        )
-        return generator_columns
-
-    tag_keys = list((model_tag_values or {}).keys())
-    regional_keys = []
-    for region, regional_tags in (regional_tag_values or {}).items():
-        regional_keys.extend(list(regional_tags.keys()))
-
-    tag_keys = set(tag_keys + regional_keys)
-    for tag in tag_keys:
-        if tag not in generator_columns:
-            generator_columns.append(tag)
-
-    return generator_columns
 
 
 def sort_nested_dict(d: Dict[str, Any]) -> Dict[str, Any]:
@@ -171,118 +49,6 @@ def sort_nested_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     return sorted_dict
 
 
-def apply_all_tag_to_regions(settings: dict) -> dict:
-    """Make copies of renewables_clusters dicts with region "all"
-
-    If a renewables clustering object doesn't already existing for a region/technology
-    then make a copy for use. This is helpful with large numbers of regions when
-    the clustering parameters can be applied everywhere.
-
-    Parameters
-    ----------
-    settings : dict
-        All user-specified settings from YAML files
-
-    Returns
-    -------
-    dict
-        Copy of the input settings with renewables_clusters objects for all regions
-
-    Raises
-    ------
-    KeyError
-        The dictionary is missing the tag "region"
-    KeyError
-        The dictionary with region "all" is missing the tag "technology"
-    """
-
-    settings_all = dict()
-    all_regions = settings["model_regions"]
-
-    # Keeps a list of which regions should be modified by "all" (are not specifically tagged)
-    techs_tagged_w_all = []
-    techs_tagged_by_region = dict()
-
-    i = 0
-    to_delete = []
-
-    # These are the keys in settings which will not be used to determine whether 'all' should apply to that region
-    identifier_keys = ["technology", "pref_site", "turbine_type"]
-
-    for d in settings.get("renewables_clusters", []) or []:
-        if "region" not in d:
-            raise KeyError("Entry missing 'region' tag.")
-
-        reg = d["region"]
-
-        keys = sorted(d.keys())
-        tech = ""
-        for key in keys:
-            if key in identifier_keys:
-                if tech != "":
-                    tech += "_"
-                tech += str(d[key])
-
-        # Update the dict stating that this technology is specified for this region
-        if tech in techs_tagged_by_region:
-            techs_tagged_by_region[tech].append(reg)
-        elif reg.lower() == "all":
-            techs_tagged_by_region[tech] = []
-        else:
-            techs_tagged_by_region[tech] = [reg]
-
-        if reg.lower() == "all":
-            settings_all[tech] = d
-
-            if "technology" not in d:
-                raise KeyError(f"""Entry for {reg} missing 'technology' tag.""")
-
-            if tech in techs_tagged_w_all:
-                s = f"""
-                Multiple 'all' tags applied to technology {tech}. Only last one will be used.
-                """
-                logger.warning(s)
-
-            else:
-                techs_tagged_w_all.append(tech)
-
-            to_delete.append(i)
-
-        # Keeps track of the "all" tags so that they can be deleted later in the function
-        i += 1
-
-    for i in reversed(to_delete):
-        del settings["renewables_clusters"][i]
-
-    for tech in techs_tagged_w_all:
-        for reg in all_regions:
-            if reg not in techs_tagged_by_region[tech]:
-                temp_entry = settings_all[tech].copy()
-                temp_entry["region"] = reg
-
-                settings["renewables_clusters"].append(temp_entry)
-
-    return settings
-
-
-def fix_param_names(settings: dict) -> dict:
-    fix_params = {
-        "historical_load_region_maps": "historical_load_region_map",
-        "demand_response_resources": "flexible_demand_resources",
-        "data_years": "eia_data_years",
-    }
-    for k, v in fix_params.items():
-        if k in settings:
-            settings[v] = settings[k]
-            s = f"""
-            The settings parameter named {k} has been changed to {v}. Please correct it in
-            your settings file.
-
-            """
-            logger.warning(s)
-    return settings
-
-
 def findkeys(node: Union[dict, list], kv: str):
     """
     Return all values in a dictionary from a matching key
@@ -298,59 +64,6 @@ def findkeys(node: Union[dict, list], kv: str):
         for j in node.values():
             for x in findkeys(j, kv):
                 yield x
-
-
-# def check_atb_scenario(settings: dict, pg_engine: sa.engine.base.Engine):
-#     """Check the
-
-#     Parameters
-#     ----------
-#     settings : dict
-#         Parameters and values from the YAML settings file.
-#     pg_engine : sa.engine.base.Engine
-#         Connection to the PG sqlite database.
-
-#     Raises
-#     ------
-#     KeyError
-#         Raises an error if an ATB technology scenario in the settings file doesn't match
-#         the list of available values for that year of ATB data.
-#     """
-#     atb_year = settings.get("atb_data_year")
-
-#     s = f"""
-#     SELECT DISTINCT cost_case
-#     FROM technology_costs_nrelatb
-#     WHERE
-#         atb_year == {atb_year}
-#     """
-
-#     atb_cases = [c[0] for c in pg_engine.execute(s).fetchall()]
-
-#     techs = []
-#     for l in findkeys(settings, "atb_new_gen"):
-#         techs.extend(l)
-
-#     cases = [tech[2] for tech in techs]
-
-#     for l in findkeys(settings, "atb_cost_case"):
-#         cases.append(l)
-
-#     bad_case_names = []
-#     for case in cases:
-#         if case not in atb_cases:
-#             bad_case_names.append(case)
-#     if bad_case_names:
-#         bad_names = list(set(bad_case_names))
-#         raise KeyError(
-#             f"There is an error with the ATB tech scenario key in your settings file."
-#             f" You are using ATB data from {atb_year}, which has cost cases of:\n\n "
-#             f"{atb_cases}\n\n"
-#             "Under either 'atb_new_gen' or 'modified_atb_new_gen' you have cost cases "
-#             f"of:\n\n{bad_names}\n\n "
-#             "Try searching your settings file for these "
-#             "values and replacing them with valid cost cases for your ATB year."
-#         )
 
 
 # def check_settings(settings: dict, pg_engine: sa.engine) -> None:
@@ -509,73 +222,6 @@ def findkeys(node: Union[dict, list], kv: str):
 #             "'interest_compound_method', using values `discrete` or `continuous`.\n"
 #             "This message will be removed after version 0.7.0."
 #         )
-
-
-# def init_pudl_connection(
-#     freq: str = "AS",
-#     start_year: int = None,
-#     end_year: int = None,
-#     pudl_db: str = None,
-#     pg_db: str = None,
-# ) -> Tuple[sa.engine.base.Engine, pudl.output.pudltabl.PudlTabl]:
-#     """Initiate a connection object to the sqlite PUDL database and create a pudl
-#     object that can quickly access parts of the database.
-
-#     Parameters
-#     ----------
-#     freq : str, optional
-#         The time frequency that data should be averaged over in the `pudl_out` object,
-#         by default "YS" (annual data).
-
-#     Returns
-#     -------
-#     sa.Engine, pudl.pudltabl
-#         A sqlalchemy engine for connecting to the PUDL database, and a pudl PudlTabl
-#         object for quickly accessing parts of the database. `pudl_out` is used
-#         to access unit heat rates.
-#     """
-#     from powergenome.params import SETTINGS
-
-#     if not pudl_db:
-#         pudl_db = SETTINGS["PUDL_DB"]
-#     if not pg_db:
-#         if SETTINGS.get("PG_DB"):
-#             pg_db = SETTINGS["PG_DB"]
-#         else:
-#             logger.warning(
-#                 "No path to a `PG_DB` database was provided or found in the .env file. Using "
-#                 "the `PUDL_DB` path instead."
-#             )
-#             pg_db = SETTINGS["PUDL_DB"]
-#     pudl_engine = sa.create_engine(pudl_db)
-#     if start_year is not None:
-#         start_year = pd.to_datetime(start_year, format="%Y")
-#     if end_year is not None:
-#         end_year = pd.to_datetime(end_year, format="%Y")
-#     """
-#     pudl_out = pudl.output.pudltabl.PudlTabl(
-#         freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year
-#         #freq=freq, pudl_engine=pudl_engine, start_date=start_year, end_date=end_year, ds=""
-#     )
-#     """
-#     pudl_out = pudl.output.pudltabl.PudlTabl(
-#         freq=freq,
-#         pudl_engine=pudl_engine,
-#         start_date=start_year,
-#         end_date=end_year,
-#         ds=pudl.workspace.datastore.Datastore(),
-#     )
-#     pg_engine = sa.create_engine(pg_db)
-#     # if SETTINGS.get("PG_DB"):
-#     #     pg_engine = sa.create_engine(SETTINGS["PG_DB"])
-#     # else:
-#     #     logger.warning(
-#     #         "No path to a `PG_DB` database was found in the .env file. Using the "
-#     #         "`PUDL_DB` path instead."
-#     #     )
-#     #     pg_engine = sa.create_engine(SETTINGS["PUDL_DB"])
-
-#     return pudl_engine, pudl_out, pg_engine
 
 
 def reverse_dict_of_lists(d: Dict[str, list]) -> Dict[str, List[str]]:
@@ -890,248 +536,6 @@ def make_iterable(item: Union[int, str, Iterable]) -> Iterable:
     return i
 
 
-def assign_model_planning_years(_settings: dict, year: int) -> dict:
-    """Make sure "model_year" and "model_first_planning_year" appear as scalars.
-
-    These can originally be set in any of these forms, in either the default
-    settings or in the settings_management dictionary:
-
-    model_year: 2040 and model_first_planning_year: 2031
-    model_year: [2040, 2050] and model_first_planning_year: [2031, 2041]
-    model_periods: (2031, 2040)
-    model_periods: [(2031, 2040), (2041, 2050)]
-
-    This function looks up the right values for the current year and assigns
-    them as scalars (the first form above).
-
-    Parameters
-    ----------
-    _settings : dict
-        Model settings dictionary. Must have either "model_periods", "model_year"
-        AND "model_first_planning_year", or "model_first_planning_year" as keys.
-    year : int
-        Model year.
-
-    Returns
-    -------
-    dict
-        Modified settings with scaler versions of "model_year" and "model_first_planning_year".
-
-    Raises
-    ------
-    ValueError
-        model_periods is not a series of tuples
-    ValueError
-        model_periods tuples are not all length 2
-    ValueError
-        model_year and model_first_planning_year must all be integer
-    KeyError
-        None of the required keys found
-    ValueError
-        The model year from scenario definitions is not in the settings
-    """
-    if "model_periods" in _settings:
-        model_periods = make_iterable(_settings["model_periods"])
-        if not all([isinstance(t, tuple) for t in model_periods]):
-            raise ValueError(
-                "The settings parameter 'model_periods' must be a list of tuples. It is "
-                f"currently {_settings['model_periods']}"
-            )
-        if not all(len(t) == 2 for t in model_periods):
-            raise ValueError(
-                "The tuples in settings parameter 'model_periods' must all be 2 years. "
-                f"The values found are {_settings['model_periods']}"
-            )
-        model_planning_period_dict = {
-            year: (start_year, year)
-            for (start_year, year) in make_iterable(_settings["model_periods"])
-        }
-    elif "model_year" in _settings and "model_first_planning_year" in _settings:
-        model_year = make_iterable(_settings["model_year"])
-        first_planning_year = make_iterable(_settings["model_first_planning_year"])
-        if not all(isinstance(y, int) for y in model_year) and all(
-            isinstance(y, int) for y in first_planning_year
-        ):
-            raise ValueError(
-                "Both 'model_year' and 'model_first_planning_year' parameters must be "
-                f"integers or lists of integers. The values found are {model_periods} and "
-                f"{first_planning_year}."
-            )
-        model_planning_period_dict = {
-            year: (start_year, year)
-            for year, start_year in zip(
-                make_iterable(_settings["model_year"]),
-                make_iterable(_settings["model_first_planning_year"]),
-            )
-        }
-    elif "model_first_planning_year" in _settings:
-        # we also allow leaving out the model_year tag and just specifying
-        # model_first_planning_year
-        model_planning_period_dict = {
-            year: (
-                _settings["model_first_planning_year"],
-                _settings["model_first_planning_year"],
-            )
-        }
-    else:
-        raise KeyError(
-            "To build a dictionary of scenario settings your settings file should include "
-            "either the key 'model_periods' (a list of 2-element lists) or the keys "
-            "'model_year' and 'model_first_planning_year' (each a list of years)."
-        )
-
-    # remove any model period data already there
-    for key in ["model_periods", "model_year", "model_first_planning_year"]:
-        try:
-            del _settings[key]
-        except KeyError:
-            pass
-
-    if year not in model_planning_period_dict:
-        raise ValueError(
-            f"The year {year} is in your scenario definition file for case {_settings.get('case_id')} "
-            "but was not found in the 'model_year' or 'model_periods' settings parameters. "
-            "Either it is missing in the main settings file or was removed in the "
-            "'settings_management' section."
-        )
-    # assign the scalar values
-    _settings["model_first_planning_year"] = model_planning_period_dict[year][0]
-    _settings["model_year"] = model_planning_period_dict[year][1]
-
-    return _settings
-
-
-def build_scenario_settings(
-    settings: dict, scenario_definitions: pd.DataFrame
-) -> Dict[int, Dict[Union[int, str], dict]]:
-    """Build a nested dictionary of settings for each planning year/scenario
-
-    Parameters
-    ----------
-    settings : dict
-        The full settings file, including the "settings_management" section with
-        alternate values for each scenario
-    scenario_definitions : pd.DataFrame
-        Values from the csv file defined in the settings file "scenario_definitions_fn"
-        parameter. This df has columns corresponding to categories in the
-        "settings_management" section of the settings file, with row values defining
-        specific case/scenario names.
-
-    Returns
-    -------
-    dict
-        A nested dictionary. The first set of keys are the planning years, the second
-        set of keys are the case ID values associated with each case.
-    """
-
-    # don't allow duplicate rows in the scenario definitions table, since they
-    # could give unexpected results
-    dups = scenario_definitions[["case_id", "year"]].duplicated()
-    if dups.sum() > 0:
-        raise ValueError(
-            "The following cases and years are repeated in your scenario definitions file:\n\n"
-            + scenario_definitions[dups].to_string(index=False)
-        )
-
-    all_category_levels = set()
-    active_category_levels = set()
-    scenario_settings = {}
-    missing_flag = object()
-    case_period = {c: 1 for c in scenario_definitions["case_id"].unique()}
-    for i, scenario_row in scenario_definitions.iterrows():
-        year, case_id = scenario_row[["year", "case_id"]]
-
-        _settings = deepcopy(settings)
-        _settings["case_id"] = case_id
-        _settings["case_period"] = case_period[case_id]
-        case_period[case_id] += 1
-
-        # first apply any settings under "all_years", then any settings for this year
-        for settings_year in ["all_years", year]:
-
-            planning_year_settings_management = (
-                settings.get("settings_management", {}).get(settings_year) or {}
-            )
-
-            # update settings from all_cases entry if available (these settings
-            # are applied to all cases for this year, and don't use the category
-            # names or levels from the scenario definitions table)
-            if "all_cases" in planning_year_settings_management:
-                new_parameter = planning_year_settings_management["all_cases"]
-                _settings = update_dictionary(_settings, new_parameter)
-
-            modified_settings = {}
-            for category, level in scenario_row.drop(["case_id", "year"]).items():
-                # category is a column from the scenario definitions table, e.g. ccs_capex
-                # level is the selection for this category for this case/year, e.g., "mid" or "none"
-
-                new_parameter = planning_year_settings_management.get(category, {}).get(
-                    level, missing_flag
-                )
-
-                # Remember category/levels that were selected and that actually
-                # had an effect.
-                all_category_levels.add((case_id, year, category, level))
-                if new_parameter is not missing_flag:
-                    # note: user could set None or {} as the setting, to indicate
-                    # this flag should use the default settings as-is
-                    active_category_levels.add((case_id, year, category, level))
-                if new_parameter in [missing_flag, None, {}]:
-                    continue
-
-                _settings = update_dictionary(_settings, new_parameter)
-
-                # report any conflicts between these settings and previous ones
-                for key in flatten(new_parameter).keys():
-                    if key in modified_settings:
-                        raise ValueError(
-                            f"The setting {key} is modified by both the "
-                            f"`{modified_settings[key]}` flag and the "
-                            f"`{category}={level}` flag in the scenario "
-                            f"definition for case {case_id}, {year}."
-                        )
-                    else:
-                        # remember this setting for later
-                        modified_settings[key] = f"{category}={level}"
-
-        # make sure model year data appears in standard form
-        assign_model_planning_years(_settings, year)
-
-        scenario_settings.setdefault(year, {})[case_id] = _settings
-        if _settings.get("generator_columns"):
-            _settings["generator_columns"] = add_model_tags_to_gen_columns(
-                model_tag_values=_settings.get("model_tag_values", {}),
-                regional_tag_values=_settings.get("regional_tag_values", {}),
-                generator_columns=_settings["generator_columns"],
-            )
-
-    # Report any settings in the scenario definitions that had no effect. Values
-    # can be changed via either the "all_years" key or a specific year, so we
-    # have to wait till the end to decide which tags had no effect.
-    missing_category_levels = all_category_levels - active_category_levels
-    if missing_category_levels:
-        missing = (
-            pd.DataFrame(
-                missing_category_levels,
-                columns=["case_id", "year", "category", "level"],
-            )
-            .pivot(index=["case_id", "year"], columns="category", values="level")
-            .fillna("")
-            .reset_index()
-        )
-        logger.warning(
-            "The following parameter value(s) in your scenario definitions file "
-            "are not included in the 'settings_management' dictionary for the "
-            "specified year(s). Settings will not be modified to reflect these "
-            "entries:\n\n"
-            + missing.to_string(index=False)
-            + "\n\nYou can place empty entries (~) for these in the "
-            "settings_management dictionary to avoid this message.\n"
-        )
-
-    return scenario_settings
-
-
 def remove_feb_29(df: pd.DataFrame) -> pd.DataFrame:
     """Remove Feb 29 from a wide format leap-year dataseries
 
@@ -1443,29 +847,81 @@ def prepend_db_to_tables(
     return query
 
 
-def extract_where_clause(sql: str) -> Optional[str]:
+def build_where_clause_from_filters(
+    filters: List[List[Tuple[str, str, Any]]],
+) -> Optional[str]:
     """
-    Extract the WHERE clause (including the keyword) from a SQL query string.
-    If no WHERE is present, returns None.
+    Build a SQL WHERE clause from a list of filters in DNF.
 
-    This will stop at the next major clause (GROUP BY, HAVING, ORDER BY, LIMIT) or at the end.
+    Accepts:
+    - Single condition: [col, op, val] or (col, op, val)
+    - Single conjunction: [[col, op, val], ...] or [(col, op, val), ...]
+    - Full DNF: [[(...), (...)] , [(...)]]
+
+    Parameters
+    ----------
+    filters : List[List[Tuple[str, str, Any]]]
+        The filters in disjunctive normal form (DNF).
+        e.g., [[('col1', '=', 'val1'), ('col2', '>', 5)], [('col3', '!=', 'val3')]]
+        translates to "WHERE (col1 = 'val1' AND col2 > 5) OR (col3 != 'val3')"
+
+    Returns
+    -------
+    str
+        The SQL WHERE clause string or None if no filters are provided.
     """
-    # Regex breakdown:
-    #   (?i)\bwhere\b      → case-insensitive match of the word WHERE
-    #   (.*?)              → non-greedy capture of any characters (including newlines)
-    #   (?=\b(group by|having|order by|limit)\b|$)
-    #                      → up to but not including the next clause keyword or end of string
-    pattern = re.compile(
-        r"(?i)\bwhere\b(.*?)(?=\b(group by|having|order by|limit)\b|$)", re.DOTALL
-    )
-    m = pattern.search(sql)
-    if not m:
+    if not filters:
         return None
-    # m.group(0) includes the WHERE keyword plus everything up to the next clause
-    return m.group(0).strip()
+
+    # Normalize common shapes into DNF with tuples
+    # 1) Single condition: [col, op, val] or (col, op, val)
+    if (
+        isinstance(filters, (list, tuple))
+        and len(filters) == 3
+        and all(not isinstance(x, (list, tuple)) for x in filters)
+    ):
+        filters = [[tuple(filters)]]
+    # 2) Single conjunction: [[col, op, val], ...] or [(col, op, val), ...]
+    elif (
+        isinstance(filters, (list, tuple))
+        and filters
+        and all(
+            isinstance(c, (list, tuple))
+            and len(c) == 3
+            and all(not isinstance(x, (list, tuple)) for x in c)
+            for c in filters
+        )
+    ):
+        filters = [[tuple(c) if isinstance(c, list) else c for c in filters]]
+    # 3) Full DNF: normalize inner lists to tuples
+    else:
+        filters = [
+            [tuple(c) if isinstance(c, list) else c for c in conjunction]
+            for conjunction in filters
+        ]
+
+    def format_value(value):
+        if isinstance(value, str):
+            return f"'{value}'"
+        if isinstance(value, (list, tuple)):
+            return f"({', '.join(format_value(v) for v in value)})"
+        return str(value)
+
+    conjunctions = []
+    for conjunction in filters:
+        disjunctions = []
+        for col, op, val in conjunction:
+            disjunctions.append(f"{col} {op} {format_value(val)}")
+        conjunctions.append(f"({' AND '.join(disjunctions)})")
+
+    return "WHERE " + " OR ".join(conjunctions)
 
 
-def load_data_file(file_path: Union[Path, str], query: str = None) -> pd.DataFrame:
+def load_data_file(
+    file_path: Union[Path, str],
+    filters: List[List[Tuple[str, str, Any]]] = None,
+    columns: List[str] = None,
+) -> pd.DataFrame:
     """
     Load data from a CSV or Parquet file using duckdb.
 
@@ -1473,9 +929,10 @@ def load_data_file(file_path: Union[Path, str], query: str = None) -> pd.DataFra
     ----------
     file_path : Union[Path, str]
         The path to the CSV or Parquet file.
-    query : str, optional
-        The SQL query to run on the loaded data. If provided, the query will be executed
-        instead of loading the entire file.
+    filters : List[List[Tuple[str, str, Any]]], optional
+        The filters to apply to the data.
+    columns : List[str], optional
+        A list of column names to load. If None, all columns are loaded.
 
     Returns
     -------
@@ -1499,13 +956,9 @@ def load_data_file(file_path: Union[Path, str], query: str = None) -> pd.DataFra
         ".parquet": "read_parquet",
     }
 
-    if query:
-        where = extract_where_clause(query)
-        # If a query is provided, use it directly
-        _query = f"SELECT * FROM {read_type[file_extension]}('{file_path}') {where if where else ''}"
-    else:
-        # If no query is provided, default to reading the entire file
-        _query = f"SELECT * FROM {read_type[file_extension]}('{file_path}')"
+    select_cols = ", ".join(columns) if columns else "*"
+    where = build_where_clause_from_filters(filters)
+    _query = f"SELECT {select_cols} FROM {read_type[file_extension]}('{file_path}') {where if where else ''}"
 
     data = con.execute(_query).fetchdf()
 
@@ -1514,7 +967,10 @@ def load_data_file(file_path: Union[Path, str], query: str = None) -> pd.DataFra
 
 
 def load_table_from_db(
-    data_location: Union[Path, str], file_or_table_name: str = None, query: str = None
+    data_location: Union[Path, str],
+    file_or_table_name: str = None,
+    filters: List[List[Tuple[str, str, Any]]] = None,
+    columns: List[str] = None,
 ) -> pd.DataFrame:
     """
     Load data from a SQLite or DuckDB database using duckdb.
@@ -1525,8 +981,10 @@ def load_table_from_db(
         The path to the SQLite or DuckDB database.
     file_or_table_name : str, optional
         The name of the table to load.
-    query : str, optional
-        The SQL query to run. If provided, the query will be executed instead of selecting from a single table.
+    filters : List[List[Tuple[str, str, Any]]], optional
+        The filters to apply to the data.
+    columns : List[str], optional
+        A list of column names to load. If None, all columns are loaded.
 
     Returns
     -------
@@ -1540,26 +998,19 @@ def load_table_from_db(
     """
     # Create a duckdb connection
     con = duckdb.connect(database=":memory:")
+    where = build_where_clause_from_filters(filters)
+    select_cols = ", ".join(columns) if columns else "*"
 
     if str(data_location).endswith(".db") or str(data_location).endswith(".sqlite"):
         con.execute(f"ATTACH '{data_location}' AS db")
-        if query:
-            table_names = get_all_table_names(data_location)
-            query = prepend_db_to_tables(query, table_names)
-            data = con.execute(query).fetchdf()
-        else:
-            query = f"SELECT * FROM db.{file_or_table_name}"
-            data = con.execute(query).fetchdf()
+        query = f"SELECT {select_cols} FROM db.{file_or_table_name} {where if where else ''}"
+        data = con.execute(query).fetchdf()
     elif str(data_location).endswith(".duckdb"):
         con = duckdb.connect(database=str(data_location))
-        if query:
-            if file_or_table_name is not None and "SELECT" not in query.upper():
-                query = f"SELECT * FROM {file_or_table_name} {query}"
-
-            data = con.execute(query).fetchdf()
-        else:
-            query = f"SELECT * FROM {file_or_table_name}"
-            data = con.execute(query).fetchdf()
+        query = (
+            f"SELECT {select_cols} FROM {file_or_table_name} {where if where else ''}"
+        )
+        data = con.execute(query).fetchdf()
     else:
         con.close()
         raise ValueError(
@@ -1571,7 +1022,10 @@ def load_table_from_db(
 
 
 def load_data(
-    data_location: Union[Path, str], file_or_table_name: str = None, query: str = None
+    data_location: Union[Path, str],
+    file_or_table_name: str = None,
+    filters: List[List[Tuple[str, str, Any]]] = None,
+    columns: List[str] = None,
 ) -> pd.DataFrame:
     """
     Load data from a database or folder of tabular files using duckdb.
@@ -1582,8 +1036,10 @@ def load_data(
         The folder containing CSV or Parquet files, or the name of the SQLite or DuckDB database.
     file_or_table_name : str, optional
         The name of the file (with extension .csv or .parquet) or table to load.
-    query : str, optional
-        The SQL query to run if data_location is a database.
+    filters : List[List[Tuple[str, str, Any]]], optional
+        The filters to apply to the data.
+    columns : List[str], optional
+        A list of column names to load. If None, all columns are loaded.
 
     Returns
     -------
@@ -1593,32 +1049,27 @@ def load_data(
     Raises
     ------
     ValueError
-        If neither file_or_table_name nor query is provided.
+        If file_or_table_name is not provided.
         If file_or_table_name has an extension and data_location is a database.
         If the specified file is not found in the folder.
         If an unsupported database type is used.
     """
     data_location = Path(data_location)
     # Validate inputs
-    if not query and not file_or_table_name:
-        raise ValueError("Either file_or_table_name or query must be provided.")
+    if not file_or_table_name:
+        raise ValueError("file_or_table_name must be provided.")
 
     # Check if data_location is a folder
     if data_location.is_dir():
-        if file_or_table_name:
-            file_path = data_location / file_or_table_name
-            if not file_path.is_file():
-                raise ValueError(
-                    f"File '{file_or_table_name}' not found in folder '{data_location}'."
-                )
-            return load_data_file(file_path, query)
-        else:
+        file_path = data_location / file_or_table_name
+        if not file_path.is_file():
             raise ValueError(
-                "file_or_table_name must be provided for loading data from a folder."
+                f"File '{file_or_table_name}' not found in folder '{data_location}'."
             )
+        return load_data_file(file_path, filters, columns)
     else:
         if file_or_table_name and os.path.splitext(file_or_table_name)[1].lower():
             raise ValueError(
                 "file_or_table_name should not have an extension when data_location is a database."
             )
-        return load_table_from_db(data_location, file_or_table_name, query)
+        return load_table_from_db(data_location, file_or_table_name, filters, columns)

@@ -9,18 +9,18 @@ import pandas as pd
 import pytest
 
 import powergenome
-from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
+from powergenome.database import initialize_data_manager
 from powergenome.fuels import (
     add_carbon_tax,
     add_user_fuel_prices,
     adjust_ccs_fuels,
+    fetch_fuel_prices,
     fuel_cost_table,
+    modify_fuel_prices,
 )
 from powergenome.generators import GeneratorClusters
 from powergenome.params import DATA_PATHS
-from powergenome.util import load_settings
-
-# from powergenome.util import init_pudl_connection
+from powergenome.settings import Settings
 
 logger = logging.getLogger(powergenome.__name__)
 logger.setLevel(logging.INFO)
@@ -34,22 +34,10 @@ formatter = logging.Formatter(
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-if os.name == "nt":
-    # if user is using a windows system
-    sql_prefix = "sqlite:///"
-else:
-    sql_prefix = "sqlite:////"
-# pudl_engine, pudl_out, pg_engine = init_pudl_connection(
-#     start_year=2018,
-#     end_year=2020,
-#     pudl_db=sql_prefix + str(DATA_PATHS["test_data"] / "pudl_test_data.db"),
-#     pg_db=sql_prefix + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3"),
-# )
-
 
 @pytest.fixture()
 def fuel_settings():
-    settings = load_settings("tests/test_system/settings")
+    settings = Settings(config_path="tests/test_system/settings")
     settings["RESOURCE_GROUPS"] = "tests/test_system/test_data/resource_groups"
     settings["data_location"] = "tests/test_system/test_data"
     settings_modifications = {
@@ -87,19 +75,9 @@ def fuel_settings():
             "Zero Carbon": ["ZCF"],
         },
         "new_resources": [
-            # ["Biopower", "Dedicated", "Moderate", 100],
             ["NaturalGas", "Combustion Turbine (F-Frame)", "Moderate", 100],
             ["NaturalGas", "2-on-1 Combined Cycle (F-Frame) 97% CCS", "Moderate", 100],
         ],
-        # "atb_data_year": 2020,
-        # "atb_cap_recovery_years": 20,
-        # "fuel_eia_aeo_year": 2021,
-        # "aeo_fuel_usd_year": 2021,
-        # "eia_series_scenario_names": {"reference": "REF2021"},
-        # "aeo_fuel_region_map": {"south_atlantic": ["S_VACA", "PJM_Dom"]},
-        # "eia_series_region_names": {"south_atlantic": "SOATL"},
-        # "eia_series_fuel_names": {"naturalgas": "NG"},
-        # "fuel_scenarios": {"naturalgas": "reference"},
         "user_fuel_price": {
             "zerocarbonfuel1": 14,
             "zerocarbonfuel2": 10,
@@ -152,6 +130,12 @@ def fuel_settings():
     }
     settings.update(settings_modifications)
     settings["tech_fuel_map"].update(updated_tech_fuel_map)
+
+    # Initialize DataManager with the test settings
+    # Note: The DataManager is a singleton, so this will either initialize it
+    # or reinitialize it with new settings
+    initialize_data_manager(settings, settings["data_location"])
+
     return settings
 
 
@@ -166,10 +150,6 @@ def test_fuel_labels_and_prices(fuel_settings):
         assert fuel in df_base["full_fuel_name"].unique()
 
     gc = GeneratorClusters(
-        data_location=fuel_settings["data_location"],
-        generation_table=fuel_settings["generation_table"],
-        resource_heat_rate_table=fuel_settings["resource_heat_rate_table"],
-        resource_cost_table=fuel_settings["resource_cost_table"],
         settings=fuel_settings,
     )
     gens = gc.create_new_generators()
@@ -188,8 +168,6 @@ def test_fetch_fuel_price_no_mappings(fuel_settings):
     scenario_names = fuel_settings.pop("fuel_series_scenario_names")
 
     fetch_fuel_prices(
-        data_location=fuel_settings["data_location"],
-        table_name=fuel_settings["fuel_price_table"],
         settings=fuel_settings,
     )
 
@@ -206,128 +184,156 @@ def test_fetch_fuel_price_errors(fuel_settings):
     fuel_settings["fuel_data_year"] = 2000
     with pytest.raises(KeyError):
         fetch_fuel_prices(
-            data_location=fuel_settings["data_location"],
-            table_name=fuel_settings["fuel_price_table"],
             settings=fuel_settings,
         )
 
 
-# def test_regional_fuel_price_mod(fuel_settings):
-#     fuel_prices = fetch_fuel_prices(fuel_settings)
-#     mod_fuel_prices = modify_fuel_prices(
-#         fuel_prices,
-#         fuel_settings["aeo_fuel_region_map"],
-#         fuel_settings.get("regional_fuel_adjustments"),
-#     )
-#     assert np.allclose(fuel_prices["price"].values, mod_fuel_prices["price"].values)
+class TestRegionalFuelPriceMod:
+    def test_no_modifications(self, fuel_settings):
+        """Test that fuel prices remain unchanged when no adjustments are specified."""
+        fuel_prices = fetch_fuel_prices(fuel_settings)
+        mod_fuel_prices = modify_fuel_prices(
+            fuel_prices,
+            fuel_settings["fuel_region_map"],
+            fuel_settings.get("regional_fuel_adjustments"),
+        )
+        assert np.allclose(fuel_prices["price"].values, mod_fuel_prices["price"].values)
 
-#     fuel_settings["regional_fuel_adjustments"] = {
-#         "S_VACA": ["mul", 2],
-#         "PJM_Dom": {"naturalgas": ["add", 1]},
-#     }
+    def test_valid_modifications(self, fuel_settings):
+        """Test that fuel price modifications work correctly for multiplication and addition."""
+        fuel_prices = fetch_fuel_prices(fuel_settings)
 
-#     mod_fuel_prices = modify_fuel_prices(
-#         fuel_prices,
-#         fuel_settings["aeo_fuel_region_map"],
-#         fuel_settings.get("regional_fuel_adjustments"),
-#     )
-#     assert np.isclose(
-#         fuel_prices.query("region == 'south_atlantic'")["price"].mean(),
-#         mod_fuel_prices.query("region == 'S_VACA'")["price"].mean() / 2,
-#     )
+        fuel_settings["regional_fuel_adjustments"] = {
+            "p1_2": ["mul", 2],
+            "p3": {"naturalgas": ["add", 1]},
+        }
 
-#     assert np.isclose(
-#         fuel_prices.query("region == 'south_atlantic' and fuel == 'naturalgas'")[
-#             "price"
-#         ].mean(),
-#         mod_fuel_prices.query("region == 'PJM_Dom' and fuel == 'naturalgas'")[
-#             "price"
-#         ].mean()
-#         - 1,
-#     )
+        mod_fuel_prices = modify_fuel_prices(
+            fuel_prices,
+            fuel_settings["fuel_region_map"],
+            fuel_settings.get("regional_fuel_adjustments"),
+        )
 
-#     fuel_settings["regional_fuel_adjustments"] = {
-#         "S_VACA": ["mul", 2],
-#         "PJM_Dom": {"coal": ["add", 1]},
-#     }
-#     with pytest.raises(KeyError):
-#         modify_fuel_prices(
-#             fuel_prices,
-#             fuel_settings["aeo_fuel_region_map"],
-#             fuel_settings.get("regional_fuel_adjustments"),
-#         )
+        assert np.isclose(
+            fuel_prices.query("region == 'pacific'")["price"].mean(),
+            mod_fuel_prices.query("region == 'p1_2'")["price"].mean() / 2,
+        )
 
-#     fuel_settings["regional_fuel_adjustments"] = {
-#         "S_VACA": ["mul", 2],
-#         "PJM_Dom": {"coal": 1},
-#     }
-#     with pytest.raises(KeyError):
-#         modify_fuel_prices(
-#             fuel_prices,
-#             fuel_settings["aeo_fuel_region_map"],
-#             fuel_settings.get("regional_fuel_adjustments"),
-#         )
-#     fuel_settings["regional_fuel_adjustments"] = {
-#         "S_VACA": 1,
-#         "PJM_Dom": {"coal": 1},
-#     }
-#     with pytest.raises(TypeError):
-#         modify_fuel_prices(
-#             fuel_prices,
-#             fuel_settings["aeo_fuel_region_map"],
-#             fuel_settings.get("regional_fuel_adjustments"),
-#         )
+        assert np.isclose(
+            fuel_prices.query("region == 'pacific' and fuel == 'naturalgas'")[
+                "price"
+            ].mean(),
+            mod_fuel_prices.query("region == 'p3' and fuel == 'naturalgas'")[
+                "price"
+            ].mean()
+            - 1,
+        )
 
-#     fuel_settings["regional_fuel_adjustments"] = {
-#         "S_VACA": ["mul", 2],
-#         "PJM_Dom": {"naturalgas": ["add", 1]},
-#     }
-#     with pytest.raises(KeyError):
-#         modify_fuel_prices(
-#             fuel_prices,
-#             None,
-#             fuel_settings.get("regional_fuel_adjustments"),
-#         )
+    def test_invalid_operation_type(self, fuel_settings):
+        """Test that invalid operation type raises KeyError."""
+        fuel_prices = fetch_fuel_prices(fuel_settings)
 
-#     fuel_settings["regional_fuel_adjustments"] = {
-#         "S_VACA": ["mul", 2],
-#         "PJM_Dom": {"naturalga": ["add", 1]},
-#     }
-#     with pytest.raises(KeyError):
-#         modify_fuel_prices(
-#             fuel_prices,
-#             fuel_settings["aeo_fuel_region_map"],
-#             fuel_settings.get("regional_fuel_adjustments"),
-#         )
+        fuel_settings["regional_fuel_adjustments"] = {
+            "p3": {"coal": ["ad", 1]},  # Invalid operation "ad"
+        }
 
-#     fuel_settings["regional_fuel_adjustments"] = {
-#         "S_VACA": ["mul", 2],
-#         "PJM_Dom": {"naturalgas": ["ad", 1]},
-#     }
-#     with pytest.raises(KeyError):
-#         modify_fuel_prices(
-#             fuel_prices,
-#             fuel_settings["aeo_fuel_region_map"],
-#             fuel_settings.get("regional_fuel_adjustments"),
-#         )
+        with pytest.raises(KeyError):
+            modify_fuel_prices(
+                fuel_prices,
+                fuel_settings["fuel_region_map"],
+                fuel_settings.get("regional_fuel_adjustments"),
+            )
 
+        fuel_settings["regional_fuel_adjustments"] = {
+            "p1_2": ["div", 2],  # Invalid operation "div"
+        }
 
-def test_regional_mod_fuel_labels(fuel_settings):
-    fuel_settings["regional_fuel_adjustments"] = {
-        "p1_2": ["mul", 2],
-        "p3": {"naturalgas": ["add", 1]},
-    }
-    fuel_settings["target_usd_year"] = 2020
-    gc = GeneratorClusters(
-        data_location=fuel_settings["data_location"],
-        generation_table=fuel_settings["generation_table"],
-        resource_heat_rate_table=fuel_settings["resource_heat_rate_table"],
-        resource_cost_table=fuel_settings["resource_cost_table"],
-        settings=fuel_settings,
-    )
-    gens = gc.create_new_generators()
-    assert "p1_2_reference_naturalgas" in gens.Fuel.values
-    assert "p3_reference_naturalgas" in gens.Fuel.values
+        with pytest.raises(KeyError):
+            modify_fuel_prices(
+                fuel_prices,
+                fuel_settings["fuel_region_map"],
+                fuel_settings.get("regional_fuel_adjustments"),
+            )
+
+    def test_invalid_data_type(self, fuel_settings):
+        """Test that invalid data type raises TypeError."""
+        fuel_prices = fetch_fuel_prices(fuel_settings)
+
+        fuel_settings["regional_fuel_adjustments"] = {
+            "p1_2": 1,  # Should be a list, not an integer
+            "p3": {"coal": 1},
+        }
+
+        with pytest.raises(TypeError):
+            modify_fuel_prices(
+                fuel_prices,
+                fuel_settings["fuel_region_map"],
+                fuel_settings.get("regional_fuel_adjustments"),
+            )
+
+    def test_missing_fuel_region_map(self, fuel_settings):
+        """Test that missing fuel_region_map raises KeyError."""
+        fuel_prices = fetch_fuel_prices(fuel_settings)
+
+        fuel_settings["regional_fuel_adjustments"] = {
+            "p1_2": ["mul", 2],
+            "p3": {"naturalgas": ["add", 1]},
+        }
+
+        with pytest.raises(KeyError):
+            modify_fuel_prices(
+                fuel_prices,
+                None,
+                fuel_settings.get("regional_fuel_adjustments"),
+            )
+
+    def test_invalid_fuel_name(self, fuel_settings):
+        """Test that invalid fuel name raises KeyError."""
+        fuel_prices = fetch_fuel_prices(fuel_settings)
+
+        fuel_settings["regional_fuel_adjustments"] = {
+            "p1_2": ["mul", 2],
+            "p3": {"naturalga": ["add", 1]},  # Typo in fuel name
+        }
+
+        with pytest.raises(KeyError):
+            modify_fuel_prices(
+                fuel_prices,
+                fuel_settings["fuel_region_map"],
+                fuel_settings.get("regional_fuel_adjustments"),
+            )
+
+    def test_invalid_region_in_adjustments(self, fuel_settings):
+        """Test that invalid region in regional_fuel_adjustments raises KeyError."""
+        fuel_prices = fetch_fuel_prices(fuel_settings)
+
+        fuel_settings["regional_fuel_adjustments"] = {
+            "invalid_region": ["mul", 2],  # Region not in fuel_region_map
+            "p3": {"naturalgas": ["add", 1]},
+        }
+
+        with pytest.raises(KeyError):
+            modify_fuel_prices(
+                fuel_prices,
+                fuel_settings["fuel_region_map"],
+                fuel_settings.get("regional_fuel_adjustments"),
+            )
+
+    def test_invalid_operator_in_fuel_specific_adjustment(self, fuel_settings):
+        """Test that invalid operator in fuel-specific adjustment raises KeyError."""
+        fuel_prices = fetch_fuel_prices(fuel_settings)
+
+        fuel_settings["regional_fuel_adjustments"] = {
+            "p1_2": ["mul", 2],
+            "p3": {"naturalgas": ["invalid_op", 1]},  # Invalid operator
+        }
+
+        with pytest.raises(KeyError):
+            modify_fuel_prices(
+                fuel_prices,
+                fuel_settings["fuel_region_map"],
+                fuel_settings.get("regional_fuel_adjustments"),
+            )
 
 
 class TestAddCarbonTax:
@@ -631,6 +637,14 @@ class TestFuelCostTable:
 
         assert isinstance(result, pd.DataFrame)
         assert result.shape[0] == 8761
+        assert result.shape[1] == 3
+        assert result.columns.tolist() == [
+            "US_coal",
+            "US_naturalgas",
+            "hydrogen",
+        ]
+        assert np.allclose(result.iloc[0].tolist(), [2.5, 1.8, 0])
+        assert "The user fuel" in caplog.text
         assert result.shape[1] == 3
         assert result.columns.tolist() == [
             "US_coal",

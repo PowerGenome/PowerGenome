@@ -8,6 +8,8 @@ from numbers import Number
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple, Union
 
+from powergenome.settings import auto_fill_settings
+
 os.environ["USE_PYGEOS"] = "0"
 
 import numpy as np
@@ -17,13 +19,14 @@ from scipy.stats import iqr
 from sklearn import cluster, preprocessing
 
 from powergenome.co2_pipeline_cost import merge_co2_pipeline_costs
-from powergenome.eia_opendata import fetch_fuel_prices, modify_fuel_prices
+from powergenome.database import get_data
 from powergenome.external_data import (
     add_resource_max_cap_spur,
     demand_response_resource_capacity,
     make_demand_response_profiles,
 )
 from powergenome.financials import investment_cost_calculator
+from powergenome.fuels import fetch_fuel_prices, modify_fuel_prices
 from powergenome.GenX import (
     add_co2_costs_to_o_m,
     add_misc_gen_values,
@@ -36,7 +39,7 @@ from powergenome.GenX import (
 )
 from powergenome.load_profiles import make_distributed_gen_profiles
 from powergenome.nrelatb import (
-    atb_new_generators,
+    build_new_resources,
     fetch_heat_rates,
     fetch_resource_costs,
 )
@@ -45,7 +48,6 @@ from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import map_eia_technology
 from powergenome.util import (
     find_region_col,
-    load_data,
     map_agg_region_names,
     regions_to_keep,
     remove_fuel_gen_scenario_name,
@@ -195,11 +197,10 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     Parameters
     ----------
     df : DataFrame
-        All generator clusters. Must have a column "technology". Can include both EIA
-        and NRELATB technology names.
+        All generator clusters. Must have a column "technology".
     settings : dictionary
         User-defined settings loaded from a YAML file. Keys in "startup_fuel_use"
-        must match those in "eia_atb_tech_map".
+        should match technology names directly.
 
     Returns
     -------
@@ -207,20 +208,12 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         Modified dataframe with the new column "Start_Fuel_MMBTU_per_MW".
     """
     df["Start_Fuel_MMBTU_per_MW"] = 0
-    for eia_tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
-        if not isinstance(settings.get("eia_atb_tech_map", {}).get(eia_tech), list):
-            settings["eia_atb_tech_map"][eia_tech] = [
-                settings["eia_atb_tech_map"][eia_tech]
-            ]
-
-        atb_tech = settings["eia_atb_tech_map"][eia_tech]
-        atb_tech.append(eia_tech)
-        for tech in atb_tech:
-            df.loc[df["technology"] == tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
-            df.loc[
-                df["technology"].str.contains(tech, case=False, regex=False),
-                "Start_Fuel_MMBTU_per_MW",
-            ] = fuel_use
+    for tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
+        df.loc[df["technology"] == tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
+        df.loc[
+            df["technology"].str.contains(tech, case=False, regex=False),
+            "Start_Fuel_MMBTU_per_MW",
+        ] = fuel_use
 
     return df
 
@@ -292,6 +285,13 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     for new_tech, cost_tech in settings.get("new_build_startup_costs", {}).items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
         df.loc[df["technology"].str.contains(new_tech), "Start_Cost_per_MW"] = (
+            total_startup_costs
+        )
+    df.loc[:, "Start_Cost_per_MW"] = df.loc[:, "Start_Cost_per_MW"]
+
+    for tech, cost_tech in settings.get("startup_costs", {}).items():
+        total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
+        df.loc[df["technology"].str.contains(tech), "Start_Cost_per_MW"] = (
             total_startup_costs
         )
     df.loc[:, "Start_Cost_per_MW"] = df.loc[:, "Start_Cost_per_MW"]
@@ -2279,27 +2279,8 @@ def add_fuel_labels(df, fuel_prices, settings):
     """
 
     df["Fuel"] = np.nan
-    # This variable is called eia_tech but it can be any tech name or a mapping from
-    # EIA technologies through to other techs via "eia_atb_tech_map"
-    for eia_tech, fuel in (settings.get("tech_fuel_map") or {}).items():
-        try:
-            if eia_tech == "Natural Gas Steam Turbine":
-                # No ATB natural gas steam turbine and I match it with coal for O&M
-                # which would screw this up and list natural gas as a fuel for ATB
-                # coal plants
-                atb_tech = None
-            else:
-                if not isinstance(settings["eia_atb_tech_map"][eia_tech], list):
-                    settings["eia_atb_tech_map"][eia_tech] = [
-                        settings["eia_atb_tech_map"][eia_tech]
-                    ]
-                atb_tech = [
-                    tech.split("_")[0] + "_"
-                    for tech in settings["eia_atb_tech_map"][eia_tech]
-                ]
-        except KeyError:
-            # No corresponding ATB technology
-            atb_tech = None
+    # Direct technology to fuel mapping - no intermediate mapping needed
+    for tech, fuel in (settings.get("tech_fuel_map") or {}).items():
         scenario = settings.get("fuel_scenarios", {}).get(fuel)
         model_year = settings["model_year"]
         if not scenario:
@@ -2313,44 +2294,16 @@ def add_fuel_labels(df, fuel_prices, settings):
                 for region, price in settings["user_fuel_price"][fuel].items():
                     fuel_name = f"{region}_{fuel}"
                     df.loc[
-                        (
-                            df["technology"].str.rstrip("_").str.lower()
-                            == eia_tech.lower()
-                        )
+                        (df["technology"].str.contains(tech, case=False, regex=False))
                         & (df["region"] == region),
                         "Fuel",
                     ] = fuel_name
-
-                    if atb_tech is not None:
-                        for tech in atb_tech:
-                            df.loc[
-                                (
-                                    df["technology"].str.contains(
-                                        tech, case=False, regex=False
-                                    )
-                                )
-                                & (df["region"] == region)
-                                & (df["Fuel"].isna()),
-                                "Fuel",
-                            ] = fuel_name
             else:
                 df.loc[
-                    (df["technology"].str.rstrip("_").str.lower() == eia_tech.lower())
+                    df["technology"].str.contains(tech, case=False, regex=False)
                     & (df["Fuel"].isna()),
                     "Fuel",
                 ] = fuel
-
-                if atb_tech is not None:
-                    for tech in atb_tech:
-                        df.loc[
-                            (
-                                df["technology"].str.contains(
-                                    tech, case=False, regex=False
-                                )
-                            )
-                            & (df["Fuel"].isna()),
-                            "Fuel",
-                        ] = fuel
         else:
             for aeo_region, model_regions in settings["fuel_region_map"].items():
                 fuel_name = ("_").join([aeo_region, scenario, fuel])
@@ -2362,23 +2315,10 @@ def add_fuel_labels(df, fuel_prices, settings):
                 ), f"{fuel_name} doesn't show up in {model_year}"
 
                 df.loc[
-                    (df["technology"].str.contains(eia_tech, case=False, regex=False))
+                    (df["technology"].str.contains(tech, case=False, regex=False))
                     & df["region"].isin(model_regions),
                     "Fuel",
                 ] = fuel_name
-
-                if atb_tech is not None:
-                    for tech in atb_tech:
-                        df.loc[
-                            (
-                                df["technology"].str.contains(
-                                    tech, case=False, regex=False
-                                )
-                            )
-                            & (df["region"].isin(model_regions))
-                            & (df["Fuel"].isna()),
-                            "Fuel",
-                        ] = fuel_name
 
     for ccs_tech, ccs_fuel in (settings.get("ccs_fuel_map") or {}).items():
         ccs_base_name = ("_").join(ccs_fuel.split("_")[:-1])
@@ -3267,6 +3207,7 @@ def apply_custom_gen_formula(
     return gen_df
 
 
+@auto_fill_settings()
 class GeneratorClusters:
     """
     This class is used to determine genererating units that will likely be operating
@@ -3278,16 +3219,10 @@ class GeneratorClusters:
 
     def __init__(
         self,
-        data_location,
-        generation_table,
-        settings,
-        resource_heat_rate_table=None,
-        resource_cost_table=None,
+        settings=None,
         current_gens=True,
         supplement_with_860m=True,
         sort_gens=False,
-        plant_region_map_table="plant_region_map_epaipm",
-        settings_agg_key="region_aggregations",
         multi_period=False,
         include_retired_cap=False,
     ):
@@ -3303,9 +3238,6 @@ class GeneratorClusters:
             The dictionary of settings with a dictionary of region aggregations
         """
         # TODO: #404 Update GeneratorClusters init docstring
-        self.data_location = data_location
-        self.gen_table = generation_table
-        self.plant_region_table = settings.get("plant_region_table")
         self.tech_groups = settings.get("tech_groups", {}) or {}
         self.regional_tech_no_grouping = settings.get("regional_no_grouping", {}) or {}
         self.settings = settings
@@ -3319,12 +3251,8 @@ class GeneratorClusters:
             self.settings.get("RESOURCE_GROUPS"),
             self.settings.get("RESOURCE_GROUP_PROFILES"),
         )
-        self.resource_heat_rate_table = resource_heat_rate_table
-        self.resource_cost_table = resource_cost_table
 
         self.fuel_prices = fetch_fuel_prices(
-            data_location=data_location,
-            table_name=self.settings.get("fuel_price_table"),
             settings=self.settings,
         ).pipe(
             modify_fuel_prices,
@@ -3516,14 +3444,14 @@ class GeneratorClusters:
             self.settings.get("alt_num_clusters", {}),
         )
         gen_df = (
-            load_data(self.data_location, self.gen_table)
+            get_data("generation")
             .pipe(add_gen_age_column, self.settings["model_year"])
             .pipe(
                 apply_custom_gen_formula,
                 self.settings.get("resource_attr_modifiers", {}),
             )
         )
-        plant_region_map = load_data(self.data_location, self.plant_region_table)
+        plant_region_map = get_data("plant_region")
         gen_df = pd.merge(gen_df, plant_region_map, on="plant_id")
         self.results, self.all_gens = (
             map_agg_region_names(
@@ -3559,13 +3487,10 @@ class GeneratorClusters:
                 f"{self.settings.get('avg_distribution_loss', 0):%} to account for no "
                 "distribution losses.\n"
             )
-            self.results = add_dg_resources(
-                self.data_location, self.settings, self.results
-            )
+            self.results = add_dg_resources(self.settings, self.results)
         else:
             self.results["profile"] = None
 
-        # Add fixed/variable O&M based on NREL atb
         self.results = (
             self.results.pipe(startup_fuel, self.settings)
             .pipe(add_fuel_labels, self.fuel_prices, self.settings)
@@ -3672,22 +3597,15 @@ class GeneratorClusters:
 
     def create_new_generators(self):
         logger.info("Starting to build new generation resources")
-        # self.offshore_spur_costs = fetch_atb_offshore_spur_costs(
-        #     self.data_location, self.settings
-        # )
         self.resource_hr = fetch_heat_rates(
-            self.data_location,
-            self.resource_heat_rate_table,
             self.settings.get("resource_data_year"),
         )
         self.resource_costs = fetch_resource_costs(
-            self.data_location,
-            self.resource_cost_table,
             self.settings,
             self.settings.get("resource_data_year"),
         )
 
-        self.new_generators = atb_new_generators(
+        self.new_generators = build_new_resources(
             self.resource_costs, self.resource_hr, self.settings, self.cluster_builder
         )
 
@@ -3866,8 +3784,6 @@ class GeneratorClusters:
         self.all_resources = (
             add_misc_gen_values(
                 self.all_resources,
-                self.data_location,
-                self.settings["operational_constraints_table"],
                 # self.settings,
             )
             .pipe(

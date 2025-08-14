@@ -321,60 +321,6 @@ cost_multiplier_technology_map:
   Geothermal: [Geothermal_HydroBinary, Geothermal_HydroFlash, Geothermal_NFEGSBinary, Geothermal_DeepEGSBinary, Geothermal_NFEGSFlash, Geothermal_DeepEGSFlash]
   Conventional hydropower: [Hydropower]
 
-# Format for ATB is <technology>_<tech_detail>, all are Mid cost case
-# Might want to change this to list format like the new generators below
-eia_atb_tech_map:
-  Batteries: Utility-Scale Battery Storage_Lithium Ion
-  Biomass: Biopower_Dedicated
-  Solar Thermal without Energy Storage: CSP_Class1
-  Conventional Steam Coal: Coal_newAvgCF
-  Natural Gas Fired Combined Cycle: NaturalGas_1-on-1 Combined Cycle (H-Frame) #[NaturalGas_CCAvgCF, NETL_NGCC]
-  Natural Gas Fired Combustion Turbine: NaturalGas_Combustion Turbine (F-Frame)
-  Other_peaker: NaturalGas_Combustion Turbine (F-Frame)
-  Natural Gas Internal Combustion Engine: NaturalGas_Combustion Turbine (F-Frame)
-  Landfill Gas: NaturalGas_Combustion Turbine (F-Frame)
-  Petroleum Liquids: NaturalGas_Combustion Turbine (F-Frame)
-  Municipal Solid Waste: Biopower_Dedicated
-  Other Waste Biomass: Biopower_Dedicated
-  Wood/Wood Waste Biomass: Biopower_Dedicated
-  Solar Photovoltaic: UtilityPV_Class1
-  Geothermal: Geothermal_HydroFlash # assume installed capacity is dominated by flash
-
-  # Check head-height, which is difference between NSD2 and 4
-  Conventional Hydroelectric: Hydropower_NSD4 # Large variability based on choice
-  Hydroelectric Pumped Storage: Hydropower_NSD4 # Large variability based on choice
-  Small Hydroelectric: Hydropower_NSD3 # Large variability based on choice
-  Onshore Wind Turbine: LandbasedWind_Class4 # All onshore wind is the same
-  Offshore Wind Turbine: OffShoreWind_Class10 # Mid-range of floating offshore wind
-  Nuclear: Nuclear_Nuclear - Large
-  Natural Gas Steam Turbine: Coal_newAvgCF # No gas steam turbines in ATB, using coal instead
-  Solar Thermal with Energy Storage: CSP_Class1 # NEED TO CHECK THIS DEFAULT
-
-# PROPOSED GENERATOR VARIABLES
-
-# The status codes below exclude plants where regulatory approvals have not been
-# initiated or received. "Other" is also excluded.
-proposed_status_included:
-  - V # Under construction, more than 50 percent complete
-  - TS # Construction complete, but not yet in commercial operation
-  - U # Under construction, less than or equal to 50 percent complete
-  - T # Regulatory approvals received. Not under construction
-
-# Heat rates are from EIA's AEO 2019 Cost and Performace report (Table 8.2)
-# or NREL's 2018 ATB. ATB technologies use 2020 heat rate values.
-# All AEO heat rates are for advanced technologies and use values from the final
-# heat rate column
-proposed_gen_heat_rates:
-  Natural Gas Fired Combined Cycle: 6.41 # ATB
-  Natural Gas Fired Combustion Turbine: 9.66 # ATB
-  Natural Gas Internal Combustion Engine: 8.160 # AEO
-
-
-proposed_min_load:
-  Natural Gas Fired Combined Cycle: 0.3 # From GE
-  Natural Gas Fired Combustion Turbine: 0.3 # GE aero range is .15-.5, E3 has 0.3
-  Natural Gas Internal Combustion Engine: 0.18 # From E3 assumptions
-
 # EXTRA ADDITIONS AND RETIREMENTS
 
 # Use this section to hard-code retirements that are not included in the most recent

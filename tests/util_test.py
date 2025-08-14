@@ -3,24 +3,16 @@ Test util functions
 """
 
 import csv
-import logging
-import os
 import sqlite3
 from collections.abc import Iterable
-from pathlib import Path
 
 import duckdb
 import pandas as pd
 import pytest
 
-import powergenome
-import powergenome.util as util
 from powergenome.util import (
-    add_model_tags_to_gen_columns,
     add_row_to_csv,
-    apply_all_tag_to_regions,
-    assign_model_planning_years,
-    build_scenario_settings,
+    build_where_clause_from_filters,
     get_all_table_names,
     hash_string_sha256,
     load_data,
@@ -31,18 +23,6 @@ from powergenome.util import (
     sort_nested_dict,
     update_dictionary,
 )
-
-logger = logging.getLogger(powergenome.__name__)
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter(
-    # More extensive test-like formatter...
-    "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s",
-    # This is the datetime format string.
-    "%Y-%m-%d %H:%M:%S",
-)
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 
 def test_sort_nested_dict():
@@ -62,82 +42,6 @@ def test_sort_nested_dict():
     sorted_dict3 = sort_nested_dict(test_dict3)
     assert list(sorted_dict3.keys()) == ["a", "c", "b"]
     assert list(sorted_dict3["a"].keys()) == ["b", "a"]
-
-
-def test_apply_all_tag_to_regions(caplog):
-    settings = {
-        "model_regions": ["a", "b", "c"],
-        "renewables_clusters": [
-            {
-                "region": "all",
-                "technology": "landbasedwind",
-                "bin": {"feature": "lcoe", "q": 4},
-            },
-            {
-                "region": "b",
-                "technology": "landbasedwind",
-                "filter": {"feature": "lcoe", "max": 50},
-            },
-            {"region": "all", "technology": "utilitypv", "group": ["state"]},
-            {
-                "region": "all",
-                "technology": "offshorewind",
-                "pref_site": True,
-                "bin": {"feature": "lcoe", "q": 4},
-            },
-            {
-                "region": "c",
-                "technology": "offshorewind",
-                "pref_site": True,
-                "cluster": {"feature": "lcoe", "n_clusters": 4},
-            },
-            {
-                "region": "all",
-                "technology": "offshorewind",
-                "pref_site": True,
-                "group": ["metro_id"],
-            },
-        ],
-    }
-
-    # Check for warning that "all" is applied to offshore wind more than once
-    caplog.set_level(logging.WARNING)
-    settings = apply_all_tag_to_regions(settings)
-
-    assert "Multiple 'all' tags applied" in caplog.text
-
-    assert len(settings["renewables_clusters"]) == 9
-    for d in settings["renewables_clusters"]:
-        if d["technology"] == "landbasedwind":
-            if d["region"] == "b":
-                assert "filter" in d.keys()
-            else:
-                assert "bin" in d.keys()
-        if d["technology"] == "utilitypv":
-            assert "group" in d.keys()
-        if d["technology"] == "offshorewind":
-            if d["region"] == "c":
-                assert "cluster" in d.keys()
-            else:
-                assert "group" in d.keys()
-
-    # Test two ways to raise a KeyError: no "region" and no "technology" when region is "all"
-    d = {"technology": "solarpv"}
-    settings["renewables_clusters"].append(d)
-    with pytest.raises(KeyError):
-        apply_all_tag_to_regions(settings)
-
-    settings["renewables_clusters"].pop()
-
-    d = {"region": "ALL"}
-    settings["renewables_clusters"].append(d)
-    with pytest.raises(KeyError):
-        apply_all_tag_to_regions(settings)
-
-    settings = {"model_regions": ["a", "b", "c"], "renewables_clusters": None}
-    apply_all_tag_to_regions(settings)
-    settings = {"model_regions": ["a", "b", "c"]}
-    apply_all_tag_to_regions(settings)
 
 
 class TestHashStringSha256:
@@ -274,127 +178,67 @@ class TestMakeIterable:
         assert list(result) == item
 
 
-class TestAssignModelPlanningYears:
+class TestBuildWhereClauseFromFilters:
+    def test_empty_filters(self):
+        assert build_where_clause_from_filters(None) is None
+        assert build_where_clause_from_filters([]) is None
 
-    # The function is called with a dictionary containing the key 'model_periods' with a list of tuples as value, and an integer year.
-    def test_with_model_periods(self):
-        # Prepare input
-        _settings = {
-            "model_periods": [(2030, 2040), (2041, 2050)],
-            "model_year": [2030, 2040],
-            "model_first_planning_year": [2030, 2041],
-        }
-        year = 2040
+    def test_single_conjunction(self):
+        filters = [[("col1", "=", "val1")]]
+        expected = "WHERE (col1 = 'val1')"
+        assert build_where_clause_from_filters(filters) == expected
 
-        # Execute function
-        result = assign_model_planning_years(_settings, year)
+    def test_single_condition_flat_list(self):
+        # [col, op, val]
+        filters = ["col1", "=", 3]
+        expected = "WHERE (col1 = 3)"
+        assert build_where_clause_from_filters(filters) == expected
 
-        # Check output
-        assert result["model_first_planning_year"] == 2030
-        assert result["model_year"] == 2040
+    def test_single_conjunction_list_of_lists(self):
+        # [[col, op, val], [col2, op, val]]
+        filters = [["a", ">", 1], ["b", "=", "x"]]
+        expected = "WHERE (a > 1 AND b = 'x')"
+        assert build_where_clause_from_filters(filters) == expected
 
-    # The function is called with an empty dictionary.
-    def test_with_empty_dictionary(self):
-        # Prepare input
-        _settings = {}
-        year = 2022
+    def test_multiple_conjunctions_and(self):
+        filters = [[("col1", "=", "val1"), ("col2", ">", 5)]]
+        expected = "WHERE (col1 = 'val1' AND col2 > 5)"
+        assert build_where_clause_from_filters(filters) == expected
 
-        # Execute function
-        with pytest.raises(KeyError):
-            assign_model_planning_years(_settings, year)
+    def test_multiple_disjunctions_or(self):
+        filters = [[("col1", "=", "val1")], [("col2", ">", 5)]]
+        expected = "WHERE (col1 = 'val1') OR (col2 > 5)"
+        assert build_where_clause_from_filters(filters) == expected
 
-    # The function is called with a dictionary containing the key 'model_first_planning_year' with an integer value, and an integer year.
-    def test_with_model_first_planning_year(self):
-        # Prepare input
-        _settings = {"model_first_planning_year": 2030}
-        year = 2030
+    def test_string_value_formatting(self):
+        filters = [[("col1", "=", "string value")]]
+        expected = "WHERE (col1 = 'string value')"
+        assert build_where_clause_from_filters(filters) == expected
 
-        # Execute function
-        result = assign_model_planning_years(_settings, year)
+    def test_numeric_value_formatting(self):
+        filters = [[("col1", "<", 10.5)]]
+        expected = "WHERE (col1 < 10.5)"
+        assert build_where_clause_from_filters(filters) == expected
 
-        # Check output
-        assert result["model_first_planning_year"] == 2030
-        assert result["model_year"] == 2030
+    def test_in_clause_with_list(self):
+        filters = [[("col1", "IN", [1, 2, 3])]]
+        expected = "WHERE (col1 IN (1, 2, 3))"
+        assert build_where_clause_from_filters(filters) == expected
 
-    # The function is called with a dictionary containing the keys 'model_year' and 'model_first_planning_year' with integer values, and an integer year.
-    def test_with_model_year_first_planning_year(self):
-        # Prepare input
-        _settings = {
-            "model_year": [2030, 2040],
-            "model_first_planning_year": [2030, 2035],
-        }
-        year = 2040
+    def test_in_clause_with_tuple_of_strings(self):
+        filters = [[("col1", "IN", ("a", "b", "c"))]]
+        expected = "WHERE (col1 IN ('a', 'b', 'c'))"
+        assert build_where_clause_from_filters(filters) == expected
 
-        # Execute function
-        result = assign_model_planning_years(_settings, year)
-
-        # Check output
-        assert result["model_first_planning_year"] == 2035
-        assert result["model_year"] == 2040
-
-    # The function is called with a dictionary containing the key 'model_periods' with a list of tuples where at least one tuple has length different from 2.
-    def test_with_invalid_model_periods_length(self):
-        # Prepare input
-        _settings = {
-            "model_periods": [(2030, 2040), (2041, 2050), (2051,)],
-            "model_year": [2030, 2040],
-            "model_first_planning_year": [2030, 2041],
-        }
-        year = 2030
-
-        # Execute function and assert ValueError is raised
-        with pytest.raises(ValueError):
-            assign_model_planning_years(_settings, year)
-
-    # The function is called with a dictionary containing the key 'model_periods' with a non-list value.
-    def test_with_non_list_model_periods(self):
-        # Prepare input
-        _settings = {
-            "model_periods": "2030-2040",
-            "model_year": [2030, 2040],
-            "model_first_planning_year": [2030, 2041],
-        }
-        year = 2030
-
-        # Execute function
-        with pytest.raises(ValueError):
-            assign_model_planning_years(_settings, year)
-
-    # The function is called with a dictionary containing the keys 'model_year' and 'model_first_planning_year' with values that are not integers or lists of integers.
-    def test_invalid_values(self):
-        # Prepare input
-        _settings = {"model_year": "2040", "model_first_planning_year": "2031"}
-        year = 2022
-
-        # Execute function
-        with pytest.raises(ValueError):
-            assign_model_planning_years(_settings, year)
-
-
-class TestAddModelTagsToGenColumns:
-
-    # Returns the input 'generator_columns' list unmodified if it is not a list.
-    def test_returns_input_unmodified_if_not_list(self):
-        generator_columns = "not a list"
-        model_tag_values = {}
-        regional_tag_values = {}
-        result = add_model_tags_to_gen_columns(
-            model_tag_values, regional_tag_values, generator_columns
+    def test_complex_dnf(self):
+        filters = [
+            [("col1", "=", "val1"), ("col2", ">", 5)],
+            [("col3", "!=", "val3"), ("col4", "IN", [1, 2])],
+        ]
+        expected = (
+            "WHERE (col1 = 'val1' AND col2 > 5) OR (col3 != 'val3' AND col4 IN (1, 2))"
         )
-        assert result == generator_columns
-
-    # Adds model resource tag keys to the 'generator_columns' list if they are not already present.
-    def test_adds_model_tags_to_gen_columns(self):
-        generator_columns = ["capacity", "output"]
-        model_tag_values = {"cost": {"solar": 100, "wind": 150}}
-        regional_tag_values = {"NA": {"efficiency": {"solar": 20, "wind": 25}}}
-        expected_result = ["capacity", "output", "cost", "efficiency"]
-
-        result = add_model_tags_to_gen_columns(
-            model_tag_values, regional_tag_values, generator_columns
-        )
-
-        assert sorted(result) == sorted(expected_result)
+        assert build_where_clause_from_filters(filters) == expected
 
 
 @pytest.fixture
@@ -474,20 +318,34 @@ def test_load_data_folder_mode(tmp_path):
     pd.testing.assert_frame_equal(df.reset_index(drop=True), df_orig)
 
 
-def test_load_data_file_with_query(tmp_path):
+def test_load_data_file_with_filters(tmp_path):
     # Create a temporary CSV file
     file_path = tmp_path / "test.csv"
     df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
     df.to_csv(file_path, index=False)
 
-    # Query to select only rows where a > 1
-    query = "SELECT * WHERE a > 1"
-    result = load_data_file(file_path, query=query)
+    # filters to select only rows where a > 1
+    filters = [[("a", ">", 1)]]
+    result = load_data_file(file_path, filters=filters)
 
     # Check that the result is as expected
-    assert isinstance(result, pd.DataFrame)
-    assert list(result["a"]) == [2, 3]
-    assert list(result["b"]) == ["y", "z"]
+    expected = pd.DataFrame({"a": [2, 3], "b": ["y", "z"]})
+    pd.testing.assert_frame_equal(result, expected, check_dtype=False)
+
+
+def test_load_data_file_with_columns(tmp_path):
+    # Create a temporary CSV file
+    file_path = tmp_path / "test.csv"
+    df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"], "c": [True, False, True]})
+    df.to_csv(file_path, index=False)
+
+    # Load only columns 'a' and 'c'
+    columns = ["a", "c"]
+    result = load_data_file(file_path, columns=columns)
+
+    # Check that the result is as expected
+    expected = pd.DataFrame({"a": [1, 2, 3], "c": [True, False, True]})
+    pd.testing.assert_frame_equal(result, expected, check_dtype=False)
 
 
 def test_load_data_db_mode_sqlite(tmp_path, tmp_sqlite_db):
@@ -502,14 +360,38 @@ def test_load_data_db_mode_duckdb(tmp_path, tmp_duckdb):
     assert "c" in df.columns
 
 
-def test_load_data_query(tmp_sqlite_db):
+def test_load_data_with_filters(tmp_sqlite_db):
     # tmp_sqlite_db has table foo with rows (1,'x'), (2,'y')
     # Run a SQL query instead of passing a table name
-    df = load_data(tmp_sqlite_db, query="SELECT a, b FROM foo WHERE a = 2")
+    filters = [[("a", "=", 2)]]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", filters=filters)
     # Build expected
     expected = pd.DataFrame({"a": [2], "b": ["y"]})
     # Compare
-    pd.testing.assert_frame_equal(df.reset_index(drop=True), expected)
+    pd.testing.assert_frame_equal(df, expected, check_dtype=False)
+
+
+def test_load_data_with_filters_single_list(tmp_sqlite_db):
+    # tmp_sqlite_db has table foo with rows (1,'x'), (2,'y')
+    # Run a SQL query instead of passing a table name
+    filters = [("a", "=", 2)]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", filters=filters)
+    # Build expected
+    expected = pd.DataFrame({"a": [2], "b": ["y"]})
+    # Compare
+    pd.testing.assert_frame_equal(df, expected, check_dtype=False)
+
+
+def test_load_data_with_columns(tmp_sqlite_db):
+    # tmp_sqlite_db has table foo with columns 'a' and 'b'
+    # Load only column 'b'
+    columns = ["b"]
+    df = load_data(tmp_sqlite_db, file_or_table_name="foo", columns=columns)
+
+    # Build expected
+    expected = pd.DataFrame({"b": ["x", "y"]})
+    # Compare
+    pd.testing.assert_frame_equal(df, expected)
 
 
 def test_load_data_file_unsupported_extension(tmp_path):
@@ -522,7 +404,7 @@ def test_load_data_file_unsupported_extension(tmp_path):
 
 def test_load_data_no_params(tmp_path):
     # Neither file_or_table_name nor query provided
-    with pytest.raises(ValueError, match=r"Either file_or_table_name or query"):
+    with pytest.raises(ValueError, match=r"file_or_table_name must be provided"):
         load_data(str(tmp_path))
 
 
@@ -530,9 +412,7 @@ def test_load_data_folder_no_filename(tmp_path):
     # Loading from a folder without specifying file_or_table_name
     d = tmp_path / "empty_folder"
     d.mkdir()
-    with pytest.raises(
-        ValueError, match=r"file_or_table_name or query must be provided"
-    ):
+    with pytest.raises(ValueError, match=r"file_or_table_name must be provided"):
         load_data(str(d))
 
 
@@ -595,77 +475,3 @@ def test_key_length_sorting_with_non_str_keys():
     assert keys[2] == (1, 2, 3)
     assert result[10] == "ten"
     assert result["x"] == "ex"
-
-
-@pytest.fixture(autouse=True)
-def noop_assign_and_tags(monkeypatch):
-    # Prevent assign_model_planning_years and tagging from altering our settings
-    monkeypatch.setattr(
-        util, "assign_model_planning_years", lambda settings, year: None
-    )
-    monkeypatch.setattr(
-        util,
-        "add_model_tags_to_gen_columns",
-        lambda **kwargs: kwargs["generator_columns"],
-    )
-
-
-def test_duplicate_case_year_raises():
-    # Two identical rows for case 'X' in year 2030 should trigger the duplicate check
-    df = pd.DataFrame(
-        [
-            {"case_id": "X", "year": 2030},
-            {"case_id": "X", "year": 2030},
-        ]
-    )
-    with pytest.raises(ValueError) as exc:
-        build_scenario_settings({}, df)
-    assert "are repeated" in str(exc.value)
-
-
-def test_all_years_all_cases_applied():
-    # settings_management with an all_years->all_cases entry should apply to every scenario
-    settings = {"settings_management": {"all_years": {"all_cases": {"foo": 100}}}}
-    df = pd.DataFrame([{"case_id": 1, "year": 2040}])
-    result = build_scenario_settings(settings, df)
-
-    # Check that our "foo" parameter was injected
-    assert 2040 in result
-    assert 1 in result[2040]
-    out = result[2040][1]
-    assert out["foo"] == 100
-
-    # Also verify the built-in fields
-    assert out["case_id"] == 1
-    assert out["case_period"] == 1
-
-
-def test_year_specific_category_level_applied():
-    # settings_management for a specific year & category should override correctly
-    settings = {
-        "settings_management": {2035: {"category1": {"levelA": {"paramA": "valueA"}}}}
-    }
-    df = pd.DataFrame([{"case_id": "A", "year": 2035, "category1": "levelA"}])
-    result = build_scenario_settings(settings, df)
-    out = result[2035]["A"]
-
-    # Expect our year-specific setting
-    assert out["paramA"] == "valueA"
-    assert out["case_id"] == "A"
-    assert out["case_period"] == 1
-
-
-def test_case_period_increments_per_case():
-    # Same case 'C' appears in two different years, period should increment
-    settings = {"settings_management": {}}
-    df = pd.DataFrame(
-        [
-            {"case_id": "C", "year": 2025},
-            {"case_id": "C", "year": 2030},
-        ]
-    )
-    result = build_scenario_settings(settings, df)
-
-    # First appearance: period 1; second: period 2
-    assert result[2025]["C"]["case_period"] == 1
-    assert result[2030]["C"]["case_period"] == 2
