@@ -505,7 +505,10 @@ def assign_site_cluster(
             data = data.loc[~data["cpa_id"].isin(missing_site_ids), :]
         site_ids = data["cpa_id"].map(site_map).astype(str).to_list()
     else:
-        site_ids = [str(int(i)) for i in data["cpa_id"]]
+        try:
+            site_ids = [str(int(i)) for i in data["cpa_id"]]
+        except ValueError:
+            site_ids = data["cpa_id"].to_list()
     if profile_path is not None:
         cpa_profiles = load_site_profiles(profile_path, site_ids=list(set(site_ids)))
         profiles = [np.roll(cpa_profiles[site].values, utc_offset) for site in site_ids]
