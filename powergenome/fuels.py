@@ -341,30 +341,17 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
         fuel_data = all_fuel_data.copy()
 
     if settings.get("fuel_series_names"):
-        fuel_data["fuel"] = (
-            fuel_data["fuel"]
-            .str.lower()
-            .map({v.lower(): k for k, v in settings["fuel_series_names"].items()})
-        )
+        for k, v in settings["fuel_series_names"].items():
+            fuel_data.loc[fuel_data["fuel"].str.lower() == v.lower(), "fuel"] = k
     if settings.get("fuel_series_scenario_names"):
-        fuel_data["scenario"] = (
-            fuel_data["scenario"]
-            .str.lower()
-            .map(
-                {
-                    v.lower(): k
-                    for k, v in settings["fuel_series_scenario_names"].items()
-                }
-            )
-        )
+        for k, v in settings["fuel_series_scenario_names"].items():
+            fuel_data.loc[
+                fuel_data["scenario"].str.lower() == v.lower(), "scenario"
+            ] = k
     if settings.get("fuel_series_region_names"):
-        fuel_data["region"] = (
-            fuel_data["region"]
-            .str.lower()
-            .map(
-                {v.lower(): k for k, v in settings["fuel_series_region_names"].items()}
-            )
-        )
+        for k, v in settings["fuel_series_region_names"].items():
+            fuel_data.loc[fuel_data["region"].str.lower() == v.lower(), "region"] = k
+
     fuel_data["full_fuel_name"] = (
         fuel_data["region"] + "_" + fuel_data["scenario"] + "_" + fuel_data["fuel"]
     )
