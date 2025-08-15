@@ -610,10 +610,9 @@ def build_new_resources(resource_costs, resource_hr, settings, cluster_builder=N
         new_gen_df["Max_Cap_MW"] = -1
         new_gen_df["Max_Cap_MWh"] = -1
 
-        regional_cost_multipliers = load_data(
-            settings["data_location"],
-            settings.get("regional_cost_factor_table", "regional_cost_multipliers.csv"),
-        ).set_index("technology")
+        regional_cost_multipliers = get_data("regional_cost_factor").set_index(
+            "technology"
+        )
 
         if settings.get("cost_multiplier_region_map"):
             rev_mult_region_map = reverse_dict_of_lists(
