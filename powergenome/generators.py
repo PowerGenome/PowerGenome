@@ -3021,12 +3021,15 @@ def cluster_existing_generators(
                 logger.info(s)
                 n_clusters = len(df)
 
-            _cluster_cols = check_cluster_cols(df, cluster_cols)
-            clusters = cluster.KMeans(n_clusters=n_clusters, random_state=6).fit(
-                preprocessing.StandardScaler().fit_transform(df[_cluster_cols])
-            )
+            if n_clusters > 1:
+                _cluster_cols = check_cluster_cols(df, cluster_cols)
+                clusters = cluster.KMeans(n_clusters=n_clusters, random_state=6).fit(
+                    preprocessing.StandardScaler().fit_transform(df[_cluster_cols])
+                )
 
-            df["cluster"] = clusters.labels_ + 1
+                df["cluster"] = clusters.labels_ + 1
+            else:
+                df["cluster"] = 1
 
         df["Resource"] = create_resource_label(
             df["model_region"], snake_case_col(df["technology"]), df["cluster"], sep="_"
@@ -3096,10 +3099,16 @@ def check_cluster_cols(df: pd.DataFrame, cluster_cols: List[str]) -> List[str]:
                 df.index, fill_value=False
             )  # Ensure alignment
             missing_plant_ids = df.loc[col_op_na, "plant_id"].unique()
-            raise ValueError(
-                f"Column '{col}' of the existing generators table contains some missing "
-                f"values for plants {missing_plant_ids}."
+            mean_value = df[col].mean()
+            logger.warning(
+                f"Column '{col}' of the existing generators table contains missing values for plants {missing_plant_ids}. "
+                f"Filling with average value of {mean_value}."
             )
+            df[col].fillna(mean_value, inplace=True)
+            # raise ValueError(
+            #     f"Column '{col}' of the existing generators table contains some missing "
+            #     f"values for plants {missing_plant_ids}."
+            # )
     if not valid_cols:
         raise ValueError(
             f"All cluster columns {cluster_cols} are entirely missing from the existing generators table"
