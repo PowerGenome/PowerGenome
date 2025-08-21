@@ -3047,7 +3047,8 @@ def cluster_existing_generators(
     if extra_outputs_path:
         all_gens.to_csv(extra_outputs_path / "existing_gen_units.csv", index=False)
 
-    results["cap_size"] = results["capacity_mw"] / results["num_units"]
+    results["Cap_Size"] = (results["capacity_mw"] / results["num_units"]).fillna(1)
+    results.loc[results["Cap_Size"] == 0, "Cap_Size"] = 1
 
     results["Resource"] = create_resource_label(
         results["region"],
@@ -3055,6 +3056,10 @@ def cluster_existing_generators(
         results["cluster"],
         sep="_",
     )
+
+    results["Fixed_OM_Cost_per_MWyr"] = results["fom_per_mwyr"]
+    results["Var_OM_Cost_per_MWh"] = results["vom_per_mwh"]
+    results["Heat_Rate_MMBTU_per_MWh"] = results["heat_rate_mmbtu_mwh"]
 
     return results, all_gens
 
