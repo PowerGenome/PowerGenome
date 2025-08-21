@@ -77,6 +77,7 @@ EIA_TECHNOLOGY_MAP = {
     "hydnd": {"technology": "hydro", "type": "hydend"},
     "hydd": {"technology": "hydro", "type": "hydd"},
     "hyded": {"technology": "hydro", "type": "hyded"},
+    "hydend": {"technology": "hydro", "type": "hydend"},
     "hydnd": {"technology": "hydro", "type": "hydnd"},
     "hydnpd": {"technology": "hydro", "type": "hydnpd"},
     "hydnpnd": {"technology": "hydro", "type": "hydnpnd"},
