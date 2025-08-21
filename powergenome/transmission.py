@@ -342,7 +342,7 @@ def insert_tx_costs(tx_df: pd.DataFrame, tx_costs: pd.DataFrame) -> pd.DataFrame
             ),
         ],
         ignore_index=True,
-    )
+    ).drop_duplicates(subset=["start_region", "dest_region"])
 
     # Select only the columns needed for merging
     merge_columns = ["start_region", "dest_region"]
@@ -358,6 +358,7 @@ def insert_tx_costs(tx_df: pd.DataFrame, tx_costs: pd.DataFrame) -> pd.DataFrame
         tx_costs_bidirectional[merge_columns + cost_columns],
         on=merge_columns,
         how="left",
+        validate="one_to_one",
     )
 
     return result_df
