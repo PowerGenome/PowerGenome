@@ -888,7 +888,8 @@ def build_where_clause_from_filters(
         and all(
             isinstance(c, (list, tuple))
             and len(c) == 3
-            and all(not isinstance(x, (list, tuple)) for x in c)
+            and isinstance(c[0], str)
+            and isinstance(c[1], str)
             for c in filters
         )
     ):
