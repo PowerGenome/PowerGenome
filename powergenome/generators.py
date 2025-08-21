@@ -2959,6 +2959,7 @@ def create_resource_label(
     return reduce(lambda a, b: a.str.cat(b, sep=sep), strs)
 
 
+@auto_fill_settings(extra_outputs_path="extra_outputs")
 def cluster_existing_generators(
     gen_df: pd.DataFrame,
     num_clusters: Dict[str, Dict[str, int]],
@@ -3484,7 +3485,6 @@ class GeneratorClusters:
                 self.settings.get(
                     "generator_cluster_columns", ["heat_rate_mmbtu_mwh", "fom_per_mwyr"]
                 ),
-                self.settings.get("extra_outputs_path"),
             )
         )
 

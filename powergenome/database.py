@@ -163,7 +163,7 @@ class DataManager:
                 self.available_tables.add(standard_name)
                 logger.debug(f"Created table/view: {standard_name}")
             except Exception as e:
-                logger.warning(f"Failed to create table {standard_name}: {e}")
+                raise RuntimeError(f"Failed to create table {standard_name}: {e}")
 
     def _validate_table_config(
         self, table_config: Union[str, Dict], standard_name: str
