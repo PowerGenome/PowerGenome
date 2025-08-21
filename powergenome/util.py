@@ -410,14 +410,14 @@ def write_results_file(
     df.to_csv(path_out, index=include_index, float_format=float_format)
 
 
-def write_case_settings_file(settings, folder, file_name):
+def write_case_settings_file(settings: dict, folder: Path, file_name: str):
     """Write a finalized dictionary to YAML file.
 
     Parameters
     ----------
     settings : dict
         A dictionary with settings
-    folder : Path-like
+    folder : Path
         A Path object representing the folder for a single case/scenario
     file_name : str
         Name of the file.
@@ -426,7 +426,13 @@ def write_case_settings_file(settings, folder, file_name):
     path_out = folder / file_name
 
     # yaml = YAML(typ="unsafe")
-    _settings = deepcopy(settings)
+    if isinstance(settings, dict):
+        _settings = deepcopy(settings)
+    else:
+        try:
+            _settings = settings.to_dict()
+        except AttributeError as e:
+            raise TypeError("Settings must be a dictionary.")
     # for key, value in _settings.items():
     #     if isinstance(value, Path):
     #         _settings[key] = str(value)

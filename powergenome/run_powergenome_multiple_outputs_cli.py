@@ -433,7 +433,7 @@ def main(**kwargs):
                         )
 
                 write_case_settings_file(
-                    settings=scenario_settings_obj,
+                    settings=scenario_settings_obj.to_dict(),
                     folder=case_folder,
                     file_name="powergenome_case_settings.yml",
                 )
