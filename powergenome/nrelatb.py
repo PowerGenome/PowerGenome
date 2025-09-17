@@ -1259,20 +1259,49 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
                 new_gen_df["technology"].str.lower().str.contains(tech.lower()),
                 "cap_recovery_years",
             ] = years
+        try:
+            new_gen_df["Inv_Cost_per_MWyr"] = investment_cost_calculator(
+                capex=new_gen_df["capex_mw"],
+                wacc=new_gen_df["wacc_real"],
+                cap_rec_years=new_gen_df["cap_recovery_years"],
+                compound_method=settings.get("interest_compound_method", "discrete"),
+            )
+        except ValueError as e:
+            if "nan" in str(e):
+                nan_df = new_gen_df.loc[
+                    (
+                        new_gen_df[["capex_mw", "wacc_real", "cap_recovery_years"]]
+                        .isna()
+                        .any(axis=1)
+                    ),
+                    ["technology", "capex_mw", "wacc_real", "cap_recovery_years"],
+                ].copy()
+                logger.warning(
+                    f"NaN values found when calculating 'Inv_Cost_per_MWyr':\n{nan_df}\n"
+                )
+                raise e
 
-        new_gen_df["Inv_Cost_per_MWyr"] = investment_cost_calculator(
-            capex=new_gen_df["capex_mw"],
-            wacc=new_gen_df["wacc_real"],
-            cap_rec_years=new_gen_df["cap_recovery_years"],
-            compound_method=settings.get("interest_compound_method", "discrete"),
-        )
-
-        new_gen_df["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
-            capex=new_gen_df["capex_mwh"],
-            wacc=new_gen_df["wacc_real"],
-            cap_rec_years=new_gen_df["cap_recovery_years"],
-            compound_method=settings.get("interest_compound_method", "discrete"),
-        )
+        try:
+            new_gen_df["Inv_Cost_per_MWhyr"] = investment_cost_calculator(
+                capex=new_gen_df["capex_mwh"],
+                wacc=new_gen_df["wacc_real"],
+                cap_rec_years=new_gen_df["cap_recovery_years"],
+                compound_method=settings.get("interest_compound_method", "discrete"),
+            )
+        except ValueError as e:
+            if "nan" in str(e):
+                nan_df = new_gen_df.loc[
+                    (
+                        new_gen_df[["capex_mwh", "wacc_real", "cap_recovery_years"]]
+                        .isna()
+                        .any(axis=1)
+                    ),
+                    ["technology", "capex_mwh", "wacc_real", "cap_recovery_years"],
+                ].copy()
+                logger.warning(
+                    f"NaN values found when calculating 'Inv_Cost_per_MWhyr':\n{nan_df}\n"
+                )
+                raise e
 
         # Set no capacity limit on new resources that aren't renewables.
         new_gen_df["Max_Cap_MW"] = -1
