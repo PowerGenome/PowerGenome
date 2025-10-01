@@ -2516,7 +2516,9 @@ def calculate_transmission_inv_cost(resource_df, settings, offshore_spur_costs=N
 def add_transmission_inv_cost(
     resource_df: pd.DataFrame, settings: dict
 ) -> pd.DataFrame:
-    """Add tranmission investment costs to plant investment costs
+    """Add transmission investment costs to plant investment costs. If a capex
+    (interconnect_cost_mw) is present but not an annuity (interconnect_annuity),
+    the annuity will be calculated using the WACC and financial lifetime of the plant.
 
     Parameters
     ----------
@@ -2538,6 +2540,33 @@ def add_transmission_inv_cost(
         combined plant and transmission investment costs. The new column
         `plant_inv_cost_mwyr` represents just the plant investment costs.
     """
+    if (
+        "interconnect_annuity" not in resource_df
+        and "interconnect_cost_mw" in resource_df
+    ):
+        logger.warning(
+            "The resource dataframe has 'interconnect_cost_mw' but not "
+            "'interconnect_annuity'. The annuity will be calculated using the WACC and "
+            "financial lifetime of the plant."
+        )
+        interconnect_idx = resource_df["interconnect_cost_mw"].notna() & (
+            resource_df["interconnect_cost_mw"] != 0
+        )
+        if interconnect_idx.empty is False:
+
+            resource_df.loc[interconnect_idx, "interconnect_annuity"] = (
+                investment_cost_calculator(
+                    resource_df.loc[interconnect_idx, "interconnect_cost_mw"],
+                    wacc=resource_df.loc[interconnect_idx, "wacc_real"],
+                    cap_rec_years=resource_df.loc[
+                        interconnect_idx, "cap_recovery_years"
+                    ],
+                    compound_method=settings.get(
+                        "interest_compound_method", "discrete"
+                    ),
+                )
+            )
+
     use_total = (
         settings.get("transmission_investment_cost", {}).get("use_total", False)
         and "interconnect_annuity" in resource_df

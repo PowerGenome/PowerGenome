@@ -169,9 +169,30 @@ def test_add_transmission_inv_cost():
             "interconnect_annuity": [0],
         }
     )
-    settings = {"transmission_investment_cost": {"use_total": False}}
+    settings = {"transmission_investment_cost": {"use_total": True}}
     out = add_transmission_inv_cost(df.copy(), settings)
     assert "Inv_Cost_per_MWyr" in out.columns
+    assert out.loc[0, "Inv_Cost_per_MWyr"] == 115  # 100 + 10 + 5
+
+
+def test_add_transmission_inv_cost_calc_annuity():
+    df = pd.DataFrame(
+        {
+            "Inv_Cost_per_MWyr": [100, 100],
+            "spur_inv_mwyr": [10, 0],
+            "tx_inv_mwyr": [0, 0],
+            "interconnect_cost_mw": [0, 1000],
+            "wacc_real": [0.05, 0.05],
+            "cap_recovery_years": [20, 20],
+        }
+    )
+    settings = {"transmission_investment_cost": {"use_total": True}}
+    out = add_transmission_inv_cost(df.copy(), settings)
+    assert "Inv_Cost_per_MWyr" in out.columns
+    assert out.loc[0, "Inv_Cost_per_MWyr"] == 110  # 100 + 10
+    # Annuity for 1000 capex at 5% over 20 years
+    annuity = (0.05 * 1000) / (1 - (1 + 0.05) ** -20)
+    assert np.isclose(out.loc[1, "Inv_Cost_per_MWyr"], 100 + annuity)
 
 
 def test_add_dg_resources():
