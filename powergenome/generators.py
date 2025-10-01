@@ -2568,7 +2568,7 @@ def add_transmission_inv_cost(
             )
 
     use_total = (
-        settings.get("transmission_investment_cost", {}).get("use_total", False)
+        settings.get("transmission_investment_cost", {}).get("use_total", True)
         and "interconnect_annuity" in resource_df
     )
     resource_df["plant_inv_cost_mwyr"] = resource_df["Inv_Cost_per_MWyr"]
