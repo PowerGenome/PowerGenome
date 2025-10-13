@@ -38,6 +38,12 @@ NREL_ATB_TECHNOLOGY_MAP = {
     ("utilitypv", None): {"technology": "utilitypv"},
     ("landbasedwind", None): {"technology": "landbasedwind"},
     ("offshorewind", None): {"technology": "offshorewind"},
+    ("geothermal", "hydrobinary"): {
+        "technology": "geothermal",
+        "type": "geohydrobinary",
+    },
+    ("geothermal", "hydroflash"): {"technology": "geothermal", "type": "geohydroflash"},
+    ("geothermal", "nfegsflash"): {"technology": "geothermal", "type": "egs"},
     ("hydropower", None): {"technology": "hydro"},
     **{
         ("offshorewind", f"otrg{x}"): {
