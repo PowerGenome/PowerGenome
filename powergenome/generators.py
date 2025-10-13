@@ -2567,6 +2567,32 @@ def add_transmission_inv_cost(
                 )
             )
 
+    # Also handle cases where interconnect_annuity is 0 but interconnect_capex_mw is non-zero
+    if "interconnect_annuity" in resource_df and "interconnect_capex_mw" in resource_df:
+        zero_annuity_idx = (
+            (resource_df["interconnect_annuity"] == 0)
+            & resource_df["interconnect_capex_mw"].notna()
+            & (resource_df["interconnect_capex_mw"] != 0)
+        )
+        if zero_annuity_idx.any():
+            logger.warning(
+                "Found rows where 'interconnect_annuity' is 0 but 'interconnect_capex_mw' "
+                "is non-zero. The annuity will be calculated using the WACC and "
+                "financial lifetime of the plant."
+            )
+            resource_df.loc[zero_annuity_idx, "interconnect_annuity"] = (
+                investment_cost_calculator(
+                    resource_df.loc[zero_annuity_idx, "interconnect_capex_mw"],
+                    wacc=resource_df.loc[zero_annuity_idx, "wacc_real"],
+                    cap_rec_years=resource_df.loc[
+                        zero_annuity_idx, "cap_recovery_years"
+                    ],
+                    compound_method=settings.get(
+                        "interest_compound_method", "discrete"
+                    ),
+                )
+            )
+
     use_total = (
         settings.get("transmission_investment_cost", {}).get("use_total", True)
         and "interconnect_annuity" in resource_df
@@ -3161,7 +3187,7 @@ def add_gen_age_column(
     ----------
     gen_df : pd.DataFrame
         DataFrame containing generator data with an 'operating_year' column.
-    planning_year : int, optional
+    planning_year : int
         The planning year to calculate the age from.
     age_col : str, optional
         Name of the column to store the age in, by default "age".
