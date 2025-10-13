@@ -181,7 +181,7 @@ def test_add_transmission_inv_cost_calc_annuity():
             "Inv_Cost_per_MWyr": [100, 100],
             "spur_inv_mwyr": [10, 0],
             "tx_inv_mwyr": [0, 0],
-            "interconnect_cost_mw": [0, 1000],
+            "interconnect_capex_mw": [0, 1000],
             "wacc_real": [0.05, 0.05],
             "cap_recovery_years": [20, 20],
         }
