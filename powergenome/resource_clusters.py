@@ -331,7 +331,7 @@ class Table:
         if self.format == "csv":
             df = pd.read_csv(self.path, usecols=read_columns, dtype={"metro_id": str})
         elif self.format == "parquet":
-            df = self._dataset.read(columns=read_columns).to_pandas()
+            df = self._dataset.read(columns=list(read_columns)).to_pandas()
         if cache:
             self.df = df
 
