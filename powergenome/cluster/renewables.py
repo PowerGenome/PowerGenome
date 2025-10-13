@@ -513,6 +513,8 @@ def assign_site_cluster(
         cpa_profiles = load_site_profiles(profile_path, site_ids=list(set(site_ids)))
         profiles = [np.roll(cpa_profiles[site].values, utc_offset) for site in site_ids]
         data["profile"] = profiles
+    else:
+        data["profile"] = 1.0
 
     # Split sites into bins using numeric features
     bin_features = []
