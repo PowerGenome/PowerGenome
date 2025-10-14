@@ -692,9 +692,11 @@ class TestValidation:
 
         dm = DataManager()
         with caplog.at_level(logging.WARNING):
-            dm.initialize(settings, temp_csv_folder)
+            # Expect RuntimeError due to unsupported file type
+            with pytest.raises(RuntimeError, match="Failed to create table generation"):
+                dm.initialize(settings, temp_csv_folder)
 
-        # Check that warnings were logged
+        # Check that warnings were logged before the error occurred
         warning_messages = [
             record.message
             for record in caplog.records
@@ -702,7 +704,7 @@ class TestValidation:
         ]
         assert any("does not have a file extension" in msg for msg in warning_messages)
 
-        # Tables should still not be created since files don't exist
+        # Tables should not be created since initialization failed
         assert len(dm.available_tables) == 0
 
     def test_csv_file_with_extension_no_warning(
@@ -743,9 +745,13 @@ class TestValidation:
 
             dm = DataManager()
             with caplog.at_level(logging.WARNING):
-                dm.initialize(settings, Path(db_path))
+                # Expect RuntimeError due to table not found (DB doesn't have generators.csv table)
+                with pytest.raises(
+                    RuntimeError, match="Failed to create table generation"
+                ):
+                    dm.initialize(settings, Path(db_path))
 
-            # Check that warnings were logged
+            # Check that warnings were logged before the error occurred
             warning_messages = [
                 record.message
                 for record in caplog.records
@@ -793,9 +799,11 @@ class TestValidation:
 
         dm = DataManager()
         with caplog.at_level(logging.WARNING):
-            dm.initialize(settings, temp_csv_folder)
+            # Expect RuntimeError due to unsupported file type
+            with pytest.raises(RuntimeError, match="Failed to create table generation"):
+                dm.initialize(settings, temp_csv_folder)
 
-        # Check that warnings were logged
+        # Check that warnings were logged before the error occurred
         warning_messages = [
             record.message
             for record in caplog.records
@@ -830,11 +838,15 @@ class TestValidation:
             # Clear log records
             caplog.clear()
 
-            # Test without extension (should warn)
+            # Test without extension (should warn and fail)
             settings_bad = {"generation_table": "generators"}
             dm2 = DataManager()
             with caplog.at_level(logging.WARNING):
-                dm2.initialize(settings_bad, temp_path)
+                # Expect RuntimeError due to unsupported file type
+                with pytest.raises(
+                    RuntimeError, match="Failed to create table generation"
+                ):
+                    dm2.initialize(settings_bad, temp_path)
 
             warning_messages = [
                 record.message
@@ -855,7 +867,9 @@ class TestValidation:
 
         dm = DataManager()
         with caplog.at_level(logging.WARNING):
-            dm.initialize(settings, temp_csv_folder)
+            # Expect RuntimeError due to unsupported file type
+            with pytest.raises(RuntimeError, match="Failed to create table generation"):
+                dm.initialize(settings, temp_csv_folder)
 
         # Should get a "Failed to create table" warning due to unsupported file type
         warning_messages = [
@@ -863,9 +877,8 @@ class TestValidation:
             for record in caplog.records
             if record.levelno >= logging.WARNING
         ]
-        assert any(
-            "Failed to create table generation" in msg for msg in warning_messages
-        )
+        # The warning about file extension should be logged before the error
+        assert any("does not have a file extension" in msg for msg in warning_messages)
         assert "generation" not in dm.available_tables
 
     def test_validation_with_mixed_file_types(self, sample_data, caplog):
@@ -885,7 +898,11 @@ class TestValidation:
 
             dm = DataManager()
             with caplog.at_level(logging.WARNING):
-                dm.initialize(settings, temp_path)
+                # Expect RuntimeError due to unsupported file type for one of the tables
+                with pytest.raises(
+                    RuntimeError, match="Failed to create table plant_region"
+                ):
+                    dm.initialize(settings, temp_path)
 
             warning_messages = [
                 record.message
@@ -901,9 +918,8 @@ class TestValidation:
             ]
             assert len(extension_warnings) >= 1
 
-            # Only the correctly named file should load
-            assert "generation" in dm.available_tables
-            assert len(dm.available_tables) == 1
+            # No tables should be created since initialization failed
+            assert len(dm.available_tables) == 0
 
 
 class TestDataManagerUpdate:
