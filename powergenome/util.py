@@ -766,6 +766,29 @@ def hash_string_sha256(input_string: str) -> str:
     return hex_digest
 
 
+def calculate_file_hash(file_path: Union[Path, None]) -> str:
+    """Calculate SHA256 hash of a file for cache invalidation.
+
+    Parameters
+    ----------
+    file_path : Union[Path, None]
+        Path to the file to hash. If None or file doesn't exist, returns "no_file".
+
+    Returns
+    -------
+    str
+        First 16 characters of the SHA256 hexdigest of the file, or "no_file" if the file doesn't exist.
+    """
+    if not file_path or not Path(file_path).exists():
+        return "no_file"
+
+    sha256_hash = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()[:16]  # Use first 16 chars for brevity
+
+
 def add_row_to_csv(file: Path, new_row: List[str], headers: List[str] = None) -> None:
     """Add a row of data to an existing CSV file. If the file does not exist, create it
     with headers and the first row of data.

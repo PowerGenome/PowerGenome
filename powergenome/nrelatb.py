@@ -30,6 +30,7 @@ from powergenome.resource_clusters import (
 from powergenome.settings import apply_all_tag_to_regions
 from powergenome.util import (
     add_row_to_csv,
+    calculate_file_hash,
     hash_string_sha256,
     reverse_dict_of_lists,
     snake_case_col,
@@ -912,8 +913,40 @@ def add_renewables_clusters(
         detail_suffix = flatten_cluster_def(
             {k: v for (k, v) in _scenario.items() if k != "group_modifiers"}, "_"
         )
+
+        # Get the data file paths and calculate their hashes
+        drop_keys = [
+            "min_capacity",
+            "filter",
+            "bin",
+            "group",
+            "cluster",
+            "group_modifiers",
+        ]
+        group_kwargs = dict(
+            [(k, v) for k, v in _scenario.items() if k not in drop_keys]
+        )
+        resource_groups = cluster_builder.find_groups(
+            existing=False,
+            **group_kwargs,
+        )
+        if resource_groups:
+            profiles_path = resource_groups[0].group.get("profiles")
+            metadata_path = resource_groups[0].group.get("metadata")
+
+            profiles_hash = calculate_file_hash(
+                Path(profiles_path) if profiles_path else None
+            )
+            metadata_hash = calculate_file_hash(
+                Path(metadata_path) if metadata_path else None
+            )
+
+            data_file_hash = f"{metadata_hash}_{profiles_hash}"
+        else:
+            data_file_hash = "no_data"
+
         unique_hash = hash_string_sha256(
-            f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}"
+            f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_file_{data_file_hash}"
         )
         cache_cluster_fn = unique_hash + "_cluster_data.parquet"
         cache_site_assn_fn = unique_hash + "_site_assn.parquet"
@@ -925,10 +958,21 @@ def add_renewables_clusters(
         )
         add_row_to_csv(
             cache_folder / "hash_map.csv",
-            headers=["name", "hash"],
+            headers=[
+                "name",
+                "hash",
+                "metadata_path",
+                "profiles_path",
+                "metadata_sha256",
+                "profiles_sha256",
+            ],
             new_row=[
-                f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}",
+                f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_file_{data_file_hash}",
                 unique_hash,
+                str(metadata_path),
+                str(profiles_path),
+                metadata_hash,
+                profiles_hash,
             ],
         )
         cache_cluster_fpath = cache_folder / cache_cluster_fn
@@ -938,21 +982,8 @@ def add_renewables_clusters(
                 clusters = pd.read_parquet(cache_cluster_fpath)
                 data = pd.read_parquet(cache_site_assn_fpath)
             else:
-                drop_keys = [
-                    "min_capacity",
-                    "filter",
-                    "bin",
-                    "group",
-                    "cluster",
-                    "group_modifiers",
-                ]
-                group_kwargs = dict(
-                    [(k, v) for k, v in _scenario.items() if k not in drop_keys]
-                )
-                resource_groups = cluster_builder.find_groups(
-                    existing=False,
-                    **group_kwargs,
-                )
+                # Resource groups already found above
+                # ...existing code...
                 if not resource_groups:
                     raise ValueError(
                         f"Parameters do not match any resource groups: {group_kwargs}"
