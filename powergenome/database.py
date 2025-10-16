@@ -250,6 +250,24 @@ class DataManager:
                     f"Table '{standard_name}' source '{source_table}' does not have a "
                     "file extension (.csv or .parquet). This may cause loading issues."
                 )
+
+                # Attempt to auto-detect the correct file
+                csv_path = self.data_location / f"{source_table}.csv"
+                parquet_path = self.data_location / f"{source_table}.parquet"
+
+                if csv_path.exists():
+                    logger.info(f"Auto-detected CSV file: {csv_path}")
+                    source_table = f"{source_table}.csv"
+                elif parquet_path.exists():
+                    logger.info(f"Auto-detected Parquet file: {parquet_path}")
+                    source_table = f"{source_table}.parquet"
+                else:
+                    raise ValueError(
+                        f"Table '{standard_name}' source '{source_table}' does not have a "
+                        f"file extension and no matching .csv or .parquet file was found in "
+                        f"{self.data_location}"
+                    )
+
         elif self.data_location and self.data_location.is_file():
             # For database files, table names should not have extensions
             if any(
