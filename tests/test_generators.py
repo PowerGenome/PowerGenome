@@ -51,6 +51,8 @@ def test_startup_nonfuel_costs():
         "data_location": "tests/test_system/test_data",
         "dollar_year_table": "cpi_test_data.csv",
     }
+    # Initialize DataManager for accessing dollar year data
+    initialize_data_manager(settings, settings["data_location"])
     out = startup_nonfuel_costs(df.copy(), settings)
     assert "Start_Cost_per_MW" in out.columns
     assert (out["Start_Cost_per_MW"] >= 0).all()
@@ -296,8 +298,11 @@ def test_check_cluster_cols_some_missing_values():
     )
     df2 = df.copy()
     df2.loc[0, "col1"] = np.nan
-    with pytest.raises(ValueError):
-        check_cluster_cols(df2, ["col1"])
+    # The function now fills missing values with mean instead of raising an error
+    result = check_cluster_cols(df2, ["col1"])
+    assert result == ["col1"]
+    # Check that the missing value was filled with the mean (2.0)
+    assert df2.loc[0, "col1"] == 2.0
 
 
 def test_add_gen_age_column():

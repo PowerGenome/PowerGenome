@@ -42,9 +42,7 @@ def sample_settings():
         "tx_value_col": "firm_ttc_mw",
         "region_aggregations": {},
         "data_location": "tests/test_system/test_data",
-        "transmission_table": "transmission_constraints",
-        "transmission_cost_table": "transmission_cost",
-        "dollar_year_table": "dollar_year",
+        "dollar_year_table": "cpi_test_data.csv",
     }
 
     # Initialize DataManager for testing

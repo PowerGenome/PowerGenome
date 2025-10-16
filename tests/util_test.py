@@ -13,6 +13,7 @@ import pytest
 from powergenome.util import (
     add_row_to_csv,
     build_where_clause_from_filters,
+    calculate_file_hash,
     get_all_table_names,
     hash_string_sha256,
     load_data,
@@ -475,3 +476,85 @@ def test_key_length_sorting_with_non_str_keys():
     assert keys[2] == (1, 2, 3)
     assert result[10] == "ten"
     assert result["x"] == "ex"
+
+
+class TestCalculateFileHash:
+    # Returns a hash string for an existing file
+    def test_returns_hash_for_existing_file(self, tmp_path):
+        # Arrange
+        file_path = tmp_path / "test_file.txt"
+        file_content = "Hello, World!"
+        file_path.write_text(file_content)
+
+        # Act
+        file_hash = calculate_file_hash(file_path)
+
+        # Assert
+        assert isinstance(file_hash, str)
+        assert len(file_hash) == 16  # First 16 chars of SHA256
+        # Verify it's consistent
+        assert file_hash == calculate_file_hash(file_path)
+
+    # Returns "no_file" for None input
+    def test_returns_no_file_for_none(self):
+        # Act
+        result = calculate_file_hash(None)
+
+        # Assert
+        assert result == "no_file"
+
+    # Returns "no_file" for non-existent file
+    def test_returns_no_file_for_nonexistent_path(self, tmp_path):
+        # Arrange
+        non_existent_path = tmp_path / "does_not_exist.txt"
+
+        # Act
+        result = calculate_file_hash(non_existent_path)
+
+        # Assert
+        assert result == "no_file"
+
+    # Different file contents produce different hashes
+    def test_different_content_different_hash(self, tmp_path):
+        # Arrange
+        file1 = tmp_path / "file1.txt"
+        file2 = tmp_path / "file2.txt"
+        file1.write_text("content A")
+        file2.write_text("content B")
+
+        # Act
+        hash1 = calculate_file_hash(file1)
+        hash2 = calculate_file_hash(file2)
+
+        # Assert
+        assert hash1 != hash2
+
+    # Same content produces same hash
+    def test_same_content_same_hash(self, tmp_path):
+        # Arrange
+        file1 = tmp_path / "file1.txt"
+        file2 = tmp_path / "file2.txt"
+        content = "identical content"
+        file1.write_text(content)
+        file2.write_text(content)
+
+        # Act
+        hash1 = calculate_file_hash(file1)
+        hash2 = calculate_file_hash(file2)
+
+        # Assert
+        assert hash1 == hash2
+
+    # Works with binary files
+    def test_works_with_binary_files(self, tmp_path):
+        # Arrange
+        file_path = tmp_path / "binary_file.bin"
+        binary_content = bytes([0, 1, 2, 3, 255, 254, 253])
+        file_path.write_bytes(binary_content)
+
+        # Act
+        file_hash = calculate_file_hash(file_path)
+
+        # Assert
+        assert isinstance(file_hash, str)
+        assert len(file_hash) == 16
