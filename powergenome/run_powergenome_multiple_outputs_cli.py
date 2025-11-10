@@ -424,12 +424,16 @@ def main(**kwargs):
                         case_folder, case_year_data
                     )
 
+                # Get file_type from settings, default to "csv"
+                file_type = scenario_settings_obj.get("file_type", "csv")
+
                 for data in genx_data:
                     if data.dataframe is not None and not data.dataframe.empty:
                         write_results_file(
                             data.dataframe,
                             data.folder,
                             data.file_name,
+                            file_type=file_type,
                         )
 
                 write_case_settings_file(

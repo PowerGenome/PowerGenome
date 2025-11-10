@@ -23,6 +23,7 @@ from powergenome.util import (
     prepend_db_to_tables,
     sort_nested_dict,
     update_dictionary,
+    write_results_file,
 )
 
 
@@ -558,3 +559,185 @@ class TestCalculateFileHash:
         # Assert
         assert isinstance(file_hash, str)
         assert len(file_hash) == 16
+
+
+class TestWriteResultsFile:
+    """Test the write_results_file function with different file types."""
+
+    @pytest.fixture
+    def sample_df(self):
+        """Create a sample DataFrame for testing."""
+        return pd.DataFrame(
+            {"col1": [1, 2, 3], "col2": ["a", "b", "c"], "col3": [1.1, 2.2, 3.3]}
+        )
+
+    def test_write_csv_default(self, tmp_path, sample_df):
+        """Test writing CSV file with default settings (no file_type provided)."""
+        folder = tmp_path / "output"
+        file_name = "test_file"
+
+        write_results_file(sample_df, folder, file_name)
+
+        # Check that CSV file was created
+        expected_path = folder / "test_file.csv"
+        assert expected_path.exists()
+
+        # Verify contents
+        result = pd.read_csv(expected_path)
+        pd.testing.assert_frame_equal(result, sample_df)
+
+    def test_write_csv_explicit(self, tmp_path, sample_df):
+        """Test writing CSV file with explicit file_type='csv'."""
+        folder = tmp_path / "output"
+        file_name = "test_file"
+
+        write_results_file(sample_df, folder, file_name, file_type="csv")
+
+        # Check that CSV file was created
+        expected_path = folder / "test_file.csv"
+        assert expected_path.exists()
+
+        # Verify contents
+        result = pd.read_csv(expected_path)
+        pd.testing.assert_frame_equal(result, sample_df)
+
+        expected_path = folder / "test_file.csv"
+        assert expected_path.exists()
+
+    def test_write_gzip(self, tmp_path, sample_df):
+        """Test writing gzip-compressed CSV file."""
+        folder = tmp_path / "output"
+        file_name = "test_file"
+
+        write_results_file(sample_df, folder, file_name, file_type="gzip")
+
+        # Check that gzip file was created
+
+    def test_write_gzip(self, tmp_path, sample_df):
+        """Test writing gzip compressed CSV file."""
+        folder = tmp_path / "output"
+        file_name = "test_file"
+
+        write_results_file(sample_df, folder, file_name, file_type="gzip")
+
+        expected_path = folder / "test_file.csv.gz"
+        assert expected_path.exists()
+
+        # Verify contents
+        result = pd.read_csv(expected_path, compression="gzip")
+        pd.testing.assert_frame_equal(result, sample_df)
+
+    def test_write_parquet(self, tmp_path, sample_df):
+        """Test writing Parquet file."""
+        folder = tmp_path / "output"
+        file_name = "test_file"
+
+        write_results_file(sample_df, folder, file_name, file_type="parquet")
+
+        # Check that parquet file was created
+        expected_path = folder / "test_file.parquet"
+        assert expected_path.exists()
+
+        # Verify contents
+        result = pd.read_parquet(expected_path)
+        pd.testing.assert_frame_equal(result, sample_df)
+
+    def test_write_with_existing_extension(self, tmp_path, sample_df):
+        """Test that existing file extensions are stripped before adding the correct one."""
+        folder = tmp_path / "output"
+
+        # Test with .csv extension in filename
+        write_results_file(sample_df, folder, "test_file.csv", file_type="parquet")
+        expected_path = folder / "test_file.parquet"
+        assert expected_path.exists()
+
+        # Test with .parquet extension but writing gzip
+        write_results_file(sample_df, folder, "test_file2.parquet", file_type="gzip")
+        expected_path = folder / "test_file2.csv.gz"
+        assert expected_path.exists()
+
+    def test_write_with_index(self, tmp_path, sample_df):
+        """Test writing file with index included."""
+        folder = tmp_path / "output"
+        file_name = "test_file"
+
+        write_results_file(
+            sample_df, folder, file_name, include_index=True, file_type="csv"
+        )
+
+        expected_path = folder / "test_file.csv"
+        result = pd.read_csv(expected_path, index_col=0)
+        pd.testing.assert_frame_equal(result, sample_df)
+
+    def test_write_with_float_format(self, tmp_path, sample_df):
+        """Test writing CSV with specific float format."""
+        folder = tmp_path / "output"
+        file_name = "test_file"
+
+        write_results_file(
+            sample_df, folder, file_name, float_format="%.1f", file_type="csv"
+        )
+
+        expected_path = folder / "test_file.csv"
+        assert expected_path.exists()
+
+        # Read as text to check formatting
+        content = expected_path.read_text()
+        assert "1.1" in content
+        assert "2.2" in content
+
+    def test_invalid_file_type(self, tmp_path, sample_df):
+        """Test that invalid file_type raises ValueError."""
+        folder = tmp_path / "output"
+        file_name = "test_file"
+
+        with pytest.raises(ValueError, match="Invalid file_type 'invalid'"):
+            write_results_file(sample_df, folder, file_name, file_type="invalid")
+
+    def test_folder_creation(self, tmp_path, sample_df):
+        """Test that nested folders are created if they don't exist."""
+        folder = tmp_path / "level1" / "level2" / "level3"
+        file_name = "test_file"
+
+        # Folder doesn't exist yet
+        assert not folder.exists()
+
+        write_results_file(sample_df, folder, file_name, file_type="csv")
+
+        # Folder should be created
+        assert folder.exists()
+        assert (folder / "test_file.csv").exists()
+
+    def test_empty_dataframe(self, tmp_path):
+        """Test writing an empty DataFrame."""
+        folder = tmp_path / "output"
+        file_name = "empty_file"
+        empty_df = pd.DataFrame()
+
+        write_results_file(empty_df, folder, file_name, file_type="csv")
+
+        expected_path = folder / "empty_file.csv"
+        assert expected_path.exists()
+
+    def test_large_dataframe(self, tmp_path):
+        """Test writing a larger DataFrame to ensure compression works properly."""
+        folder = tmp_path / "output"
+        file_name = "large_file"
+
+        # Create a larger DataFrame
+        large_df = pd.DataFrame({f"col_{i}": range(1000) for i in range(10)})
+
+        # Write as CSV and gzip
+        write_results_file(large_df, folder, "large_csv", file_type="csv")
+        write_results_file(large_df, folder, "large_gzip", file_type="gzip")
+
+        csv_size = (folder / "large_csv.csv").stat().st_size
+        gzip_size = (folder / "large_gzip.csv.gz").stat().st_size
+
+        # Gzip should be significantly smaller
+        assert gzip_size < csv_size
+
+        # Verify both have the same data
+        csv_result = pd.read_csv(folder / "large_csv.csv")
+        gzip_result = pd.read_csv(folder / "large_gzip.csv.gz", compression="gzip")
+        pd.testing.assert_frame_equal(csv_result, gzip_result)

@@ -385,8 +385,10 @@ def write_results_file(
     file_name: str,
     include_index: bool = False,
     float_format: str = None,
+    file_type: str = "csv",
 ):
-    """Write a finalized dataframe to one of the results csv files.
+    """Write a finalized dataframe to one of the results files. Can be CSV, gzip CSV, or
+    parquet.
 
     Parameters
     ----------
@@ -395,19 +397,40 @@ def write_results_file(
     folder : Path-like
         A Path object representing the folder for a single case/scenario
     file_name : str
-        Name of the file.
+        Name of the file. If no extension is provided, one will be added based on file_type.
     include_index : bool, optional
         If pandas should include the index when writing to csv, by default False
     float_format: str
         Parameter passed to pandas .to_csv
-    multi_period : bool, optional
-        If results should be formatted for multi-period, by default True
+    file_type : str, optional
+        The file type to write. Options are "csv", "gzip", and "parquet".
+        Defaults to "csv".
     """
+
+    # Validate file_type
+    valid_file_types = ["csv", "gzip", "parquet"]
+    if file_type not in valid_file_types:
+        raise ValueError(
+            f"Invalid file_type '{file_type}'. Must be one of {valid_file_types}"
+        )
 
     folder.mkdir(exist_ok=True, parents=True)
 
-    path_out = folder / file_name
-    df.to_csv(path_out, index=include_index, float_format=float_format)
+    # Handle file extensions
+    file_path = Path(file_name)
+    base_name = file_path.stem if file_path.suffix else str(file_path)
+
+    if file_type == "parquet":
+        path_out = folder / f"{base_name}.parquet"
+        df.to_parquet(path_out, index=include_index)
+    elif file_type == "gzip":
+        path_out = folder / f"{base_name}.csv.gz"
+        df.to_csv(
+            path_out, index=include_index, float_format=float_format, compression="gzip"
+        )
+    else:  # csv
+        path_out = folder / f"{base_name}.csv"
+        df.to_csv(path_out, index=include_index, float_format=float_format)
 
 
 def write_case_settings_file(settings: dict, folder: Path, file_name: str):

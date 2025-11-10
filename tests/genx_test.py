@@ -1523,3 +1523,123 @@ def test_process_genx_data_old_format():
 
     assert "None" in genx_data_dict["fuels"].columns
     assert all(genx_data_dict["demand_data"].columns.str.startswith("Load_"))
+
+
+class TestGenXInputData:
+    """Tests for the GenXInputData class methods."""
+
+    def test_get_file_suffix_csv(self):
+        """Test that get_file_suffix returns correct suffix for CSV."""
+        assert GenXInputData.get_file_suffix("csv") == ".csv"
+
+    def test_get_file_suffix_gzip(self):
+        """Test that get_file_suffix returns correct suffix for gzip."""
+        assert GenXInputData.get_file_suffix("gzip") == ".csv.gz"
+
+    def test_get_file_suffix_parquet(self):
+        """Test that get_file_suffix returns correct suffix for parquet."""
+        assert GenXInputData.get_file_suffix("parquet") == ".parquet"
+
+    def test_get_file_suffix_default(self):
+        """Test that get_file_suffix uses csv as default."""
+        assert GenXInputData.get_file_suffix() == ".csv"
+
+    def test_get_file_suffix_invalid(self):
+        """Test that get_file_suffix raises error for invalid file type."""
+        with pytest.raises(ValueError) as exc_info:
+            GenXInputData.get_file_suffix("invalid")
+        assert "Invalid file_type" in str(exc_info.value)
+        assert "['csv', 'gzip', 'parquet']" in str(exc_info.value)
+
+    def test_get_full_path_csv(self, tmp_path):
+        """Test get_full_path with CSV file type."""
+        folder = tmp_path / "output"
+        data = GenXInputData(
+            tag="TEST",
+            folder=folder,
+            file_name="test_file",
+            dataframe=pd.DataFrame({"col1": [1, 2]}),
+        )
+        expected = folder / "test_file.csv"
+        assert data.get_full_path("csv") == expected
+
+    def test_get_full_path_gzip(self, tmp_path):
+        """Test get_full_path with gzip file type."""
+        folder = tmp_path / "output"
+        data = GenXInputData(
+            tag="TEST",
+            folder=folder,
+            file_name="test_file",
+            dataframe=pd.DataFrame({"col1": [1, 2]}),
+        )
+        expected = folder / "test_file.csv.gz"
+        assert data.get_full_path("gzip") == expected
+
+    def test_get_full_path_parquet(self, tmp_path):
+        """Test get_full_path with parquet file type."""
+        folder = tmp_path / "output"
+        data = GenXInputData(
+            tag="TEST",
+            folder=folder,
+            file_name="test_file",
+            dataframe=pd.DataFrame({"col1": [1, 2]}),
+        )
+        expected = folder / "test_file.parquet"
+        assert data.get_full_path("parquet") == expected
+
+    def test_get_full_path_strips_existing_extension(self, tmp_path):
+        """Test that get_full_path strips existing file extensions."""
+        folder = tmp_path / "output"
+        data = GenXInputData(
+            tag="TEST",
+            folder=folder,
+            file_name="test_file.csv",
+            dataframe=pd.DataFrame({"col1": [1, 2]}),
+        )
+        # Should strip .csv and add .parquet
+        expected = folder / "test_file.parquet"
+        assert data.get_full_path("parquet") == expected
+
+    def test_get_full_path_default(self, tmp_path):
+        """Test get_full_path uses csv as default."""
+        folder = tmp_path / "output"
+        data = GenXInputData(
+            tag="TEST",
+            folder=folder,
+            file_name="test_file",
+            dataframe=pd.DataFrame({"col1": [1, 2]}),
+        )
+        expected = folder / "test_file.csv"
+        assert data.get_full_path() == expected
+
+    def test_post_init_converts_folder_to_path(self):
+        """Test that __post_init__ converts string folder to Path."""
+        data = GenXInputData(
+            tag="TEST",
+            folder="/some/folder",
+            file_name="test_file",
+            dataframe=pd.DataFrame({"col1": [1, 2]}),
+        )
+        assert isinstance(data.folder, Path)
+        assert data.folder == Path("/some/folder")
+
+    def test_post_init_validates_dataframe_type(self):
+        """Test that __post_init__ raises error for invalid dataframe type."""
+        with pytest.raises(TypeError) as exc_info:
+            GenXInputData(
+                tag="TEST",
+                folder="/some/folder",
+                file_name="test_file",
+                dataframe="not a dataframe",
+            )
+        assert "must be a pandas DataFrame or None" in str(exc_info.value)
+
+    def test_post_init_accepts_none_dataframe(self):
+        """Test that __post_init__ accepts None as dataframe."""
+        data = GenXInputData(
+            tag="TEST",
+            folder="/some/folder",
+            file_name="test_file",
+            dataframe=None,
+        )
+        assert data.dataframe is None
