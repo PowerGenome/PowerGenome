@@ -6,13 +6,13 @@ import logging
 from functools import lru_cache
 from inspect import signature
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
 from powergenome.database import get_data
-from powergenome.distributed_gen import distributed_gen_profiles
+from powergenome.distributed_gen import get_distributed_gen_hourly_generation
 from powergenome.eia_opendata import get_aeo_load
 from powergenome.external_data import make_demand_response_profiles
 from powergenome.load_construction import electrification_profiles
@@ -573,14 +573,71 @@ def add_demand_response_resource_load(load_curves, settings):
     return load_curves
 
 
-def subtract_distributed_generation(load_curves, settings):
-    dg_profiles = make_distributed_gen_profiles(settings)
-    dg_profiles.index = dg_profiles.index + 1
+@auto_fill_settings()
+def subtract_distributed_generation(
+    load_curves: pd.DataFrame,
+    model_year: int,
+    weather_year: Optional[int] = None,
+    model_regions: List[str] = None,
+    region_aggregations: Optional[Dict[str, List[str]]] = None,
+    utc_offset: Optional[int] = None,
+    avg_distribution_loss: Optional[float] = None,
+):
+    """Subtract distributed generation from load curves.
 
-    for col in dg_profiles.columns:
-        load_curves.loc[:, col] = load_curves.loc[:, col] - (
-            dg_profiles[col].values * 1 + settings["avg_distribution_loss"]
-        )
+    Parameters
+    ----------
+    load_curves : pd.DataFrame
+        Wide dataframe of hourly load profiles by region
+    model_year : int
+        Model planning year
+    weather_year : int, optional
+        Weather year selection filter for distributed generation profiles, by default None
+    model_regions : List[str], optional
+        List of model regions, by default None
+    region_aggregations : Dict[str, List[str]], optional
+        Mapping of aggregated regions to list of model regions, by default None
+    utc_offset : int, optional
+        UTC offset for time-shifting profiles, by default None
+    avg_distribution_loss : float, optional
+        Average distribution loss to account for when subtracting distributed generation,
+        by default None
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified load curves with distributed generation subtracted
+    """
+
+    # Get hourly distributed generation
+    dg_hourly_gen = get_distributed_gen_hourly_generation(
+        year=model_year,
+        weather_year=weather_year,
+        regions=model_regions,
+        region_aggregations=region_aggregations,
+        tz_offset=utc_offset,
+    )
+
+    if dg_hourly_gen.empty:
+        logger.info("No distributed generation data found, load curves unchanged")
+        return load_curves
+
+    # Ensure indices match
+    dg_hourly_gen.index = dg_hourly_gen.index
+
+    # Account for distribution losses
+    dist_loss_factor = 1 + (avg_distribution_loss or 0)
+
+    # Subtract DG generation from load (with loss adjustment)
+    for col in dg_hourly_gen.columns:
+        if col in load_curves.columns:
+            load_curves.loc[:, col] = load_curves.loc[:, col] - (
+                dg_hourly_gen[col].values * dist_loss_factor
+            )
+        else:
+            logger.warning(
+                f"Region {col} has distributed generation but is not in load curves"
+            )
 
     return load_curves
 
@@ -739,12 +796,15 @@ def make_final_load_curves(
     else:
         load_curves_before_dg = load_curves_before_dr
 
-    if (
-        settings.get("distributed_gen_profiles_fn")
-        or settings.get("distributed_gen_fn")
-    ) and not settings.get("dg_as_resource"):
+    if not settings.get("dg_as_resource"):
         final_load_curves = subtract_distributed_generation(
-            load_curves_before_dg, settings
+            load_curves_before_dg,
+            model_year=settings["model_year"],
+            weather_year=settings.get("weather_year"),
+            model_regions=settings["model_regions"],
+            region_aggregations=settings.get("region_aggregations"),
+            utc_offset=settings.get("utc_offset"),
+            avg_distribution_loss=settings.get("avg_distribution_loss"),
         )
     else:
         final_load_curves = load_curves_before_dg
@@ -765,108 +825,46 @@ def make_final_load_curves(
     return final_load_curves
 
 
-def make_distributed_gen_profiles(settings):
+@auto_fill_settings(regions="model_regions", region_aggregations="region_aggregations")
+def make_distributed_gen_profiles(
+    regions: List[str],
+    region_aggregations: Optional[Dict[str, List[str]]] = None,
+    weather_year: Optional[int] = None,
+    utc_offset: Optional[int] = None,
+) -> pd.DataFrame:
     """Create 8760 annual generation profiles for distributed generation in regions.
-    Uses a distribution loss parameter in the settings file when DG generation is
-    defined a fraction of delivered load.
+
+    This function retrieves normalized profiles from DataManager and returns them
+    for use in creating generator resources.
 
     Parameters
     ----------
-    settings : dict
-        User-defined parameters from a settings file
-
+    regions : List[str]
+        List of model regions (after aggregation)
+    region_aggregations : Optional[Dict[str, List[str]]], optional
+        Mapping of aggregated regions to their component regions, by default None
+    weather_year : Optional[int], optional
+        Weather year for profiles, by default None
+    utc_offset : Optional[int], optional
+        UTC offset for time zone adjustments, by default None
     Returns
     -------
     DataFrame
-        Hourly generation profiles for DG resources in each region. Not all regions
-        need to be accounted for.
-
-    Raises
-    ------
-    KeyError
-        If the calculation method specified in settings is not 'capacity' or 'fraction_load'
+        Hourly normalized generation profiles (0-1 range) for DG resources in each region.
+        Not all regions need to be accounted for.
     """
-    # TODO: #403 refactor this function to use a data location argument
+    from powergenome.distributed_gen import get_distributed_gen_profiles
+
     logger.info("Creating distributed generation profiles")
-    year = settings["model_year"]
 
-    # if settings.get("distributed_gen_fn"):
-    scenario = settings.get("distributed_gen_scenario")
-    if settings.get("region_aggregations"):
-        regions = [
-            r
-            for r in settings["model_regions"]
-            if r not in settings["region_aggregations"].keys()
-        ]
-        regions.extend(
-            list(reverse_dict_of_lists(settings["region_aggregations"]).keys())
-        )
-        regions = [
-            r for r in regions if r not in settings["region_aggregations"].keys()
-        ]
-    else:
-        regions = settings["model_regions"]
-
-    dg_profiles = distributed_gen_profiles(
-        settings.get("distributed_gen_fn"),
-        settings["model_year"],
-        scenario,
-        regions,
-        settings.get("DISTRIBUTED_GEN_DATA"),
-        settings.get("region_aggregations"),
-        settings.get("utc_offset"),
+    dg_profiles = get_distributed_gen_profiles(
+        weather_year=weather_year,
+        regions=regions,
+        region_aggregations=region_aggregations,
+        tz_offset=utc_offset,
     )
+
     return dg_profiles
-
-    # dg_profiles_path = (
-    #     Path(settings["input_folder"]) / settings["distributed_gen_profiles_fn"]
-    # )
-
-    # hourly_norm_profiles = pd.read_csv(dg_profiles_path)
-    # profile_regions = hourly_norm_profiles.columns
-
-    # dg_calc_methods = settings["distributed_gen_method"]
-    # dg_calc_values = settings["distributed_gen_values"]
-
-    # assert (
-    #     year in dg_calc_values
-    # ), "The years in settings parameter 'distributed_gen_values' do not match the model years."
-
-    # for region in dg_calc_values[year]:
-    #     assert region in set(profile_regions), (
-    #         "The profile regions in settings parameter 'distributed_gen_values' do not\n"
-    #         f"match the regions in {settings['distributed_gen_profiles_fn']} for year {year}"
-    #     )
-
-    # if "fraction_load" in dg_calc_methods.values():
-    #     regional_load = make_load_curves(pg_engine, settings)
-
-    # dg_hourly_gen = pd.DataFrame(columns=dg_calc_methods.keys())
-
-    # for region, method in dg_calc_methods.items():
-    #     region_norm_profile = hourly_norm_profiles[region]
-    #     region_calc_value = dg_calc_values[year][region]
-
-    #     if method == "capacity":
-    #         dg_hourly_gen[region] = calc_dg_capacity_method(
-    #             region_norm_profile, region_calc_value
-    #         )
-    #     elif method == "fraction_load":
-    #         region_load = regional_load[region]
-    #         dg_hourly_gen[region] = calc_dg_frac_load_method(
-    #             region_norm_profile, region_calc_value, region_load, settings
-    #         )
-    #     else:
-    #         raise KeyError(
-    #             "The settings parameter 'distributed_gen_method' can only have key "
-    #             "values of 'capapacity' or 'fraction_load' for each region.\n"
-    #             f"The value in your settings file is {method}"
-    #         )
-
-    # if len(dg_hourly_gen) == 8784:
-    #     remove_feb_29(dg_hourly_gen)
-
-    # return dg_hourly_gen
 
 
 def calc_dg_capacity_method(dg_profile, dg_capacity):
