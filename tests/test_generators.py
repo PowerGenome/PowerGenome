@@ -207,10 +207,64 @@ def test_add_dg_resources():
     old_func = generators_mod.make_distributed_gen_profiles
     generators_mod.make_distributed_gen_profiles = fake_make_distributed_gen_profiles
     try:
-        out = add_dg_resources({"model_year": 2020}, pd.DataFrame())
+        out = add_dg_resources(
+            model_regions=["A", "B"],
+            region_aggregations=None,
+            model_year=2020,
+            gen_df=pd.DataFrame(),
+        )
         assert "technology" in out.columns and "region" in out.columns
     finally:
         generators_mod.make_distributed_gen_profiles = old_func
+
+
+def test_add_dg_resources_no_profiles(monkeypatch):
+    import powergenome.generators as generators_mod
+
+    # Return empty profiles to simulate skip path
+    monkeypatch.setattr(
+        generators_mod,
+        "make_distributed_gen_profiles",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    out = add_dg_resources(
+        model_regions=["A"],
+        region_aggregations=None,
+        model_year=2020,
+        gen_df=pd.DataFrame(),
+    )
+    assert "profile" in out.columns
+
+
+def test_add_dg_resources_no_capacity(monkeypatch):
+    import powergenome.generators as generators_mod
+
+    # Provide a basic profile but no capacity
+    monkeypatch.setattr(
+        generators_mod,
+        "make_distributed_gen_profiles",
+        lambda *args, **kwargs: pd.DataFrame({"A": [0.5, 0.5]}),
+    )
+    monkeypatch.setattr(
+        generators_mod,
+        "get_distributed_gen_capacity",
+        lambda *args, **kwargs: pd.DataFrame(columns=["region", "capacity_mw"]),
+    )
+
+    out = add_dg_resources(
+        model_regions=["A"],
+        region_aggregations=None,
+        model_year=2020,
+        gen_df=pd.DataFrame(),
+    )
+    assert "profile" in out.columns
+    # Ensure no DG rows were added
+    assert (
+        (out.get("technology") != "distributed_generation").all()
+        if "technology" in out.columns
+        else True
+    )
 
 
 def test_energy_storage_mwh():
