@@ -12,10 +12,8 @@
 # case.
 settings_management:
   2030:
-    time_series:
-      full:
-        reduce_time_domain: false
-  2045:
-    time_series:
-      full:
-        reduce_time_domain: false
+    dg_as_resource:
+      yes:
+        dg_as_resource: true
+      no:
+        dg_as_resource: false

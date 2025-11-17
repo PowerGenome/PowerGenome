@@ -1,2 +1,3 @@
-﻿case_id,year,time_series
-p1,2030,full
+﻿case_id,year,dg_as_resource
+p1,2030,yes
+p2,2030,no
