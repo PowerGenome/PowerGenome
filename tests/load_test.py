@@ -150,7 +150,12 @@ def test_subtract_distributed_generation_with_data(monkeypatch):
 
 def test_make_load_curves_timezone_shift(monkeypatch):
     # Provide synthetic demand data via get_data
-    def fake_get_data(table, columns=None, filters=None):
+    def fake_get_data(table_name, columns=None, filters=None, query=None):
+        # Query is "PRAGMA table_info('demand')"
+        # Return a schema-like DataFrame with name column
+        if query is not None:
+            return pd.DataFrame({"name": ["year", "region", "time_index", "load_mw"]})
+
         # Simulate a single region with 4 hours
         return pd.DataFrame(
             {
