@@ -192,11 +192,27 @@ def make_load_curves(
             ("region", "in", keep_regions),
         ]
     ]
+    load_curve_columns = get_data(
+        table_name="demand", query="PRAGMA table_info('demand')"
+    ).name.to_list()
+    get_cols = ["year", "region", "time_index", "load_mw", "weather_year"]
     load_curves = get_data(
         "demand",
-        columns=["year", "region", "time_index", "load_mw"],
+        columns=[c for c in get_cols if c in load_curve_columns],
         filters=filters,
     )
+    if "weather_year" in load_curves.columns:
+        if settings.get("weather_year"):
+            load_curves = load_curves[
+                load_curves["weather_year"] == settings["weather_year"]
+            ]
+        for r in keep_regions:
+            region_mask = load_curves["region"] == r
+            region_data = load_curves.loc[region_mask]
+            if not region_data.empty:
+                load_curves.loc[region_mask, "time_index"] = np.arange(
+                    1, len(region_data) + 1
+                )
     # if settings["model_year"] in demand_years["year"].to_list():
     #     s = f"""
     #         SELECT year, region, time_index, load_mw
