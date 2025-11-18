@@ -186,15 +186,28 @@ def make_load_curves(
     # # demand_years = pd.read_sql_query(sql=s, con=pg_engine)
     # demand_years = load_data(data_location, pg_table, query=s)
     # region_params = ", ".join(f"'{r}'" for r in keep_regions)
+
+    load_curve_columns = get_data(
+        table_name="demand", query="PRAGMA table_info('demand')"
+    ).name.to_list()
+    if "weather_year" in load_curve_columns:
+        if settings.get("weather_year"):
+            weather_years = (
+                settings["weather_year"]
+                if isinstance(settings["weather_year"], list)
+                else [settings["weather_year"]]
+            )
     filters = [
         [
             ("year", "=", settings["model_year"]),
             ("region", "in", keep_regions),
         ]
+        + (
+            [("weather_year", "in", weather_years)]
+            if settings.get("weather_year")
+            else []
+        )
     ]
-    load_curve_columns = get_data(
-        table_name="demand", query="PRAGMA table_info('demand')"
-    ).name.to_list()
     get_cols = ["year", "region", "time_index", "load_mw", "weather_year"]
     load_curves = get_data(
         "demand",
@@ -202,10 +215,14 @@ def make_load_curves(
         filters=filters,
     )
     if "weather_year" in load_curves.columns:
-        if settings.get("weather_year"):
-            load_curves = load_curves[
-                load_curves["weather_year"] == settings["weather_year"]
-            ]
+        if load_curves.weather_year.nunique() < len(weather_years):
+            missing_years = set(weather_years) - set(load_curves.weather_year.unique())
+            raise ValueError(
+                "*********************\n"
+                f"The following weather_years were requested in the settings but are not "
+                f"available in the demand profiles table: {missing_years}. "
+                "*********************\n"
+            )
         for r in keep_regions:
             region_mask = load_curves["region"] == r
             region_data = load_curves.loc[region_mask]

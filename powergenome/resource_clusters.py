@@ -704,7 +704,9 @@ class ResourceGroup:
         merge = copy.deepcopy(MERGE)
         # Prepare profiles
         if profiles and self.profiles is not None:
-            p = self._read_profiles(site_ids=df.index, weather_year=weather_year)
+            p = self._read_profiles(
+                site_ids=df.index.tolist(), weather_year=weather_year
+            )
             df["profile"] = (
                 list(
                     np.roll(
