@@ -946,7 +946,7 @@ def add_renewables_clusters(
             data_file_hash = "no_data"
 
         unique_hash = hash_string_sha256(
-            f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_file_{data_file_hash}"
+            f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_weather_year{settings.get('weather_year','all')}_file_{data_file_hash}"
         )
         cache_cluster_fn = unique_hash + "_cluster_data.parquet"
         cache_site_assn_fn = unique_hash + "_site_assn.parquet"
@@ -1002,6 +1002,7 @@ def add_renewables_clusters(
                     regions=regions,
                     site_map=site_map,
                     utc_offset=settings.get("utc_offset", 0),
+                    weather_year=settings.get("weather_year"),
                     **_scenario,
                 )
                 if data.empty:
@@ -1038,6 +1039,7 @@ def add_renewables_clusters(
                         ipm_regions=regions,
                         existing=False,
                         utc_offset=settings.get("utc_offset", 0),
+                        weather_year=settings.get("weather_year"),
                     )
                     .rename(columns={"mw": "Max_Cap_MW"})
                     .assign(technology=technology, region=region)

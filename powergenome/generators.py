@@ -3714,6 +3714,7 @@ class GeneratorClusters:
                 regions=regions,
                 max_clusters=1,
                 utc_offset=self.settings.get("utc_offset", 0),
+                weather_year=self.settings.get("weather_year"),
             )
             self.results["profile"][i] = clusters["profile"][0]
 
