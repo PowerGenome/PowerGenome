@@ -2,5 +2,5 @@
     "technology": "landbasedwind",
     "existing": true,
     "metadata": "existing_onshorewind_reeds_ba_metadata_20250513.csv",
-    "profiles": "existing_onshore_wind_reeds_ba_profiles_20250513.csv"
+    "profiles": "existing_onshore_wind_reeds_ba_profiles_20250513_tidy.csv"
 }
