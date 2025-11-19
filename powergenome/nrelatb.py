@@ -430,7 +430,14 @@ def add_modified_generators(
     return mod_gens
 
 
-def build_new_resources(resource_costs, resource_hr, settings, cluster_builder=None):
+def build_new_resources(
+    resource_costs,
+    resource_hr,
+    settings,
+    cluster_builder=None,
+    cache_results: bool = False,
+    use_cache: bool = False,
+) -> pd.DataFrame:
     """Add rows for new generators in each region
 
     Parameters
@@ -446,6 +453,10 @@ def build_new_resources(resource_costs, resource_hr, settings, cluster_builder=N
         User-defined parameters from a settings file
     cluster_builder : ClusterBuilder
         ClusterBuilder object. Reuse to save time. None by default.
+    cache_results : bool
+        Whether to cache renewable clustering results. Default is False.
+    use_cache : bool
+        Whether to use cached renewable clustering results. Default is False.
 
     Returns
     -------
@@ -646,6 +657,8 @@ def build_new_resources(resource_costs, resource_hr, settings, cluster_builder=N
                 rev_mult_tech_map,
                 region,
                 cluster_builder,
+                cache_results=cache_results,
+                use_cache=use_cache,
             )
             for region in regions
         )
@@ -675,6 +688,8 @@ def parallel_region_renewables(
     rev_mult_tech_map: Dict[str, List[str]],
     region: str,
     cluster_builder: ClusterBuilder = None,
+    cache_results: bool = False,
+    use_cache: bool = False,
 ) -> pd.DataFrame:
     """Wrapper function to run regional capex and add renewable clusters in parallel
 
@@ -694,6 +709,10 @@ def parallel_region_renewables(
         Name of the model region
     cluster_builder
         ClusterBuilder object. Reuse to save time. None by default.
+    cache_results : bool
+        Whether to cache renewable clustering results. Default is False.
+    use_cache : bool
+        Whether to use cached renewable clustering results. Default is False.
 
     Returns
     -------
@@ -715,8 +734,8 @@ def parallel_region_renewables(
         region,
         copy.deepcopy(settings),
         cluster_builder,
-        cache_results=True,
-        use_cache=True,
+        cache_results=cache_results,
+        use_cache=use_cache,
     )
 
     return _df
@@ -822,6 +841,12 @@ def add_renewables_clusters(
         Dictionary with the following keys:
             - `renewables_clusters`: Determines the clusters built for the region.
             - `region_aggregations`: Maps the model region to IPM regions.
+    cluster_builder : ClusterBuilder
+        ClusterBuilder object. Reuse to save time. None by default.
+    cache_results : bool
+        Whether to cache renewable clustering results. Default is False.
+    use_cache : bool
+        Whether to use cached renewable clustering results. Default is False.
 
 
     Returns
