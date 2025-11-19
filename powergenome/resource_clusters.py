@@ -757,6 +757,7 @@ class ResourceGroup:
                 f"Found columns: {list(cols)}"
             )
 
+        years = None
         # If profiles are provided in-memory (no path), fall back to Table.read
         # Keeping this for now, but should eventually standardize on DuckDB-based loader
         if not getattr(self.profiles, "path", None):
