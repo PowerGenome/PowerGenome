@@ -40,6 +40,8 @@ def fuel_settings():
     settings = Settings(config_path="tests/test_system/settings")
     settings["RESOURCE_GROUPS"] = "tests/test_system/test_data/resource_groups"
     settings["data_location"] = "tests/test_system/test_data"
+    settings["cache_resource_clusters"] = False
+    settings["use_resource_clusters_cache"] = False
     settings_modifications = {
         "modified_new_resources": {
             "ZCF_CombinedCycle1": {

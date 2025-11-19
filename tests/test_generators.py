@@ -463,6 +463,8 @@ class TestGeneratorCluster:
         settings = Settings(config_path="tests/test_system/settings")
         settings["RESOURCE_GROUPS"] = "tests/test_system/test_data/resource_groups"
         settings["data_location"] = "tests/test_system/test_data"
+        settings["cache_resource_clusters"] = False
+        settings["use_resource_clusters_cache"] = False
 
         # Initialize DataManager before creating GeneratorClusters
         initialize_data_manager(settings, settings["data_location"])
