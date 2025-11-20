@@ -71,6 +71,7 @@ tech_fuel_map:
   Nuclear: uranium
   Petroleum Liquids: distillate
   Other_peaker: naturalgas
+  hydrogen: hydrogen
 
 # The CCS fuel names (key values on right have to be in the format <fuel>_<ccslevel>,
 # where the fuel matches something from "aeo_fuel_scenarios" (above
@@ -99,3 +100,7 @@ fuel_emission_factors:
   naturalgas: 0.05306
   coal: 0.09552 # EIA value for electric power sector
   distillate: 0.07315
+  hydrogen: 0.0
+
+user_fuel_price:
+  hydrogen: 16.0  # $/MMBtu

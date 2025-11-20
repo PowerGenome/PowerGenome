@@ -51,6 +51,7 @@ model_tag_values:
     Petroleum Liquids: 1
     Wood/Wood Waste Biomass: 1
     NaturalGas_: 1
+    hydrogen_: 1
   VRE:
     CSP: 1
     LandbasedWind: 1
@@ -139,6 +140,7 @@ model_tag_values:
     Nuclear_Nuclear: 1
     Nuclear: -1
     distributed_gen: -1
+    hydrogen_: 1
   CapRes_1:
     Conventional Steam Coal: 0.9
     Natural Gas Fired Combined Cycle: 0.9

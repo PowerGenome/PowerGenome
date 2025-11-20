@@ -226,7 +226,15 @@ modified_atb_new_gen: ~
   #   fixed_o_m_mw: [add, 9670]
   #   variable_o_m_mwh: [mul, 1.076]
 
-modified_new_resources: ~
+modified_new_resources:
+  hydrogen_turbine:
+    technology: NaturalGas
+    tech_detail: 1-on-1 Combined Cycle (H-Frame)
+    cost_case: Moderate
+    size_mw: 100
+    new_technology: hydrogen
+    new_tech_detail: 1-on-1 Combined Cycle (H-Frame)
+    new_cost_case: Moderate
 
 ######################################################
 # MODIFY THESE PARAMETERS FOR NEW REGIONAL AGGREGATIONS
@@ -238,32 +246,32 @@ modified_new_resources: ~
 # must also be added. This cannot be mapped automatically since user regions might
 # cut across EMM regions.
 # See a map at https://www.eia.gov/outlooks/aeo/pdf/nerc_map.pdf
-cost_multiplier_region_map:
-  BASN: [p12, p13, p15, p16, p21, p25, p26]
-  CANO: [p9]
-  CASO: [p10, p11]
-  FRCC: [p101, p102]
-  ISNE: [p129, p130, p131, p132, p133, p134]
-  MISC: [p71, p72, p73, p81, p82, p83, p84, p105, p106, p107]
-  MISE: [p103]
-  MISS: [p58, p66, p85, p86, p87]
-  MISW: [p42, p43, p44, p68, p69, p70, p74, p75, p76, p77, p78, p79]
-  NWPP: [p1_2, p1, p2, p3, p4, p5, p6, p7, p8, p14, p17, p18, p19, p20]
-  NYCW: [p128]
-  NYUP: [p127]
-  PJMC: [p80]
-  PJMD: [p99]
-  PJME: [p119, p120, p122, p123, p124, p125, p126]
-  PJMW: [p100, p104, p110, p111, p112, p113, p114, p115, p116, p117, p118, p121]
-  RMRG: [p22, p23, p24, p32, p33, p34]
-  SPPC: [p52, p53, p54, p55]
-  SPPN: [p35, p36, p37, p38, p39, p40, p41, p45, p46]
-  SPPS: [p47, p48, p49, p50, p51, p56, p57]
-  SRCA: [p95, p96, p97, p98]
-  SRCE: [p88, p92, p93, p108, p109]
-  SRSE: [p89, p90, p91, p94]
-  SRSG: [p27, p28, p29, p30, p31, p59]
-  TRE: [p60, p61, p62, p63, p64, p65, p67]
+# cost_multiplier_region_map:
+#   BASN: [p12, p13, p15, p16, p21, p25, p26]
+#   CANO: [p9]
+#   CASO: [p10, p11]
+#   FRCC: [p101, p102]
+#   ISNE: [p129, p130, p131, p132, p133, p134]
+#   MISC: [p71, p72, p73, p81, p82, p83, p84, p105, p106, p107]
+#   MISE: [p103]
+#   MISS: [p58, p66, p85, p86, p87]
+#   MISW: [p42, p43, p44, p68, p69, p70, p74, p75, p76, p77, p78, p79]
+#   NWPP: [p1_2, p1, p2, p3, p4, p5, p6, p7, p8, p14, p17, p18, p19, p20]
+#   NYCW: [p128]
+#   NYUP: [p127]
+#   PJMC: [p80]
+#   PJMD: [p99]
+#   PJME: [p119, p120, p122, p123, p124, p125, p126]
+#   PJMW: [p100, p104, p110, p111, p112, p113, p114, p115, p116, p117, p118, p121]
+#   RMRG: [p22, p23, p24, p32, p33, p34]
+#   SPPC: [p52, p53, p54, p55]
+#   SPPN: [p35, p36, p37, p38, p39, p40, p41, p45, p46]
+#   SPPS: [p47, p48, p49, p50, p51, p56, p57]
+#   SRCA: [p95, p96, p97, p98]
+#   SRCE: [p88, p92, p93, p108, p109]
+#   SRSE: [p89, p90, p91, p94]
+#   SRSG: [p27, p28, p29, p30, p31, p59]
+#   TRE: [p60, p61, p62, p63, p64, p65, p67]
 
 ######################################################
 # THESE PARAMETERS ARE RARELY MODIFIED FOR NEW STUDIES
@@ -298,28 +306,28 @@ new_gen_not_available: ~
 # will only be applied to the first technology.
 # If you want to modify the regional cost corrections CSV, you can put your own copy in
 # the folder PowerGenome/data/cost_multipliers.
-cost_multiplier_fn: AEO_2020_regional_cost_corrections.csv
-cost_multiplier_technology_map:
-  Ultra-supercritical coal (USC): [Coal_newAvgCF, Coal_newHighCF]
-  # IGCC: [Coal_IGCCAvgCF, Coal_IGCCAvgCF]
-  USC with 30% CCS: [Coal_CCS30AvgCF, Coal_CCS30HighCF]
-  USC with 90% CCS: [Coal_CCS90AvgCF, Coal_CCS90HighCF]
-  CT - aeroderivative: []
-  CT - industrial frame: [NaturalGas_CTAvgCF, NaturalGas_CTHighCF, NaturalGas_Combustion Turbine (F-Frame)]
-  CC - single shaft: [NaturalGas_1-on-1 Combined Cycle (H-Frame)]
-  CC - multi shaft: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF, NaturalGas_2-on-1 Combined Cycle (H-Frame)]
-  CC with 90% CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100, NaturalGas_CCS100, NaturalGas_CCS100_low,NaturalGas_CCS100_high]
-  Fuel cells: []
-  Advanced nuclear: [Nuclear_Nuclear, Nuclear_mid, Nuclear_low, Nuclear_high, Nuclear_Nuclear - Large]
-  Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
-  MSW - landfill gas: []
-  Wind: [LandbasedWind_Class3]
-  Wind offshore: [OffShoreWind_Class3, OffShoreWind_Class12]
-  Solar thermal: [CSP]
-  Solar PV - tracking: [UtilityPV_Class1, CommPV, ResPV]
-  Battery storage: [Utility-Scale Battery Storage_Lithium Ion, Storage_LongDuration]
-  Geothermal: [Geothermal_HydroBinary, Geothermal_HydroFlash, Geothermal_NFEGSBinary, Geothermal_DeepEGSBinary, Geothermal_NFEGSFlash, Geothermal_DeepEGSFlash]
-  Conventional hydropower: [Hydropower]
+# cost_multiplier_fn: AEO_2020_regional_cost_corrections.csv
+# cost_multiplier_technology_map:
+#   Ultra-supercritical coal (USC): [Coal_newAvgCF, Coal_newHighCF]
+#   # IGCC: [Coal_IGCCAvgCF, Coal_IGCCAvgCF]
+#   USC with 30% CCS: [Coal_CCS30AvgCF, Coal_CCS30HighCF]
+#   USC with 90% CCS: [Coal_CCS90AvgCF, Coal_CCS90HighCF]
+#   CT - aeroderivative: []
+#   CT - industrial frame: [NaturalGas_CTAvgCF, NaturalGas_CTHighCF, NaturalGas_Combustion Turbine (F-Frame)]
+#   CC - single shaft: [NaturalGas_1-on-1 Combined Cycle (H-Frame)]
+#   CC - multi shaft: [NaturalGas_CCAvgCF, NaturalGas_CCHighCF, NaturalGas_2-on-1 Combined Cycle (H-Frame)]
+#   CC with 90% CCS: [NaturalGas_CCCCSAvgCF, NaturalGas_CCCCSHighCF, NGCCS100, NaturalGas_CCS100, NaturalGas_CCS100_low,NaturalGas_CCS100_high]
+#   Fuel cells: []
+#   Advanced nuclear: [Nuclear_Nuclear, Nuclear_mid, Nuclear_low, Nuclear_high, Nuclear_Nuclear - Large]
+#   Biomass: [Biopower_CofireOld, Biopower_CofireNew, Biopower_Dedicated]
+#   MSW - landfill gas: []
+#   Wind: [LandbasedWind_Class3]
+#   Wind offshore: [OffShoreWind_Class3, OffShoreWind_Class12]
+#   Solar thermal: [CSP]
+#   Solar PV - tracking: [UtilityPV_Class1, CommPV, ResPV]
+#   Battery storage: [Utility-Scale Battery Storage_Lithium Ion, Storage_LongDuration]
+#   Geothermal: [Geothermal_HydroBinary, Geothermal_HydroFlash, Geothermal_NFEGSBinary, Geothermal_DeepEGSBinary, Geothermal_NFEGSFlash, Geothermal_DeepEGSFlash]
+#   Conventional hydropower: [Hydropower]
 
 # EXTRA ADDITIONS AND RETIREMENTS
 
