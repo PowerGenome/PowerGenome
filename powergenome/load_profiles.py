@@ -186,17 +186,63 @@ def make_load_curves(
     # # demand_years = pd.read_sql_query(sql=s, con=pg_engine)
     # demand_years = load_data(data_location, pg_table, query=s)
     # region_params = ", ".join(f"'{r}'" for r in keep_regions)
+
+    load_curve_columns = get_data(
+        table_name="demand", query="PRAGMA table_info('demand')"
+    ).name.to_list()
+    if "weather_year" in load_curve_columns:
+        if settings.get("weather_year"):
+            weather_years = (
+                settings["weather_year"]
+                if isinstance(settings["weather_year"], list)
+                else [settings["weather_year"]]
+            )
+        else:
+            # find available weather years for the model year in the demand table
+            s = f"""
+                SELECT DISTINCT weather_year
+                FROM demand
+                WHERE year = {settings["model_year"]}
+                """
+            data_weather_years = get_data(
+                "demand",
+                query=s,
+            ).weather_year.to_list()
+            weather_years = data_weather_years
+
     filters = [
         [
             ("year", "=", settings["model_year"]),
             ("region", "in", keep_regions),
         ]
+        + (
+            [("weather_year", "in", weather_years)]
+            if settings.get("weather_year")
+            else []
+        )
     ]
+    get_cols = ["year", "region", "time_index", "load_mw", "weather_year"]
     load_curves = get_data(
         "demand",
-        columns=["year", "region", "time_index", "load_mw"],
+        columns=[c for c in get_cols if c in load_curve_columns],
         filters=filters,
     )
+    if "weather_year" in load_curves.columns:
+        if load_curves.weather_year.nunique() < len(weather_years):
+            missing_years = set(weather_years) - set(load_curves.weather_year.unique())
+            raise ValueError(
+                "*********************\n"
+                f"The following weather_years were requested in the settings but are not "
+                f"available in the demand profiles table: {missing_years}. "
+                "*********************\n"
+            )
+        for r in keep_regions:
+            region_mask = load_curves["region"] == r
+            region_data = load_curves.loc[region_mask]
+            if not region_data.empty:
+                load_curves.loc[region_mask, "time_index"] = np.arange(
+                    1, len(region_data) + 1
+                )
     # if settings["model_year"] in demand_years["year"].to_list():
     #     s = f"""
     #         SELECT year, region, time_index, load_mw

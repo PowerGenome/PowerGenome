@@ -76,7 +76,6 @@ def get_distributed_gen_capacity(
         base_regions = list(set(base_regions))
     else:
         base_regions = regions
-        reverse_agg_map = {}
 
     # Load capacity data from DataManager
     filters = [[("year", "=", year), ("region", "in", base_regions)]]
@@ -323,7 +322,6 @@ def get_distributed_gen_profiles(
         base_regions.extend(list(reverse_agg_map.keys()))
     else:
         base_regions = regions
-        reverse_agg_map = {}
 
     # Build filters (omit weather_year condition if None)
     if weather_years is None:

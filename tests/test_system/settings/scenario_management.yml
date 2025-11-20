@@ -12,8 +12,10 @@
 # case.
 settings_management:
   2030:
-    dg_as_resource:
-      yes:
-        dg_as_resource: true
-      no:
-        dg_as_resource: false
+    weather_year:
+      2012_only:
+        weather_year: [2012]
+      both_years:
+        weather_year: [2012, 2013]
+      2012_only_integer:
+        weather_year: 2012

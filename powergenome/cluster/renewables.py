@@ -6,7 +6,7 @@ import logging
 import operator
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -15,22 +15,125 @@ from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.preprocessing import StandardScaler
 
 from powergenome.resource_clusters import MERGE
-from powergenome.util import deep_freeze_args, snake_case_str
+from powergenome.util import load_data, snake_case_str
 
 logger = logging.getLogger(__name__)
 
 
-def load_site_profiles(path: Path, site_ids: List[str]) -> pd.DataFrame:
+def load_site_profiles(
+    path: Path,
+    site_ids: List[str],
+    weather_year: Optional[Union[int, List[int]]] = None,
+) -> pd.DataFrame:
+    """Load site generation profiles for the requested site IDs.
+
+    All profiles must be in tidy format with columns: site_id, time_index, value,
+    and optionally weather_year. Multiple weather years can be provided to concatenate
+    profiles across years (e.g., 2 years = 17,520 hours).
+
+    Parameters
+    ----------
+    path : Path
+        File path to profiles in csv or parquet format.
+    site_ids : List[str]
+        Site identifiers to load.
+    weather_year : Optional[Union[int, List[int]]]
+        Weather year(s) to filter tidy profiles. Can be a single int or list of ints.
+        Multiple years will be concatenated into a continuous time series.
+
+    Returns
+    -------
+    pd.DataFrame
+        Wide dataframe with one column per site_id and rows indexed by time_index.
+        If multiple weather years are loaded, time_index will span all years.
+    """
     suffix = path.suffix
-    for i, s in enumerate(site_ids):
-        if isinstance(s, str) and s.endswith(".0"):
-            site_ids[i] = s.replace(".0", "")
+
+    # Helper to pivot tidy df to wide with requested site_ids
+    def _pivot_tidy(df: pd.DataFrame) -> pd.DataFrame:
+        # Filter to requested site_ids
+        df = df[df["site_id"].isin(site_ids)].copy()
+        if "weather_year" in df.columns:
+            if weather_year is not None:
+                years = (
+                    weather_year if isinstance(weather_year, list) else [weather_year]
+                )
+                df = df[df["weather_year"].isin(years)]
+
+            if df.weather_year.nunique() > 1:
+                # Sort and create continuous time_index across years per site if weather_year exists
+                df = df.sort_values(by=["weather_year", "time_index"])
+                for sid in site_ids:
+                    mask = df["site_id"] == sid
+                    sd = df.loc[mask]
+                    if not sd.empty:
+                        df.loc[mask, "time_index"] = np.arange(1, len(sd) + 1)
+
+        wide = df.pivot(
+            index="time_index", columns="site_id", values="value"
+        ).sort_index()
+        # Ensure columns are in requested order when present
+        present = [c for c in site_ids if c in wide.columns]
+        missing = [c for c in site_ids if c not in wide.columns]
+        if missing:
+            logger.warning(
+                f"The profiles for sites {set(missing)} were not found in {path}. The value of '1' will be used in all hours."
+            )
+        wide = wide.reindex(columns=present)
+        # For any missing, create a '1' series matching index length and append
+        for m in missing:
+            wide[m] = 1.0
+        # Return with columns in the requested order
+        return wide[site_ids]
+
     if suffix == ".parquet":
-        df = pq.read_table(path, columns=site_ids).to_pandas()
+        # Validate tidy format
+        try:
+            schema_names = pq.read_schema(path).names
+        except Exception:
+            schema_names = []
+        required_cols = {"site_id", "time_index", "value"}
+        if not required_cols.issubset(set(schema_names)):
+            raise ValueError(
+                f"Resource profiles must be in tidy format with columns {required_cols}. "
+                f"Found columns: {schema_names}"
+            )
+        # Read minimal columns via duckdb with DNF filters
+        cols = ["site_id", "time_index", "value"]
+        if "weather_year" in schema_names:
+            cols.append("weather_year")
+        years = None
+        if weather_year is not None and "weather_year" in schema_names:
+            years = weather_year if isinstance(weather_year, list) else [weather_year]
+        filters = [
+            [("site_id", "in", site_ids)]
+            + ([("weather_year", "in", years)] if years is not None else [])
+        ]
+        df = load_data(path.parent, path.name, filters=filters, columns=cols)
+        return _pivot_tidy(df)
     elif suffix == ".csv":
-        _site_ids = [str(s) for s in site_ids]
-        df = pd.read_csv(path, usecols=_site_ids)
-    return df
+        # Validate tidy format
+        header = pd.read_csv(path, nrows=0).columns.tolist()
+        required_cols = {"site_id", "time_index", "value"}
+        if not required_cols.issubset(set(header)):
+            raise ValueError(
+                f"Resource profiles must be in tidy format with columns {required_cols}. "
+                f"Found columns: {header}"
+            )
+        usecols = [
+            c for c in ["site_id", "time_index", "value", "weather_year"] if c in header
+        ]
+        years = None
+        if weather_year is not None and "weather_year" in usecols:
+            years = weather_year if isinstance(weather_year, list) else [weather_year]
+        filters = [
+            [("site_id", "in", site_ids)]
+            + ([("weather_year", "in", years)] if years is not None else [])
+        ]
+        df = load_data(path.parent, path.name, filters=filters, columns=usecols)
+        return _pivot_tidy(df)
+    else:
+        raise ValueError(f"Unsupported profile file format: {suffix}")
 
 
 def value_bin(
@@ -127,8 +230,6 @@ def value_bin(
     return labels
 
 
-# @deep_freeze_args
-# @lru_cache()
 def agg_cluster_profile(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
     if len(s) == 0:
         return []
@@ -156,8 +257,6 @@ def agg_cluster_profile(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
     return labels
 
 
-# @deep_freeze_args
-# @lru_cache()
 def agg_cluster_other(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
     if len(s) == 0:
         return []
@@ -393,6 +492,7 @@ def assign_site_cluster(
     group: List[str] = None,
     cluster: List[dict] = None,
     utc_offset: int = 0,
+    weather_year: Optional[Union[int, List[int]]] = None,
     **kwargs: Any,
 ) -> pd.DataFrame:
     """Use settings options to group individual renewable sites.
@@ -503,14 +603,13 @@ def assign_site_cluster(
         if missing_site_ids:
             print(f"missing site IDs {missing_site_ids}")
             data = data.loc[~data["cpa_id"].isin(missing_site_ids), :]
-        site_ids = data["cpa_id"].map(site_map).astype(str).to_list()
+        site_ids = data["cpa_id"].map(site_map).to_list()
     else:
-        try:
-            site_ids = [str(int(i)) for i in data["cpa_id"]]
-        except ValueError:
-            site_ids = data["cpa_id"].to_list()
+        site_ids = data["cpa_id"].to_list()
     if profile_path is not None:
-        cpa_profiles = load_site_profiles(profile_path, site_ids=list(set(site_ids)))
+        cpa_profiles = load_site_profiles(
+            profile_path, site_ids=list(set(site_ids)), weather_year=weather_year
+        )
         profiles = [np.roll(cpa_profiles[site].values, utc_offset) for site in site_ids]
         data["profile"] = profiles
     else:

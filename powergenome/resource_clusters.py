@@ -12,7 +12,7 @@ import pyarrow
 import pyarrow.parquet as pq
 import scipy.cluster.hierarchy
 
-from powergenome.util import find_region_col
+from powergenome.util import find_region_col, load_data
 
 logger = logging.getLogger(__name__)
 
@@ -553,22 +553,40 @@ class ResourceGroup:
         Raises
         ------
         ValueError
-            Resource profiles column names do not match resource identifiers.
+            Resource profiles missing required tidy format columns.
         ValueError
-            Resource profiles are not either 8760 or 8784 elements.
+            Resource profiles are not either 8760 or 8784 elements (or multiples thereof
+            for multi-year profiles).
         """
         if self.profiles is None:
             return None
-        # Cast identifiers to string to match profile columns
-        ids = self.metadata.read(columns=["id"])["id"].astype(str)
+        # Get identifiers from metadata
+        ids = self.metadata.read(columns=["id"])["id"]
         columns = self.profiles.columns
-        if not set(columns) == set(ids):
+        # All profiles must be in tidy format
+        required_cols = {"site_id", "time_index", "value"}
+        if not required_cols.issubset(set(columns)):
             raise ValueError(
-                "Resource profiles column names do not match resource identifiers"
+                f"Resource profiles must be in tidy format with columns {required_cols}. "
+                f"Found columns: {columns}"
             )
-        df = self.profiles.read(columns=columns[0])
-        if len(df) not in [8760, 8784]:
-            raise ValueError("Resource profiles are not either 8760 or 8784 elements")
+        # Validate profile length for at least one id
+        first_id = ids.iloc[0]
+        df = self.profiles.read(
+            columns=[
+                c
+                for c in ["site_id", "time_index", "value", "weather_year"]
+                if c in columns
+            ]
+        )
+        df = df[df["site_id"] == first_id]
+        # Count unique time_index values (could span multiple weather years)
+        n_hours = df["time_index"].nunique()
+        # Valid if it's a multiple of 8760 or 8784 (for multi-year data)
+        if n_hours % 8760 != 0 and n_hours % 8784 != 0:
+            raise ValueError(
+                f"Resource profiles have {n_hours} time steps, which is not a multiple of 8760 or 8784"
+            )
 
     def get_clusters(
         self,
@@ -580,6 +598,7 @@ class ResourceGroup:
         profiles: bool = True,
         utc_offset: int = 0,
         sub_region=None,
+        weather_year: Optional[Union[int, List[int]]] = None,
     ) -> pd.DataFrame:
         """
         Compute resource clusters.
@@ -685,7 +704,9 @@ class ResourceGroup:
         merge = copy.deepcopy(MERGE)
         # Prepare profiles
         if profiles and self.profiles is not None:
-            p = self.profiles.read(columns=df.index.astype(str))
+            p = self._read_profiles(
+                site_ids=df.index.tolist(), weather_year=weather_year
+            )
             df["profile"] = (
                 list(
                     np.roll(
@@ -700,6 +721,120 @@ class ResourceGroup:
         if tree:
             return cluster_trees(df, by=by, tree=tree, max_rows=max_clusters, **merge)
         return cluster_rows(df, by=df[[by]], max_rows=max_clusters, **merge)
+
+    def _read_profiles(
+        self,
+        site_ids: Iterable[str],
+        weather_year: Optional[Union[int, List[int]]] = None,
+    ) -> pd.DataFrame:
+        """Return wide profiles DataFrame for requested site IDs.
+
+        All profiles must be in tidy format with columns: site_id, time_index, value,
+        and optionally weather_year.
+
+        Parameters
+        ----------
+        site_ids : Iterable[str]
+            Resource/site identifiers as strings.
+        weather_year : Optional[Union[int, List[int]]]
+            Optional weather year(s) to filter tidy profiles. Can be a single int or
+            list of ints. Multiple years will be concatenated into a continuous time
+            series.
+
+        Returns
+        -------
+        pd.DataFrame
+            Wide DataFrame with columns matching site_ids (order preserved). Missing
+            IDs are filled with 1.0 across all hours. If multiple weather years are
+            loaded, time_index will span all years.
+        """
+        cols = self.profiles.columns
+        # All profiles must be in tidy format
+        required_cols = {"site_id", "time_index", "value"}
+        if not required_cols.issubset(set(cols)):
+            raise ValueError(
+                f"Resource profiles must be in tidy format with columns {required_cols}. "
+                f"Found columns: {list(cols)}"
+            )
+
+        years = None
+        # If profiles are provided in-memory (no path), fall back to Table.read
+        # Keeping this for now, but should eventually standardize on DuckDB-based loader
+        if not getattr(self.profiles, "path", None):
+            read_cols = [
+                c
+                for c in ["site_id", "time_index", "value", "weather_year"]
+                if c in cols
+            ]
+            df = self.profiles.read(columns=read_cols)
+            df = df[df["site_id"].isin(site_ids)]
+        else:
+            # On-disk: use centralized DuckDB-based loader
+            p = Path(self.profiles.path)
+            read_cols = [
+                c
+                for c in ["site_id", "time_index", "value", "weather_year"]
+                if c in cols
+            ]
+            if weather_year is not None and "weather_year" in cols:
+                years = (
+                    weather_year if isinstance(weather_year, list) else [weather_year]
+                )
+            # Build DNF filters: always filter by site_id
+            filters = [
+                [("site_id", "in", site_ids)]
+                + ([("weather_year", "in", years)] if years is not None else [])
+            ]
+            df = load_data(p.parent, p.name, filters=filters, columns=read_cols)
+
+        # Handle weather_year selection and optional concatenation
+        if "weather_year" in df.columns:
+            available_years = sorted(df["weather_year"].dropna().unique().tolist())
+            if weather_year is not None:
+                years = (
+                    weather_year if isinstance(weather_year, list) else [weather_year]
+                )
+                missing_years = [y for y in years if y not in available_years]
+                if missing_years:
+                    logger.warning(
+                        f"Requested weather years {missing_years} are not available in the profile data. "
+                        f"Available years: {available_years}. Using only available requested years."
+                    )
+                years = [y for y in years if y in available_years]
+                if not years:
+                    raise ValueError(
+                        f"None of the requested weather years {weather_year} are available in the profile data. "
+                        f"Available years: {available_years}."
+                    )
+                df = df[df["weather_year"].isin(years)]
+            else:
+                # No explicit weather_year selection:
+                # If multiple years exist, concatenate all of them into one continuous series.
+                # This avoids silent dropping of data and supports multi-year clustering
+                # while keeping backward-compatible behavior (single year unaffected).
+                if len(available_years) > 1:
+                    logger.debug(
+                        f"No weather_year specified; concatenating all available years: {available_years} "
+                        f"for resource {self.group}.",
+                    )
+                # If exactly one year, or none (all NaN), leave df unchanged.
+                # For a single year, downstream logic expects a continuous index already.
+                # For no valid years (all NaN), treat as single block and skip reindexing.
+            # Rebuild a continuous time_index per site across (possibly multiple) years.
+            sort_cols = [c for c in ["weather_year", "time_index"] if c in df.columns]
+            if sort_cols:
+                df = df.sort_values(by=sort_cols)
+            df["time_index"] = df.groupby("site_id").cumcount() + 1
+
+        wide = df.pivot(
+            index="time_index", columns="site_id", values="value"
+        ).sort_index()
+        present = [c for c in site_ids if c in wide.columns]
+        missing = [c for c in site_ids if c not in wide.columns]
+        wide = wide.reindex(columns=present)
+        for m in missing:
+            wide[m] = 1.0
+        return wide[site_ids]
 
 
 class ClusterBuilder:
@@ -807,6 +942,7 @@ class ClusterBuilder:
         max_lcoe: float = None,
         cap_multiplier: float = None,
         utc_offset: int = 0,
+        weather_year: Optional[Union[int, List[int]]] = None,
         **kwargs: Any,
     ) -> pd.DataFrame:
         """
@@ -851,6 +987,7 @@ class ClusterBuilder:
                 max_lcoe=max_lcoe,
                 cap_multiplier=cap_multiplier,
                 utc_offset=utc_offset,
+                weather_year=weather_year,
                 sub_region=kwargs.get("sub_region"),
             )
             .assign(**kwargs)

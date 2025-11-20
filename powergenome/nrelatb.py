@@ -430,7 +430,14 @@ def add_modified_generators(
     return mod_gens
 
 
-def build_new_resources(resource_costs, resource_hr, settings, cluster_builder=None):
+def build_new_resources(
+    resource_costs,
+    resource_hr,
+    settings,
+    cluster_builder=None,
+    cache_results: bool = False,
+    use_cache: bool = False,
+) -> pd.DataFrame:
     """Add rows for new generators in each region
 
     Parameters
@@ -446,6 +453,10 @@ def build_new_resources(resource_costs, resource_hr, settings, cluster_builder=N
         User-defined parameters from a settings file
     cluster_builder : ClusterBuilder
         ClusterBuilder object. Reuse to save time. None by default.
+    cache_results : bool
+        Whether to cache renewable clustering results. Default is False.
+    use_cache : bool
+        Whether to use cached renewable clustering results. Default is False.
 
     Returns
     -------
@@ -646,6 +657,8 @@ def build_new_resources(resource_costs, resource_hr, settings, cluster_builder=N
                 rev_mult_tech_map,
                 region,
                 cluster_builder,
+                cache_results=cache_results,
+                use_cache=use_cache,
             )
             for region in regions
         )
@@ -675,6 +688,8 @@ def parallel_region_renewables(
     rev_mult_tech_map: Dict[str, List[str]],
     region: str,
     cluster_builder: ClusterBuilder = None,
+    cache_results: bool = False,
+    use_cache: bool = False,
 ) -> pd.DataFrame:
     """Wrapper function to run regional capex and add renewable clusters in parallel
 
@@ -694,6 +709,10 @@ def parallel_region_renewables(
         Name of the model region
     cluster_builder
         ClusterBuilder object. Reuse to save time. None by default.
+    cache_results : bool
+        Whether to cache renewable clustering results. Default is False.
+    use_cache : bool
+        Whether to use cached renewable clustering results. Default is False.
 
     Returns
     -------
@@ -715,6 +734,8 @@ def parallel_region_renewables(
         region,
         copy.deepcopy(settings),
         cluster_builder,
+        cache_results=cache_results,
+        use_cache=use_cache,
     )
 
     return _df
@@ -801,6 +822,8 @@ def add_renewables_clusters(
     region: str,
     settings: dict,
     cluster_builder: ClusterBuilder = None,
+    cache_results: bool = False,
+    use_cache: bool = False,
 ) -> pd.DataFrame:
     """
     Add renewables clusters
@@ -818,6 +841,12 @@ def add_renewables_clusters(
         Dictionary with the following keys:
             - `renewables_clusters`: Determines the clusters built for the region.
             - `region_aggregations`: Maps the model region to IPM regions.
+    cluster_builder : ClusterBuilder
+        ClusterBuilder object. Reuse to save time. None by default.
+    cache_results : bool
+        Whether to cache renewable clustering results. Default is False.
+    use_cache : bool
+        Whether to use cached renewable clustering results. Default is False.
 
 
     Returns
@@ -946,7 +975,7 @@ def add_renewables_clusters(
             data_file_hash = "no_data"
 
         unique_hash = hash_string_sha256(
-            f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_file_{data_file_hash}"
+            f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_weather_year{settings.get('weather_year','all')}_file_{data_file_hash}"
         )
         cache_cluster_fn = unique_hash + "_cluster_data.parquet"
         cache_site_assn_fn = unique_hash + "_site_assn.parquet"
@@ -956,29 +985,36 @@ def add_renewables_clusters(
         cache_folder = Path(
             settings["input_folder"] / "cluster_assignments" / sub_folder
         )
-        add_row_to_csv(
-            cache_folder / "hash_map.csv",
-            headers=[
-                "name",
-                "hash",
-                "metadata_path",
-                "profiles_path",
-                "metadata_sha256",
-                "profiles_sha256",
-            ],
-            new_row=[
-                f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_file_{data_file_hash}",
-                unique_hash,
-                str(metadata_path),
-                str(profiles_path),
-                metadata_hash,
-                profiles_hash,
-            ],
-        )
+        if cache_results:
+            add_row_to_csv(
+                cache_folder / "hash_map.csv",
+                headers=[
+                    "name",
+                    "hash",
+                    "metadata_path",
+                    "profiles_path",
+                    "weather_year",
+                    "metadata_sha256",
+                    "profiles_sha256",
+                ],
+                new_row=[
+                    f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_file_{data_file_hash}",
+                    unique_hash,
+                    str(metadata_path),
+                    str(profiles_path),
+                    settings.get("weather_year", "all"),
+                    metadata_hash,
+                    profiles_hash,
+                ],
+            )
         cache_cluster_fpath = cache_folder / cache_cluster_fn
         cache_site_assn_fpath = cache_folder / cache_site_assn_fn
         if precluster is False:
-            if cache_cluster_fpath.exists() and cache_site_assn_fpath.exists():
+            if (
+                cache_cluster_fpath.exists()
+                and cache_site_assn_fpath.exists()
+                and use_cache
+            ):
                 clusters = pd.read_parquet(cache_cluster_fpath)
                 data = pd.read_parquet(cache_site_assn_fpath)
             else:
@@ -1002,6 +1038,7 @@ def add_renewables_clusters(
                     regions=regions,
                     site_map=site_map,
                     utc_offset=settings.get("utc_offset", 0),
+                    weather_year=settings.get("weather_year"),
                     **_scenario,
                 )
                 if data.empty:
@@ -1014,9 +1051,9 @@ def add_renewables_clusters(
                 )
 
                 cache_folder.mkdir(parents=True, exist_ok=True)
-                if not cache_cluster_fpath.exists():
+                if not cache_cluster_fpath.exists() and cache_results:
                     clusters.to_parquet(cache_cluster_fpath)
-                if not cache_site_assn_fpath.exists():
+                if not cache_site_assn_fpath.exists() and cache_results:
                     cols = ["cpa_id", "cluster"]
                     data[cols].to_parquet(cache_site_assn_fpath)
             if settings.get("extra_outputs"):
@@ -1028,7 +1065,7 @@ def add_renewables_clusters(
                     Path(settings["extra_outputs"]) / fn, index=False
                 )
         else:
-            if cache_cluster_fpath.exists():
+            if cache_cluster_fpath.exists() and use_cache:
                 clusters = pd.read_parquet(cache_cluster_fpath)
                 data = None
             else:
@@ -1038,6 +1075,7 @@ def add_renewables_clusters(
                         ipm_regions=regions,
                         existing=False,
                         utc_offset=settings.get("utc_offset", 0),
+                        weather_year=settings.get("weather_year"),
                     )
                     .rename(columns={"mw": "Max_Cap_MW"})
                     .assign(technology=technology, region=region)
@@ -1045,9 +1083,9 @@ def add_renewables_clusters(
                 clusters["cluster"] = range(1, 1 + len(clusters))
                 data = None
         cache_folder.mkdir(parents=True, exist_ok=True)
-        if not cache_cluster_fpath.exists():
+        if not cache_cluster_fpath.exists() and cache_results:
             clusters.to_parquet(cache_cluster_fpath)
-        if not cache_site_assn_fpath.exists() and data is not None:
+        if not cache_site_assn_fpath.exists() and data is not None and cache_results:
             cols = ["cpa_id", "cluster"]
             data[cols].to_parquet(cache_site_assn_fpath)
         if _scenario.get("min_capacity"):
