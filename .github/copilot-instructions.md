@@ -25,7 +25,7 @@ powergenome/
 ├── load_profiles.py    # Demand curves, DG subtraction, growth projections
 ├── transmission.py     # Inter-regional constraints, line loss, expansion costs
 ├── fuels.py            # Fuel price time series from EIA AEO API
-├── nrelatb.py          # New generator costs from NREL ATB
+├── new_build.py        # New-build resource costs and configuration
 ├── resource_clusters.py # ClusterBuilder for renewable resource site selection
 └── distributed_gen.py   # Rooftop solar capacity & profiles (recent refactor)
 ```
