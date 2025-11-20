@@ -16,7 +16,7 @@ import pandas as pd
 import pytest
 
 import powergenome
-from powergenome.run_powergenome_multiple_outputs_cli import main, parse_command_line
+from powergenome.run_powergenome import main, parse_command_line
 from powergenome.settings import Settings
 
 logger = logging.getLogger(powergenome.__name__)

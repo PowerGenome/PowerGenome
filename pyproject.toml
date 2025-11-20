@@ -72,7 +72,7 @@ dev = [
 ]
 
 [project.scripts]
-run_powergenome_multiple = "powergenome.run_powergenome_multiple_outputs_cli:main"
+run_powergenome = "powergenome.run_powergenome:main"
 
 [project.urls]
 "Source" = "https://github.com/PowerGenome/PowerGenome"
