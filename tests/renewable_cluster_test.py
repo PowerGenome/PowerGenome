@@ -463,3 +463,44 @@ def test_assign_site_cluster_with_weather_year():
     )
     assert data.notna().all().all()
     assert "cluster" in data.columns
+
+
+def test_load_site_profiles_with_single_list_weather_year():
+    """Test loading site profiles with single-element list weather_year."""
+    profile_path = DATA_FOLDER / "cpa_profiles.csv"
+    site_ids = [1, 2]
+    df_list = load_site_profiles(profile_path, site_ids=site_ids, weather_year=[2012])
+    df_int = load_site_profiles(profile_path, site_ids=site_ids, weather_year=2012)
+    assert len(df_list) == len(df_int) == 20
+    assert (df_list[site_ids] == df_int[site_ids]).all().all()
+
+
+def test_assign_site_cluster_with_single_list_weather_year():
+    """Test assign_site_cluster with weather_year as single-element list."""
+    renew_data = pd.read_csv(DATA_FOLDER / "cpa_data.csv")
+    profile_path = DATA_FOLDER / "cpa_profiles.csv"
+    regions = ["A", "B"]
+    cluster = {
+        "cluster": [
+            {"feature": "profile", "method": "hierarchical", "n_clusters": 3},
+        ],
+    }
+    data_list = assign_site_cluster(
+        renew_data=renew_data,
+        profile_path=profile_path,
+        regions=regions,
+        weather_year=[2012],
+        **cluster,
+    )
+    data_int = assign_site_cluster(
+        renew_data=renew_data,
+        profile_path=profile_path,
+        regions=regions,
+        weather_year=2012,
+        **cluster,
+    )
+    assert data_list.notna().all().all()
+    assert data_int.notna().all().all()
+    assert "cluster" in data_list.columns
+    assert "cluster" in data_int.columns
+    assert len(data_list) == len(data_int)

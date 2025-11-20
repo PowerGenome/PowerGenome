@@ -739,6 +739,71 @@ class TestEdgeCases:
         DataManager().close()
 
 
+# Additional tests to cover single-element list weather_year and missing weather_year in settings
+
+
+def test_load_profiles_single_list_weather_year(initialized_data_manager):
+    """Profiles loaded with single-element list weather_year should match int case."""
+    profiles_list = get_distributed_gen_profiles(
+        weather_year=[2012],
+        regions=["A"],
+        region_aggregations=None,
+        tz_offset=None,
+        year=2025,
+    )
+    profiles_int = get_distributed_gen_profiles(
+        weather_year=2012,
+        regions=["A"],
+        region_aggregations=None,
+        tz_offset=None,
+        year=2025,
+    )
+    assert len(profiles_list) == len(profiles_int) == 8
+    assert np.allclose(profiles_list["A"].values, profiles_int["A"].values)
+
+
+def test_hourly_generation_single_list_weather_year(initialized_data_manager):
+    """Hourly generation with single-element list behaves like int weather_year."""
+    gen_list = get_distributed_gen_hourly_generation(
+        year=2025,
+        weather_year=[2012],
+        regions=["A"],
+        region_aggregations=None,
+        tz_offset=None,
+    )
+    gen_int = get_distributed_gen_hourly_generation(
+        year=2025,
+        weather_year=2012,
+        regions=["A"],
+        region_aggregations=None,
+        tz_offset=None,
+    )
+    assert len(gen_list) == len(gen_int) == 8
+    assert np.allclose(gen_list["A"].values, gen_int["A"].values)
+
+
+def test_auto_fill_missing_weather_year(initialized_data_manager):
+    """Auto-filled profiles when weather_year is absent in settings should load all years."""
+    mock_settings = Mock()
+    mock_settings.get = Mock(
+        side_effect=lambda key, default=None: {
+            "model_year": 2025,
+            "model_regions": ["A"],
+            # No weather_year key provided
+            "region_aggregations": None,
+            "utc_offset": 0,
+        }.get(key, default)
+    )
+    with patch(
+        "powergenome.settings.get_current_settings",
+        return_value=mock_settings,
+    ):
+        profiles = get_distributed_gen_profiles(regions=["A"], year=2025)
+        # Expect concatenation of all available weather years (2 * 8 = 16)
+        assert len(profiles) == 16
+        assert "A" in profiles.columns
+
+
 @pytest.fixture(autouse=True)
 def cleanup_data_manager():
     """Ensure DataManager is properly cleaned up after each test."""

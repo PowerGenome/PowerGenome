@@ -291,3 +291,84 @@ def test_make_load_curves_missing_weather_year(monkeypatch):
     # Should raise ValueError about missing weather years
     with pytest.raises(ValueError, match="weather_years were requested"):
         _make_load_curves(settings)
+
+
+def test_make_load_curves_with_single_element_list_weather_year(monkeypatch):
+    """Test make_load_curves when weather_year is a single-element list."""
+
+    def fake_get_data(table_name, columns=None, filters=None, query=None):
+        if query is not None:
+            return pd.DataFrame(
+                {"name": ["year", "region", "time_index", "load_mw", "weather_year"]}
+            )
+        return pd.DataFrame(
+            {
+                "year": [2020] * 4,
+                "region": ["R1"] * 4,
+                "time_index": [1, 2, 3, 4],
+                "load_mw": [10.0, 20.0, 30.0, 40.0],
+                "weather_year": [2012] * 4,
+            }
+        )
+
+    monkeypatch.setattr(lp_mod, "get_data", fake_get_data)
+
+    settings = {
+        "model_regions": ["R1"],
+        "model_year": 2020,
+        "region_aggregations": {},
+        "utc_offset": 0,
+        "weather_year": [2012],  # Single-element list
+    }
+
+    out = _make_load_curves(settings)
+    assert len(out) == 4
+    assert list(out["R1"]) == [10.0, 20.0, 30.0, 40.0]
+
+
+def test_make_load_curves_all_weather_years(monkeypatch):
+    """Test make_load_curves when weather_year key is absent (load all years)."""
+
+    def fake_get_data(table_name, columns=None, filters=None, query=None):
+        if query is not None:
+            # Distinct weather_year query path
+            if "SELECT DISTINCT weather_year" in query:
+                return pd.DataFrame({"weather_year": [2012, 2013]})
+            # Schema introspection path
+            if "PRAGMA" in query or "table_info" in query:
+                return pd.DataFrame(
+                    {
+                        "name": [
+                            "year",
+                            "region",
+                            "time_index",
+                            "load_mw",
+                            "weather_year",
+                        ]
+                    }
+                )
+        # Return data containing both weather years
+        return pd.DataFrame(
+            {
+                "year": [2020] * 8,
+                "region": ["R1"] * 8,
+                "time_index": [1, 2, 3, 4, 1, 2, 3, 4],
+                "load_mw": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0],
+                "weather_year": [2012] * 4 + [2013] * 4,
+            }
+        )
+
+    monkeypatch.setattr(lp_mod, "get_data", fake_get_data)
+
+    settings = {
+        "model_regions": ["R1"],
+        "model_year": 2020,
+        "region_aggregations": {},
+        "utc_offset": 0,
+        # No weather_year key
+    }
+
+    out = _make_load_curves(settings)
+    # Expect concatenated all years (renumbered 1-8)
+    assert len(out) == 8
+    assert list(out["R1"]) == [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0]
