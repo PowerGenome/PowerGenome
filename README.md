@@ -55,8 +55,19 @@ After installation, skip to step 4 below to download the required data files.
 
 1. Clone this repository to your local machine and navigate to the top level (PowerGenome) folder.
 
-2. Install uv if you haven't already:
+2. Install uv if you haven't already. You can use the standalone installer (recommended):
 
+**On macOS and Linux:**
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**On Windows:**
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+**Or install via pip:**
 ```sh
 pip install uv
 ```
