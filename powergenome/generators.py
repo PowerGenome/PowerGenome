@@ -39,7 +39,7 @@ from powergenome.GenX import (
     set_int_cols,
 )
 from powergenome.load_profiles import make_distributed_gen_profiles
-from powergenome.nrelatb import (
+from powergenome.new_build import (
     build_new_resources,
     fetch_heat_rates,
     fetch_resource_costs,

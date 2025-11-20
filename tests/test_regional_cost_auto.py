@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from powergenome.database import get_data, initialize_data_manager
-from powergenome.nrelatb import (
+from powergenome.new_build import (
     auto_create_region_map,
     auto_create_technology_map,
     validate_cost_coverage,
