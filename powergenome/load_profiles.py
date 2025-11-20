@@ -197,6 +197,19 @@ def make_load_curves(
                 if isinstance(settings["weather_year"], list)
                 else [settings["weather_year"]]
             )
+        else:
+            # find available weather years for the model year in the demand table
+            s = f"""
+                SELECT DISTINCT weather_year
+                FROM demand
+                WHERE year = {settings["model_year"]}
+                """
+            data_weather_years = get_data(
+                "demand",
+                query=s,
+            ).weather_year.to_list()
+            weather_years = data_weather_years
+
     filters = [
         [
             ("year", "=", settings["model_year"]),
