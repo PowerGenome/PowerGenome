@@ -86,7 +86,8 @@ def initialized_data_manager(temp_csv_data_folder):
     # Clean up any existing DataManager first
     try:
         DataManager().close()
-    except:
+    except Exception:
+        # Ignore: DataManager may not have been initialized yet
         pass
 
     settings = {
@@ -98,7 +99,8 @@ def initialized_data_manager(temp_csv_data_folder):
     # Cleanup
     try:
         DataManager().close()
-    except:
+    except Exception:
+        # Ignore: DataManager may already be closed or not initialized
         pass
 
 
@@ -474,22 +476,23 @@ class TestGetDistributedGenHourlyGeneration:
             year=2025, weather_year=2012, regions=["B"], region_aggregations=None
         )
 
-        # Note: Aggregated generation uses weighted profile, not sum of individual generations
-        # So we can't simply add gen_a + gen_b
-        # Instead, verify that the aggregated capacity is used
+        # Aggregated generation is (capacity-weighted avg profile)*total capacity
+        # which algebraically equals gen_a + gen_b
         capacity = get_distributed_gen_capacity(
             year=2025, regions=["AB"], region_aggregations={"AB": ["A", "B"]}
         )
         total_capacity = capacity.loc[capacity["region"] == "AB", "capacity_mw"].values[
             0
         ]
-
-        # Capacity should be sum of A and B
         assert total_capacity == 225.0  # A=150, B=75
 
-        # Generation should be reasonable (between 0 and capacity)
+        # Generation bounds
         assert hourly_gen["AB"].max() <= total_capacity
         assert hourly_gen["AB"].min() >= 0
+
+        # Verify equality with sum of individual region generation
+        expected_sum = gen_a["A"] + gen_b["B"]
+        assert np.allclose(hourly_gen["AB"].values, expected_sum.values, rtol=1e-6)
 
     def test_hourly_generation_with_timezone_offset(self, initialized_data_manager):
         """Test that timezone offset is applied to hourly generation."""
@@ -714,7 +717,8 @@ class TestEdgeCases:
         # Cleanup and reinitialize
         try:
             DataManager().close()
-        except:
+        except Exception:
+            # Ignore: prior tests may not have initialized DataManager
             pass
 
         settings = {"distributed_capacity_table": "mixed_capacity.csv"}
@@ -741,5 +745,6 @@ def cleanup_data_manager():
     yield
     try:
         DataManager().close()
-    except:
+    except Exception:
+        # Ignore: DataManager may already be closed or never initialized in test
         pass
