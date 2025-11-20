@@ -55,6 +55,11 @@ class DataManager:
         "regional_cost_factor_table": "regional_cost_factor",
         "transmission_cost_table": "transmission_cost",
         "demand_table": "demand",
+        # Distributed generation tables (support both legacy and new setting keys).
+        # Code expects the standardized table name "distributed_profiles".
+        "distributed_profile_table": "distributed_profiles",  # singular key
+        "distributed_profiles_table": "distributed_profiles",  # plural key
+        "distributed_capacity_table": "distributed_capacity",
     }
 
     def __new__(cls):

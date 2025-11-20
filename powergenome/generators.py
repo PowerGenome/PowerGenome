@@ -6,7 +6,7 @@ import re
 from functools import reduce
 from numbers import Number
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from powergenome.settings import auto_fill_settings
 
@@ -20,6 +20,7 @@ from sklearn import cluster, preprocessing
 
 from powergenome.co2_pipeline_cost import merge_co2_pipeline_costs
 from powergenome.database import get_data
+from powergenome.distributed_gen import get_distributed_gen_capacity
 from powergenome.external_data import (
     add_resource_max_cap_spur,
     demand_response_resource_capacity,
@@ -2619,8 +2620,13 @@ def add_transmission_inv_cost(
 #     pass
 
 
+@auto_fill_settings()
 def add_dg_resources(
-    settings: dict,
+    model_regions: List[str] = None,
+    region_aggregations: Optional[Dict[str, List[str]]] = None,
+    model_year: Optional[int] = None,
+    weather_year: Optional[int] = None,
+    utc_offset: Optional[int] = None,
     gen_df: pd.DataFrame = pd.DataFrame(),
 ) -> pd.DataFrame:
     """Add distributed generation resources as rows in a generators dataframe
@@ -2628,31 +2634,87 @@ def add_dg_resources(
     Parameters
     ----------
     settings : dict
-        Settings dictionary with parameters "model_year", "input_folder", "distributed_gen_profiles_fn",
-        "distributed_gen_method", "distributed_gen_values", and "avg_distribution_loss".
+        Settings dictionary with parameters "model_year", "model_regions",
+        "region_aggregations" (optional), "weather_year" (optional), and
+        "utc_offset" (optional).
     gen_df : pd.DataFrame, optional
         A dataframe with other generating resources, by default pd.DataFrame()
 
     Returns
     -------
         A modified version of the input dataframe with distributed generation resources
-        for each region where a generation profile has been supplied in the
-        "distributed_gen_profiles_fn" file. Each dg resource is one row and includes
-        values for the columns "technology", "region", "capacity_mw", and "profile".
+        for each region where capacity and generation profiles are available. Each dg
+        resource is one row and includes values for the columns "technology", "region",
+        "capacity_mw", and "profile".
     """
-    dg_profiles = make_distributed_gen_profiles(settings)
-    df = pd.DataFrame(
-        columns=["technology", "region", "cluster", "capacity_mw", "profile"],
-        index=range(len(dg_profiles.columns)),
+    # Get normalized profiles (0-1 range)
+    dg_profiles = make_distributed_gen_profiles(
+        regions=model_regions,
+        region_aggregations=region_aggregations,
+        weather_year=weather_year,
+        utc_offset=utc_offset,
     )
 
-    for idx, (region, s) in enumerate(dg_profiles.items()):
-        cap = s.max()
-        df.loc[idx, "profile"] = (s / cap).round(3).to_numpy()
-        df.loc[idx, "capacity_mw"] = cap.round(0).astype(int)
-    df["technology"] = "distributed_generation"
-    df["region"] = dg_profiles.columns
-    df["cluster"] = 1
+    if dg_profiles.empty:
+        logger.info("No distributed generation profiles found, skipping DG resources")
+        # Ensure the expected DG columns (especially 'profile') exist even if skipping
+        if "profile" not in gen_df.columns:
+            gen_df["profile"] = None
+        return gen_df
+
+    # Get capacity by region
+    dg_capacity = get_distributed_gen_capacity(
+        year=model_year,
+        regions=model_regions,
+        region_aggregations=region_aggregations,
+    )
+
+    if dg_capacity.empty:
+        logger.info(
+            "No distributed generation capacity found; returning DataFrame with DG columns but no rows."
+        )
+        empty_cols = pd.DataFrame(
+            columns=["technology", "region", "cluster", "capacity_mw", "profile"]
+        )
+        # Guarantee 'profile' column on gen_df before concatenation
+        if "profile" not in gen_df.columns:
+            gen_df["profile"] = None
+        return pd.concat([gen_df, empty_cols], ignore_index=True)
+
+    # Create dataframe for DG resources
+    df = pd.DataFrame(
+        columns=["technology", "region", "cluster", "capacity_mw", "profile"],
+    )
+
+    rows = []
+    for _, row in dg_capacity.iterrows():
+        region = row["region"]
+        capacity_mw = row["capacity_mw"]
+
+        if region not in dg_profiles.columns:
+            logger.warning(f"Region {region} has capacity but no profile, skipping")
+            continue
+
+        # Get normalized profile for this region
+        profile = dg_profiles[region]
+
+        rows.append(
+            {
+                "technology": "distributed_generation",
+                "region": region,
+                "cluster": 1,
+                "capacity_mw": round(capacity_mw, 0),
+                "profile": profile.round(3).to_numpy(),
+            }
+        )
+
+    if not rows:
+        logger.info("No valid DG resources to add")
+        if "profile" not in gen_df.columns:
+            gen_df["profile"] = None
+        return gen_df
+
+    df = pd.DataFrame(rows)
     df["Resource"] = create_resource_label(
         df["region"], snake_case_col(df["technology"]), df["cluster"], sep="_"
     )
@@ -3556,7 +3618,7 @@ class GeneratorClusters:
                 f"{self.settings.get('avg_distribution_loss', 0):%} to account for no "
                 "distribution losses.\n"
             )
-            self.results = add_dg_resources(self.settings, self.results)
+            self.results = add_dg_resources(gen_df=self.results)
         else:
             self.results["profile"] = None
 
