@@ -204,21 +204,25 @@ def test_modified_resources_validation(regional_cost_settings, caplog):
     assert "cost_multiplier_technology_map" in caplog.text
 
 
-def test_auto_create_technology_map_with_modified_resources(regional_cost_settings, caplog):
+def test_auto_create_technology_map_with_modified_resources(
+    regional_cost_settings, caplog
+):
     """Test that modified resources are mapped to same multiplier as original"""
     import logging
-    
+
     caplog.set_level(logging.INFO)
-    
+
     regional_cost_df = get_data("regional_cost_factor")
-    
+
     # Create test data with a base technology
-    new_gen_df = pd.DataFrame({
-        "technology": ["NaturalGas"],
-        "tech_detail": ["Combustion Turbine (F-Frame)"],
-        "cost_case": ["Moderate"],
-    })
-    
+    new_gen_df = pd.DataFrame(
+        {
+            "technology": ["NaturalGas"],
+            "tech_detail": ["Combustion Turbine (F-Frame)"],
+            "cost_case": ["Moderate"],
+        }
+    )
+
     # Define a modified resource based on the original
     modified_resources = {
         "hydrogen_turbine": {
@@ -230,23 +234,29 @@ def test_auto_create_technology_map_with_modified_resources(regional_cost_settin
             "new_cost_case": "Advanced",
         }
     }
-    
+
     tech_map = auto_create_technology_map(
         new_gen_df,
         regional_cost_df,
         modified_resources=modified_resources,
     )
-    
+
     # Both the original and modified should map to the same cost table technology
     assert "NaturalGas_Combustion Turbine (F-Frame)_Moderate" in tech_map
     assert "hydrogen_combustion turbine_Advanced" in tech_map
-    
+
     # They should map to the same cost multiplier
-    assert tech_map["NaturalGas_Combustion Turbine (F-Frame)_Moderate"] == tech_map["hydrogen_combustion turbine_Advanced"]
-    
+    assert (
+        tech_map["NaturalGas_Combustion Turbine (F-Frame)_Moderate"]
+        == tech_map["hydrogen_combustion turbine_Advanced"]
+    )
+
     # Should be the cost table technology
-    assert tech_map["hydrogen_combustion turbine_Advanced"] == "NaturalGas_Combustion Turbine (F-Frame)"
-    
+    assert (
+        tech_map["hydrogen_combustion turbine_Advanced"]
+        == "NaturalGas_Combustion Turbine (F-Frame)"
+    )
+
     # Should log that the modified resource was mapped
     assert "hydrogen_combustion turbine_Advanced" in caplog.text
     assert "NaturalGas_Combustion Turbine (F-Frame)" in caplog.text

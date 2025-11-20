@@ -387,15 +387,15 @@ def auto_create_technology_map(
     for new_tech_name in new_tech_names:
         new_tech_lower = new_tech_name.lower()
         matched = False
-        
+
         # Look for cost table technologies that are substrings of the new tech name
         # Prefer longer matches (more specific)
         best_match = None
         best_match_len = 0
-        
+
         for cost_tech in available_cost_techs:
             cost_tech_lower = cost_tech.lower()
-            
+
             # Check if the cost table tech is a substring of the new tech name
             if cost_tech_lower in new_tech_lower:
                 # Prefer longer matches as they are more specific
@@ -403,7 +403,7 @@ def auto_create_technology_map(
                     best_match = cost_tech
                     best_match_len = len(cost_tech_lower)
                     matched = True
-        
+
         if matched and best_match:
             tech_map[new_tech_name] = best_match
         else:
@@ -419,30 +419,38 @@ def auto_create_technology_map(
             orig_tech = resource_spec.get("technology", "")
             orig_tech_detail = resource_spec.get("tech_detail", "")
             orig_cost_case = resource_spec.get("cost_case", "")
-            
+
             # Get the new technology/tech_detail (what it will be called)
             new_tech = resource_spec.get("new_technology", "")
             new_tech_detail = resource_spec.get("new_tech_detail", "")
             new_cost_case = resource_spec.get("new_cost_case", "")
-            
+
             # Build the concatenated names
-            orig_full_name = f"{orig_tech}_{orig_tech_detail}_{orig_cost_case}" if orig_cost_case else f"{orig_tech}_{orig_tech_detail}"
-            new_full_name = f"{new_tech}_{new_tech_detail}_{new_cost_case}" if new_cost_case else f"{new_tech}_{new_tech_detail}"
-            
+            orig_full_name = (
+                f"{orig_tech}_{orig_tech_detail}_{orig_cost_case}"
+                if orig_cost_case
+                else f"{orig_tech}_{orig_tech_detail}"
+            )
+            new_full_name = (
+                f"{new_tech}_{new_tech_detail}_{new_cost_case}"
+                if new_cost_case
+                else f"{new_tech}_{new_tech_detail}"
+            )
+
             # Try to find what the original would map to
             orig_full_lower = orig_full_name.lower()
             best_match = None
             best_match_len = 0
-            
+
             for cost_tech in available_cost_techs:
                 cost_tech_lower = cost_tech.lower()
-                
+
                 # Check if cost table tech is substring of original tech name
                 if cost_tech_lower in orig_full_lower:
                     if len(cost_tech_lower) > best_match_len:
                         best_match = cost_tech
                         best_match_len = len(cost_tech_lower)
-            
+
             if best_match:
                 # Map the new tech name to the same cost multiplier as the original
                 tech_map[new_full_name] = best_match
