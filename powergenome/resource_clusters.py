@@ -828,11 +828,8 @@ class ResourceGroup:
             # Sort by weather_year and time_index for each site, then create
             # a single continuous time_index per site before pivoting
             df = df.sort_values(by=["weather_year", "time_index"])  # global order
-            for site_id in site_ids:
-                site_mask = df["site_id"] == site_id
-                site_data = df.loc[site_mask]
-                if not site_data.empty:
-                    df.loc[site_mask, "time_index"] = np.arange(1, len(site_data) + 1)
+            # Assign a continuous time_index per site_id
+            df["time_index"] = df.groupby("site_id").cumcount() + 1
 
         wide = df.pivot(
             index="time_index", columns="site_id", values="value"
