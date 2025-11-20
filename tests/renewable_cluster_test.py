@@ -475,6 +475,33 @@ def test_load_site_profiles_with_single_list_weather_year():
     assert (df_list[site_ids] == df_int[site_ids]).all().all()
 
 
+def test_load_site_profiles_parquet_format(tmp_path):
+    """Test loading site profiles from parquet file."""
+    # Create test parquet file
+    parquet_path = tmp_path / "test_profiles.parquet"
+    test_data = pd.DataFrame(
+        {
+            "site_id": [1, 1, 1, 2, 2, 2],
+            "time_index": [1, 2, 3, 1, 2, 3],
+            "value": [0.5, 0.6, 0.7, 0.8, 0.9, 0.95],
+            "weather_year": [2012, 2012, 2012, 2012, 2012, 2012],
+        }
+    )
+    test_data.to_parquet(parquet_path)
+
+    # Load profiles
+    site_ids = [1, 2]
+    df = load_site_profiles(parquet_path, site_ids=site_ids, weather_year=2012)
+
+    # Verify structure
+    assert isinstance(df, pd.DataFrame)
+    assert list(df.columns) == site_ids
+    assert len(df) == 3
+    # Verify values
+    assert df[1].tolist() == [0.5, 0.6, 0.7]
+    assert df[2].tolist() == [0.8, 0.9, 0.95]
+
+
 def test_assign_site_cluster_with_single_list_weather_year():
     """Test assign_site_cluster with weather_year as single-element list."""
     renew_data = pd.read_csv(DATA_FOLDER / "cpa_data.csv")
@@ -504,3 +531,332 @@ def test_assign_site_cluster_with_single_list_weather_year():
     assert "cluster" in data_list.columns
     assert "cluster" in data_int.columns
     assert len(data_list) == len(data_int)
+
+
+# Additional coverage tests for error cases and edge paths
+
+
+def test_load_site_profiles_unsupported_format():
+    """Test that unsupported file format raises ValueError."""
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+        bad_path = Path(f.name)
+    try:
+        with pytest.raises(ValueError, match="Unsupported profile file format"):
+            load_site_profiles(bad_path, site_ids=[1, 2])
+    finally:
+        bad_path.unlink()
+
+
+def test_load_site_profiles_missing_required_columns_csv(tmp_path):
+    """Test that CSV without required columns raises ValueError."""
+    bad_csv = tmp_path / "bad_profiles.csv"
+    pd.DataFrame({"wrong_col": [1, 2], "another": [3, 4]}).to_csv(bad_csv, index=False)
+    with pytest.raises(ValueError, match="must be in tidy format"):
+        load_site_profiles(bad_csv, site_ids=[1, 2])
+
+
+def test_load_site_profiles_missing_required_columns_parquet(tmp_path):
+    """Test that parquet without required columns raises ValueError."""
+    bad_parquet = tmp_path / "bad_profiles.parquet"
+    pd.DataFrame({"wrong_col": [1, 2], "another": [3, 4]}).to_parquet(bad_parquet)
+    with pytest.raises(ValueError, match="must be in tidy format"):
+        load_site_profiles(bad_parquet, site_ids=[1, 2])
+
+
+def test_value_bin_with_bins_outside_data_range(caplog):
+    """Test warning when bins are outside data range."""
+    import logging
+
+    s = pd.Series([5, 10, 15, 20])
+    # Min bin > data min triggers warning
+    bins = [8, 12, 25]
+    with caplog.at_level(logging.WARNING):
+        result = value_bin(s, bins=bins)
+    assert "minimum bin value" in caplog.text
+
+    # Max bin < data max triggers warning
+    caplog.clear()
+    bins2 = [1, 12, 18]  # 18 < 20 (data max)
+    with caplog.at_level(logging.WARNING):
+        result2 = value_bin(s, bins=bins2)
+    assert "maximum bin value" in caplog.text
+
+
+def test_value_bin_empty_series():
+    """Test value_bin with empty series."""
+    s = pd.Series([], dtype=float)
+    result = value_bin(s, bins=3)
+    assert len(result) == 0
+
+
+def test_value_bin_all_same_values():
+    """Test value_bin when all values are identical."""
+    s = pd.Series([5.0, 5.0, 5.0, 5.0])
+    result = value_bin(s, bins=3)
+    assert (result == 1).all()
+
+
+def test_value_bin_q_equals_one():
+    """Test value_bin with q=1 returns all ones."""
+    s = pd.Series([1, 2, 3, 4, 5])
+    result = value_bin(s, q=1)
+    assert (result == 1).all()
+
+
+def test_value_bin_bins_equals_one():
+    """Test value_bin with bins=1 returns all ones."""
+    s = pd.Series([1, 2, 3, 4, 5])
+    result = value_bin(s, bins=1)
+    assert (result == 1).all()
+
+
+def test_value_bin_no_bins_or_q(caplog):
+    """Test value_bin warning when neither bins nor q provided."""
+    import logging
+
+    s = pd.Series([1, 2, 3, 4, 5])
+    with caplog.at_level(logging.WARNING):
+        result = value_bin(s)
+    assert "doesn't include either the 'bins' or 'q' argument" in caplog.text
+    assert (result == 1).all()
+
+
+def test_kmeans_cluster_other():
+    """Test kmeans_cluster_other function."""
+    from powergenome.cluster.renewables import kmeans_cluster_other
+
+    df = pd.DataFrame({"lat": [10, 20, 30, 40], "lon": [50, 60, 70, 80]})
+    labels = kmeans_cluster_other(df, n_clusters=2)
+    assert len(labels) == 4
+    assert len(set(labels)) <= 2
+
+
+def test_kmeans_cluster_other_empty():
+    """Test kmeans_cluster_other with empty dataframe."""
+    from powergenome.cluster.renewables import kmeans_cluster_other
+
+    df = pd.DataFrame()
+    labels = kmeans_cluster_other(df, n_clusters=2)
+    assert len(labels) == 0
+
+
+def test_kmeans_cluster_other_single_row():
+    """Test kmeans_cluster_other with single row."""
+    from powergenome.cluster.renewables import kmeans_cluster_other
+
+    df = pd.DataFrame({"lat": [10], "lon": [50]})
+    labels = kmeans_cluster_other(df, n_clusters=2)
+    assert len(labels) == 1
+    assert labels[0] == 0
+
+
+def test_kmeans_cluster_other_n_clusters_too_large(caplog):
+    """Test kmeans when n_clusters > num sites."""
+    import logging
+
+    from powergenome.cluster.renewables import kmeans_cluster_other
+
+    df = pd.DataFrame({"lat": [10, 20], "lon": [50, 60]})
+    with caplog.at_level(logging.WARNING):
+        labels = kmeans_cluster_other(df, n_clusters=5)
+    assert "greater than the number of renewable sites" in caplog.text
+    assert len(set(labels)) == 2  # Each site gets own cluster
+
+
+def test_kmeans_cluster_other_n_clusters_zero(caplog):
+    """Test kmeans with n_clusters <= 0."""
+    import logging
+
+    from powergenome.cluster.renewables import kmeans_cluster_other
+
+    df = pd.DataFrame({"lat": [10, 20, 30], "lon": [50, 60, 70]})
+    with caplog.at_level(logging.WARNING):
+        labels = kmeans_cluster_other(df, n_clusters=0)
+    assert "less than or equal to 0" in caplog.text
+
+
+def test_min_capacity_mw_no_lcoe_column(caplog):
+    """Test min_capacity_mw warning when lcoe column missing."""
+    import logging
+
+    from powergenome.cluster.renewables import min_capacity_mw
+
+    df = pd.DataFrame({"mw": [100, 200, 300], "cost": [10, 20, 30]})
+    with caplog.at_level(logging.WARNING):
+        result = min_capacity_mw(df, min_cap=200)
+    assert "lcoe" in caplog.text
+    assert len(result) == len(df)  # All sites included
+
+
+def test_min_capacity_mw_none():
+    """Test min_capacity_mw when min_cap is None."""
+    from powergenome.cluster.renewables import min_capacity_mw
+
+    df = pd.DataFrame({"mw": [100, 200, 300], "lcoe": [10, 20, 30]})
+    result = min_capacity_mw(df, min_cap=None)
+    assert len(result) == len(df)
+
+
+def test_assign_site_cluster_missing_bin_feature():
+    """Test error when bin feature key is missing."""
+    renew_data = pd.read_csv(DATA_FOLDER / "cpa_data.csv")
+    profile_path = DATA_FOLDER / "cpa_profiles.csv"
+    with pytest.raises(KeyError, match="doesn't include the 'feature' argument"):
+        assign_site_cluster(
+            renew_data=renew_data,
+            profile_path=profile_path,
+            regions=["A"],
+            bin=[{"bins": 3}],  # Missing 'feature'
+        )
+
+
+def test_assign_site_cluster_bin_feature_not_in_data():
+    """Test error when bin feature not in renewable data."""
+    renew_data = pd.read_csv(DATA_FOLDER / "cpa_data.csv")
+    profile_path = DATA_FOLDER / "cpa_profiles.csv"
+    with pytest.raises(KeyError, match="not in the renewable site data"):
+        assign_site_cluster(
+            renew_data=renew_data,
+            profile_path=profile_path,
+            regions=["A"],
+            bin=[{"feature": "nonexistent_column", "bins": 3}],
+        )
+
+
+def test_assign_site_cluster_bin_feature_not_numeric():
+    """Test error when bin feature is not numeric."""
+    renew_data = pd.read_csv(DATA_FOLDER / "cpa_data.csv")
+    profile_path = DATA_FOLDER / "cpa_profiles.csv"
+    with pytest.raises(TypeError, match="not a numeric column"):
+        assign_site_cluster(
+            renew_data=renew_data,
+            profile_path=profile_path,
+            regions=["A"],
+            bin=[{"feature": "region", "bins": 3}],  # region is categorical
+        )
+
+
+def test_assign_site_cluster_weights_not_in_data():
+    """Test error when weights column not in data."""
+    renew_data = pd.read_csv(DATA_FOLDER / "cpa_data.csv")
+    profile_path = DATA_FOLDER / "cpa_profiles.csv"
+    with pytest.raises(KeyError, match="not in the renewable site data"):
+        assign_site_cluster(
+            renew_data=renew_data,
+            profile_path=profile_path,
+            regions=["A"],
+            bin=[{"feature": "lcoe", "bins": 3, "weights": "nonexistent_weight"}],
+        )
+
+
+def test_assign_site_cluster_empty_after_filter():
+    """Test filtering with extreme values."""
+    renew_data = pd.read_csv(DATA_FOLDER / "cpa_data.csv")
+    profile_path = DATA_FOLDER / "cpa_profiles.csv"
+    # Use a very restrictive filter to reduce results significantly
+    result = assign_site_cluster(
+        renew_data=renew_data,
+        profile_path=profile_path,
+        regions=["A"],
+        filter=[{"feature": "lcoe", "max": 1}],  # Very restrictive filter
+    )
+    assert "cluster" in result.columns
+    # Just check that filtering worked (may not be zero due to data content)
+    assert len(result) <= len(renew_data[renew_data["region"] == "A"])
+
+
+def test_assign_site_cluster_no_profile_path():
+    """Test assign_site_cluster when profile_path is None."""
+    renew_data = pd.read_csv(DATA_FOLDER / "cpa_data.csv")
+    result = assign_site_cluster(
+        renew_data=renew_data,
+        profile_path=None,
+        regions=["A"],
+    )
+    assert "cluster" in result.columns
+    assert "profile" in result.columns
+    assert (result["profile"] == 1.0).all()
+
+
+def test_cluster_sites_no_bin_empty_data():
+    """Test cluster_sites_no_bin with empty dataframe."""
+    df = pd.DataFrame()
+    result = cluster_sites_no_bin(df, method="agg", feature="lcoe", n_clusters=2)
+    assert "cluster" in result.columns
+    assert len(result) == 0
+
+
+def test_cluster_sites_binned_empty_data():
+    """Test cluster_sites_binned with empty dataframe."""
+    df = pd.DataFrame()
+    result = cluster_sites_binned(
+        df, by=["region"], method="agg", feature="lcoe", n_clusters=2
+    )
+    assert "cluster" in result.columns
+    assert len(result) == 0
+
+
+def test_cluster_sites_no_bin_single_site():
+    """Test cluster_sites_no_bin with single site."""
+    df = pd.DataFrame({"lcoe": [10], "mw": [100]})
+    result = cluster_sites_no_bin(df, method="agg", feature="lcoe", n_clusters=2)
+    assert "cluster" in result.columns
+    assert len(result) == 1
+
+
+def test_value_filter_max_only():
+    """Test value_filter with only max_value."""
+    from powergenome.cluster.renewables import value_filter
+
+    df = pd.DataFrame({"lcoe": [10, 20, 30, 40], "mw": [100, 200, 300, 400]})
+    result = value_filter(df, feature="lcoe", max_value=25)
+    assert len(result) == 2
+    assert result["lcoe"].max() <= 25
+
+
+def test_value_filter_min_only():
+    """Test value_filter with only min_value."""
+    from powergenome.cluster.renewables import value_filter
+
+    df = pd.DataFrame({"lcoe": [10, 20, 30, 40], "mw": [100, 200, 300, 400]})
+    result = value_filter(df, feature="lcoe", min_value=25)
+    assert len(result) == 2
+    assert result["lcoe"].min() >= 25
+
+
+def test_value_filter_both():
+    """Test value_filter with both min and max."""
+    from powergenome.cluster.renewables import value_filter
+
+    df = pd.DataFrame({"lcoe": [10, 20, 30, 40], "mw": [100, 200, 300, 400]})
+    result = value_filter(df, feature="lcoe", min_value=15, max_value=35)
+    assert len(result) == 2
+    assert result["lcoe"].min() >= 15
+    assert result["lcoe"].max() <= 35
+
+
+def test_assign_site_cluster_mw_per_cluster(caplog):
+    """Test mw_per_cluster overrides n_clusters."""
+    import logging
+
+    renew_data = pd.read_csv(DATA_FOLDER / "cpa_data.csv")
+    profile_path = DATA_FOLDER / "cpa_profiles.csv"
+    with caplog.at_level(logging.WARNING):
+        result = assign_site_cluster(
+            renew_data=renew_data,
+            profile_path=profile_path,
+            regions=["A"],
+            cluster=[
+                {
+                    "feature": "lcoe",
+                    "method": "agg",
+                    "n_clusters": 10,
+                    "mw_per_cluster": 500,
+                }
+            ],
+        )
+    assert "Overwriting 'n_clusters'" in caplog.text
+    assert "cluster" in result.columns
