@@ -7,8 +7,6 @@
 [![codecov](https://codecov.io/gh/PowerGenome/PowerGenome/branch/master/graph/badge.svg?token=7KJYLE3jOW)](https://codecov.io/gh/PowerGenome/PowerGenome)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/PowerGenome/PowerGenome/master.svg)](https://results.pre-commit.ci/latest/github/PowerGenome/PowerGenome/master)
 
-The code and data for PowerGenome are under active development and some changes may break existing functions. Keep up to date with major code and data releases by joining [PowerGenome on groups.io](https://groups.io/g/powergenome). And **check out the growing documentation on the [Wiki](https://github.com/PowerGenome/PowerGenome/wiki)** for helpful background information.
-
 Power system optimization models can be used to explore the cost and emission implications of different regulations in future energy systems. One of the most difficult parts of running these models is assembling all the data. A typical model will define several regions, each of which need data such as:
 
 - All existing generating units (perhaps grouped into a few discrete clusters within each region)
@@ -19,21 +17,26 @@ Power system optimization models can be used to explore the cost and emission im
 
 Because computational complexity and run times increase as the number of regions and generating unit clusters increases, a user might want only want to disaggregate regions and generating units close to the primary region of interest. For example, a study focused on clean electricity regulations in New Mexico might combine several states in the Pacific Northwest into a single region while also splitting Arizona combined cycle units into multiple clusters.
 
-The goal of PowerGenome is to let a user make all of these choices in a settings file and then run a single script that generates input files for the power system model. PowerGenome currently generates input files for [GenX](https://energy.mit.edu/wp-content/uploads/2017/10/Enhanced-Decision-Support-for-a-Changing-Electricity-Landscape.pdf), and we hope to expand to other models in the near future.
+The goal of PowerGenome is to let a user make all of these choices in a settings file and then run a single script that generates input files for the power system model. PowerGenome currently generates input files for [GenX](https://energy.mit.edu/wp-content/uploads/2017/10/Enhanced-Decision-Support-for-a-Changing-Electricity-Landscape.pdf).
 
 ## Data
 
-PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. The data are accessed through a combination of sqlite databases, CSV files, and parquet data files. All data files [are available here](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing).
+PowerGenome uses data from a number of different sources, including EIA, NREL, and EPA. The data inputs consist of two main components:
 
-1. EIA data on existing generating units are already compiled into a [single sqlite database (PUDL)](https://doi.org/10.5281/zenodo.3653158) (see instructions for using it below). This file is available at the link above or you can download it from the Zenodo repository.
-2. A second sqlite database (`pg_misc_tables_efs_2023_2.sqlite`) has tables with new resource costs from NREL ATB, transmission constraints between IPM regions from EIA, and hourly demand within each IPM region derived from NREL or FERC data.
-3. The hourly incremental demand for different flexible demand technologies, and stock values across a range of projection scenarios (`efs_files_utc`).
+1. **Tabular data** - Database tables or files (CSV/Parquet) containing:
+   - Existing generating units
+   - New resource costs
+   - Resource operational parameters
+   - Transmission constraints between regions
+   - Cost of increasing transmission capacity between regions
+   - Hourly demand profiles by region
+   - Fuel prices
+   - Distributed generation capacity and profiles
+   - Value of currency over time
 
-## PUDL Dependency
-
-This project pulls data from [PUDL](https://github.com/catalyst-cooperative/pudl). As such, it requires access to a normalized sqlite database with PUDL data. Catalyst Cooperative creates versioned data releases of PUDL, which can be [accessed on Zenodo](https://doi.org/10.5281/zenodo.3653158). Download the zip file from Zenodo, unzip it, and find the sqlite database under `pudl_data/sqlite/pudl.sqlite`. 
-
-![PUDL software version for database](/docs/_static/pudl_version.png)
+2. **Renewable Resource Data** - Generation profiles and resource group mapping files:
+   - `generation_profiles` - Hourly wind/solar generation profiles, either by site or mapped to resource sites
+   - `metadata` - Files that assign interconnection costs to specific renewable sites, and maps each to a model region
 
 ## Installation
 
@@ -58,16 +61,19 @@ After installation, skip to step 4 below to download the required data files.
 2. Install uv if you haven't already. You can use the standalone installer (recommended):
 
 **On macOS and Linux:**
+
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 **On Windows:**
+
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
 **Or install via pip:**
+
 ```sh
 pip install uv
 ```
@@ -110,45 +116,15 @@ conda activate powergenome
 pip install -e .
 ```
 
-### Data Download (Required for All Installation Methods)
-
-After installing PowerGenome, you need to download the required data files:
-
-4. Download the PUDL database [from Zenodo](https://doi.org/10.5281/zenodo.3653158) or the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing), unzip it, and copy the `/pudl_data/sqlite/pudl.sqlite` to wherever you would like to store PowerGenome data on your computer. The zip file contains other data sets that aren't needed for PowerGenome and can be deleted.  Note that as of May 2023 the most recent version of this database (v2022.11.30) is compatible with `catalystcoop.pudl` version v2022.11.30 and may not work if an earlier software version is included in your environment.
-
-5. Download the additional PowerGenome database from the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing). It includes NREL ATB cost data, transmission constraints between IPM regions, and hourly demand for each IPM region. Hourly demand is based on a 2012 weather year and was constructed either directly from FERC 714 data (`load_curves_ferc`) or from NREL EFS data (`load_curves_nrel_efs`) that also sources back to FERC 714. The NREL load curves, which separate hourly demand by sector and subsector, are now the default source for load curves in PowerGenome. See [the wiki](https://github.com/PowerGenome/PowerGenome/wiki/Settings-files#demand) for more information. These files will eventually be provided through a data repository with citation information.
-
-6. Download the appropriate renewable resource data files from the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing). There is a single set of generation profiles and resource group folders specific to different regional aggregations. Read through the [included README](https://docs.google.com/document/d/1p_zDk6ng4tvgL1v1ZAXkvY9b34FmaLqdWFlJmUHP1Eo/edit?usp=share_link) for more background. This folder contains:
-
-- `generation_profiles` can be saved in a single place and used across multiple studies.
-- Each of the folders under `resource_groups` has CSV files that tell PowerGenome the metro that each potential wind/solar site will deliver power to based on a set of regional aggregations. Use the corresponding regional aggregations in your settings file. You can request new resource group files for different regional aggregations on the PowerGenome [repository discussion page](https://github.com/PowerGenome/PowerGenome/discussions)
-
-7. Download data files derived from NREL's EFS from the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing). These provide hourly demand profiles for growing electrification technologies like electric vehicles and heat pumps and are used to both build up demand profiles in the future and create flexible demand resources that can shift their load.
-
-8. Download distributed generation profiles from the [PowerGenome data repository](https://drive.google.com/drive/folders/1K5GWF5lbe-mKSTUSuJxnFdYGCdyDJ7iE?usp=sharing) compiled from NREL Cambium 2022 scenarios.
-
-9. Configure environment variables. If you installed from GitHub (Options 2 or 3), create the file `PowerGenome/powergenome/.env`. For PyPI installations (Option 1), create a YAML file (e.g., `env.yml`) in your settings folder. Add the following paths:
-
-- `PUDL_DB=YOUR_PATH_HERE` (your path to the PUDL database downloaded in step 4)
-- `PG_DB=YOUR_PATH_HERE` (your path to the additional PowerGenome data downloaded in step 5)
-- `RESOURCE_GROUP_PROFILES=YOUR_PATH_HERE` (your path to the folder with hourly wind/solar generation parquet files)
-- `EFS_DATA=YOUR_PATH_HERE` (your path to the folder with EFS derived data files)
-- `DISTRIBUTED_GEN_DATA=YOUR_PATH_HERE` (your path to the folder with distributed generation profiles)
-- OPTIONAL: `RESOURCE_GROUPS=YOUR_PATH_HERE` (your path to the resource groups data for a project -- **this can be included in a settings file such as env.yml instead of the .env file**)
-
-Quotation marks are only needed if your values contain spaces. The `.env` file is included in `.gitignore` and will not be synced with the repository.
-
 ## Running code
 
 ### Suggested folder structure
 
-It is best practice to set up project folders outside of the cloned repository so that git doesn't track any new/changed files within the upper-level `PowerGenome` folder. Try copying one of the example systems (settings file and extra inputs) and modifying it. Copy the `notebooks` folder into your project folder, change the path to the settings file as needed, and run code in the notebooks. This can also be a good way to learn how data are created in PowerGenome and debug problem.
-
-Keeping project folders separate from the cloned `PowerGenome` folder will also make it easier to pull changes as they are released.
+It is best practice to set up project folders outside of the cloned repository so that git doesn't track any new/changed files within the upper-level `PowerGenome` folder. Keeping project folders separate from the cloned `PowerGenome` folder will also make it easier to pull changes as they are released.
 
 ### Example systems
 
-A few example systems are included under `PowerGenome/example_systems`. Each system has settings files in a folder (`settings`) and a folder with extra user inputs (`extra_inputs`). The different example systems are not meant to be accurate for real-world analysis, so please do not blindly use the external data files included with them in your own studies!
+A few example systems are included at <https://github.com/PowerGenome/PowerGenome-examples>. Each system has settings files in a folder (`settings`) and a folder with extra user inputs (`extra_inputs`). The different example systems are not meant to be accurate for real-world analysis, so please do not blindly use the external data files included with them in your own studies!
 
 ### Settings
 
