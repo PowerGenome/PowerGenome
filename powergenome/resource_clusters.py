@@ -768,22 +768,6 @@ class ResourceGroup:
             ]
             df = self.profiles.read(columns=read_cols)
             df = df[df["site_id"].isin(site_ids)]
-            if "weather_year" in df.columns:
-                if weather_year is not None:
-                    years = (
-                        weather_year
-                        if isinstance(weather_year, list)
-                        else [weather_year]
-                    )
-                    df = df[df["weather_year"].isin(years)]
-                else:
-                    uniq_years = sorted(df["weather_year"].dropna().unique().tolist())
-                    if len(uniq_years) > 1:
-                        logger.warning(
-                            f"Tidy profiles include multiple weather years {uniq_years} but no weather_year setting was provided. Using {uniq_years[0]}."
-                        )
-                    if uniq_years:
-                        df = df[df["weather_year"] == uniq_years[0]]
         else:
             # On-disk: use centralized DuckDB-based loader
             p = Path(self.profiles.path)
@@ -824,6 +808,16 @@ class ResourceGroup:
                         f"None of the requested weather years {weather_year} are available in the profile data. "
                         f"Available years: {available_years}."
                     )
+                # Apply the filter
+                df = df[df["weather_year"].isin(years)]
+            else:
+                # No weather_year specified: use first available year if multiple exist
+                if len(available_years) > 1:
+                    logger.warning(
+                        f"Tidy profiles include multiple weather years {available_years} but no weather_year setting was provided. Using {available_years[0]}."
+                    )
+                if available_years:
+                    df = df[df["weather_year"] == available_years[0]]
 
             # Sort by weather_year and time_index for each site, then create
             # a single continuous time_index per site before pivoting
