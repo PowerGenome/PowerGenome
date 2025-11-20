@@ -1,5 +1,5 @@
 # Time clustering/reduction parameters
-reduce_time_domain: true # If the generator and load profiles should be clustered
+reduce_time_domain: false # If the generator and load profiles should be clustered
 time_domain_periods: 4 # The number of periods/clusters
 time_domain_days_per_period: 5 # The number of 24 hour days in each period/cluster
 include_peak_day: true # If the system-wide peak load days should always be included

@@ -3738,7 +3738,12 @@ class GeneratorClusters:
         )
 
         self.new_generators = build_new_resources(
-            self.resource_costs, self.resource_hr, self.settings, self.cluster_builder
+            self.resource_costs,
+            self.resource_hr,
+            self.settings,
+            self.cluster_builder,
+            cache_results=self.settings.get("cache_resource_clusters", True),
+            use_cache=self.settings.get("use_resource_clusters_cache", True),
         )
 
         if not self.new_generators.empty:

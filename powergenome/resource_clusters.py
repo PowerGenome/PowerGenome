@@ -768,22 +768,6 @@ class ResourceGroup:
             ]
             df = self.profiles.read(columns=read_cols)
             df = df[df["site_id"].isin(site_ids)]
-            if "weather_year" in df.columns:
-                if weather_year is not None:
-                    years = (
-                        weather_year
-                        if isinstance(weather_year, list)
-                        else [weather_year]
-                    )
-                    df = df[df["weather_year"].isin(years)]
-                else:
-                    uniq_years = sorted(df["weather_year"].dropna().unique().tolist())
-                    if len(uniq_years) > 1:
-                        logger.warning(
-                            f"Tidy profiles include multiple weather years {uniq_years} but no weather_year setting was provided. Using {uniq_years[0]}."
-                        )
-                    if uniq_years:
-                        df = df[df["weather_year"] == uniq_years[0]]
         else:
             # On-disk: use centralized DuckDB-based loader
             p = Path(self.profiles.path)
@@ -810,25 +794,36 @@ class ResourceGroup:
                 years = (
                     weather_year if isinstance(weather_year, list) else [weather_year]
                 )
-                # Check if requested years are available
                 missing_years = [y for y in years if y not in available_years]
                 if missing_years:
                     logger.warning(
                         f"Requested weather years {missing_years} are not available in the profile data. "
                         f"Available years: {available_years}. Using only available requested years."
                     )
-                # Filter to requested years that are actually available
                 years = [y for y in years if y in available_years]
                 if not years:
                     raise ValueError(
                         f"None of the requested weather years {weather_year} are available in the profile data. "
                         f"Available years: {available_years}."
                     )
-
-            # Sort by weather_year and time_index for each site, then create
-            # a single continuous time_index per site before pivoting
-            df = df.sort_values(by=["weather_year", "time_index"])  # global order
-            # Assign a continuous time_index per site_id
+                df = df[df["weather_year"].isin(years)]
+            else:
+                # No explicit weather_year selection:
+                # If multiple years exist, concatenate all of them into one continuous series.
+                # This avoids silent dropping of data and supports multi-year clustering
+                # while keeping backward-compatible behavior (single year unaffected).
+                if len(available_years) > 1:
+                    logger.debug(
+                        f"No weather_year specified; concatenating all available years: {available_years} "
+                        f"for resource {self.group}.",
+                    )
+                # If exactly one year, or none (all NaN), leave df unchanged.
+                # For a single year, downstream logic expects a continuous index already.
+                # For no valid years (all NaN), treat as single block and skip reindexing.
+            # Rebuild a continuous time_index per site across (possibly multiple) years.
+            sort_cols = [c for c in ["weather_year", "time_index"] if c in df.columns]
+            if sort_cols:
+                df = df.sort_values(by=sort_cols)
             df["time_index"] = df.groupby("site_id").cumcount() + 1
 
         wide = df.pivot(
