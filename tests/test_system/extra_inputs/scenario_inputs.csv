@@ -1,4 +1,4 @@
-﻿case_id,year,weather_year
+case_id,year,weather_year
 p1,2030,no_param
 p2,2030,2012_only
 p3,2030,both_years
