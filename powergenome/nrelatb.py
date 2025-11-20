@@ -287,11 +287,11 @@ def auto_create_region_map(
 ) -> Dict[str, str]:
     """
     Automatically create a mapping from model regions to cost regions.
-    
+
     If a model region is directly in the cost data, use it. If the model region
     is an aggregation of base regions, use the average cost multiplier from
     those base regions.
-    
+
     Parameters
     ----------
     model_regions : List[str]
@@ -300,7 +300,7 @@ def auto_create_region_map(
         DataFrame with columns ['region', 'technology', 'value']
     region_aggregations : Dict[str, List[str]], optional
         Mapping of model regions to lists of base regions they aggregate
-        
+
     Returns
     -------
     Dict[str, str]
@@ -308,7 +308,7 @@ def auto_create_region_map(
     """
     region_map = {}
     available_cost_regions = set(regional_cost_df["region"].unique())
-    
+
     for model_region in model_regions:
         # Check if model region is directly available in cost data
         if model_region in available_cost_regions:
@@ -341,7 +341,7 @@ def auto_create_region_map(
                     f"Model region '{model_region}' is not in the regional cost data. "
                     f"Average regional cost multipliers will be used."
                 )
-    
+
     return region_map
 
 
@@ -352,10 +352,10 @@ def auto_create_technology_map(
 ) -> Dict[str, str]:
     """
     Automatically create a mapping from new resource technologies to cost table technologies.
-    
+
     Uses substring matching to find the best match. Technologies from modified_new_resources
     that don't match will be logged as warnings.
-    
+
     Parameters
     ----------
     new_gen_df : pd.DataFrame
@@ -364,7 +364,7 @@ def auto_create_technology_map(
         DataFrame with columns ['region', 'technology', 'value']
     modified_resources : Dict, optional
         Dictionary of modified resources from settings
-        
+
     Returns
     -------
     Dict[str, str]
@@ -373,7 +373,7 @@ def auto_create_technology_map(
     """
     tech_map = {}
     available_cost_techs = set(regional_cost_df["technology"].unique())
-    
+
     # Get list of new technologies in the format they'll have after concatenation
     new_tech_names = (
         new_gen_df[["technology", "tech_detail", "cost_case"]]
@@ -381,7 +381,7 @@ def auto_create_technology_map(
         .agg("_".join, axis=1)
         .unique()
     )
-    
+
     # Create mapping of common technology name patterns to cost technologies
     # This helps match things like "NaturalGas" to "CC - single shaft"
     tech_keywords = {
@@ -389,7 +389,12 @@ def auto_create_technology_map(
         "CC - multi shaft": ["naturalgas", "combined cycle", "multi", "2-on-1"],
         "CC with 90% CCS": ["naturalgas", "ccs", "combined cycle", "ccccs"],
         "CT - aeroderivative": ["naturalgas", "combustion turbine", "aeroderivative"],
-        "CT - industrial frame": ["naturalgas", "combustion turbine", "industrial", "f-frame"],
+        "CT - industrial frame": [
+            "naturalgas",
+            "combustion turbine",
+            "industrial",
+            "f-frame",
+        ],
         "Advanced nuclear": ["nuclear"],
         "Wind": ["landbasedwind", "wind", "onshore"],
         "Wind offshore": ["offshorewind", "offshore"],
@@ -408,36 +413,40 @@ def auto_create_technology_map(
         "Dist. Generation base": ["dist", "generation base"],
         "Dist. Generation - peak": ["dist", "generation peak"],
     }
-    
+
     for new_tech_name in new_tech_names:
         # Extract the base technology and detail
         parts = new_tech_name.split("_")
         base_tech = parts[0] if len(parts) > 0 else new_tech_name
         tech_detail = parts[1] if len(parts) > 1 else ""
-        
+
         new_tech_lower = new_tech_name.lower()
         base_tech_lower = base_tech.lower()
         tech_detail_lower = tech_detail.lower()
-        
+
         # Try to find best match using keyword matching
         best_match = None
         best_score = 0
-        
+
         for cost_tech, keywords in tech_keywords.items():
             if cost_tech not in available_cost_techs:
                 continue
-                
+
             score = 0
             # Count how many keywords match
             for keyword in keywords:
-                if keyword in new_tech_lower or keyword in base_tech_lower or keyword in tech_detail_lower:
+                if (
+                    keyword in new_tech_lower
+                    or keyword in base_tech_lower
+                    or keyword in tech_detail_lower
+                ):
                     score += 1
-            
+
             # Prefer matches with more keyword hits
             if score > best_score:
                 best_score = score
                 best_match = cost_tech
-        
+
         if best_match and best_score > 0:
             tech_map[new_tech_name] = best_match
         else:
@@ -445,9 +454,12 @@ def auto_create_technology_map(
             matched = False
             for cost_tech in available_cost_techs:
                 cost_tech_lower = cost_tech.lower()
-                
+
                 # Check for substring matches
-                if base_tech_lower in cost_tech_lower or cost_tech_lower in base_tech_lower:
+                if (
+                    base_tech_lower in cost_tech_lower
+                    or cost_tech_lower in base_tech_lower
+                ):
                     if tech_detail_lower and tech_detail_lower in cost_tech_lower:
                         tech_map[new_tech_name] = cost_tech
                         matched = True
@@ -455,13 +467,13 @@ def auto_create_technology_map(
                     elif not matched:
                         tech_map[new_tech_name] = cost_tech
                         matched = True
-            
+
             if not matched:
                 logger.debug(
                     f"No cost multiplier technology match found for '{new_tech_name}'. "
                     f"Average regional cost multiplier will be used."
                 )
-    
+
     return tech_map
 
 
@@ -473,7 +485,7 @@ def validate_cost_coverage(
 ) -> None:
     """
     Validate that all technologies in new_resources are covered by regional cost corrections.
-    
+
     Parameters
     ----------
     new_resources : List
@@ -486,12 +498,12 @@ def validate_cost_coverage(
         DataFrame with regional cost factors
     """
     available_cost_techs = set(regional_cost_df["technology"].unique())
-    
+
     # Check new_resources
     for resource_spec in new_resources:
         technology, tech_detail, cost_case, _ = resource_spec
         full_name = f"{technology}_{tech_detail}_{cost_case}"
-        
+
         if full_name not in tech_map:
             logger.warning(
                 f"Technology '{full_name}' from 'new_resources' is not covered by "
@@ -502,7 +514,7 @@ def validate_cost_coverage(
                 f"Technology '{full_name}' maps to '{tech_map[full_name]}' which is not "
                 f"in the regional cost factor table. Average regional cost multiplier will be used."
             )
-    
+
     # Check modified resources
     if modified_resources:
         for name, spec in modified_resources.items():
@@ -510,7 +522,7 @@ def validate_cost_coverage(
             new_detail = spec.get("new_tech_detail", "")
             new_case = spec.get("new_cost_case", "")
             full_name = f"{new_tech}_{new_detail}_{new_case}"
-            
+
             if full_name not in tech_map:
                 logger.info(
                     f"Modified resource '{name}' ({full_name}) is not covered by "
@@ -561,22 +573,19 @@ def regional_capex_multiplier(
     """
     df = df.copy()
     cost_region = region_map.get(region, region)
-    
+
     # Determine if we need to aggregate costs from multiple base regions
     if region_aggregations and region in region_aggregations:
         base_regions = region_aggregations[region]
         # Filter to base regions that exist in the cost data
         available_regions = set(regional_multipliers["region"].unique())
         valid_base_regions = [r for r in base_regions if r in available_regions]
-        
+
         if valid_base_regions:
             # Calculate average multipliers across base regions
             region_mask = regional_multipliers["region"].isin(valid_base_regions)
             tech_multipliers_by_region = regional_multipliers[region_mask].pivot_table(
-                index="technology",
-                columns="region", 
-                values="value",
-                aggfunc="mean"
+                index="technology", columns="region", values="value", aggfunc="mean"
             )
             # Average across base regions for each technology
             tech_multiplier = tech_multipliers_by_region.mean(axis=1)
@@ -588,7 +597,7 @@ def regional_capex_multiplier(
         # Use multipliers for the specific cost region
         region_mask = regional_multipliers["region"] == cost_region
         tech_multiplier = regional_multipliers.loc[region_mask, "value"]
-    
+
     # Calculate average multiplier for this region (for techs without specific values)
     avg_multiplier = tech_multiplier.mean()
     if pd.isna(avg_multiplier):
@@ -602,7 +611,7 @@ def regional_capex_multiplier(
     tech_multiplier_map = {}
     for full_tech_name in df["technology"].unique():
         multiplier = None
-        
+
         # Check if we have a mapping for this technology
         if full_tech_name in tech_map:
             reference_tech = tech_map[full_tech_name]
@@ -613,14 +622,15 @@ def regional_capex_multiplier(
                         multiplier = tech_multiplier.loc[reference_tech]
                     else:
                         # Try getting from the full dataframe
-                        mask = (regional_multipliers["region"] == cost_region) & \
-                               (regional_multipliers["technology"] == reference_tech)
+                        mask = (regional_multipliers["region"] == cost_region) & (
+                            regional_multipliers["technology"] == reference_tech
+                        )
                         vals = regional_multipliers.loc[mask, "value"]
                         if not vals.empty:
                             multiplier = vals.iloc[0]
             except (KeyError, IndexError):
                 pass
-        
+
         # Use average multiplier if no specific one found
         if multiplier is None or pd.isna(multiplier):
             multiplier = avg_multiplier
@@ -628,9 +638,9 @@ def regional_capex_multiplier(
                 f"Using average regional cost multiplier ({avg_multiplier:.3f}) "
                 f"for technology '{full_tech_name}' in region '{region}'"
             )
-        
+
         tech_multiplier_map[full_tech_name] = multiplier
-    
+
     # Apply multipliers to investment costs
     df["Inv_Cost_per_MWyr"] *= df["technology"].map(tech_multiplier_map)
     df["Inv_Cost_per_MWhyr"] *= df["technology"].map(tech_multiplier_map)
@@ -872,7 +882,7 @@ def build_new_resources(resource_costs, resource_hr, settings, cluster_builder=N
             .astype(str)
             .agg("_".join, axis=1)
         )
-        
+
         for tech, years in (
             settings.get("alt_resource_cap_recovery_years") or {}
         ).items():
@@ -918,7 +928,7 @@ def build_new_resources(resource_costs, resource_hr, settings, cluster_builder=N
                 regional_cost_multipliers,
                 settings.get("region_aggregations"),
             )
-        
+
         # Auto-create technology map if not provided (using already-concatenated tech names)
         if settings.get("cost_multiplier_technology_map"):
             rev_mult_tech_map = reverse_dict_of_lists(
@@ -930,17 +940,19 @@ def build_new_resources(resource_costs, resource_hr, settings, cluster_builder=N
                 "mapping using substring matching from regional cost factor table."
             )
             # Create a temporary DataFrame with the structure auto_create_technology_map expects
-            temp_df = pd.DataFrame({
-                'technology': new_gen_df['technology'].str.split('_').str[0],
-                'tech_detail': new_gen_df['technology'].str.split('_').str[1],
-                'cost_case': new_gen_df['technology'].str.split('_').str[2]
-            })
+            temp_df = pd.DataFrame(
+                {
+                    "technology": new_gen_df["technology"].str.split("_").str[0],
+                    "tech_detail": new_gen_df["technology"].str.split("_").str[1],
+                    "cost_case": new_gen_df["technology"].str.split("_").str[2],
+                }
+            )
             rev_mult_tech_map = auto_create_technology_map(
                 temp_df,
                 regional_cost_multipliers,
                 settings.get("modified_new_resources"),
             )
-        
+
         # Validate that all technologies are covered
         validate_cost_coverage(
             settings.get("new_resources", []),
