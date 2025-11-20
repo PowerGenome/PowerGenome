@@ -40,8 +40,6 @@ dependencies = [
     "geopandas>=0.12",
     "pyogrio",
     "xlrd",
-    "pyarrow",
-    "duckdb",
     "scikit-learn",
     "requests",
 ]
