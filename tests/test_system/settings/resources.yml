@@ -177,6 +177,8 @@ new_resources:
   - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 1]
   - [Nuclear, Nuclear - Large, Moderate, 1000]
 
+cache_resource_clusters: false
+use_resource_clusters_cache: false
 renewables_clusters:
   - region: all
     technology: landbasedwind
