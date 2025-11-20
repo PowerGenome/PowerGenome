@@ -1,5 +1,5 @@
 """
-Test the CLI functionality for run_powergenome_multiple_outputs_cli.
+Test the CLI functionality for run_powergenome.
 
 This module tests the command line interface functionality including argument parsing,
 main function execution flow, and integration with the PowerGenome components.
@@ -176,10 +176,10 @@ class TestParseCommandLine:
 class TestMainFunction:
     """Test the main function execution flow."""
 
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.sys.argv", ["script_name"])
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.Settings")
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.initialize_data_manager")
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.build_scenario_settings")
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.Settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
     def test_main_basic_setup(
         self,
         mock_build_scenario,
@@ -223,9 +223,9 @@ class TestMainFunction:
         mock_settings_class.assert_called_once_with(config_path=str(test_settings_path))
         mock_init_dm.assert_called_once_with(mock_settings, "test_data.db")
 
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.sys.argv", ["script_name"])
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.Settings")
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.initialize_data_manager")
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.Settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
     def test_main_missing_case_ids_error(
         self,
         mock_init_dm,
@@ -260,9 +260,9 @@ class TestMainFunction:
                         ):
                             main(case_id=["missing_case"])
 
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.sys.argv", ["script_name"])
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.Settings")
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.initialize_data_manager")
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.Settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
     def test_main_year_length_assertion(
         self, mock_init_dm, mock_settings_class, tmp_path
     ):
@@ -294,10 +294,10 @@ class TestMainFunction:
                         with pytest.raises(AssertionError, match="must be the same"):
                             main()
 
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.sys.argv", ["script_name"])
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.Settings")
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.initialize_data_manager")
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.build_scenario_settings")
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.Settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
     def test_main_case_id_filtering(
         self, mock_build_scenario, mock_init_dm, mock_settings_class, tmp_path
     ):
@@ -341,10 +341,10 @@ class TestMainFunction:
         filtered_df = call_args[1]
         assert set(filtered_df["case_id"]) == {"case1", "case3"}
 
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.sys.argv", ["script_name"])
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.Settings")
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.initialize_data_manager")
-    @patch("powergenome.run_powergenome_multiple_outputs_cli.build_scenario_settings")
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.Settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
     def test_main_multi_period_flag(
         self, mock_build_scenario, mock_init_dm, mock_settings_class, tmp_path
     ):
@@ -388,9 +388,7 @@ class TestMainFunction:
 
     def test_main_kwargs_override(self):
         """Test that kwargs properly override command line arguments."""
-        with patch(
-            "powergenome.run_powergenome_multiple_outputs_cli.parse_command_line"
-        ) as mock_parse:
+        with patch("powergenome.run_powergenome.parse_command_line") as mock_parse:
             mock_args = argparse.Namespace(
                 settings_file="default.yml",
                 results_folder="default_results",
@@ -405,7 +403,7 @@ class TestMainFunction:
             mock_parse.return_value = mock_args
 
             with patch.multiple(
-                "powergenome.run_powergenome_multiple_outputs_cli",
+                "powergenome.run_powergenome",
                 Settings=Mock(),
                 initialize_data_manager=Mock(),
                 build_scenario_settings=Mock(return_value={}),
