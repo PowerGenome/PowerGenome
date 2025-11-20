@@ -385,9 +385,9 @@ def test_load_site_profiles_tidy_format():
     """Test loading site profiles in tidy format without weather_year filter."""
     profile_path = DATA_FOLDER / "cpa_profiles.csv"
     site_ids = [1, 2, 3]
-    
+
     df = load_site_profiles(profile_path, site_ids=site_ids)
-    
+
     # Should return a wide dataframe
     assert isinstance(df, pd.DataFrame)
     # Columns should match requested site_ids
@@ -404,10 +404,10 @@ def test_load_site_profiles_with_weather_year():
     """Test loading site profiles with specific weather_year filter."""
     profile_path = DATA_FOLDER / "cpa_profiles.csv"
     site_ids = [1, 2]
-    
+
     # Load with weather_year 2012
     df = load_site_profiles(profile_path, site_ids=site_ids, weather_year=2012)
-    
+
     assert isinstance(df, pd.DataFrame)
     assert list(df.columns) == site_ids
     # Test data has 20 time periods per site per year
@@ -418,10 +418,10 @@ def test_load_site_profiles_with_multiple_weather_years():
     """Test loading and concatenating multiple weather years."""
     profile_path = DATA_FOLDER / "cpa_profiles.csv"
     site_ids = [1, 2]
-    
+
     # Load with multiple years - should concatenate
     df = load_site_profiles(profile_path, site_ids=site_ids, weather_year=[2012, 2013])
-    
+
     assert isinstance(df, pd.DataFrame)
     assert list(df.columns) == site_ids
     # Should have double the time periods for two years (20 * 2 = 40)
@@ -433,9 +433,9 @@ def test_load_site_profiles_missing_site():
     profile_path = DATA_FOLDER / "cpa_profiles.csv"
     # Request a site that doesn't exist
     site_ids = [1, 999999]
-    
+
     df = load_site_profiles(profile_path, site_ids=site_ids)
-    
+
     # Should still have both columns
     assert list(df.columns) == site_ids
     # The missing site should be filled with 1.0
@@ -452,14 +452,14 @@ def test_assign_site_cluster_with_weather_year():
             {"feature": "profile", "method": "hierarchical", "n_clusters": 3},
         ],
     }
-    
+
     # Test with weather_year parameter
     data = assign_site_cluster(
-        renew_data=renew_data, 
-        profile_path=profile_path, 
-        regions=regions, 
+        renew_data=renew_data,
+        profile_path=profile_path,
+        regions=regions,
         weather_year=2012,
-        **cluster
+        **cluster,
     )
     assert data.notna().all().all()
     assert "cluster" in data.columns

@@ -12,8 +12,6 @@ from powergenome.load_profiles import make_load_curves as _make_load_curves
 from powergenome.load_profiles import subtract_distributed_generation
 
 
-
-
 def test_grow_historical_load():
     base_load = {"region": ["A", "A", "B", "B"], "load_mw": [1, 1, 1, 1]}
     base_load_df = pd.DataFrame(base_load)
