@@ -14,6 +14,9 @@ and this project adheres to Semantic Versioning.
 - Comprehensive distributed generation (DG) test suite covering capacity interpolation/extrapolation, multi-weather-year profiles, aggregation, timezone shifting, and hourly generation.
 - Interpolation/extrapolation summary logging for DG capacity: single consolidated message listing regions interpolated, backward/forward extrapolated, exact matches, and missing.
 - Partial-year fill for DG capacity: when some regions have the requested year and others do not, interpolate/extrapolate only the missing regions.
+- Auto-generation of regional cost multiplier mappings: `cost_multiplier_region_map` and `cost_multiplier_technology_map` are now optional. When not provided, the system automatically creates mappings using substring matching between new resource names and regional cost factor technologies.
+- Validation that all technologies in `new_resources` are covered by regional cost corrections with appropriate warnings/info messages.
+- Support for aggregated regions in regional cost multipliers: when a model region aggregates multiple base regions, the average cost multiplier across base regions is used.
 
 ### Changed
 
@@ -25,6 +28,7 @@ and this project adheres to Semantic Versioning.
 - DG profiles across multiple weather years now build a unique sequential `time_index` across (weather_year, time_index) pairs and reset the index to start at 1.
 - DG profile aggregation uses capacity-weighted averages and requires a `model_year`. Aggregation now validates that capacity exists for all declared component regions.
 - Hourly DG generation now passes `year` into profile loading to ensure correct capacity-weighted aggregation without relying on global settings state.
+- Regional cost multiplier application now supports automatic averaging for aggregated regions and provides better logging for technologies without explicit mappings.
 
 ### Deprecated
 
