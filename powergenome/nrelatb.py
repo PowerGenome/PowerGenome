@@ -353,8 +353,9 @@ def auto_create_technology_map(
     """
     Automatically create a mapping from new resource technologies to cost table technologies.
 
-    Uses substring matching to find the best match. Technologies from modified_new_resources
-    that don't match will be logged as warnings.
+    Uses substring matching where cost table technology names are expected to be substrings
+    of the new resource technology names (in <tech>_<detail>_<case> format). For modified
+    resources, maps the new technology to the same cost multiplier as the original technology.
 
     Parameters
     ----------
@@ -382,96 +383,77 @@ def auto_create_technology_map(
         .unique()
     )
 
-    # Create mapping of common technology name patterns to cost technologies
-    # This helps match things like "NaturalGas" to "CC - single shaft"
-    tech_keywords = {
-        "CC - single shaft": ["naturalgas", "combined cycle", "single", "1-on-1"],
-        "CC - multi shaft": ["naturalgas", "combined cycle", "multi", "2-on-1"],
-        "CC with 90% CCS": ["naturalgas", "ccs", "combined cycle", "ccccs"],
-        "CT - aeroderivative": ["naturalgas", "combustion turbine", "aeroderivative"],
-        "CT - industrial frame": [
-            "naturalgas",
-            "combustion turbine",
-            "industrial",
-            "f-frame",
-        ],
-        "Advanced nuclear": ["nuclear"],
-        "Wind": ["landbasedwind", "wind", "onshore"],
-        "Wind offshore": ["offshorewind", "offshore"],
-        "Solar PV - tracking": ["utilitypv", "solar pv", "tracking"],
-        "Solar thermal": ["csp", "solar thermal"],
-        "Battery storage": ["battery", "storage"],
-        "Biomass": ["biomass", "biopower"],
-        "Geothermal": ["geothermal"],
-        "Ultra-supercritical coal (USC)": ["coal", "usc"],
-        "USC with 30% CCS": ["coal", "ccs30"],
-        "USC with 90% CCS": ["coal", "ccs90"],
-        "Fuel cells": ["fuel cell"],
-        "Internal combustion engine": ["ice", "internal combustion"],
-        "MSW - landfill gas": ["landfill", "msw"],
-        "Conventional hydropower": ["hydro"],
-        "Dist. Generation base": ["dist", "generation base"],
-        "Dist. Generation - peak": ["dist", "generation peak"],
-    }
-
+    # For each new technology name, find cost table technologies that are substrings
     for new_tech_name in new_tech_names:
-        # Extract the base technology and detail
-        parts = new_tech_name.split("_")
-        base_tech = parts[0] if len(parts) > 0 else new_tech_name
-        tech_detail = parts[1] if len(parts) > 1 else ""
-
         new_tech_lower = new_tech_name.lower()
-        base_tech_lower = base_tech.lower()
-        tech_detail_lower = tech_detail.lower()
-
-        # Try to find best match using keyword matching
+        matched = False
+        
+        # Look for cost table technologies that are substrings of the new tech name
+        # Prefer longer matches (more specific)
         best_match = None
-        best_score = 0
-
-        for cost_tech, keywords in tech_keywords.items():
-            if cost_tech not in available_cost_techs:
-                continue
-
-            score = 0
-            # Count how many keywords match
-            for keyword in keywords:
-                if (
-                    keyword in new_tech_lower
-                    or keyword in base_tech_lower
-                    or keyword in tech_detail_lower
-                ):
-                    score += 1
-
-            # Prefer matches with more keyword hits
-            if score > best_score:
-                best_score = score
-                best_match = cost_tech
-
-        if best_match and best_score > 0:
+        best_match_len = 0
+        
+        for cost_tech in available_cost_techs:
+            cost_tech_lower = cost_tech.lower()
+            
+            # Check if the cost table tech is a substring of the new tech name
+            if cost_tech_lower in new_tech_lower:
+                # Prefer longer matches as they are more specific
+                if len(cost_tech_lower) > best_match_len:
+                    best_match = cost_tech
+                    best_match_len = len(cost_tech_lower)
+                    matched = True
+        
+        if matched and best_match:
             tech_map[new_tech_name] = best_match
         else:
-            # Fallback to simple substring matching
-            matched = False
+            logger.debug(
+                f"No cost multiplier technology match found for '{new_tech_name}'. "
+                f"Average regional cost multiplier will be used."
+            )
+
+    # Handle modified resources - map new tech/detail to same multiplier as original
+    if modified_resources:
+        for resource_name, resource_spec in modified_resources.items():
+            # Get the original technology/tech_detail (what it's based on)
+            orig_tech = resource_spec.get("technology", "")
+            orig_tech_detail = resource_spec.get("tech_detail", "")
+            orig_cost_case = resource_spec.get("cost_case", "")
+            
+            # Get the new technology/tech_detail (what it will be called)
+            new_tech = resource_spec.get("new_technology", "")
+            new_tech_detail = resource_spec.get("new_tech_detail", "")
+            new_cost_case = resource_spec.get("new_cost_case", "")
+            
+            # Build the concatenated names
+            orig_full_name = f"{orig_tech}_{orig_tech_detail}_{orig_cost_case}" if orig_cost_case else f"{orig_tech}_{orig_tech_detail}"
+            new_full_name = f"{new_tech}_{new_tech_detail}_{new_cost_case}" if new_cost_case else f"{new_tech}_{new_tech_detail}"
+            
+            # Try to find what the original would map to
+            orig_full_lower = orig_full_name.lower()
+            best_match = None
+            best_match_len = 0
+            
             for cost_tech in available_cost_techs:
                 cost_tech_lower = cost_tech.lower()
-
-                # Check for substring matches
-                if (
-                    base_tech_lower in cost_tech_lower
-                    or cost_tech_lower in base_tech_lower
-                ):
-                    if tech_detail_lower and tech_detail_lower in cost_tech_lower:
-                        tech_map[new_tech_name] = cost_tech
-                        matched = True
-                        break
-                    elif not matched:
-                        tech_map[new_tech_name] = cost_tech
-                        matched = True
-
-            if not matched:
-                logger.debug(
-                    f"No cost multiplier technology match found for '{new_tech_name}'. "
-                    f"Average regional cost multiplier will be used."
+                
+                # Check if cost table tech is substring of original tech name
+                if cost_tech_lower in orig_full_lower:
+                    if len(cost_tech_lower) > best_match_len:
+                        best_match = cost_tech
+                        best_match_len = len(cost_tech_lower)
+            
+            if best_match:
+                # Map the new tech name to the same cost multiplier as the original
+                tech_map[new_full_name] = best_match
+                logger.info(
+                    f"Modified resource '{resource_name}' ({new_full_name}) mapped to "
+                    f"cost multiplier '{best_match}' (same as original {orig_full_name})"
+                )
+            else:
+                logger.info(
+                    f"Modified resource '{resource_name}' ({new_full_name}) could not be "
+                    f"mapped to a cost multiplier. Average regional cost multiplier will be used."
                 )
 
     return tech_map
