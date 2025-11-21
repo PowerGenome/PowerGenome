@@ -231,6 +231,64 @@ class TestRegionalFuelPriceMod:
             - 1,
         )
 
+    def test_modifications_without_fuel_region_map(self, fuel_settings):
+        """Test that fuel price modifications work without fuel_region_map."""
+        fuel_prices = fetch_fuel_prices(fuel_settings)
+
+        # Modify existing regions (pacific) without using fuel_region_map
+        regional_fuel_adjustments = {
+            "pacific": ["mul", 1.5],
+            "mountain": {"coal": ["add", 0.5]},
+        }
+
+        original_pacific_price = fuel_prices.query("region == 'pacific'")[
+            "price"
+        ].mean()
+        original_mountain_coal_price = fuel_prices.query(
+            "region == 'mountain' and fuel == 'coal'"
+        )["price"].mean()
+
+        mod_fuel_prices = modify_fuel_prices(
+            fuel_prices,
+            None,  # No fuel_region_map
+            regional_fuel_adjustments,
+        )
+
+        # Check that pacific prices were multiplied by 1.5
+        assert np.isclose(
+            mod_fuel_prices.query("region == 'pacific'")["price"].mean(),
+            original_pacific_price * 1.5,
+        )
+
+        # Check that mountain coal price increased by 0.5
+        assert np.isclose(
+            mod_fuel_prices.query("region == 'mountain' and fuel == 'coal'")[
+                "price"
+            ].mean(),
+            original_mountain_coal_price + 0.5,
+        )
+
+        # Check that original dataframe is unchanged (function should return a copy)
+        assert np.isclose(
+            fuel_prices.query("region == 'pacific'")["price"].mean(),
+            original_pacific_price,
+        )
+
+    def test_modifications_without_fuel_region_map_invalid_region(self, fuel_settings):
+        """Test that modifying non-existent region without fuel_region_map raises KeyError."""
+        fuel_prices = fetch_fuel_prices(fuel_settings)
+
+        regional_fuel_adjustments = {
+            "nonexistent_region": ["mul", 1.5],
+        }
+
+        with pytest.raises(KeyError, match="not found in the fuel price table"):
+            modify_fuel_prices(
+                fuel_prices,
+                None,
+                regional_fuel_adjustments,
+            )
+
     def test_invalid_operation_type(self, fuel_settings):
         """Test that invalid operation type raises KeyError."""
         fuel_prices = fetch_fuel_prices(fuel_settings)
