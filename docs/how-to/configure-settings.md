@@ -120,23 +120,22 @@ Split settings by functional area:
 
 ### By Model Year
 
-For multi-period models, optionally separate by year:
+For multi-period models with year-specific parameters, use `settings_management`:
 
-```
+```text
 settings/
-├── common.yml          # Shared across all years
-├── regions.yml         # Regional definition
-├── year_2030.yml       # 2030-specific parameters
-├── year_2040.yml       # 2040-specific parameters
-└── year_2050.yml       # 2050-specific parameters
+├── base.yml                    # Core configuration
+├── regions.yml                 # Regional definition
+├── scenario_management.yml     # Year-specific overrides
+└── scenario_definitions.csv    # Case definitions
 ```
 
-**common.yml**:
+**base.yml**:
 
 ```yaml
+# Planning periods
 model_year: [2030, 2040, 2050]
-model_first_planning_year: 2030
-model_periods: [1, 2, 3]
+model_first_planning_year: [2020, 2031, 2041]
 target_usd_year: 2023
 
 model_regions:
@@ -144,27 +143,53 @@ model_regions:
   - CA_S
 ```
 
-**year_2030.yml**:
+**scenario_management.yml**:
 
 ```yaml
-resource_data_year: 2023
-carbon_tax: 50
-default_growth_rate: 0.01
+settings_management:
+  all_years:
+    policy:  # Column name from scenario_definitions.csv
+      high:
+        minimum_cap_req_fn: high_res_policy.csv
+      low:
+        minimum_cap_req_fn: low_res_policy.csv
+  2030:
+    all_cases:  # Applied to ALL scenarios in 2030
+      carbon_tax: 50
+      default_load_multiplier: 1.0
+  2040:
+    all_cases:  # Applied to ALL scenarios in 2040
+      carbon_tax: 75
+      default_load_multiplier: 1.15
+  2050:
+    all_cases:  # Applied to ALL scenarios in 2050
+      carbon_tax: 100
+      default_load_multiplier: 1.30
 ```
 
-**year_2040.yml**:
+**scenario_definitions.csv**:
 
-```yaml
-resource_data_year: 2025
-carbon_tax: 75
-default_growth_rate: 0.015
+```csv
+case_id,year,policy
+high_policy,2030,high
+high_policy,2040,high
+high_policy,2050,high
+low_policy,2030,low
+low_policy,2040,low
+low_policy,2050,low
 ```
+
+In this example:
+
+- `all_cases` sets carbon tax and load growth for each year
+- `policy` column varies RES policy files across scenarios
+- Both are applied together for each case/year combination
 
 ### By Scenario
 
 For scenario studies, use `settings_management`:
 
-```
+```texttext
 settings/
 ├── base.yml                    # Base configuration
 ├── scenario_definitions.csv    # Scenario matrix
