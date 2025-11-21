@@ -568,11 +568,11 @@ def _apply_regional_adjustment(
             )
         f = operator.attrgetter(op)
         df = prices.loc[prices["region"] == source_region, :].copy()
-        df.loc[:, "price"] = f(operator)(df["price"], op_value)
+        df["price"] = f(operator)(df["price"], op_value)
 
         if create_copy:
-            df.loc[:, "region"] = target_region
-            df.loc[:, "full_fuel_name"] = df["full_fuel_name"].str.replace(
+            df["region"] = target_region
+            df["full_fuel_name"] = df["full_fuel_name"].str.replace(
                 source_region, target_region
             )
 
@@ -598,11 +598,11 @@ def _apply_regional_adjustment(
                 (prices["region"] == source_region) & (prices["fuel"] == fuel.lower()),
                 :,
             ].copy()
-            df.loc[:, "price"] = f(operator)(df["price"], op_value)
+            df["price"] = f(operator)(df["price"], op_value)
 
             if create_copy:
-                df.loc[:, "region"] = target_region
-                df.loc[:, "full_fuel_name"] = df["full_fuel_name"].str.replace(
+                df["region"] = target_region
+                df["full_fuel_name"] = df["full_fuel_name"].str.replace(
                     source_region, target_region
                 )
 
