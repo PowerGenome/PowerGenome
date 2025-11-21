@@ -1,0 +1,115 @@
+site_name: PowerGenome Documentation
+site_description: Data pipeline for capacity expansion modeling
+site_author: PowerGenome Team
+site_url: https://powergenome.github.io/PowerGenome/
+
+repo_name: PowerGenome/PowerGenome
+repo_url: https://github.com/PowerGenome/PowerGenome
+edit_uri: edit/master/docs/
+
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+
+plugins:
+  - search
+  - mike:
+      alias_type: symlink
+      canonical_version: latest
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/PowerGenome/PowerGenome
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/powergenome/
+
+nav:
+  - Home: index.md
+
+  - Tutorials:
+    - tutorials/index.md
+    - Getting Started: tutorials/getting-started.md
+
+  - How-To Guides:
+    - how-to/index.md
+    - Configure Settings: how-to/configure-settings.md
+    - Add Custom Technologies: how-to/add-technologies.md
+    - Configure Renewable Clusters: how-to/configure-renewable-clusters.md
+    - Run Multi-Scenario Studies: how-to/run-scenarios.md
+
+  - Reference:
+    - reference/index.md
+    - Settings Parameters:
+      - reference/settings/index.md
+      - Model Definition: reference/settings/model-definition.md
+      - Regions and Geography: reference/settings/regions.md
+      - Existing Generators: reference/settings/existing-generators.md
+      - New Build Resources: reference/settings/new-build.md
+      - Fuels: reference/settings/fuels.md
+      - Demand and Load: reference/settings/demand.md
+      - Transmission: reference/settings/transmission.md
+      - Resource Tags: reference/settings/resource-tags.md
+      - Data Tables: reference/settings/data-tables.md
+      - Multi-Scenario Management: reference/settings/scenario-management.md
+    - CLI Reference: reference/cli.md
+
+  - Explanation:
+    - explanation/index.md
+    - Architecture Overview: explanation/architecture.md
+
+  - About:
+    - Contributing: about/contributing.md
+    - Changelog: about/changelog.md

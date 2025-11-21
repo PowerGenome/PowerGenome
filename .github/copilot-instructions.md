@@ -118,7 +118,7 @@ initialize_data_manager(settings, data_location=test_data_path)
 
 ```bash
 # From project folder containing settings/
-run_powergenome_multiple --settings_file settings --results_folder output_dir
+run_powergenome --settings_file settings --results_folder output_dir
 
 # Common flags
 --no-current-gens    # Skip existing generator clustering
