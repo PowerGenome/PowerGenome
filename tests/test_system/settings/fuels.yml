@@ -4,64 +4,33 @@
 # so those may need to be modified accordingly.
 fuel_data_year: 2025
 
-# FUEL SCENARIOS
-# These parameters map the EIA scenario names to user names (e.g. reference is used inplace
-# of REF2020 and low_resource in place of LOWOGS), and EIA fuel codes to user fuel names
-# (e.g. coal in place of STC). Each user fuel name is then assigned a user scenario name.
+# ============================================================================
+# SIMPLIFIED APPROACH (RECOMMENDED)
+# ============================================================================
+# This test system uses the simplified fuel price workflow where the fuel price
+# table already contains:
+# - region: Model region names (p1, p2, p3, p4)
+# - scenario: Scenario names matching fuel_scenarios below (reference)
+# - fuel: Fuel names matching tech_fuel_map below (coal, naturalgas, distillate, uranium)
+#
+# With this approach, you don't need fuel_series_* or fuel_region_map parameters.
+# PowerGenome will automatically:
+# 1. Construct full_fuel_name as region_scenario_fuel (e.g., p1_reference_coal)
+# 2. Average base region prices for aggregated regions (e.g., p1_2 from p1 and p2)
 
-# This is a subset of AEO 2020 scenarios. For a full list, look at the eia open data
-# page https://www.eia.gov/opendata/qb.php?category=3604304
-fuel_series_scenario_names:
-  reference: REF2025 # Includes 111(d) policy that retires nearly all coal plants -- leads to very low coal prices
-  no_111d: nocaa111 # No 111(d) policy that would retire coal plants
-  low_price: LOWPRICE # Low oil price scenario
-  high_price: HIGHPRICE # High oil price scenario
-  high_resource: HIGHOGS # High oil and gas resource scenario -- lowest gas prices
-  low_resource: LOWOGS # Low oil and gas resource scenario -- highest gas prices
-
-fuel_series_names:
-  coal: STC
-  naturalgas: NG
-  distillate: DFO
-  uranium: U
-
+# ============================================================================
+# FUEL ASSIGNMENTS (REQUIRED)
+# ============================================================================
+# Assign scenario names to base fuels. These names should match the 'scenario'
+# column values in your fuel price table.
 fuel_scenarios:
   coal: reference
   naturalgas: reference
   distillate: reference
   uranium: reference
 
-# Need to make choices about fuel regions when user-defined regions cross AEO fuel regions.
-# Regions are included here only as a guide. All user regions must be mapped to AEO regions.
-# See the PowerGenome wiki for a map of Census Divisions and IPM regions
-# https://github.com/PowerGenome/PowerGenome/wiki/Geospatial-Mappings
-
-fuel_region_map:
-  east_north_central: [p103, p104, p105, p106, p107, p111, p112, p113, p114, p46, p74, p75, p76, p77, p78, p79, p80, p81, p82, p83]
-  east_south_central: [p108, p109, p110, p87, p88, p89, p90, p92, p93]
-  middle_atlantic: [p115, p119, p120, p122, p126, p127, p128, p144, p145, p146, p147]
-  mountain: [p12, p13, p14, p140, p141, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, p33, p34, p59]
-  new_england: [p129, p130, p131, p132, p133, p134, p148, p149, p150, p151, p152, p153, p154, p155, p156]
-  pacific: [p1_2, p1, p10, p11, p135, p136, p137, p138, p139, p2, p3, p4, p5, p6, p7, p8, p9]
-  south_atlantic: [p100, p101, p102, p116, p117, p118, p121, p123, p124, p125, p91, p94, p95, p96, p97, p98, p99]
-  west_north_central: [p142, p143, p35, p36, p37, p38, p39, p40, p41, p42, p43, p44, p45, p52, p53, p54, p55, p68, p69, p70, p71, p72, p73, p84]
-  west_south_central: [p47, p48, p49, p50, p51, p56, p57, p58, p60, p61, p62, p63, p64, p65, p66, p67, p85, p86]
-
-# Map the user fuel regions to EIA region codes.
-fuel_series_region_names:
-  mountain: MTN
-  pacific: PCF
-  west_south_central: WSC
-  east_south_central: ESC
-  south_atlantic: SOATL
-  west_north_central: WNC
-  east_north_central: ENC
-  middle_atlantic: MDATL
-  new_england: NEENGL
-
-
-# Map user fuel names to technologies. If a technology is included in the settings parameter
-# "eia_atb_tech_map" then all mapped technologies will be assigned the same fuel.
+# Map technology names to fuel names. The fuel names should match the 'fuel'
+# column values in your fuel price table.
 tech_fuel_map:
   Conventional Steam Coal: coal
   Natural Gas Fired Combined Cycle: naturalgas
@@ -74,8 +43,7 @@ tech_fuel_map:
   hydrogen: hydrogen
 
 # The CCS fuel names (key values on right have to be in the format <fuel>_<ccslevel>,
-# where the fuel matches something from "aeo_fuel_scenarios" (above
-# ATB: technology_tech_detail.
+# where the fuel matches something from "fuel_scenarios" above)
 ccs_fuel_map:
   #NETL_NGCC_CCS: naturalgas_ccs90
   NaturalGas_CCS100: naturalgas_ccs100
@@ -102,5 +70,39 @@ fuel_emission_factors:
   distillate: 0.07315
   hydrogen: 0.0
 
+# User-defined fuel prices for fuels not in the fuel price table
 user_fuel_price:
   hydrogen: 16.0  # $/MMBtu
+
+# ============================================================================
+# LEGACY MAPPING PARAMETERS (OPTIONAL - NOT USED IN THIS TEST SYSTEM)
+# ============================================================================
+# The parameters below are only needed if you're using fuel price data directly
+# from EIA AEO with region/fuel/scenario codes that need to be mapped to your
+# preferred names. If your fuel price table already uses the region, scenario,
+# and fuel names you want, you can omit these entirely.
+#
+# When to use these legacy parameters:
+# - Working with raw AEO data files with codes like "PCF", "STC", "REF2025"
+# - Need to map AEO census divisions to multiple model regions
+# - Using regional_fuel_adjustments to modify prices by region
+#
+# Example legacy parameters (commented out since not needed for simplified approach):
+#
+# fuel_series_scenario_names:
+#   reference: REF2025
+#   no_111d: NOCAA111
+#
+# fuel_series_names:
+#   coal: STC
+#   naturalgas: NG
+#   distillate: DFO
+#   uranium: U
+#
+# fuel_series_region_names:
+#   pacific: PCF
+#   mountain: MTN
+#
+# fuel_region_map:
+#   pacific: [p1, p2, p3, p4]
+#   # ... map AEO regions to model regions

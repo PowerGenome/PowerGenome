@@ -372,7 +372,7 @@ def remove_fuel_scenario_name(df, settings):
 
 def remove_fuel_gen_scenario_name(df, settings):
     _df = df.copy()
-    scenarios = settings["fuel_series_scenario_names"].keys()
+    scenarios = set(settings["fuel_scenarios"].values())
     for s in scenarios:
         _df["Fuel"] = _df["Fuel"].str.replace(f"_{s}", "")
 
