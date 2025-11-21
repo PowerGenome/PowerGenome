@@ -2750,7 +2750,7 @@
 <strong>Purpose</strong>: Fuel cost projections</p>
 <p><strong>Required columns</strong>:</p>
 <ul>
-<li><code>fuel</code>: Fuel name (coal, naturalgas, etc.)</li>
+<li><code>fuel</code>: Fuel name (coal, naturalgas, distillate, uranium, etc.)</li>
 <li><code>region</code>: Region name</li>
 <li><code>year</code>: Calendar year</li>
 <li><code>price</code>: Price ($/MMBtu)</li>
@@ -2758,12 +2758,27 @@
 <p><strong>Optional columns</strong>:</p>
 <ul>
 <li><code>scenario</code>: Price scenario</li>
+<li><code>data_year</code>: Data vintage year</li>
+<li><code>dollar_year</code>: USD year (for inflation adjustment)</li>
 <li><code>month</code>: Monthly prices (if seasonal)</li>
 </ul>
+<div class="admonition important">
+<p class="admonition-title">Regional Coverage</p>
+<p>The fuel price table must include prices for <strong>all base regions</strong> in your model. For example, if you have an aggregated region <code>CA</code> composed of base regions <code>CA_N</code> and <code>CA_S</code>, your fuel price table must contain separate rows for <code>CA_N</code> and <code>CA_S</code>. PowerGenome will automatically calculate the average price for <code>CA</code> from its constituent base regions.</p>
+</div>
 <p><strong>Example</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">fuel_prices_table</span><span class="p">:</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.parquet</span>
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_gas</span>
+</code></pre></div>
+<p><strong>Example fuel_prices.csv</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>fuel,region,year,price,scenario,dollar_year
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>coal,CA_N,2030,2.5,reference,2024
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>coal,CA_S,2030,2.6,reference,2024
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>naturalgas,CA_N,2030,4.2,reference,2024
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>naturalgas,CA_S,2030,4.3,reference,2024
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>uranium,CA_N,2030,0.8,reference,2024
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>uranium,CA_S,2030,0.8,reference,2024
 </code></pre></div>
 <h3 id="transmission-table">Transmission Table<a class="headerlink" href="#transmission-table" title="Permanent link">&para;</a></h3>
 <p><strong>Setting</strong>: <code>transmission_table</code>
@@ -2782,7 +2797,7 @@
 <li><code>line_loss_pct</code>: Transmission losses</li>
 </ul>
 <p><strong>Example</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">transmission_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">transmission_network.csv</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">transmission_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">transmission_network.csv</span>
 </code></pre></div>
 <h2 id="distributed-generation-tables">Distributed Generation Tables<a class="headerlink" href="#distributed-generation-tables" title="Permanent link">&para;</a></h2>
 <h3 id="dg-capacity-table">DG Capacity Table<a class="headerlink" href="#dg-capacity-table" title="Permanent link">&para;</a></h3>
@@ -2800,9 +2815,9 @@
 <li><code>technology</code>: DG technology type</li>
 </ul>
 <p><strong>Example</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">dg_capacity_table</span><span class="p">:</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dg_capacity.parquet</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_solar</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">dg_capacity_table</span><span class="p">:</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dg_capacity.parquet</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_solar</span>
 </code></pre></div>
 <h3 id="dg-profiles-table">DG Profiles Table<a class="headerlink" href="#dg-profiles-table" title="Permanent link">&para;</a></h3>
 <p><strong>Setting</strong>: <code>dg_profiles_table</code>
@@ -2819,7 +2834,7 @@
 <li><code>technology</code>: DG type</li>
 </ul>
 <p><strong>Example</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">dg_profiles_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dg_generation_profiles.parquet</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">dg_profiles_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dg_generation_profiles.parquet</span>
 </code></pre></div>
 <h2 id="renewable-resource-tables">Renewable Resource Tables<a class="headerlink" href="#renewable-resource-tables" title="Permanent link">&para;</a></h2>
 <h3 id="resource-group-profiles">Resource Group Profiles<a class="headerlink" href="#resource-group-profiles" title="Permanent link">&para;</a></h3>
@@ -2828,13 +2843,13 @@
 <p><strong>File naming</strong>: <code>{technology}_{tech_detail}_{cluster_id}.csv</code></p>
 <p><strong>Format</strong>: 8760 rows with single column of capacity factors</p>
 <p><strong>Example</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">RESOURCE_GROUP_PROFILES</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/nrel_profiles/</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nt">RESOURCE_GROUP_PROFILES</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/nrel_profiles/</span>
 </code></pre></div>
 <p>Files in folder:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>LandbasedWind_Class3_1.csv
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>LandbasedWind_Class3_2.csv
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>UtilityPV_Class1_1.csv
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>OffshoreWind_Class1_1.csv
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>LandbasedWind_Class3_1.csv
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>LandbasedWind_Class3_2.csv
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>UtilityPV_Class1_1.csv
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>OffshoreWind_Class1_1.csv
 </code></pre></div>
 <h2 id="policy-and-cost-tables">Policy and Cost Tables<a class="headerlink" href="#policy-and-cost-tables" title="Permanent link">&para;</a></h2>
 <h3 id="emission-policies">Emission Policies<a class="headerlink" href="#emission-policies" title="Permanent link">&para;</a></h3>
@@ -2853,7 +2868,7 @@
 <li><code>CO2_cap</code>: CO2 emissions limit (tonnes)</li>
 </ul>
 <p><strong>Example</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">emission_policies_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emission_policies.csv</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">emission_policies_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emission_policies.csv</span>
 </code></pre></div>
 <h3 id="cost-multipliers">Cost Multipliers<a class="headerlink" href="#cost-multipliers" title="Permanent link">&para;</a></h3>
 <p><strong>Setting</strong>: <code>cost_multiplier_fn</code>
@@ -2865,7 +2880,7 @@
 <li><code>multiplier</code>: Cost multiplier (1.2 = 20% increase)</li>
 </ul>
 <p><strong>Example</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">cost_multiplier_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">regional_cost_multipliers.csv</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">cost_multiplier_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">regional_cost_multipliers.csv</span>
 </code></pre></div>
 <h3 id="capacity-limits-and-spur-lines">Capacity Limits and Spur Lines<a class="headerlink" href="#capacity-limits-and-spur-lines" title="Permanent link">&para;</a></h3>
 <p><strong>Setting</strong>: <code>capacity_limit_spur_fn</code>
@@ -2883,34 +2898,34 @@
 <li><code>spur_capex_mw_mile</code>: Spur line cost</li>
 </ul>
 <p><strong>Example</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">capacity_limit_spur_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_limits.csv</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">capacity_limit_spur_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_limits.csv</span>
 </code></pre></div>
 <h2 id="data-file-formats">Data File Formats<a class="headerlink" href="#data-file-formats" title="Permanent link">&para;</a></h2>
 <h3 id="csv-files">CSV Files<a class="headerlink" href="#csv-files" title="Permanent link">&para;</a></h3>
 <p>Standard CSV format with header row:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>plant_id,technology,capacity_mw,region
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>1,Coal,500,CA_N
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>2,NaturalGas_CC,300,CA_S
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>plant_id,technology,capacity_mw,region
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>1,Coal,500,CA_N
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>2,NaturalGas_CC,300,CA_S
 </code></pre></div>
 <h3 id="parquet-files">Parquet Files<a class="headerlink" href="#parquet-files" title="Permanent link">&para;</a></h3>
 <p>Binary columnar format (more efficient for large datasets):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="s2">&quot;generators.parquet&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="s2">&quot;generators.parquet&quot;</span><span class="p">)</span>
 </code></pre></div>
 <p>PowerGenome automatically detects and loads Parquet files.</p>
 <h3 id="database-tables">Database Tables<a class="headerlink" href="#database-tables" title="Permanent link">&para;</a></h3>
 <p>Database tables (SQLite or DuckDB format):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/database.duckdb</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="nt">generation_table</span><span class="p">:</span>
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">existing_generators</span><span class="w">  </span><span class="c1"># Table name in database</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/database.duckdb</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="nt">generation_table</span><span class="p">:</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">existing_generators</span><span class="w">  </span><span class="c1"># Table name in database</span>
 </code></pre></div>
 <p>Both SQLite (<code>.db</code>, <code>.sqlite</code>) and DuckDB (<code>.duckdb</code>) databases are supported:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># SQLite database</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/powergenome_data.db</span>
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>
-<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="c1"># DuckDB database</span>
-<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/powergenome_data.duckdb</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1"># SQLite database</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/powergenome_data.db</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="c1"># DuckDB database</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/powergenome_data.duckdb</span>
 </code></pre></div>
 <h2 id="data-location">Data Location<a class="headerlink" href="#data-location" title="Permanent link">&para;</a></h2>
 <h3 id="data_location"><code>data_location</code><a class="headerlink" href="#data_location" title="Permanent link">&para;</a></h3>
@@ -2919,76 +2934,76 @@
 <strong>Example</strong>: <code>"/path/to/data"</code></p>
 <p>Root directory or database file for all data tables.</p>
 <p><strong>Folder structure</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/Users/me/powergenome_data</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/Users/me/powergenome_data</span>
 </code></pre></div>
 <p>Files loaded from:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>/Users/me/powergenome_data/generators.csv
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>/Users/me/powergenome_data/demand.parquet
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>/Users/me/powergenome_data/fuel_prices.csv
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>/Users/me/powergenome_data/generators.csv
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>/Users/me/powergenome_data/demand.parquet
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>/Users/me/powergenome_data/fuel_prices.csv
 </code></pre></div>
 <p><strong>Database file</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/Users/me/powergenome_data/model_data.duckdb</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/Users/me/powergenome_data/model_data.duckdb</span>
 </code></pre></div>
 <p>Tables loaded from database.</p>
 <h2 id="column-selection">Column Selection<a class="headerlink" href="#column-selection" title="Permanent link">&para;</a></h2>
 <p>Limit columns loaded to reduce memory usage:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="nt">generation_table</span><span class="p">:</span>
-<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generators_full.parquet</span>
-<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">  </span><span class="nt">columns</span><span class="p">:</span>
-<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plant_id</span>
-<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">technology</span>
-<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span>
-<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">heat_rate_mmbtu_mwh</span>
-<a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">region</span>
-<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
-<a id="__codelineno-27-10" name="__codelineno-27-10" href="#__codelineno-27-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;in&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;CA_N&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;CA_S&#39;</span><span class="p p-Indicator">]]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="nt">generation_table</span><span class="p">:</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generators_full.parquet</span>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">  </span><span class="nt">columns</span><span class="p">:</span>
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plant_id</span>
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">technology</span>
+<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span>
+<a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">heat_rate_mmbtu_mwh</span>
+<a id="__codelineno-28-8" name="__codelineno-28-8" href="#__codelineno-28-8"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">region</span>
+<a id="__codelineno-28-9" name="__codelineno-28-9" href="#__codelineno-28-9"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
+<a id="__codelineno-28-10" name="__codelineno-28-10" href="#__codelineno-28-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;in&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;CA_N&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;CA_S&#39;</span><span class="p p-Indicator">]]</span>
 </code></pre></div>
 <p>Only specified columns are loaded. Useful for large datasets with many unused columns.</p>
 <h2 id="example-configurations">Example Configurations<a class="headerlink" href="#example-configurations" title="Permanent link">&para;</a></h2>
 <h3 id="minimal-configuration">Minimal Configuration<a class="headerlink" href="#minimal-configuration" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/powergenome</span>
-<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>
-<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="nt">generation_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generators.csv</span>
-<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="nt">demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand.parquet</span>
-<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="nt">fuel_prices_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.csv</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/powergenome</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="nt">generation_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generators.csv</span>
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="nt">demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand.parquet</span>
+<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="nt">fuel_prices_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.csv</span>
 </code></pre></div>
 <h3 id="advanced-multi-scenario">Advanced Multi-Scenario<a class="headerlink" href="#advanced-multi-scenario" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/powergenome_v2</span>
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>
-<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="nt">generation_table</span><span class="p">:</span>
-<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generators_all_scenarios.parquet</span>
-<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">baseline</span>
-<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
-<a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">operating_year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;&lt;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-29-8" name="__codelineno-29-8" href="#__codelineno-29-8"></a><span class="w">  </span><span class="nt">columns</span><span class="p">:</span>
-<a id="__codelineno-29-9" name="__codelineno-29-9" href="#__codelineno-29-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plant_id</span>
-<a id="__codelineno-29-10" name="__codelineno-29-10" href="#__codelineno-29-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">technology</span>
-<a id="__codelineno-29-11" name="__codelineno-29-11" href="#__codelineno-29-11"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span>
-<a id="__codelineno-29-12" name="__codelineno-29-12" href="#__codelineno-29-12"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">heat_rate_mmbtu_mwh</span>
-<a id="__codelineno-29-13" name="__codelineno-29-13" href="#__codelineno-29-13"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">region</span>
-<a id="__codelineno-29-14" name="__codelineno-29-14" href="#__codelineno-29-14"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">operating_year</span>
-<a id="__codelineno-29-15" name="__codelineno-29-15" href="#__codelineno-29-15"></a>
-<a id="__codelineno-29-16" name="__codelineno-29-16" href="#__codelineno-29-16"></a><span class="nt">demand_table</span><span class="p">:</span>
-<a id="__codelineno-29-17" name="__codelineno-29-17" href="#__codelineno-29-17"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand_timeseries.parquet</span>
-<a id="__codelineno-29-18" name="__codelineno-29-18" href="#__codelineno-29-18"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_ev</span>
-<a id="__codelineno-29-19" name="__codelineno-29-19" href="#__codelineno-29-19"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
-<a id="__codelineno-29-20" name="__codelineno-29-20" href="#__codelineno-29-20"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-29-21" name="__codelineno-29-21" href="#__codelineno-29-21"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">weather_year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;in&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2012</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2013</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2014</span><span class="p p-Indicator">]]</span>
-<a id="__codelineno-29-22" name="__codelineno-29-22" href="#__codelineno-29-22"></a>
-<a id="__codelineno-29-23" name="__codelineno-29-23" href="#__codelineno-29-23"></a><span class="nt">fuel_prices_table</span><span class="p">:</span>
-<a id="__codelineno-29-24" name="__codelineno-29-24" href="#__codelineno-29-24"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_costs.parquet</span>
-<a id="__codelineno-29-25" name="__codelineno-29-25" href="#__codelineno-29-25"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
-<a id="__codelineno-29-26" name="__codelineno-29-26" href="#__codelineno-29-26"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
-<a id="__codelineno-29-27" name="__codelineno-29-27" href="#__codelineno-29-27"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;&gt;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2025</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-29-28" name="__codelineno-29-28" href="#__codelineno-29-28"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;&lt;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2050</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-29-29" name="__codelineno-29-29" href="#__codelineno-29-29"></a>
-<a id="__codelineno-29-30" name="__codelineno-29-30" href="#__codelineno-29-30"></a><span class="nt">dg_capacity_table</span><span class="p">:</span>
-<a id="__codelineno-29-31" name="__codelineno-29-31" href="#__codelineno-29-31"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">distributed_generation.parquet</span>
-<a id="__codelineno-29-32" name="__codelineno-29-32" href="#__codelineno-29-32"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_solar</span>
-<a id="__codelineno-29-33" name="__codelineno-29-33" href="#__codelineno-29-33"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
-<a id="__codelineno-29-34" name="__codelineno-29-34" href="#__codelineno-29-34"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">technology</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rooftop_pv&#39;</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-29-35" name="__codelineno-29-35" href="#__codelineno-29-35"></a>
-<a id="__codelineno-29-36" name="__codelineno-29-36" href="#__codelineno-29-36"></a><span class="nt">transmission_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">transmission_network.csv</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/powergenome_v2</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="nt">generation_table</span><span class="p">:</span>
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generators_all_scenarios.parquet</span>
+<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">baseline</span>
+<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
+<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">operating_year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;&lt;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a><span class="w">  </span><span class="nt">columns</span><span class="p">:</span>
+<a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plant_id</span>
+<a id="__codelineno-30-10" name="__codelineno-30-10" href="#__codelineno-30-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">technology</span>
+<a id="__codelineno-30-11" name="__codelineno-30-11" href="#__codelineno-30-11"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span>
+<a id="__codelineno-30-12" name="__codelineno-30-12" href="#__codelineno-30-12"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">heat_rate_mmbtu_mwh</span>
+<a id="__codelineno-30-13" name="__codelineno-30-13" href="#__codelineno-30-13"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">region</span>
+<a id="__codelineno-30-14" name="__codelineno-30-14" href="#__codelineno-30-14"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">operating_year</span>
+<a id="__codelineno-30-15" name="__codelineno-30-15" href="#__codelineno-30-15"></a>
+<a id="__codelineno-30-16" name="__codelineno-30-16" href="#__codelineno-30-16"></a><span class="nt">demand_table</span><span class="p">:</span>
+<a id="__codelineno-30-17" name="__codelineno-30-17" href="#__codelineno-30-17"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand_timeseries.parquet</span>
+<a id="__codelineno-30-18" name="__codelineno-30-18" href="#__codelineno-30-18"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_ev</span>
+<a id="__codelineno-30-19" name="__codelineno-30-19" href="#__codelineno-30-19"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
+<a id="__codelineno-30-20" name="__codelineno-30-20" href="#__codelineno-30-20"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-30-21" name="__codelineno-30-21" href="#__codelineno-30-21"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">weather_year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;in&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2012</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2013</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2014</span><span class="p p-Indicator">]]</span>
+<a id="__codelineno-30-22" name="__codelineno-30-22" href="#__codelineno-30-22"></a>
+<a id="__codelineno-30-23" name="__codelineno-30-23" href="#__codelineno-30-23"></a><span class="nt">fuel_prices_table</span><span class="p">:</span>
+<a id="__codelineno-30-24" name="__codelineno-30-24" href="#__codelineno-30-24"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_costs.parquet</span>
+<a id="__codelineno-30-25" name="__codelineno-30-25" href="#__codelineno-30-25"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
+<a id="__codelineno-30-26" name="__codelineno-30-26" href="#__codelineno-30-26"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
+<a id="__codelineno-30-27" name="__codelineno-30-27" href="#__codelineno-30-27"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;&gt;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2025</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-30-28" name="__codelineno-30-28" href="#__codelineno-30-28"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;&lt;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2050</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-30-29" name="__codelineno-30-29" href="#__codelineno-30-29"></a>
+<a id="__codelineno-30-30" name="__codelineno-30-30" href="#__codelineno-30-30"></a><span class="nt">dg_capacity_table</span><span class="p">:</span>
+<a id="__codelineno-30-31" name="__codelineno-30-31" href="#__codelineno-30-31"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">distributed_generation.parquet</span>
+<a id="__codelineno-30-32" name="__codelineno-30-32" href="#__codelineno-30-32"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_solar</span>
+<a id="__codelineno-30-33" name="__codelineno-30-33" href="#__codelineno-30-33"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
+<a id="__codelineno-30-34" name="__codelineno-30-34" href="#__codelineno-30-34"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">technology</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rooftop_pv&#39;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-30-35" name="__codelineno-30-35" href="#__codelineno-30-35"></a>
+<a id="__codelineno-30-36" name="__codelineno-30-36" href="#__codelineno-30-36"></a><span class="nt">transmission_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">transmission_network.csv</span>
 </code></pre></div>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="table-not-found">Table Not Found<a class="headerlink" href="#table-not-found" title="Permanent link">&para;</a></h3>

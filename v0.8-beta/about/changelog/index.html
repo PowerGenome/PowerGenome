@@ -1814,6 +1814,7 @@ and this project adheres to Semantic Versioning.</p>
 <li><strong>Auto-generated cost multiplier mappings</strong>: Optional <code>cost_multiplier_region_map</code> and <code>cost_multiplier_technology_map</code> with automatic substring matching</li>
 <li><strong>Partial-year DG capacity fill</strong>: Interpolate/extrapolate only missing regions when some have the requested year</li>
 <li><strong>Regional cost aggregation</strong>: Automatic averaging of cost multipliers for aggregated model regions</li>
+<li><strong>Simplified fuel workflow</strong>: Automatic aggregation of base region fuel prices for aggregated regions</li>
 </ul>
 <h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1823,6 +1824,9 @@ and this project adheres to Semantic Versioning.</p>
 <li><strong>DG timezone semantics</strong>: Negative <code>tz_offset</code> shifts earlier hours later in array</li>
 <li><strong>Multi-year DG profiles</strong>: Build sequential <code>time_index</code> across weather years</li>
 <li><strong>DG aggregation</strong>: Uses capacity-weighted averages and requires <code>model_year</code></li>
+<li><strong>Fuel workflow simplified</strong>: Legacy mapping parameters (<code>fuel_series_*</code>, <code>fuel_region_map</code>) now optional</li>
+<li>Fuel price tables should contain all base regions</li>
+<li>Aggregated region prices calculated automatically by averaging base regions</li>
 </ul>
 <h3 id="removed">Removed<a class="headerlink" href="#removed" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1850,6 +1854,48 @@ and this project adheres to Semantic Versioning.</p>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>site_002,2,0.48,2012
 </code></pre></div>
 <p>See <a href="../explanation/distributed-generation.md">Distributed Generation</a> for complete migration details.</p>
+<h4 id="fuel-price-workflow">Fuel Price Workflow<a class="headerlink" href="#fuel-price-workflow" title="Permanent link">&para;</a></h4>
+<p><strong>Old (Legacy AEO with mappings)</strong>:</p>
+<p>Settings required multiple mapping parameters:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">fuel_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2025</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">fuel_series_scenario_names</span><span class="p">:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">reference</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">REF2025</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nt">fuel_series_names</span><span class="p">:</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">STC</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NG</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="nt">fuel_series_region_names</span><span class="p">:</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">pacific</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PCF</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="nt">fuel_region_map</span><span class="p">:</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="nt">pacific</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">CA_N</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CA_S</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<p>Fuel price table had AEO codes:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>fuel,region,year,price,scenario
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>STC,PCF,2030,2.5,REF2025
+</code></pre></div>
+<p><strong>New (Simplified with complete regional coverage)</strong>:</p>
+<p>Only basic parameters needed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">fuel_scenarios</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nt">tech_fuel_map</span><span class="p">:</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">Conventional Steam Coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">coal</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">Natural Gas Fired Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">naturalgas</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="nt">fuel_price_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.csv</span>
+</code></pre></div>
+<p>Fuel price table contains <strong>all base regions</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>fuel,region,year,price,scenario
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>coal,CA_N,2030,2.5,reference
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>coal,CA_S,2030,2.6,reference
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>naturalgas,CA_N,2030,4.2,reference
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>naturalgas,CA_S,2030,4.3,reference
+</code></pre></div>
+<p>PowerGenome automatically:</p>
+<ul>
+<li>Constructs full fuel names: <code>CA_N_reference_coal</code></li>
+<li>Averages prices for aggregated regions (e.g., <code>CA</code> from <code>CA_N</code> + <code>CA_S</code>)</li>
+</ul>
+<p>Legacy mapping parameters still supported for backward compatibility.</p>
+<p>See <a href="../../reference/settings/fuels/">Fuel Settings</a> for complete documentation.</p>
 <h2 id="contributing">Contributing<a class="headerlink" href="#contributing" title="Permanent link">&para;</a></h2>
 <p>Found a bug or have a feature request? See our <a href="../contributing/">Contributing</a> guide to get involved!</p>
 

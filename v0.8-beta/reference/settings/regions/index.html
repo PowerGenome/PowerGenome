@@ -1231,34 +1231,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#fuel-regions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Fuel Regions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Fuel Regions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#fuel_region_map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        fuel_region_map
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#renewable-resource-bins" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1303,6 +1275,34 @@
     <span class="md-ellipsis">
       
         utc_offset
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#legacy-regional-mappings-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy Regional Mappings (Optional)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Legacy Regional Mappings (Optional)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fuel_region_map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fuel_region_map
       
     </span>
   </a>
@@ -2101,34 +2101,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#fuel-regions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Fuel Regions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Fuel Regions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#fuel_region_map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        fuel_region_map
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#renewable-resource-bins" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2173,6 +2145,34 @@
     <span class="md-ellipsis">
       
         utc_offset
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#legacy-regional-mappings-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy Regional Mappings (Optional)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Legacy Regional Mappings (Optional)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fuel_region_map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fuel_region_map
       
     </span>
   </a>
@@ -2465,25 +2465,6 @@
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">NaturalGas_CCAvgCF_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NaturalGas_CC</span>
 <a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">UtilityPV_Class1_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">LandbasedWind</span><span class="w">  </span><span class="c1"># Use wind costs for PV</span>
 </code></pre></div>
-<h2 id="fuel-regions">Fuel Regions<a class="headerlink" href="#fuel-regions" title="Permanent link">&para;</a></h2>
-<h3 id="fuel_region_map"><code>fuel_region_map</code><a class="headerlink" href="#fuel_region_map" title="Permanent link">&para;</a></h3>
-<p><strong>Type</strong>: Dictionary (AEO region → list of model regions)
-<strong>Required</strong>: For fuel costs from EIA AEO
-<strong>Example</strong>: See below</p>
-<p>Maps EIA Annual Energy Outlook (AEO) fuel price regions to model regions.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">fuel_region_map</span><span class="p">:</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">pacific</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">CA_N</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CA_S</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">mountain</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">AZ</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">NM</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span><span class="nt">west_south_central</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">TX</span><span class="p p-Indicator">]</span>
-</code></pre></div>
-<p>AEO region names:</p>
-<ul>
-<li><code>pacific</code>: Pacific</li>
-<li><code>mountain</code>: Mountain</li>
-<li><code>west_south_central</code>: West South Central</li>
-<li><code>east_north_central</code>: East North Central</li>
-<li><code>new_england</code>: New England</li>
-</ul>
 <h2 id="renewable-resource-bins">Renewable Resource Bins<a class="headerlink" href="#renewable-resource-bins" title="Permanent link">&para;</a></h2>
 <h3 id="new_wind_solar_regional_bins"><code>new_wind_solar_regional_bins</code><a class="headerlink" href="#new_wind_solar_regional_bins" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Dictionary (region → technology → number of bins)
@@ -2491,11 +2472,11 @@
 <strong>Example</strong>: See below</p>
 <p><strong>Deprecated</strong>: Use <code>renewable_clusters</code> instead.</p>
 <p>Previously controlled how many resource quality bins for wind/solar in each region.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Old approach (deprecated)</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="nt">new_wind_solar_regional_bins</span><span class="p">:</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="nt">UtilityPV</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span><span class="nt">LandbasedWind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Old approach (deprecated)</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="nt">new_wind_solar_regional_bins</span><span class="p">:</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="nt">UtilityPV</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span><span class="nt">LandbasedWind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
 </code></pre></div>
 <p>Modern approach uses <code>renewable_clusters</code> to explicitly define resource sites.</p>
 <h2 id="utc-offset">UTC Offset<a class="headerlink" href="#utc-offset" title="Permanent link">&para;</a></h2>
@@ -2505,7 +2486,7 @@
 <strong>Default</strong>: 0
 <strong>Example</strong>: <code>-8</code></p>
 <p>Hour offset from UTC for the model timezone. All time-series data is stored in UTC and converted using this offset.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">utc_offset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-8</span><span class="w">  </span><span class="c1"># Pacific Time (UTC-8)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">utc_offset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-8</span><span class="w">  </span><span class="c1"># Pacific Time (UTC-8)</span>
 </code></pre></div>
 <p>US time zones:</p>
 <ul>
@@ -2514,6 +2495,30 @@
 <li>Central: <code>-6</code></li>
 <li>Eastern: <code>-5</code></li>
 </ul>
+<h2 id="legacy-regional-mappings-optional">Legacy Regional Mappings (Optional)<a class="headerlink" href="#legacy-regional-mappings-optional" title="Permanent link">&para;</a></h2>
+<h3 id="fuel_region_map"><code>fuel_region_map</code><a class="headerlink" href="#fuel_region_map" title="Permanent link">&para;</a></h3>
+<p><strong>Type</strong>: Dictionary (AEO region → list of model regions)
+<strong>Required</strong>: No (legacy workflow only)
+<strong>Example</strong>: See below</p>
+<div class="admonition warning">
+<p class="admonition-title">Legacy Parameter</p>
+<p>This parameter is only needed for the legacy AEO fuel workflow. In the simplified workflow (recommended), provide fuel prices for all base regions directly in your fuel price table instead.</p>
+</div>
+<p>Maps EIA Annual Energy Outlook (AEO) fuel price regions to model regions when using the legacy AEO data workflow.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">fuel_region_map</span><span class="p">:</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">pacific</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">CA_N</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CA_S</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span><span class="nt">mountain</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">AZ</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">NM</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span><span class="nt">west_south_central</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">TX</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<p>Common AEO region names:</p>
+<ul>
+<li><code>pacific</code>: Pacific</li>
+<li><code>mountain</code>: Mountain</li>
+<li><code>west_south_central</code>: West South Central</li>
+<li><code>east_north_central</code>: East North Central</li>
+<li><code>new_england</code>: New England</li>
+</ul>
+<p>See <a href="../fuels/">Fuel Settings</a> for details on the simplified vs. legacy fuel workflows.</p>
 <h2 id="example-configuration">Example Configuration<a class="headerlink" href="#example-configuration" title="Permanent link">&para;</a></h2>
 <p>Complete regional settings for a California + Southwest model:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Base model regions</span>
@@ -2555,18 +2560,14 @@
 <a id="__codelineno-16-37" name="__codelineno-16-37" href="#__codelineno-16-37"></a><span class="w">  </span><span class="nt">NM</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AZNM</span>
 <a id="__codelineno-16-38" name="__codelineno-16-38" href="#__codelineno-16-38"></a>
 <a id="__codelineno-16-39" name="__codelineno-16-39" href="#__codelineno-16-39"></a><span class="c1"># Regional mappings</span>
-<a id="__codelineno-16-40" name="__codelineno-16-40" href="#__codelineno-16-40"></a><span class="nt">fuel_region_map</span><span class="p">:</span>
-<a id="__codelineno-16-41" name="__codelineno-16-41" href="#__codelineno-16-41"></a><span class="w">  </span><span class="nt">pacific</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">CA_N</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CA_S</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-16-42" name="__codelineno-16-42" href="#__codelineno-16-42"></a><span class="w">  </span><span class="nt">mountain</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">AZ</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">NM</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-16-43" name="__codelineno-16-43" href="#__codelineno-16-43"></a>
-<a id="__codelineno-16-44" name="__codelineno-16-44" href="#__codelineno-16-44"></a><span class="nt">cost_multiplier_region_map</span><span class="p">:</span>
-<a id="__codelineno-16-45" name="__codelineno-16-45" href="#__codelineno-16-45"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CA_N_spur</span>
-<a id="__codelineno-16-46" name="__codelineno-16-46" href="#__codelineno-16-46"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CA_S_spur</span>
-<a id="__codelineno-16-47" name="__codelineno-16-47" href="#__codelineno-16-47"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Southwest</span>
-<a id="__codelineno-16-48" name="__codelineno-16-48" href="#__codelineno-16-48"></a><span class="w">  </span><span class="nt">NM</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Southwest</span>
-<a id="__codelineno-16-49" name="__codelineno-16-49" href="#__codelineno-16-49"></a>
-<a id="__codelineno-16-50" name="__codelineno-16-50" href="#__codelineno-16-50"></a><span class="c1"># Timezone</span>
-<a id="__codelineno-16-51" name="__codelineno-16-51" href="#__codelineno-16-51"></a><span class="nt">utc_offset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-8</span>
+<a id="__codelineno-16-40" name="__codelineno-16-40" href="#__codelineno-16-40"></a><span class="nt">cost_multiplier_region_map</span><span class="p">:</span>
+<a id="__codelineno-16-41" name="__codelineno-16-41" href="#__codelineno-16-41"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CA_N_spur</span>
+<a id="__codelineno-16-42" name="__codelineno-16-42" href="#__codelineno-16-42"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CA_S_spur</span>
+<a id="__codelineno-16-43" name="__codelineno-16-43" href="#__codelineno-16-43"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Southwest</span>
+<a id="__codelineno-16-44" name="__codelineno-16-44" href="#__codelineno-16-44"></a><span class="w">  </span><span class="nt">NM</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Southwest</span>
+<a id="__codelineno-16-45" name="__codelineno-16-45" href="#__codelineno-16-45"></a>
+<a id="__codelineno-16-46" name="__codelineno-16-46" href="#__codelineno-16-46"></a><span class="c1"># Timezone</span>
+<a id="__codelineno-16-47" name="__codelineno-16-47" href="#__codelineno-16-47"></a><span class="nt">utc_offset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-8</span>
 </code></pre></div>
 <h2 id="related-settings">Related Settings<a class="headerlink" href="#related-settings" title="Permanent link">&para;</a></h2>
 <ul>
