@@ -391,24 +391,10 @@ settings_management:
 ```bash
 run_powergenome \
   --settings_file settings \
-  --results_folder results \
-  --num_workers 4
+  --results_folder results
 ```
 
-This generates 6 cases (6 rows in scenario_definitions.csv), running up to 4 in parallel.
-
-## Parallel Execution
-
-Use `--num_workers` to run scenarios in parallel:
-
-```bash
-run_powergenome \
-  --settings_file settings \
-  --results_folder results \
-  --num_workers 8
-```
-
-Significantly speeds up large scenario ensembles. Each worker runs one case at a time.
+This generates 4 cases (4 rows in scenario_definitions.csv), running sequentially.
 
 ## Related Settings
 

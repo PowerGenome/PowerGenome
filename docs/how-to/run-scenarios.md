@@ -580,10 +580,10 @@ print(cost_settings)
 run_powergenome \
   --settings_file settings \           # Settings folder
   --results_folder results \           # Output folder
-  --num_workers 4 \                    # Parallel workers
   --no-current-gens \                  # Skip existing generator clustering
   --no-load \                          # Skip load profile generation
-  --sort-gens                          # Sort output by resource name
+  --sort-gens \                        # Sort output by resource name
+  --case-id case1 case2                # Run specific cases only
 ```
 
 ### Selective Execution
@@ -649,17 +649,6 @@ run_powergenome \
 - Parameter spelled correctly in `settings_management`?
 - Year matches between scenario file and `settings_management`?
 - Parameter value matches exactly (case-sensitive)?
-
-### Out of Memory
-
-**Problem**: System runs out of RAM with parallel execution
-
-**Solutions**:
-
-- Reduce `--num_workers`
-- Run scenarios sequentially (`--num_workers 1`)
-- Increase system swap space
-- Use smaller time domain (`reduce_time_domain: true`)
 
 ## Next Steps
 

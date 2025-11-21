@@ -4,7 +4,7 @@ Welcome to the PowerGenome documentation! PowerGenome is a data pipeline tool th
 
 ## What is PowerGenome?
 
-PowerGenome simplifies the process of creating power system model inputs by transforming raw energy data (from sources like EIA and NREL) into model-ready datasets. Instead of manually assembling data for each region and scenario, you define your requirements in settings files and PowerGenome generates all necessary inputs.
+PowerGenome simplifies the process of creating power system model inputs by transforming raw energy system data (from sources like EIA and NREL) into model-ready datasets. Instead of manually assembling data for each region and scenario, you define your requirements in settings files and PowerGenome generates all necessary inputs.
 
 !!! info "International Use"
     While PowerGenome's examples reference US data sources (EIA, NREL ATB, PUDL), the tool is **region-agnostic**. Users can supply custom data tables representing any geographic region worldwide. The data pipeline works with any properly-structured input data—European grids, Asian power systems, Latin American networks, etc.
