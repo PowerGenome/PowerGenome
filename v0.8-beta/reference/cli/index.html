@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#command-line-interface-reference" class="md-skip">
+        <a href="#command-line-interface" class="md-skip">
           Skip to content
         </a>
       
@@ -2038,10 +2038,10 @@
   
 
 
-<h1 id="command-line-interface-reference">Command-Line Interface Reference<a class="headerlink" href="#command-line-interface-reference" title="Permanent link">&para;</a></h1>
-<p>PowerGenome provides the <code>run_powergenome_multiple</code> command for executing the data pipeline.</p>
+<h1 id="command-line-interface">Command Line Interface<a class="headerlink" href="#command-line-interface" title="Permanent link">&para;</a></h1>
+<p>PowerGenome provides the <code>run_powergenome</code> command for executing the data pipeline.</p>
 <h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>run_powergenome_multiple<span class="w"> </span>--settings_file<span class="w"> </span>SETTINGS_PATH<span class="w"> </span>--results_folder<span class="w"> </span>OUTPUT_PATH
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>run_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>SETTINGS_PATH<span class="w"> </span>--results_folder<span class="w"> </span>OUTPUT_PATH
 </code></pre></div>
 <h2 id="command-line-flags">Command-Line Flags<a class="headerlink" href="#command-line-flags" title="Permanent link">&para;</a></h2>
 <h3 id="required-flags">Required Flags<a class="headerlink" href="#required-flags" title="Permanent link">&para;</a></h3>
@@ -2064,7 +2064,7 @@
 <strong>Default</strong>: Run all scenarios
 <strong>Example</strong>: <code>--case_id p1 p2</code> or <code>--case_id "high_demand"</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Run only scenarios p1 and p3</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>run_powergenome_multiple<span class="w"> </span>-sf<span class="w"> </span>settings<span class="w"> </span>-rf<span class="w"> </span>output<span class="w"> </span>--case_id<span class="w"> </span>p1<span class="w"> </span>p3
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>run_powergenome<span class="w"> </span>-sf<span class="w"> </span>settings<span class="w"> </span>-rf<span class="w"> </span>output<span class="w"> </span>--case_id<span class="w"> </span>p1<span class="w"> </span>p3
 </code></pre></div>
 <h4 id="-sort-gens"><code>--sort-gens</code><a class="headerlink" href="#-sort-gens" title="Permanent link">&para;</a></h4>
 <p>Sort generator resources alphabetically in output files.</p>
@@ -2106,29 +2106,29 @@
 <strong>Example</strong>: <code>--verbose</code></p>
 <h4 id="-help-h"><code>--help</code> / <code>-h</code><a class="headerlink" href="#-help-h" title="Permanent link">&para;</a></h4>
 <p>Display help message with all available flags.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>run_powergenome_multiple<span class="w"> </span>--help
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>run_powergenome<span class="w"> </span>--help
 </code></pre></div>
 <h2 id="complete-examples">Complete Examples<a class="headerlink" href="#complete-examples" title="Permanent link">&para;</a></h2>
 <h3 id="basic-run">Basic Run<a class="headerlink" href="#basic-run" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>run_powergenome_multiple<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--settings_file<span class="w"> </span>my_study/settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>--results_folder<span class="w"> </span>my_study/results
 </code></pre></div>
 <h3 id="run-specific-scenarios">Run Specific Scenarios<a class="headerlink" href="#run-specific-scenarios" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>run_powergenome_multiple<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>-sf<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>-rf<span class="w"> </span>output<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--case_id<span class="w"> </span>baseline<span class="w"> </span>high_renewable<span class="w"> </span>low_cost
 </code></pre></div>
 <h3 id="greenfield-with-sorted-output">Greenfield with Sorted Output<a class="headerlink" href="#greenfield-with-sorted-output" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>run_powergenome_multiple<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>-sf<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>-rf<span class="w"> </span>output<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span>--no-current-gens<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span>--sort-gens
 </code></pre></div>
 <h3 id="debug-new-resources-only">Debug New Resources Only<a class="headerlink" href="#debug-new-resources-only" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>run_powergenome_multiple<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>-sf<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>-rf<span class="w"> </span>output<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>--no-current-gens<span class="w"> </span><span class="se">\</span>
@@ -2213,7 +2213,7 @@
 </code></pre></div>
 <h2 id="programmatic-usage">Programmatic Usage<a class="headerlink" href="#programmatic-usage" title="Permanent link">&para;</a></h2>
 <p>PowerGenome can also be used programmatically:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span> <span class="nn">powergenome.run_powergenome</span> <span class="kn">import</span> <span class="n">main</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.run_powergenome</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">main</span><span class="p">(</span>
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="n">settings_file</span><span class="o">=</span><span class="s2">&quot;path/to/settings&quot;</span><span class="p">,</span>

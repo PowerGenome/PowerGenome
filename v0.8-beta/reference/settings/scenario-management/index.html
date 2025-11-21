@@ -2108,7 +2108,7 @@
 <ol>
 <li><strong>Define scenarios</strong> in a CSV file with parameter variations</li>
 <li><strong>Configure parameter swaps</strong> in <code>settings_management</code></li>
-<li><strong>Run batch execution</strong> with <code>run_powergenome_multiple</code></li>
+<li><strong>Run batch execution</strong> with <code>run_powergenome</code></li>
 <li><strong>Output</strong> to separate folders per case</li>
 </ol>
 <h2 id="scenario-definition-file">Scenario Definition File<a class="headerlink" href="#scenario-definition-file" title="Permanent link">&para;</a></h2>
@@ -2339,7 +2339,7 @@
 <p>Referenced files are relative to this folder.</p>
 <h3 id="results-folder">Results Folder<a class="headerlink" href="#results-folder" title="Permanent link">&para;</a></h3>
 <p><strong>Not a setting</strong> - specified on command line:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>run_powergenome_multiple<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>results
 </code></pre></div>
@@ -2413,7 +2413,7 @@
 <a id="__codelineno-17-27" name="__codelineno-17-27" href="#__codelineno-17-27"></a><span class="w">        </span><span class="nt">carbon_tax</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
 </code></pre></div>
 <p><strong>Run command</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>run_powergenome_multiple<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>results<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">  </span>--num_workers<span class="w"> </span><span class="m">4</span>
@@ -2421,7 +2421,7 @@
 <p>This generates 6 cases (6 rows in scenario_definitions.csv), running up to 4 in parallel.</p>
 <h2 id="parallel-execution">Parallel Execution<a class="headerlink" href="#parallel-execution" title="Permanent link">&para;</a></h2>
 <p>Use <code>--num_workers</code> to run scenarios in parallel:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>run_powergenome_multiple<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>results<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span>--num_workers<span class="w"> </span><span class="m">8</span>

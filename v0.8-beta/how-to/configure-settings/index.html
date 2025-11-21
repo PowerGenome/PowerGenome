@@ -2576,8 +2576,8 @@
 <h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
 <h3 id="check-settings-load">Check Settings Load<a class="headerlink" href="#check-settings-load" title="Permanent link">&para;</a></h3>
 <p>Verify settings load correctly:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span> <span class="nn">powergenome.settings</span> <span class="kn">import</span> <span class="n">load_settings</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_settings</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
 <a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;settings&quot;</span><span class="p">))</span>
 <a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model_year&quot;</span><span class="p">))</span>
@@ -2585,7 +2585,7 @@
 </code></pre></div>
 <h3 id="validate-required-parameters">Validate Required Parameters<a class="headerlink" href="#validate-required-parameters" title="Permanent link">&para;</a></h3>
 <p>Check for missing required parameters:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span> <span class="nn">powergenome.settings</span> <span class="kn">import</span> <span class="n">load_settings</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_settings</span>
 <a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
 <a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;settings&quot;</span><span class="p">))</span>
 <a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>
@@ -2603,8 +2603,8 @@
 </code></pre></div>
 <h3 id="test-data-loading">Test Data Loading<a class="headerlink" href="#test-data-loading" title="Permanent link">&para;</a></h3>
 <p>Verify data tables are accessible:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span> <span class="nn">powergenome.settings</span> <span class="kn">import</span> <span class="n">load_settings</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="kn">from</span> <span class="nn">powergenome.database</span> <span class="kn">import</span> <span class="n">initialize_data_manager</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_settings</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">initialize_data_manager</span>
 <a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
 <a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;settings&quot;</span><span class="p">))</span>
 <a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="n">data_location</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;data_location&quot;</span><span class="p">)</span>
@@ -2612,7 +2612,7 @@
 <a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="n">initialize_data_manager</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">data_location</span><span class="p">)</span>
 <a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>
 <a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="c1"># Test table loading</span>
-<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="kn">from</span> <span class="nn">powergenome.database</span> <span class="kn">import</span> <span class="n">get_data_manager</span>
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_data_manager</span>
 <a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="n">dm</span> <span class="o">=</span> <span class="n">get_data_manager</span><span class="p">()</span>
 <a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="nb">print</span><span class="p">(</span><span class="n">dm</span><span class="o">.</span><span class="n">list_tables</span><span class="p">())</span>
 </code></pre></div>
@@ -2674,10 +2674,10 @@
 <p><strong>Problem</strong>: Settings folder not recognized</p>
 <p><strong>Solution</strong>: Pass folder path, not individual file:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># Correct</span>
-<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>run_powergenome_multiple<span class="w"> </span>--settings_file<span class="w"> </span>settings<span class="w"> </span>--results_folder<span class="w"> </span>results
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>run_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>settings<span class="w"> </span>--results_folder<span class="w"> </span>results
 <a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>
 <a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="c1"># Incorrect</span>
-<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>run_powergenome_multiple<span class="w"> </span>--settings_file<span class="w"> </span>settings/model.yml<span class="w"> </span>--results_folder<span class="w"> </span>results
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>run_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>settings/model.yml<span class="w"> </span>--results_folder<span class="w"> </span>results
 </code></pre></div>
 <h3 id="parameter-not-found">Parameter Not Found<a class="headerlink" href="#parameter-not-found" title="Permanent link">&para;</a></h3>
 <p><strong>Problem</strong>: <code>KeyError: 'model_year'</code></p>

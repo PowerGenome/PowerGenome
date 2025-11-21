@@ -2009,7 +2009,7 @@
 </div>
 </div>
 <p>Verify installation:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>run_powergenome_multiple<span class="w"> </span>--help
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>run_powergenome<span class="w"> </span>--help
 </code></pre></div>
 <h2 id="project-structure">Project Structure<a class="headerlink" href="#project-structure" title="Permanent link">&para;</a></h2>
 <p>PowerGenome projects follow this structure:</p>
@@ -2044,7 +2044,7 @@
 <h3 id="1-use-the-test-system">1. Use the Test System<a class="headerlink" href="#1-use-the-test-system" title="Permanent link">&para;</a></h3>
 <p>PowerGenome includes a minimal test system that's perfect for learning:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span>/path/to/PowerGenome
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>run_powergenome_multiple<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>--settings_file<span class="w"> </span>tests/test_system/settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span>--results_folder<span class="w"> </span>test_output
 </code></pre></div>
@@ -2055,7 +2055,7 @@
 <li>Generate output files in <code>test_output/</code></li>
 </ol>
 <h3 id="2-understanding-command-line-flags">2. Understanding Command-Line Flags<a class="headerlink" href="#2-understanding-command-line-flags" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>run_powergenome_multiple<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--settings_file<span class="w"> </span>settings<span class="w"> </span><span class="se">\ </span><span class="w">     </span><span class="c1"># Path to settings folder</span>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>--results_folder<span class="w"> </span>output<span class="w"> </span><span class="se">\ </span><span class="w">      </span><span class="c1"># Where to save results</span>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>--no-current-gens<span class="w"> </span><span class="se">\ </span><span class="w">           </span><span class="c1"># Skip existing generators (optional)</span>
@@ -2124,7 +2124,7 @@
 <p><strong>Generators_variability.csv</strong>
 : Hourly generation profiles for variable resources</p>
 <h3 id="exploring-generators_datacsv">Exploring Generators_data.csv<a class="headerlink" href="#exploring-generators_datacsv" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="c1"># Load generator data</span>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">gens</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;test_output/p1/Inputs/Inputs_p1/Generators_data.csv&quot;</span><span class="p">)</span>

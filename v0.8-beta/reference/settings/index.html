@@ -2087,8 +2087,8 @@
 <p>Region names are <strong>case-sensitive</strong> and must match exactly.</p>
 <h2 id="loading-mechanism">Loading Mechanism<a class="headerlink" href="#loading-mechanism" title="Permanent link">&para;</a></h2>
 <p>PowerGenome loads settings from a <strong>folder</strong>, not individual files:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span> <span class="nn">powergenome.settings</span> <span class="kn">import</span> <span class="n">load_settings</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_settings</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Correct: point to folder</span>
 <a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;my_study/settings&quot;</span><span class="p">))</span>
