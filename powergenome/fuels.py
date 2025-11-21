@@ -363,7 +363,10 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
 
     # Construct full_fuel_name from region, scenario, and fuel columns
     # If scenario column doesn't exist or is empty, construct without it
-    if "scenario" in fuel_data.columns and fuel_data["scenario"].notna().any():
+    if (
+        "scenario" in fuel_data.columns
+        and fuel_data["scenario"].fillna("").str.strip().ne("").any()
+    ):
         fuel_data["full_fuel_name"] = (
             fuel_data["region"] + "_" + fuel_data["scenario"] + "_" + fuel_data["fuel"]
         )
