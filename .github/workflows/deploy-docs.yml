@@ -49,6 +49,11 @@ jobs:
         run: |
           mike deploy --push v0.8-beta beta
 
+      - name: Deploy beta (from current branch)
+        if: github.ref == 'refs/heads/gs/docs-0.8'
+        run: |
+          mike deploy --push v0.8-beta beta
+
       - name: Set default version
         if: github.ref == 'refs/heads/master'
         run: |
