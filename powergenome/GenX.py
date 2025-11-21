@@ -1507,9 +1507,9 @@ def filter_empty_columns(df: pd.DataFrame) -> List[str]:
     notnull_mask = df.notna().sum() > 0
 
     # Check for non-"No_fuel" string values
-    string_notnone_mask = (
-        df.applymap(lambda x: str(x) != "No_fuel" if pd.notna(x) else False).sum() > 0
-    )
+    # Columns where at least one value is neither NA nor the sentinel "No_fuel"
+    # Use .any(axis=0) to avoid reductions on string extension dtypes that raise TypeError
+    string_notnone_mask = df.mask(df.isna(), "No_fuel").ne("No_fuel").any(axis=0)
 
     # Check for non-zero values
     nonzero_mask = df.astype(bool).sum() > 0
