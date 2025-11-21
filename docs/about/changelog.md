@@ -16,6 +16,7 @@ For the complete, detailed changelog, see the [CHANGELOG.md](https://github.com/
 - **Auto-generated cost multiplier mappings**: Optional `cost_multiplier_region_map` and `cost_multiplier_technology_map` with automatic substring matching
 - **Partial-year DG capacity fill**: Interpolate/extrapolate only missing regions when some have the requested year
 - **Regional cost aggregation**: Automatic averaging of cost multipliers for aggregated model regions
+- **Simplified fuel workflow**: Automatic aggregation of base region fuel prices for aggregated regions
 
 ### Changed
 
@@ -25,6 +26,9 @@ For the complete, detailed changelog, see the [CHANGELOG.md](https://github.com/
 - **DG timezone semantics**: Negative `tz_offset` shifts earlier hours later in array
 - **Multi-year DG profiles**: Build sequential `time_index` across weather years
 - **DG aggregation**: Uses capacity-weighted averages and requires `model_year`
+- **Fuel workflow simplified**: Legacy mapping parameters (`fuel_series_*`, `fuel_region_map`) now optional
+  - Fuel price tables should contain all base regions
+  - Aggregated region prices calculated automatically by averaging base regions
 
 ### Removed
 
@@ -62,6 +66,65 @@ site_002,2,0.48,2012
 ```
 
 See [Distributed Generation](../explanation/distributed-generation.md) for complete migration details.
+
+#### Fuel Price Workflow
+
+**Old (Legacy AEO with mappings)**:
+
+Settings required multiple mapping parameters:
+
+```yaml
+fuel_data_year: 2025
+fuel_series_scenario_names:
+  reference: REF2025
+fuel_series_names:
+  coal: STC
+  naturalgas: NG
+fuel_series_region_names:
+  pacific: PCF
+fuel_region_map:
+  pacific: [CA_N, CA_S]
+```
+
+Fuel price table had AEO codes:
+
+```csv
+fuel,region,year,price,scenario
+STC,PCF,2030,2.5,REF2025
+```
+
+**New (Simplified with complete regional coverage)**:
+
+Only basic parameters needed:
+
+```yaml
+fuel_scenarios:
+  coal: reference
+  naturalgas: reference
+tech_fuel_map:
+  Conventional Steam Coal: coal
+  Natural Gas Fired Combined Cycle: naturalgas
+fuel_price_table: fuel_prices.csv
+```
+
+Fuel price table contains **all base regions**:
+
+```csv
+fuel,region,year,price,scenario
+coal,CA_N,2030,2.5,reference
+coal,CA_S,2030,2.6,reference
+naturalgas,CA_N,2030,4.2,reference
+naturalgas,CA_S,2030,4.3,reference
+```
+
+PowerGenome automatically:
+
+- Constructs full fuel names: `CA_N_reference_coal`
+- Averages prices for aggregated regions (e.g., `CA` from `CA_N` + `CA_S`)
+
+Legacy mapping parameters still supported for backward compatibility.
+
+See [Fuel Settings](../reference/settings/fuels.md) for complete documentation.
 
 ## Contributing
 

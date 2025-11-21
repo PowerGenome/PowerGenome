@@ -248,31 +248,6 @@ cost_multiplier_technology_map:
   UtilityPV_Class1_Moderate: LandbasedWind  # Use wind costs for PV
 ```
 
-## Fuel Regions
-
-### `fuel_region_map`
-
-**Type**: Dictionary (AEO region → list of model regions)
-**Required**: For fuel costs from EIA AEO
-**Example**: See below
-
-Maps EIA Annual Energy Outlook (AEO) fuel price regions to model regions.
-
-```yaml
-fuel_region_map:
-  pacific: [CA_N, CA_S]
-  mountain: [AZ, NM]
-  west_south_central: [TX]
-```
-
-AEO region names:
-
-- `pacific`: Pacific
-- `mountain`: Mountain
-- `west_south_central`: West South Central
-- `east_north_central`: East North Central
-- `new_england`: New England
-
 ## Renewable Resource Bins
 
 ### `new_wind_solar_regional_bins`
@@ -316,6 +291,36 @@ US time zones:
 - Mountain: `-7`
 - Central: `-6`
 - Eastern: `-5`
+
+## Legacy Regional Mappings (Optional)
+
+### `fuel_region_map`
+
+**Type**: Dictionary (AEO region → list of model regions)
+**Required**: No (legacy workflow only)
+**Example**: See below
+
+!!! warning "Legacy Parameter"
+    This parameter is only needed for the legacy AEO fuel workflow. In the simplified workflow (recommended), provide fuel prices for all base regions directly in your fuel price table instead.
+
+Maps EIA Annual Energy Outlook (AEO) fuel price regions to model regions when using the legacy AEO data workflow.
+
+```yaml
+fuel_region_map:
+  pacific: [CA_N, CA_S]
+  mountain: [AZ, NM]
+  west_south_central: [TX]
+```
+
+Common AEO region names:
+
+- `pacific`: Pacific
+- `mountain`: Mountain
+- `west_south_central`: West South Central
+- `east_north_central`: East North Central
+- `new_england`: New England
+
+See [Fuel Settings](fuels.md) for details on the simplified vs. legacy fuel workflows.
 
 ## Example Configuration
 
@@ -361,10 +366,6 @@ load_region_map:
   NM: AZNM
 
 # Regional mappings
-fuel_region_map:
-  pacific: [CA_N, CA_S]
-  mountain: [AZ, NM]
-
 cost_multiplier_region_map:
   CA_N: CA_N_spur
   CA_S: CA_S_spur

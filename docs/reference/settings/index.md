@@ -48,7 +48,10 @@ Settings are grouped by functional area:
 
     Fuel price sources, emission factors, regional price adjustments.
 
-    Parameters: `fuel_scenarios`, `fuel_data_year`, `fuel_region_map`, `fuel_emission_factors`, etc.
+    Parameters: `fuel_scenarios`, `fuel_price_table`, `fuel_emission_factors`, `tech_fuel_map`, etc.
+
+    !!! tip "Simplified Workflow"
+        PowerGenome now uses a simplified fuel workflow by default. Provide a complete fuel price table with all base regions instead of using legacy AEO mapping parameters.
 
 - :material-transmission-tower: **[Transmission](transmission.md)**
 

@@ -2,15 +2,90 @@
 
 These parameters control fuel price sources, emission factors, and regional fuel price mappings.
 
-## Fuel Price Sources
+## Overview
+
+PowerGenome supports two fuel pricing workflows:
+
+1. **Simplified (Recommended)**: Provide a fuel price table with prices for all model regions and fuels. PowerGenome automatically constructs fuel names and calculates aggregated region prices.
+
+2. **Legacy (Larger fuel regions)**: Use raw AEO data with mapping parameters to create regional fuel prices.
+
+**Most users should use the simplified workflow** with a complete fuel price table containing all base regions.
+
+## Simplified Workflow (Recommended)
+
+### Required Settings
+
+Only three parameters are needed:
+
+```yaml
+# Assign scenario names to fuels
+fuel_scenarios:
+  coal: reference
+  naturalgas: reference
+  uranium: reference
+
+# Map technologies to fuels
+tech_fuel_map:
+  Conventional Steam Coal: coal
+  Natural Gas Fired Combined Cycle: naturalgas
+  Nuclear: uranium
+
+# Point to your fuel price table
+fuel_price_table: fuel_prices.csv
+```
+
+### Fuel Price Table Format
+
+Your fuel price table must include prices for **every base region** in your model:
+
+**Required columns**:
+
+- `fuel`: Fuel name (coal, naturalgas, distillate, uranium, etc.)
+- `region`: Base region name (must match regions in your model)
+- `year`: Calendar year
+- `price`: Price ($/MMBtu)
+
+**Optional columns**:
+
+- `scenario`: Scenario identifier (if using multiple price scenarios)
+- `data_year`: Data vintage year
+- `dollar_year`: Price year (for inflation adjustment)
+
+**Example fuel_prices.csv**:
+
+```csv
+fuel,region,year,price,scenario,dollar_year
+coal,CA_N,2030,2.5,reference,2024
+coal,CA_S,2030,2.6,reference,2024
+naturalgas,CA_N,2030,4.2,reference,2024
+naturalgas,CA_S,2030,4.3,reference,2024
+uranium,CA_N,2030,0.8,reference,2024
+```
+
+**Important**: The table must contain prices for all base regions (e.g., CA_N, CA_S). PowerGenome will automatically average base region prices to create prices for aggregated regions defined in `region_aggregations`.
+
+### How It Works
+
+PowerGenome automatically:
+
+1. **Constructs full fuel names** as `{region}_{scenario}_{fuel}` (e.g., `CA_N_reference_coal`)
+2. **Averages prices for aggregated regions** (e.g., if CA = [CA_N, CA_S], then CA prices = average of CA_N and CA_S)
+3. **Assigns fuels to generators** using `tech_fuel_map`
+
+No mapping parameters (`fuel_series_*` or `fuel_region_map`) are needed.
+
+## Legacy Workflow (AEO Direct)
+
+If you're working directly with EIA AEO data, you'll need additional mapping parameters.
 
 ### `fuel_scenarios`
 
 **Type**: Dictionary (fuel → scenario name)
-**Required**: For EIA AEO fuel prices
+**Required**: Yes
 **Example**: See below
 
-Maps fuels to price scenario names (which map to AEO scenario codes via `fuel_series_scenario_names`).
+Maps fuels to price scenario names.
 
 ```yaml
 fuel_scenarios:
@@ -20,26 +95,33 @@ fuel_scenarios:
   distillate: high_resource
 ```
 
-**Scenario names** must match keys in `fuel_series_scenario_names`.
+**Scenario names** must match keys in `fuel_series_scenario_names` (legacy workflow) or the `scenario` column in your fuel price table (simplified workflow).
 
 ### `fuel_data_year`
 
 **Type**: Integer
-**Required**: For AEO fuel prices
+**Required**: Only if your fuel price table has multiple data years
 **Example**: `2025`
 
-Which AEO publication year to use for fuel price projections.
+Specifies which data year to use if your fuel price table contains multiple vintages.
 
 ```yaml
 fuel_data_year: 2025
 ```
 
-Each AEO edition has different price trajectories. Specify for reproducibility.
+Only needed if your `fuel_price_table` has a `data_year` column with multiple years.
+
+## Legacy Mapping Parameters (Optional)
+
+!!! warning "Legacy Parameters"
+    The parameters below are **only needed for the legacy AEO direct workflow**. If your fuel price table already contains prices for all base regions with the fuel/scenario names you want, **skip this entire section**.
+
+These parameters were originally designed for working with EIA AEO data directly via API or raw AEO files with region/fuel codes that need mapping.
 
 ### `fuel_series_scenario_names`
 
 **Type**: Dictionary (user scenario → AEO scenario code)
-**Required**: For AEO fuel prices
+**Required**: No (legacy workflow only)
 **Example**: See below
 
 Maps user-friendly scenario names to official EIA AEO scenario codes.
@@ -47,7 +129,7 @@ Maps user-friendly scenario names to official EIA AEO scenario codes.
 ```yaml
 fuel_series_scenario_names:
   reference: REF2025
-  no_111d: nocaa111
+  no_111d: NOCAA111
   low_price: LOWPRICE
   high_price: HIGHPRICE
   high_resource: HIGHOGS
@@ -56,13 +138,44 @@ fuel_series_scenario_names:
 
 **AEO scenario codes** change with each AEO release. Check [EIA OpenData](https://www.eia.gov/opendata/) for current codes.
 
+### `fuel_series_names`
+
+**Type**: Dictionary (fuel name → AEO fuel code)
+**Required**: No (legacy workflow only)
+**Example**: See below
+
+Maps fuel names to EIA AEO fuel codes.
+
+```yaml
+fuel_series_names:
+  coal: STC  # Steam coal
+  naturalgas: NG
+  distillate: DFO
+  uranium: U
+```
+
+### `fuel_series_region_names`
+
+**Type**: Dictionary (region name → AEO region code)
+**Required**: No (legacy workflow only)
+**Example**: See below
+
+Maps region names to EIA AEO region codes.
+
+```yaml
+fuel_series_region_names:
+  mountain: MTN
+  pacific: PCF
+  west_south_central: WSC
+```
+
 ### `fuel_region_map`
 
 **Type**: Dictionary (AEO region → list of model regions)
-**Required**: For AEO fuel prices
+**Required**: No (legacy workflow only)
 **Example**: See below
 
-Maps EIA AEO fuel price regions to model regions.
+Maps EIA AEO fuel price regions to model regions. **Only used in legacy workflow** to create modified copies of base region prices.
 
 ```yaml
 fuel_region_map:
@@ -70,6 +183,9 @@ fuel_region_map:
   mountain: [AZ, NM]
   west_south_central: [TX_N]
 ```
+
+!!! note "Simplified Workflow Alternative"
+    In the simplified workflow, you don't need `fuel_region_map`. Instead, provide prices for all base regions directly in your fuel price table. PowerGenome will automatically average base region prices for aggregated regions.
 
 **AEO fuel regions** (common names):
 
@@ -84,23 +200,6 @@ fuel_region_map:
 - `east_south_central`: East South Central
 
 See EIA documentation for complete region definitions.
-
-### `fuel_series_region_names`
-
-**Type**: Dictionary (region name → AEO region code)
-**Required**: No (uses defaults if not specified)
-**Example**: See below
-
-Maps region names to EIA AEO region codes.
-
-```yaml
-fuel_series_region_names:
-  mountain: MTN
-  pacific: PCF
-  west_south_central: WSC
-```
-
-Typically uses default mappings—only specify if custom codes needed.
 
 ## Fuel Emission Factors
 
@@ -358,9 +457,74 @@ biomass_supply_curve:
 
 Models limited biomass resource availability with price escalation at high utilization.
 
-## Example Configuration
+## Example Configurations
 
-Complete fuel pricing configuration:
+### Simplified Workflow (Recommended)
+
+Complete fuel pricing with custom fuel price table:
+
+```yaml
+# Fuel price table location
+fuel_price_table: fuel_prices.csv
+
+# Map scenario names to fuels
+fuel_scenarios:
+  coal: reference
+  naturalgas: reference
+  uranium: reference
+  distillate: reference
+
+# Map technologies to fuels
+tech_fuel_map:
+  Conventional Steam Coal: coal
+  Natural Gas Fired Combined Cycle: naturalgas
+  Natural Gas Fired Combustion Turbine: naturalgas
+  Nuclear: uranium
+  Petroleum Liquids: distillate
+
+# Emission factors (tonnes CO2 per MMBtu)
+fuel_emission_factors:
+  coal: 0.09552
+  naturalgas: 0.05306
+  distillate: 0.07315
+  uranium: 0.0
+
+# Carbon pricing
+carbon_tax:
+  2030: 50
+  2040: 75
+  2050: 100
+
+# CCS fuel mapping
+ccs_fuel_map:
+  NaturalGas_CCS90: naturalgas_ccs90
+  Coal_CCS90: coal_ccs90
+
+ccs_capture_rate:
+  naturalgas_ccs90: 0.9
+  coal_ccs90: 0.9
+
+ccs_disposal_cost: 10  # $/tonne CO2
+```
+
+Your `fuel_prices.csv` must contain all base regions:
+
+```csv
+fuel,region,year,price,scenario,dollar_year
+coal,CA_N,2030,2.5,reference,2024
+coal,CA_S,2030,2.6,reference,2024
+coal,AZ,2030,2.4,reference,2024
+naturalgas,CA_N,2030,4.2,reference,2024
+naturalgas,CA_S,2030,4.3,reference,2024
+naturalgas,AZ,2030,3.8,reference,2024
+uranium,CA_N,2030,0.8,reference,2024
+uranium,CA_S,2030,0.8,reference,2024
+uranium,AZ,2030,0.8,reference,2024
+```
+
+### Legacy Workflow (AEO Direct)
+
+If using EIA AEO data directly:
 
 ```yaml
 # AEO fuel prices
@@ -370,6 +534,16 @@ fuel_series_scenario_names:
   reference: REF2025
   high_resource: HIGHOGS
   low_price: LOWPRICE
+
+fuel_series_names:
+  coal: STC
+  naturalgas: NG
+  distillate: DFO
+  uranium: U
+
+fuel_series_region_names:
+  pacific: PCF
+  mountain: MTN
 
 fuel_scenarios:
   coal: reference
@@ -383,14 +557,10 @@ fuel_region_map:
 
 # Emission factors
 fuel_emission_factors:
-  coal:
-    co2_tons_per_mmbtu: 0.09552
-  naturalgas:
-    co2_tons_per_mmbtu: 0.05306
-  distillate:
-    co2_tons_per_mmbtu: 0.07315
-  uranium:
-    co2_tons_per_mmbtu: 0.0
+  coal: 0.09552
+  naturalgas: 0.05306
+  distillate: 0.07315
+  uranium: 0.0
   biomass:
     co2_tons_per_mmbtu: 0.0
 

@@ -17,6 +17,8 @@ and this project adheres to Semantic Versioning.
 - Auto-generation of regional cost multiplier mappings: `cost_multiplier_region_map` and `cost_multiplier_technology_map` are now optional. When not provided, the system automatically creates mappings using substring matching between new resource names and regional cost factor technologies.
 - Validation that all technologies in `new_resources` are covered by regional cost corrections with appropriate warnings/info messages.
 - Support for aggregated regions in regional cost multipliers: when a model region aggregates multiple base regions, the average cost multiplier across base regions is used.
+- Simplified fuel workflow: automatic aggregation of base region fuel prices for aggregated regions when `region_aggregations` is defined without `fuel_region_map`.
+- Full fuel names automatically constructed as `{region}_{scenario}_{fuel}` (e.g., `CA_N_reference_coal`) when legacy mapping parameters are not provided.
 
 ### Changed
 
@@ -29,6 +31,7 @@ and this project adheres to Semantic Versioning.
 - DG profile aggregation uses capacity-weighted averages and requires a `model_year`. Aggregation now validates that capacity exists for all declared component regions.
 - Hourly DG generation now passes `year` into profile loading to ensure correct capacity-weighted aggregation without relying on global settings state.
 - Regional cost multiplier application now supports automatic averaging for aggregated regions and provides better logging for technologies without explicit mappings.
+- Fuel price workflow simplified: legacy AEO mapping parameters (`fuel_series_scenario_names`, `fuel_series_names`, `fuel_series_region_names`, `fuel_region_map`) are now optional. When not provided, fuel prices are expected directly in the fuel price table for all base regions, and PowerGenome automatically averages base region prices for aggregated regions.
 
 ### Deprecated
 

@@ -202,7 +202,7 @@ demand_table:
 
 **Required columns**:
 
-- `fuel`: Fuel name (coal, naturalgas, etc.)
+- `fuel`: Fuel name (coal, naturalgas, distillate, uranium, etc.)
 - `region`: Region name
 - `year`: Calendar year
 - `price`: Price ($/MMBtu)
@@ -210,7 +210,12 @@ demand_table:
 **Optional columns**:
 
 - `scenario`: Price scenario
+- `data_year`: Data vintage year
+- `dollar_year`: USD year (for inflation adjustment)
 - `month`: Monthly prices (if seasonal)
+
+!!! important "Regional Coverage"
+    The fuel price table must include prices for **all base regions** in your model. For example, if you have an aggregated region `CA` composed of base regions `CA_N` and `CA_S`, your fuel price table must contain separate rows for `CA_N` and `CA_S`. PowerGenome will automatically calculate the average price for `CA` from its constituent base regions.
 
 **Example**:
 
@@ -218,6 +223,18 @@ demand_table:
 fuel_prices_table:
   table_name: fuel_prices.parquet
   scenario: high_gas
+```
+
+**Example fuel_prices.csv**:
+
+```csv
+fuel,region,year,price,scenario,dollar_year
+coal,CA_N,2030,2.5,reference,2024
+coal,CA_S,2030,2.6,reference,2024
+naturalgas,CA_N,2030,4.2,reference,2024
+naturalgas,CA_S,2030,4.3,reference,2024
+uranium,CA_N,2030,0.8,reference,2024
+uranium,CA_S,2030,0.8,reference,2024
 ```
 
 ### Transmission Table
