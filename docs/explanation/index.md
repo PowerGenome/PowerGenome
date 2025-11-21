@@ -5,22 +5,6 @@ These articles provide background information on how PowerGenome works and why i
 ## Architecture and Design
 
 - **[Architecture Overview](architecture.md)**: High-level system design, key components, and design patterns
-- **[Data Pipeline Flow](pipeline.md)**: How data moves through PowerGenome from input to output
-
-## Methodology
-
-- **[Generator Clustering](clustering.md)**: K-means clustering methodology for existing power plants
-- **[Cost Calculations](costs.md)**: Technology costs, regional adjustments, and annualization
-- **[Time Reduction](time-reduction.md)**: Representative period selection and its impact on accuracy
-
-## Data Management
-
-- **[Regional Mappings](regions.md)**: How base regions map to model regions and cost/fuel regions
-- **[Distributed Generation](distributed-generation.md)**: DG capacity and profile handling (includes recent refactor)
-
-## Model Integration
-
-- **[Output Format](output-format.md)**: GenX file structure, resource tagging, and policy constraints
 
 ## Understanding vs. Doing
 

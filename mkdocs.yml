@@ -82,17 +82,13 @@ nav:
   - Tutorials:
     - tutorials/index.md
     - Getting Started: tutorials/getting-started.md
-    - Building a Multi-Region Model: tutorials/multi-region-model.md
-    - Working with Renewable Resources: tutorials/renewable-resources.md
 
   - How-To Guides:
     - how-to/index.md
     - Configure Settings: how-to/configure-settings.md
-    - Add Custom Technologies: how-to/custom-technologies.md
-    - Work with Data Tables: how-to/data-tables.md
-    - Customize Generator Clustering: how-to/clustering.md
-    - Debug Common Issues: how-to/debugging.md
-    - Run Multi-Scenario Studies: how-to/multi-scenario.md
+    - Add Custom Technologies: how-to/add-technologies.md
+    - Configure Renewable Clusters: how-to/configure-renewable-clusters.md
+    - Run Multi-Scenario Studies: how-to/run-scenarios.md
 
   - Reference:
     - reference/index.md
@@ -105,27 +101,15 @@ nav:
       - Fuels: reference/settings/fuels.md
       - Demand and Load: reference/settings/demand.md
       - Transmission: reference/settings/transmission.md
-      - Time Reduction: reference/settings/time-reduction.md
       - Resource Tags: reference/settings/resource-tags.md
+      - Data Tables: reference/settings/data-tables.md
       - Multi-Scenario Management: reference/settings/scenario-management.md
-    - Data Schemas:
-      - reference/schemas/index.md
-      - Input Tables: reference/schemas/input-tables.md
-      - Output Files: reference/schemas/output-files.md
     - CLI Reference: reference/cli.md
 
   - Explanation:
     - explanation/index.md
     - Architecture Overview: explanation/architecture.md
-    - Data Pipeline Flow: explanation/pipeline.md
-    - Generator Clustering: explanation/clustering.md
-    - Cost Calculations: explanation/costs.md
-    - Time Reduction: explanation/time-reduction.md
-    - Regional Mappings: explanation/regions.md
-    - Output Format: explanation/output-format.md
-    - Distributed Generation: explanation/distributed-generation.md
 
   - About:
-    - License: about/license.md
     - Contributing: about/contributing.md
     - Changelog: about/changelog.md
