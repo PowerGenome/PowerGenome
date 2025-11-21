@@ -1444,17 +1444,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#parallel-execution" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Parallel Execution
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#related-settings" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1995,17 +1984,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#parallel-execution" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Parallel Execution
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#related-settings" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2415,18 +2393,9 @@
 <p><strong>Run command</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>results<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">  </span>--num_workers<span class="w"> </span><span class="m">4</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>results
 </code></pre></div>
-<p>This generates 6 cases (6 rows in scenario_definitions.csv), running up to 4 in parallel.</p>
-<h2 id="parallel-execution">Parallel Execution<a class="headerlink" href="#parallel-execution" title="Permanent link">&para;</a></h2>
-<p>Use <code>--num_workers</code> to run scenarios in parallel:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>results<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span>--num_workers<span class="w"> </span><span class="m">8</span>
-</code></pre></div>
-<p>Significantly speeds up large scenario ensembles. Each worker runs one case at a time.</p>
+<p>This generates 4 cases (4 rows in scenario_definitions.csv), running sequentially.</p>
 <h2 id="related-settings">Related Settings<a class="headerlink" href="#related-settings" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../model-definition/">Model Definition</a>: <code>model_year</code> must match scenario years</li>

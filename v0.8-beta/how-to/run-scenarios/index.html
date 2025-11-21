@@ -1217,17 +1217,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#out-of-memory" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Out of Memory
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -2452,17 +2441,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#out-of-memory" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Out of Memory
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -3019,10 +2997,10 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>settings<span class="w"> </span><span class="se">\ </span><span class="w">          </span><span class="c1"># Settings folder</span>
 <a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>results<span class="w"> </span><span class="se">\ </span><span class="w">          </span><span class="c1"># Output folder</span>
-<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span>--num_workers<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="se">\ </span><span class="w">                   </span><span class="c1"># Parallel workers</span>
-<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="w">  </span>--no-current-gens<span class="w"> </span><span class="se">\ </span><span class="w">                 </span><span class="c1"># Skip existing generator clustering</span>
-<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="w">  </span>--no-load<span class="w"> </span><span class="se">\ </span><span class="w">                         </span><span class="c1"># Skip load profile generation</span>
-<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="w">  </span>--sort-gens<span class="w">                          </span><span class="c1"># Sort output by resource name</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span>--no-current-gens<span class="w"> </span><span class="se">\ </span><span class="w">                 </span><span class="c1"># Skip existing generator clustering</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="w">  </span>--no-load<span class="w"> </span><span class="se">\ </span><span class="w">                         </span><span class="c1"># Skip load profile generation</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="w">  </span>--sort-gens<span class="w"> </span><span class="se">\ </span><span class="w">                       </span><span class="c1"># Sort output by resource name</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="w">  </span>--case-id<span class="w"> </span>case1<span class="w"> </span>case2<span class="w">                </span><span class="c1"># Run specific cases only</span>
 </code></pre></div>
 <h3 id="selective-execution">Selective Execution<a class="headerlink" href="#selective-execution" title="Permanent link">&para;</a></h3>
 <p>Run specific scenarios only:</p>
@@ -3074,15 +3052,6 @@
 <li>Parameter spelled correctly in <code>settings_management</code>?</li>
 <li>Year matches between scenario file and <code>settings_management</code>?</li>
 <li>Parameter value matches exactly (case-sensitive)?</li>
-</ul>
-<h3 id="out-of-memory">Out of Memory<a class="headerlink" href="#out-of-memory" title="Permanent link">&para;</a></h3>
-<p><strong>Problem</strong>: System runs out of RAM with parallel execution</p>
-<p><strong>Solutions</strong>:</p>
-<ul>
-<li>Reduce <code>--num_workers</code></li>
-<li>Run scenarios sequentially (<code>--num_workers 1</code>)</li>
-<li>Increase system swap space</li>
-<li>Use smaller time domain (<code>reduce_time_domain: true</code>)</li>
 </ul>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
