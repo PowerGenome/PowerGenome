@@ -374,6 +374,49 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
         # For simplified tables without scenario column, use region_fuel format
         fuel_data["full_fuel_name"] = fuel_data["region"] + "_" + fuel_data["fuel"]
 
+    # If region aggregations are present (simplified workflow without fuel_region_map),
+    # create averaged fuel prices for aggregated regions from their constituent base regions.
+    if settings.get("region_aggregations") and not settings.get("fuel_region_map"):
+        region_aggs = settings["region_aggregations"]
+        existing_regions = set(fuel_data["region"].unique())
+        agg_dfs = []
+        for agg_region, base_regions in region_aggs.items():
+            missing = [r for r in base_regions if r not in existing_regions]
+            if missing:
+                logger.warning(
+                    f"Skipping aggregated region '{agg_region}' because base regions {missing} are missing in fuel price data."
+                )
+                continue
+            subset = fuel_data[fuel_data["region"].isin(base_regions)].copy()
+            # Group columns that should be preserved (those that exist in the file)
+            group_cols = [
+                c
+                for c in ["year", "scenario", "fuel", "dollar_year", "data_year"]
+                if c in subset.columns
+            ]
+            avg_prices = (
+                subset.groupby(group_cols, dropna=False)["price"].mean().reset_index()
+            )
+            avg_prices["region"] = agg_region
+            if (
+                "scenario" in avg_prices.columns
+                and avg_prices["scenario"].fillna("").str.strip().ne("").any()
+            ):
+                avg_prices["full_fuel_name"] = (
+                    avg_prices["region"]
+                    + "_"
+                    + avg_prices["scenario"]
+                    + "_"
+                    + avg_prices["fuel"]
+                )
+            else:
+                avg_prices["full_fuel_name"] = (
+                    avg_prices["region"] + "_" + avg_prices["fuel"]
+                )
+            agg_dfs.append(avg_prices)
+        if agg_dfs:
+            fuel_data = pd.concat([fuel_data] + agg_dfs, ignore_index=True)
+
     fuel_data = fuel_data.dropna(subset=["full_fuel_name"])
 
     if inflate_price:
@@ -393,8 +436,9 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
             logger.warning(
                 """
     ************
-    Unable to inflate fuel prices. Check your settings file to ensure the keys
-    "target_usd_year" and "aeo_fuel_usd_year" are valid integers.
+    Unable to inflate fuel prices. Check your settings file to ensure the key
+    "target_usd_year" is a valid integer and that the fuel price data table includes a
+    "dollar_year" column with valid integer years.
     ************
                 """
             )

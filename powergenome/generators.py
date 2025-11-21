@@ -2279,8 +2279,10 @@ def add_fuel_labels(df, fuel_prices, settings):
         The model region is not mapped to a fuel region in 'fuel_region_map'
     """
 
-    df["Fuel"] = np.nan
+    df["Fuel"] = pd.NA
+    df["Fuel"] = df["Fuel"].astype("string")
     # Direct technology to fuel mapping - no intermediate mapping needed
+    has_region_map = bool(settings.get("fuel_region_map"))
     for tech, fuel in (settings.get("tech_fuel_map") or {}).items():
         scenario = settings.get("fuel_scenarios", {}).get(fuel)
         model_year = settings["model_year"]
@@ -2306,33 +2308,59 @@ def add_fuel_labels(df, fuel_prices, settings):
                     "Fuel",
                 ] = fuel
         else:
-            for aeo_region, model_regions in settings["fuel_region_map"].items():
-                fuel_name = ("_").join([aeo_region, scenario, fuel])
-                assert (
-                    fuel_prices.query(
+            if has_region_map:
+                # Legacy mapping: iterate over AEO regions and model regions list
+                for fuel_region, model_regions in settings["fuel_region_map"].items():
+                    fuel_name = ("_").join([fuel_region, scenario, fuel])
+                    assert (
+                        fuel_prices.query(
+                            "year==@model_year & full_fuel_name==@fuel_name"
+                        ).empty
+                        is False
+                    ), f"{fuel_name} doesn't show up in {model_year}"
+                    df.loc[
+                        (df["technology"].str.contains(tech, case=False, regex=False))
+                        & df["region"].isin(model_regions),
+                        "Fuel",
+                    ] = fuel_name
+            else:
+                # Simplified workflow: full_fuel_name constructed with model region directly
+                # Assign region-scenario-fuel for each generator row
+                for region in df["region"].unique():
+                    fuel_name = f"{region}_{scenario}_{fuel}"
+                    # Verify exists in fuel_prices for model_year
+                    if fuel_prices.query(
                         "year==@model_year & full_fuel_name==@fuel_name"
-                    ).empty
-                    is False
-                ), f"{fuel_name} doesn't show up in {model_year}"
-
-                df.loc[
-                    (df["technology"].str.contains(tech, case=False, regex=False))
-                    & df["region"].isin(model_regions),
-                    "Fuel",
-                ] = fuel_name
+                    ).empty:
+                        logger.warning(
+                            f"Fuel price '{fuel_name}' for year {model_year} not found; generator rows may get 'No_fuel'."
+                        )
+                    df.loc[
+                        (df["technology"].str.contains(tech, case=False, regex=False))
+                        & (df["region"] == region),
+                        "Fuel",
+                    ] = fuel_name
 
     for ccs_tech, ccs_fuel in (settings.get("ccs_fuel_map") or {}).items():
         ccs_base_name = ("_").join(ccs_fuel.split("_")[:-1])
         if ccs_base_name in (settings.get("fuel_scenarios", {}) or {}).keys():
             scenario = settings["fuel_scenarios"][ccs_base_name]
-            for aeo_region, model_regions in settings["fuel_region_map"].items():
-                ccs_fuel_name = ("_").join([aeo_region, scenario, ccs_fuel])
-
-                df.loc[
-                    (df["technology"].str.contains(ccs_tech))
-                    & df["region"].isin(model_regions),
-                    "Fuel",
-                ] = ccs_fuel_name
+            if has_region_map:
+                for fuel_region, model_regions in settings["fuel_region_map"].items():
+                    ccs_fuel_name = ("_").join([fuel_region, scenario, ccs_fuel])
+                    df.loc[
+                        (df["technology"].str.contains(ccs_tech))
+                        & df["region"].isin(model_regions),
+                        "Fuel",
+                    ] = ccs_fuel_name
+            else:
+                for region in df["region"].unique():
+                    ccs_fuel_name = f"{region}_{scenario}_{ccs_fuel}"
+                    df.loc[
+                        (df["technology"].str.contains(ccs_tech))
+                        & (df["region"] == region),
+                        "Fuel",
+                    ] = ccs_fuel_name
         elif ccs_base_name in (settings.get("user_fuel_price", {}) or {}).keys():
             if isinstance(settings["user_fuel_price"][ccs_base_name], dict):
                 for region in settings["user_fuel_price"][ccs_base_name].keys():
@@ -2361,47 +2389,52 @@ def add_fuel_labels(df, fuel_prices, settings):
             )
 
     # Replace AEO region name with model region in cases where users are modifying AEO price
-    model_aeo_region_map = reverse_dict_of_lists(settings.get("fuel_region_map", {}))
-    for region, adj in (settings.get("regional_fuel_adjustments", {}) or {}).items():
-        aeo_region = model_aeo_region_map.get(region)
-        if not aeo_region:
-            raise KeyError(
-                f"There is no mapping of the model region {region} to an AEO fuel region "
-                "in the settings parameter 'fuel_region_map'."
-            )
-        if isinstance(adj, list):
-            # Replace the aeo region name with model region for all resources
-            df.loc[
-                (df["Fuel"].str.contains(aeo_region))
-                & (df["Fuel"].notna())
-                & (df["region"].str.lower() == region.lower()),
-                "Fuel",
-            ] = df.loc[
-                (df["Fuel"].str.contains(aeo_region))
-                & (df["Fuel"].notna())
-                & (df["region"].str.lower() == region.lower()),
-                "Fuel",
-            ].str.replace(
-                aeo_region, region
-            )
-        if isinstance(adj, dict):
-            # Replace the aeo region name with model region only for select fuels
-            for fuel, op in adj.items():
+    if has_region_map:
+        model_fuel_region_map = reverse_dict_of_lists(
+            settings.get("fuel_region_map", {})
+        )
+        for region, adj in (
+            settings.get("regional_fuel_adjustments", {}) or {}
+        ).items():
+            fuel_region = model_fuel_region_map.get(region)
+            if not fuel_region:
+                raise KeyError(
+                    f"There is no mapping of the model region {region} to an AEO fuel region "
+                    "in the settings parameter 'fuel_region_map'."
+                )
+            if isinstance(adj, list):
+                # Replace the aeo region name with model region for all resources
                 df.loc[
-                    (df["Fuel"].str.contains(aeo_region))
-                    & (df["Fuel"].str.contains(fuel))
+                    (df["Fuel"].str.contains(fuel_region))
                     & (df["Fuel"].notna())
                     & (df["region"].str.lower() == region.lower()),
                     "Fuel",
                 ] = df.loc[
-                    (df["Fuel"].str.contains(aeo_region))
-                    & (df["Fuel"].str.contains(fuel))
+                    (df["Fuel"].str.contains(fuel_region))
                     & (df["Fuel"].notna())
                     & (df["region"].str.lower() == region.lower()),
                     "Fuel",
                 ].str.replace(
-                    aeo_region, region
+                    fuel_region, region
                 )
+            if isinstance(adj, dict):
+                # Replace the aeo region name with model region only for select fuels
+                for fuel, op in adj.items():
+                    df.loc[
+                        (df["Fuel"].str.contains(fuel_region))
+                        & (df["Fuel"].str.contains(fuel))
+                        & (df["Fuel"].notna())
+                        & (df["region"].str.lower() == region.lower()),
+                        "Fuel",
+                    ] = df.loc[
+                        (df["Fuel"].str.contains(fuel_region))
+                        & (df["Fuel"].str.contains(fuel))
+                        & (df["Fuel"].notna())
+                        & (df["region"].str.lower() == region.lower()),
+                        "Fuel",
+                    ].str.replace(
+                        fuel_region, region
+                    )
 
     df.loc[df["Fuel"].isna(), "Fuel"] = "No_fuel"
 
