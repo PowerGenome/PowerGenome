@@ -15,6 +15,10 @@
         <link rel="canonical" href="https://powergenome.github.io/PowerGenome/latest/how-to/configure-renewable-clusters/">
       
       
+        <link rel="prev" href="../add-technologies/">
+      
+      
+        <link rel="next" href="../run-scenarios/">
       
       
         
@@ -25,7 +29,7 @@
     
     
       
-        <title>Configure Renewable Resource Clusters - PowerGenome Documentation</title>
+        <title>Configure Renewable Clusters - PowerGenome Documentation</title>
       
     
     
@@ -116,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Configure Renewable Resource Clusters
+              Configure Renewable Clusters
             
           </span>
         </div>
@@ -260,10 +264,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../" class="md-tabs__link">
           
   
@@ -324,7 +330,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../about/license/" class="md-tabs__link">
+        <a href="../../about/contributing/" class="md-tabs__link">
           
   
   
@@ -524,62 +530,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/multi-region-model.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Building a Multi-Region Model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../tutorials/renewable-resources.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Working with Renewable Resources
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -591,28 +541,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
@@ -630,7 +583,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -704,7 +657,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../custom-technologies.md" class="md-nav__link">
+      <a href="../add-technologies/" class="md-nav__link">
         
   
   
@@ -729,17 +682,44 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../data-tables.md" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configure Renewable Clusters
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    Work with Data Tables
+    Configure Renewable Clusters
   
 
     
@@ -748,6 +728,636 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use-renewable-clusters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to Use Renewable Clusters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-configuration-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Configuration Pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-start-with-filters-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Start with Filters (Recommended)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 1: Start with Filters (Recommended)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-filter-on-lcoe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why Filter on LCOE?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-add-bins-for-cost-stratification-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Add Bins for Cost Stratification (Recommended)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 2: Add Bins for Cost Stratification (Recommended)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lcoe-binning-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LCOE Binning Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#binning-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binning Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#binning-on-other-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binning on Other Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multiple-bins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple Bins
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-use-groups-for-categorical-divisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Use Groups for Categorical Divisions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 3: Use Groups for Categorical Divisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#wind-class-grouping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wind Class Grouping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#geographic-grouping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geographic Grouping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multiple-groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple Groups
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-configure-k-means-clustering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Configure K-Means Clustering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 4: Configure K-Means Clustering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-clustering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Clustering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clustering-on-multiple-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clustering on Multiple Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clustering-on-generation-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clustering on Generation Profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternative-clustering-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative Clustering Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limiting-total-clusters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limiting Total Clusters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-modify-costs-by-group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Modify Costs by Group
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 5: Modify Costs by Group">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modifier-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modifier Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calculating-total-cluster-count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calculating Total Cluster Count
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Calculating Total Cluster Count">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formula" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formula
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Complete Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-simple-wind-clustering-recommended-starting-point" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 1: Simple Wind Clustering (Recommended Starting Point)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-wind-with-class-groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 2: Wind with Class Groups
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3-solar-with-geographic-groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 3: Solar with Geographic Groups
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-4-offshore-wind-performance-based" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 4: Offshore Wind (Performance-Based)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-5-complex-multi-region-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 5: Complex Multi-Region System
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-start-simple-add-complexity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Start Simple, Add Complexity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-always-filter-on-lcoe-first-if-available" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Always Filter on LCOE First (If Available)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-use-quantile-binning-for-balanced-clusters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Use Quantile Binning for Balanced Clusters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-match-cluster-count-to-model-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Match Cluster Count to Model Scale
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-use-group-modifiers-sparingly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Use Group Modifiers Sparingly
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-check-cluster-counts-before-running" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Check Cluster Counts Before Running
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-balance-geographic-and-cost-diversity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Balance Geographic and Cost Diversity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#too-many-clusters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Too Many Clusters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#all-clusters-in-one-region" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        All Clusters in One Region
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#expensive-sites-selected" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expensive Sites Selected
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#missing-expected-groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing Expected Groups
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Requirements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#required-data-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required Data Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#required-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required Columns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generation-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generation Profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -760,63 +1370,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../clustering.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Customize Generator Clustering
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../debugging.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Debug Common Issues
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../multi-scenario.md" class="md-nav__link">
+      <a href="../run-scenarios/" class="md-nav__link">
         
   
   
@@ -1211,34 +1765,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/settings/time-reduction.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../reference/settings/resource-tags/" class="md-nav__link">
         
   
@@ -1267,6 +1793,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/settings/data-tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/settings/scenario-management/" class="md-nav__link">
         
   
@@ -1275,152 +1829,6 @@
     
   
     Multi-Scenario Management
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Data Schemas
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Data Schemas
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/schemas/index.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    None
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/schemas/input-tables.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Input Tables
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/schemas/output-files.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Output Files
   
 
     
@@ -1587,202 +1995,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../explanation/pipeline.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Data Pipeline Flow
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../explanation/clustering.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Generator Clustering
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../explanation/costs.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Cost Calculations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../explanation/time-reduction.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../explanation/regions.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Regional Mappings
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../explanation/output-format.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Output Format
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../explanation/distributed-generation.md" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Distributed Generation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -1843,34 +2055,6 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../about/license/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    License
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
             
               
                 
@@ -2588,6 +2772,46 @@
 
   
 
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    How-To Guides
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
 
               
               <article class="md-content__inner md-typeset">
