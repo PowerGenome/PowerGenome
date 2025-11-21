@@ -12,7 +12,7 @@ PowerGenome is a **capacity expansion modeling data pipeline** that generates in
 
 1. **Settings → DataManager → Module-specific Processing → GenX Output Files**
 2. All data flows through the **DataManager singleton** (in-memory DuckDB) that provides standardized table access
-3. Entry point: `run_powergenome_multiple` CLI → `run_powergenome_multiple_outputs_cli.py:main()`
+3. Entry point: `run_powergenome` CLI → `run_powergenome.py:main()`
 
 ### Major Components
 
