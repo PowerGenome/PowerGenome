@@ -138,21 +138,21 @@ A series of example notebooks are included in [`PowerGenome/notebooks`](/noteboo
 
 The outputs are all formatted for GenX we hope to make the data formatting code more module to allow users to easily switch between outputs for different power system models.
 
-Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). Examples of how to load data in this way are included in `PowerGenome/notebooks`. To run from the command line, navigate to a project folder that contains a settings file and extra inputs (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome_multiple` with flags for the settings file name and where the results should be saved. Since the `powergenome` package is installed in the `powergenome` conda environment, you can run the command line function from anywhere on your computer (not just within the cloned `PowerGenome` folder).
+Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). Examples of how to load data in this way are included in `PowerGenome/notebooks`. To run from the command line, navigate to a project folder that contains a settings file and extra inputs (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome` with flags for the settings file name and where the results should be saved. Since the `powergenome` package is installed in the `powergenome` conda environment, you can run the command line function from anywhere on your computer (not just within the cloned `PowerGenome` folder).
 
 ```sh
-run_powergenome_multiple --settings_file settings --results_folder test_system
+run_powergenome --settings_file settings --results_folder test_system
 ```
 
 The command line arguments `--settings_file` and `--results_folder` can be shortened to `-sf` and `-rf` respectively. For all options, run:
 
 ```sh
-run_powergenome_multiple --help
+run_powergenome --help
 ```
 
-A folder with extra user inputs is required when using the `run_powergenome_multiple` command. The name of this folder is defined in the settings YAML file with the `input_folder` parameter. Look at the files in each example system for test cases to follow.
+A folder with extra user inputs is required when using the `run_powergenome` command. The name of this folder is defined in the settings YAML file with the `input_folder` parameter. Look at the files in each example system for test cases to follow.
 
-If you have previously installed PowerGenome and the `run_powergenome_multiple` command doesn't work, try reinstalling it using `pip install -e .` as described above. If you downloaded the custom PUDL database before May of 2020, some errors may be resolved by downloading a new version.
+If you have previously installed PowerGenome and the `run_powergenome` command doesn't work, try reinstalling it using `pip install -e .` as described above. If you downloaded the custom PUDL database before May of 2020, some errors may be resolved by downloading a new version.
 
 ## Licensing
 

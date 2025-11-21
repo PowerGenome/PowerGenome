@@ -82,7 +82,7 @@ settings_management:
 ### 3. Run Multi-Scenario Execution
 
 ```bash
-run_powergenome_multiple \
+run_powergenome \
   --settings_file settings \
   --results_folder results
 ```
@@ -328,7 +328,7 @@ This generates 54 scenarios (2 years × 3 tech costs × 3 fuel prices × 3 carbo
 Use multiple workers to speed up execution:
 
 ```bash
-run_powergenome_multiple \
+run_powergenome \
   --settings_file settings \
   --results_folder results \
   --num_workers 8
@@ -542,7 +542,7 @@ echo "case_id,year,tech_cost" > test_scenario.csv
 echo "test,2030,mid" >> test_scenario.csv
 
 # Run single scenario
-run_powergenome_multiple \
+run_powergenome \
   --settings_file settings \
   --results_folder test_results
 ```
@@ -577,7 +577,7 @@ print(cost_settings)
 ### Key Flags
 
 ```bash
-run_powergenome_multiple \
+run_powergenome \
   --settings_file settings \           # Settings folder
   --results_folder results \           # Output folder
   --num_workers 4 \                    # Parallel workers
@@ -594,7 +594,7 @@ Run specific scenarios only:
 # Option 1: Edit scenario_definitions.csv to include only desired cases
 
 # Option 2: Use --filter flag (if available in your version)
-run_powergenome_multiple \
+run_powergenome \
   --settings_file settings \
   --results_folder results \
   --filter "case_id.startswith('baseline')"
@@ -612,7 +612,7 @@ ls results/*/Generators_data.csv
 rm -rf results/failed_case_2030
 
 # Rerun (PowerGenome skips existing outputs)
-run_powergenome_multiple \
+run_powergenome \
   --settings_file settings \
   --results_folder results
 ```

@@ -434,10 +434,10 @@ baseline,2050,all,0.9,1.0,
 
 ```bash
 # Correct
-run_powergenome_multiple --settings_file settings --results_folder results
+run_powergenome --settings_file settings --results_folder results
 
 # Incorrect
-run_powergenome_multiple --settings_file settings/model.yml --results_folder results
+run_powergenome --settings_file settings/model.yml --results_folder results
 ```
 
 ### Parameter Not Found

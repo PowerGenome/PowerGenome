@@ -46,7 +46,7 @@ Choose one of the following installation methods:
 Verify installation:
 
 ```bash
-run_powergenome_multiple --help
+run_powergenome --help
 ```
 
 ## Project Structure
@@ -89,7 +89,7 @@ PowerGenome includes a minimal test system that's perfect for learning:
 
 ```bash
 cd /path/to/PowerGenome
-run_powergenome_multiple \
+run_powergenome \
     --settings_file tests/test_system/settings \
     --results_folder test_output
 ```
@@ -103,7 +103,7 @@ This will:
 ### 2. Understanding Command-Line Flags
 
 ```bash
-run_powergenome_multiple \
+run_powergenome \
     --settings_file settings \      # Path to settings folder
     --results_folder output \       # Where to save results
     --no-current-gens \            # Skip existing generators (optional)

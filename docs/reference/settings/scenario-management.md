@@ -6,7 +6,7 @@ PowerGenome supports running multiple scenarios in a single execution, systemati
 
 1. **Define scenarios** in a CSV file with parameter variations
 2. **Configure parameter swaps** in `settings_management`
-3. **Run batch execution** with `run_powergenome_multiple`
+3. **Run batch execution** with `run_powergenome`
 4. **Output** to separate folders per case
 
 ## Scenario Definition File
@@ -285,7 +285,7 @@ Referenced files are relative to this folder.
 **Not a setting** - specified on command line:
 
 ```bash
-run_powergenome_multiple \
+run_powergenome \
   --settings_file settings \
   --results_folder results
 ```
@@ -389,7 +389,7 @@ settings_management:
 **Run command**:
 
 ```bash
-run_powergenome_multiple \
+run_powergenome \
   --settings_file settings \
   --results_folder results \
   --num_workers 4
@@ -402,7 +402,7 @@ This generates 6 cases (6 rows in scenario_definitions.csv), running up to 4 in 
 Use `--num_workers` to run scenarios in parallel:
 
 ```bash
-run_powergenome_multiple \
+run_powergenome \
   --settings_file settings \
   --results_folder results \
   --num_workers 8

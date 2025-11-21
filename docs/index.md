@@ -52,7 +52,7 @@ cd PowerGenome
 pip install -e ".[dev]"
 
 # Run with example settings
-run_powergenome_multiple --settings_file settings --results_folder output
+run_powergenome --settings_file settings --results_folder output
 ```
 
 ## Get Help

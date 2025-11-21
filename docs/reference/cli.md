@@ -1,11 +1,11 @@
-# Command-Line Interface Reference
+# Command Line Interface
 
-PowerGenome provides the `run_powergenome_multiple` command for executing the data pipeline.
+PowerGenome provides the `run_powergenome` command for executing the data pipeline.
 
 ## Basic Usage
 
 ```bash
-run_powergenome_multiple --settings_file SETTINGS_PATH --results_folder OUTPUT_PATH
+run_powergenome --settings_file SETTINGS_PATH --results_folder OUTPUT_PATH
 ```
 
 ## Command-Line Flags
@@ -41,7 +41,7 @@ Run only specific scenarios from the scenario definitions file.
 
 ```bash
 # Run only scenarios p1 and p3
-run_powergenome_multiple -sf settings -rf output --case_id p1 p3
+run_powergenome -sf settings -rf output --case_id p1 p3
 ```
 
 #### `--sort-gens`
@@ -99,7 +99,7 @@ Increase logging verbosity.
 Display help message with all available flags.
 
 ```bash
-run_powergenome_multiple --help
+run_powergenome --help
 ```
 
 ## Complete Examples
@@ -107,7 +107,7 @@ run_powergenome_multiple --help
 ### Basic Run
 
 ```bash
-run_powergenome_multiple \
+run_powergenome \
     --settings_file my_study/settings \
     --results_folder my_study/results
 ```
@@ -115,7 +115,7 @@ run_powergenome_multiple \
 ### Run Specific Scenarios
 
 ```bash
-run_powergenome_multiple \
+run_powergenome \
     -sf settings \
     -rf output \
     --case_id baseline high_renewable low_cost
@@ -124,7 +124,7 @@ run_powergenome_multiple \
 ### Greenfield with Sorted Output
 
 ```bash
-run_powergenome_multiple \
+run_powergenome \
     -sf settings \
     -rf output \
     --no-current-gens \
@@ -134,7 +134,7 @@ run_powergenome_multiple \
 ### Debug New Resources Only
 
 ```bash
-run_powergenome_multiple \
+run_powergenome \
     -sf settings \
     -rf output \
     --no-current-gens \
