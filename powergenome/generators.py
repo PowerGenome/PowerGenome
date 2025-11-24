@@ -4084,7 +4084,7 @@ class GeneratorClusters:
                 calculate_transmission_inv_cost,
                 interconnect_capex_spec=self.settings.get("interconnect_capex_mw"),
                 # None or self.offshore_spur_costs,
-            ).pipe(add_transmission_inv_cost, self.settings)
+            ).pipe(add_transmission_inv_cost)
 
         if self.settings.get("demand_response_fn") or self.settings.get(
             "electrification_stock_fn"
