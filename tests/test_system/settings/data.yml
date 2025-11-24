@@ -10,7 +10,7 @@ transmission_constraints_table: reeds_ba_tx_NARIS_avg_test_data.csv
 fuel_price_table:
   table_name: fuel_prices_test_data_simplified.csv
   filters:
-    - - [fuel, 'in', ['coal', 'natural_gas']]
+    - - [fuel, 'in', ['coal', 'naturalgas']]
 dollar_year_table: cpi_test_data.csv
 transmission_cost_table: network_costs_test_data.csv
 demand_table: load_curves_test_data.csv
