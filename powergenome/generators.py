@@ -2524,7 +2524,7 @@ def _parse_interconnect_capex(
                 raise TypeError(
                     f"Value in 'interconnect_capex_mw' for technology substring '{sub}' must be numeric. Got {val}."
                 )
-            match_mask = mask & tech_lower.str.contains(str(sub).lower())
+            match_mask = mask & tech_lower.str.contains(str(sub).lower(), regex=False)
             series.loc[match_mask] = val
 
     all_numbers = all(isinstance(v, Number) for _, v in non_default_items)
@@ -2582,7 +2582,7 @@ def _parse_interconnect_capex(
                 raise TypeError(
                     f"In 'interconnect_capex_mw', top-level technology substring '{tech_sub}' must map to a dict of regions. Got {region_map}."
                 )
-            tech_mask = tech_lower.str.contains(str(tech_sub).lower())
+            tech_mask = tech_lower.str.contains(str(tech_sub).lower(), regex=False)
             for region_name, val in region_map.items():
                 if region_name not in regions:
                     raise KeyError(
