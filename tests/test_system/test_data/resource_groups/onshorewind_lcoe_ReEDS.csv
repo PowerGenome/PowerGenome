@@ -1,4 +1,4 @@
-CPA_ID,anyQual,tech,metro_id,metro_region,cpa_mw,cf,interconnect_annuity,lcoe,interconnect_capex_mw
+CPA_ID,anyQual,tech,metro_id,metro_region,capacity_mw,cf,interconnect_annuity,lcoe,interconnect_capex_mw
 1,1,onshorewind,13380,p1_2,0,0.30851805,1250.1001,44.978657,26266.191
 2,1,onshorewind,13380,p1_2,14.175,0.20184205,7550.1255,72.313515,158637.75
 3,1,onshorewind,13380,p1_2,0,0.2516552,1763.3558,55.37465,37050.348
