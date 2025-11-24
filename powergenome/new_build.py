@@ -1085,9 +1085,9 @@ def load_resource_group_data(
     data.columns = snake_case_col(data.columns)
     if "metro_region" in data.columns and "region" not in data.columns:
         data["region"] = data.loc[:, "metro_region"]
-    if "cpa_mw" in data.columns and "mw" not in data.columns:
-        data["mw"] = data.loc[:, "cpa_mw"]
-    data = data.loc[data["mw"] > 0, :]
+    if "cpa_mw" in data.columns and "capacity_mw" not in data.columns:
+        data["capacity_mw"] = data.loc[:, "cpa_mw"]
+    data = data.loc[data["capacity_mw"] > 0, :]
     if rg.group.get("profiles"):
         profile_path = Path(rg.group["profiles"])
     else:

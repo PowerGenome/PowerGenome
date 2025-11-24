@@ -16,7 +16,7 @@ from powergenome.util import find_region_col, load_data
 
 logger = logging.getLogger(__name__)
 
-CAPACITY = "mw"
+CAPACITY = "capacity_mw"
 MERGE = {
     "sums": [CAPACITY, "area"],
     "means": [
@@ -392,13 +392,13 @@ class ResourceGroup:
         - `id`: int
           Resource identifier, unique within the group.
         - `region` : str
-          IPM region to which the resource delivers power.
-        - `mw` : float
+          Model region to which the resource delivers power.
+        - `capacity_mw` : float
           Maximum resource capacity in MW.
         - `lcoe` : float, optional
           Levelized cost of energy, used to guide the selection
           (from lowest to highest) and clustering (by nearest) of resources.
-          If missing, selection and clustering is by largest and nearest `mw`.
+          If missing, selection and clustering is by largest and nearest `capacity_mw`.
 
         Resources representing hierarchical trees (see `group.tree`)
         require additional attributes.
@@ -417,7 +417,7 @@ class ResourceGroup:
 
         The following resource attributes (all float) are propagaged as:
 
-        - weighted means (weighted by `mw`):
+        - weighted means (weighted by `capacity_mw`):
 
             - `lcoe`
             - `interconnect_annuity`
@@ -430,7 +430,7 @@ class ResourceGroup:
 
         - sums:
 
-            - `mw`
+            - `capacity_mw`
             - `area`
 
         - uniques:
@@ -457,7 +457,7 @@ class ResourceGroup:
     Examples
     --------
     >>> group = {'technology': 'utilitypv'}
-    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['A', 'A'], 'mw': [1, 2]})
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['A', 'A'], 'capacity_mw': [1, 2]})
     >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> rg = ResourceGroup(group, metadata, profiles)
     >>> rg.test_metadata()
@@ -856,11 +856,11 @@ class ClusterBuilder:
 
     >>> groups = []
     >>> group = {'technology': 'utilitypv'}
-    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['A', 'A'], 'mw': [1, 2]})
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['A', 'A'], 'capacity_mw': [1, 2]})
     >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> groups.append(ResourceGroup(group, metadata, profiles))
     >>> group = {'technology': 'utilitypv', 'existing': True}
-    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['B', 'B'], 'mw': [1, 2]})
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['B', 'B'], 'capacity_mw': [1, 2]})
     >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> groups.append(ResourceGroup(group, metadata, profiles))
     >>> builder = ClusterBuilder(groups)
@@ -1046,15 +1046,15 @@ def merge_row_pair(
 
     Examples
     --------
-    >>> df = pd.DataFrame({'mw': [1, 2], 'area': [10, 20], 'lcoe': [0.1, 0.4]})
+    >>> df = pd.DataFrame({'capacity_mw': [1, 2], 'area': [10, 20], 'lcoe': [0.1, 0.4]})
     >>> a, b = df.to_dict('records')
-    >>> merge_row_pair(a, b, sums=['area', 'mw'], means=['lcoe'], weight='mw')
-    {'area': 30, 'mw': 3, 'lcoe': 0.3}
-    >>> merge_row_pair(a, b, sums=['area', 'mw'], means=['lcoe'])
-    {'area': 30, 'mw': 3, 'lcoe': 0.25}
-    >>> b['mw'] = 1
-    >>> merge_row_pair(a, b, uniques=['mw', 'area'])
-    {'mw': 1, 'area': None}
+    >>> merge_row_pair(a, b, sums=['area', 'capacity_mw'], means=['lcoe'], weight='capacity_mw')
+    {'area': 30, 'capacity_mw': 3, 'lcoe': 0.3}
+    >>> merge_row_pair(a, b, sums=['area', 'capacity_mw'], means=['lcoe'])
+    {'area': 30, 'capacity_mw': 3, 'lcoe': 0.25}
+    >>> b['capacity_mw'] = 1
+    >>> merge_row_pair(a, b, uniques=['capacity_mw', 'area'])
+    {'capacity_mw': 1, 'area': None}
     """
     merge = {}
     if sums:
@@ -1115,8 +1115,8 @@ def cluster_rows(
     --------
     With the default (range) row index:
 
-    >>> df = pd.DataFrame({'mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
-    >>> kwargs = {'sums': ['mw', 'area'], 'means': ['lcoe'], 'weight': 'mw'}
+    >>> df = pd.DataFrame({'capacity_mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
+    >>> kwargs = {'sums': ['capacity_mw', 'area'], 'means': ['lcoe'], 'weight': 'capacity_mw'}
     >>> cluster_rows(df, by=df[['lcoe']], **kwargs)
           mw  area  lcoe
     (0,)   1     4   0.1
@@ -1219,8 +1219,8 @@ def build_tree(
 
     Examples
     --------
-    >>> df = pd.DataFrame({'mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
-    >>> kwargs = {'sums': ['area', 'mw'], 'means': ['lcoe'], 'weight': 'mw'}
+    >>> df = pd.DataFrame({'capacity_mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
+    >>> kwargs = {'sums': ['area', 'capacity_mw'], 'means': ['lcoe'], 'weight': 'capacity_mw'}
     >>> build_tree(df, by=df[['lcoe']], **kwargs)
                mw  area   lcoe  id  parent_id  level
     (0,)        1     4  0.100   0          3      3
@@ -1336,17 +1336,17 @@ def cluster_trees(
     >>> df = pd.DataFrame({
     ...     'level': [3, 3, 3, 2, 1],
     ...     'parent_id': pd.Series([3, 3, 4, 4, float('nan')], dtype='Int64'),
-    ...     'mw': [0.1, 0.1, 0.1, 0.2, 0.3],
+    ...     'capacity_mw': [0.1, 0.1, 0.1, 0.2, 0.3],
     ...     'area': [1, 1, 1, 2, 3]
     ... }, index=[0, 1, 2, 3, 4])
-    >>> cluster_trees(df, by='mw', sums=['mw', 'area'], max_rows=2)
+    >>> cluster_trees(df, by='capacity_mw', sums=['capacity_mw', 'area'], max_rows=2)
              mw  area
     (2,)    0.1     1
     (0, 1)  0.2     2
-    >>> cluster_trees(df, by='mw', sums=['mw'], max_rows=1)
+    >>> cluster_trees(df, by='capacity_mw', sums=['capacity_mw'], max_rows=1)
                 mw
     (2, 0, 1)  0.3
-    >>> cluster_trees(df, by='mw', sums=['mw'])
+    >>> cluster_trees(df, by='capacity_mw', sums=['capacity_mw'])
            mw
     (0,)  0.1
     (1,)  0.1
@@ -1542,10 +1542,10 @@ def prepare_merge(merge: dict, df: pd.DataFrame) -> dict:
 
     Examples
     --------
-    >>> df = pd.DataFrame(columns=['mw', 'lcoe'])
-    >>> merge = {'sums': ['mw', 'area'], 'means': ['lcoe'], 'weight': 'mw'}
+    >>> df = pd.DataFrame(columns=['capacity_mw', 'lcoe'])
+    >>> merge = {'sums': ['capacity_mw', 'area'], 'means': ['lcoe'], 'weight': 'capacity_mw'}
     >>> prepare_merge(merge, df)
-    {'sums': ['mw'], 'means': ['lcoe'], 'weight': 'mw'}
+    {'sums': ['capacity_mw'], 'means': ['lcoe'], 'weight': 'capacity_mw'}
     """
     reduced = {}
     for key in "sums", "means", "uniques":
@@ -1581,12 +1581,12 @@ def get_merge_columns(merge: dict, df: pd.DataFrame = None) -> list:
 
     Examples
     --------
-    >>> merge = {'sums': ['mw'], 'means': ['lcoe'], 'uniques': None, 'weight': 'lcoe'}
+    >>> merge = {'sums': ['capacity_mw'], 'means': ['lcoe'], 'uniques': None, 'weight': 'lcoe'}
     >>> get_merge_columns(merge)
-    ['mw', 'lcoe']
-    >>> get_merge_columns(merge, pd.DataFrame(columns=['lcoe', 'mw']))
-    ['lcoe', 'mw']
-    >>> get_merge_columns({'sums': ['mw'], 'means': ['mw']})
+    ['capacity_mw', 'lcoe']
+    >>> get_merge_columns(merge, pd.DataFrame(columns=['lcoe', 'capacity_mw']))
+    ['lcoe', 'capacity_mw']
+    >>> get_merge_columns({'sums': ['capacity_mw'], 'means': ['capacity_mw']})
     Traceback (most recent call last):
       ...
     ValueError: Column names duplicated in merge
