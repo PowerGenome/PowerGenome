@@ -1,17 +1,65 @@
-# Transmission financial information to calculate annual investment costs
-# capex_mw_mile: Capital cost per MW-mile for all (numeric) or each model region (dict).
-# WACC and investment years from https://www.sciencedirect.com/science/article/abs/pii/S0301421519305816
-transmission_investment_cost:
-  # If true, uses interconnect_annuity when available
-  use_total: true
-  spur: # Average of cost per MW mile from each "r" to "rr" in ReEEDS 500kVac_ba file
-    capex_mw_mile:
-      p1_2: 1826
-      p3: 1791
-      p4: 1781
-    wacc: 0.044
-    investment_years: 60
-
 # Percent expansion in planning period above and beyond existing transmission
 tx_expansion_per_period: 1.0
 tx_expansion_mw_per_period: 400
+
+# Interconnection cost per MW to connect new generators to the transmission system
+# Resource Groups (as defined in RESOURCE_GROUPS) define site-specific interconnection costs.
+# This is for generic costs that apply to other new generators not in resource groups.
+# Method 1: flat rate for all generators
+interconnect_capex_mw: 100000
+
+# Method 2: use a key "default". This can be useful if mixing with other methods.
+# interconnect_capex_mw:
+#   default: 100000
+
+# Method 3: different rates by region
+# interconnect_capex_mw:
+#   p1_2: 100000
+#   p3: 100000
+#   p4: 100000
+
+# Method 4: different rates by technology (substring match to new_resources)
+# interconnect_capex_mw:
+#   NaturalGas: 100000
+#   Nuclear: 150000
+
+# Method 5: different rates by region and technology, where region is the top-level key
+# interconnect_capex_mw:
+#   p1_2:
+#     NaturalGas: 100000
+#     Nuclear: 150000
+#   p3:
+#     NaturalGas: 120000
+#     Nuclear: 170000
+#   p4:
+#     NaturalGas: 110000
+#     Nuclear: 160000
+
+# Method 6: different rates by technology and region, where technology is the top-level key
+# interconnect_capex_mw:
+#   NaturalGas:
+#     p1_2: 100000
+#     p3: 120000
+#     p4: 110000
+#   Nuclear:
+#     p1_2: 150000
+#     p3: 170000
+#     p4: 160000
+
+# Combine default with specific overrides
+# interconnect_capex_mw:
+#   default: 100000
+#   p1_2: 120000
+#   p3:
+#     Nuclear: 170000
+#   p4:
+#     NaturalGas: 110000
+
+# DOES NOT WORK: Combine region and technology at the same level. Will raise an error.
+# interconnect_capex_mw:
+#   default: 100000
+#   NaturalGas: 120000
+#   p1_2:
+#     NaturalGas: 120000
+#   p3:
+#     Nuclear: 170000

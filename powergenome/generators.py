@@ -6,7 +6,7 @@ import re
 from functools import reduce
 from numbers import Number
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from powergenome.settings import auto_fill_settings
 
@@ -2441,139 +2441,428 @@ def add_fuel_labels(df, fuel_prices, settings):
     return df
 
 
-def calculate_transmission_inv_cost(resource_df, settings, offshore_spur_costs=None):
-    """Calculate the transmission investment cost for each new resource.
+def _parse_interconnect_capex(
+    interconnect_capex_spec: Optional[Union[Number, Dict[str, Any]]],
+    resource_df: pd.DataFrame,
+) -> pd.Series:
+    """Generate a per-resource interconnection capex Series from a flexible
+    ``interconnect_capex_mw`` specification.
+
+    Supported mutually exclusive top-level patterns (``default`` may accompany any):
+
+    1. Scalar number
+       <number>
+       Applies uniformly to all rows.
+    2. Region-only
+       {default: <number>, <region>: <number>, ...}
+       All non-default keys must be region names appearing in ``resource_df['region']``.
+    3. Technology-only
+       {default: <number>, <tech_sub>: <number>, ...}
+       All non-default keys are case-insensitive substrings matched against
+       ``resource_df['technology']``. Shortest substrings applied first; longer (more
+       specific) overwrite previous assignments.
+    4. Region -> Technology nested
+       {default: <number>, <region>: {<tech_sub>: <number>, ...}, ...}
+       Region keys map either directly to a number (uniform in that region) or to a
+       dict of technology substrings. Substring precedence (shortest-first) applies
+       within each region. All top-level non-default keys must be region names.
+    5. Technology -> Region nested
+       {default: <number>, <tech_sub>: {<region>: <number>, ...}, ...}
+       Technology substring keys map to dicts keyed by regions assigning values only to
+       rows matching BOTH substring and region. Technology substrings applied
+       shortest-first; region dict order is irrelevant.
+
+    Mixing region names and technology substrings at the same top level (excluding
+    ``default``) is invalid and raises ``ValueError``.
 
     Parameters
     ----------
-    resource_df : DataFrame
-        Each row represents a single resource within a region. Should have columns
-        `region` and `<type>_miles`, where transmission <type> is one of
-        'spur', 'offshore_spure', or 'tx'.
-    settings : dict
-        A dictionary of user-supplied settings. Must have key
-        `transmission_investment_cost` with the format:
-            - <type>
-                - `capex_mw_mile` (float)
-                - `wacc` (float)
-                - `investment_years` (int)
-            - ...
-    offshore_spur_costs : DataFrame
-        Offshore spur costs per mile in the format
-        `technology` ('OffShoreWind'), `tech_detail`, `cost_case`, and `capex_mw_mile`.
-        Only used if `settings.transmission_investment_cost.capex_mw_mile` is missing.
+    interconnect_capex_spec : Optional[Union[Number, Dict[str, Any]]]
+        Specification object or scalar. ``None`` returns zeros.
+    resource_df : pd.DataFrame
+        Must contain columns ``region`` and ``technology``.
 
     Returns
     -------
-    DataFrame
-        Modified copy of the input dataframe with new columns '<type>_capex' and
-        '<type>_inv_mwyr' for each column `<type>_miles`.
+    pd.Series
+        Interconnection capex (USD/MW) aligned to ``resource_df.index``.
+    """
+    raw = interconnect_capex_spec
+    if raw is None:
+        return pd.Series([0.0] * len(resource_df), index=resource_df.index, dtype=float)
+
+    regions = set(resource_df["region"].unique())
+    tech_series = resource_df["technology"].astype(str)
+    tech_lower = tech_series.str.lower()
+
+    # Scalar pattern
+    if isinstance(raw, Number):
+        return pd.Series(raw, index=resource_df.index, dtype=float)
+
+    if not isinstance(raw, dict):
+        raise TypeError(
+            "'interconnect_capex_mw' must be numeric or a dict specification. Got "
+            f"{type(raw)}"
+        )
+
+    non_default_items = [(k, v) for k, v in raw.items() if k != "default"]
+    # Empty dict (only default provided)
+    if not non_default_items:
+        default_val = raw.get("default", 0.0)
+        if not isinstance(default_val, Number):
+            raise TypeError(
+                "'default' value in 'interconnect_capex_mw' must be numeric."
+            )
+        return pd.Series(default_val, index=resource_df.index, dtype=float)
+
+    def apply_substring_values(
+        mapping: Dict[str, Number], mask: pd.Series, series: pd.Series
+    ):
+        ordered = sorted(mapping.items(), key=lambda kv: len(str(kv[0])))
+        for sub, val in ordered:
+            if not isinstance(val, Number):
+                raise TypeError(
+                    f"Value in 'interconnect_capex_mw' for technology substring '{sub}' must be numeric. Got {val}."
+                )
+            match_mask = mask & tech_lower.str.contains(str(sub).lower())
+            series.loc[match_mask] = val
+
+    all_numbers = all(isinstance(v, Number) for _, v in non_default_items)
+
+    capex = pd.Series(np.nan, index=resource_df.index, dtype=float)
+    default_val = raw.get("default")
+    if default_val is not None:
+        if not isinstance(default_val, Number):
+            raise TypeError(
+                "'default' value in 'interconnect_capex_mw' must be numeric."
+            )
+        capex.loc[:] = default_val
+
+    if all_numbers:
+        keys_region = [k for k, _ in non_default_items if k in regions]
+        if keys_region and len(keys_region) != len(non_default_items):
+            # mixture of region and technology substrings with numeric values
+            raise ValueError(
+                "'interconnect_capex_mw' mixes region and technology keys at the same level."
+            )
+        if keys_region:
+            # Region-only
+            for region_key, val in non_default_items:
+                capex.loc[resource_df["region"] == region_key] = val
+            return capex.fillna(0.0)
+        # Technology-only
+        tech_map = {k: v for k, v in non_default_items}
+        apply_substring_values(tech_map, pd.Series(True, index=capex.index), capex)
+        return capex.fillna(0.0)
+
+    # Nested patterns (values are dict OR numeric in region->tech case)
+    keys_region = [k for k, _ in non_default_items if k in regions]
+
+    # Region -> tech (allow mixture of numeric and dict values) if all top-level keys are region names
+    if keys_region and len(keys_region) == len(non_default_items):
+        for region_key, val in non_default_items:
+            region_mask = resource_df["region"] == region_key
+            if isinstance(val, Number):
+                capex.loc[region_mask] = val
+            elif isinstance(val, dict):
+                # inner tech substrings
+                inner_map = val
+                apply_substring_values(inner_map, region_mask, capex)
+            else:
+                raise TypeError(
+                    f"In 'interconnect_capex_mw', region '{region_key}' value must be numeric or dict of technology substrings. Got {val}."
+                )
+        return capex.fillna(0.0)
+
+    # Technology -> region (all top-level non-default keys NOT regions, each value must be dict of regions)
+    if not keys_region:
+        ordered_top = sorted(non_default_items, key=lambda kv: len(str(kv[0])))
+        for tech_sub, region_map in ordered_top:
+            if not isinstance(region_map, dict):
+                raise TypeError(
+                    f"In 'interconnect_capex_mw', top-level technology substring '{tech_sub}' must map to a dict of regions. Got {region_map}."
+                )
+            tech_mask = tech_lower.str.contains(str(tech_sub).lower())
+            for region_name, val in region_map.items():
+                if region_name not in regions:
+                    raise KeyError(
+                        f"In 'interconnect_capex_mw', region '{region_name}' referenced under technology '{tech_sub}' not present in resource data."
+                    )
+                if not isinstance(val, Number):
+                    raise TypeError(
+                        f"Value in 'interconnect_capex_mw' for region '{region_name}' under technology '{tech_sub}' must be numeric. Got {val}."
+                    )
+                capex.loc[tech_mask & (resource_df["region"] == region_name)] = val
+        return capex.fillna(0.0)
+
+    # If we reached here pattern is invalid (mix of region & tech dicts)
+    raise ValueError(
+        "'interconnect_capex_mw' specification invalid: mixed region and technology keys at top level."
+    )
+
+
+def calculate_transmission_inv_cost(
+    resource_df: pd.DataFrame,
+    interconnect_capex_spec: Optional[Union[Number, Dict[str, Any]]] = None,
+    wacc_real: Optional[float] = None,
+    cap_recovery_years: Optional[int] = None,
+    interest_compound_method: str = "discrete",
+    legacy_transmission_cost: Optional[Dict[str, Dict[str, Any]]] = None,
+    offshore_spur_costs: Optional[Dict[str, float]] = None,
+) -> pd.DataFrame:
+    """Assign interconnection capital and annuity costs to resources.
+
+    Preferred path: If ``settings['interconnect_capex_mw']`` is defined, parse it via
+    :func:`_parse_interconnect_capex` and apply per-MW interconnection capex to rows
+    that currently have neither ``interconnect_capex_mw`` nor ``interconnect_annuity``.
+    An annuity (``interconnect_annuity``) is then computed for newly assigned rows
+    using plant financial parameters (``wacc_real`` / ``cap_recovery_years``) and the
+    project's compounding method.
+
+    Legacy path (deprecated): If ``interconnect_capex_mw`` is absent, the function
+    falls back to historical spur/offshore/tx mileage-based logic using the settings
+    key ``transmission_investment_cost`` and any ``<type>_miles`` columns present.
+    A warning is emitted encouraging migration.
+
+    Parameters
+    ----------
+    resource_df : pd.DataFrame
+        Resource data. Expected columns:
+        - ``region``
+        - ``technology``
+        - Optionally ``interconnect_capex_mw`` and ``interconnect_annuity``
+        - Legacy path: one or more ``<type>_miles`` columns where ``type`` in
+          ``TRANSMISSION_TYPES``.
+    interconnect_capex_spec : Optional[Union[Number, Dict[str, Any]]]
+        Specification passed to :func:`_parse_interconnect_capex`. If provided uses
+        new path.
+    wacc_real : Optional[float]
+        Real WACC used for annuity calculation (new path). If ``None`` attempts to use
+        column ``wacc_real`` in ``resource_df``.
+    cap_recovery_years : Optional[int]
+        Capital recovery years (new path). If ``None`` attempts column lookup.
+    interest_compound_method : str, default "discrete"
+        Compounding method passed to ``investment_cost_calculator``.
+    legacy_transmission_cost : Optional[Dict[str, Dict[str, Any]]]
+        Legacy spur / tx cost specification. Used only if ``interconnect_capex_spec``
+        is ``None``.
+    offshore_spur_costs : Optional[Dict[str, float]], default None
+        Retained for backward compatibility; ignored in new path.
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified ``resource_df`` with updated ``interconnect_capex_mw`` and
+        ``interconnect_annuity`` (new path) or legacy ``<type>_inv_mwyr`` columns.
 
     Raises
     ------
-    KeyError
-        Settings missing transmission types present in resources.
-    KeyError
-        Settings missing required keys.
-    KeyError
-        Setting capex_mw_mile missing regions present in resources.
     TypeError
-        Setting capex_mw_mile is neither a dictionary nor a numeric value.
+        If configuration values have unexpected types.
+    ValueError
+        When invalid mixed region/technology keys are used in new configuration.
+    KeyError
+        For missing regions referenced in nested mappings.
+
+    Notes
+    -----
+    - New setting usage intentionally ignores any legacy mileage columns present.
+    - Assignment mask prevents overwriting existing non-zero interconnection values.
+    - Deprecation warning is logged when legacy logic executes.
     """
-    SETTING = "transmission_investment_cost"
-    KEYS = ["wacc", "investment_years", "capex_mw_mile"]
-    ttypes = settings.get(SETTING, {})
-    # Check coverage of transmission types in resources
-    resource_ttypes = [x for x in TRANSMISSION_TYPES if f"{x}_miles" in resource_df]
-    missing_ttypes = list(set(resource_ttypes) - set(ttypes))
-    if missing_ttypes:
-        raise KeyError(f"{SETTING} missing transmission line types {missing_ttypes}")
-    # Apply calculation for each transmission type
-    regions = resource_df["region"].unique()
-    use_offshore_spur_costs = False
-    for ttype, params in ttypes.items():
-        if ttype not in resource_ttypes:
-            continue
-        if (
-            ttype == "offshore_spur"
-            and offshore_spur_costs is not None
-            and not params.get("capex_mw_mile")
-        ):
-            use_offshore_spur_costs = True
-            # Build technology: capex_mw_mile map
-            params = params.copy()
-            params["capex_mw_mile"] = (
-                offshore_spur_costs.assign(
-                    technology=offshore_spur_costs[
-                        ["technology", "tech_detail", "cost_case"]
-                    ]
-                    .astype(str)
-                    .agg("_".join, axis=1)
-                )
-                .set_index("technology")["capex_mw_mile"]
-                .to_dict()
+    # If new specification present, apply it and skip legacy spur logic entirely.
+    if interconnect_capex_spec is not None:
+        if any(f"{t}_miles" in resource_df.columns for t in TRANSMISSION_TYPES):
+            logger.warning(
+                "Deprecated spur mileage columns detected but ignored because 'interconnect_capex_mw' is provided."
             )
-        # Check presence of required keys
-        missing_keys = list(set(KEYS) - set(params))
-        if missing_keys:
-            raise KeyError(f"{SETTING}.{ttype} missing required keys {missing_keys}")
-        if isinstance(params["capex_mw_mile"], dict):
-            if use_offshore_spur_costs:
-                capex_mw_mile = resource_df["technology"].map(params["capex_mw_mile"])
-            else:
-                # Check coverage of regions in resources
-                missing_regions = list(set(regions) - set(params["capex_mw_mile"]))
-                if missing_regions:
-                    raise KeyError(
-                        f"{SETTING}.{ttype}.capex_mw_mile missing regions {missing_regions}"
-                    )
-                capex_mw_mile = (
-                    resource_df["region"].map(params["capex_mw_mile"]).fillna(0)
-                )
-        elif isinstance(params["capex_mw_mile"], Number):
-            capex_mw_mile = params["capex_mw_mile"]
+        # Ensure columns exist
+        if "interconnect_capex_mw" not in resource_df.columns:
+            resource_df["interconnect_capex_mw"] = 0.0
+        if "interconnect_annuity" not in resource_df.columns:
+            resource_df["interconnect_annuity"] = 0.0
         else:
-            raise TypeError(
-                f"{SETTING}.{ttype}.capex_mw_mile should be numeric or a dictionary"
-                f" of <region>: <capex>, not {params['capex_mw_mile']}"
-            )
-        resource_df[f"{ttype}_capex"] = capex_mw_mile * resource_df[f"{ttype}_miles"]
-        resource_df[f"{ttype}_inv_mwyr"] = investment_cost_calculator(
-            resource_df[f"{ttype}_capex"],
-            params["wacc"],
-            params["investment_years"],
-            settings.get("interest_compound_method", "discrete"),
+            # Cast to float to avoid dtype mismatch warnings when assigning float values
+            resource_df["interconnect_annuity"] = resource_df[
+                "interconnect_annuity"
+            ].astype(float)
+
+        new_capex_series = _parse_interconnect_capex(
+            interconnect_capex_spec, resource_df
         )
-    return resource_df
+        # Determine rows eligible for assignment (no existing capex OR annuity)
+        existing_capex = resource_df["interconnect_capex_mw"].fillna(0)
+        existing_annuity = resource_df["interconnect_annuity"].fillna(0)
+        assign_mask = (
+            (existing_capex == 0) & (existing_annuity == 0) & (new_capex_series > 0)
+        )
+        resource_df.loc[assign_mask, "interconnect_capex_mw"] = new_capex_series.loc[
+            assign_mask
+        ]
+        # Compute annuity for assigned rows
+        if assign_mask.any():
+            resource_df.loc[assign_mask, "interconnect_annuity"] = (
+                investment_cost_calculator(
+                    capex=resource_df.loc[assign_mask, "interconnect_capex_mw"],
+                    wacc=resource_df.loc[assign_mask, "wacc_real"],
+                    cap_rec_years=resource_df.loc[assign_mask, "cap_recovery_years"],
+                    compound_method=interest_compound_method,
+                )
+            )
+        # Also compute annuity for any pre-existing capex rows that have zero annuity
+        existing_missing_annuity = (
+            (resource_df["interconnect_capex_mw"] > 0)
+            & (resource_df["interconnect_annuity"].fillna(0) == 0)
+        ) & ~assign_mask
+        if existing_missing_annuity.any():
+            resource_df.loc[existing_missing_annuity, "interconnect_annuity"] = (
+                investment_cost_calculator(
+                    capex=resource_df.loc[
+                        existing_missing_annuity, "interconnect_capex_mw"
+                    ],
+                    wacc=resource_df.loc[existing_missing_annuity, "wacc_real"],
+                    cap_rec_years=resource_df.loc[
+                        existing_missing_annuity, "cap_recovery_years"
+                    ],
+                    compound_method=interest_compound_method,
+                )
+            )
+        return resource_df
+
+    # Legacy path retained for backward compatibility
+    SETTING = "transmission_investment_cost"
+    ttypes = legacy_transmission_cost or {}
+    resource_ttypes = [x for x in TRANSMISSION_TYPES if f"{x}_miles" in resource_df]
+    if ttypes and resource_ttypes:
+        logger.warning(
+            "Using deprecated 'transmission_investment_cost' spur logic. Provide 'interconnect_capex_mw' to migrate."
+        )
+        KEYS = ["wacc", "investment_years", "capex_mw_mile"]
+        missing_ttypes = list(set(resource_ttypes) - set(ttypes))
+        if missing_ttypes:
+            raise KeyError(
+                f"{SETTING} missing transmission line types {missing_ttypes}"
+            )
+        regions = resource_df["region"].unique()
+        use_offshore_spur_costs = False
+        for ttype, params in ttypes.items():
+            if ttype not in resource_ttypes:
+                continue
+            if (
+                ttype == "offshore_spur"
+                and offshore_spur_costs is not None
+                and not params.get("capex_mw_mile")
+            ):
+                use_offshore_spur_costs = True
+                params = params.copy()
+                params["capex_mw_mile"] = (
+                    offshore_spur_costs.assign(
+                        technology=offshore_spur_costs[
+                            ["technology", "tech_detail", "cost_case"]
+                        ]
+                        .astype(str)
+                        .agg("_".join, axis=1)
+                    )
+                    .set_index("technology")["capex_mw_mile"]
+                    .to_dict()
+                )
+            missing_keys = list(set(KEYS) - set(params))
+            if missing_keys:
+                raise KeyError(
+                    f"{SETTING}.{ttype} missing required keys {missing_keys}"
+                )
+            if isinstance(params["capex_mw_mile"], dict):
+                if use_offshore_spur_costs:
+                    capex_mw_mile = resource_df["technology"].map(
+                        params["capex_mw_mile"]
+                    )
+                else:
+                    missing_regions = list(set(regions) - set(params["capex_mw_mile"]))
+                    if missing_regions:
+                        raise KeyError(
+                            f"{SETTING}.{ttype}.capex_mw_mile missing regions {missing_regions}"
+                        )
+                    capex_mw_mile = (
+                        resource_df["region"].map(params["capex_mw_mile"]).fillna(0)
+                    )
+            elif isinstance(params["capex_mw_mile"], Number):
+                capex_mw_mile = params["capex_mw_mile"]
+            else:
+                raise TypeError(
+                    f"{SETTING}.{ttype}.capex_mw_mile should be numeric or a dictionary of <region>: <capex>, not {params['capex_mw_mile']}"
+                )
+            resource_df[f"{ttype}_capex"] = (
+                capex_mw_mile * resource_df[f"{ttype}_miles"]
+            )
+            resource_df[f"{ttype}_inv_mwyr"] = investment_cost_calculator(
+                resource_df[f"{ttype}_capex"],
+                params["wacc"],
+                params["investment_years"],
+                interest_compound_method,
+            )
+        return resource_df
+    else:
+        # Nothing to do
+        return resource_df
 
 
 def add_transmission_inv_cost(
-    resource_df: pd.DataFrame, settings: dict
+    resource_df: pd.DataFrame,
+    use_total: bool = True,
+    interest_compound_method: str = "discrete",
 ) -> pd.DataFrame:
-    """Add transmission investment costs to plant investment costs. If a capex
-    (interconnect_capex_mw) is present but not an annuity (interconnect_annuity),
-    the annuity will be calculated using the WACC and financial lifetime of the plant.
+    """Combine plant and transmission (interconnection) investment costs.
+
+    If a per-MW interconnection capital cost ``interconnect_capex_mw`` is present but
+    its annuity ``interconnect_annuity`` is missing (or is zero), the function
+    calculates ``interconnect_annuity`` using financial parameters in ``resource_df``
+    (``wacc_real`` and ``cap_recovery_years``) together with the compounding method.
+
+    Depending on ``settings['transmission_investment_cost']['use_total']`` (default
+    True), the combined cost may prefer the single ``interconnect_annuity`` value over
+    summing individual legacy ``<type>_inv_mwyr`` columns.
 
     Parameters
     ----------
-    resource_df
-        Each row represents a single resource within a region. Should have columns
-        `Inv_Cost_per_MWyr` and transmission costs.
-            - one or more `<type>_inv_mwyr`,
-                where <type> is 'spur', 'offshore_spur', or 'tx'.
-            - `interconnect_annuity`
-    settings
-        User settings. If `transmission_investment_cost.use_total` is present and true,
-        `interconnect_annuity` is used over `<type>_inv_mwys` if present, not null,
-        and not zero.
+    resource_df : pd.DataFrame
+        Resource data containing at minimum ``Inv_Cost_per_MWyr`` and possibly:
+        - ``interconnect_capex_mw``
+        - ``interconnect_annuity``
+        - Financial columns: ``wacc_real``, ``cap_recovery_years``
+        - Legacy columns: ``<type>_inv_mwyr`` for each transmission type.
+    use_total : bool, default True
+        If True, prefer a single ``interconnect_annuity`` over summing legacy
+        ``<type>_inv_mwyr`` columns (when annuity is present and non-zero).
+    interest_compound_method : str, default "discrete"
+        Compounding method used if annuity needs to be calculated.
 
     Returns
     -------
-    DataFrame
-        A modified copy of the input dataframe where 'Inv_Cost_per_MWyr' represents the
-        combined plant and transmission investment costs. The new column
-        `plant_inv_cost_mwyr` represents just the plant investment costs.
+    pd.DataFrame
+        Modified dataframe with updated ``Inv_Cost_per_MWyr`` (plant + transmission)
+        and new column ``plant_inv_cost_mwyr`` preserving original plant-only value.
+
+    Raises
+    ------
+    TypeError
+        If financial parameters required for annuity calculation are missing or of the
+        wrong type.
+    ValueError
+        If annuity calculation cannot proceed due to absent recovery years or WACC.
+
+    Notes
+    -----
+    - Annuity is only recalculated for rows where it is zero/NaN and capex is provided.
+    - The original plant investment cost is retained in ``plant_inv_cost_mwyr``.
+    - Legacy ``<type>_inv_mwyr`` columns are summed unless ``use_total`` forces
+      preference for ``interconnect_annuity``.
     """
+    # Normalize annuity dtype to float if present
+    if "interconnect_annuity" in resource_df:
+        resource_df["interconnect_annuity"] = resource_df[
+            "interconnect_annuity"
+        ].astype(float)
+
     if (
         "interconnect_annuity" not in resource_df
         and "interconnect_capex_mw" in resource_df
@@ -2595,9 +2884,7 @@ def add_transmission_inv_cost(
                     cap_rec_years=resource_df.loc[
                         interconnect_idx, "cap_recovery_years"
                     ],
-                    compound_method=settings.get(
-                        "interest_compound_method", "discrete"
-                    ),
+                    compound_method=interest_compound_method,
                 )
             )
 
@@ -2621,16 +2908,11 @@ def add_transmission_inv_cost(
                     cap_rec_years=resource_df.loc[
                         zero_annuity_idx, "cap_recovery_years"
                     ],
-                    compound_method=settings.get(
-                        "interest_compound_method", "discrete"
-                    ),
+                    compound_method=interest_compound_method,
                 )
             )
 
-    use_total = (
-        settings.get("transmission_investment_cost", {}).get("use_total", True)
-        and "interconnect_annuity" in resource_df
-    )
+    use_total = use_total and "interconnect_annuity" in resource_df
     resource_df["plant_inv_cost_mwyr"] = resource_df["Inv_Cost_per_MWyr"]
     columns = [
         c for c in [f"{t}_inv_mwyr" for t in TRANSMISSION_TYPES] if c in resource_df
@@ -3800,7 +4082,7 @@ class GeneratorClusters:
                 logger.warning("No settings parameter for max capacity/spur file")
             self.new_generators = self.new_generators.pipe(
                 calculate_transmission_inv_cost,
-                self.settings,
+                interconnect_capex_spec=self.settings.get("interconnect_capex_mw"),
                 # None or self.offshore_spur_costs,
             ).pipe(add_transmission_inv_cost, self.settings)
 

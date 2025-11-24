@@ -152,13 +152,163 @@ def test_add_fuel_labels():
 
 def test_calculate_transmission_inv_cost():
     df = pd.DataFrame({"region": ["A"], "spur_miles": [10]})
-    settings = {
-        "transmission_investment_cost": {
-            "spur": {"wacc": 0.05, "investment_years": 20, "capex_mw_mile": 1000}
-        }
+    legacy_spec = {
+        "spur": {"wacc": 0.05, "investment_years": 20, "capex_mw_mile": 1000}
     }
-    out = calculate_transmission_inv_cost(df.copy(), settings)
+    out = calculate_transmission_inv_cost(
+        df.copy(),
+        interconnect_capex_spec=None,  # trigger legacy path
+        legacy_transmission_cost=legacy_spec,
+    )
     assert "spur_capex" in out.columns and "spur_inv_mwyr" in out.columns
+
+
+def test_calculate_transmission_inv_cost_existing_capex_annuity():
+    # Existing capex with zero annuity should be annualized even if spec assigns no new capex
+    df = pd.DataFrame(
+        {
+            "region": ["A"],
+            "technology": ["battery_storage"],
+            "interconnect_capex_mw": [1000],
+            "interconnect_annuity": [0],
+            "wacc_real": [0.05],
+            "cap_recovery_years": [20],
+        }
+    )
+    out = calculate_transmission_inv_cost(
+        df.copy(), interconnect_capex_spec={}, legacy_transmission_cost=None
+    )
+    annuity = (0.05 * 1000) / (1 - (1 + 0.05) ** -20)
+    assert np.isclose(out.loc[0, "interconnect_annuity"], annuity)
+
+
+def test_calculate_transmission_inv_cost_scalar():
+    df = pd.DataFrame(
+        {
+            "region": ["A", "B"],
+            "technology": ["onshore_wind", "battery_storage"],
+            "wacc_real": [0.05, 0.05],
+            "cap_recovery_years": [20, 20],
+        }
+    )
+    out = calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=50000)
+    assert (out["interconnect_capex_mw"] == 50000).all()
+    annuity = (0.05 * 50000) / (1 - (1 + 0.05) ** -20)
+    assert np.isclose(out.loc[0, "interconnect_annuity"], annuity)
+
+
+def test_calculate_transmission_inv_cost_region_only():
+    spec = {"default": 10000, "A": 20000}
+    df = pd.DataFrame(
+        {
+            "region": ["A", "B"],
+            "technology": ["solar_pv", "solar_pv"],
+            "wacc_real": [0.05, 0.05],
+            "cap_recovery_years": [25, 25],
+        }
+    )
+    out = calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
+    assert out.loc[0, "interconnect_capex_mw"] == 20000
+    assert out.loc[1, "interconnect_capex_mw"] == 10000
+    # annuity computed
+    annuity_A = (0.05 * 20000) / (1 - (1 + 0.05) ** -25)
+    annuity_B = (0.05 * 10000) / (1 - (1 + 0.05) ** -25)
+    assert np.isclose(out.loc[0, "interconnect_annuity"], annuity_A)
+    assert np.isclose(out.loc[1, "interconnect_annuity"], annuity_B)
+
+
+def test_calculate_transmission_inv_cost_tech_only_precedence():
+    # Shortest-first precedence: 'wind' applied first then 'offshore_wind' overwrites matching rows
+    spec = {"default": 10000, "wind": 20000, "offshore_wind": 30000}
+    df = pd.DataFrame(
+        {
+            "region": ["A", "A", "A"],
+            "technology": [
+                "wind_onshore_mid",
+                "offshore_wind_fixed_mid",
+                "battery_storage",
+            ],
+            "wacc_real": [0.06, 0.06, 0.06],
+            "cap_recovery_years": [30, 30, 30],
+        }
+    )
+    out = calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
+    # battery gets default
+    assert out.loc[2, "interconnect_capex_mw"] == 10000
+    # onshore wind matched only 'wind'
+    assert out.loc[0, "interconnect_capex_mw"] == 20000
+    # offshore wind should be overwritten to 30000
+    assert out.loc[1, "interconnect_capex_mw"] == 30000
+
+
+def test_calculate_transmission_inv_cost_region_to_tech_nested():
+    spec = {
+        "default": 8000,
+        "A": {"battery": 6000, "offshore_wind": 25000},
+        "B": {"battery": 7000},
+    }
+    df = pd.DataFrame(
+        {
+            "region": ["A", "A", "B", "C"],
+            "technology": [
+                "battery_storage",
+                "offshore_wind_floating_mid",
+                "battery_storage",
+                "solar_pv",
+            ],
+            "wacc_real": [0.05, 0.05, 0.05, 0.05],
+            "cap_recovery_years": [15, 15, 15, 15],
+        }
+    )
+    out = calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
+    assert out.loc[0, "interconnect_capex_mw"] == 6000
+    assert out.loc[1, "interconnect_capex_mw"] == 25000
+    assert out.loc[2, "interconnect_capex_mw"] == 7000
+    # Region C falls back to default
+    assert out.loc[3, "interconnect_capex_mw"] == 8000
+
+
+def test_calculate_transmission_inv_cost_tech_to_region_nested():
+    # Top-level default applied first; tech substring region overrides overwrite.
+    spec = {
+        "default": 5000,
+        "wind": {"A": 15000, "B": 14000},
+        "battery": {"A": 5000, "C": 5500},
+    }
+    df = pd.DataFrame(
+        {
+            "region": ["A", "B", "C", "D"],
+            "technology": [
+                "offshore_wind_fixed_mid",
+                "wind_onshore_mid",
+                "battery_storage",
+                "battery_storage",
+            ],
+            "wacc_real": [0.05, 0.05, 0.05, 0.05],
+            "cap_recovery_years": [20, 20, 20, 20],
+        }
+    )
+    out = calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
+    assert out.loc[0, "interconnect_capex_mw"] == 15000  # offshore wind matches wind
+    assert out.loc[1, "interconnect_capex_mw"] == 14000
+    assert out.loc[2, "interconnect_capex_mw"] == 5500
+    assert (
+        out.loc[3, "interconnect_capex_mw"] == 5000
+    )  # battery row region D falls back to default
+
+
+def test_calculate_transmission_inv_cost_mixed_error():
+    spec = {"A": 10000, "wind": 20000}
+    df = pd.DataFrame(
+        {
+            "region": ["A"],
+            "technology": ["wind_onshore_mid"],
+            "wacc_real": [0.05],
+            "cap_recovery_years": [20],
+        }
+    )
+    with pytest.raises(ValueError):
+        calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
 
 
 def test_add_transmission_inv_cost():
@@ -171,8 +321,7 @@ def test_add_transmission_inv_cost():
             "interconnect_annuity": [0],
         }
     )
-    settings = {"transmission_investment_cost": {"use_total": True}}
-    out = add_transmission_inv_cost(df.copy(), settings)
+    out = add_transmission_inv_cost(df.copy(), use_total=True)
     assert "Inv_Cost_per_MWyr" in out.columns
     assert out.loc[0, "Inv_Cost_per_MWyr"] == 115  # 100 + 10 + 5
 
@@ -188,8 +337,7 @@ def test_add_transmission_inv_cost_calc_annuity():
             "cap_recovery_years": [20, 20],
         }
     )
-    settings = {"transmission_investment_cost": {"use_total": True}}
-    out = add_transmission_inv_cost(df.copy(), settings)
+    out = add_transmission_inv_cost(df.copy(), use_total=True)
     assert "Inv_Cost_per_MWyr" in out.columns
     assert out.loc[0, "Inv_Cost_per_MWyr"] == 110  # 100 + 10
     # Annuity for 1000 capex at 5% over 20 years

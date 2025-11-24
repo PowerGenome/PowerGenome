@@ -131,11 +131,6 @@ resource_attr_modifiers:
 # New-build generators
 #####################
 # Generator cost data from NREL ATB
-
-atb_data_year: 2024
-atb_financial_case: Market
-atb_cap_recovery_years: 20
-
 resource_data_year: 2024
 resource_financial_case: Market
 resource_cap_recovery_years: 20
@@ -143,12 +138,6 @@ resource_cap_recovery_years: 20
 # Alternate capital recovery periods for specific technologies, which are used to calculate
 # the annual investment costs. The names are matched using str.contains rather than
 # exact matches. Set parameter value to none (~) if not used.
-alt_atb_cap_recovery_years:
-  NaturalGas_CCAvg: 15
-  NaturalGas_CTAvg: 15
-  Battery: 15
-  Nuclear: 40
-
 alt_resource_cap_recovery_years:
   NaturalGas_CCAvg: 15
   NaturalGas_CTAvg: 15
