@@ -18,7 +18,7 @@ my_project/
 │   ├── demand.yml
 │   ├── time_reduction.yml
 │   ├── scenario_management.yml
-│   └── env.yml
+│   └── data.yml
 └── extra_inputs/
     └── emission_policies.csv
 ```
@@ -202,9 +202,9 @@ See [Run Multiple Scenarios](run-scenarios.md) for details.
 
 ### Local Paths
 
-Create `env.yml` for machine-specific paths (add to `.gitignore`):
+Create `data.yml` for machine-specific paths (add to `.gitignore`):
 
-**settings/env.yml**:
+**settings/data.yml**:
 
 ```yaml
 # Data paths (local machine)
@@ -220,10 +220,10 @@ EIA_AEO_YEAR: 2023
 **settings/.gitignore**:
 
 ```
-env.yml
+data.yml
 ```
 
-Team members create their own `env.yml` without committing it.
+Team members create their own `data.yml` without committing it.
 
 ### Shared Paths
 
@@ -507,9 +507,9 @@ data_location: ~/powergenome_data
 ## Best Practices
 
 1. **Split logically**: Organize by functional area (generators, transmission, etc.)
-2. **Use env.yml**: Keep machine-specific paths out of version control
+2. **Use data.yml**: Keep machine-specific paths out of version control
 3. **Comment generously**: Explain non-obvious parameter choices
-4. **Version control**: Commit settings folder (except env.yml) to Git
+4. **Version control**: Commit settings folder (except data.yml) to Git
 5. **Test incrementally**: Validate after major changes
 6. **Document assumptions**: Note data sources, policy assumptions, cost adjustments
 7. **Use examples**: Start from working example_systems configurations

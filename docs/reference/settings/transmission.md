@@ -1,467 +1,402 @@
 # Transmission Settings
 
-These parameters define inter-regional transmission network topology, capacity limits, expansion costs, and line losses.
+These parameters define inter-regional transmission network expansion costs, line losses, and reference data tables containing network topology.
 
-## Network Topology
+!!! important "Network Topology from Data Tables"
+    Unlike generators and demand, transmission network structure (which regions connect, capacities, distances) is **not** defined in settings YAML. Instead, PowerGenome loads this from data tables configured via `transmission_constraints_table` and `transmission_cost_table`.
 
-### `transmission_constraints`
+## Data Table References
 
-**Type**: Dictionary (line → parameters)
-**Required**: For inter-regional transmission
-**Example**: See below
-
-Defines transmission lines between regions with capacity limits and characteristics.
-
-```yaml
-transmission_constraints:
-  CA_N_to_CA_S:
-    transmission_path_name: CA_N_to_CA_S
-    start_region: CA_N
-    dest_region: CA_S
-    transmission_line_mw: 5000  # Existing capacity
-    max_transmission_mw: 8000   # Maximum with expansion
-  CA_S_to_AZ:
-    transmission_path_name: CA_S_to_AZ
-    start_region: CA_S
-    dest_region: AZ
-    transmission_line_mw: 2000
-    max_transmission_mw: 3500
-```
-
-**Required fields**:
-
-- `transmission_path_name`: Unique identifier
-- `start_region`: Origin region
-- `dest_region`: Destination region
-- `transmission_line_mw`: Existing transfer capacity (MW)
-
-**Optional fields**:
-
-- `max_transmission_mw`: Maximum capacity with expansion
-- `distance_miles`: Line length (for cost calculations)
-
-### `model_regions_gdf`
-
-**Type**: String (path to GeoJSON)
-**Required**: For geographic calculations
-**Example**: `"data/ipm_regions_simple.geojson"`
-
-GeoDataFrame with region geometries for distance calculations.
-
-```yaml
-model_regions_gdf: data/model_regions.geojson
-```
-
-Used to automatically calculate transmission line distances if not specified in `transmission_constraints`.
-
-## Line Losses
-
-### `tx_line_loss_pct`
-
-**Type**: Float or dictionary
-**Required**: No
-**Default**: 0.0
-**Example**: See below
-
-Transmission line loss as percentage of transmitted energy.
-
-**Global**:
-
-```yaml
-tx_line_loss_pct: 0.02  # 2% loss on all lines
-```
-
-**Line-specific**:
-
-```yaml
-tx_line_loss_pct:
-  CA_N_to_CA_S: 0.015  # 1.5% loss
-  CA_S_to_AZ: 0.025    # 2.5% loss (longer line)
-```
-
-Losses reduce delivered power: `delivered_mw = sent_mw × (1 - loss_pct)`.
-
-### `distribution_loss_pct`
-
-**Type**: Float
-**Required**: No
-**Default**: 0.0
-**Example**: `0.05`
-
-Distribution-level losses (load bus to end user).
-
-```yaml
-distribution_loss_pct: 0.05  # 5% distribution loss
-```
-
-Applied to demand values to account for losses between transmission and final consumption.
-
-## Expansion Costs
-
-### `tx_expansion_per_mw`
-
-**Type**: Float or dictionary
-**Required**: For transmission expansion
-**Example**: See below
-
-Cost to expand transmission capacity ($/MW of new capacity).
-
-**Global**:
-
-```yaml
-tx_expansion_per_mw: 1000  # $/MW
-```
-
-**Line-specific**:
-
-```yaml
-tx_expansion_per_mw:
-  CA_N_to_CA_S: 800   # Shorter line
-  CA_S_to_AZ: 1500    # Longer, more difficult terrain
-```
-
-Total expansion cost = `(new_capacity - existing_capacity) × cost_per_mw`.
-
-### `tx_line_capex_mw_mile`
-
-**Type**: Float
-**Required**: No (alternative to `tx_expansion_per_mw`)
-**Example**: `2000`
-
-Transmission capex per MW-mile (accounts for line length).
-
-```yaml
-tx_line_capex_mw_mile: 2000  # $/MW-mile
-```
-
-Expansion cost = `new_capacity × distance_miles × capex_mw_mile`.
-
-More accurate than flat `tx_expansion_per_mw` if line lengths vary significantly.
-
-### `tx_fixed_om_mw_mile`
-
-**Type**: Float
-**Required**: No
-**Example**: `25`
-
-Annual fixed O&M cost for transmission ($/MW-mile-year).
-
-```yaml
-tx_fixed_om_mw_mile: 25  # $/MW-mile-yr
-```
-
-Applied to existing and new transmission capacity.
-
-## Capacity Limits
-
-### `transmission_line_mw`
-
-**Type**: Specified in `transmission_constraints`
-**Required**: Yes (per line)
-**Example**: See `transmission_constraints` above
-
-Existing transfer capacity for each line (MW). This is the baseline before any expansion.
-
-### `max_transmission_mw`
-
-**Type**: Specified in `transmission_constraints`
-**Required**: No (per line)
-**Example**: See `transmission_constraints` above
-
-Maximum allowable transmission capacity including expansion (MW).
-
-If omitted, unlimited expansion is allowed (subject to costs).
-
-### `enforce_constraints`
-
-**Type**: Boolean
-**Required**: No
-**Default**: `true`
-**Example**: `false`
-
-Whether to enforce transmission capacity constraints in the model.
-
-```yaml
-enforce_constraints: false  # Copper plate (no transmission limits)
-```
-
-Setting to `false` creates a "copper plate" model where regions can trade unlimited power.
-
-## Network Data Tables
-
-### `transmission_table`
+### `transmission_constraints_table`
 
 **Type**: String or dictionary
-**Required**: Alternative to `transmission_constraints`
-**Example**: See below
+**Required**: For database-based transmission data
+**Example**: `"trancap_init_energy_wecc_pg.csv"`
 
-Load transmission network from data table instead of settings file.
+Table containing transmission capacity between base regions.
 
 **Simple**:
 
 ```yaml
-transmission_table: transmission_network.csv
+transmission_constraints_table: transmission_capacity.csv
 ```
 
 **Advanced**:
 
 ```yaml
-transmission_table:
+transmission_constraints_table:
   table_name: transmission.parquet
-  scenario: high_expansion
+  scenario: high_capacity
   filters:
     - - [year, '=', 2030]
 ```
 
 **Expected columns**:
 
-- `transmission_path_name`: Line ID
-- `start_region`: Origin
-- `dest_region`: Destination
-- `transmission_line_mw`: Existing capacity
-- `max_transmission_mw`: Maximum capacity (optional)
-- `distance_miles`: Line length (optional)
+- `region_from`: Origin base region
+- `region_to`: Destination base region
+- `firm_ttc_mw`: Firm transmission capacity (MW)
+- `nonfirm_ttc_mw`: Non-firm capacity (optional)
 
-This approach is cleaner for large networks (dozens of lines).
+PowerGenome aggregates these constraints across base regions according to `region_aggregations`.
 
-## Bidirectional Flow
+### `user_transmission_constraints_fn`
 
-### `allow_reversed_flow`
+**Type**: String (filename in `input_folder`)
+**Required**: For custom/corrected transmission data
+**Example**: `"ipm_tx_corrections.csv"`
 
-**Type**: Boolean
-**Required**: No
-**Default**: `true`
-**Example**: `false`
-
-Whether transmission lines allow bidirectional power flow.
+CSV file with transmission capacity corrections or additions. **Overrides** database values for matching region pairs.
 
 ```yaml
-allow_reversed_flow: true
+user_transmission_constraints_fn: ipm_tx_corrections.csv
 ```
 
-If `true`, power can flow either direction on each line (most realistic). If `false`, flow is unidirectional (start_region → dest_region only).
+**File format** (`extra_inputs/ipm_tx_corrections.csv`):
 
-### `create_reversed_lines`
+```csv
+region_from,region_to,firm_ttc_mw,notes
+CA_N,CA_S,8000,Updated capacity
+WECC_AZ,WECC_NM,1200,New interconnection
+```
 
-**Type**: Boolean
-**Required**: No
-**Default**: `false`
-**Example**: `true`
+User values override database for the same `(region_from, region_to)` pair.
 
-Automatically create reversed transmission lines (dest → start) for each defined line.
+### `transmission_cost_table`
+
+**Type**: String or dictionary
+**Required**: For pre-calculated transmission costs
+**Example**: `"transmission_distance_cost_500kVac_annuity.csv"`
+
+Table with transmission line costs and losses calculated from least-cost-path analysis.
 
 ```yaml
-create_reversed_lines: true
+transmission_cost_table: network_costs.csv
 ```
 
-Alternative to `allow_reversed_flow` that creates explicit bidirectional lines. Useful if costs/losses differ by direction.
+**Expected columns**:
 
-## HVDC Lines
+- `start_region`: Origin model region
+- `dest_region`: Destination model region
+- `total_interconnect_annuity_mw`: Annualized cost ($/MW-yr)
+- `total_interconnect_cost_mw`: Total capital cost ($/MW)
+- `total_line_loss_frac`: Line loss as fraction (0.05 = 5%)
+- `dollar_year`: Cost basis year
 
-### `hvdc_transmission_lines`
+### `user_transmission_costs`
 
-**Type**: List of line names
-**Required**: No
-**Example**: `["CA_N_to_DESERT_HVDC"]`
+**Type**: String (filename in `input_folder`)
+**Required**: For user-specified transmission costs
+**Example**: `"network_costs_wecc_6_zone.csv"`
 
-Transmission lines that are HVDC (high voltage direct current) rather than AC.
+CSV file with transmission costs between model regions. Overrides database values.
 
 ```yaml
-hvdc_transmission_lines:
-  - CA_N_to_DESERT_HVDC
-  - OFFSHORE_to_CA_S_HVDC
+user_transmission_costs: network_costs.csv
 ```
 
-HVDC lines may have:
+**File format** (`extra_inputs/network_costs.csv`):
 
-- Different loss characteristics
-- Higher capex per MW-mile
-- Converter station costs
+```csv
+start_region,dest_region,total_interconnect_annuity_mw,total_interconnect_cost_mw,total_line_loss_frac,dollar_year
+northeast,midwest,15000,350000,0.08,2018
+midwest,south,12000,280000,0.05,2018
+```
 
-### `hvdc_capex_mw_mile`
+!!! tip "Use Pre-Calculated Costs"
+    PowerGenome can calculate costs from region centroids, but **pre-calculated costs from least-cost-path analysis are strongly recommended**. See [Gagnon et al. (2023)](https://www.sciencedirect.com/science/article/abs/pii/S2666278723000144) for methodology.
+
+## Capacity Selection
+
+### `tx_value_col`
+
+**Type**: String
+**Required**: No
+**Default**: `"firm_ttc_mw"`
+**Options**: `"firm_ttc_mw"` or `"nonfirm_ttc_mw"`
+
+Which capacity column to use from transmission data tables.
+
+```yaml
+tx_value_col: firm_ttc_mw
+```
+
+**Firm vs non-firm**:
+
+- **Firm**: Guaranteed capacity (lower value, more conservative)
+- **Non-firm**: Opportunistic capacity (higher value, less reliable)
+
+PowerGenome v0.8+ defaults to `firm_ttc_mw`. Previous versions used `nonfirm_ttc_mw`.
+
+## Line Losses
+
+### `tx_line_loss_100_miles`
 
 **Type**: Float
-**Required**: For HVDC lines
-**Example**: `3000`
+**Required**: For distance-based loss calculation
+**Default**: `0.01`
+**Example**: `0.01`
 
-HVDC line capex ($/MW-mile), typically higher than AC.
+Transmission line loss as fraction per 100 miles.
 
 ```yaml
-hvdc_capex_mw_mile: 3000  # $/MW-mile
+tx_line_loss_100_miles: 0.01  # 1% loss per 100 miles
 ```
 
-### `hvdc_converter_capex_mw`
+Used when calculating losses from region centroid distances. **Ignored if `user_transmission_costs` provides `total_line_loss_frac`**.
+
+Typical values:
+
+- 0.01 (1%): High-voltage AC transmission
+- 0.005 (0.5%): HVDC or shorter lines
+- 0.015 (1.5%): Older or lower-voltage lines
+
+### `distribution_loss_factor`
 
 **Type**: Float
-**Required**: For HVDC lines
-**Example**: `200000`
+**Required**: For distributed generation
+**Default**: `0.0`
+**Example**: `0.06`
 
-HVDC converter station cost ($/MW).
-
-```yaml
-hvdc_converter_capex_mw: 200000  # $/MW
-```
-
-Each HVDC line requires two converter stations (AC→DC and DC→AC).
-
-## Regional Interconnection
-
-### `region_interconnections`
-
-**Type**: Dictionary (region → interconnection)
-**Required**: No
-**Example**: See below
-
-Assigns regions to electricity interconnections (for synchronous grid modeling).
+Distribution-level line loss (transmission substation to customer).
 
 ```yaml
-region_interconnections:
-  CA_N: Western
-  CA_S: Western
-  AZ: Western
-  TX_N: ERCOT
-  TX_S: ERCOT
-  FL: Eastern
+distribution_loss_factor: 0.06  # 6% distribution loss
 ```
 
-Used to:
+Used when subtracting distributed generation from total demand. Total demand includes distribution losses, so DG must be adjusted.
 
-- Limit transmission between asynchronous grids
-- Apply interconnection-specific constraints
-- Model seams between grid operators
+## Expansion Controls
 
-### `interconnection_transmission_limit`
+### `tx_expansion_per_period`
 
 **Type**: Float
+**Required**: For transmission expansion
+**Example**: `1.0`
+
+Maximum fractional expansion of existing transmission per planning period.
+
+```yaml
+tx_expansion_per_period: 1.0  # Can double existing capacity
+```
+
+**Interpretation**:
+
+- `1.0`: Can add 100% of existing capacity (500 MW → 1000 MW max)
+- `0.5`: Can add 50% of existing (500 MW → 750 MW max)
+- `2.0`: Can triple existing capacity
+
+Combined with `tx_expansion_mw_per_period` — **larger value governs** each line.
+
+### `tx_expansion_mw_per_period`
+
+**Type**: Integer
 **Required**: No
 **Example**: `500`
 
-Maximum power transfer between interconnections (MW).
+Absolute expansion limit per line per period (MW).
 
 ```yaml
-interconnection_transmission_limit: 500
+tx_expansion_mw_per_period: 500  # Can add up to 500 MW
 ```
 
-Models limited DC ties between asynchronous grids (e.g., ERCOT ↔ Western).
+Useful for setting minimum buildable increments (e.g., one 230kV line ≈ 200-400 MW).
 
-## Hurdle Rates
+**Expansion calculation per line**:
 
-### `hurdle_rate_per_mwh`
+```python
+max_expansion = max(
+    existing_capacity * tx_expansion_per_period,
+    tx_expansion_mw_per_period
+)
+```
 
-**Type**: Float or dictionary
-**Required**: No
+## Investment Costs
+
+### `transmission_investment_cost`
+
+**Type**: Dictionary
+**Required**: For spur lines and/or transmission expansion
 **Example**: See below
 
-Transaction cost for power transfers ($/MWh), representing wheeling charges or market friction.
+Contains nested dictionaries for different transmission types: `spur`, `offshore_spur`, `tx`.
 
-**Global**:
+#### `transmission_investment_cost.use_total`
+
+**Type**: Boolean
+**Default**: `false`
+
+Whether to use pre-calculated `interconnection_annuity` from resource cluster data.
 
 ```yaml
-hurdle_rate_per_mwh: 5  # $5/MWh transaction cost
+transmission_investment_cost:
+  use_total: true  # Use cluster data directly
 ```
 
-**Line-specific**:
+If `true`, PowerGenome skips calculating spur costs and uses values from renewable resource data. If `false`, calculates costs using `spur` parameters below.
+
+#### `transmission_investment_cost.spur`
+
+**Type**: Dictionary with keys `capex_mw_mile`, `wacc`, `investment_years`
+**Required**: For generator interconnection costs
+
+Spur line costs to connect generators to transmission network.
 
 ```yaml
-hurdle_rate_per_mwh:
-  CA_N_to_CA_S: 2
-  CA_S_to_AZ: 8  # Higher wheeling charge
+transmission_investment_cost:
+  spur:
+    capex_mw_mile:
+      northeast: 1500
+      midwest: 1200
+      south: 1300
+    wacc: 0.069
+    investment_years: 60
 ```
 
-Discourages unrealistic arbitrage in models with simplified market representation.
+**`capex_mw_mile`**: Per-region dictionary or single value ($/MW-mile)
+**`wacc`**: Weighted average cost of capital
+**`investment_years`**: Economic lifetime for annuity calculation
 
-## Network Reinforcement
+Annualized cost = `capex × spur_miles × capital_recovery_factor(wacc, years)`
 
-### `max_network_reinforcement_mw`
+#### `transmission_investment_cost.offshore_spur`
 
-**Type**: Float or dictionary
-**Required**: No
+**Type**: Dictionary (same structure as `spur`)
+**Required**: For offshore wind interconnection
+
+Spur costs for offshore wind, typically higher than onshore.
+
+```yaml
+transmission_investment_cost:
+  offshore_spur:
+    capex_mw_mile:
+      northeast: 4000  # Submarine cable
+      south: 3500
+    wacc: 0.069
+    investment_years: 30
+```
+
+#### `transmission_investment_cost.tx`
+
+**Type**: Dictionary (same structure as `spur`)
+**Required**: For inter-regional transmission expansion
+
+Costs to reinforce/expand existing transmission between regions.
+
+```yaml
+transmission_investment_cost:
+  tx:
+    capex_mw_mile:
+      northeast: 2800
+      midwest: 2500
+      south: 2600
+    wacc: 0.069
+    investment_years: 60
+```
+
+Applied when GenX decides to expand inter-regional transmission. Combined with line distance to calculate reinforcement cost.
+
+## Regional Mapping
+
+### `zone_num_map`
+
+**Type**: Dictionary (region name → integer)
+**Required**: For GenX output formatting
 **Example**: See below
 
-Annual limit on network expansion (MW/year).
-
-**Global**:
+Maps model region names to zone numbers for GenX.
 
 ```yaml
-max_network_reinforcement_mw: 1000  # Max 1 GW expansion per year
+zone_num_map:
+  northeast: 1
+  midwest: 2
+  south: 3
 ```
 
-**Line-specific**:
+Used to create GenX Network.csv columns (`z1`, `z2`, etc.). Typically auto-generated but can be specified for consistent numbering across runs.
+
+## Complete Example
+
+Typical multi-region transmission configuration:
 
 ```yaml
-max_network_reinforcement_mw:
-  CA_N_to_CA_S: 500
-  CA_S_to_AZ: 200
+# Data tables
+user_transmission_constraints_fn: ipm_tx_corrections.csv
+user_transmission_costs: network_costs.csv
+
+# Which capacity column to use
+tx_value_col: firm_ttc_mw
+
+# Line loss
+tx_line_loss_100_miles: 0.01  # 1% per 100 miles
+
+# Expansion controls
+tx_expansion_per_period: 1.0      # Can double capacity
+tx_expansion_mw_per_period: 500   # Or add 500 MW minimum
+
+# Investment costs
+transmission_investment_cost:
+  spur:
+    capex_mw_mile:
+      CA_N: 1500
+      CA_S: 1400
+      WECC_AZ: 1200
+    wacc: 0.069
+    investment_years: 60
+
+  tx:
+    capex_mw_mile:
+      CA_N: 2800
+      CA_S: 2600
+      WECC_AZ: 2400
+    wacc: 0.069
+    investment_years: 60
 ```
 
-Models construction bottlenecks and permitting constraints.
+## Example Data Files
 
-## Example Configuration
+**`extra_inputs/ipm_tx_corrections.csv`**:
 
-Complete transmission configuration:
-
-```yaml
-# Network topology
-transmission_constraints:
-  CA_N_to_CA_S:
-    transmission_path_name: CA_N_to_CA_S
-    start_region: CA_N
-    dest_region: CA_S
-    transmission_line_mw: 5000
-    max_transmission_mw: 8000
-    distance_miles: 350
-
-  CA_S_to_AZ:
-    transmission_path_name: CA_S_to_AZ
-    start_region: CA_S
-    dest_region: AZ
-    transmission_line_mw: 2000
-    max_transmission_mw: 3500
-    distance_miles: 280
-
-# Costs and losses
-tx_line_loss_pct: 0.02
-tx_line_capex_mw_mile: 2000
-tx_fixed_om_mw_mile: 25
-
-# Flow characteristics
-allow_reversed_flow: true
-enforce_constraints: true
-
-# Interconnections
-region_interconnections:
-  CA_N: Western
-  CA_S: Western
-  AZ: Western
-
-# Expansion limits
-max_network_reinforcement_mw:
-  CA_N_to_CA_S: 500
-  CA_S_to_AZ: 200
+```csv
+region_from,region_to,firm_ttc_mw,notes
+p1,p2,2000,Northeast-Midwest corridor
+p2,p3,3000,Midwest-South main line
+p1,p3,1500,Eastern seaboard
 ```
 
-## Transmission in GenX Outputs
+**`extra_inputs/network_costs.csv`**:
+
+```csv
+start_region,dest_region,total_interconnect_annuity_mw,total_interconnect_cost_mw,total_line_loss_frac,dollar_year
+northeast,midwest,15000,350000,0.08,2018
+midwest,south,12000,280000,0.05,2018
+northeast,south,18000,420000,0.10,2018
+```
+
+## GenX Output Files
 
 PowerGenome generates these GenX transmission files:
 
-**Network.csv**:
+**`Network.csv`**:
 
-- Line topology (start → end regions)
-- Existing capacity (`Transmission_Line_MW`)
-- Maximum capacity (`Max_Transmission_MW`)
-- Loss percentage
-- Distance (miles)
+- `Network_Lines`: Line ID number
+- `z1`, `z2`, ...: Network topology matrix
+- `Line_Max_Flow_MW`: Existing capacity
+- `Line_Min_Flow_MW`: Reverse flow limit (typically negative of max)
+- `transmission_path_name`: Human-readable name
+- `Line_Loss_Percentage`: Loss fraction
+- `Line_Reinforcement_Cost_per_MWyr`: Annualized expansion cost
 
-**Network_expansion.csv**:
-
-- Expansion costs (`Inv_Cost_per_MWyr`)
-- O&M costs (`Fixed_OM_per_MWyr`)
-- Maximum reinforcement limits
-
-See [GenX documentation](https://genxproject.github.io/GenX/) for how these files are used in optimization.
+GenX uses these files to optimize transmission expansion and inter-regional power flows.
 
 ## Related Settings
 
-- [Regions](regions.md): Defines `model_regions` used in network
-- [Model Definition](model-definition.md): `target_usd_year` for cost conversions
-- [Demand](demand.md): Load zones may differ from transmission zones
+- [Regions](regions.md): Defines `model_regions` used in transmission
+- [Model Definition](model-definition.md): `target_usd_year` for cost inflation adjustment
+- [Scenario Management](scenario-management.md): Multi-period transmission expansion
+
+## References
+
+- Gagnon, P., et al. (2023). [Land use trade-offs in decarbonization of electricity generation in the American West](https://www.sciencedirect.com/science/article/abs/pii/S2666278723000144). *Energy and Climate Change*, 4, 100105.
+- See `notebooks/Transmission.ipynb` for detailed examples
+- See `example_systems/CONUS-3-zone/` for working configuration

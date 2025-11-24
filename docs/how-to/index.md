@@ -5,7 +5,7 @@ These guides provide step-by-step instructions for specific tasks. Each guide as
 ## Configuration
 
 - **[Configure Settings](configure-settings.md)**: Organize settings files, use modular YAML, and manage complex configurations
-- **[Configure Renewable Resource Clusters](configure-renewable-clusters.md)**: Set up wind and solar clusters using filters, bins, groups, and k-means clustering
+- **[Configure Renewable Resource Clusters](configure-renewable-clusters.md)**: Set up wind and solar clusters using filters, bins, groups, and agglomerative or k-means clustering
 - **[Run Multi-Scenario Studies](run-scenarios.md)**: Set up and execute multi-scenario runs with parameter variations
 
 ## Customization

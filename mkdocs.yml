@@ -104,6 +104,7 @@ nav:
       - Resource Tags: reference/settings/resource-tags.md
       - Data Tables: reference/settings/data-tables.md
       - Multi-Scenario Management: reference/settings/scenario-management.md
+    - ATB Technology Names: reference/atb-technologies.md
     - CLI Reference: reference/cli.md
 
   - Explanation:

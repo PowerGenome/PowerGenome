@@ -19,14 +19,14 @@ ATB technologies follow naming convention: `{Technology}_{TechDetail}_{Financial
 
 **Common technologies**:
 
-- `NaturalGas_CCAvgCF_Moderate`: Combined cycle gas turbine
-- `NaturalGas_CTAvgCF_Moderate`: Combustion turbine (peaking)
+- `NaturalGas_2-on-1 Combined Cycle (F-Frame)_Moderate`: Combined cycle gas turbine
+- `NaturalGas_Combustion Turbine (F-Frame)_Moderate`: Combustion turbine (peaking)
 - `UtilityPV_Class1_Moderate`: Utility-scale solar PV
 - `LandbasedWind_Class3_Moderate`: Onshore wind
-- `OffshoreWind_Class1_Moderate`: Offshore wind
-- `Battery_*_Moderate`: Battery storage (2hr, 4hr, 8hr, 10hr)
-- `Nuclear_Nuclear_Moderate`: Nuclear power
-- `Geothermal_HydroFlash_Moderate`: Geothermal
+- `OffShoreWind_Class12_Moderate`: Floating offshore wind
+- `Utility-Scale Battery Storage_Lithium Ion_Moderate`: Battery storage
+- `Nuclear_Nuclear - Large_Moderate`: Large nuclear power
+- `Geothermal_HydroBinary_Moderate`: Geothermal hydrothermal
 
 **Cost cases**:
 
@@ -40,23 +40,23 @@ Add technologies to `new_resources`:
 
 ```yaml
 new_resources:
-  - [NaturalGas, CCAvgCF, Moderate, 500]
-  - [NaturalGas, CTAvgCF, Moderate, 100]
+  - [NaturalGas, 2-on-1 Combined Cycle (F-Frame), Moderate, 500]
+  - [NaturalGas, Combustion Turbine (F-Frame), Moderate, 100]
   - [UtilityPV, Class1, Moderate, 100]
-  - [LandbasedWind, Class3, Moderate, 100]
-  - [Battery, "*", Moderate, 100]  # Wildcard for all battery durations
+  - [LandbasedWind, Class3, Moderate, 1]
+  - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 1]
 ```
 
 Specify unit sizes in `new_resources` (fourth element of each list):
 
 ```yaml
 new_resources:
-  - [NaturalGas, CCAvgCF, Moderate, 500]  # 500 MW per unit
-  - [NaturalGas, CTAvgCF, Moderate, 100]  # 100 MW per unit
-  - [UtilityPV, Class1, Moderate, 100]
-  - [LandbasedWind, Class3, Moderate, 100]
-  - [Battery, "4Hr", Moderate, 100]
-  - [Battery, "8Hr", Moderate, 50]
+  - [NaturalGas, 2-on-1 Combined Cycle (F-Frame), Moderate, 500]  # 500 MW per unit
+  - [NaturalGas, Combustion Turbine (F-Frame), Moderate, 100]  # 100 MW per unit
+  - [UtilityPV, Class1, Moderate, 1]
+  - [LandbasedWind, Class3, Moderate, 1]
+  - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 1]
+  - [Nuclear, Nuclear - Large, Moderate, 1000]
 ```
 
 ### Set Cost Case
@@ -96,23 +96,15 @@ model_tag_names:
   - MUST_RUN
 
 model_tag_values:
-  NaturalGas_CCAvgCF_Moderate:
-    THERM: 1
-    VRE: 0
-    STOR: 0
-    MUST_RUN: 0
-
-  UtilityPV_Class1_Moderate:
-    THERM: 0
-    VRE: 1
-    STOR: 0
-    MUST_RUN: 0
-
-  Battery_*:  # Applies to all battery durations
-    THERM: 0
-    VRE: 0
-    STOR: 1
-    MUST_RUN: 0
+  THERM:
+    NaturalGas_: 1
+  VRE:
+    UtilityPV: 1
+    LandbasedWind: 1
+  STOR:
+    Utility-Scale Battery Storage: 1
+  MUST_RUN:
+    Geothermal: 1
 ```
 
 ## Modify ATB Technology Costs
@@ -123,53 +115,50 @@ Adjust parameters of existing ATB technologies:
 
 ```yaml
 resource_modifiers:
-  UtilityPV_Class1_Moderate:
-    capex_mw:
-      2030: 1.2  # Multiply by 1.2 (20% higher)
-      2040: 1.1  # 10% higher in 2040
-    fixed_o_m_mw:
-      2030: 18000  # Override to $18,000/MW-year
+  utility_pv:
+    technology: UtilityPV
+    tech_detail: Class1
+    capex_mw: [mul, 1.2]  # Multiply by 1.2 (20% higher)
+    fixed_o_m_mw: 18000  # Direct override to $18,000/MW-year
 
-  LandbasedWind_Class3_Moderate:
-    capex_mw:
-      2030: 0.9  # 10% cost reduction
-    variable_o_m_mwh:
-      2030: 0  # Zero variable O&M
+  landbased_wind:
+    technology: LandbasedWind
+    tech_detail: Class3
+    capex_mw: [mul, 0.9]  # 10% cost reduction
+    variable_o_m_mwh: 0  # Zero variable O&M
 
-  Battery_4Hr_Moderate:
-    capex_mwh:  # Storage energy cost
-      2030: 250000  # $250/kWh = $250,000/MWh
-    capex_mw:  # Storage power cost
-      2030: 150000  # $150/kW = $150,000/MW
+  batteries:
+    technology: Utility-Scale Battery Storage
+    tech_detail: Lithium Ion
+    capex_mw: [add, 55000]  # Add $100/kW (in 2004 USD) for interconnection
+    Var_OM_Cost_per_MWh: [add, 0.15]
+    Var_OM_Cost_per_MWh_In: 0.15  # Set directly (not in ATB)
+    wacc_real: 0.04675  # NREL ATB Market WACC for UtilityPV
 ```
 
 **Modifier behavior**:
 
-- Values < 1: Cost reduction (0.9 = 10% cheaper)
-- Values > 1: Cost increase (1.2 = 20% more expensive)
-- Absolute values: Direct override (not multiplication)
+- **Operators in lists**: `[operator, value]` format
+  - `[mul, 1.2]`: Multiply by 1.2 (20% higher)
+  - `[add, 50000]`: Add $50,000
+  - `[sub, 10000]`: Subtract $10,000
+  - `[truediv, 2]`: Divide by 2
+- **Direct values**: Set parameter directly (no operator)
+  - Use for parameters not in ATB database
+  - Use for absolute overrides
 
 ### Regional Cost Multipliers
 
 Apply regional construction cost differences:
 
-```yaml
-cost_multiplier_fn: regional_cost_multipliers.csv
-cost_multiplier_region_map:
-  CA_N: PCA_WECC
-  CA_S: PCA_WECC
-  AZ: PCA_WECC
-```
-
 **regional_cost_multipliers.csv**:
 
 ```csv
-region,technology,multiplier
-PCA_WECC,UtilityPV,1.25
-PCA_WECC,LandbasedWind,1.15
-PCA_WECC,Battery_4Hr,1.1
-PCA_EAST,UtilityPV,0.95
-PCA_EAST,OffshoreWind,1.3
+technology,region,value
+NaturalGas_2-on-1 Combined Cycle (F-Frame),p1,1.140882
+NaturalGas_Combustion Turbine (F-Frame),p1,1.132064
+LandbasedWind_Class3,p2,1.097588
+Utility-Scale Battery Storage_Lithium Ion,p1,1.072245
 ```
 
 Multipliers apply on top of `resource_modifiers`.
@@ -178,234 +167,141 @@ Multipliers apply on top of `resource_modifiers`.
 
 ### Modified New Resources
 
-Create renamed copies with different parameters:
+Create renamed copies of ATB technologies with modified parameters:
 
 ```yaml
 modified_new_resources:
+  # Hydrogen turbine based on natural gas combined cycle
+  hydrogen_turbine:
+    technology: NaturalGas
+    tech_detail: 1-on-1 Combined Cycle (H-Frame)
+    cost_case: Moderate
+    size_mw: 100
+    new_technology: hydrogen
+    new_tech_detail: turbine
+    new_cost_case: Moderate
+    heat_rate: [mul, 1.1]  # 10% worse heat rate
+    capex_mw: [add, 50000]  # Add $50k/MW for hydrogen infrastructure
+
   # High-cost solar variant
-  UtilityPV_Class1_High:
-    base_resource: UtilityPV_Class1_Moderate
-    capex_mw:
-      2030: 1.5  # 50% more expensive
-      2040: 1.4
-
-  # Advanced battery with longer duration
-  Battery_12Hr_Advanced:
-    base_resource: Battery_8Hr_Moderate
-    capex_mwh:
-      2030: 200000  # Lower energy cost
-    duration: 12  # 12-hour storage
-
-  # Offshore wind with high capacity factor
-  OffshoreWind_HighCF:
-    base_resource: OffshoreWind_Class1_Moderate
-    capex_mw:
-      2030: 1.1  # Slightly higher cost
-    capacity_factor:
-      2030: 0.5  # 50% CF instead of ATB default
+  utility_pv_high:
+    technology: UtilityPV
+    tech_detail: Class1
+    cost_case: Moderate
+    size_mw: 100
+    new_technology: UtilityPV
+    new_tech_detail: Class1_High
+    new_cost_case: High
+    capex_mw: [mul, 1.5]  # 50% more expensive
 ```
 
-**Include in model**:
+**Required fields**:
 
-```yaml
-new_resources:
-  UtilityPV_Class1_High: 100
-  Battery_12Hr_Advanced: 50
-  OffshoreWind_HighCF: 200
-```
+- `technology`, `tech_detail`, `cost_case`: Source technology
+- `new_technology`, `new_tech_detail`, `new_cost_case`: New technology name
+- `size_mw`: Unit size
+
+**Optional modifiers**: Use `[operator, value]` format same as `resource_modifiers`
 
 **Assign tags**:
 
 ```yaml
 model_tag_values:
-  UtilityPV_Class1_High:
-    THERM: 0
-    VRE: 1
-    STOR: 0
-
-  Battery_12Hr_Advanced:
-    THERM: 0
-    VRE: 0
-    STOR: 1
-    LDS: 1  # Long-duration storage
-```
-
-## Add Non-ATB Technologies
-
-### Additional Technologies CSV
-
-Define custom technologies not in ATB:
-
-**settings**:
-
-```yaml
-additional_technologies_fn: additional_technologies.csv
-```
-
-**additional_technologies.csv**:
-
-```csv
-technology,tech_detail,model_year,capex_mw,fixed_o_m_mw,variable_o_m_mwh,heat_rate_mmbtu_mwh,fuel,wacc_real,capital_recovery_period,unit_size_mw
-Biomass,Dedicated,2030,3500000,45000,5,10.5,biomass,0.05,20,50
-Biomass,Dedicated,2040,3200000,42000,5,10.2,biomass,0.05,20,50
-Hydrogen,Turbine,2030,800000,15000,3,8.5,hydrogen,0.06,25,100
-Hydrogen,Turbine,2040,650000,12000,3,8.2,hydrogen,0.06,25,100
-CCS_Retrofit,Coal,2030,1500000,60000,8,11.0,coal,0.05,30,300
-```
-
-**Required columns**:
-
-- `technology`: Technology name
-- `tech_detail`: Technology variant
-- `model_year`: Model year
-- `capex_mw`: Capital cost ($/MW)
-- `fixed_o_m_mw`: Fixed O&M ($/MW-year)
-- `variable_o_m_mwh`: Variable O&M ($/MWh)
-- `unit_size_mw`: Unit size (MW)
-
-**Optional columns**:
-
-- `heat_rate_mmbtu_mwh`: Thermal efficiency (thermal only)
-- `fuel`: Fuel type
-- `wacc_real`: Real weighted average cost of capital
-- `capital_recovery_period`: Economic lifetime (years)
-- `capacity_factor`: Default capacity factor
-
-### Include Additional Technologies
-
-```yaml
-# Include in model
-new_resources:
-  Biomass_Dedicated: 50
-  Hydrogen_Turbine: 100
-  CCS_Retrofit_Coal: 300
-
-# Assign resource tags
-model_tag_values:
-  Biomass_Dedicated_Moderate:
-    THERM: 1
-    VRE: 0
-    STOR: 0
-    MUST_RUN: 0
-
-  Hydrogen_Turbine_Moderate:
-    THERM: 1
-    VRE: 0
-    STOR: 0
-    MUST_RUN: 0
-
-  CCS_Retrofit_Coal_Moderate:
-    THERM: 1
-    VRE: 0
-    STOR: 0
-    MUST_RUN: 0
-
-# Map to fuel prices
-tech_fuel_map:
-  Biomass_Dedicated: biomass
-  Hydrogen_Turbine: hydrogen
-  CCS_Retrofit_Coal: coal
+  THERM:
+    hydrogen: 1  # Matches new_technology name
+  VRE:
+    UtilityPV: 1
+  Commit:
+    hydrogen: 1
+  New_Build:
+    hydrogen: 1
 ```
 
 ## Configure Renewable Clusters
 
 ### Renewable Resource Groups
 
-Define specific wind/solar sites with pre-computed profiles:
+Define renewable resource clustering using the `renewables_clusters` parameter:
 
 ```yaml
-renewable_clusters:
-  LandbasedWind_Class3_Moderate:
-    - region: CA_N
-      cluster: 1
-      profile_id: LandbasedWind_Class3_1
-      capacity_mw: 500
-      capex_mw:
-        2030: 1600000
-    - region: CA_N
-      cluster: 2
-      profile_id: LandbasedWind_Class3_2
-      capacity_mw: 800
-      capex_mw:
-        2030: 1650000
-    - region: CA_S
-      cluster: 1
-      profile_id: LandbasedWind_Class3_3
-      capacity_mw: 1200
-      capex_mw:
-        2030: 1550000
+renewables_clusters:
+  - region: all  # Apply to all regions, or specify individual regions
+    technology: landbasedwind
+    filter:
+      - feature: lcoe
+        max: 75  # Maximum LCOE threshold
+    bin:
+      - feature: lcoe
+        weights: capacity_mw  # Weight binning by capacity
+        q: 2  # Create 2 bins based on quartiles
 
-  UtilityPV_Class1_Moderate:
-    - region: CA_N
-      cluster: 1
-      profile_id: UtilityPV_Class1_1
-      capacity_mw: 2000
-    - region: CA_S
-      cluster: 1
-      profile_id: UtilityPV_Class1_2
-      capacity_mw: 3500
+  - region: p1
+    technology: utilitypv
+    filter:
+      - feature: lcoe_interconnect_adj
+        max: 30
+    bin:
+      - feature: lcoe_interconnect_adj
+        weights: mw
+        mw_per_bin: 50000  # Create bins of 50 GW each
+    cluster:
+      - feature: cf  # Cluster within bins by capacity factor
+        n_clusters: 2
+        method: agg  # Agglomerative clustering
+
+  - region: all
+    technology: offshorewind
+    turbine_type: floating
+    pref_site: 0  # Include all sites (1 for preferred sites only)
+    bin:
+      - feature: lcoe_interconnect_adj
+        weights: mw
+        q: 2
 ```
 
-**Parameters**:
+**Common parameters**:
 
-- `region`: Model region
-- `cluster`: Cluster ID (unique within region/technology)
-- `profile_id`: Filename prefix for generation profile
-- `capacity_mw`: Maximum capacity at this site
-- `capex_mw`: Site-specific capital cost (optional)
+- `region`: Model region name or `all`
+- `technology`: Technology type (lowercase: `landbasedwind`, `utilitypv`, `offshorewind`)
+- `filter`: List of feature filters to exclude resources
+  - `feature`: Attribute to filter on (`lcoe`, `cf`, `lcoe_interconnect_adj`)
+  - `max`: Maximum value threshold
+- `bin`: List of binning operations
+  - `feature`: Attribute to bin by
+  - `weights`: Weight bins by capacity (`mw`, `capacity_mw`)
+  - `q`: Number of quantile bins
+  - `mw_per_bin`: Fixed MW per bin
+- `cluster`: List of clustering operations within bins
+  - `feature`: Attribute to cluster by (`cf`, `profile`, `lcoe`)
+  - `n_clusters`: Number of clusters
+  - `method`: Clustering method (`agg` for agglomerative)
 
-### Generation Profiles
+**Technology-specific parameters**:
 
-Profiles must exist in `RESOURCE_GROUP_PROFILES` folder:
+- Offshore wind: `turbine_type` (`fixed`, `floating`), `pref_site` (0 or 1)
+- Geothermal: `type` (`egs`, `geohydrobinary`)
+
+### Advanced: Group Modifiers
+
+Modify costs for specific resource groups:
 
 ```yaml
-RESOURCE_GROUP_PROFILES: /data/nrel_profiles
+renewables_clusters:
+  - region: all
+    technology: geothermal
+    type: egs
+    filter:
+      - feature: class
+        max: 6
+    group:
+      - class
+    group_modifiers:
+      - group: class
+        group_value: 6
+        Inv_Cost_per_MWyr: [add, 64820]  # Additional cost for class 6
 ```
 
-**File structure**:
-
-```
-/data/nrel_profiles/
-├── LandbasedWind_Class3_1.csv
-├── LandbasedWind_Class3_2.csv
-├── LandbasedWind_Class3_3.csv
-├── UtilityPV_Class1_1.csv
-└── UtilityPV_Class1_2.csv
-```
-
-**Profile format** (8760 rows, one column):
-
-```csv
-0.32
-0.35
-0.41
-...
-```
-
-Values are capacity factors (0-1).
-
-### Capacity Limits and Spur Costs
-
-Limit new-build capacity and add interconnection costs:
-
-```yaml
-capacity_limit_spur_fn: capacity_limits.csv
-```
-
-**capacity_limits.csv**:
-
-```csv
-region,technology,cluster,max_capacity,spur_miles,spur_capex_mw_mile
-CA_N,LandbasedWind_Class3_Moderate,1,500,15,30000
-CA_N,LandbasedWind_Class3_Moderate,2,800,25,30000
-CA_S,UtilityPV_Class1_Moderate,1,3500,5,25000
-```
-
-**Parameters**:
-
-- `max_capacity`: Maximum MW at site
-- `spur_miles`: Transmission distance to grid
-- `spur_capex_mw_mile`: Spur line cost ($/MW/mile)
+**Note**: Renewable resource profiles and capacity data come from external datasets (NREL reV, ReEDS). PowerGenome does not generate these profiles—it clusters pre-existing resource sites based on cost and performance characteristics.
 
 ## Restrict Technology Availability
 
@@ -416,12 +312,12 @@ Prohibit technologies in specific regions:
 ```yaml
 new_gen_not_available:
   AZ:
-    - OffshoreWind_*  # No offshore wind in Arizona
-    - Geothermal_*
+    - OffShoreWind  # No offshore wind in Arizona
+    - Nuclear
   CA_N:
-    - Coal_*  # No new coal anywhere in California
+    - Coal  # No new coal anywhere in California
   CA_S:
-    - Coal_*
+    - Coal
 ```
 
 ### Technology Minimum Load
@@ -430,9 +326,9 @@ Set minimum stable generation level:
 
 ```yaml
 min_cap_req:
-  NaturalGas_CCAvgCF_Moderate: 0.3  # 30% minimum load
-  Nuclear_Nuclear_Moderate: 0.9  # 90% minimum load
-  Coal_NewAvgCF_Moderate: 0.4
+  NaturalGas_2-on-1 Combined Cycle (F-Frame)_Moderate: 0.3  # 30% minimum load
+  Nuclear_Nuclear - Large_Moderate: 0.9  # 90% minimum load
+  Coal_New_Moderate: 0.4
 ```
 
 ### Ramp Rates
@@ -441,14 +337,14 @@ Define maximum ramp rates (fraction per hour):
 
 ```yaml
 ramp_up_rates:
-  NaturalGas_CCAvgCF_Moderate: 0.5  # 50% per hour
-  Coal_NewAvgCF_Moderate: 0.2  # 20% per hour
-  Nuclear_Nuclear_Moderate: 0.05  # 5% per hour
+  NaturalGas_2-on-1 Combined Cycle (F-Frame)_Moderate: 0.5  # 50% per hour
+  Coal_New_Moderate: 0.2  # 20% per hour
+  Nuclear_Nuclear - Large_Moderate: 0.05  # 5% per hour
 
 ramp_down_rates:
-  NaturalGas_CCAvgCF_Moderate: 0.5
-  Coal_NewAvgCF_Moderate: 0.2
-  Nuclear_Nuclear_Moderate: 0.05
+  NaturalGas_2-on-1 Combined Cycle (F-Frame)_Moderate: 0.5
+  Coal_New_Moderate: 0.2
+  Nuclear_Nuclear - Large_Moderate: 0.05
 ```
 
 ## Example: Add Hydrogen Technology
@@ -474,23 +370,22 @@ Hydrogen,Turbine,2050,600000,12000,4,8.5,hydrogen,0.055,25,150
 # Include additional tech file
 additional_technologies_fn: additional_technologies.csv
 
-# Add to new resources
+# Add to new resources - use list format
 new_resources:
-  Hydrogen_Turbine: 150
+  - [Hydrogen, Turbine, Moderate, 150]
 
 # Assign tags
 model_tag_values:
-  Hydrogen_Turbine_Moderate:
-    THERM: 1
-    VRE: 0
-    STOR: 0
-    FLEX: 0
-    HYDRO: 0
-    MUST_RUN: 0
+  THERM:
+    Hydrogen: 1
+  Commit:
+    Hydrogen: 1
+  New_Build:
+    Hydrogen: 1
 
 # Map to fuel
 tech_fuel_map:
-  Hydrogen_Turbine: hydrogen
+  Hydrogen: hydrogen
 
 # Operational constraints
 min_cap_req:
@@ -529,7 +424,7 @@ user_fuel_price:
 ```yaml
 new_gen_not_available:
   AZ:
-    - Hydrogen_Turbine_Moderate  # Not available in Arizona (no infrastructure)
+    - Hydrogen  # Not available in Arizona (no infrastructure)
 ```
 
 ## Troubleshooting
@@ -545,15 +440,16 @@ new_gen_not_available:
 3. Tags defined in `model_tag_values`?
 4. Technology restricted in `new_gen_not_available`?
 
-### Profile Not Found
+### Renewable Clustering Issues
 
-**Problem**: `FileNotFoundError: LandbasedWind_Class3_1.csv`
+**Problem**: No renewable resources in output
 
 **Solution**:
 
-- Check `RESOURCE_GROUP_PROFILES` path
-- Verify filename matches `profile_id` in `renewable_clusters`
-- Ensure profile has 8760 rows
+- Verify `renewables_clusters` parameter is configured
+- Check filter thresholds (e.g., `max: 75` for LCOE)
+- Ensure renewable resource data is available in data source
+- Check that technology names match data (lowercase: `landbasedwind`, `utilitypv`, `offshorewind`)
 
 ### Cost Data Missing
 

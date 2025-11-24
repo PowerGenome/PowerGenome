@@ -22,8 +22,8 @@ Install PowerGenome, understand the basic workflow, and run your first model. Yo
 
 Create a model with multiple regions and transmission constraints. You'll learn:
 
-- How to define model regions
-- How to aggregate base regions
+- How to define model regions (base regions and aggregated regions)
+- How PowerGenome's regional hierarchy works
 - How to configure transmission between regions
 - How to set regional parameters
 

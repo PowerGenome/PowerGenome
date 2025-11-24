@@ -142,7 +142,7 @@ demand_table:
   filters:
     - - [region, '=', 'CA']
       - [year, '>=', 2030]
-  columns: [region, year, hour, demand_mw]
+  columns: [time_index, weather_year, region, load_mw, year]
 ```
 
 Filter logic uses **DNF (Disjunctive Normal Form)**:

@@ -1,6 +1,15 @@
 # Regional Configuration
 
-Regional settings define the geographic structure of your model—how base regions (e.g., from IPM or ReEDS) aggregate into model regions, and region-specific customizations.
+Regional settings define the geographic structure of your model—how base regions aggregate into model regions, and region-specific customizations.
+
+!!! info "Understanding PowerGenome Regions"
+    PowerGenome uses a hierarchical regional structure based on NREL's Regional Energy Deployment System (ReEDS) regions:
+
+    - **Base regions**: The fundamental geographic units from the ReEDS model (labeled `p1`, `p2`, `p3`, etc.)
+    - **Aggregated regions**: Groups of multiple base regions combined together (e.g., `p1_2` combines `p1` and `p2`)
+    - **Model regions**: The regions in your study - can be either single base regions OR aggregated regions
+
+    The `region_aggregations` parameter defines how base regions map to model regions. While PowerGenome examples use ReEDS regions, you can adapt this structure to any geography (countries, provinces, utility territories, etc.) by providing appropriately structured data tables.
 
 ## Core Regional Parameters
 
@@ -12,15 +21,14 @@ Regional settings define the geographic structure of your model—how base regio
 
 Names of the regions that will appear in output files. These can be:
 
-- Single base regions (no aggregation)
+- Single base regions (e.g., `p10`, `p22`)
 - Aggregated region names (defined in `region_aggregations`)
 
-!!! tip "Base Regions"
-    "Base regions" refer to the geographic units in your source data. While PowerGenome examples use US IPM or ReEDS regions, base regions can represent any geography: European countries, Chinese provinces, market zones, utility territories, etc. Define regions that match your input data tables.
-
 ```yaml
-model_regions: [CA_N, CA_S, AZ]
+model_regions: [p1_2, p3, p4]
 ```
+
+Where `p1_2` is an aggregated region and `p3`, `p4` are individual base regions.
 
 All regional parameters use these names as keys.
 
@@ -30,21 +38,18 @@ All regional parameters use these names as keys.
 **Required**: Only if using aggregations
 **Example**: See below
 
-Maps model region names to the base regions they contain. Base regions come from your data source (IPM, ReEDS, etc.).
+Maps model region names to the base regions they contain. Use this to combine multiple base regions into larger study areas.
 
 ```yaml
 region_aggregations:
-  CA_N:
-    - CA_IID
-    - CA_LADWP
-    - CA_BANC
-  CA_S:
-    - CA_SCE
-    - CA_SDGE
-  MOUNTAIN:
-    - AZ
-    - NM
-    - CO_S
+  p1_2:      # Aggregated region
+    - p1
+    - p2
+  p3: [p3]   # Pass-through (optional, can omit)
+  northwest:  # Custom name for aggregated region
+    - p4
+    - p5
+    - p6
 ```
 
 **Important**:

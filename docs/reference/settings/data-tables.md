@@ -171,19 +171,21 @@ generation_table:
 ### Demand Table
 
 **Setting**: `demand_table`
-**Purpose**: Hourly electricity demand
+**Purpose**: Hourly electricity demand in tidy format
 
 **Required columns**:
 
-- `region` or `load_zone`: Demand zone
-- `hour`: Hour of year (1-8760)
-- `demand_mw`: Load in MW
+- `region`: Model region name
+- `time_index`: Hour index (1 to number of hours)
+- `load_mw`: Demand in MW
 
 **Optional columns**:
 
 - `year`: Model year (for multi-year data)
 - `scenario`: Scenario identifier
 - `weather_year`: Weather data year
+
+**Format**: Tidy/long format with one row per region-time observation.
 
 **Example**:
 
@@ -193,6 +195,18 @@ demand_table:
   scenario: high_ev
   filters:
     - - [year, '=', 2030]
+```
+
+**Example demand CSV (tidy format)**:
+
+```csv
+time_index,weather_year,region,load_mw,year
+1,2012,CA_N,15234.5,2030
+2,2012,CA_N,14123.2,2030
+3,2012,CA_N,13890.4,2030
+1,2012,CA_S,12450.8,2030
+2,2012,CA_S,11234.5,2030
+...
 ```
 
 ### Fuel Prices Table
@@ -316,9 +330,14 @@ dg_profiles_table: dg_generation_profiles.parquet
 **Setting**: `RESOURCE_GROUP_PROFILES` (path)
 **Purpose**: Hourly generation profiles for renewable clusters
 
-**File naming**: `{technology}_{tech_detail}_{cluster_id}.csv`
+**File naming**: `{technology}_profiles_{suffix}.csv` or `.parquet`
 
-**Format**: 8760 rows with single column of capacity factors
+**Format**: Tidy format with columns:
+
+- `weather_year`: Weather data year
+- `time_index`: Hour index (1 to number of hours)
+- `site_id`: Resource cluster/site identifier
+- `value`: Capacity factor (0.0 to 1.0)
 
 **Example**:
 
@@ -329,10 +348,21 @@ RESOURCE_GROUP_PROFILES: /data/nrel_profiles/
 Files in folder:
 
 ```
-LandbasedWind_Class3_1.csv
-LandbasedWind_Class3_2.csv
-UtilityPV_Class1_1.csv
-OffshoreWind_Class1_1.csv
+landbasedwind_profiles_class3.parquet
+utilitypv_profiles_class1.parquet
+offshorewind_profiles_class1.parquet
+```
+
+**Example profile CSV (tidy format)**:
+
+```csv
+weather_year,time_index,site_id,value
+2012,1,3244,0.45
+2012,2,3244,0.42
+2012,3,3244,0.48
+2012,1,3818,0.52
+2012,2,3818,0.48
+...
 ```
 
 ## Policy and Cost Tables
