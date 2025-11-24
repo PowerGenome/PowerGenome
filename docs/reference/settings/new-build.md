@@ -334,6 +334,8 @@ storage_efficiency:
 
 Flexible specification of per-MW interconnection capital cost (USD/MW) applied to new and existing resources. Replaces the deprecated spur line mileage system (`transmission_investment_cost` with `capacity_limit_spur_fn` file).
 
+**Important**: All cost values must be in the same dollar year as `target_usd_year` (the target dollar year for cost normalization). PowerGenome does not automatically adjust interconnection costs for inflation.
+
 **Supported Patterns** (mutually exclusive; `default` key may accompany any pattern):
 
 #### 1. Scalar
