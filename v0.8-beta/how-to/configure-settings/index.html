@@ -1630,6 +1630,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/atb-technologies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ATB Technology Names
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/cli/" class="md-nav__link">
         
   
@@ -2384,7 +2412,7 @@
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│   ├── demand.yml
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│   ├── time_reduction.yml
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│   ├── scenario_management.yml
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│   └── env.yml
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│   └── data.yml
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>└── extra_inputs/
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    └── emission_policies.csv
 </code></pre></div>
@@ -2530,8 +2558,8 @@
 <p>See <a href="../run-scenarios/">Run Multiple Scenarios</a> for details.</p>
 <h2 id="environment-specific-settings">Environment-Specific Settings<a class="headerlink" href="#environment-specific-settings" title="Permanent link">&para;</a></h2>
 <h3 id="local-paths">Local Paths<a class="headerlink" href="#local-paths" title="Permanent link">&para;</a></h3>
-<p>Create <code>env.yml</code> for machine-specific paths (add to <code>.gitignore</code>):</p>
-<p><strong>settings/env.yml</strong>:</p>
+<p>Create <code>data.yml</code> for machine-specific paths (add to <code>.gitignore</code>):</p>
+<p><strong>settings/data.yml</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Data paths (local machine)</span>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/Users/me/powergenome_data</span>
 <a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nt">RESOURCE_GROUP_PROFILES</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/Users/me/nrel_profiles</span>
@@ -2542,9 +2570,9 @@
 <a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="nt">EIA_AEO_YEAR</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2023</span>
 </code></pre></div>
 <p><strong>settings/.gitignore</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>env.yml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>data.yml
 </code></pre></div>
-<p>Team members create their own <code>env.yml</code> without committing it.</p>
+<p>Team members create their own <code>data.yml</code> without committing it.</p>
 <h3 id="shared-paths">Shared Paths<a class="headerlink" href="#shared-paths" title="Permanent link">&para;</a></h3>
 <p>For shared data locations (HPC cluster, cloud storage), commit paths:</p>
 <p><strong>settings/data_paths.yml</strong>:</p>
@@ -2730,9 +2758,9 @@
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Split logically</strong>: Organize by functional area (generators, transmission, etc.)</li>
-<li><strong>Use env.yml</strong>: Keep machine-specific paths out of version control</li>
+<li><strong>Use data.yml</strong>: Keep machine-specific paths out of version control</li>
 <li><strong>Comment generously</strong>: Explain non-obvious parameter choices</li>
-<li><strong>Version control</strong>: Commit settings folder (except env.yml) to Git</li>
+<li><strong>Version control</strong>: Commit settings folder (except data.yml) to Git</li>
 <li><strong>Test incrementally</strong>: Validate after major changes</li>
 <li><strong>Document assumptions</strong>: Note data sources, policy assumptions, cost adjustments</li>
 <li><strong>Use examples</strong>: Start from working example_systems configurations</li>
