@@ -323,6 +323,173 @@ storage_efficiency:
   Pumped_Hydro: 0.80
 ```
 
+## Interconnection Costs
+
+### `interconnect_capex_mw`
+
+**Type**: Number or dictionary
+**Required**: No
+**Default**: None (falls back to legacy `transmission_investment_cost` if provided)
+**Example**: See patterns below
+
+Flexible specification of per-MW interconnection capital cost (USD/MW) applied to new and existing resources. Replaces the deprecated spur line mileage system (`transmission_investment_cost` with `capacity_limit_spur_fn` file).
+
+**Important**: All cost values must be in the same dollar year as `target_usd_year` (the target dollar year for cost normalization). PowerGenome does not automatically adjust interconnection costs for inflation.
+
+**Supported Patterns** (mutually exclusive; `default` key may accompany any pattern):
+
+#### 1. Scalar
+
+Apply uniform cost to all resources:
+
+```yaml
+interconnect_capex_mw: 150000  # $150k/MW for all resources
+```
+
+#### 2. Region-Only
+
+Different costs by region (exact region name matching):
+
+```yaml
+interconnect_capex_mw:
+  default: 120000
+  CA_N: 140000
+  CA_S: 130000
+  AZ: 125000
+```
+
+#### 3. Technology-Only
+
+Different costs by technology using case-insensitive substring matching with shortest-first precedence:
+
+```yaml
+interconnect_capex_mw:
+  default: 100000
+  wind: 120000          # matches 'LandbasedWind_Class3_Moderate', 'OffshoreWind_Class1_Moderate'
+  offshore_wind: 200000 # longer substring overwrites previous 'wind' assignment
+  battery: 50000        # matches 'Battery_4Hr_Moderate', 'Battery_*_Moderate'
+  solar: 110000         # matches 'UtilityPV_Class1_Moderate'
+```
+
+**Precedence rule**: Shorter substrings applied first, then longer (more specific) substrings override previous assignments. This allows general categories with specific exceptions.
+
+#### 4. Region → Technology Nested
+
+Region-specific technology costs (region keys at top level):
+
+```yaml
+interconnect_capex_mw:
+  default: 110000
+  CA_N:
+    battery: 60000
+    offshore_wind: 210000
+    solar: 105000
+  CA_S:
+    solar: 95000
+    wind: 115000
+  AZ: 125000  # Can mix dict and numeric values for different regions
+```
+
+Within each region, technology substrings follow shortest-first precedence.
+
+#### 5. Technology → Region Nested
+
+Technology-specific regional costs (technology keys at top level):
+
+```yaml
+interconnect_capex_mw:
+  default: 110000
+  wind:
+    CA_N: 125000
+    CA_S: 115000
+    AZ: 120000
+  battery:
+    CA_N: 55000
+    CA_S: 52000
+  offshore_wind:
+    CA_N: 205000  # More specific than 'wind', overrides for offshore
+```
+
+Technology substrings applied shortest-first; within each technology, regions matched exactly.
+
+**Matching Rules**:
+
+- **Technology matching**: Case-insensitive substring search against the `technology` column
+- **Substring precedence**: Shortest substrings processed first; longer substrings override
+- **Region matching**: Exact match against model region names (case-sensitive)
+- **Invalid mixing**: Cannot mix region and technology keys at the same top level (excluding `default`)
+
+**Examples of Invalid Configuration**:
+
+```yaml
+# ERROR: Cannot mix region and technology keys
+interconnect_capex_mw:
+  CA_N: 140000      # Region key
+  wind: 120000      # Technology key - mixing not allowed!
+```
+
+**Behavior**:
+
+- **Non-destructive**: Existing non-zero `interconnect_capex_mw` values in the resource dataframe are never overwritten
+- **Automatic annuity**: `interconnect_annuity` is computed automatically for:
+  - Newly assigned capex rows
+  - Pre-existing capex rows with zero/blank annuity
+- **Financial parameters**: Annuity calculation uses plant-specific `wacc_real` and `cap_recovery_years` from the resource dataframe
+- **Legacy bypass**: When `interconnect_capex_mw` is provided, legacy spur mileage columns (`spur_miles`, `offshore_spur_miles`, `tx_miles`) are ignored (warning logged if present)
+
+**Migration from Legacy System**:
+
+Old approach (deprecated):
+
+```yaml
+# Settings
+transmission_investment_cost:
+  spur:
+    capex_mw_mile:
+      CA_N: 3000
+      CA_S: 3200
+    wacc: 0.069
+    investment_years: 60
+
+# Required extra_inputs file: capacity_limit_spur_fn
+# File: resource_capacity_spur.csv
+# resource,region,spur_miles
+# offshore_wind_fixed,CA_N,45
+# solar_pv,CA_N,12
+```
+
+New approach (recommended):
+
+```yaml
+interconnect_capex_mw:
+  default: 120000
+  offshore_wind: 200000  # Direct cost specification
+  solar: 105000
+```
+
+**Benefits of new system**:
+
+- No external file dependency
+- More intuitive (direct $/MW vs. mileage calculation)
+- Flexible pattern matching (region, technology, or nested)
+- Automatic annuity handling
+- Better error messages
+
+### `transmission_investment_cost`
+
+**Type**: Dictionary
+**Required**: No
+**Deprecated**: Use `interconnect_capex_mw` instead
+**Example**: See legacy documentation
+
+Legacy spur line mileage-based interconnection cost system. Contains nested dictionaries for `spur`, `offshore_spur`, and `tx` with keys:
+
+- `capex_mw_mile`: Cost per MW-mile (by region)
+- `wacc`: Weighted average cost of capital
+- `investment_years`: Capital recovery period
+
+**Deprecation notice**: This parameter is deprecated and will be removed in a future release. It is only used when `interconnect_capex_mw` is not provided, and emits warnings during execution. Migrate to `interconnect_capex_mw` for simplified, more flexible cost specification.
+
 ## Renewable Resource Groups
 
 ### `renewable_clusters`

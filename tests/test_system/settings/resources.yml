@@ -131,11 +131,6 @@ resource_attr_modifiers:
 # New-build generators
 #####################
 # Generator cost data from NREL ATB
-
-atb_data_year: 2024
-atb_financial_case: Market
-atb_cap_recovery_years: 20
-
 resource_data_year: 2024
 resource_financial_case: Market
 resource_cap_recovery_years: 20
@@ -143,12 +138,6 @@ resource_cap_recovery_years: 20
 # Alternate capital recovery periods for specific technologies, which are used to calculate
 # the annual investment costs. The names are matched using str.contains rather than
 # exact matches. Set parameter value to none (~) if not used.
-alt_atb_cap_recovery_years:
-  NaturalGas_CCAvg: 15
-  NaturalGas_CTAvg: 15
-  Battery: 15
-  Nuclear: 40
-
 alt_resource_cap_recovery_years:
   NaturalGas_CCAvg: 15
   NaturalGas_CTAvg: 15
@@ -176,6 +165,68 @@ new_resources:
   # - [UtilityPV, Class1, Moderate, 1]
   - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 1]
   - [Nuclear, Nuclear - Large, Moderate, 1000]
+
+# Interconnection cost per MW to connect new generators to the transmission system
+# Resource Groups (as defined in RESOURCE_GROUPS) define site-specific interconnection costs.
+# This is for generic costs that apply to other new generators not in resource groups.
+# Method 1: flat rate for all generators
+interconnect_capex_mw: 100000
+
+# Method 2: use a key "default". This can be useful if mixing with other methods.
+# interconnect_capex_mw:
+#   default: 100000
+
+# Method 3: different rates by region
+# interconnect_capex_mw:
+#   p1_2: 100000
+#   p3: 100000
+#   p4: 100000
+
+# Method 4: different rates by technology (substring match to new_resources)
+# interconnect_capex_mw:
+#   NaturalGas: 100000
+#   Nuclear: 150000
+
+# Method 5: different rates by region and technology, where region is the top-level key
+# interconnect_capex_mw:
+#   p1_2:
+#     NaturalGas: 100000
+#     Nuclear: 150000
+#   p3:
+#     NaturalGas: 120000
+#     Nuclear: 170000
+#   p4:
+#     NaturalGas: 110000
+#     Nuclear: 160000
+
+# Method 6: different rates by technology and region, where technology is the top-level key
+# interconnect_capex_mw:
+#   NaturalGas:
+#     p1_2: 100000
+#     p3: 120000
+#     p4: 110000
+#   Nuclear:
+#     p1_2: 150000
+#     p3: 170000
+#     p4: 160000
+
+# Combine default with specific overrides
+# interconnect_capex_mw:
+#   default: 100000
+#   p1_2: 120000
+#   p3:
+#     Nuclear: 170000
+#   p4:
+#     NaturalGas: 110000
+
+# DOES NOT WORK: Combine region and technology at the same level. Will raise an error.
+# interconnect_capex_mw:
+#   default: 100000
+#   NaturalGas: 120000
+#   p1_2:
+#     NaturalGas: 120000
+#   p3:
+#     Nuclear: 170000
 
 cache_resource_clusters: false
 use_resource_clusters_cache: false
