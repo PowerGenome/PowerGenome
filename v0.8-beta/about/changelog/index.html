@@ -1554,6 +1554,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#deprecated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deprecated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#removed" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1689,6 +1700,17 @@
     <span class="md-ellipsis">
       
         Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deprecated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deprecated
       
     </span>
   </a>
@@ -1839,6 +1861,10 @@ and this project adheres to Semantic Versioning.</p>
 <ul>
 <li><strong>Multi-weather-year support</strong>: Filter renewable generation profiles and hourly demand by weather year(s)</li>
 <li><strong>Comprehensive DG test suite</strong>: Coverage for capacity interpolation/extrapolation, multi-weather-year profiles, aggregation</li>
+<li><strong>Flexible interconnection cost specification</strong>: New <code>interconnect_capex_mw</code> setting replaces the old per-mile spur line system (<code>capacity_limit_spur_fn</code>)</li>
+<li>Supports scalar, region-only, technology-only, and nested patterns</li>
+<li>Case-insensitive substring matching with shortest-first precedence for technologies</li>
+<li>Automatic annuity calculation for both new and existing resources</li>
 <li><strong>Auto-generated cost multiplier mappings</strong>: Optional <code>cost_multiplier_region_map</code> and <code>cost_multiplier_technology_map</code> with automatic substring matching</li>
 <li><strong>Partial-year DG capacity fill</strong>: Interpolate/extrapolate only missing regions when some have the requested year</li>
 <li><strong>Regional cost aggregation</strong>: Automatic averaging of cost multipliers for aggregated model regions</li>
@@ -1848,6 +1874,9 @@ and this project adheres to Semantic Versioning.</p>
 <ul>
 <li><strong>BREAKING</strong>: Standardized renewable generation profiles to tidy format only (no more wide format)</li>
 <li>Tidy schema: <code>site_id</code>, <code>time_index</code>, <code>value</code>, optional <code>weather_year</code></li>
+<li><strong>BREAKING</strong>: Refactored <code>calculate_transmission_inv_cost</code> and <code>add_transmission_inv_cost</code> to use explicit arguments</li>
+<li>Functions now read WACC and capital recovery years from dataframe columns</li>
+<li>Legacy spur mileage logic only activated when <code>interconnect_capex_mw</code> not provided</li>
 <li><strong>Profile IO refactored</strong>: Uses centralized DataManager with DNF filters</li>
 <li><strong>DG timezone semantics</strong>: Negative <code>tz_offset</code> shifts earlier hours later in array</li>
 <li><strong>Multi-year DG profiles</strong>: Build sequential <code>time_index</code> across weather years</li>
@@ -1855,6 +1884,12 @@ and this project adheres to Semantic Versioning.</p>
 <li><strong>Fuel workflow simplified</strong>: Legacy mapping parameters (<code>fuel_series_*</code>, <code>fuel_region_map</code>) now optional</li>
 <li>Fuel price tables should contain all base regions</li>
 <li>Aggregated region prices calculated automatically by averaging base regions</li>
+</ul>
+<h3 id="deprecated">Deprecated<a class="headerlink" href="#deprecated" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Spur line mileage system</strong>: <code>transmission_investment_cost</code> with <code>capacity_limit_spur_fn</code> file deprecated in favor of <code>interconnect_capex_mw</code></li>
+<li>Legacy system still functional but emits warnings</li>
+<li>Will be removed in a future release</li>
 </ul>
 <h3 id="removed">Removed<a class="headerlink" href="#removed" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1924,6 +1959,41 @@ and this project adheres to Semantic Versioning.</p>
 </ul>
 <p>Legacy mapping parameters still supported for backward compatibility.</p>
 <p>See <a href="../../reference/settings/fuels/">Fuel Settings</a> for complete documentation.</p>
+<h4 id="interconnection-costs">Interconnection Costs<a class="headerlink" href="#interconnection-costs" title="Permanent link">&para;</a></h4>
+<p><strong>Old (Per-mile spur line system)</strong>:</p>
+<p>Settings used mileage-based costs:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">transmission_investment_cost</span><span class="p">:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">spur</span><span class="p">:</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">capex_mw_mile</span><span class="p">:</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">      </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3000</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">      </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3200</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="nt">wacc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.069</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="nt">investment_years</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+</code></pre></div>
+<p>Extra input file <code>capacity_limit_spur_fn</code> provided spur distances:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>resource,region,spur_miles
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>offshore_wind_fixed,CA_N,45
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>solar_pv,CA_N,12
+</code></pre></div>
+<p><strong>New (Direct per-MW cost specification)</strong>:</p>
+<p>Simplified settings with flexible patterns:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">interconnect_capex_mw</span><span class="p">:</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="nt">offshore_wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200000</span><span class="w">  </span><span class="c1"># substring match, case-insensitive</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="nt">battery</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60000</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">    </span><span class="nt">solar</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">105000</span>
+</code></pre></div>
+<p>No external file needed. Supports:</p>
+<ul>
+<li>Scalar (applies to all resources)</li>
+<li>Region-only or technology-only mappings</li>
+<li>Nested region→technology or technology→region patterns</li>
+<li>Shortest-first substring precedence for technology matching</li>
+</ul>
+<p>Annuities calculated automatically using plant financial parameters (<code>wacc_real</code>, <code>cap_recovery_years</code>).</p>
+<p>Legacy spur system still supported for backward compatibility but will be removed in a future release.</p>
+<p>See <a href="../reference/settings/">Settings Documentation</a> for complete <code>interconnect_capex_mw</code> specification.</p>
 <h2 id="contributing">Contributing<a class="headerlink" href="#contributing" title="Permanent link">&para;</a></h2>
 <p>Found a bug or have a feature request? See our <a href="../contributing/">Contributing</a> guide to get involved!</p>
 
