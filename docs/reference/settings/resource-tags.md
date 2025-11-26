@@ -46,49 +46,58 @@ All resources must be assigned a value for each tag in this list.
 
 ### `model_tag_values`
 
-**Type**: Dictionary (technology → tag → value)
+**Type**: Dictionary (tag → technology → value)
 **Required**: Yes
 **Example**: See below
 
 Default tag values for each technology. These apply across all regions unless overridden.
 
+!!! info "Technology Matching"
+    Technology names are matched using **case-insensitive substring matching**. Shortest (most general) patterns are applied first, then longer (more specific) patterns override previous assignments. This allows you to set broad defaults and create specific exceptions.
+
 ```yaml
 model_tag_values:
-  NaturalGas_CCCCSAvgCF_Moderate:
-    THERM: 1
-    VRE: 0
-    STOR: 0
-    FLEX: 0
-    HYDRO: 0
-    MUST_RUN: 0
-    LDS: 0
+  THERM:
+    NaturalGas: 1
+    UtilityPV: 0
+    Battery: 0
+    Hydroelectric: 0
 
-  UtilityPV_Class1_Moderate:
-    THERM: 0
-    VRE: 1
-    STOR: 0
-    FLEX: 0
-    HYDRO: 0
-    MUST_RUN: 0
-    LDS: 0
+  VRE:
+    NaturalGas: 0
+    UtilityPV: 1
+    Battery: 0
+    Hydroelectric: 0
 
-  Battery_4Hr_Moderate:
-    THERM: 0
-    VRE: 0
-    STOR: 1
-    FLEX: 0
-    HYDRO: 0
-    MUST_RUN: 0
-    LDS: 0
+  STOR:
+    NaturalGas: 0
+    UtilityPV: 0
+    Battery: 1
+    Hydroelectric_Pumped: 1  # More specific, overrides 'Hydroelectric'
 
-  Hydroelectric_Pumped_Storage:
-    THERM: 0
-    VRE: 0
-    STOR: 1
-    FLEX: 0
-    HYDRO: 1
-    MUST_RUN: 0
-    LDS: 1
+  FLEX:
+    NaturalGas: 0
+    UtilityPV: 0
+    Battery: 0
+    Hydroelectric: 0
+
+  HYDRO:
+    NaturalGas: 0
+    UtilityPV: 0
+    Battery: 0
+    Hydroelectric: 1
+
+  MUST_RUN:
+    NaturalGas: 0
+    UtilityPV: 0
+    Battery: 0
+    Hydroelectric: 0
+
+  LDS:
+    NaturalGas: 0
+    UtilityPV: 0
+    Battery: 0
+    Hydroelectric_Pumped: 1
 ```
 
 **Tag values**:
@@ -99,37 +108,49 @@ model_tag_values:
 
 ### Wildcard Patterns
 
-Use wildcards to assign tags to multiple technologies at once:
+Use wildcards to assign tags to multiple technologies at once. The `*` matches any characters.
 
 ```yaml
 model_tag_values:
-  # Match all battery durations
-  Battery_*_Moderate:
-    THERM: 0
-    VRE: 0
-    STOR: 1
-    FLEX: 0
+  THERM:
+    Battery: 0  # Matches all battery technologies
+    NaturalGas: 1  # Matches all natural gas technologies
+    LandbasedWind: 0  # Matches all wind technologies
+    OffShoreWind: 0  # More specific, can override 'Wind' if both present
 
-  # Match all natural gas technologies
-  NaturalGas_*:
-    THERM: 1
-    VRE: 0
-    STOR: 0
+  VRE:
+    Battery: 0
+    NaturalGas: 0
+    LandbasedWind: 1
+    OffShoreWind: 1
 
-  # Match all wind classes
-  LandbasedWind_Class*_Moderate:
-    THERM: 0
-    VRE: 1
-    STOR: 0
+  STOR:
+    Battery: 1
+    NaturalGas: 0
+    LandbasedWind: 0
+
+  FLEX:
+    Battery: 0
+    NaturalGas: 0
+    LandbasedWind: 0
 ```
 
-Wildcards make configuration more maintainable when you have many similar technologies.
+**Substring precedence**: Shorter substrings are processed first, longer substrings override:
+
+```yaml
+model_tag_values:
+  THERM:
+    Wind: 0          # Applied first - matches 'LandbasedWind_Class3', 'OffShoreWind_Class12'
+    OffShoreWind: 1  # Applied second - overwrites only offshore wind technologies
+```
+
+This makes configuration maintainable when you have many similar technologies.
 
 ## Regional Tag Overrides
 
 ### `regional_tag_values`
 
-**Type**: Dictionary (region → technology → tag → value)
+**Type**: Dictionary (region → tag → technology → value)
 **Required**: No
 **Example**: See below
 
@@ -138,16 +159,16 @@ Override tag values for specific technologies in specific regions. Regional valu
 ```yaml
 regional_tag_values:
   CA_N:
-    NaturalGas_CCCCSAvgCF_Moderate:
-      THERM: 2  # Different thermal zone in CA
-    Conventional_Hydroelectric:
-      MUST_RUN: 1  # California hydro is must-run
+    THERM:
+      NaturalGas: 2  # Different thermal zone in CA
+    MUST_RUN:
+      Hydroelectric: 1  # California hydro is must-run
 
   AZ:
-    NaturalGas_CCCCSAvgCF_Moderate:
-      THERM: 1  # Arizona thermal zone
-    Conventional_Hydroelectric:
-      MUST_RUN: 0  # Arizona hydro is flexible
+    THERM:
+      NaturalGas: 1  # Arizona thermal zone
+    MUST_RUN:
+      Hydroelectric: 0  # Arizona hydro is flexible
 ```
 
 **Use cases**:
@@ -155,150 +176,6 @@ regional_tag_values:
 - Different thermal reserve zones by region
 - Region-specific must-run requirements (e.g., cogeneration contracts)
 - Policy differences (e.g., renewable portfolio standard eligibility)
-
-## Common Tag Configurations
-
-### Thermal Generators
-
-```yaml
-model_tag_values:
-  NaturalGas_CCAvgCF_Moderate:
-    THERM: 1      # Thermal generator
-    VRE: 0        # Not variable renewable
-    STOR: 0       # Not storage
-    MUST_RUN: 0   # Can be dispatched
-    HYDRO: 0
-    FLEX: 0
-    LDS: 0
-
-  Coal_NewAvgCF_Moderate:
-    THERM: 1
-    VRE: 0
-    STOR: 0
-    MUST_RUN: 0
-    HYDRO: 0
-    FLEX: 0
-    LDS: 0
-
-  Nuclear_Nuclear_Moderate:
-    THERM: 1
-    VRE: 0
-    STOR: 0
-    MUST_RUN: 1   # Nuclear often must-run
-    HYDRO: 0
-    FLEX: 0
-    LDS: 0
-```
-
-### Variable Renewables
-
-```yaml
-model_tag_values:
-  UtilityPV_Class1_Moderate:
-    THERM: 0
-    VRE: 1        # Variable renewable
-    STOR: 0
-    MUST_RUN: 0
-    HYDRO: 0
-    FLEX: 0
-    LDS: 0
-
-  LandbasedWind_Class3_Moderate:
-    THERM: 0
-    VRE: 1
-    STOR: 0
-    MUST_RUN: 0
-    HYDRO: 0
-    FLEX: 0
-    LDS: 0
-
-  OffshoreWind_Class1_Moderate:
-    THERM: 0
-    VRE: 1
-    STOR: 0
-    MUST_RUN: 0
-    HYDRO: 0
-    FLEX: 0
-    LDS: 0
-```
-
-### Storage Resources
-
-```yaml
-model_tag_values:
-  Battery_2Hr_Moderate:
-    THERM: 0
-    VRE: 0
-    STOR: 1       # Storage resource
-    MUST_RUN: 0
-    HYDRO: 0
-    FLEX: 0
-    LDS: 0        # Not long-duration (<12hr)
-
-  Battery_8Hr_Moderate:
-    THERM: 0
-    VRE: 0
-    STOR: 1
-    MUST_RUN: 0
-    HYDRO: 0
-    FLEX: 0
-    LDS: 0        # 8hr not typically "long-duration"
-
-  Hydroelectric_Pumped_Storage:
-    THERM: 0
-    VRE: 0
-    STOR: 1
-    MUST_RUN: 0
-    HYDRO: 1      # Also tagged as hydro
-    FLEX: 0
-    LDS: 1        # Long-duration storage
-```
-
-### Hydroelectric
-
-```yaml
-model_tag_values:
-  Conventional_Hydroelectric:
-    THERM: 0
-    VRE: 0
-    STOR: 0
-    MUST_RUN: 0   # Flexible (unless regional override)
-    HYDRO: 1      # Hydroelectric resource
-    FLEX: 0
-    LDS: 0
-
-  Hydroelectric_Pumped_Storage:
-    THERM: 0
-    VRE: 0
-    STOR: 1       # Pumped storage is storage + hydro
-    MUST_RUN: 0
-    HYDRO: 1
-    FLEX: 0
-    LDS: 1
-```
-
-### Demand Response
-
-```yaml
-model_tag_values:
-  EV_Charging:
-    THERM: 0
-    VRE: 0
-    STOR: 0
-    MUST_RUN: 0
-    HYDRO: 0
-    FLEX: 1       # Flexible demand
-    LDS: 0
-
-  Water_Heating:
-    THERM: 0
-    VRE: 0
-    STOR: 0
-    MUST_RUN: 0
-    HYDRO: 0
-    FLEX: 1
-    LDS: 0
-```
 
 ## Policy-Related Tags
 
@@ -315,17 +192,15 @@ model_tag_names:
   - ESR_2    # Clean Energy Standard
 
 model_tag_values:
-  UtilityPV_Class1_Moderate:
-    ESR_1: 1  # Eligible for RPS
-    ESR_2: 1  # Eligible for CES
+  ESR_1:
+    UtilityPV: 1  # Eligible for RPS
+    NaturalGas_CCS: 0  # Not eligible for RPS
+    Nuclear: 0  # Not eligible for RPS
 
-  NaturalGas_CCCCSAvgCF_Moderate:
-    ESR_1: 0  # Not eligible for RPS
-    ESR_2: 1  # May be eligible for CES (with CCS)
-
-  Nuclear_Nuclear_Moderate:
-    ESR_1: 0  # Not eligible for RPS
-    ESR_2: 1  # Eligible for CES (carbon-free)
+  ESR_2:
+    UtilityPV: 1  # Eligible for CES
+    NaturalGas_CCS: 1  # May be eligible for CES (with CCS)
+    Nuclear: 1  # Eligible for CES (carbon-free)
 ```
 
 See [Energy Share Requirements How-To](../../how-to/energy-share-requirements.md) for policy configuration.
@@ -342,13 +217,13 @@ model_tag_names:
   - MaxCapTag_1  # Maximum gas limit
 
 model_tag_values:
-  UtilityPV_Class1_Moderate:
-    MinCapTag_1: 1  # Counts toward solar minimum
-    MaxCapTag_1: 0
+  MinCapTag_1:
+    UtilityPV: 1  # Counts toward solar minimum
+    NaturalGas: 0
 
-  NaturalGas_CCAvgCF_Moderate:
-    MinCapTag_1: 0
-    MaxCapTag_1: 1  # Counts toward gas maximum
+  MaxCapTag_1:
+    UtilityPV: 0
+    NaturalGas: 1  # Counts toward gas maximum
 ```
 
 Configure requirements in `emission_policies_fn` or via GenX settings.
@@ -365,19 +240,20 @@ model_tag_names:
   - CapRes_2  # Secondary reserve zone
 
 model_tag_values:
-  NaturalGas_CCAvgCF_Moderate:
-    CapRes_1: 1  # Contributes to zone 1
-    CapRes_2: 0
+  CapRes_1:
+    NaturalGas: 1  # Contributes to zone 1
+    Battery: 1  # Storage can provide reserves
 
-  Battery_4Hr_Moderate:
-    CapRes_1: 1  # Storage can provide reserves
-    CapRes_2: 0
+  CapRes_2:
+    NaturalGas: 0
+    Battery: 0
 
 regional_tag_values:
   CA_N:
-    NaturalGas_CCAvgCF_Moderate:
-      CapRes_1: 1
-      CapRes_2: 1  # CA resources contribute to both zones
+    CapRes_1:
+      NaturalGas: 1
+    CapRes_2:
+      NaturalGas: 1  # CA resources contribute to both zones
 ```
 
 Capacity reserve requirements are set in `regional_capacity_reserves`.
@@ -434,50 +310,59 @@ model_tag_names:
 
 # Technology defaults
 model_tag_values:
-  # Natural gas
-  NaturalGas_*:
-    THERM: 1
-    VRE: 0
-    STOR: 0
-    FLEX: 0
-    HYDRO: 0
-    MUST_RUN: 0
-    LDS: 0
-    ESR_1: 0
-    CapRes_1: 1
+  THERM:
+    NaturalGas: 1
+    UtilityPV: 0
+    Battery: 0
 
-  # Solar
-  UtilityPV_*:
-    THERM: 0
-    VRE: 1
-    STOR: 0
-    FLEX: 0
-    HYDRO: 0
-    MUST_RUN: 0
-    LDS: 0
-    ESR_1: 1  # RPS-eligible
-    CapRes_1: 1
+  VRE:
+    NaturalGas: 0
+    UtilityPV: 1
+    Battery: 0
 
-  # Batteries
-  Battery_*:
-    THERM: 0
-    VRE: 0
-    STOR: 1
-    FLEX: 0
-    HYDRO: 0
-    MUST_RUN: 0
-    LDS: 0
-    ESR_1: 0
-    CapRes_1: 1
+  STOR:
+    NaturalGas: 0
+    UtilityPV: 0
+    Battery: 1
+
+  FLEX:
+    NaturalGas: 0
+    UtilityPV: 0
+    Battery: 0
+
+  HYDRO:
+    NaturalGas: 0
+    UtilityPV: 0
+    Battery: 0
+
+  MUST_RUN:
+    NaturalGas: 0
+    UtilityPV: 0
+    Battery: 0
+
+  LDS:
+    NaturalGas: 0
+    UtilityPV: 0
+    Battery: 0
+
+  ESR_1:
+    NaturalGas: 0
+    UtilityPV: 1  # RPS-eligible
+    Battery: 0
+
+  CapRes_1:
+    NaturalGas: 1
+    UtilityPV: 1
+    Battery: 1
 
 # Regional overrides
 regional_tag_values:
   CA_N:
-    NaturalGas_CCAvgCF_Moderate:
-      THERM: 2  # Different thermal zone
+    THERM:
+      NaturalGas: 2  # Different thermal zone
   CA_S:
-    NaturalGas_CCAvgCF_Moderate:
-      THERM: 2
+    THERM:
+      NaturalGas: 2
 ```
 
 ## Related Settings

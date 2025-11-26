@@ -134,30 +134,105 @@ tech_groups:
 
 **Matching**: Technology names are matched case-insensitively with partial matching.
 
-### `regional_no_grouping`
+## Attribute Modifiers
 
-**Type**: Dictionary (region → list of technologies)
+### `resource_attr_modifiers`
+
+**Type**: Dictionary (technology → list of modifier dictionaries)
 **Required**: No
 **Example**: See below
 
-Technologies that should NOT be grouped or clustered in specific regions. Each plant becomes its own resource.
+Apply custom formulas to modify generator attributes based on other data fields. Useful for age-based cost adjustments, regional scaling, or custom business logic.
 
 ```yaml
-regional_no_grouping:
-  CA_N:
-    - Nuclear
-    - Hydroelectric Pumped Storage
-  ALL_REGIONS:
-    - Geothermal
+resource_attr_modifiers:
+  conventional steam coal:
+    - attribute: fom_per_mwyr
+      formula:
+        op: add
+        rate: 126  # $/kW-yr per year of age
+        multiplier: age
 ```
 
-Use this for:
+**Structure**:
 
-- Unique plants (nuclear reactors)
-- Plants with specific operating constraints
-- Facilities where aggregation loses critical detail
+Each technology can have multiple modifiers. Each modifier requires:
 
-<!-- Retirement logic via explicit age thresholds removed in v0.8.0-beta. Generator retention handled through input data (retirement_year filtering) or scenario-specific cost/availability modifiers. -->
+- `attribute`: Column name to modify (e.g., `fom_per_mwyr`, `heat_rate_mmbtu_mwh`)
+- `formula`: Dictionary with operation details
+  - `op`: Operation type (`add`, `mul`, `sub`, `truediv`, or `replace`)
+  - `rate`: Numeric rate/coefficient
+  - `multiplier`: Column name containing values to multiply by rate
+
+**Operations**:
+
+| Operation | Formula | Example |
+|-----------|---------|---------|
+| `add` | `new = old + (rate × multiplier)` | Add age-based O&M |
+| `mul` | `new = old × (rate × multiplier)` | Scale by efficiency |
+| `sub` | `new = old - (rate × multiplier)` | Reduce value |
+| `truediv` | `new = old / (rate × multiplier)` | Divide value |
+| `replace` | `new = rate × multiplier` | Ignore old value |
+
+**Multiple attributes**:
+
+```yaml
+resource_attr_modifiers:
+  natural gas fired combined cycle:
+    - attribute: fom_per_mwyr
+      formula:
+        op: add
+        rate: 75
+        multiplier: age
+    - attribute: heat_rate_mmbtu_mwh
+      formula:
+        op: mul
+        rate: 1.002  # 0.2% degradation per year
+        multiplier: age
+```
+
+**Multiple technologies**:
+
+```yaml
+resource_attr_modifiers:
+  conventional steam coal:
+    - attribute: fom_per_mwyr
+      formula:
+        op: add
+        rate: 126
+        multiplier: age
+  nuclear:
+    - attribute: fom_per_mwyr
+      formula:
+        op: add
+        rate: 200
+        multiplier: age
+```
+
+**Technology matching**: Case-insensitive substring matching (e.g., `"coal"` matches `"Conventional Steam Coal"`).
+
+**Common attributes**:
+
+- `fom_per_mwyr`: Fixed O&M cost ($/MW-yr)
+- `vom_per_mwh`: Variable O&M cost ($/MWh)
+- `heat_rate_mmbtu_mwh`: Heat rate (MMBtu/MWh)
+- `capex_mw`: Capital cost ($/MW)
+- `minimum_load_mw`: Minimum load (MW)
+- `ramp_rate_mw_per_min`: Ramp rate (MW/min)
+
+**Common multipliers**:
+
+- `age`: Plant age in years
+- `capacity_mw`: Nameplate capacity
+- `operating_year`: Year plant started operation
+
+!!! warning "Column Requirements"
+    Both `attribute` and `multiplier` columns must exist in the generator dataframe. Missing columns raise `KeyError`.
+
+!!! tip "Execution Order"
+    Applied **after** clustering and cost loading, so you can reference calculated fields like `age`.
+
+See [Modify Generator Attributes How-To Guide](../../how-to/modify-generator-attributes.md) for detailed examples and validation.
 
 ## Data Table Configuration
 

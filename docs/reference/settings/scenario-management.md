@@ -70,6 +70,27 @@ settings_management:
         <settings_to_modify>
 ```
 
+**Year specification**:
+
+- Use specific years (e.g., `2030`, `2040`) for year-specific settings
+- Use `all_years` to apply settings across all model years
+
+```yaml
+settings_management:
+  all_years:  # Applied to all years in model_year
+    solar_cost:
+      low:
+        resource_financial_case: R&D
+      high:
+        resource_financial_case: Market
+
+  2030:  # Year-specific overrides
+    carbon_tax: 50
+
+  2040:
+    carbon_tax: 100
+```
+
 **Detailed example**:
 
 ```yaml
@@ -78,31 +99,25 @@ settings_management:
     solar_cost:
       low:
         atb_cost_case: Advanced
-        resource_modifiers:
-          UtilityPV_Class1_Moderate:
-            capex_mw:
-              2030: 0.8
       mid:
         atb_cost_case: Moderate
       high:
         atb_cost_case: Conservative
-        resource_modifiers:
-          UtilityPV_Class1_Moderate:
-            capex_mw:
-              2030: 1.2
 
     wind_cost:
       low:
         resource_modifiers:
-          LandbasedWind_Class3_Moderate:
-            capex_mw:
-              2030: 0.85
+          landbased_wind:
+            technology: LandbasedWind
+            tech_detail: Class3
+            capex_mw: [mul, 0.85]
       mid: {}  # No changes from baseline
       high:
         resource_modifiers:
-          LandbasedWind_Class3_Moderate:
-            capex_mw:
-              2030: 1.15
+          landbased_wind:
+            technology: LandbasedWind
+            tech_detail: Class3
+            capex_mw: [mul, 1.15]
 
     gas_price:
       reference:
@@ -119,13 +134,9 @@ settings_management:
       none:
         carbon_tax: 0
       moderate:
-        carbon_tax:
-          2030: 50
-          2040: 75
+        carbon_tax: 50
       aggressive:
-        carbon_tax:
-          2030: 100
-          2040: 150
+        carbon_tax: 100
 ```
 
 **How it works**:
@@ -147,15 +158,15 @@ settings_management:
       low:
         resource_modifiers:
           batteries:
-            technology: Battery
-            tech_detail: "*"
+            technology: Utility-Scale Battery Storage
+            tech_detail: Lithium Ion
             capex_mw: [mul, 0.7]
             capex_mwh: [mul, 0.7]
       high:
         resource_modifiers:
           batteries:
-            technology: Battery
-            tech_detail: "*"
+            technology: Utility-Scale Battery Storage
+            tech_detail: Lithium Ion
             capex_mw: [mul, 1.3]
             capex_mwh: [mul, 1.3]
 ```
@@ -168,20 +179,20 @@ settings_management:
     nuclear:
       allowed:
         new_resources:
-          - [NaturalGas, CCAvgCF, Moderate, 500]
+          - [NaturalGas, 2-on-1 Combined Cycle (F-Frame), Moderate, 500]
           - [UtilityPV, Class1, Moderate, 100]
           - [LandbasedWind, Class3, Moderate, 100]
-          - [Battery, "*", Moderate, 100]
+          - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 100]
           - [Nuclear, Nuclear - Large, Moderate, 1000]
       prohibited:
         new_resources:
-          - [NaturalGas, CCAvgCF, Moderate, 500]
+          - [NaturalGas, 2-on-1 Combined Cycle (F-Frame), Moderate, 500]
           - [UtilityPV, Class1, Moderate, 100]
           - [LandbasedWind, Class3, Moderate, 100]
-          - [Battery, "*", Moderate, 100]
+          - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 100]
         new_gen_not_available:
           ALL_REGIONS:
-            - Nuclear_Nuclear - Large_Moderate
+            - Nuclear
 ```
 
 <!-- Retirement age and demand growth scenario swapping removed. These concepts are now handled directly by input data and not via settings_management parameters. -->
@@ -206,7 +217,7 @@ settings_management:
 
 ## Multi-Period Scenarios
 
-For multi-period models, each period can have different parameter values:
+For multi-period models, each period can have different parameter values. You can use `all_years` to apply common settings across all years, then override specific years as needed.
 
 **scenario_definitions.csv** (multi-period, technology cost & carbon only):
 
@@ -220,16 +231,47 @@ high_tech,2040,advanced,aggressive
 high_tech,2050,advanced,aggressive
 ```
 
-**settings_management.yml**:
+**settings_management.yml** (using all_years):
+
+```yaml
+settings_management:
+  all_years:  # Common settings across all years
+    tech_cost:
+      moderate:
+        resource_financial_case: Market
+      advanced:
+        resource_financial_case: R&D
+    carbon:
+      none:
+        carbon_tax: 0
+
+  # Year-specific overrides for aggressive carbon case
+  2030:
+    carbon:
+      aggressive:
+        carbon_tax: 100
+
+  2040:
+    carbon:
+      aggressive:
+        carbon_tax: 150
+
+  2050:
+    carbon:
+      aggressive:
+        carbon_tax: 200
+```
+
+**Alternative** (without all_years, explicit per year):
 
 ```yaml
 settings_management:
   2030:
     tech_cost:
       moderate:
-        atb_cost_case: Moderate
+        resource_financial_case: Market
       advanced:
-        atb_cost_case: Advanced
+        resource_financial_case: R&D
     carbon:
       none:
         carbon_tax: 0
@@ -238,9 +280,9 @@ settings_management:
   2040:
     tech_cost:
       moderate:
-        atb_cost_case: Moderate
+        resource_financial_case: Market
       advanced:
-        atb_cost_case: Advanced
+        resource_financial_case: R&D
     carbon:
       none:
         carbon_tax: 0
@@ -249,9 +291,9 @@ settings_management:
   2050:
     tech_cost:
       moderate:
-        atb_cost_case: Moderate
+        resource_financial_case: Market
       advanced:
-        atb_cost_case: Advanced
+        resource_financial_case: R&D
     carbon:
       none:
         carbon_tax: 0
@@ -365,17 +407,17 @@ settings_management:
       low:
         resource_financial_case: R&D
         new_resources:
-          - [NaturalGas, CCAvgCF, Advanced, 500]
+          - [NaturalGas, 2-on-1 Combined Cycle (F-Frame), Advanced, 500]
           - [UtilityPV, Class1, Advanced, 100]
       mid:
         resource_financial_case: Market
         new_resources:
-          - [NaturalGas, CCAvgCF, Moderate, 500]
+          - [NaturalGas, 2-on-1 Combined Cycle (F-Frame), Moderate, 500]
           - [UtilityPV, Class1, Moderate, 100]
       high:
         resource_financial_case: Market
         new_resources:
-          - [NaturalGas, CCAvgCF, Conservative, 500]
+          - [NaturalGas, 2-on-1 Combined Cycle (F-Frame), Conservative, 500]
           - [UtilityPV, Class1, Conservative, 100]
     carbon:
       none:

@@ -212,117 +212,6 @@ Use cases:
 - Policy constraints (coal banned)
 - Resource availability (no geothermal potential)
 
-## Capacity Limits
-
-### `new_build_max_capacity`
-
-**Type**: Dictionary (region → technology → MW)
-**Required**: No
-**Example**: See below
-
-Maximum new capacity allowed for each technology in each region.
-
-```yaml
-new_build_max_capacity:
-  CA_N:
-    Nuclear_Nuclear_Moderate: 2000  # Max 2 GW new nuclear
-    OffshoreWind_Class1_Moderate: 5000
-  AZ:
-    UtilityPV_Class1_Moderate: 10000
-```
-
-Enforces siting constraints, policy limits, or resource potential.
-
-### `new_build_min_capacity`
-
-**Type**: Dictionary (region → technology → MW)
-**Required**: No
-**Example**: See below
-
-Minimum required new capacity (forced build).
-
-```yaml
-new_build_min_capacity:
-  CA_S:
-    Battery_4Hr_Moderate: 500  # Must build at least 500 MW storage
-```
-
-Implements policy mandates or planned projects.
-
-## Technology Parameters
-
-### `new_gen_unit_size`
-
-**Type**: Dictionary (technology → MW)
-**Required**: No
-**Example**: See below
-
-Override default unit sizes from ATB.
-
-```yaml
-new_gen_unit_size:
-  NaturalGas_CCAvgCF_Moderate: 500
-  Nuclear_Nuclear_Moderate: 1000
-  Battery_4Hr_Moderate: 100
-```
-
-Unit size affects:
-
-- Integer constraints (if enabled)
-- Investment granularity
-- Minimum build increments
-
-### `min_power`
-
-**Type**: Dictionary (technology → fraction)
-**Required**: No
-**Default**: From source data
-**Example**: See below
-
-Minimum stable operating level (fraction of capacity).
-
-```yaml
-min_power:
-  NaturalGas_CCAvgCF_Moderate: 0.4  # 40% minimum load
-  Coal_new_Moderate: 0.5
-```
-
-Lower values = more operational flexibility.
-
-## Storage-Specific Settings
-
-### `battery_energy_to_power`
-
-**Type**: Dictionary (technology → hours)
-**Required**: For batteries without explicit duration
-**Example**: See below
-
-Energy-to-power ratio for battery storage (hours of discharge).
-
-```yaml
-battery_energy_to_power:
-  Battery_2Hr_Moderate: 2
-  Battery_4Hr_Moderate: 4
-  Battery_8Hr_Moderate: 8
-```
-
-Modern ATB includes this in technology name, but this parameter overrides it.
-
-### `storage_efficiency`
-
-**Type**: Dictionary (technology → efficiency)
-**Required**: No
-**Default**: From ATB
-**Example**: See below
-
-Round-trip efficiency for storage technologies.
-
-```yaml
-storage_efficiency:
-  Battery_4Hr_Moderate: 0.85  # 85% round-trip
-  Pumped_Hydro: 0.80
-```
-
 ## Interconnection Costs
 
 ### `interconnect_capex_mw`
@@ -490,154 +379,125 @@ Legacy spur line mileage-based interconnection cost system. Contains nested dict
 
 **Deprecation notice**: This parameter is deprecated and will be removed in a future release. It is only used when `interconnect_capex_mw` is not provided, and emits warnings during execution. Migrate to `interconnect_capex_mw` for simplified, more flexible cost specification.
 
-## Renewable Resource Groups
+## Renewable Resource Clustering
 
-### `renewable_clusters`
+### `renewables_clusters`
 
 **Type**: List of dictionaries
-**Required**: For renewable resources with location-specific profiles
+**Required**: For renewable resources (wind, solar, geothermal) with spatially-distributed potential
 **Example**: See below
 
-Define renewable resource sites with generation profiles and capacity limits.
+Configure clustering of renewable resource sites from external datasets (e.g., NREL reV). PowerGenome filters, bins, and clusters pre-existing resource data to create representative sites for the model.
 
 ```yaml
-renewable_clusters:
-  - region: CA_N
-    technology: LandbasedWind
-    cluster: 1
-    max_capacity: 2000
-    profile_id: CA_N_wind_class3_profile
-  - region: CA_N
-    technology: UtilityPV
-    cluster: 1
-    max_capacity: 5000
-    profile_id: CA_N_solar_class1_profile
+renewables_clusters:
+  - region: all
+    technology: landbasedwind
+    filter:
+      - feature: lcoe_interconnect_adj
+        max: 60
+    bin:
+      - feature: lcoe_interconnect_adj
+        weights: mw
+        mw_per_bin: 10000
+    cluster:
+      - feature: cf
+        n_clusters: 2
+        method: agg
+
+  - region: p4
+    technology: utilitypv
+    filter:
+      - feature: lcoe_interconnect_adj
+        max: 35
+    bin:
+      - feature: lcoe_interconnect_adj
+        weights: mw
+        mw_per_bin: 50000
+    cluster:
+      - feature: lcoe_interconnect_adj
+        n_clusters: 2
+        method: agg
+
+  - region: all
+    technology: geothermal
+    type: egs
+    filter:
+      - feature: class
+        max: 6
+    group:
+      - class
+    group_modifiers:
+      - group: class
+        group_value: 6
+        Inv_Cost_per_MWyr: [add, 64820]
+
+  - region: all
+    technology: offshorewind
+    turbine_type: floating
+    pref_site: 0
+    bin:
+      - feature: lcoe_interconnect_adj
+        weights: mw
+        q: 2
 ```
 
-Each entry represents a specific site with:
+**Common parameters**:
 
-- Geographic location (`region`)
-- Resource type (`technology`)
-- Unique identifier (`cluster`)
-- Capacity potential (`max_capacity`)
-- Hourly generation profile (`profile_id`)
+- `region`: Model region name or `all` (applies to all regions)
+- `technology`: Technology type (lowercase: `landbasedwind`, `utilitypv`, `offshorewind`, `geothermal`)
 
-See [Renewable Resources Tutorial](../../tutorials/renewable-resources.md) for detailed workflow.
+**Filtering** (`filter`):
 
-### `RESOURCE_GROUP_PROFILES`
+- `feature`: Attribute to filter on (`lcoe`, `cf`, `lcoe_interconnect_adj`, `class`)
+- `max`: Maximum value threshold (exclude resources above this)
+- `min`: Minimum value threshold (exclude resources below this)
 
-**Type**: String (path)
-**Required**: For renewable clusters
-**Example**: `"/data/generation_profiles"`
+**Binning** (`bin`):
 
-Directory containing hourly generation profiles for renewable resource groups. This is typically set as an environment variable or path constant.
+Groups resources into bins before clustering:
 
-```yaml
-RESOURCE_GROUP_PROFILES: /data/nrel_profiles
-```
+- `feature`: Attribute to bin by (`lcoe`, `lcoe_interconnect_adj`, `cf`)
+- `weights`: Weight bins by capacity (`mw`, `capacity_mw`)
+- `q`: Number of quantile bins (equal-frequency binning)
+- `mw_per_bin`: Fixed MW capacity per bin (alternative to `q`)
+- `bins`: Custom bin edges (list of values)
 
-Files should be named: `{technology}_{tech_detail}_{cluster_id}.csv` with hourly capacity factors.
+**Clustering** (`cluster`):
 
-## Additional Technologies
+Aggregates resources within each bin:
 
-### `additional_technologies_fn`
+- `feature`: Attribute to cluster by (`cf`, `lcoe`, `lcoe_interconnect_adj`, `profile`)
+- `n_clusters`: Number of clusters to create
+- `method`: Clustering algorithm (`agg` for agglomerative hierarchical clustering)
 
-**Type**: String or dictionary (year → filename)
-**Required**: No
-**Example**: See below
+**Grouping** (`group` + `group_modifiers`):
 
-CSV file with user-defined technologies not in ATB.
+Alternative to binning/clustering for technologies with discrete classes:
 
-**Single file**:
+- `group`: List of features to group by (e.g., `[class]`)
+- `group_modifiers`: List of cost adjustments per group value
 
-```yaml
-additional_technologies_fn: custom_tech.csv
-```
+**Technology-specific parameters**:
 
-**Year-specific**:
+- **Offshore wind**: `turbine_type` (`fixed`, `floating`), `pref_site` (0 or 1 for preferred sites)
+- **Geothermal**: `type` (`egs`, `geohydrobinary`)
 
-```yaml
-additional_technologies_fn:
-  2030: additional_tech_2030.csv
-  2040: additional_tech_2040.csv
-```
+**Workflow**:
 
-File columns:
+1. Load resource sites from external data (NREL reV, ReEDS)
+2. Filter sites by quality thresholds
+3. Bin remaining sites by cost/performance
+4. Cluster sites within each bin to reduce model size
+5. Create aggregated resource with weighted-average characteristics
 
-- `technology`: Technology name
-- `tech_detail`: Technology detail
-- `cost_case`: Cost case
-- `planning_year`: Model year
-- `capex_mw`: Capital cost ($/MW)
-- `fixed_o_m_mw`: Fixed O&M ($/MW-yr)
-- `variable_o_m_mwh`: Variable O&M ($/MWh)
-- `heat_rate_mmbtu_mwh`: Heat rate (if thermal)
-- Plus other technology parameters
-
-See `data/additional_technologies/` for examples.
+See [Configure Renewable Clusters How-To](../../how-to/configure-renewable-clusters.md) for detailed examples.
 
 ## Cost Multipliers
 
-Cost multipliers adjust technology capital costs by region (e.g., labor costs, permitting difficulty). PowerGenome now uses a **table-driven approach** via the `regional_cost_factor` data table.
+Regional capital cost multipliers adjust technology costs by region to account for differences in labor costs, permitting, and construction conditions. PowerGenome uses the `regional_cost_factor_table` to apply these adjustments.
 
-### `cost_multiplier_fn`
-
-**Type**: String (path) or table configuration
-**Required**: No (can use `regional_cost_factor` table instead)
-**Example**: `"regional_cost_multipliers.csv"`
-
-Legacy parameter for regional capital cost multipliers. **Prefer using `regional_cost_factor` in data table configuration.**
-
-```yaml
-cost_multiplier_fn: cost_multipliers/regional_multipliers.csv
-```
-
-**File format**:
-
-- `region`: Region name
-- `technology`: Technology name
-- `multiplier`: Cost multiplier (1.2 = 20% increase)
-
-**Modern approach** (recommended):
-
-```yaml
-# In data table configuration
-regional_cost_factor:
-  table_name: regional_cost_factors.parquet
-  scenario: baseline
-```
-
-### `cost_multiplier_region_map`
-
-**Type**: Dictionary (region → cost region)
-**Required**: No (automatically generated if omitted)
-**Example**: See below
-
-Map model regions to cost multiplier region names. **Optional**: If not provided, PowerGenome automatically creates a mapping using exact region name matches.
-
-```yaml
-cost_multiplier_region_map:
-  CA_N: California_North
-  CA_S: California_South
-```
-
-**Auto-generation**: The `auto_create_region_map()` function in `new_build.py` automatically generates this mapping by matching model region names against available cost factor regions.
-
-### `cost_multiplier_technology_map`
-
-**Type**: Dictionary (technology → cost tech name)
-**Required**: No (automatically generated if omitted)
-**Example**: See below
-
-Map model technologies to cost multiplier technology names. **Optional**: If not provided, PowerGenome automatically creates a mapping using substring matching.
-
-```yaml
-cost_multiplier_technology_map:
-  NaturalGas_CCAvgCF_Moderate: NaturalGas_CC
-  UtilityPV_Class1_Moderate: Solar_PV
-```
-
-**Auto-generation**: The `auto_create_technology_map()` function automatically maps technologies by finding the best substring match between model technology names and cost factor technology names.
+See [Regional Configuration - Cost Multipliers](regions.md#cost-multipliers) for details on `cost_multiplier_region_map` and `cost_multiplier_technology_map` parameters.
 
 ## Example Configuration
 

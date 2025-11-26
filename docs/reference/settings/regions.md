@@ -58,20 +58,6 @@ region_aggregations:
 - Base region names must match those in your generation/demand data tables
 - If `model_regions` contains a name NOT in `region_aggregations`, it's treated as a pass-through (1:1 mapping to a base region)
 
-### `alt_region_names`
-
-**Type**: Dictionary (old name → new name)
-**Required**: No
-**Example**: `{"CA_N": "Northern California"}`
-
-Renames regions in output files. Keys are model region names, values are display names.
-
-```yaml
-alt_region_names:
-  CA_N: Northern California
-  CA_S: Southern California
-```
-
 ## Regional Capacity Reserves
 
 ### `regional_capacity_reserves`
@@ -87,10 +73,8 @@ regional_capacity_reserves:
   CapRes_1:
     CA_N: 0.15  # 15% reserve margin
     CA_S: 0.15
-    AZ: 0.12
   CapRes_2:
-    CA_N: 0.20  # Additional winter reserve
-    CA_S: 0.18
+    AZ: 0.12
 ```
 
 Each `CapRes_X` tag creates a corresponding column in generators output, indicating which reserve zone each resource can contribute to.
@@ -110,26 +94,6 @@ cap_res_network_derate_default: 0.95
 
 ## Technology-Specific Regional Settings
 
-### `cogen_tech`
-
-**Type**: Dictionary (region → list of technologies)
-**Required**: No
-**Example**: See below
-
-Identifies cogeneration (combined heat and power) technologies by region. These are often must-run resources.
-
-```yaml
-cogen_tech:
-  CA_N: [Natural Gas Steam Turbine]
-  CA_S: [Biomass, Natural Gas Steam Turbine]
-```
-
-Cogen plants are typically:
-
-- Tagged as `MUST_RUN: 1`
-- Excluded from clustering (each plant is its own resource)
-- Have special dispatch constraints
-
 ### `new_gen_not_available`
 
 **Type**: Dictionary (region → list of new-build technologies)
@@ -141,139 +105,58 @@ Specifies new-build resources that should NOT be available in certain regions. U
 ```yaml
 new_gen_not_available:
   AZ:
-    - OffshoreWind_Class1_Moderate_-1  # No offshore wind in AZ
-    - Geothermal_HydroFlash_Moderate  # No geothermal potential
+    - OffshoreWind_Class1  # No offshore wind in AZ
+    - Geothermal_HydroFlash  # No geothermal potential
   CA_N:
-    - Coal_new_Moderate  # Coal banned in CA
+    - Coal_new  # Coal banned in CA
 ```
 
 Technology names must match those in `new_resources`.
-
-### `regional_no_grouping`
-
-**Type**: Dictionary (region → list of technologies)
-**Required**: No
-**Example**: See below
-
-Technologies that should NOT be clustered in specific regions. Each existing plant becomes its own resource.
-
-```yaml
-regional_no_grouping:
-  CA_N:
-    - Nuclear  # Each reactor is unique
-    - Hydroelectric Pumped Storage
-  AZ:
-    - Coal  # Large, distinct coal plants
-```
-
-This overrides `num_clusters` and `tech_groups` for specified technologies.
-
-## Load Zones
-
-### `load_zones`
-
-**Type**: Dictionary (region → list of sub-zones) OR list of regions
-**Required**: No
-**Example**: See below
-
-Defines demand zones within model regions. If omitted, one zone per region is assumed.
-
-**Simple** (one zone per region):
-
-```yaml
-load_zones: [CA_N, CA_S, AZ]
-```
-
-**Complex** (multiple zones per region):
-
-```yaml
-load_zones:
-  CA_N:
-    - CA_N_URBAN
-    - CA_N_RURAL
-  CA_S:
-    - CA_S_URBAN
-    - CA_S_RURAL
-  AZ: [AZ]  # Single zone
-```
-
-### `load_region_map`
-
-**Type**: Dictionary (region → demand file region name)
-**Required**: No
-**Example**: See below
-
-Maps model regions to region names in demand data files. Needed when region names differ between settings and data sources.
-
-```yaml
-load_region_map:
-  CA_N: CAMX_N  # Model region → demand file region
-  CA_S: CAMX_S
-  AZ: AZNM
-```
-
-### `future_load_region_map`
-
-**Type**: Dictionary (region → future demand region name)
-**Required**: No
-**Example**: Similar to `load_region_map`
-
-Separate mapping for future demand projections if they use different region names.
 
 ## Cost Multipliers
 
 ### `cost_multiplier_region_map`
 
-**Type**: Dictionary (region → cost region name)
-**Required**: No
+**Type**: Dictionary (cost region name → list of model regions)
+**Required**: No (only if `regional_cost_factor_table` doesn't contain all base regions)
 **Example**: See below
 
-Maps model regions to cost multiplier region names. Used with `cost_multiplier_fn` to apply regional construction cost adjustments.
+Maps cost region names from the `regional_cost_factor_table` to model regions. Use this when your cost multiplier table uses different region names than your base/model regions.
 
 ```yaml
 cost_multiplier_region_map:
-  CA_N: CA_N_SPUR
-  CA_S: CA_S_SPUR
-  AZ: Southwest
+  CA_N_SPUR: [CA_N]
+  CA_S_SPUR: [CA_S]
+  Southwest: [AZ, NM]  # One cost region covers multiple model regions
 ```
 
-This allows using generic cost multiplier tables (e.g., from NREL) that use different region names.
+**When to use**:
+
+- Your `regional_cost_factor_table` doesn't include all base regions
+- Cost table uses aggregate region names (e.g., "Southwest" covers multiple model regions)
+- Using generic cost tables (e.g., from NREL) with different naming conventions
+
+**When NOT needed**: If `regional_cost_factor_table` already contains all your base or model regions with matching names.
 
 ### `cost_multiplier_technology_map`
 
-**Type**: Dictionary (PowerGenome tech → cost tech name)
+**Type**: Dictionary (cost table technology name → list of user technology names)
 **Required**: No
 **Example**: See below
 
-Maps technology names to those in cost multiplier files.
+Maps technology names from the `regional_cost_factor_table` to user-defined technology names. Use this to apply cost multipliers from one technology to custom technologies created via `modified_new_resources`.
 
 ```yaml
 cost_multiplier_technology_map:
-  NaturalGas_CCAvgCF_Moderate: NaturalGas_CC
-  UtilityPV_Class1_Moderate: LandbasedWind  # Use wind costs for PV
+  NaturalGas_2-on-1 Combined Cycle (F-Frame): [hydrogen_turbine, synthetic_fuel_turbine]  # Multiple custom techs use NGCC costs
+  LandbasedWind: [Biomass_Dedicated]  # Use wind cost multipliers for biomass
 ```
 
-## Renewable Resource Bins
+**Common use cases**:
 
-### `new_wind_solar_regional_bins`
-
-**Type**: Dictionary (region → technology → number of bins)
-**Required**: No (deprecated)
-**Example**: See below
-
-**Deprecated**: Use `renewable_clusters` instead.
-
-Previously controlled how many resource quality bins for wind/solar in each region.
-
-```yaml
-# Old approach (deprecated)
-new_wind_solar_regional_bins:
-  CA_N:
-    UtilityPV: 3
-    LandbasedWind: 5
-```
-
-Modern approach uses `renewable_clusters` to explicitly define resource sites.
+- Custom technologies from `modified_new_resources` that should use cost multipliers from a base ATB technology
+- Technologies from `additional_technologies_fn` that need regional cost adjustments
+- Applying one technology's multipliers to another (e.g., using wind multipliers for solar)
 
 ## UTC Offset
 
@@ -350,32 +233,11 @@ regional_capacity_reserves:
 
 cap_res_network_derate_default: 0.95
 
-# Technology restrictions
-cogen_tech:
-  CA_N: [Natural Gas Steam Turbine]
-  CA_S: [Natural Gas Steam Turbine]
-
 new_gen_not_available:
   CA_N: [Coal_new, OffshoreWind]
   CA_S: [Coal_new]
   AZ: [OffshoreWind, Geothermal]
   NM: [OffshoreWind, Geothermal]
-
-# Load zones
-load_zones: [CA_N, CA_S, AZ, NM]
-
-load_region_map:
-  CA_N: CAMX_N
-  CA_S: CAMX_S
-  AZ: AZNM
-  NM: AZNM
-
-# Regional mappings
-cost_multiplier_region_map:
-  CA_N: CA_N_spur
-  CA_S: CA_S_spur
-  AZ: Southwest
-  NM: Southwest
 
 # Timezone
 utc_offset: -8
