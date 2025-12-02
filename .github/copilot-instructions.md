@@ -249,4 +249,12 @@ Final output CSVs follow GenX schema:
 
 ---
 
-**When in doubt**: Check `example_systems/` for working configurations, use `load_settings()` to validate YAML syntax, and initialize DataManager before any data operations.
+**When in doubt**: Check `tests/test_system/` for working configurations, use `load_settings()` to validate YAML syntax, and initialize DataManager before any data operations.
+
+## Adding New Code
+- Follow existing module patterns
+- Use explicit arguments rather than passing the entire settings object
+- Use DataManager for all data access
+- Use the @auto_fill_settings decorator for settings access
+- Write unit tests for new functions/classes
+- Update documentation and settings reference as needed
