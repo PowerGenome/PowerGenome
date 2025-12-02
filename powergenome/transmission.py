@@ -83,6 +83,9 @@ def _format_transmission_output(
     """Format the transmission constraints DataFrame for output."""
     combos = list(itertools.combinations(zones, 2))
 
+    # Add the reverse direction of each combination
+    combos += [(to_zone, from_zone) for from_zone, to_zone in combos]
+
     # Filter to valid combinations and reset index
     output_df = df.loc[[c for c in combos if c in df.index]].reset_index()
 
