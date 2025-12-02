@@ -169,6 +169,8 @@ new_resources:
 # Interconnection cost per MW to connect new generators to the transmission system
 # Resource Groups (as defined in RESOURCE_GROUPS) define site-specific interconnection costs.
 # This is for generic costs that apply to other new generators not in resource groups.
+# Costs should be in the same dollar year as output data (target_usd_year).
+
 # Method 1: flat rate for all generators
 interconnect_capex_mw: 100000
 
