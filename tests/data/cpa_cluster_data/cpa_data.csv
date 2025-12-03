@@ -1,4 +1,4 @@
-﻿cpa_id,region,interconnect_annuity,interconnect_capex_mw,lcoe,county,mw
+﻿cpa_id,region,interconnect_annuity,interconnect_capex_mw,lcoe,county,capacity_mw
 1,A,434,4340,41,a,23
 2,A,380,3800,42,a,64
 3,A,217,2170,47,b,57

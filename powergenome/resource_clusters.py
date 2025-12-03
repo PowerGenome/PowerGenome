@@ -539,7 +539,7 @@ class ResourceGroup:
             Resource metadata missing required keys.
         """
         columns = self.metadata.columns
-        required = ["region", "id", "mw"]
+        required = ["region", "id", "capacity_mw"]
         if self.group.get("tree"):
             required.extend(["parent_id", "level", self.group["tree"]])
         missing = [key for key in required if key not in columns]

@@ -1364,7 +1364,7 @@ def add_renewables_clusters(
                 clusters = (
                     data.groupby("cluster", as_index=False)
                     .apply(calc_cluster_values, _scenario.get("group"))
-                    .rename(columns={"mw": "Max_Cap_MW"})
+                    .rename(columns={"capacity_mw": "Max_Cap_MW"})
                     .assign(technology=technology, region=region)
                 )
 
@@ -1395,7 +1395,7 @@ def add_renewables_clusters(
                         utc_offset=settings.get("utc_offset", 0),
                         weather_year=settings.get("weather_year"),
                     )
-                    .rename(columns={"mw": "Max_Cap_MW"})
+                    .rename(columns={"capacity_mw": "Max_Cap_MW"})
                     .assign(technology=technology, region=region)
                 )
                 clusters["cluster"] = range(1, 1 + len(clusters))

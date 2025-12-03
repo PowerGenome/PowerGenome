@@ -216,7 +216,7 @@ def test_assign_site_cluster():
 # Tests that the function correctly calculates the number of bins based on the "mw_per_bin" key in the input dictionary. tags: [happy path]
 def test_num_bins_from_capacity_with_mw_per_bin():
     # Happy path test for calculating number of bins based on "mw_per_bin"
-    data = pd.DataFrame({"mw": [10, 20, 30]})
+    data = pd.DataFrame({"capacity_mw": [10, 20, 30]})
     b = {"mw_per_bin": 14}
     expected_output = {"bins": 4}
     assert num_bins_from_capacity(data, b) == expected_output
@@ -224,7 +224,7 @@ def test_num_bins_from_capacity_with_mw_per_bin():
 
 def test_num_bins_from_capacity_with_mw_per_bin_one_bin():
     # Happy path test for calculating number of bins based on "mw_per_bin"
-    data = pd.DataFrame({"mw": [1, 2, 3]})
+    data = pd.DataFrame({"capacity_mw": [1, 2, 3]})
     b = {"mw_per_bin": 14}
     expected_output = {"bins": 1}
     assert num_bins_from_capacity(data, b) == expected_output
@@ -233,7 +233,7 @@ def test_num_bins_from_capacity_with_mw_per_bin_one_bin():
 # Tests that the function correctly calculates the number of quantiles based on the "mw_per_q" key in the input dictionary. tags: [happy path]
 def test_num_bins_from_capacity_with_mw_per_q():
     # Happy path test for calculating number of quantiles based on "mw_per_q" key
-    data = pd.DataFrame({"mw": [10, 20, 30]})
+    data = pd.DataFrame({"capacity_mw": [10, 20, 30]})
     b = {"mw_per_q": 15}
     expected_output = {"q": 4}
     assert num_bins_from_capacity(data, b) == expected_output
@@ -242,7 +242,7 @@ def test_num_bins_from_capacity_with_mw_per_q():
 # Tests that the function returns the input dictionary unaltered if neither "mw_per_bin" nor "mw_per_q" key is present. tags: [happy path]
 def test_num_bins_from_capacity_with_no_mw_key():
     # Happy path test for returning input dictionary unaltered if no "mw_per_bin" or "mw_per_q" key is present
-    data = pd.DataFrame({"mw": [10, 20, 30]})
+    data = pd.DataFrame({"capacity_mw": [10, 20, 30]})
     b = {"other_key": "value"}
     expected_output = {"other_key": "value"}
     assert num_bins_from_capacity(data, b) == expected_output
@@ -250,7 +250,7 @@ def test_num_bins_from_capacity_with_no_mw_key():
 
 # Tests that the function handles input dictionary containing non-integer values for "mw_per_bin" or "mw_per_q". tags: [edge case]
 def test_num_bins_from_capacity_with_non_integer_values():
-    data = pd.DataFrame({"mw": [100, 200, 300]})
+    data = pd.DataFrame({"capacity_mw": [100, 200, 300]})
     b = {"mw_per_bin": 0.5}
     result = num_bins_from_capacity(data, b)
     assert result == {"bins": 1200}
@@ -258,7 +258,7 @@ def test_num_bins_from_capacity_with_non_integer_values():
 
 # Tests that the function logs a warning message if the "bins" key is already present in the input dictionary and is being overwritten. tags: [behavior]
 def test_num_bins_from_capacity_with_overwriting_bins(caplog):
-    data = pd.DataFrame({"mw": [100, 200, 300]})
+    data = pd.DataFrame({"capacity_mw": [100, 200, 300]})
     b = {"mw_per_bin": 100, "bins": 5}
     result = num_bins_from_capacity(data, b)
     assert result == {"bins": 6}
@@ -684,7 +684,7 @@ def test_min_capacity_mw_no_lcoe_column(caplog):
 
     from powergenome.cluster.renewables import min_capacity_mw
 
-    df = pd.DataFrame({"mw": [100, 200, 300], "cost": [10, 20, 30]})
+    df = pd.DataFrame({"capacity_mw": [100, 200, 300], "cost": [10, 20, 30]})
     with caplog.at_level(logging.WARNING):
         result = min_capacity_mw(df, min_cap=200)
     assert "lcoe" in caplog.text
@@ -695,7 +695,7 @@ def test_min_capacity_mw_none():
     """Test min_capacity_mw when min_cap is None."""
     from powergenome.cluster.renewables import min_capacity_mw
 
-    df = pd.DataFrame({"mw": [100, 200, 300], "lcoe": [10, 20, 30]})
+    df = pd.DataFrame({"capacity_mw": [100, 200, 300], "lcoe": [10, 20, 30]})
     result = min_capacity_mw(df, min_cap=None)
     assert len(result) == len(df)
 
@@ -801,7 +801,7 @@ def test_cluster_sites_binned_empty_data():
 
 def test_cluster_sites_no_bin_single_site():
     """Test cluster_sites_no_bin with single site."""
-    df = pd.DataFrame({"lcoe": [10], "mw": [100]})
+    df = pd.DataFrame({"lcoe": [10], "capacity_mw": [100]})
     result = cluster_sites_no_bin(df, method="agg", feature="lcoe", n_clusters=2)
     assert "cluster" in result.columns
     assert len(result) == 1
@@ -811,7 +811,7 @@ def test_value_filter_max_only():
     """Test value_filter with only max_value."""
     from powergenome.cluster.renewables import value_filter
 
-    df = pd.DataFrame({"lcoe": [10, 20, 30, 40], "mw": [100, 200, 300, 400]})
+    df = pd.DataFrame({"lcoe": [10, 20, 30, 40], "capacity_mw": [100, 200, 300, 400]})
     result = value_filter(df, feature="lcoe", max_value=25)
     assert len(result) == 2
     assert result["lcoe"].max() <= 25
@@ -821,7 +821,7 @@ def test_value_filter_min_only():
     """Test value_filter with only min_value."""
     from powergenome.cluster.renewables import value_filter
 
-    df = pd.DataFrame({"lcoe": [10, 20, 30, 40], "mw": [100, 200, 300, 400]})
+    df = pd.DataFrame({"lcoe": [10, 20, 30, 40], "capacity_mw": [100, 200, 300, 400]})
     result = value_filter(df, feature="lcoe", min_value=25)
     assert len(result) == 2
     assert result["lcoe"].min() >= 25
@@ -831,7 +831,7 @@ def test_value_filter_both():
     """Test value_filter with both min and max."""
     from powergenome.cluster.renewables import value_filter
 
-    df = pd.DataFrame({"lcoe": [10, 20, 30, 40], "mw": [100, 200, 300, 400]})
+    df = pd.DataFrame({"lcoe": [10, 20, 30, 40], "capacity_mw": [100, 200, 300, 400]})
     result = value_filter(df, feature="lcoe", min_value=15, max_value=35)
     assert len(result) == 2
     assert result["lcoe"].min() >= 15

@@ -416,7 +416,7 @@ def value_filter(
 def min_capacity_mw(
     data: pd.DataFrame,
     min_cap: int = None,
-    cap_col: str = "mw",
+    cap_col: str = "capacity_mw",
 ) -> pd.DataFrame:
     if "lcoe" not in data.columns:
         logger.warning(
@@ -684,11 +684,12 @@ def assign_site_cluster(
                 logger.warning("Overwriting 'n_clusters' based on mw_cluster_size")
             if not group_by:
                 clust["n_clusters"] = max(
-                    int(data["mw"].sum() / clust["mw_per_cluster"]), 1
+                    int(data["capacity_mw"].sum() / clust["mw_per_cluster"]), 1
                 )
             else:
                 n_clusters = (
-                    data.groupby(group_by)["mw"].sum() / clust["mw_per_cluster"]
+                    data.groupby(group_by)["capacity_mw"].sum()
+                    / clust["mw_per_cluster"]
                 ).astype(int)
                 clust["n_clusters"] = n_clusters.where(n_clusters > 0, 1)
             del clust["mw_per_cluster"]
@@ -730,7 +731,7 @@ def num_bins_from_capacity(data: pd.DataFrame, b: Dict[str, int]) -> Dict[str, i
     Parameters
     ----------
     data : pd.DataFrame
-        Must have column "mw"
+        Must have column "capacity_mw"
     b : Dict[str, int]
         Must have either "mw_per_bin" or "mw_per_q" if the number of bins/quantiles
         should be decided based on available capacity.
@@ -744,12 +745,12 @@ def num_bins_from_capacity(data: pd.DataFrame, b: Dict[str, int]) -> Dict[str, i
     if "mw_per_bin" in b:
         if b.get("bins") is not None:
             logger.warning("Overwriting 'bins' based on mw_per_bin")
-        b["bins"] = max(int(data["mw"].sum() / b["mw_per_bin"]), 1)
+        b["bins"] = max(int(data["capacity_mw"].sum() / b["mw_per_bin"]), 1)
         del b["mw_per_bin"]
     elif "mw_per_q" in b:
         if b.get("q") is not None:
             logger.warning("Overwriting 'q' based on mw_per_q")
-        b["q"] = max(int(data["mw"].sum() / b["mw_per_q"]), 1)
+        b["q"] = max(int(data["capacity_mw"].sum() / b["mw_per_q"]), 1)
         del b["mw_per_q"]
 
     return b
