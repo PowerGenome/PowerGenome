@@ -335,8 +335,12 @@ class Table:
             cache = columns is None
         read_columns = None if cache else columns
         if self.format == "csv":
+            if read_columns is None:
+                read_columns = self.columns
             df = pd.read_csv(self.path, usecols=read_columns, dtype={"metro_id": str})
         elif self.format == "parquet":
+            if read_columns is None:
+                read_columns = self.columns
             df = self._dataset.read(columns=list(read_columns)).to_pandas()
         if cache:
             self.df = df
