@@ -12,6 +12,7 @@ from powergenome.util import (
     get_all_table_names,
     load_data,
     prepend_db_to_tables,
+    timeit,
 )
 
 logger = logging.getLogger(__name__)
@@ -83,6 +84,7 @@ class DataManager:
                     self.sqlite_attached = False
                     self.duckdb_attached = False
 
+    @timeit(logger=logger, label="DataManager.initialize", min_ms=5)
     def initialize(
         self,
         settings: Union[Dict[str, Any], Settings],
@@ -311,6 +313,7 @@ class DataManager:
                 source_table, standard_name, filters, columns
             )
 
+    @timeit(logger=logger, label="DataManager._create_lazy_view", min_ms=5)
     def _create_lazy_view(
         self,
         source_table: str,
@@ -361,6 +364,7 @@ class DataManager:
         view_query = f"CREATE VIEW {standard_name} AS SELECT {select_cols} FROM {source_query} {where_clause}"
         self.connection.execute(view_query)
 
+    @timeit(logger=logger, label="DataManager._create_materialized_table", min_ms=5)
     def _create_materialized_table(
         self,
         source_table: str,
@@ -391,6 +395,7 @@ class DataManager:
         )
         self.connection.unregister(f"{standard_name}_temp")
 
+    @timeit(logger=logger, label="DataManager.get_data", min_ms=5)
     def get_data(
         self,
         table_name: str,
@@ -481,6 +486,7 @@ class DataManager:
         result = self.connection.execute(query).fetchall()
         return [row[0] for row in result]
 
+    @timeit(logger=logger, label="DataManager.get_timeseries_data", min_ms=5)
     def get_timeseries_data(
         self,
         table_name: str,
@@ -682,6 +688,7 @@ class DataManager:
 
         return self.connection.execute(f"DESCRIBE {table_name}").fetchdf()
 
+    @timeit(logger=logger, label="DataManager.execute_query", min_ms=5)
     def execute_query(self, query: str) -> pd.DataFrame:
         """
         Execute a custom SQL query on the in-memory database.
@@ -701,6 +708,7 @@ class DataManager:
 
         return self.connection.execute(query).fetchdf()
 
+    @timeit(logger=logger, label="DataManager.update", min_ms=5)
     def update(self, updated_settings: Union[Dict[str, Any], Settings] = None):
         """
         Update source tables with new configurations.
