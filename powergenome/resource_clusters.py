@@ -76,7 +76,8 @@ NREL_ATB_TECHNOLOGY_MAP = {
 }
 EIA_TECHNOLOGY_MAP = {
     "conventionalhydroelectric": {"technology": "hydro", "small": False},
-    "smallhydroelectric": {"technology": "hydro", "small": True},
+    "runofriverhydroelectric": {"technology": "hydro", "small": True},
+    # "smallhydroelectric": {"technology": "hydro", "small": True},
     "onshorewindturbine": {"technology": "landbasedwind"},
     "offshorewindturbine": {"technology": "offshorewind"},
     "solarphotovoltaic": {"technology": "utilitypv"},
