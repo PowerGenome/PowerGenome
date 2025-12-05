@@ -4149,7 +4149,7 @@ class GeneratorClusters:
         self.fuel_prices = self.fuel_prices.loc[
             self.fuel_prices["full_fuel_name"].isin(gen_fuels)
         ]
-        scenarios = (self.settings.get("eia_series_scenario_names", {}) or {}).keys()
+        scenarios = set((self.settings.get("fuel_scenarios", {}) or {}).values())
         for s in scenarios:
             self.fuel_prices["full_fuel_name"] = self.fuel_prices[
                 "full_fuel_name"
