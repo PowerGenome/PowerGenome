@@ -305,9 +305,11 @@ def load_policy_scenarios(settings: dict = None) -> pd.DataFrame:
             "This duplication of emission policies across multiple years may cause erors."
         )
         warned = True
-    policies.loc[policies["case_id"].astype(str).str.lower() == "all", "case_id"] = (
-        settings["case_id"]
-    )
+    # If the user's case_id is not in the policies file, use the "all" values
+    if settings["case_id"] not in policies["case_id"].astype(str).str.lower().to_list():
+        policies.loc[
+            policies["case_id"].astype(str).str.lower() == "all", "case_id"
+        ] = settings["case_id"]
     if policies.duplicated(subset=["case_id", "year", "region"]).any() and not warned:
         logger.warning(
             f"After replacing values of 'all' with {settings['case_id']}, your emissions "
