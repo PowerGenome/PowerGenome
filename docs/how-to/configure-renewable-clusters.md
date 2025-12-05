@@ -70,7 +70,7 @@ renewable_clusters:
 filter:
   - feature: lcoe
     max: 50           # Exclude sites with LCOE > $50/MWh
-  - feature: capacity_factor
+  - feature: cf
     min: 0.3          # Exclude sites with CF < 30%
   - feature: dist_to_tx_km
     max: 100          # Exclude sites > 100 km from transmission
@@ -92,7 +92,7 @@ renewable_clusters:
     bin:
       - feature: lcoe
         q: 4          # Create 4 quantile bins (quartiles)
-        weights: mw   # Weight by capacity when creating bins
+        weights: capacity_mw   # Weight by capacity when creating bins
 ```
 
 **Result**: Sites divided into 4 bins (e.g., $0-$30, $30-$38, $38-$44, $44-$50 LCOE ranges)
@@ -116,7 +116,7 @@ renewable_clusters:
 bin:
   - feature: lcoe
     q: 3            # 3 quantiles (terciles)
-    weights: mw     # Equal MW in each bin
+    weights: capacity_mw     # Equal MW in each bin
 ```
 
 **Equal-width binning** (may create unbalanced bins):
@@ -141,7 +141,7 @@ bin:
 bin:
   - feature: lcoe
     mw_per_bin: 10000  # ~10 GW per bin, number of bins calculated automatically
-    weights: mw
+    weights: capacity_mw
 ```
 
 ### Binning on Other Features
@@ -149,9 +149,9 @@ bin:
 ```yaml
 # Bin by capacity factor (performance tiers)
 bin:
-  - feature: capacity_factor
+  - feature: cf
     q: 3
-    weights: mw  # Equal capacity in each performance tier
+    weights: capacity_mw  # Equal capacity in each performance tier
 
 # Bin by distance to transmission
 bin:
@@ -167,8 +167,8 @@ You can apply multiple binning dimensions sequentially:
 bin:
   - feature: lcoe
     q: 3
-    weights: mw
-  - feature: capacity_factor
+    weights: capacity_mw
+  - feature: cf
     q: 2  # Further divide each LCOE bin by CF
 ```
 
@@ -458,7 +458,7 @@ renewable_clusters:
     bin:
       - feature: lcoe
         q: 4          # 4 quantiles (quartiles)
-        weights: mw   # Equal capacity in each bin
+        weights: capacity_mw   # Equal capacity in each bin
 
     # 2 k-means clusters per cost tier (geographic diversity)
     cluster:
@@ -486,7 +486,7 @@ renewable_clusters:
     bin:
       - feature: lcoe
         q: 3
-        weights: mw
+        weights: capacity_mw
 
     # 1 representative cluster per class/bin
     cluster:
@@ -510,7 +510,7 @@ renewable_clusters:
   - region: all
     technology: utilitypv
     filter:
-      - feature: capacity_factor
+      - feature: cf
         min: 0.18
       - feature: lcoe
         max: 40
@@ -545,14 +545,14 @@ renewable_clusters:
   - region: all
     technology: offshorewind
     filter:
-      - feature: capacity_factor
+      - feature: cf
         min: 0.35  # Only high-quality sites
       - feature: dist_to_shore_km
         max: 50   # Within 50 km of shore
 
     # Bin by performance (no geographic groups - limited areas)
     bin:
-      - feature: capacity_factor
+      - feature: cf
         bins: 3       # 3 equal-width bins
 
     # 2 clusters per performance tier
@@ -581,7 +581,7 @@ renewable_clusters:
     bin:
       - feature: lcoe
         q: 2           # Keep bins low with multiple groups
-        weights: mw
+        weights: capacity_mw
 
     # Small number of clusters per group/bin
     cluster:
@@ -668,7 +668,7 @@ Quantile binning ensures each cost tier has similar site counts:
 bin:
   - feature: lcoe
     q: 4          # Each bin has ~25% of sites (quartiles)
-    weights: mw   # Can also weight by capacity
+    weights: capacity_mw   # Can also weight by capacity
 ```
 
 Equal-width binning may create bins with very few sites.

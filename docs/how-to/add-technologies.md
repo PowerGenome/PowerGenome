@@ -242,7 +242,7 @@ renewables_clusters:
         max: 30
     bin:
       - feature: lcoe_interconnect_adj
-        weights: mw
+        weights: capacity_mw
         mw_per_bin: 50000  # Create bins of 50 GW each
     cluster:
       - feature: cf  # Cluster within bins by capacity factor
@@ -255,7 +255,7 @@ renewables_clusters:
     pref_site: 0  # Include all sites (1 for preferred sites only)
     bin:
       - feature: lcoe_interconnect_adj
-        weights: mw
+        weights: capacity_mw
         q: 2
 ```
 

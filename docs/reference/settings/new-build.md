@@ -398,7 +398,7 @@ renewables_clusters:
         max: 60
     bin:
       - feature: lcoe_interconnect_adj
-        weights: mw
+        weights: capacity_mw
         mw_per_bin: 10000
     cluster:
       - feature: cf
@@ -412,7 +412,7 @@ renewables_clusters:
         max: 35
     bin:
       - feature: lcoe_interconnect_adj
-        weights: mw
+        weights: capacity_mw
         mw_per_bin: 50000
     cluster:
       - feature: lcoe_interconnect_adj
@@ -438,7 +438,7 @@ renewables_clusters:
     pref_site: 0
     bin:
       - feature: lcoe_interconnect_adj
-        weights: mw
+        weights: capacity_mw
         q: 2
 ```
 

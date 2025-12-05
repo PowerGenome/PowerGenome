@@ -240,20 +240,27 @@ model_tag_names:
   - CapRes_2  # Secondary reserve zone
 
 model_tag_values:
+  # Here, all matched resources contribute to the two different reserve requirements
   CapRes_1:
-    NaturalGas: 1  # Contributes to zone 1
-    Battery: 1  # Storage can provide reserves
+    NaturalGas: 0.9
+    Battery: 0.95
 
   CapRes_2:
-    NaturalGas: 0
-    Battery: 0
+    NaturalGas: 0.9
+    Battery: 0.9
 
+############################
+# *OR*
+# Resources in specific regions contribute to different capacity reserve requirements
 regional_tag_values:
   CA_N:
     CapRes_1:
-      NaturalGas: 1
+      NaturalGas: 0.9
+      Battery: 0.95
+  AZ:
     CapRes_2:
-      NaturalGas: 1  # CA resources contribute to both zones
+      NaturalGas: 0.8
+      Battery: 0.9
 ```
 
 Capacity reserve requirements are set in `regional_capacity_reserves`.

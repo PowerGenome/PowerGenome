@@ -80,7 +80,7 @@ new_resources:
   - [OffShoreWind, Class12, Moderate, 1]
 ```
 
-Note the `1` MW size - this is a placeholder. Actual capacity comes from resource clusters.
+Note the `1` MW size - this indicates the unit size for unit commitment. GenX does not apply unit commitment to renewable resources, so the value here is not important.
 
 ## Step 3: Configure Renewable Clusters
 
@@ -96,7 +96,7 @@ renewables_clusters:
     technology: landbasedwind
     bin:
       - feature: lcoe
-        weights: mw
+        weights: capacity_mw
         q: 1  # One bin = all sites aggregated
 ```
 
@@ -115,7 +115,7 @@ renewables_clusters:
         max: 60  # Only sites with LCOE ≤ $60/MWh
     bin:
       - feature: lcoe
-        weights: mw
+        weights: capacity_mw
         q: 3  # Create 3 cost bins (low/mid/high)
 ```
 
@@ -130,13 +130,13 @@ renewables_clusters:
   - region: all
     technology: landbasedwind
     filter:
-      - feature: capacity_factor
+      - feature: cf
         min: 0.35  # Only sites with CF ≥ 35%
       - feature: lcoe
         max: 70
     bin:
-      - feature: capacity_factor
-        weights: mw
+      - feature: cf
+        weights: capacity_mw
         q: 4  # 4 bins by capacity factor
 ```
 
@@ -155,7 +155,7 @@ renewables_clusters:
         max: 10
     bin:
       - feature: lcoe
-        weights: mw
+        weights: capacity_mw
         q: 2
 ```
 
@@ -173,7 +173,7 @@ renewables_clusters:
         max: 50  # Abundant low-cost wind
     bin:
       - feature: lcoe
-        weights: mw
+        weights: capacity_mw
         q: 5  # High resolution
 
   # Northeast: Limited wind, fewer bins
@@ -184,19 +184,8 @@ renewables_clusters:
         max: 80  # Higher cost threshold
     bin:
       - feature: lcoe
-        weights: mw
+        weights: capacity_mw
         q: 2  # Coarser resolution
-
-  # Coastal region: Add offshore wind
-  - region: northeast
-    technology: offshorewind
-    filter:
-      - feature: lcoe
-        max: 100
-    bin:
-      - feature: lcoe
-        weights: mw
-        q: 3
 ```
 
 ## Step 5: Binning Methods
@@ -210,26 +199,11 @@ Divide sites into equal-capacity bins:
 ```yaml
 bin:
   - feature: lcoe
-    weights: mw  # Equal capacity per bin
-    q: 4  # 4 bins
-    method: quantile  # Default
+    weights: capacity_mw  # Equal capacity per bin
+    q: 4  # 4 bins (quantiles)
 ```
 
 Each bin has approximately the same total MW capacity.
-
-### Equal-Width Binning
-
-Divide the cost/quality range into equal intervals:
-
-```yaml
-bin:
-  - feature: lcoe
-    weights: mw
-    q: 4
-    method: equal_width
-```
-
-Creates bins spanning equal ranges of LCOE, but bins may have different capacities.
 
 ### Custom Bin Edges
 
@@ -238,59 +212,17 @@ Specify exact bin boundaries:
 ```yaml
 bin:
   - feature: lcoe
-    weights: mw
-    method: custom
+    weights: capacity_mw
     bins: [0, 30, 50, 70, 100]  # Create 4 bins with these boundaries
 ```
 
 Useful for aligning with policy thresholds or known resource quality tiers.
 
-## Step 6: Interconnection Costs
+## Step 6: Caching for Speed
 
-Renewable sites require transmission connections. Configure costs:
+Processing large resource group datasets can be slow. PowerGenome will cache renewable clustering results in the `extra_inputs` folder. The cached results are uniquely identified based on the renewable cluster specifications, the `utc_offset` value, and the hash value of resource group files.
 
-```yaml
-# In transmission.yml
-transmission_investment_cost:
-  use_total: true  # Use pre-computed interconnect_annuity if available
-
-  spur:  # Generator to grid connection costs
-    capex_mw_mile: 3000  # $/MW-mile
-    wacc: 0.069
-    investment_years: 60
-```
-
-**Cost calculation**:
-
-```text
-interconnect_cost = spur_miles × capex_mw_mile × CRF(wacc, years)
-```
-
-For offshore wind, add offshore spur costs:
-
-```yaml
-transmission_investment_cost:
-  spur:
-    capex_mw_mile: 3000
-    offshore_capex_mw_mile: 8000  # Higher cost for underwater cables
-    wacc: 0.069
-    investment_years: 60
-```
-
-### Using Pre-Computed Costs
-
-If your resource group data includes `interconnect_annuity` (annual cost $/MW-yr):
-
-```yaml
-transmission_investment_cost:
-  use_total: true  # Use interconnect_annuity directly
-```
-
-PowerGenome will use the pre-computed value instead of calculating from spur miles.
-
-## Step 7: Caching for Speed
-
-Processing large resource group datasets can be slow. Enable caching:
+Enable caching:
 
 ```yaml
 # Cache processed clusters
@@ -305,15 +237,9 @@ use_resource_clusters_cache: true
 1. First run: Process resource groups → save to cache → use in model
 2. Subsequent runs: Load from cache → use in model (much faster)
 
-**When to clear cache**:
+Delete cache files manually if desired or set `cache_resource_clusters: false`.
 
-- Changed `renewables_clusters` configuration
-- Updated resource group data files
-- Modified region aggregations
-
-Delete cache files manually or set `cache_resource_clusters: false`.
-
-## Step 8: Run and Examine Outputs
+## Step 7: Run and Examine Outputs
 
 ```bash
 run_powergenome \
@@ -378,7 +304,7 @@ renewables_clusters:
       - feature: lcoe
         max: 70
     cluster:
-      - feature: [lcoe, capacity_factor]  # Cluster on multiple features
+      - feature: cf  # Cluster on a single feature
         method: hierarchical
         n_clusters: 5
 ```
@@ -408,24 +334,6 @@ new_gen_not_available:
     - OffShoreWind_*  # No offshore wind (landlocked)
 ```
 
-### Hybrid Resources
-
-Model solar + storage by adjusting storage parameters:
-
-```yaml
-new_resources:
-  - [UtilityPV, Class1, Moderate, 1]
-  - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 100]
-
-# Co-locate storage with solar
-regional_tag_values:
-  all_regions:
-    STOR:
-      Utility-Scale Battery Storage_Lithium Ion_Moderate: 1
-```
-
-See [Resource Tags](../reference/settings/resource-tags.md) for details on co-optimization.
-
 ## Common Issues
 
 ### No Renewable Resources Generated
@@ -449,7 +357,7 @@ renewables_clusters:
     # No filters - include everything
     bin:
       - feature: lcoe
-        weights: mw
+        weights: capacity_mw
         q: 1
 ```
 
@@ -468,23 +376,9 @@ renewables_clusters:
         max: 50  # Only best sites
     bin:
       - feature: lcoe
-        weights: mw
+        weights: capacity_mw
         q: 2  # Just 2 bins per region
 ```
-
-### Unrealistic Interconnection Costs
-
-**Problem**: Renewable resources have extremely high investment costs
-
-**Cause**: High spur line distances or incorrect cost multipliers
-
-**Check**:
-
-```python
-print(renewables[['Resource', 'spur_miles', 'interconnect_annuity', 'Inv_Cost_per_MWyr']])
-```
-
-**Solution**: Adjust spur cost or use `use_total: false` to ignore pre-computed costs
 
 ## Renewable Clustering Parameters Reference
 
@@ -500,7 +394,7 @@ print(renewables[['Resource', 'spur_miles', 'interconnect_annuity', 'Inv_Cost_pe
   - **`feature`**: Column(s) to bin/cluster on
   - **`weights`**: Column for weighting (usually "mw")
   - **`q`**: Number of bins/clusters
-  - **`method`**: quantile (default), equal_width, custom, hierarchical
+  - **`method`**: *Only in `cluster`* kmeans or agg (hierarchical)
 
 See [New Build Resources Settings](../reference/settings/new-build.md) for complete documentation.
 

@@ -211,7 +211,9 @@ Some regions require capacity reserves (planning reserve margin):
 regional_capacity_reserves:
   CapRes_1:
     northeast: 0.15  # 15% reserve margin
+  CapRes_2:
     midwest: 0.13    # 13%
+  CapRes_3:
     south: 0.12      # 12%
 
 # Transmission de-rate for capacity imports
@@ -219,7 +221,7 @@ regional_capacity_reserves:
 cap_res_network_derate_default: 0.95
 ```
 
-Add `CapRes_1` to your resource tags so generators can contribute to reserves (see [Resource Tags](../reference/settings/resource-tags.md)).
+Add `CapRes_1`, `CapRes_2`, and `CapRes_3` to your resource tags so generators can contribute to reserves (see [Resource Tags](../reference/settings/resource-tags.md)). Because the capacity reserve constrains are specific to regions, these specific tag values will be included under `regional_tag_values`.
 
 ## Step 6: Regional Demand
 
@@ -388,7 +390,7 @@ renewables_clusters:
         max: 80  # Higher cost threshold in northeast
     bin:
       - feature: lcoe
-        weights: mw
+        weights: capacity_mw
         q: 3
 
   - region: midwest
@@ -398,7 +400,7 @@ renewables_clusters:
         max: 60  # Better wind resources in midwest
     bin:
       - feature: lcoe
-        weights: mw
+        weights: capacity_mw
         q: 4  # More bins for better resolution
 ```
 
