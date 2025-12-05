@@ -272,19 +272,6 @@ def main(**kwargs):
                         scenario_settings_obj["zone_num_map"]
                     )
                     case_year_data["gen_data"] = gen_data
-                case_year_data = {}
-                if args.gens:
-                    gc = GeneratorClusters(
-                        current_gens=args.current_gens,
-                        sort_gens=args.sort_gens,
-                        multi_period=args.multi_period,
-                        include_retired_cap=first_year is False,
-                    )
-                    gen_data = gc.create_all_generators()
-                    gen_data["Zone"] = gen_data["region"].map(
-                        scenario_settings_obj["zone_num_map"]
-                    )
-                    case_year_data["gen_data"] = gen_data
 
                     gen_variability = make_generator_variability(gen_data)
                     gen_variability.index.name = "Time_Index"
@@ -299,14 +286,6 @@ def main(**kwargs):
                     fuels.index.name = "Time_Index"
                     fuels = fuels.reset_index(drop=False)
                     case_year_data["fuels"] = fuels
-                    fuels = fuel_cost_table(
-                        fuel_costs=gc.fuel_prices,
-                        generators=gc.all_resources,
-                        num_hours=len(gen_variability),
-                    )
-                    fuels.index.name = "Time_Index"
-                    fuels = fuels.reset_index(drop=False)
-                    case_year_data["fuels"] = fuels
 
                 if args.load:
                     load = make_final_load_curves()
@@ -315,28 +294,7 @@ def main(**kwargs):
                     )
                     if not args.gens:
                         gen_variability = pd.DataFrame(index=load.index)
-                if args.load:
-                    load = make_final_load_curves()
-                    load.columns = "Demand_MW_z" + load.columns.map(
-                        scenario_settings_obj["zone_num_map"]
-                    )
-                    if not args.gens:
-                        gen_variability = pd.DataFrame(index=load.index)
 
-                    # reduce_time_domain returns unchanged inputs if the settings parameter
-                    # "reduce_time_domain" is not set to True.
-                    (
-                        reduced_resource_profile,
-                        reduced_load_profile,
-                        time_series_mapping,
-                        representative_point,
-                    ) = reduce_time_domain(gen_variability, load)
-                    case_year_data["demand_data"] = reduced_load_profile
-                    reduced_resource_profile.index.name = "Time_Index"
-                    reduced_resource_profile = reduced_resource_profile.reset_index(
-                        drop=False
-                    )
-                    case_year_data["gen_variability"] = reduced_resource_profile
                     # reduce_time_domain returns unchanged inputs if the settings parameter
                     # "reduce_time_domain" is not set to True.
                     (
@@ -360,10 +318,6 @@ def main(**kwargs):
                     gen_variability.index.name = "Time_Index"
                     gen_variability = reduced_resource_profile.reset_index(drop=False)
                     case_year_data["gen_variability"] = gen_variability
-
-                # if args.transmission:
-                #     if args.gens is False:
-                #         model_regions_gdf = load_ipm_shapefile(_settings)
 
                 if args.transmission:
                     tx_costs = load_tx_costs()
