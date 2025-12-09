@@ -239,12 +239,16 @@ class TestRegionalFuelPriceMod:
         regional_fuel_adjustments = {
             "p1": ["mul", 1.5],
             "p2": {"coal": ["add", 0.5]},
+            "p3": {"naturalgas": 3.5},
         }
 
         original_p1_price = fuel_prices.query("region == 'p1'")["price"].mean()
         original_p2_coal_price = fuel_prices.query("region == 'p2' and fuel == 'coal'")[
             "price"
         ].mean()
+        original_p3_naturalgas_price = fuel_prices.query(
+            "region == 'p3' and fuel == 'naturalgas'"
+        )["price"].mean()
 
         mod_fuel_prices = modify_fuel_prices(
             fuel_prices,
@@ -262,6 +266,13 @@ class TestRegionalFuelPriceMod:
         assert np.isclose(
             mod_fuel_prices.query("region == 'p2' and fuel == 'coal'")["price"].mean(),
             original_p2_coal_price + 0.5,
+        )
+        # Check that p3 naturalgas price set to 3.5
+        assert np.isclose(
+            mod_fuel_prices.query("region == 'p3' and fuel == 'naturalgas'")[
+                "price"
+            ].mean(),
+            3.5,
         )
 
         # Check that original dataframe is unchanged (function should return a copy)

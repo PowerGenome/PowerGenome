@@ -623,26 +623,45 @@ def _apply_regional_adjustment(
         df_list.append(df)
 
     elif isinstance(adjustment, dict):
-        for fuel, op_list in adjustment.items():
+        # For each fuel within a region, apply specific adjustments
+        for fuel, val in adjustment.items():
             if fuel not in prices["fuel"].unique():
                 raise KeyError(
                     f"The fuel '{fuel}' is listed under the region {target_region} in your settings "
                     "parameter 'regional_fuel_adjustments'. There was no fuel "
                     "price fetched for this fuel so it cannot be modified."
                 )
-            op, op_value = op_list
-            if op not in allowed_operators:
-                raise KeyError(
-                    f"The regional fuel price adjustment for '{fuel}' in {target_region} "
-                    f"needs to be an operator from the list {allowed_operators}. "
-                    f"You supplied '{op}', which is not a valid operator."
+            # Set specific fuel price (numeric value)
+            if isinstance(val, (int, float)):
+                df = prices.loc[
+                    (prices["region"] == source_region)
+                    & (prices["fuel"] == fuel.lower()),
+                    :,
+                ].copy()
+                df["price"] = val
+            # Set fuel price using operator and value
+            elif isinstance(val, list) and len(val) == 2:
+                op, op_value = val
+                if op not in allowed_operators:
+                    raise KeyError(
+                        f"The regional fuel price adjustment for '{fuel}' in {target_region} "
+                        f"needs to be an operator from the list {allowed_operators}. "
+                        f"You supplied '{op}', which is not a valid operator."
+                    )
+                f = operator.attrgetter(op)
+                df = prices.loc[
+                    (prices["region"] == source_region)
+                    & (prices["fuel"] == fuel.lower()),
+                    :,
+                ].copy()
+                df["price"] = f(operator)(df["price"], op_value)
+            else:
+                raise TypeError(
+                    "Fuel price modifiers in the settings parameter 'regional_fuel_adjustments' "
+                    "must be a list of the form '[<op>, <value>]', or a dict with fuel-specific "
+                    "adjustments. "
+                    f"Your value looks like '{val}' for fuel '{fuel}' in region '{target_region}'."
                 )
-            f = operator.attrgetter(op)
-            df = prices.loc[
-                (prices["region"] == source_region) & (prices["fuel"] == fuel.lower()),
-                :,
-            ].copy()
-            df["price"] = f(operator)(df["price"], op_value)
 
             if create_copy:
                 df["region"] = target_region
