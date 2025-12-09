@@ -351,40 +351,22 @@ Used to assign ATB startup costs to existing generators based on their EIA techn
 
 ### `regional_fuel_adjustments`
 
-**Type**: Dictionary (region → fuel → multiplier)
+**Type**: Dictionary (region → fuel → value or modifier)
 **Required**: No
 **Example**: See below
 
-Regional price adjustments relative to AEO base prices.
+Regional price adjustments, either relative to base prices or as a relacement value.
 
 ```yaml
 regional_fuel_adjustments:
   CA_N:
-    naturalgas: 1.2  # 20% higher gas prices in CA
+    naturalgas: [add, 1.5]  # Add $1.5/mmbtu to gas prices in CA_N
+  CA_S: [mul, 0.9] # Multiply all fuel costs in CA_S by 0.9
   AZ:
-    coal: 0.9  # 10% lower coal prices
+    coal: 2.0  # $2/mmbtu fuel cost in AZ (dollar year must match target_usd_year)
 ```
 
 Accounts for regional market conditions, transportation costs, or local policies.
-
-## Fuel Price Escalation
-
-### `fuel_price_escalation`
-
-**Type**: Dictionary (fuel → annual rate)
-**Required**: No
-**Example**: See below
-
-Annual escalation rate for fuel prices beyond projection period.
-
-```yaml
-fuel_price_escalation:
-  naturalgas: 0.02  # 2% annual escalation
-  coal: 0.01        # 1% annual escalation
-  uranium: 0.015
-```
-
-Applied to extrapolate prices beyond AEO projection horizon (typically 2050).
 
 ## Carbon Pricing
 
@@ -402,60 +384,11 @@ Carbon price ($/tonne CO₂) added to fuel costs.
 carbon_tax: 50  # $/tonne CO₂
 ```
 
-**Escalating**:
-
-```yaml
-carbon_tax:
-  2030: 50
-  2040: 75
-  2050: 100
-```
-
 Carbon costs are calculated as:
 
 ```
 carbon_cost_per_mmbtu = carbon_tax * fuel_emission_factors[fuel]['co2_tons_per_mmbtu']
 ```
-
-### `regional_carbon_tax`
-
-**Type**: Dictionary (region → carbon tax)
-**Required**: No
-**Example**: See below
-
-Region-specific carbon pricing (overrides `carbon_tax`).
-
-```yaml
-regional_carbon_tax:
-  CA_N: 100  # California carbon price
-  CA_S: 100
-  AZ: 25     # Lower carbon price in AZ
-```
-
-Implements regional climate policies (e.g., RGGI, California cap-and-trade).
-
-## Biomass Constraints
-
-### `biomass_supply_curve`
-
-**Type**: Dictionary or table reference
-**Required**: No
-**Example**: See below
-
-Biomass fuel supply curve (price vs. quantity available).
-
-```yaml
-biomass_supply_curve:
-  CA_N:
-    - quantity: 1000  # Tonnes/yr
-      price: 2.5      # $/MMBtu
-    - quantity: 2000
-      price: 3.0
-    - quantity: 3000
-      price: 4.0
-```
-
-Models limited biomass resource availability with price escalation at high utilization.
 
 ## Example Configurations
 
@@ -469,7 +402,7 @@ fuel_price_table: fuel_prices.csv
 
 # Map scenario names to fuels
 fuel_scenarios:
-  coal: reference
+  coal: no_111d
   naturalgas: reference
   uranium: reference
   distillate: reference
@@ -488,12 +421,6 @@ fuel_emission_factors:
   naturalgas: 0.05306
   distillate: 0.07315
   uranium: 0.0
-
-# Carbon pricing
-carbon_tax:
-  2030: 50
-  2040: 75
-  2050: 100
 
 # CCS fuel mapping
 ccs_fuel_map:
