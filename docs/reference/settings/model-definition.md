@@ -35,6 +35,14 @@ This creates planning periods:
 - 2031-2040 (10 years)
 - 2041-2050 (10 years)
 
+!!! note "How periods are used"
+
+    - **Demand**: Uses the final `model_year` in each period (e.g., 2030 demand for 2025-2030)
+    - **New-build costs**: Averaged across the full period (e.g., 2025-2030 capital costs are mean values over those years)
+    - **Retirements**: Evaluated against `model_first_planning_year`/`model_year` windows
+
+To shorten/extend the horizon, edit the paired lists. For example, to model 2030, 2035, and 2045 only, set `model_year: [2030, 2035, 2045]` and `model_first_planning_year: [2025, 2031, 2036]`.
+
 ## Currency Conversion
 
 ### `target_usd_year`

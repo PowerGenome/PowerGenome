@@ -35,6 +35,10 @@ tech_fuel_map:
 fuel_price_table: fuel_prices.csv
 ```
 
+!!! tip
+
+    You can point different fuels to different scenarios. In one PJM setup, `naturalgas` and `uranium` use `reference` while `coal` uses the `no_111d` scenario, which aligns with current US policy.
+
 ### Fuel Price Table Format
 
 Your fuel price table must include prices for **every base region** in your model:
@@ -386,13 +390,13 @@ carbon_tax: 50  # $/tonne CO₂
 
 Carbon costs are calculated as:
 
-```
+```text
 carbon_cost_per_mmbtu = carbon_tax * fuel_emission_factors[fuel]['co2_tons_per_mmbtu']
 ```
 
 ## Example Configurations
 
-### Simplified Workflow (Recommended)
+### Simplified Workflow Example
 
 Complete fuel pricing with custom fuel price table:
 
@@ -449,7 +453,7 @@ uranium,CA_S,2030,0.8,reference,2024
 uranium,AZ,2030,0.8,reference,2024
 ```
 
-### Legacy Workflow (AEO Direct)
+### Legacy Workflow Example (AEO Direct)
 
 If using EIA AEO data directly:
 
@@ -546,7 +550,7 @@ fuel_prices_table: fuel_prices.csv
 
 Final fuel cost per MMBtu:
 
-```
+```text
 total_fuel_cost = base_price
                   × regional_adjustment
                   + (carbon_tax × emission_factor)
@@ -554,7 +558,7 @@ total_fuel_cost = base_price
 
 Example (natural gas in CA_N, 2030):
 
-```
+```text
 base_price = 4.00 $/MMBtu (from AEO)
 regional_adjustment = 1.2
 carbon_tax = 100 $/tonne

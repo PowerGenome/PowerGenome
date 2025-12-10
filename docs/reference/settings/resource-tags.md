@@ -203,6 +203,12 @@ model_tag_values:
     Nuclear: 1  # Eligible for CES (carbon-free)
 ```
 
+!!! note "Practical notes"
+
+    - All tag values default to `0`; only set entries that should be eligible
+    - Region-specific ESR tags can be applied via `regional_tag_values` when a policy limits deliverability to certain regions (e.g., only PJM resources satisfy a New Jersey RPS)
+    - Technology matching is substring-based, so short patterns (e.g., `Wind`) will match many technologies. Use longer strings to avoid accidental eligibility
+
 See [Energy Share Requirements How-To](../../how-to/energy-share-requirements.md) for policy configuration.
 
 ### Minimum/Maximum Capacity Tags
@@ -271,7 +277,7 @@ PowerGenome validates tag assignments:
 
 **Missing tags**: Error if a resource lacks a required tag
 
-```
+```text
 ResourceTagError: Technology 'UtilityPV' missing tag 'THERM'
 ```
 
@@ -279,7 +285,7 @@ ResourceTagError: Technology 'UtilityPV' missing tag 'THERM'
 
 **Too many tags**: Warning if resource has tags not in `model_tag_names`
 
-```
+```text
 Warning: Resource has tag 'OFFSHORE' not in model_tag_names
 ```
 

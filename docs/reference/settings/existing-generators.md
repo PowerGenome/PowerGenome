@@ -40,6 +40,12 @@ alt_num_clusters:
 - Reduces thousands of plants to manageable number of resources
 - "None" (`~`) skips clustering and returns individual generators
 
+!!! note "Practical guidance (ReEDS/IPM-scale regions)"
+
+    - Small regions often work with `num_clusters: 1` as a starting point
+    - Use `alt_num_clusters` to split very large or heterogeneous fleets (e.g., >3–4 GW of combustion turbines with a wide heat-rate IQR)
+    - The generated thermal inputs include heat rate inter-quartile range and standard deviation columns. Check those to decide where an extra cluster is warranted.
+
 ### `alt_num_clusters`
 
 **Type**: Dictionary (region → technology → number)

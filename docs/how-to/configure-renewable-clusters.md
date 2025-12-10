@@ -26,6 +26,16 @@ Use renewable clusters when:
 
 Skip clustering if you have a simple system where all renewable sites are similar.
 
+## What the resource data should contain
+
+PowerGenome expects each renewable site record to include at least:
+
+- `lcoe`: Pre-calculated levelized cost that blends capital cost and capacity factor
+- `cf` (or `capacity_factor`): Performance metric used for clustering
+- `interconnect_mw` or similar: Interconnection cost that will be re-aggregated when you change regional aggregations
+
+Wind/solar “resource group” files generated for projects come with exactly these fields. If you add or reaggregate regions, interconnection costs will need to be recalculated for the new region layout.
+
 ## Basic Configuration Pattern
 
 Renewable clusters are defined in the `renewable_clusters` section:
@@ -96,6 +106,12 @@ renewable_clusters:
 ```
 
 **Result**: Sites divided into 4 bins (e.g., $0-$30, $30-$38, $38-$44, $44-$50 LCOE ranges)
+
+!!! note "Quick-start ideas"
+
+    - First filter on `lcoe` to drop obviously uneconomic sites
+    - Use `mw_per_bin` to target roughly one bin per ~5-10 GW of available capacity
+    - If early runs show large unused capacity in a specific region, add a region-specific filter with a tighter `lcoe` cap instead of shrinking other regions
 
 **Bin structure**: Each bin entry is a dictionary with:
 
@@ -808,6 +824,7 @@ cluster:
     method: kmeans
 
 # Solution 3: Max-distance
+```yaml
 cluster:
   - feature: [latitude, longitude]
     method: max_distance
@@ -852,7 +869,7 @@ Renewable clustering requires **resource group profiles** with site-level data.
 
 Located in `RESOURCE_GROUP_PROFILES` directory:
 
-```
+```text
 RESOURCE_GROUP_PROFILES/
 ├── LandbasedWind_Class1_resource_groups.parquet
 ├── UtilityPV_Class1_resource_groups.parquet
@@ -885,7 +902,7 @@ RESOURCE_GROUP_PROFILES/
 
 Hourly profiles in same directory:
 
-```
+```text
 LandbasedWind_Class1_profile_0001.csv  # 8760 hourly CFs
 LandbasedWind_Class1_profile_0002.csv
 ...
