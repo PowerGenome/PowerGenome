@@ -795,6 +795,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#what-the-resource-data-should-contain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the resource data should contain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#basic-configuration-pattern" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2224,6 +2235,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#what-the-resource-data-should-contain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the resource data should contain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#basic-configuration-pattern" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2900,6 +2922,14 @@
 <li><strong>Resource limits</strong> apply (land availability in each county)</li>
 </ul>
 <p>Skip clustering if you have a simple system where all renewable sites are similar.</p>
+<h2 id="what-the-resource-data-should-contain">What the resource data should contain<a class="headerlink" href="#what-the-resource-data-should-contain" title="Permanent link">&para;</a></h2>
+<p>PowerGenome expects each renewable site record to include at least:</p>
+<ul>
+<li><code>lcoe</code>: Pre-calculated levelized cost that blends capital cost and capacity factor</li>
+<li><code>cf</code> (or <code>capacity_factor</code>): Performance metric used for clustering</li>
+<li><code>interconnect_mw</code> or similar: Interconnection cost that will be re-aggregated when you change regional aggregations</li>
+</ul>
+<p>Wind/solar “resource group” files generated for projects come with exactly these fields. If you add or reaggregate regions, interconnection costs will need to be recalculated for the new region layout.</p>
 <h2 id="basic-configuration-pattern">Basic Configuration Pattern<a class="headerlink" href="#basic-configuration-pattern" title="Permanent link">&para;</a></h2>
 <p>Renewable clusters are defined in the <code>renewable_clusters</code> section:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
@@ -2952,6 +2982,14 @@
 <a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span><span class="w">   </span><span class="c1"># Weight by capacity when creating bins</span>
 </code></pre></div>
 <p><strong>Result</strong>: Sites divided into 4 bins (e.g., $0-$30, $30-$38, $38-$44, $44-$50 LCOE ranges)</p>
+<div class="admonition note">
+<p class="admonition-title">Quick-start ideas</p>
+<ul>
+<li>First filter on <code>lcoe</code> to drop obviously uneconomic sites</li>
+<li>Use <code>mw_per_bin</code> to target roughly one bin per ~5-10 GW of available capacity</li>
+<li>If early runs show large unused capacity in a specific region, add a region-specific filter with a tighter <code>lcoe</code> cap instead of shrinking other regions</li>
+</ul>
+</div>
 <p><strong>Bin structure</strong>: Each bin entry is a dictionary with:</p>
 <ul>
 <li><code>feature</code>: Column name to bin on (required)</li>
@@ -3514,10 +3552,11 @@
 <a id="__codelineno-39-12" name="__codelineno-39-12" href="#__codelineno-39-12"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kmeans</span>
 <a id="__codelineno-39-13" name="__codelineno-39-13" href="#__codelineno-39-13"></a>
 <a id="__codelineno-39-14" name="__codelineno-39-14" href="#__codelineno-39-14"></a><span class="c1"># Solution 3: Max-distance</span>
-<a id="__codelineno-39-15" name="__codelineno-39-15" href="#__codelineno-39-15"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-39-16" name="__codelineno-39-16" href="#__codelineno-39-16"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">latitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">longitude</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-39-17" name="__codelineno-39-17" href="#__codelineno-39-17"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">max_distance</span>
-<a id="__codelineno-39-18" name="__codelineno-39-18" href="#__codelineno-39-18"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+<a id="__codelineno-39-15" name="__codelineno-39-15" href="#__codelineno-39-15"></a><span class="err">```</span><span class="l l-Scalar l-Scalar-Plain">yaml</span>
+<a id="__codelineno-39-16" name="__codelineno-39-16" href="#__codelineno-39-16"></a><span class="nt">cluster</span><span class="p">:</span>
+<a id="__codelineno-39-17" name="__codelineno-39-17" href="#__codelineno-39-17"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">latitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">longitude</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-39-18" name="__codelineno-39-18" href="#__codelineno-39-18"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">max_distance</span>
+<a id="__codelineno-39-19" name="__codelineno-39-19" href="#__codelineno-39-19"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
 </code></pre></div>
 <h3 id="expensive-sites-selected">Expensive Sites Selected<a class="headerlink" href="#expensive-sites-selected" title="Permanent link">&para;</a></h3>
 <p><strong>Problem</strong>: High-cost clusters appear in optimal solution</p>

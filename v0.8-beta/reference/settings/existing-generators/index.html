@@ -2044,6 +2044,14 @@
 <li>Reduces thousands of plants to manageable number of resources</li>
 <li>"None" (<code>~</code>) skips clustering and returns individual generators</li>
 </ul>
+<div class="admonition note">
+<p class="admonition-title">Practical guidance (ReEDS/IPM-scale regions)</p>
+<ul>
+<li>Small regions often work with <code>num_clusters: 1</code> as a starting point</li>
+<li>Use <code>alt_num_clusters</code> to split very large or heterogeneous fleets (e.g., &gt;3–4 GW of combustion turbines with a wide heat-rate IQR)</li>
+<li>The generated thermal inputs include heat rate inter-quartile range and standard deviation columns. Check those to decide where an extra cluster is warranted.</li>
+</ul>
+</div>
 <h3 id="alt_num_clusters"><code>alt_num_clusters</code><a class="headerlink" href="#alt_num_clusters" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Dictionary (region → technology → number)
 <strong>Required</strong>: No

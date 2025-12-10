@@ -2285,6 +2285,14 @@
 <a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">    </span><span class="nt">NaturalGas_CCS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">  </span><span class="c1"># May be eligible for CES (with CCS)</span>
 <a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">    </span><span class="nt">Nuclear</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">  </span><span class="c1"># Eligible for CES (carbon-free)</span>
 </code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Practical notes</p>
+<ul>
+<li>All tag values default to <code>0</code>; only set entries that should be eligible</li>
+<li>Region-specific ESR tags can be applied via <code>regional_tag_values</code> when a policy limits deliverability to certain regions (e.g., only PJM resources satisfy a New Jersey RPS)</li>
+<li>Technology matching is substring-based, so short patterns (e.g., <code>Wind</code>) will match many technologies. Use longer strings to avoid accidental eligibility</li>
+</ul>
+</div>
 <p>See <a href="../../how-to/energy-share-requirements.md">Energy Share Requirements How-To</a> for policy configuration.</p>
 <h3 id="minimummaximum-capacity-tags">Minimum/Maximum Capacity Tags<a class="headerlink" href="#minimummaximum-capacity-tags" title="Permanent link">&para;</a></h3>
 <p>Tags can enforce capacity constraints:</p>

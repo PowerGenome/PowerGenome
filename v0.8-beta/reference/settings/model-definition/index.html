@@ -1938,6 +1938,15 @@
 <li>2031-2040 (10 years)</li>
 <li>2041-2050 (10 years)</li>
 </ul>
+<div class="admonition note">
+<p class="admonition-title">How periods are used</p>
+<ul>
+<li><strong>Demand</strong>: Uses the final <code>model_year</code> in each period (e.g., 2030 demand for 2025-2030)</li>
+<li><strong>New-build costs</strong>: Averaged across the full period (e.g., 2025-2030 capital costs are mean values over those years)</li>
+<li><strong>Retirements</strong>: Evaluated against <code>model_first_planning_year</code>/<code>model_year</code> windows</li>
+</ul>
+</div>
+<p>To shorten/extend the horizon, edit the paired lists. For example, to model 2030, 2035, and 2045 only, set <code>model_year: [2030, 2035, 2045]</code> and <code>model_first_planning_year: [2025, 2031, 2036]</code>.</p>
 <h2 id="currency-conversion">Currency Conversion<a class="headerlink" href="#currency-conversion" title="Permanent link">&para;</a></h2>
 <h3 id="target_usd_year"><code>target_usd_year</code><a class="headerlink" href="#target_usd_year" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Integer
