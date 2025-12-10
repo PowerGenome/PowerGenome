@@ -643,7 +643,7 @@ def assign_site_cluster(
                 "One of your renewables_clusters uses the 'bin' option and includes the "
                 f"'weights' argument '{weights_col}', which is not in the renewable site data. The "
                 "weights must be one of the columns in your renewable site data file.\n\n"
-                "NOTE: Use the parameter 'mw' to weight by capacity."
+                "NOTE: Use the parameter 'capacity_mw' to weight by capacity."
             )
         elif weights_col:
             weights = data[weights_col]
