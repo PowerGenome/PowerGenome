@@ -1017,8 +1017,8 @@ def timeit(
             try:
                 if isinstance(result, pd.DataFrame):
                     extra["rows_after"] = int(result.shape[0])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Could not get row count from result: {e}")
 
             log_duration(logger, _label, start, end, cpu_start, cpu_end, extra, min_ms)
             return result
