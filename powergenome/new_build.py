@@ -965,7 +965,11 @@ def build_new_resources(
         df_list = []
         settings = apply_all_tag_to_regions(settings)
 
-        df_list = Parallel(n_jobs=settings.get("clustering_n_jobs", 1))(
+        clustering_jobs = settings.get("clustering_n_jobs", 1)
+        logger.info(
+            f"Adding renewable resource clusters using {clustering_jobs} parallel jobs."
+        )
+        df_list = Parallel(n_jobs=clustering_jobs)(
             delayed(parallel_region_renewables)(
                 copy.deepcopy(settings),
                 new_gen_df,
@@ -1333,6 +1337,7 @@ def add_renewables_clusters(
                 and cache_site_assn_fpath.exists()
                 and use_cache
             ):
+                logger.debug(f"Loading cached cluster data from {cache_cluster_fpath}")
                 clusters = pd.read_parquet(cache_cluster_fpath)
                 data = pd.read_parquet(cache_site_assn_fpath)
             else:
@@ -1350,6 +1355,7 @@ def add_renewables_clusters(
                 renew_data, site_map = load_resource_group_data(
                     resource_groups[0], cache=False
                 )
+                logger.debug(f"Loaded resource group data from {resource_groups[0]}")
                 data = assign_site_cluster(
                     renew_data=renew_data,
                     profile_path=resource_groups[0].group.get("profiles"),
@@ -1370,6 +1376,7 @@ def add_renewables_clusters(
 
                 cache_folder.mkdir(parents=True, exist_ok=True)
                 if not cache_cluster_fpath.exists() and cache_results:
+                    logger.debug(f"Caching cluster data to {cache_cluster_fpath}")
                     clusters.to_parquet(cache_cluster_fpath)
                 if not cache_site_assn_fpath.exists() and cache_results:
                     cols = ["cpa_id", "cluster"]
