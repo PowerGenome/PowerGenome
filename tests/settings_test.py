@@ -21,6 +21,7 @@ from powergenome.settings import (
     apply_all_tag_to_regions,
     assign_model_planning_years,
     build_scenario_settings,
+    expand_capacity_reserve_values,
     fix_param_names,
     get_current_settings,
     load_settings,
@@ -1242,3 +1243,332 @@ class TestAutoFillSettings:
             result = test_function()
             assert result["model_year"] == 2035
             assert result["source"] == "context"
+
+
+class TestExpandCapacityReserveValues:
+    """Test the expand_capacity_reserve_values function."""
+
+    def test_flat_format_single_constraint(self):
+        """Test flat format with a single capacity reserve constraint."""
+        settings = {
+            "capacity_reserve_values": {
+                "Conventional Steam Coal": 0.9,
+                "Natural Gas Fired Combined Cycle": 0.9,
+            },
+            "regional_capacity_reserves": {
+                "CapRes_1": {"p1": 0.164, "p2": 0.164, "p3": 0.164},
+            },
+            "model_regions": ["p1", "p2", "p3"],
+            "regional_tag_values": {},
+        }
+
+        result = expand_capacity_reserve_values(settings)
+
+        # Check that all regions have CapRes_1 with correct values
+        assert "regional_tag_values" in result
+        assert "p1" in result["regional_tag_values"]
+        assert "p2" in result["regional_tag_values"]
+        assert "p3" in result["regional_tag_values"]
+
+        # Verify structure and values
+        for region in ["p1", "p2", "p3"]:
+            assert "CapRes_1" in result["regional_tag_values"][region]
+            assert (
+                result["regional_tag_values"][region]["CapRes_1"][
+                    "Conventional Steam Coal"
+                ]
+                == 0.9
+            )
+            assert (
+                result["regional_tag_values"][region]["CapRes_1"][
+                    "Natural Gas Fired Combined Cycle"
+                ]
+                == 0.9
+            )
+
+    def test_nested_format_multiple_constraints(self):
+        """Test nested format with multiple capacity reserve constraints."""
+        settings = {
+            "capacity_reserve_values": {
+                "CapRes_1": {
+                    "Conventional Steam Coal": 0.9,
+                    "Natural Gas Fired Combined Cycle": 0.9,
+                },
+                "CapRes_2": {
+                    "Conventional Steam Coal": 0.95,
+                    "Natural Gas Fired Combined Cycle": 0.95,
+                },
+            },
+            "regional_capacity_reserves": {
+                "CapRes_1": {"p8": 0.164, "p9": 0.164},
+                "CapRes_2": {"p1": 0.145, "p2": 0.145},
+            },
+            "model_regions": ["p1", "p2", "p8", "p9"],
+            "regional_tag_values": {},
+        }
+
+        result = expand_capacity_reserve_values(settings)
+
+        # Check CapRes_1 regions
+        assert (
+            result["regional_tag_values"]["p8"]["CapRes_1"]["Conventional Steam Coal"]
+            == 0.9
+        )
+        assert (
+            result["regional_tag_values"]["p9"]["CapRes_1"]["Conventional Steam Coal"]
+            == 0.9
+        )
+
+        # Check CapRes_2 regions
+        assert (
+            result["regional_tag_values"]["p1"]["CapRes_2"]["Conventional Steam Coal"]
+            == 0.95
+        )
+        assert (
+            result["regional_tag_values"]["p2"]["CapRes_2"]["Conventional Steam Coal"]
+            == 0.95
+        )
+
+        # Ensure no cross-contamination
+        assert "CapRes_2" not in result["regional_tag_values"]["p8"]
+        assert "CapRes_1" not in result["regional_tag_values"]["p1"]
+
+    def test_merge_with_existing_regional_tag_values(self):
+        """Test that existing regional_tag_values are preserved and take precedence."""
+        settings = {
+            "capacity_reserve_values": {
+                "Tech1": 0.9,
+                "Tech2": 0.9,
+            },
+            "regional_capacity_reserves": {
+                "CapRes_1": {"p1": 0.164, "p2": 0.164},
+            },
+            "model_regions": ["p1", "p2"],
+            "regional_tag_values": {
+                "p1": {
+                    "CapRes_1": {
+                        "Tech1": 0.99,  # Override the expanded value
+                    }
+                }
+            },
+        }
+
+        result = expand_capacity_reserve_values(settings)
+
+        # Existing value should override
+        assert result["regional_tag_values"]["p1"]["CapRes_1"]["Tech1"] == 0.99
+        # New value should be added
+        assert result["regional_tag_values"]["p1"]["CapRes_1"]["Tech2"] == 0.9
+        # Other region should get expanded values
+        assert result["regional_tag_values"]["p2"]["CapRes_1"]["Tech1"] == 0.9
+        assert result["regional_tag_values"]["p2"]["CapRes_1"]["Tech2"] == 0.9
+
+    def test_merge_with_other_tags(self):
+        """Test merging with existing tags that are not capacity reserves."""
+        settings = {
+            "capacity_reserve_values": {
+                "Tech1": 0.9,
+            },
+            "regional_capacity_reserves": {
+                "CapRes_1": {"p1": 0.164},
+            },
+            "model_regions": ["p1"],
+            "regional_tag_values": {
+                "p1": {
+                    "OtherTag": {
+                        "Tech1": 0.5,
+                    }
+                }
+            },
+        }
+
+        result = expand_capacity_reserve_values(settings)
+
+        # Both tags should exist
+        assert "OtherTag" in result["regional_tag_values"]["p1"]
+        assert "CapRes_1" in result["regional_tag_values"]["p1"]
+        assert result["regional_tag_values"]["p1"]["OtherTag"]["Tech1"] == 0.5
+        assert result["regional_tag_values"]["p1"]["CapRes_1"]["Tech1"] == 0.9
+
+    def test_no_capacity_reserves_returns_unchanged(self):
+        """Test that settings without capacity reserves are returned unchanged."""
+        settings = {
+            "model_regions": ["p1"],
+            "regional_tag_values": {"p1": {"SomeTag": {}}},
+        }
+
+        result = expand_capacity_reserve_values(settings)
+        assert result == settings
+
+    def test_empty_capacity_reserves_returns_unchanged(self):
+        """Test that settings with empty capacity reserves are returned unchanged."""
+        settings = {
+            "capacity_reserve_values": {},
+            "regional_capacity_reserves": {},
+            "model_regions": ["p1"],
+            "regional_tag_values": {},
+        }
+
+        result = expand_capacity_reserve_values(settings)
+        assert result["regional_tag_values"] == {}
+
+    def test_mixed_format_not_detected(self):
+        """Test that mixed format (some constraint dicts, some values) uses nested interpretation."""
+        settings = {
+            "capacity_reserve_values": {
+                "CapRes_1": {
+                    "Tech1": 0.9,
+                },
+                # Even if this looks like it could be flat, it's nested because CapRes_1 is a dict
+            },
+            "regional_capacity_reserves": {
+                "CapRes_1": {"p1": 0.164},
+            },
+            "model_regions": ["p1"],
+            "regional_tag_values": {},
+        }
+
+        result = expand_capacity_reserve_values(settings)
+        assert result["regional_tag_values"]["p1"]["CapRes_1"]["Tech1"] == 0.9
+
+    def test_preserves_original_settings(self):
+        """Test that the function doesn't mutate the original capacity_reserve_values."""
+        original_capacity_values = {
+            "Tech1": 0.9,
+            "Tech2": 0.8,
+        }
+        capacity_values_copy = original_capacity_values.copy()
+
+        settings = {
+            "capacity_reserve_values": original_capacity_values,
+            "regional_capacity_reserves": {
+                "CapRes_1": {"p1": 0.164},
+            },
+            "model_regions": ["p1"],
+            "regional_tag_values": {},
+        }
+
+        expand_capacity_reserve_values(settings)
+
+        # Original should not be modified
+        assert original_capacity_values == capacity_values_copy
+
+    def test_flat_format_with_three_constraints(self):
+        """Test flat format applied to three different capacity reserve constraints."""
+        settings = {
+            "capacity_reserve_values": {
+                "Nuclear": 1.0,
+                "Coal": 0.8,
+            },
+            "regional_capacity_reserves": {
+                "CapRes_A": {"r1": 0.1, "r2": 0.1},
+                "CapRes_B": {"r3": 0.2},
+                "CapRes_C": {"r4": 0.15, "r5": 0.15},
+            },
+            "model_regions": ["r1", "r2", "r3", "r4", "r5"],
+            "regional_tag_values": {},
+        }
+
+        result = expand_capacity_reserve_values(settings)
+
+        # Verify flat values applied to all constraints
+        for constraint in ["CapRes_A", "CapRes_B", "CapRes_C"]:
+            for region in settings["regional_capacity_reserves"][constraint]:
+                assert (
+                    result["regional_tag_values"][region][constraint]["Nuclear"] == 1.0
+                )
+                assert result["regional_tag_values"][region][constraint]["Coal"] == 0.8
+
+    def test_integration_with_load_settings(self, tmp_path):
+        """Test that expand_capacity_reserve_values is called during load_settings."""
+        settings_file = tmp_path / "settings.yml"
+        settings_content = {
+            "model_regions": ["p1", "p2"],
+            "capacity_reserve_values": {
+                "Tech1": 0.9,
+            },
+            "regional_capacity_reserves": {
+                "CapRes_1": {"p1": 0.164, "p2": 0.164},
+            },
+        }
+
+        with open(settings_file, "w") as f:
+            yaml.dump(settings_content, f)
+
+        result = load_settings(settings_file)
+
+        # Verify capacity reserves were expanded during load
+        assert "regional_tag_values" in result
+        assert "p1" in result["regional_tag_values"]
+        assert "CapRes_1" in result["regional_tag_values"]["p1"]
+        assert result["regional_tag_values"]["p1"]["CapRes_1"]["Tech1"] == 0.9
+
+    def test_integration_with_build_scenario_settings(self, tmp_path):
+        """Test that expand_capacity_reserve_values works in scenario building."""
+        # Create base settings
+        base_settings = {
+            "model_regions": ["p1", "p2"],
+            "model_year": [2030],
+            "model_first_planning_year": [2025],
+            "capacity_reserve_values": {
+                "Tech1": 0.9,
+            },
+            "regional_capacity_reserves": {
+                "CapRes_1": {"p1": 0.164, "p2": 0.164},
+            },
+        }
+
+        # Create scenario definitions
+        scenario_defs = pd.DataFrame(
+            {
+                "case_id": ["case1"],
+                "year": [2030],
+            }
+        )
+
+        result = build_scenario_settings(base_settings, scenario_defs)
+
+        # Verify capacity reserves were expanded in scenario settings
+        case_settings = result[2030]["case1"]
+        assert "regional_tag_values" in case_settings
+        assert "p1" in case_settings["regional_tag_values"]
+        assert "CapRes_1" in case_settings["regional_tag_values"]["p1"]
+
+    def test_scenario_overrides_capacity_reserves(self, tmp_path):
+        """Test that scenario modifications to capacity reserves work correctly."""
+        base_settings = {
+            "model_regions": ["p1", "p2"],
+            "model_year": [2030],
+            "model_first_planning_year": [2025],
+            "capacity_reserve_values": {
+                "Tech1": 0.9,
+            },
+            "regional_capacity_reserves": {
+                "CapRes_1": {"p1": 0.164, "p2": 0.164},
+            },
+            "settings_management": {
+                "all_years": {
+                    "ccs_capex": {
+                        "high": {
+                            "capacity_reserve_values": {
+                                "Tech1": 0.95,  # Override for high CCS scenario
+                            }
+                        }
+                    }
+                }
+            },
+        }
+
+        scenario_defs = pd.DataFrame(
+            {
+                "case_id": ["case_high"],
+                "year": [2030],
+                "ccs_capex": ["high"],
+            }
+        )
+
+        result = build_scenario_settings(base_settings, scenario_defs)
+
+        case_settings = result[2030]["case_high"]
+        # Should use overridden value
+        assert case_settings["regional_tag_values"]["p1"]["CapRes_1"]["Tech1"] == 0.95

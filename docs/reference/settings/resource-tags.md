@@ -271,6 +271,25 @@ regional_tag_values:
 
 Capacity reserve requirements are set in `regional_capacity_reserves`.
 
+!!! info "Simplified Configuration"
+
+    PowerGenome provides a simplified shorthand for specifying capacity reserve credits via `capacity_reserve_values`. Instead of manually building the nested `regional_tag_values` structure shown above, you can use:
+
+    ```yaml
+    capacity_reserve_values:
+      NaturalGas: 0.9
+      Battery: 0.95
+
+    regional_capacity_reserves:
+      CapRes_1:
+        CA_N: 0.164
+        AZ: 0.180
+      CapRes_2:
+        CA_N: 0.090
+    ```
+
+    The system automatically expands this into the `regional_tag_values` structure. See [Configure Capacity Reserve Requirements](../../how-to/configure-capacity-reserves.md) for complete examples and best practices.
+
 ## Tag Validation
 
 PowerGenome validates tag assignments:

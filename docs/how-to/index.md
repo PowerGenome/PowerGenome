@@ -6,6 +6,7 @@ These guides provide step-by-step instructions for specific tasks. Each guide as
 
 - **[Configure Settings](configure-settings.md)**: Organize settings files, use modular YAML, and manage complex configurations
 - **[Configure Renewable Resource Clusters](configure-renewable-clusters.md)**: Set up wind and solar clusters using filters, bins, groups, and agglomerative or k-means clustering
+- **[Configure Capacity Reserve Requirements](configure-capacity-reserves.md)**: Specify technology credit values for capacity reserve constraints
 - **[Run Multi-Scenario Studies](run-scenarios.md)**: Set up and execute multi-scenario runs with parameter variations
 
 ## Customization
@@ -20,6 +21,7 @@ These guides provide step-by-step instructions for specific tasks. Each guide as
 | Split settings into multiple files | [Configure Settings](configure-settings.md) | Easy |
 | Add a new fuel type | [Add Technologies](add-technologies.md) | Easy |
 | Apply age-based O&M costs | [Modify Generator Attributes](modify-generator-attributes.md) | Easy |
+| Specify capacity reserve credits | [Configure Capacity Reserves](configure-capacity-reserves.md) | Easy |
 | Set up renewable resource clusters | [Configure Renewable Clusters](configure-renewable-clusters.md) | Medium |
 | Run sensitivity analysis | [Run Scenarios](run-scenarios.md) | Medium |
 | Filter renewable sites by LCOE | [Configure Renewable Clusters](configure-renewable-clusters.md) | Medium |
