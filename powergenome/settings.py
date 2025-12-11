@@ -662,6 +662,7 @@ def load_settings(path: Union[str, Path]) -> dict:
         )
 
     settings = apply_all_tag_to_regions(settings)
+    settings = expand_capacity_reserve_values(settings)
     settings = sort_nested_dict(settings)
 
     for key in [
@@ -829,6 +830,159 @@ def apply_all_tag_to_regions(settings: dict) -> dict:
                 temp_entry["region"] = reg
 
                 settings["renewables_clusters"].append(temp_entry)
+
+    return settings
+
+
+def expand_capacity_reserve_values(settings: dict) -> dict:
+    """
+    Expand capacity_reserve_values and regional_capacity_reserves into regional_tag_values.
+
+    This function provides a user-friendly shorthand for specifying capacity reserve credit
+    values across multiple regions and constraints. It transforms two settings parameters:
+    - capacity_reserve_values: Technology credit values (flat or nested by constraint)
+    - regional_capacity_reserves: Regional assignments to capacity reserve constraints
+
+    into the standard regional_tag_values structure.
+
+    Parameters
+    ----------
+    settings : dict
+        Settings dictionary containing optional keys:
+        - capacity_reserve_values: Dict of technology values (flat or nested)
+        - regional_capacity_reserves: Dict mapping constraints to regions
+
+    Returns
+    -------
+    dict
+        Modified settings with expanded regional_tag_values. Existing explicit entries
+        in regional_tag_values take precedence over auto-generated ones.
+
+    Notes
+    -----
+    Format auto-detection:
+    - Flat format: All values in capacity_reserve_values are numbers
+      Example: {Tech1: 0.9, Tech2: 0.95}
+      These values are applied to all CapRes_* constraints in regional_capacity_reserves
+
+    - Nested format: Values in capacity_reserve_values are dicts
+      Example: {CapRes_1: {Tech1: 0.9, Tech2: 0.95}, CapRes_2: {...}}
+      Each constraint's values are applied only to that constraint
+
+    Examples
+    --------
+    # Flat format: single capacity reserve constraint
+    settings = {
+        'capacity_reserve_values': {
+            'Conventional Steam Coal': 0.9,
+            'Natural Gas Fired Combined Cycle': 0.9
+        },
+        'regional_capacity_reserves': {
+            'CapRes_1': {'p1': 0.164, 'p2': 0.164}
+        },
+        'model_regions': ['p1', 'p2']
+    }
+    result = expand_capacity_reserve_values(settings)
+    # result['regional_tag_values'] = {
+    #     'p1': {'CapRes_1': {'Conventional Steam Coal': 0.9, ...}},
+    #     'p2': {'CapRes_1': {'Conventional Steam Coal': 0.9, ...}}
+    # }
+
+    # Nested format: multiple capacity reserve constraints
+    settings = {
+        'capacity_reserve_values': {
+            'CapRes_1': {
+                'Conventional Steam Coal': 0.9,
+                'Natural Gas Fired Combined Cycle': 0.9
+            },
+            'CapRes_2': {
+                'Conventional Steam Coal': 0.95,
+                'Natural Gas Fired Combined Cycle': 0.95
+            }
+        },
+        'regional_capacity_reserves': {
+            'CapRes_1': {'p8': 0.164, 'p9': 0.164},
+            'CapRes_2': {'p1': 0.145, 'p2': 0.145}
+        },
+        'model_regions': ['p1', 'p2', 'p8', 'p9']
+    }
+    result = expand_capacity_reserve_values(settings)
+    # result['regional_tag_values'] = {
+    #     'p1': {'CapRes_2': {'Conventional Steam Coal': 0.95, ...}},
+    #     'p2': {'CapRes_2': {'Conventional Steam Coal': 0.95, ...}},
+    #     'p8': {'CapRes_1': {'Conventional Steam Coal': 0.9, ...}},
+    #     'p9': {'CapRes_1': {'Conventional Steam Coal': 0.9, ...}}
+    # }
+    """
+
+    # Get the capacity reserve settings, return early if not present
+    capacity_reserve_values = settings.get("capacity_reserve_values")
+    regional_capacity_reserves = settings.get("regional_capacity_reserves")
+
+    if not capacity_reserve_values or not regional_capacity_reserves:
+        return settings
+
+    # Auto-detect format: flat (all values are numbers) or nested (values are dicts)
+    # Check the first value to determine format
+    first_value = next(iter(capacity_reserve_values.values()), None)
+    is_flat = not isinstance(first_value, dict)
+
+    # Normalize capacity_reserve_values to nested format
+    if is_flat:
+        # Flat format: apply these values to all CapRes_* constraints
+        constraint_names = list(regional_capacity_reserves.keys())
+        normalized_values = {
+            constraint: capacity_reserve_values.copy()
+            for constraint in constraint_names
+        }
+    else:
+        # Already nested
+        normalized_values = capacity_reserve_values
+
+    # Build regional_tag_values from the normalized structure
+    expanded_regional_values = {}
+    for constraint, tech_values in normalized_values.items():
+        # Get regions assigned to this constraint
+        regions_for_constraint = regional_capacity_reserves.get(constraint, {})
+
+        for region in regions_for_constraint.keys():
+            # Ensure region exists in the expanded dict
+            if region not in expanded_regional_values:
+                expanded_regional_values[region] = {}
+
+            # Add this constraint and its technology values for this region
+            expanded_regional_values[region][constraint] = tech_values.copy()
+
+    # Merge with existing regional_tag_values, preserving explicit user entries
+    existing_regional_values = settings.get("regional_tag_values", {})
+
+    # Start with expanded values and layer existing values on top (for full precedence)
+    merged_regional_values = copy.deepcopy(expanded_regional_values)
+
+    # Layer existing values on top, so they take precedence
+    for region, tags in existing_regional_values.items():
+        if region not in merged_regional_values:
+            merged_regional_values[region] = {}
+        # For each constraint in existing values, merge its technology values
+        for constraint, tech_values in tags.items():
+            if constraint not in merged_regional_values[region]:
+                merged_regional_values[region][constraint] = {}
+            # Existing tech values override expanded ones
+            merged_regional_values[region][constraint].update(tech_values)
+
+    # Update settings with the merged regional_tag_values
+    settings["regional_tag_values"] = merged_regional_values
+
+    # Log what was populated
+    regions_populated = set()
+    for constraint, regions in regional_capacity_reserves.items():
+        regions_populated.update(regions.keys())
+
+    if regions_populated:
+        logger.info(
+            f"Expanded capacity_reserve_values into regional_tag_values for "
+            f"regions: {sorted(regions_populated)}"
+        )
 
     return settings
 
@@ -1071,6 +1225,9 @@ def build_scenario_settings(
 
         # make sure model year data appears in standard form
         assign_model_planning_years(_settings, year)
+
+        # expand capacity reserve values into regional_tag_values
+        _settings = expand_capacity_reserve_values(_settings)
 
         scenario_settings.setdefault(year, {})[case_id] = _settings
         if _settings.get("generator_columns"):
