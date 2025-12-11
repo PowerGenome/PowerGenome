@@ -92,6 +92,7 @@ nav:
     - Add Custom Technologies: how-to/add-technologies.md
     - Modify Generator Attributes: how-to/modify-generator-attributes.md
     - Configure Renewable Clusters: how-to/configure-renewable-clusters.md
+    - Configure Capacity Reserve Requirements: how-to/configure-capacity-reserves.md
     - Run Multi-Scenario Studies: how-to/run-scenarios.md
 
   - Reference:

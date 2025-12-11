@@ -9,6 +9,7 @@ and this project adheres to Semantic Versioning.
 
 ### Added
 
+- Simplified capacity reserve credit specification with `capacity_reserve_values` and auto-expansion. Users can now specify technology credits in a flat format (single constraint) or nested format (multiple constraints) that automatically populate `regional_tag_values`, reducing configuration boilerplate for complex multi-constraint systems. Explicit `regional_tag_values` entries take precedence, allowing mixed automatic and manual specification.
 - weather_year filter support for renewable generation profiles (tidy format). Accepts a single int or a list of ints; when multiple years are provided, profiles are concatenated and a continuous per-site time_index is rebuilt.
 - weather_year filter support for hourly demand profiles. When present, demand is filtered to the requested year and the per-region time_index is rebuilt to be sequential starting at 1.
 - Comprehensive distributed generation (DG) test suite covering capacity interpolation/extrapolation, multi-weather-year profiles, aggregation, timezone shifting, and hourly generation.
