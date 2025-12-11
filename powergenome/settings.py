@@ -922,10 +922,19 @@ def expand_capacity_reserve_values(settings: dict) -> dict:
     if not capacity_reserve_values or not regional_capacity_reserves:
         return settings
 
+    # Validate that all values are consistently dicts or non-dicts
+    values = list(capacity_reserve_values.values())
+    if not values:
+        return settings
+    all_dicts = all(isinstance(v, dict) for v in values)
+    none_dicts = all(not isinstance(v, dict) for v in values)
+    if not (all_dicts or none_dicts):
+        raise ValueError(
+            "All values in 'capacity_reserve_values' must be consistently either dicts (nested format) or non-dicts (flat format). "
+            f"Found mixed types: {[type(v).__name__ for v in values]}"
+        )
     # Auto-detect format: flat (all values are numbers) or nested (values are dicts)
-    # Check the first value to determine format
-    first_value = next(iter(capacity_reserve_values.values()), None)
-    is_flat = not isinstance(first_value, dict)
+    is_flat = none_dicts
 
     # Normalize capacity_reserve_values to nested format
     if is_flat:
