@@ -51,6 +51,10 @@ def load_site_profiles(
 
     # Helper to pivot tidy df to wide with requested site_ids
     def _pivot_tidy(df: pd.DataFrame) -> pd.DataFrame:
+        # Convert site_id to categorical for fast filtering
+        if df["site_id"].dtype == object:
+            df["site_id"] = df["site_id"].astype("category")
+
         # Filter to requested site_ids
         df = df[df["site_id"].isin(site_ids)].copy()
         if "weather_year" in df.columns:
@@ -63,11 +67,7 @@ def load_site_profiles(
             if df.weather_year.nunique() > 1:
                 # Sort and create continuous time_index across years per site if weather_year exists
                 df = df.sort_values(by=["weather_year", "time_index"])
-                for sid in site_ids:
-                    mask = df["site_id"] == sid
-                    sd = df.loc[mask]
-                    if not sd.empty:
-                        df.loc[mask, "time_index"] = np.arange(1, len(sd) + 1)
+                df["time_index"] = df.groupby("site_id", observed=True).cumcount() + 1
 
         wide = df.pivot(
             index="time_index", columns="site_id", values="value"
