@@ -208,8 +208,22 @@ PRODUCTION_TYPE_MAP = {
 
 
 def _clean_tech_name(value: str) -> str:
-    """Normalize technology strings for matching incentives."""
+    """
+    Normalize technology strings for matching incentives.
 
+    Parameters
+    ----------
+    value : str or None
+        The technology name to normalize. If None or an empty string is provided,
+        it will be treated as an empty string.
+
+    Returns
+    -------
+    str
+        The normalized technology name: all whitespace and underscores are removed,
+        and the result is converted to lowercase. If the input is None or empty,
+        returns an empty string.
+    """
     return re.sub(r"[\s_]", "", (value or "")).lower()
 
 
