@@ -1,10 +1,11 @@
 "Functions specific to GenX outputs"
 
 import logging
+import re
 from dataclasses import dataclass
 from itertools import product
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import pandas as pd
 
@@ -191,6 +192,186 @@ POLICY_TAGS_FILENAMES = {
     "MIN_CAP": "Resource_minimum_capacity_requirement.csv",
     "MAX_CAP": "Resource_maximum_capacity_requirement.csv",
 }
+
+INCENTIVE_FILENAMES = {
+    "investment_policy": "Investment_incentive.csv",
+    "production_policy": "Production_incentive.csv",
+    "resource_investment": "Resource_investment_incentive.csv",
+    "resource_production": "Resource_production_incentive.csv",
+}
+
+PRODUCTION_TYPE_MAP = {
+    "mwh": "MWh",
+    "tonne_co2": "Tonne_CO2",
+    "ton_co2": "Tonne_CO2",
+}
+
+
+def _clean_tech_name(value: str) -> str:
+    """Normalize technology strings for matching incentives."""
+
+    return re.sub(r"[\s_]", "", (value or "")).lower()
+
+
+def _parse_incentive_suffix(name: str, prefix: str) -> int:
+    pattern = re.compile(rf"^{prefix}_Incentive_(\d+)$")
+    match = pattern.match(name)
+    if not match:
+        raise ValueError(
+            f"Incentive name '{name}' must follow the pattern {prefix}_Incentive_<number>."
+        )
+    return int(match.group(1))
+
+
+def _normalize_production_type(raw_value: Any, policy_name: str) -> str:
+    if raw_value is None:
+        raise ValueError(
+            f"Production incentive '{policy_name}' is missing a production type."
+        )
+    cleaned = re.sub(r"\s+", "_", str(raw_value)).lower()
+    canonical = PRODUCTION_TYPE_MAP.get(cleaned)
+    if not canonical:
+        raise ValueError(
+            f"Production incentive '{policy_name}' has unsupported type '{raw_value}'. "
+            f"Allowed types are {sorted(PRODUCTION_TYPE_MAP.values())}."
+        )
+    return canonical
+
+
+def _validate_and_sort_incentives(
+    incentives: Dict[str, Dict[str, Any]],
+    prefix: str,
+    require_type: bool = False,
+) -> List[Dict[str, Any]]:
+    if not incentives:
+        return []
+
+    parsed = []
+    for name, config in incentives.items():
+        suffix = _parse_incentive_suffix(name, prefix)
+        if "value" not in (config or {}):
+            raise ValueError(f"Incentive '{name}' is missing a 'value'.")
+        production_type = None
+        if require_type:
+            production_type = _normalize_production_type(
+                (config or {}).get("type"), name
+            )
+        technologies = (config or {}).get("technologies", []) or []
+        if not isinstance(technologies, list):
+            raise TypeError(
+                f"Incentive '{name}' technologies must be a list, got {type(technologies)}"
+            )
+        parsed.append(
+            {
+                "name": name,
+                "config": config or {},
+                "suffix": suffix,
+                "production_type": production_type,
+                "technologies": technologies,
+            }
+        )
+
+    suffixes = [p["suffix"] for p in parsed]
+    if len(suffixes) != len(set(suffixes)):
+        raise ValueError(
+            f"Duplicate incentive numbers detected in {prefix}_Incentive definitions."
+        )
+    expected = list(range(1, len(suffixes) + 1))
+    if sorted(suffixes) != expected:
+        raise ValueError(
+            f"Incentive numbering for {prefix}_Incentive must start at 1 and be consecutive. "
+            f"Found {sorted(suffixes)}."
+        )
+
+    return sorted(parsed, key=lambda item: item["suffix"])
+
+
+def _build_incentive_policy_df(
+    incentives: List[Dict[str, Any]], include_production_type: bool = False
+) -> pd.DataFrame:
+    if not incentives:
+        return pd.DataFrame()
+
+    records = []
+    for item in incentives:
+        description = item["config"].get("description") or item["name"]
+        record = {
+            "Policy_ID": item["suffix"],
+            "PolicyDescription": description,
+            "Value": item["config"].get("value"),
+        }
+        if include_production_type:
+            record["Production_Type"] = item["production_type"]
+        records.append(record)
+
+    return pd.DataFrame.from_records(records)
+
+
+def _build_resource_incentive_df(
+    gen_data: pd.DataFrame, incentives: List[Dict[str, Any]]
+) -> pd.DataFrame:
+    if not incentives or gen_data is None or gen_data.empty:
+        return pd.DataFrame()
+
+    if "Resource" not in gen_data.columns or "technology" not in gen_data.columns:
+        raise KeyError(
+            "Gen data must include 'Resource' and 'technology' columns to assign incentives."
+        )
+
+    tech_series = gen_data["technology"].fillna("")
+    cleaned_tech = tech_series.map(_clean_tech_name)
+
+    resource_df = pd.DataFrame({"Resource": gen_data["Resource"].values})
+
+    for item in incentives:
+        technologies = item.get("technologies", [])
+        eligible = pd.Series(False, index=gen_data.index)
+        for tech in technologies:
+            tech_clean = _clean_tech_name(str(tech))
+            if not tech_clean:
+                continue
+            eligible |= cleaned_tech.str.contains(tech_clean, regex=False)
+
+        resource_df[item["name"]] = eligible.astype(int)
+
+    # Keep only resources that qualify for at least one incentive
+    incentive_cols = [item["name"] for item in incentives]
+    if incentive_cols:
+        qualifying_mask = resource_df[incentive_cols].sum(axis=1) > 0
+        resource_df = resource_df.loc[qualifying_mask].reset_index(drop=True)
+
+    return resource_df
+
+
+def create_incentive_inputs(
+    gen_data: pd.DataFrame, settings: Dict[str, Any]
+) -> Dict[str, pd.DataFrame]:
+    """Create incentive policy and assignment tables from settings and generator data."""
+
+    inv_incentives = _validate_and_sort_incentives(
+        settings.get("investment_incentives", {}), prefix="Inv"
+    )
+    prod_incentives = _validate_and_sort_incentives(
+        settings.get("production_incentives", {}), prefix="Prod", require_type=True
+    )
+
+    if not inv_incentives and not prod_incentives:
+        return {}
+
+    investment_policy_df = _build_incentive_policy_df(inv_incentives)
+    production_policy_df = _build_incentive_policy_df(
+        prod_incentives, include_production_type=True
+    )
+
+    investment_resource_df = _build_resource_incentive_df(gen_data, inv_incentives)
+    production_resource_df = _build_resource_incentive_df(gen_data, prod_incentives)
+
+    return {
+        "investment_incentive": investment_policy_df,
+        "production_incentive": production_policy_df,
+        "resource_investment_incentive": investment_resource_df,
+        "resource_production_incentive": production_resource_df,
+    }
 
 
 @auto_fill_settings()
@@ -1816,6 +1997,15 @@ def process_genx_data(
     system_folder = case_folder / "system"
     policy_folder = case_folder / "policies"
 
+    investment_incentive_df = genx_data_dict.get("investment_incentive", pd.DataFrame())
+    production_incentive_df = genx_data_dict.get("production_incentive", pd.DataFrame())
+    resource_investment_incentive_df = genx_data_dict.get(
+        "resource_investment_incentive", pd.DataFrame()
+    )
+    resource_production_incentive_df = genx_data_dict.get(
+        "resource_production_incentive", pd.DataFrame()
+    )
+
     # Create folder structure
     folders = FolderStructure(
         resource=resource_folder,
@@ -1829,6 +2019,26 @@ def process_genx_data(
 
     # Process generator data separately
     genx_data.extend(split_generators_data(folders, genx_data_dict["gen_data"]))
+
+    if not resource_investment_incentive_df.empty:
+        genx_data.append(
+            GenXInputData(
+                tag="RES_INV_INCENTIVE",
+                folder=policy_assignments_folder,
+                file_name=INCENTIVE_FILENAMES["resource_investment"],
+                dataframe=resource_investment_incentive_df,
+            )
+        )
+
+    if not resource_production_incentive_df.empty:
+        genx_data.append(
+            GenXInputData(
+                tag="RES_PROD_INCENTIVE",
+                folder=policy_assignments_folder,
+                file_name=INCENTIVE_FILENAMES["resource_production"],
+                dataframe=resource_production_incentive_df,
+            )
+        )
 
     # Add all other data to the list
     genx_data.extend(
@@ -1909,6 +2119,27 @@ def process_genx_data(
             ),
         ]
     )
+
+    # Add incentive policy tables only if present (keep legacy tests stable)
+    if not investment_incentive_df.empty:
+        genx_data.append(
+            GenXInputData(
+                tag="INV_INCENTIVE",
+                folder=policy_folder,
+                file_name=INCENTIVE_FILENAMES["investment_policy"],
+                dataframe=investment_incentive_df,
+            )
+        )
+
+    if not production_incentive_df.empty:
+        genx_data.append(
+            GenXInputData(
+                tag="PROD_INCENTIVE",
+                folder=policy_folder,
+                file_name=INCENTIVE_FILENAMES["production_policy"],
+                dataframe=production_incentive_df,
+            )
+        )
 
     return genx_data
 

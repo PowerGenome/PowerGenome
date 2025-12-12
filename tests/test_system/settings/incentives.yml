@@ -1,0 +1,28 @@
+investment_incentives:
+  Inv_Incentive_1:
+    description: "Incentive for wind and utility PV"
+    value: 0.2
+    technologies:
+      - wind
+      - UtilityPV
+  Inv_Incentive_2:
+    description: "Incentive for nuclear and geothermal"
+    value: 0.2
+    technologies:
+      - nuclear_
+      - geothermal_
+
+production_incentives:
+  Prod_Incentive_1:
+    description: "Incentive for biomass and biopower"
+    value: 15
+    type: MWh
+    technologies:
+      - biomass
+      - biopower
+  Prod_Incentive_2:
+    description: "Incentive for CCS technologies"
+    value: 10
+    type: Tonne_CO2
+    technologies:
+      - CCS

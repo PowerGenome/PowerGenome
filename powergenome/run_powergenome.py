@@ -15,6 +15,7 @@ from powergenome.generators import GeneratorClusters
 from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; check_resource_tags,; fix_min_power_values,; hydro_energy_to_power,; set_must_run_generation,
     add_cap_res_network,
     check_vre_profiles,
+    create_incentive_inputs,
     create_policy_req,
     create_regional_cap_res,
     max_cap_req,
@@ -370,6 +371,13 @@ def main(**kwargs):
                         scenario_settings_obj["input_folder"]
                         / scenario_settings_obj["reserves_fn"]
                     )
+
+                # Build incentive inputs (policies + resource assignments)
+                incentive_tables = create_incentive_inputs(
+                    case_year_data.get("gen_data", pd.DataFrame()),
+                    scenario_settings_obj.to_dict(),
+                )
+                case_year_data.update(incentive_tables)
 
                 if scenario_settings_obj.get("old_genx_format", False) is not True:
                     genx_data = process_genx_data(case_folder, case_year_data)
