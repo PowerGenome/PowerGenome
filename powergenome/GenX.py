@@ -214,6 +214,28 @@ def _clean_tech_name(value: str) -> str:
 
 
 def _parse_incentive_suffix(name: str, prefix: str) -> int:
+    """Extract the numeric suffix from an incentive policy name.
+
+    Validates that the incentive name follows the expected pattern and extracts
+    the numeric identifier. For example, "Inv_Incentive_3" returns 3.
+
+    Parameters
+    ----------
+    name : str
+        The full incentive policy name to parse (e.g., "Inv_Incentive_1")
+    prefix : str
+        The expected prefix ("Inv" or "Prod")
+
+    Returns
+    -------
+    int
+        The numeric suffix extracted from the policy name
+
+    Raises
+    ------
+    ValueError
+        If the name does not match the pattern {prefix}_Incentive_<number>
+    """
     pattern = re.compile(rf"^{prefix}_Incentive_(\d+)$")
     match = pattern.match(name)
     if not match:
@@ -224,6 +246,30 @@ def _parse_incentive_suffix(name: str, prefix: str) -> int:
 
 
 def _normalize_production_type(raw_value: Any, policy_name: str) -> str:
+    """Normalize and validate a production incentive type string.
+
+    Converts user-provided production types to canonical forms used in GenX output.
+    For example, "MWh", "mwh", and "MW h" all map to "MWh". Validates against
+    allowed types defined in PRODUCTION_TYPE_MAP.
+
+    Parameters
+    ----------
+    raw_value : Any
+        The production type value from settings (expected to be a string)
+    policy_name : str
+        The name of the policy being validated, used in error messages
+
+    Returns
+    -------
+    str
+        The canonical production type string (e.g., "MWh" or "Tonne_CO2")
+
+    Raises
+    ------
+    ValueError
+        If raw_value is None or if the type is not in the allowed list of
+        production types
+    """
     if raw_value is None:
         raise ValueError(
             f"Production incentive '{policy_name}' is missing a production type."
@@ -243,6 +289,45 @@ def _validate_and_sort_incentives(
     prefix: str,
     require_type: bool = False,
 ) -> List[Dict[str, Any]]:
+    """Validate incentive policy definitions and return them sorted by suffix.
+
+    Performs comprehensive validation on incentive configurations from settings:
+    - Validates naming convention ({prefix}_Incentive_<number>)
+    - Ensures required 'value' field is present
+    - Validates production type for production incentives
+    - Checks that technologies field is a list
+    - Verifies suffix numbering is consecutive starting from 1
+    - Checks for duplicate incentive numbers
+
+    Parameters
+    ----------
+    incentives : Dict[str, Dict[str, Any]]
+        Dictionary of incentive policies from settings, where keys are policy names
+        (e.g., "Inv_Incentive_1") and values are configuration dictionaries
+        containing 'value', optional 'type', optional 'technologies', and optional
+        'description' fields
+    prefix : str
+        Expected prefix for incentive names ("Inv" or "Prod")
+    require_type : bool, optional
+        If True, validates that each incentive has a 'type' field (required for
+        production incentives). Default is False.
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        List of validated incentive dictionaries sorted by numeric suffix. Each
+        dictionary contains 'name', 'config', 'suffix', 'production_type'
+        (None for investment incentives), and 'technologies' (list).
+
+    Raises
+    ------
+    ValueError
+        If any policy name doesn't match the expected pattern, if required fields
+        are missing, if production type is invalid, if incentive numbering is not
+        consecutive from 1, or if duplicate incentive numbers are detected
+    TypeError
+        If the 'technologies' field is not a list
+    """
     if not incentives:
         return []
 
@@ -289,6 +374,32 @@ def _validate_and_sort_incentives(
 def _build_incentive_policy_df(
     incentives: List[Dict[str, Any]], include_production_type: bool = False
 ) -> pd.DataFrame:
+    """Build a DataFrame defining incentive policies for GenX.
+
+    Creates the policy definition table (Investment_incentive.csv or
+    Production_incentive.csv) from validated incentive configurations. Each row
+    represents one policy with its ID, description, value, and optionally the
+    production type.
+
+    Parameters
+    ----------
+    incentives : List[Dict[str, Any]]
+        List of validated incentive dictionaries from _validate_and_sort_incentives,
+        each containing 'suffix', 'config', and optionally 'production_type'
+    include_production_type : bool, optional
+        If True, includes a 'Production_Type' column (for production incentives).
+        Default is False (for investment incentives).
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with columns:
+        - Policy_ID (int): Numeric identifier for the policy
+        - PolicyDescription (str): Description from config or policy name
+        - Value (numeric): Incentive value (e.g., $/MW or $/MWh)
+        - Production_Type (str, optional): Type of production ("MWh" or "Tonne_CO2")
+        Returns empty DataFrame if incentives list is empty.
+    """
     if not incentives:
         return pd.DataFrame()
 
@@ -310,6 +421,37 @@ def _build_incentive_policy_df(
 def _build_resource_incentive_df(
     gen_data: pd.DataFrame, incentives: List[Dict[str, Any]]
 ) -> pd.DataFrame:
+    """Build a DataFrame mapping resources to eligible incentive policies.
+
+    Creates the resource-incentive assignment table (Resource_investment_incentive.csv
+    or Resource_production_incentive.csv) that indicates which resources qualify for
+    each policy. Qualification is determined by substring matching between the
+    resource's technology and the policy's technology list. Only resources that
+    qualify for at least one incentive are included in the output.
+
+    Parameters
+    ----------
+    gen_data : pd.DataFrame
+        Generator/resource data with 'Resource' and 'technology' columns. The
+        'technology' column is used for matching against incentive eligibility.
+    incentives : List[Dict[str, Any]]
+        List of validated incentive dictionaries from _validate_and_sort_incentives,
+        each containing 'name' and 'technologies' (list of eligible technology
+        strings for matching)
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with 'Resource' column plus one binary column per incentive
+        policy (0=ineligible, 1=eligible). Includes only resources that qualify
+        for at least one incentive. Returns empty DataFrame if inputs are empty
+        or no resources qualify.
+
+    Raises
+    ------
+    KeyError
+        If gen_data is missing required 'Resource' or 'technology' columns
+    """
     if not incentives or gen_data is None or gen_data.empty:
         return pd.DataFrame()
 
