@@ -248,10 +248,11 @@ def _parse_incentive_suffix(name: str, prefix: str) -> int:
 def _normalize_production_type(raw_value: Any, policy_name: str) -> str:
     """Normalize and validate a production incentive type string.
 
-    Converts user-provided production types to canonical forms used in GenX output.
-    For example, "MWh", "mwh", and "MW h" all map to "MWh". Validates against
-    allowed types defined in PRODUCTION_TYPE_MAP (currently supports "MWh" and
-    "Tonne_CO2").
+    Converts user-provided production types to canonical forms used in GenX output
+    by replacing whitespace with underscores and converting to lowercase, then
+    mapping to canonical values. For example, "MWh" and "mwh" both map to "MWh",
+    and "Tonne CO2" maps to "Tonne_CO2". Validates against allowed types defined
+    in PRODUCTION_TYPE_MAP (currently supports "MWh" and "Tonne_CO2").
 
     Parameters
     ----------
@@ -515,7 +516,6 @@ def create_incentive_inputs(
         - "resource_production_incentive": Resource-to-production-policy mapping
         Returns empty dict if no incentives are configured.
     """
-
     inv_incentives = _validate_and_sort_incentives(
         settings.get("investment_incentives", {}), prefix="Inv"
     )
