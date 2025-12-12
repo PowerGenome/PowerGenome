@@ -15,6 +15,7 @@ Comprehensive documentation of all settings parameters organized by functional a
 - **[Transmission](settings/transmission.md)**: Network constraints, expansion costs, line loss
 - **[Time Reduction](settings/time-reduction.md)**: Representative period selection and weighting
 - **[Resource Tags](settings/resource-tags.md)**: Technology categorization for model behavior
+- **[Incentives Settings](settings/incentives-settings.md)**: Define investment and production incentives and their output schemas
 - **[Multi-Scenario Management](settings/scenario-management.md)**: Parameter variation across cases
 
 ## Data Schemas
