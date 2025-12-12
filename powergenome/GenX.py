@@ -346,8 +346,38 @@ def _build_resource_incentive_df(
 def create_incentive_inputs(
     gen_data: pd.DataFrame, settings: Dict[str, Any]
 ) -> Dict[str, pd.DataFrame]:
-    """Create incentive policy and assignment tables from settings and generator data."""
+    """
+    Create incentive policy and assignment tables from settings and generator data.
 
+    This function processes the generator data and settings to generate four DataFrames:
+    - Investment incentive policy table
+    - Production incentive policy table
+    - Resource-to-investment incentive assignment table
+    - Resource-to-production incentive assignment table
+
+    Parameters
+    ----------
+    gen_data : pd.DataFrame
+        DataFrame containing generator data. Must include at least 'Resource' and 'technology' columns.
+    settings : dict
+        Dictionary of model settings, which may include 'investment_incentives' and 'production_incentives'
+        as lists of incentive definitions.
+
+    Returns
+    -------
+    dict of str to pd.DataFrame
+        Dictionary with the following keys:
+            - 'investment_incentive': DataFrame of investment incentive policies.
+            - 'production_incentive': DataFrame of production incentive policies.
+            - 'resource_investment_incentive': DataFrame mapping resources to investment incentives.
+            - 'resource_production_incentive': DataFrame mapping resources to production incentives.
+        If no incentives are defined, returns an empty dictionary.
+
+    Notes
+    -----
+    The function does not raise exceptions directly, but may propagate errors from internal validation
+    if required columns are missing or incentive definitions are invalid.
+    """
     inv_incentives = _validate_and_sort_incentives(
         settings.get("investment_incentives", {}), prefix="Inv"
     )
