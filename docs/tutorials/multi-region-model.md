@@ -107,37 +107,9 @@ northeast,south,18000,420000,0.10,2018
 Add to `settings/transmission.yml` or `settings/data.yml`:
 
 ```yaml
-# Reference the data tables in data_location
-transmission_constraints_table: ipm_tx_corrections.csv
-transmission_cost_table: network_costs.csv
-
-# Which capacity column to use (firm_ttc_mw or nonfirm_ttc_mw)
-tx_value_col: firm_ttc_mw
-
-# Line loss per 100 miles for distance-based calculations
-tx_line_loss_100_miles: 0.01
-
 # Transmission expansion controls
 tx_expansion_per_period: 1.0  # Max expansion as multiple of existing (1.0 = can double)
 tx_expansion_mw_per_period: 500  # Minimum expansion increment (MW)
-
-# Spur line costs (connecting generators to network)
-transmission_investment_cost:
-  spur:
-    capex_mw_mile:
-      northeast: 1500
-      midwest: 1200
-      south: 1300
-    wacc: 0.069
-    investment_years: 60
-
-  tx:  # Inter-regional transmission reinforcement
-    capex_mw_mile:
-      northeast: 2800
-      midwest: 2500
-      south: 2600
-    wacc: 0.069
-    investment_years: 60
 ```
 
 ### Understanding Transmission Parameters
@@ -153,9 +125,6 @@ transmission_investment_cost:
 
 **`tx_expansion_mw_per_period`**
 : Absolute expansion limit in MW. Useful for setting minimum buildable increments (e.g., one 230kV line). PowerGenome uses the *larger* of the two expansion parameters per line.
-
-**`transmission_investment_cost.tx.capex_mw_mile`**
-: Regional costs for transmission reinforcement in $/MW-mile. These vary by region due to terrain, labor costs, and permitting. Values are annualized using `wacc` and `investment_years`.
 
 !!! warning "Network Topology from Data Tables"
     Unlike generator and demand configuration, transmission network structure is **not** defined in YAML settings values. The `transmission_constraints_table` determines which regions are connected.
