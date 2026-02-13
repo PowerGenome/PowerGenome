@@ -1003,7 +1003,7 @@ def regional_capex_multiplier(
                 "technology",
             ]
             tech_multiplier_map[full_atb_tech] = tech_multiplier.at[eia_tech]
-        if df["technology"].str.contains(atb_tech).sum() > 1:
+        if df["technology"].str.contains(atb_tech, case=False, regex=False).sum() > 1:
             s = f"""
     ***************************
     There is an issue with assigning regional cost multipliers. In your settings file
@@ -1256,7 +1256,9 @@ def atb_new_generators(atb_costs, atb_hr, settings, cluster_builder=None):
     else:
         for tech, years in (settings.get("alt_atb_cap_recovery_years") or {}).items():
             new_gen_df.loc[
-                new_gen_df["technology"].str.lower().str.contains(tech.lower()),
+                new_gen_df["technology"]
+                .str.lower()
+                .str.contains(tech.lower(), regex=False),
                 "cap_recovery_years",
             ] = years
 

@@ -295,9 +295,10 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
     for new_tech, cost_tech in settings.get("new_build_startup_costs", {}).items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
-        df.loc[df["technology"].str.contains(new_tech), "Start_Cost_per_MW"] = (
-            total_startup_costs
-        )
+        df.loc[
+            df["technology"].str.contains(new_tech, case=False, regex=False),
+            "Start_Cost_per_MW",
+        ] = total_startup_costs
     df.loc[:, "Start_Cost_per_MW"] = df.loc[:, "Start_Cost_per_MW"]
 
     # df.loc[df["technology"].str.contains("Nuclear"), "Start_Cost_per_MW"] = "FILL VALUE"
