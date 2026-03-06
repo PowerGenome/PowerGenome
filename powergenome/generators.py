@@ -462,12 +462,12 @@ def load_plant_region_map(
             region_map_df = pd.concat(
                 [region_map_df, new_rows], ignore_index=True, sort=False
             )
-  
-#        user_region_map_df = user_region_map_df.set_index("plant_id_eia")
-#
-#        region_map_df.loc[
-#            region_map_df["plant_id_eia"].isin(user_region_map_df.index), "region"
-#        ] = region_map_df["plant_id_eia"].map(user_region_map_df["region"])
+
+    #        user_region_map_df = user_region_map_df.set_index("plant_id_eia")
+    #
+    #        region_map_df.loc[
+    #            region_map_df["plant_id_eia"].isin(user_region_map_df.index), "region"
+    #        ] = region_map_df["plant_id_eia"].map(user_region_map_df["region"])
 
     # Label hydro using the IPM shapefile because NEEDS seems to drop some hydro
     all_hydro_regions = label_hydro_region(gens_860, pudl_engine, model_regions_gdf)
