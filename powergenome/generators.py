@@ -372,15 +372,18 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
     """
 
     import duckdb
+
     plant_entity = duckdb.sql(
         "SELECT DISTINCT plant_id_eia, latitude, longitude "
         "FROM read_parquet('s3://pudl.catalyst.coop/stable/out_eia__yearly_generators.parquet')"
     ).df()
 
-    model_hydro = gens_860.loc[
-        gens_860["technology_description"] == "Conventional Hydroelectric"
-    ].drop(columns=["latitude", "longitude"], errors="ignore").merge(
-        plant_entity[["plant_id_eia", "latitude", "longitude"]], on="plant_id_eia"
+    model_hydro = (
+        gens_860.loc[gens_860["technology_description"] == "Conventional Hydroelectric"]
+        .drop(columns=["latitude", "longitude"], errors="ignore")
+        .merge(
+            plant_entity[["plant_id_eia", "latitude", "longitude"]], on="plant_id_eia"
+        )
     )
 
     no_lat_lon = model_hydro.loc[
@@ -556,9 +559,12 @@ def label_retirement_year(
         )
 
     try:
-        df.loc[~df["planned_generator_retirement_date"].isnull(), "retirement_year"] = df.loc[
-            ~df["planned_generator_retirement_date"].isnull(), "planned_generator_retirement_date"
-        ].dt.year
+        df.loc[~df["planned_generator_retirement_date"].isnull(), "retirement_year"] = (
+            df.loc[
+                ~df["planned_generator_retirement_date"].isnull(),
+                "planned_generator_retirement_date",
+            ].dt.year
+        )
     except KeyError:
         pass
 
@@ -729,9 +735,12 @@ def load_generator_860_data(pudl_engine, data_years=[2017]):
     con.close()
 
     # Ensure date columns are proper datetime
-    for col in ["report_date", "planned_generator_retirement_date",
-                "generator_operating_date",
-                "original_planned_generator_operating_date"]:
+    for col in [
+        "report_date",
+        "planned_generator_retirement_date",
+        "generator_operating_date",
+        "original_planned_generator_operating_date",
+    ]:
         if col in gens_860.columns:
             gens_860[col] = pd.to_datetime(gens_860[col])
 
@@ -1173,13 +1182,9 @@ def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[
     """
     try:
         gen_fuel_nuclear = con.execute(sql_nuclear).df()
-        gen_fuel_923 = pd.concat(
-            [gen_fuel_923, gen_fuel_nuclear], ignore_index=True
-        )
+        gen_fuel_923 = pd.concat([gen_fuel_923, gen_fuel_nuclear], ignore_index=True)
     except Exception as e:
-        logger.warning(
-            f"Could not load nuclear generation fuel data: {e}"
-        )
+        logger.warning(f"Could not load nuclear generation fuel data: {e}")
 
     con.close()
 
@@ -1379,8 +1384,10 @@ def unit_generator_heat_rates(pudl_out, data_years):
     # Load generator-level heat rates from PUDL parquet and calculate
     # weighted unit heat rates (replaces pudl_out.hr_by_unit())
     import duckdb
+
     years_sql = ", ".join(str(int(y)) for y in data_years)
-    unit_hr = duckdb.sql(f"""
+    unit_hr = duckdb.sql(
+        f"""
         SELECT
             plant_id_eia,
             unit_id_pudl,
@@ -1391,7 +1398,8 @@ def unit_generator_heat_rates(pudl_out, data_years):
         WHERE year(report_date) IN ({years_sql})
           AND unit_id_pudl IS NOT NULL
         GROUP BY plant_id_eia, unit_id_pudl, report_date
-    """).df()
+    """
+    ).df()
     # Require meaningful generation (>=1 MWh) to exclude standby/startup artifacts
     # where near-zero generation with large fuel consumption yields absurd heat rates
     unit_hr = unit_hr.loc[unit_hr["net_generation_mwh"] >= 1.0].dropna()
@@ -1400,8 +1408,8 @@ def unit_generator_heat_rates(pudl_out, data_years):
     )
     # Cap at physically plausible range (6-60 MMBTU/MWh)
     unit_hr = unit_hr.loc[
-        (unit_hr["heat_rate_mmbtu_mwh"] >= 6.0) &
-        (unit_hr["heat_rate_mmbtu_mwh"] <= 60.0)
+        (unit_hr["heat_rate_mmbtu_mwh"] >= 6.0)
+        & (unit_hr["heat_rate_mmbtu_mwh"] <= 60.0)
     ].dropna()
 
     weighted_unit_hr = calculate_weighted_heat_rate(unit_hr)
@@ -2815,9 +2823,7 @@ def energy_storage_mwh(
     return df
 
 
-def load_plants_860(
-    pudl_engine, data_years=[2020]
-):
+def load_plants_860(pudl_engine, data_years=[2020]):
     """Load plant data from PUDL parquet store (S3).
 
     Previously queried `plants_eia860` via SQLite. Now reads
@@ -3024,16 +3030,21 @@ class GeneratorClusters:
                 "original_planned_generator_operating_date",
             ]
             self.gens_entity = (
-                self.gens_860[[c for c in entity_stub_cols if c in self.gens_860.columns]]
+                self.gens_860[
+                    [c for c in entity_stub_cols if c in self.gens_860.columns]
+                ]
                 .drop_duplicates(["plant_id_eia", "generator_id"])
-                .rename(columns={
-                    "generator_operating_date": "operating_date",
-                    "original_planned_generator_operating_date": "original_planned_operating_date",
-                })
+                .rename(
+                    columns={
+                        "generator_operating_date": "operating_date",
+                        "original_planned_generator_operating_date": "original_planned_operating_date",
+                    }
+                )
             )
 
             # bga: load boiler-generator associations from parquet
             import duckdb as _duckdb
+
             _pudl_base = "s3://pudl.catalyst.coop/stable"
             _bga_years = [int(y) for y in self.data_years]
             _bga_years_sql = ", ".join(str(y) for y in _bga_years)
