@@ -295,10 +295,9 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
     for new_tech, cost_tech in settings.get("new_build_startup_costs", {}).items():
         total_startup_costs = vom_costs[cost_tech] + startup_costs[cost_tech]
-        df.loc[
-            df["technology"].str.contains(new_tech, case=False, regex=False),
-            "Start_Cost_per_MW",
-        ] = total_startup_costs
+        df.loc[df["technology"].str.contains(new_tech), "Start_Cost_per_MW"] = (
+            total_startup_costs
+        )
     df.loc[:, "Start_Cost_per_MW"] = df.loc[:, "Start_Cost_per_MW"]
 
     # df.loc[df["technology"].str.contains("Nuclear"), "Start_Cost_per_MW"] = "FILL VALUE"
@@ -372,11 +371,17 @@ def label_hydro_region(gens_860, pudl_engine, model_regions_gdf):
         Plant id and region for any hydro that didn't originally have a region label.
     """
 
-    plant_entity = pd.read_sql_table("plants_entity_eia", pudl_engine)
+    import duckdb
+    plant_entity = duckdb.sql(
+        "SELECT DISTINCT plant_id_eia, latitude, longitude "
+        "FROM read_parquet('s3://pudl.catalyst.coop/stable/out_eia__yearly_generators.parquet')"
+    ).df()
 
     model_hydro = gens_860.loc[
         gens_860["technology_description"] == "Conventional Hydroelectric"
-    ].merge(plant_entity[["plant_id_eia", "latitude", "longitude"]], on="plant_id_eia")
+    ].drop(columns=["latitude", "longitude"], errors="ignore").merge(
+        plant_entity[["plant_id_eia", "latitude", "longitude"]], on="plant_id_eia"
+    )
 
     no_lat_lon = model_hydro.loc[
         (model_hydro["latitude"].isnull()) | (model_hydro["longitude"].isnull()), :
@@ -446,9 +451,22 @@ def load_plant_region_map(
 
         user_region_map_df = user_region_map_df.set_index("plant_id_eia")
 
+        # Update region for plants already in the table
         region_map_df.loc[
             region_map_df["plant_id_eia"].isin(user_region_map_df.index), "region"
         ] = region_map_df["plant_id_eia"].map(user_region_map_df["region"])
+
+        # Append rows for plants not already in the table (PATCH: stale pg_misc_tables)
+        new_plant_ids = user_region_map_df.index.difference(
+            region_map_df["plant_id_eia"]
+        )
+        if not new_plant_ids.empty:
+            new_rows = user_region_map_df.loc[new_plant_ids].reset_index()[
+                ["plant_id_eia", "region"]
+            ]
+            region_map_df = pd.concat(
+                [region_map_df, new_rows], ignore_index=True, sort=False
+            )
 
     # Label hydro using the IPM shapefile because NEEDS seems to drop some hydro
     all_hydro_regions = label_hydro_region(gens_860, pudl_engine, model_regions_gdf)
@@ -538,8 +556,8 @@ def label_retirement_year(
         )
 
     try:
-        df.loc[~df["planned_retirement_date"].isnull(), "retirement_year"] = df.loc[
-            ~df["planned_retirement_date"].isnull(), "planned_retirement_date"
+        df.loc[~df["planned_generator_retirement_date"].isnull(), "retirement_year"] = df.loc[
+            ~df["planned_generator_retirement_date"].isnull(), "planned_generator_retirement_date"
         ].dt.year
     except KeyError:
         pass
@@ -671,32 +689,51 @@ def label_small_hydro(df, settings, by=["plant_id_eia"]):
 
 def load_generator_860_data(pudl_engine, data_years=[2017]):
     """
-    Load EIA 860 generator data from the PUDL database
+    Load EIA 860 generator data from the PUDL parquet store (S3).
+
+    Replaces the former SQLite query against `generators_eia860`.
+    Reads `out_eia__yearly_generators` via DuckDB, which is a pre-joined
+    table containing all columns previously sourced from both
+    `generators_eia860` and `generators_entity_eia`, plus pre-calculated
+    heat rates.
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.Engine
-        A sqlalchemy connection for use by pandas
+    pudl_engine : ignored
+        Retained for call-site compatibility; not used.
     data_years : list, optional
         Years of data to load, by default [2017]
 
     Returns
     -------
     dataframe
-        All of the generating units from PUDL
+        All generating units from PUDL for the requested years,
+        excluding retired (RE), out-of-service (OS), in-pipeline (IP),
+        and canceled (CN) generators.
     """
-    data_years = [str(y) for y in data_years]
+    import duckdb
+
+    pudl_base = "s3://pudl.catalyst.coop/stable"
+    data_years_int = [int(y) for y in data_years]
+    years_sql = ", ".join(str(y) for y in data_years_int)
+
     sql = f"""
-        SELECT * FROM generators_eia860
-        WHERE operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
-        AND strftime('%Y',report_date) in ({','.join(['?']*len(data_years))})
+        SELECT *
+        FROM read_parquet('{pudl_base}/out_eia__yearly_generators.parquet')
+        WHERE year(report_date) IN ({years_sql})
+          AND operational_status_code NOT IN ('RE', 'OS', 'IP', 'CN')
+          AND operational_status_code IS NOT NULL
     """
-    gens_860 = pd.read_sql_query(
-        sql=sql,
-        con=pudl_engine,
-        params=data_years,
-        parse_dates=["report_date", "planned_retirement_date"],
-    )
+    con = duckdb.connect()
+    gens_860 = con.execute(sql).df()
+    con.close()
+
+    # Ensure date columns are proper datetime
+    for col in ["report_date", "planned_generator_retirement_date",
+                "generator_operating_date",
+                "original_planned_generator_operating_date"]:
+        if col in gens_860.columns:
+            gens_860[col] = pd.to_datetime(gens_860[col])
 
     return gens_860
 
@@ -735,7 +772,7 @@ def supplement_generator_860_data(
         ['plant_id_eia', 'generator_id',
        'capacity_mw', 'energy_source_code_1',
        'energy_source_code_2', 'minimum_load_mw', 'operational_status_code',
-       'planned_new_capacity_mw', 'switch_oil_gas', 'technology_description',
+       'planned_new_capacity_mw', 'can_switch_oil_gas', 'technology_description',
        'time_cold_shutdown_full_load_code', 'model_region', 'prime_mover_code',
        'operating_date', 'boiler_id', 'unit_id_eia', 'unit_id_pudl', 'unit_id_pg,
        'retirement_year']
@@ -766,10 +803,10 @@ def supplement_generator_860_data(
             "minimum_load_mw",
             "operational_status_code",
             "planned_new_capacity_mw",
-            "switch_oil_gas",
+            "can_switch_oil_gas",
             "technology_description",
             "time_cold_shutdown_full_load_code",
-            "planned_retirement_date",
+            "planned_generator_retirement_date",
             "prime_mover_code",
         ]
     )
@@ -967,10 +1004,10 @@ def update_planned_retirement_date_860m(
         Modified version of "df" dataframe, with updated values in column
         "planned_retirement_date" based on EIA-860m.
     """
-    if "planned_retirement_date" not in df.columns:
+    if "planned_generator_retirement_date" not in df.columns:
         logger.warning(
             "The main generators dataframe from EIA 860 does not have a column "
-            "'planned_retirement_date'. If this column is missing all retirement dates "
+            "'planned_generator_retirement_date'. If this column is missing all retirement dates "
             "will be based on plant age."
         )
         return df
@@ -996,11 +1033,11 @@ def update_planned_retirement_date_860m(
         right_index=True,
     )
     mask = update_df.loc[
-        update_df["planned_retirement_date"].dt.year.fillna(9999)
+        update_df["planned_generator_retirement_date"].dt.year.fillna(9999)
         != update_df["planned_retirement_date_860m"].dt.year.fillna(9999),
         :,
     ].index
-    _df.loc[mask, "planned_retirement_date"] = update_df.loc[
+    _df.loc[mask, "planned_generator_retirement_date"] = update_df.loc[
         mask, "planned_retirement_date_860m"
     ]
 
@@ -1083,69 +1120,71 @@ def update_operating_date_860m(
 
 def load_923_gen_fuel_data(pudl_engine, pudl_out, model_region_map, data_years=[2017]):
     """
-    Load generation and fuel data for each plant. EIA-923 provides these values for
-    each prime mover/fuel combination at every generator. This data can be used to
-    calculate the heat rate of generators at a single plant. Generators sharing a prime
-    mover (e.g. multiple combustion turbines) will end up sharing the same heat rate.
+    Load generation and fuel data for each plant from PUDL parquet store (S3).
+
+    Replaces the former SQLite queries against `generation_fuel_eia923` and
+    `generation_fuel_nuclear_eia923`.
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.Engine
-        A sqlalchemy connection for use by pandas
-    pudl_out : pudl.PudlTabl
-        A PudlTabl object for loading pre-calculated PUDL analysis data
+    pudl_engine : ignored
+        Retained for call-site compatibility; not used.
+    pudl_out : ignored
+        Retained for call-site compatibility; not used.
     model_region_map : dataframe
-        A dataframe with columns 'plant_id_eia' and 'model_region' (aggregated regions)
+        A dataframe with columns 'plant_id_eia' and 'model_region'
     data_years : list, optional
         Years of data to include, by default [2017]
 
     Returns
     -------
     dataframe
-        Generation, fuel use, and heat rates of prime mover/fuel combos over all data
-        years. Columns are:
-
-        ['plant_id_eia', 'fuel_type', 'fuel_type_code_pudl',
-       'fuel_type_code_aer', 'prime_mover_code', 'fuel_consumed_units',
-       'fuel_consumed_for_electricity_units', 'fuel_consumed_mmbtu',
-       'fuel_consumed_for_electricity_mmbtu', 'net_generation_mwh',
-       'heat_rate_mmbtu_mwh']
+        Generation, fuel use, and heat rates of prime mover/fuel combos
+        over all data years.
     """
+    import duckdb
+
     if isinstance(data_years, (int, float)):
-        data_years = [str(data_years)]
-    data_years = [str(y) for y in data_years]
+        data_years = [int(data_years)]
+    data_years_int = [int(y) for y in data_years]
+    years_sql = ", ".join(str(y) for y in data_years_int)
 
-    # Load 923 generation and fuel data for one or more years.
-    # Only load plants in the model regions.
-    sql = f"""
-        SELECT * FROM generation_fuel_eia923
-        WHERE strftime('%Y',report_date) in ({','.join(['?']*len(data_years))})
+    pudl_base = "s3://pudl.catalyst.coop/stable"
+    plant_ids = model_region_map["plant_id_eia"].dropna().astype(int).tolist()
+    plant_ids_sql = ", ".join(str(p) for p in plant_ids)
+
+    con = duckdb.connect()
+
+    sql_main = f"""
+        SELECT *
+        FROM read_parquet('{pudl_base}/core_eia923__monthly_generation_fuel.parquet')
+        WHERE year(report_date) IN ({years_sql})
+          AND plant_id_eia IN ({plant_ids_sql})
     """
-    gen_fuel_923 = pd.read_sql_query(
-        sql, pudl_engine, params=data_years, parse_dates=["report_date"]
-    )
-    gen_fuel_923 = gen_fuel_923.loc[
-        gen_fuel_923["plant_id_eia"].isin(model_region_map.plant_id_eia),
-        :,
-    ]
+    gen_fuel_923 = con.execute(sql_main).df()
 
-    insp = sqlalchemy.inspect(pudl_engine)
-    if insp.has_table("generation_fuel_nuclear_eia923"):
-        sql = f"""
-            SELECT * FROM generation_fuel_nuclear_eia923
-            WHERE strftime('%Y',report_date) in ({','.join(['?']*len(data_years))})
-        """
-        gen_fuel_nuclear_923 = pd.read_sql_query(
-            sql, pudl_engine, params=data_years, parse_dates=["report_date"]
+    sql_nuclear = f"""
+        SELECT *
+        FROM read_parquet(
+            '{pudl_base}/core_eia923__monthly_generation_fuel_nuclear.parquet'
         )
-        gen_fuel_nuclear_923 = gen_fuel_nuclear_923.loc[
-            gen_fuel_nuclear_923["plant_id_eia"].isin(model_region_map.plant_id_eia),
-            :,
-        ]
-
+        WHERE year(report_date) IN ({years_sql})
+          AND plant_id_eia IN ({plant_ids_sql})
+    """
+    try:
+        gen_fuel_nuclear = con.execute(sql_nuclear).df()
         gen_fuel_923 = pd.concat(
-            [gen_fuel_923, gen_fuel_nuclear_923], ignore_index=True
+            [gen_fuel_923, gen_fuel_nuclear], ignore_index=True
         )
+    except Exception as e:
+        logger.warning(
+            f"Could not load nuclear generation fuel data: {e}"
+        )
+
+    con.close()
+
+    if "report_date" in gen_fuel_923.columns:
+        gen_fuel_923["report_date"] = pd.to_datetime(gen_fuel_923["report_date"])
 
     return gen_fuel_923
 
@@ -1337,13 +1376,32 @@ def unit_generator_heat_rates(pudl_out, data_years):
         'unit_id_pg', 'heat_rate_mmbtu_mwh']).
     """
 
-    # Load the pre-calculated PUDL unit heat rates for selected years.
-    # Remove rows without generation or with null values.
-    unit_hr = pudl_out.hr_by_unit()
+    # Load generator-level heat rates from PUDL parquet and calculate
+    # weighted unit heat rates (replaces pudl_out.hr_by_unit())
+    import duckdb
+    years_sql = ", ".join(str(int(y)) for y in data_years)
+    unit_hr = duckdb.sql(f"""
+        SELECT
+            plant_id_eia,
+            unit_id_pudl,
+            report_date,
+            SUM(net_generation_mwh) AS net_generation_mwh,
+            SUM(fuel_consumed_for_electricity_mmbtu) AS fuel_consumed_mmbtu
+        FROM read_parquet('s3://pudl.catalyst.coop/stable/out_eia923__yearly_generation_fuel_by_generator.parquet')
+        WHERE year(report_date) IN ({years_sql})
+          AND unit_id_pudl IS NOT NULL
+        GROUP BY plant_id_eia, unit_id_pudl, report_date
+    """).df()
+    # Require meaningful generation (>=1 MWh) to exclude standby/startup artifacts
+    # where near-zero generation with large fuel consumption yields absurd heat rates
+    unit_hr = unit_hr.loc[unit_hr["net_generation_mwh"] >= 1.0].dropna()
+    unit_hr["heat_rate_mmbtu_mwh"] = (
+        unit_hr["fuel_consumed_mmbtu"] / unit_hr["net_generation_mwh"]
+    )
+    # Cap at physically plausible range (6-60 MMBTU/MWh)
     unit_hr = unit_hr.loc[
-        (unit_hr.report_date.dt.year.isin(data_years))
-        & (unit_hr.net_generation_mwh > 0),
-        :,
+        (unit_hr["heat_rate_mmbtu_mwh"] >= 6.0) &
+        (unit_hr["heat_rate_mmbtu_mwh"] <= 60.0)
     ].dropna()
 
     weighted_unit_hr = calculate_weighted_heat_rate(unit_hr)
@@ -2758,31 +2816,42 @@ def energy_storage_mwh(
 
 
 def load_plants_860(
-    pudl_engine: sqlalchemy.engine.Engine, data_years: List[int] = [2020]
-) -> pd.DataFrame:
-    """Load database table with EIA860 information on plants
+    pudl_engine, data_years=[2020]
+):
+    """Load plant data from PUDL parquet store (S3).
+
+    Previously queried `plants_eia860` via SQLite. Now reads
+    `core_eia860__scd_plants` via DuckDB. Only plant_id_eia and
+    utility_id_eia are used downstream, both of which are present.
 
     Parameters
     ----------
-    pudl_engine : sqlalchemy.engine.Engine
-        Connection to PUDL database
-    data_years : List[int], optional
+    pudl_engine : ignored
+        Retained for call-site compatibility; not used.
+    data_years : list, optional
         Year of data to keep, by default [2020]
 
     Returns
     -------
     pd.DataFrame
-        Includes all columns from the database table
+        Includes plant_id_eia, utility_id_eia, and report_date columns.
     """
-    data_years = [str(y) for y in data_years]
-    s = f"""
-    SELECT * from plants_eia860
-    WHERE strftime('%Y',report_date) in ({','.join(['?']*len(data_years))})
-    """
-    plants = pd.read_sql_query(
-        s, pudl_engine, params=data_years, parse_dates=["report_date"]
-    )
+    import duckdb
 
+    data_years_int = [int(y) for y in data_years]
+    years_sql = ", ".join(str(y) for y in data_years_int)
+    pudl_base = "s3://pudl.catalyst.coop/stable"
+
+    sql = f"""
+        SELECT plant_id_eia, utility_id_eia, report_date
+        FROM read_parquet('{pudl_base}/core_eia860__scd_plants.parquet')
+        WHERE year(report_date) IN ({years_sql})
+    """
+    con = duckdb.connect()
+    plants = con.execute(sql).df()
+    con.close()
+
+    plants["report_date"] = pd.to_datetime(plants["report_date"])
     return plants
 
 
@@ -2944,14 +3013,41 @@ class GeneratorClusters:
             self.data_years = self.settings.get("eia_data_years") or []
 
             self.gens_860 = load_generator_860_data(self.pudl_engine, self.data_years)
-            self.gens_entity = pd.read_sql_table(
-                "generators_entity_eia", self.pudl_engine
+
+            # gens_entity: build a stub from out_eia__yearly_generators (already loaded
+            # above). supplement_generator_860_data only needs operating dates and
+            # prime_mover_code from this table; all are present in gens_860.
+            entity_stub_cols = [
+                "plant_id_eia",
+                "generator_id",
+                "generator_operating_date",
+                "original_planned_generator_operating_date",
+            ]
+            self.gens_entity = (
+                self.gens_860[[c for c in entity_stub_cols if c in self.gens_860.columns]]
+                .drop_duplicates(["plant_id_eia", "generator_id"])
+                .rename(columns={
+                    "generator_operating_date": "operating_date",
+                    "original_planned_generator_operating_date": "original_planned_operating_date",
+                })
             )
 
-            bga = self.pudl_out.bga_eia860()
-            self.bga = bga.loc[
-                bga.report_date.dt.year.isin(self.data_years), :
-            ].drop_duplicates(["plant_id_eia", "generator_id"])
+            # bga: load boiler-generator associations from parquet
+            import duckdb as _duckdb
+            _pudl_base = "s3://pudl.catalyst.coop/stable"
+            _bga_years = [int(y) for y in self.data_years]
+            _bga_years_sql = ", ".join(str(y) for y in _bga_years)
+            _con = _duckdb.connect()
+            _bga_sql = f"""
+                SELECT plant_id_eia, report_date, generator_id,
+                       boiler_id, unit_id_eia, unit_id_pudl, bga_source
+                FROM read_parquet('{_pudl_base}/core_eia860__assn_boiler_generator.parquet')
+                WHERE year(report_date) IN ({_bga_years_sql})
+            """
+            bga = _con.execute(_bga_sql).df()
+            _con.close()
+            bga["report_date"] = pd.to_datetime(bga["report_date"])
+            self.bga = bga.drop_duplicates(["plant_id_eia", "generator_id"])
 
             logger.debug("Loading map of plants to IPM regions")
             self.plant_region_map = load_plant_region_map(
@@ -2965,7 +3061,7 @@ class GeneratorClusters:
 
             self.gen_923 = load_923_gen_fuel_data(
                 self.pudl_engine,
-                self.pudl_out,
+                None,  # pudl_out no longer used
                 model_region_map=self.plant_region_map,
                 data_years=self.data_years,
             )
@@ -3192,7 +3288,7 @@ class GeneratorClusters:
                 self.settings.get("capacity_col", "capacity_mw"),
                 self.settings.get("retirement_ages", {}),
                 self.settings.get("additional_retirements"),
-                age_col="original_planned_operating_date",
+                age_col="original_planned_generator_operating_date",
             )
             .pipe(label_small_hydro, self.settings, by=["plant_id_eia"])
             .pipe(
