@@ -1368,10 +1368,15 @@ def add_renewables_clusters(
                 if data.empty:
                     continue
                 clusters = (
-                    pd.concat([
-                        calc_cluster_values(grp, _scenario.get("group"), cluster_label=name)
-                        for name, grp in data.groupby("cluster")
-                    ], ignore_index=True)
+                    pd.concat(
+                        [
+                            calc_cluster_values(
+                                grp, _scenario.get("group"), cluster_label=name
+                            )
+                            for name, grp in data.groupby("cluster")
+                        ],
+                        ignore_index=True,
+                    )
                     .rename(columns={"capacity_mw": "Max_Cap_MW"})
                     .assign(technology=technology, region=region)
                 )
