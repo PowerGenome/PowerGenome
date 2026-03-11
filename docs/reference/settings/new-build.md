@@ -181,19 +181,17 @@ modified_new_resources:
 
 ## Settings by Model Year
 
-Any settings parameter value can be expressed as a **year-keyed dictionary** to specify different values for different planning periods, without requiring a full `settings_management` / scenario-definitions setup.
+Year-keyed values are supported across all settings sections, not just new-build parameters.
 
-A value is treated as year-keyed when every key is either an integer in the range 1900-2200 or one of the special strings `all` / `default` (with at least one integer key present).  PowerGenome automatically selects the right value for the current planning year when building per-year settings.
+Use [Year-Keyed Values](year-keyed-values.md) for the complete rules, validation behavior, and additional examples.
 
-**Coverage requirement**: Every planning year in your run must have an explicit entry in each year-keyed dict, OR the dict must include an `all` or `default` key that acts as a catch-all.  If some (but not all) planning years are missing, PowerGenome raises an error rather than silently falling back to a nearby year.
+Quick summary:
 
-**Selection logic** (in order of priority):
+- Exact year values take priority.
+- `all` and `default` are fallback keys.
+- Incomplete year coverage without fallback raises a `ValueError`.
 
-1. `all` or `default` key present - that value is used for every year.
-2. Exact integer year match - the value for that year is used.
-3. Year not found and no catch-all - a `ValueError` is raised.
-
-**Example** - reduce renewable capital costs over time (both 2030 and 2040 are planning years):
+Example in `resource_modifiers`:
 
 ```yaml
 resource_modifiers:
@@ -201,52 +199,20 @@ resource_modifiers:
     technology: UtilityPV
     tech_detail: Class1
     capex_mw:
-      2030: [mul, 0.9]   # 10% reduction in 2030
-      2040: [mul, 0.8]   # 20% reduction in 2040
-    fixed_o_m_mw:
-      2030: [mul, 0.95]
-      2040: [mul, 0.90]
+      2030: [mul, 0.9]
+      2040: [mul, 0.8]
 ```
 
-**Example** - use `all` to apply the same value to every planning year:
-
-```yaml
-carbon_tax:
-  2030: 25   # must list at least one year to trigger year-keyed detection
-  all: 0     # overrides all years, including 2030 above
-```
-
-**Use a plain scalar for a constant value across all planning years**:
-
-```yaml
-# This is simpler than a year-keyed dict when the value never changes
-carbon_tax: 25
-```
-
-**Example** - vary a scalar setting across planning years:
+Example with fallback:
 
 ```yaml
 carbon_tax:
   2030: 25
-  2040: 50
-  2050: 100
-```
-
-**Example** - combine with `settings_management` for scenario + year variation:
-
-```yaml
-# Baseline costs change by year; scenario management further adjusts the high-cost case.
-resource_modifiers:
-  wind:
-    technology: LandbasedWind
-    tech_detail: Class3
-    capex_mw:
-      2030: [mul, 0.95]
-      2040: [mul, 0.88]
+  default: 50
 ```
 
 !!! note
-    The `settings_management` key itself is never modified by year-keyed resolution; it is always processed by the scenario management logic first.
+    The `settings_management` key itself is never modified by year-keyed resolution; it is always processed by scenario management logic first.
 
 ## Regional Availability
 

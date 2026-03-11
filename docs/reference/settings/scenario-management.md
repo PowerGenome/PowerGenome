@@ -3,7 +3,7 @@
 PowerGenome supports running multiple scenarios in a single execution, systematically varying parameters across cases. This enables sensitivity analyses, policy comparisons, and uncertainty exploration.
 
 !!! tip "Simpler alternative for time-varying parameters"
-    If you only need to change a parameter's value across planning years (not across different cases), you can use **year-keyed dictionaries** directly in your settings file instead of setting up full scenario management.  See [Settings by Model Year](new-build.md#settings-by-model-year) for details.
+    If you only need to change a parameter's value across planning years (not across different cases), you can use **year-keyed dictionaries** directly in your settings file instead of setting up full scenario management. See [Year-Keyed Values](year-keyed-values.md) for details.
 
 ## Scenario Workflow
 
