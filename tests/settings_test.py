@@ -1596,14 +1596,14 @@ class TestSimplifySettingsByYear:
         with pytest.raises(ValueError, match="missing values for planning year"):
             simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
 
-    def test_all_key_applies_to_any_year(self):
+    def test_all_key_does_not_apply_to_all_years(self):
         """A dict with 'all' key is resolved for any target year."""
         settings = {"capex_mw": {2030: 1000, "all": 999}}
         # 'all' takes priority even when an exact match exists
         result = simplify_settings_by_year(settings, 2030, all_years=[2030, 2040, 2050])
-        assert result["capex_mw"] == 999
+        assert result["capex_mw"] == 1000
 
-    def test_default_key_applies_to_any_year(self):
+    def test_default_key_applies_to_missing_years(self):
         """A dict with 'default' key is resolved for any target year."""
         settings = {"capex_mw": {2030: 1000, "default": 500}}
         result = simplify_settings_by_year(settings, 2045, all_years=[2030, 2045])
@@ -1729,6 +1729,6 @@ class TestSimplifySettingsByYear:
             [{"case_id": "base", "year": 2030}, {"case_id": "base", "year": 2040}]
         )
         result = build_scenario_settings(settings, df)
-        # 'all' wins over the explicit 2030 entry
-        assert result[2030]["base"]["capex_mw"] == 999
+        # Exact year values take precedence; 'all' is used as fallback.
+        assert result[2030]["base"]["capex_mw"] == 1000
         assert result[2040]["base"]["capex_mw"] == 999

@@ -1166,8 +1166,8 @@ def _select_year_value(year_dict: dict, year: int, key_name: Optional[str] = Non
     """Return the value from a year-keyed dict for *year*.
 
     Selection priority:
-    1. Special key ``"all"`` or ``"default"``: value applies to every year.
-    2. Exact integer year match.
+    1. Exact integer year match.
+    2. Special key ``"all"`` or ``"default"`` as fallback values.
 
     If neither condition is met a :class:`ValueError` is raised.  Callers
     should ensure that all required planning years are covered (use
@@ -1192,13 +1192,13 @@ def _select_year_value(year_dict: dict, year: int, key_name: Optional[str] = Non
     ValueError
         If *year* is not found and no ``"all"``/``"default"`` key exists.
     """
-    # Special catch-all keys take priority
+    if year in year_dict:
+        return year_dict[year]
+
+    # Catch-all keys are fallbacks when an explicit year value is missing.
     for special_key in ("all", "default"):
         if special_key in year_dict:
             return year_dict[special_key]
-
-    if year in year_dict:
-        return year_dict[year]
 
     available = sorted(k for k in year_dict if isinstance(k, int))
     key_info = f" for key '{key_name}'" if key_name else ""
