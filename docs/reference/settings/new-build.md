@@ -183,15 +183,17 @@ modified_new_resources:
 
 Any settings parameter value can be expressed as a **year-keyed dictionary** to specify different values for different planning periods, without requiring a full `settings_management` / scenario-definitions setup.
 
-A value is treated as year-keyed when **all** of its keys are integers in the range 1900-2200.  PowerGenome automatically selects the right value for the current planning year when building per-year settings.
+A value is treated as year-keyed when every key is either an integer in the range 1900-2200 or one of the special strings `all` / `default` (with at least one integer key present).  PowerGenome automatically selects the right value for the current planning year when building per-year settings.
+
+**Coverage requirement**: Every planning year in your run must have an explicit entry in each year-keyed dict, OR the dict must include an `all` or `default` key that acts as a catch-all.  If some (but not all) planning years are missing, PowerGenome raises an error rather than silently falling back to a nearby year.
 
 **Selection logic** (in order of priority):
 
-1. Exact year match - the value for that year is used.
-2. Most-recent year <= target year - if the exact year is absent, the value for the closest earlier year is used.
-3. All available years are *after* the target year - the value for the earliest year is used and a warning is logged.
+1. `all` or `default` key present - that value is used for every year.
+2. Exact integer year match - the value for that year is used.
+3. Year not found and no catch-all - a `ValueError` is raised.
 
-**Example** - reduce renewable capital costs over time:
+**Example** - reduce renewable capital costs over time (both 2030 and 2040 are planning years):
 
 ```yaml
 resource_modifiers:
@@ -206,7 +208,22 @@ resource_modifiers:
       2040: [mul, 0.90]
 ```
 
-**Example** - vary a scalar setting by year:
+**Example** - use `all` to apply the same value to every planning year:
+
+```yaml
+carbon_tax:
+  2030: 25   # must list at least one year to trigger year-keyed detection
+  all: 0     # overrides all years, including 2030 above
+```
+
+**Use a plain scalar for a constant value across all planning years**:
+
+```yaml
+# This is simpler than a year-keyed dict when the value never changes
+carbon_tax: 25
+```
+
+**Example** - vary a scalar setting across planning years:
 
 ```yaml
 carbon_tax:

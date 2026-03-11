@@ -1578,27 +1578,49 @@ class TestExpandCapacityReserveValues:
 class TestSimplifySettingsByYear:
     """Tests for simplify_settings_by_year and helpers."""
 
-    # ------------------------------------------------------------------
-    # _is_year_keyed_dict (imported indirectly via simplify_settings_by_year)
-    # ------------------------------------------------------------------
-
     def test_exact_year_match(self):
         """Value for exact target year is returned."""
         settings = {"capex_mw": {2030: 1000, 2040: 900}}
-        result = simplify_settings_by_year(settings, 2030)
+        result = simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
         assert result["capex_mw"] == 1000
 
-    def test_earlier_year_fallback(self):
-        """Most-recent year <= target is used when exact year is absent."""
+    def test_missing_year_raises_error(self):
+        """A year not in the dict (with no 'all'/'default') raises ValueError."""
         settings = {"capex_mw": {2030: 1000, 2040: 900}}
-        result = simplify_settings_by_year(settings, 2035)
-        assert result["capex_mw"] == 1000
+        with pytest.raises(ValueError, match="missing values for planning year"):
+            simplify_settings_by_year(settings, 2035, all_years=[2030, 2035, 2040])
 
-    def test_later_year_only_falls_back_to_earliest(self):
-        """When all keys are after target year, the earliest key is used."""
-        settings = {"param": {2040: 5, 2050: 3}}
-        result = simplify_settings_by_year(settings, 2030)
-        assert result["param"] == 5
+    def test_partial_year_coverage_raises_error(self):
+        """If only some planning years are present, a ValueError is raised."""
+        settings = {"capex_mw": {2030: 1000}}
+        with pytest.raises(ValueError, match="missing values for planning year"):
+            simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
+
+    def test_all_key_applies_to_any_year(self):
+        """A dict with 'all' key is resolved for any target year."""
+        settings = {"capex_mw": {2030: 1000, "all": 999}}
+        # 'all' takes priority even when an exact match exists
+        result = simplify_settings_by_year(settings, 2030, all_years=[2030, 2040, 2050])
+        assert result["capex_mw"] == 999
+
+    def test_default_key_applies_to_any_year(self):
+        """A dict with 'default' key is resolved for any target year."""
+        settings = {"capex_mw": {2030: 1000, "default": 500}}
+        result = simplify_settings_by_year(settings, 2045, all_years=[2030, 2045])
+        assert result["capex_mw"] == 500
+
+    def test_all_key_skips_year_coverage_validation(self):
+        """A dict with 'all' key passes validation regardless of which years are listed.
+
+        Note: a dict with only string keys (e.g. {'all': 1000}) is NOT
+        detected as year-keyed because it has no integer year key, so no
+        resolution happens.  At least one integer year key must be present
+        alongside 'all' for the dict to be detected as year-keyed.
+        """
+        settings = {"capex_mw": {2030: 800, "all": 1000}}
+        # 'all' wins; the year 2050 is in all_years but not the dict - no error
+        result = simplify_settings_by_year(settings, 2050, all_years=[2030, 2050])
+        assert result["capex_mw"] == 1000  # 'all' wins
 
     def test_non_year_keyed_dict_not_resolved(self):
         """Dicts with string keys are traversed recursively, not resolved."""
@@ -1625,7 +1647,7 @@ class TestSimplifySettingsByYear:
                 }
             }
         }
-        result = simplify_settings_by_year(settings, 2030)
+        result = simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
         assert result["resource_modifiers"]["batteries"]["Var_OM_Cost_per_MWh"] == [
             "add",
             0.15,
@@ -1640,7 +1662,7 @@ class TestSimplifySettingsByYear:
             },
             "my_param": {2030: "a", 2040: "b"},
         }
-        result = simplify_settings_by_year(settings, 2030)
+        result = simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
         # settings_management must be untouched
         assert result["settings_management"] == settings["settings_management"]
         # my_param is resolved normally
@@ -1664,7 +1686,7 @@ class TestSimplifySettingsByYear:
             "capex_mw": {2030: 1000, 2040: 800},
             "fixed_om_mw": {2030: 20, 2040: 18},
         }
-        result = simplify_settings_by_year(settings, 2040)
+        result = simplify_settings_by_year(settings, 2040, all_years=[2030, 2040])
         assert result["capex_mw"] == 800
         assert result["fixed_om_mw"] == 18
 
@@ -1680,15 +1702,33 @@ class TestSimplifySettingsByYear:
         result = build_scenario_settings(settings, df)
         assert result[2030]["base"]["capex_mw"] == 1000
 
-    def test_build_scenario_settings_uses_fallback_year(self):
-        """build_scenario_settings uses most recent earlier year when exact match absent."""
+    def test_build_scenario_settings_raises_on_partial_year_coverage(self):
+        """build_scenario_settings raises ValueError when year coverage is incomplete."""
         settings = {
-            "model_year": [2035],
-            "model_first_planning_year": [2030],
-            "capex_mw": {2030: 1000, 2040: 800},
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2020, 2031],
+            # Only 2030 is present; 2040 is also a planning year -> should fail
+            "capex_mw": {2030: 1000},
             "settings_management": {},
         }
-        df = pd.DataFrame([{"case_id": "base", "year": 2035}])
+        df = pd.DataFrame(
+            [{"case_id": "base", "year": 2030}, {"case_id": "base", "year": 2040}]
+        )
+        with pytest.raises(ValueError, match="missing values for planning year"):
+            build_scenario_settings(settings, df)
+
+    def test_build_scenario_settings_all_key_accepted(self):
+        """build_scenario_settings accepts 'all' key as full year coverage."""
+        settings = {
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2020, 2031],
+            "capex_mw": {2030: 1000, "all": 999},
+            "settings_management": {},
+        }
+        df = pd.DataFrame(
+            [{"case_id": "base", "year": 2030}, {"case_id": "base", "year": 2040}]
+        )
         result = build_scenario_settings(settings, df)
-        # 2035 not a key; nearest year <= 2035 is 2030
-        assert result[2035]["base"]["capex_mw"] == 1000
+        # 'all' wins over the explicit 2030 entry
+        assert result[2030]["base"]["capex_mw"] == 999
+        assert result[2040]["base"]["capex_mw"] == 999
