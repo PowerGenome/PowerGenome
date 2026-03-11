@@ -1506,13 +1506,17 @@ def filter_empty_columns(df: pd.DataFrame) -> List[str]:
     # Check for non-None values
     notnull_mask = df.notna().sum() > 0
 
-    # Check for non-"No_fuel" string values
-    # Columns where at least one value is neither NA nor the sentinel "No_fuel"
-    # Use .any(axis=0) to avoid reductions on string extension dtypes that raise TypeError
-    string_notnone_mask = df.mask(df.isna(), "No_fuel").ne("No_fuel").any(axis=0)
+    # Check for non-"No_fuel" values without forcing mixed dtype casts.
+    # Using mask with a string fill value can trigger pandas downcast errors
+    # when numeric columns contain inf values.
+    def has_non_no_fuel_value(col: pd.Series) -> bool:
+        valid = col[col.notna()]
+        return valid.ne("No_fuel").any() if not valid.empty else False
 
-    # Check for non-zero values
-    nonzero_mask = df.astype(bool).sum() > 0
+    string_notnone_mask = df.apply(has_non_no_fuel_value, axis=0)
+
+    # Check for non-zero values (treat NaN as False)
+    nonzero_mask = df.fillna(0).astype(bool).sum() > 0
 
     # Combine all masks
     valid_cols = nonzero_mask & notnull_mask & string_notnone_mask
