@@ -61,7 +61,7 @@ from contextvars import ContextVar
 from functools import wraps
 from inspect import signature
 from pathlib import Path
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, FrozenSet, List, Optional, Union
 
 import pandas as pd
 from flatten_dict import flatten
@@ -1126,6 +1126,140 @@ def assign_model_planning_years(_settings: dict, year: int) -> dict:
     return _settings
 
 
+def _is_year_keyed_dict(d: dict) -> bool:
+    """Return True if all keys in *d* are integers in a plausible year range.
+
+    Parameters
+    ----------
+    d : dict
+        Dictionary to test.
+
+    Returns
+    -------
+    bool
+        True when every key is an integer between 1900 and 2200 (inclusive).
+    """
+    if not d:
+        return False
+    return all(isinstance(k, int) and 1900 <= k <= 2200 for k in d.keys())
+
+
+def _select_year_value(year_dict: dict, year: int, key_name: Optional[str] = None):
+    """Return the most appropriate value from a year-keyed dict for *year*.
+
+    Selection priority:
+    1. Exact match: return ``year_dict[year]``.
+    2. Most recent year <= *year*: return the value for that year.
+    3. All available years are *after* *year*: return the value for the
+       earliest year and emit a warning.
+
+    Parameters
+    ----------
+    year_dict : dict
+        Dictionary whose keys are integer years.
+    year : int
+        Target planning year.
+    key_name : str, optional
+        Settings key name used in warning/debug messages.
+
+    Returns
+    -------
+    any
+        Value from *year_dict* selected for *year*.
+    """
+    if year in year_dict:
+        return year_dict[year]
+
+    earlier_years = sorted(y for y in year_dict if y <= year)
+    if earlier_years:
+        selected_year = earlier_years[-1]
+        logger.debug(
+            "Year %s not found in year-keyed dict%s. Using value for %s.",
+            year,
+            f" for key '{key_name}'" if key_name else "",
+            selected_year,
+        )
+        return year_dict[selected_year]
+
+    # No year <= target; fall back to the earliest available year.
+    earliest = min(year_dict.keys())
+    logger.warning(
+        "Target year %s is before all available years %s%s. Using value for %s.",
+        year,
+        sorted(year_dict.keys()),
+        f" for key '{key_name}'" if key_name else "",
+        earliest,
+    )
+    return year_dict[earliest]
+
+
+def simplify_settings_by_year(
+    settings: dict,
+    year: int,
+    _skip_keys: Optional[FrozenSet] = None,
+) -> dict:
+    """Replace year-keyed values in a settings dict with the value for *year*.
+
+    Any value that is a dictionary whose **every** key is an integer in the
+    range [1900, 2200] is treated as a *year-keyed dict* and resolved to the
+    single value appropriate for *year*.  All other dictionaries are traversed
+    recursively.  Non-dict values are returned unchanged.
+
+    This allows settings parameters to vary across planning periods without
+    requiring a full ``settings_management`` / scenario-definitions setup.
+
+    Parameters
+    ----------
+    settings : dict
+        Settings dictionary to process (not modified in place).
+    year : int
+        Target planning year used to select values from year-keyed dicts.
+    _skip_keys : frozenset, optional
+        Top-level keys that are skipped entirely during traversal.  Defaults
+        to ``frozenset({"settings_management"})``.
+
+    Returns
+    -------
+    dict
+        New settings dictionary with all year-keyed values resolved.
+
+    Examples
+    --------
+    >>> settings = {
+    ...     "resource_modifiers": {
+    ...         "batteries": {
+    ...             "technology": "Battery",
+    ...             "tech_detail": "Lithium Ion",
+    ...             "Var_OM_Cost_per_MWh": {2030: ["add", 0.15], 2040: ["add", 0.10]},
+    ...         }
+    ...     }
+    ... }
+    >>> result = simplify_settings_by_year(settings, 2030)
+    >>> result["resource_modifiers"]["batteries"]["Var_OM_Cost_per_MWh"]
+    ['add', 0.15]
+
+    Notes
+    -----
+    The ``settings_management`` key is skipped by default to avoid interfering
+    with scenario management logic.
+    """
+    if _skip_keys is None:
+        _skip_keys = frozenset({"settings_management"})
+
+    result = {}
+    for key, value in settings.items():
+        if key in _skip_keys:
+            result[key] = value
+        elif isinstance(value, dict):
+            if _is_year_keyed_dict(value):
+                result[key] = _select_year_value(value, year, key)
+            else:
+                result[key] = simplify_settings_by_year(value, year, _skip_keys)
+        else:
+            result[key] = value
+    return result
+
+
 def build_scenario_settings(
     settings: Union[dict, Settings], scenario_definitions: pd.DataFrame
 ) -> Dict[int, Dict[Union[int, str], dict]]:
@@ -1234,6 +1368,9 @@ def build_scenario_settings(
 
         # make sure model year data appears in standard form
         assign_model_planning_years(_settings, year)
+
+        # resolve any year-keyed parameter values for this planning year
+        _settings = simplify_settings_by_year(_settings, year)
 
         # expand capacity reserve values into regional_tag_values
         _settings = expand_capacity_reserve_values(_settings)

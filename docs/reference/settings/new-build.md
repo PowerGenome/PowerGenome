@@ -112,6 +112,19 @@ resource_modifiers:
 
 Each entry creates a candidate resource with the specified unit size.
 
+Parameter values inside each modifier can also be specified as **year-keyed dictionaries** (see [Settings by Model Year](#settings-by-model-year)) to vary costs across planning periods without a full scenario management setup:
+
+```yaml
+resource_modifiers:
+  batteries:
+    technology: Battery
+    tech_detail: "*"
+    Var_OM_Cost_per_MWh:
+      2030: [add, 0.15]
+      2040: [add, 0.10]
+    size_mw: 100
+```
+
 ### `modified_new_resources`
 
 **Type**: Dictionary (new_name → base + modifications)
@@ -166,26 +179,57 @@ modified_new_resources:
 - `[truediv, value]`: Divide base value
 - Direct value: Override base value
 
-### `resource_modifiers`
+## Settings by Model Year
 
-**Type**: Dictionary (technology → parameter → values)
-**Required**: No
-**Example**: See below
+Any settings parameter value can be expressed as a **year-keyed dictionary** to specify different values for different planning periods, without requiring a full `settings_management` / scenario-definitions setup.
 
-Modify technology costs in-place (applies to all instances of that technology).
+A value is treated as year-keyed when **all** of its keys are integers in the range 1900-2200.  PowerGenome automatically selects the right value for the current planning year when building per-year settings.
+
+**Selection logic** (in order of priority):
+
+1. Exact year match - the value for that year is used.
+2. Most-recent year <= target year - if the exact year is absent, the value for the closest earlier year is used.
+3. All available years are *after* the target year - the value for the earliest year is used and a warning is logged.
+
+**Example** - reduce renewable capital costs over time:
 
 ```yaml
 resource_modifiers:
-  UtilityPV_Class1_Moderate:
+  utility_pv:
+    technology: UtilityPV
+    tech_detail: Class1
     capex_mw:
-      2030: 0.9  # 10% capex reduction in 2030
-      2040: 0.8  # 20% reduction in 2040
+      2030: [mul, 0.9]   # 10% reduction in 2030
+      2040: [mul, 0.8]   # 20% reduction in 2040
     fixed_o_m_mw:
-      2030: 0.95
-      2040: 0.90
+      2030: [mul, 0.95]
+      2040: [mul, 0.90]
 ```
 
-Multipliers are applied by model year. Use this for across-the-board adjustments.
+**Example** - vary a scalar setting by year:
+
+```yaml
+carbon_tax:
+  2030: 25
+  2040: 50
+  2050: 100
+```
+
+**Example** - combine with `settings_management` for scenario + year variation:
+
+```yaml
+# Baseline costs change by year; scenario management further adjusts the high-cost case.
+resource_modifiers:
+  wind:
+    technology: LandbasedWind
+    tech_detail: Class3
+    capex_mw:
+      2030: [mul, 0.95]
+      2040: [mul, 0.88]
+```
+
+!!! note
+    The `settings_management` key itself is never modified by year-keyed resolution; it is always processed by the scenario management logic first.
 
 ## Regional Availability
 
