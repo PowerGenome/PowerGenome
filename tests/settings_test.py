@@ -1585,7 +1585,7 @@ class TestSimplifySettingsByYear:
         assert result["capex_mw"] == 1000
 
     def test_missing_year_raises_error(self):
-        """A year not in the dict (with no 'all'/'default') raises ValueError."""
+        """A year not in the dict with no default raises ValueError."""
         settings = {"capex_mw": {2030: 1000, 2040: 900}}
         with pytest.raises(ValueError, match="missing values for planning year"):
             simplify_settings_by_year(settings, 2035, all_years=[2030, 2035, 2040])
@@ -1596,12 +1596,11 @@ class TestSimplifySettingsByYear:
         with pytest.raises(ValueError, match="missing values for planning year"):
             simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
 
-    def test_all_key_does_not_apply_to_all_years(self):
-        """A dict with 'all' key is resolved for any target year."""
+    def test_all_key_raises_error(self):
+        """The legacy 'all' fallback is rejected for year-keyed settings."""
         settings = {"capex_mw": {2030: 1000, "all": 999}}
-        # 'all' takes priority even when an exact match exists
-        result = simplify_settings_by_year(settings, 2030, all_years=[2030, 2040, 2050])
-        assert result["capex_mw"] == 1000
+        with pytest.raises(ValueError, match="unsupported fallback key 'all'"):
+            simplify_settings_by_year(settings, 2030, all_years=[2030, 2040, 2050])
 
     def test_default_key_applies_to_missing_years(self):
         """A dict with 'default' key is resolved for any target year."""
@@ -1609,18 +1608,11 @@ class TestSimplifySettingsByYear:
         result = simplify_settings_by_year(settings, 2045, all_years=[2030, 2045])
         assert result["capex_mw"] == 500
 
-    def test_all_key_skips_year_coverage_validation(self):
-        """A dict with 'all' key passes validation regardless of which years are listed.
-
-        Note: a dict with only string keys (e.g. {'all': 1000}) is NOT
-        detected as year-keyed because it has no integer year key, so no
-        resolution happens.  At least one integer year key must be present
-        alongside 'all' for the dict to be detected as year-keyed.
-        """
-        settings = {"capex_mw": {2030: 800, "all": 1000}}
-        # 'all' wins; the year 2050 is in all_years but not the dict - no error
+    def test_default_key_skips_year_coverage_validation(self):
+        """A dict with 'default' key passes validation for uncovered years."""
+        settings = {"capex_mw": {2030: 800, "default": 1000}}
         result = simplify_settings_by_year(settings, 2050, all_years=[2030, 2050])
-        assert result["capex_mw"] == 1000  # 'all' wins
+        assert result["capex_mw"] == 1000
 
     def test_non_year_keyed_dict_not_resolved(self):
         """Dicts with string keys are traversed recursively, not resolved."""
@@ -1717,8 +1709,8 @@ class TestSimplifySettingsByYear:
         with pytest.raises(ValueError, match="missing values for planning year"):
             build_scenario_settings(settings, df)
 
-    def test_build_scenario_settings_all_key_accepted(self):
-        """build_scenario_settings accepts 'all' key as full year coverage."""
+    def test_build_scenario_settings_all_key_rejected(self):
+        """build_scenario_settings rejects the legacy 'all' fallback key."""
         settings = {
             "model_year": [2030, 2040],
             "model_first_planning_year": [2020, 2031],
@@ -1728,7 +1720,5 @@ class TestSimplifySettingsByYear:
         df = pd.DataFrame(
             [{"case_id": "base", "year": 2030}, {"case_id": "base", "year": 2040}]
         )
-        result = build_scenario_settings(settings, df)
-        # Exact year values take precedence; 'all' is used as fallback.
-        assert result[2030]["base"]["capex_mw"] == 1000
-        assert result[2040]["base"]["capex_mw"] == 999
+        with pytest.raises(ValueError, match="unsupported fallback key 'all'"):
+            build_scenario_settings(settings, df)

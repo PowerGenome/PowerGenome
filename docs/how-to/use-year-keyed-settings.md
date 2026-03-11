@@ -42,7 +42,7 @@ carbon_tax:
 
 PowerGenome will resolve one value per planning year when building case settings.
 
-## 3. Use Fallback Values With `all` Or `default`
+## 3. Use Fallback Values With `default`
 
 Use a fallback when you do not want to list every year explicitly.
 
@@ -56,8 +56,6 @@ Behavior:
 
 - Year `2030` uses `25` (exact year match).
 - Any other planning year uses `40` (`default` fallback).
-
-You can also use `all` as a fallback key.
 
 ## 4. Apply Year-Keyed Values In Nested Settings
 
@@ -78,7 +76,7 @@ resource_modifiers:
 For each year-keyed dictionary, PowerGenome expects either:
 
 - Explicit entries for all planning years, or
-- A fallback key (`all` or `default`)
+- A `default` fallback key
 
 If only some years are covered and no fallback exists, PowerGenome raises a `ValueError`.
 

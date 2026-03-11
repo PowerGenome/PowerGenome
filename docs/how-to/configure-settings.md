@@ -139,8 +139,7 @@ carbon_tax:
 Resolution behavior:
 
 1. Exact year match
-2. `all` fallback
-3. `default` fallback
+2. `default` fallback
 
 If a year-keyed dictionary does not cover all planning years and has no
 fallback, PowerGenome raises a validation error.

@@ -25,7 +25,7 @@ Use `settings_management` when:
 A value is treated as year-keyed when all keys are either:
 
 - Integer years in the range `1900` to `2200`, or
-- Special fallback keys: `all` or `default`
+- The special fallback key `default`
 
 And at least one integer year key is present.
 
@@ -52,8 +52,7 @@ resource_modifiers:
 For each planning year, PowerGenome resolves one value using this priority:
 
 1. Exact year match (for example, `2030`)
-2. `all` fallback
-3. `default` fallback
+2. `default` fallback
 
 If no match is found, PowerGenome raises a `ValueError`.
 
@@ -75,7 +74,7 @@ When PowerGenome builds per-year case settings, year-keyed values are validated 
 A year-keyed dict must satisfy one of these:
 
 - Every planning year has an explicit key, or
-- It includes `all` or `default` as a catch-all fallback
+- It includes `default` as a catch-all fallback
 
 If only some planning years are covered and no fallback exists, PowerGenome raises a `ValueError`.
 
@@ -90,16 +89,6 @@ reserve_margin:
   2050: 0.20
 ```
 
-Exact year plus broad fallback:
-
-```yaml
-co2_pipeline_capex_mw:
-  2030: 120000
-  all: 100000
-```
-
-`2030` uses `120000`; other years use `100000`.
-
 Constant across all years (prefer scalar):
 
 ```yaml
@@ -109,7 +98,7 @@ carbon_tax: 25
 # Also valid, but more verbose
 # carbon_tax:
 #   2030: 25
-#   all: 25
+#   default: 25
 ```
 
 ## Interaction With Scenario Management

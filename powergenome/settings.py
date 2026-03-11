@@ -1126,7 +1126,7 @@ def assign_model_planning_years(_settings: dict, year: int) -> dict:
     return _settings
 
 
-_YEAR_KEYED_CATCH_ALL_KEYS = frozenset({"all", "default"})
+_YEAR_KEYED_CATCH_ALL_KEYS = frozenset({"default"})
 
 
 def _is_year_keyed_dict(d: dict) -> bool:
@@ -1135,7 +1135,7 @@ def _is_year_keyed_dict(d: dict) -> bool:
     A dict is considered year-keyed when every key is either:
 
     - An integer in the range [1900, 2200], or
-    - One of the special string keys ``"all"`` or ``"default"``
+    - The special string key ``"default"``
 
     AND at least one integer year key is present.
 
@@ -1167,7 +1167,7 @@ def _select_year_value(year_dict: dict, year: int, key_name: Optional[str] = Non
 
     Selection priority:
     1. Exact integer year match.
-    2. Special key ``"all"`` or ``"default"`` as fallback values.
+    2. Special key ``"default"`` as a fallback value.
 
     If neither condition is met a :class:`ValueError` is raised.  Callers
     should ensure that all required planning years are covered (use
@@ -1176,7 +1176,7 @@ def _select_year_value(year_dict: dict, year: int, key_name: Optional[str] = Non
     Parameters
     ----------
     year_dict : dict
-        Dictionary whose keys are integer years and/or ``"all"``/``"default"``.
+        Dictionary whose keys are integer years and/or ``"default"``.
     year : int
         Target planning year.
     key_name : str, optional
@@ -1190,23 +1190,21 @@ def _select_year_value(year_dict: dict, year: int, key_name: Optional[str] = Non
     Raises
     ------
     ValueError
-        If *year* is not found and no ``"all"``/``"default"`` key exists.
+        If *year* is not found and no ``"default"`` key exists.
     """
     if year in year_dict:
         return year_dict[year]
 
-    # Catch-all keys are fallbacks when an explicit year value is missing.
-    for special_key in ("all", "default"):
-        if special_key in year_dict:
-            return year_dict[special_key]
+    if "default" in year_dict:
+        return year_dict["default"]
 
     available = sorted(k for k in year_dict if isinstance(k, int))
     key_info = f" for key '{key_name}'" if key_name else ""
     raise ValueError(
         f"Year {year}{key_info} not found in year-keyed dictionary. "
         f"Available years: {available}. "
-        "Either add an explicit entry for this year or use the 'all' key to "
-        "apply the same value to all planning years."
+        "Either add an explicit entry for this year or use the 'default' key "
+        "to apply the same value to uncovered planning years."
     )
 
 
@@ -1217,7 +1215,7 @@ def _validate_year_coverage(
 
     Coverage is satisfied when:
 
-    - An ``"all"`` or ``"default"`` key is present, OR
+    - A ``"default"`` key is present, OR
     - Every year in *all_years* appears as an explicit integer key.
 
     Partial coverage (some but not all years present) raises an error.
@@ -1234,11 +1232,10 @@ def _validate_year_coverage(
     Raises
     ------
     ValueError
-        If coverage is incomplete and no ``"all"``/``"default"`` key is present.
+        If coverage is incomplete and no ``"default"`` key is present.
     """
-    for special_key in ("all", "default"):
-        if special_key in year_dict:
-            return  # fully covered by catch-all
+    if "default" in year_dict:
+        return  # fully covered by catch-all
 
     missing = sorted(y for y in all_years if y not in year_dict)
     if missing:
@@ -1249,7 +1246,7 @@ def _validate_year_coverage(
             f"year(s): {missing}. "
             f"Available years: {available}. "
             "Either add explicit entries for all planning years or use the "
-            "'all' key to apply the same value to every year."
+            "'default' key to apply the same value to uncovered planning years."
         )
 
 
@@ -1262,7 +1259,7 @@ def simplify_settings_by_year(
     """Replace year-keyed values in a settings dict with the value for *year*.
 
     Any value that is a dictionary whose every key is either an integer in the
-    range [1900, 2200] or one of the special strings ``"all"``/``"default"``
+    range [1900, 2200] or the special string ``"default"``
     (with at least one integer key) is treated as a *year-keyed dict* and
     resolved to the single value appropriate for *year*.  All other
     dictionaries are traversed recursively.  Non-dict values are returned
@@ -1280,7 +1277,7 @@ def simplify_settings_by_year(
     all_years : iterable of int, optional
         The complete set of planning years for the current run.  When
         provided, every year-keyed dict is validated to ensure it contains
-        an entry for every planning year (or uses ``"all"``/``"default"``).
+        an entry for every planning year (or uses ``"default"``).
         If a year-keyed dict covers only *some* years and lacks a catch-all
         key, a :class:`ValueError` is raised.
     _skip_keys : frozenset, optional
@@ -1296,10 +1293,12 @@ def simplify_settings_by_year(
     ------
     ValueError
         If a year-keyed dict is missing a value for *year* (and no
-        ``"all"``/``"default"`` catch-all is present).
+        ``"default"`` catch-all is present).
     ValueError
         If *all_years* is provided and a year-keyed dict is missing entries
         for one or more planning years.
+    ValueError
+        If a year-keyed dict uses the legacy ``"all"`` fallback key.
 
     Examples
     --------
