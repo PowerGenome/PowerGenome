@@ -466,7 +466,10 @@ def calc_cluster_values(
     profile /= df["weight"].sum()
 
     _df["profile"] = [profile]
-    _df["cluster"] = cluster_label
+    base_cluster = cluster_label
+    if base_cluster is None and "cluster" in df.columns and not df.empty:
+        base_cluster = df["cluster"].iloc[0]
+    _df["cluster"] = base_cluster
     for g in group or []:
         _df["cluster"] = (
             str(_df["cluster"][0]) + f"_{g}_" + str(df[snake_case_str(g)].iloc[0])

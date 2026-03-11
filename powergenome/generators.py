@@ -4032,7 +4032,8 @@ class GeneratorClusters:
                 utc_offset=self.settings.get("utc_offset", 0),
                 weather_year=self.settings.get("weather_year"),
             )
-            self.results["profile"][i] = clusters["profile"].iloc[0]
+            row_index = self.results.index[i]
+            self.results.at[row_index, "profile"] = clusters["profile"].iloc[0]
 
         self.results = rename_gen_cols(self.results)
 
