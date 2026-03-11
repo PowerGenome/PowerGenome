@@ -5,6 +5,7 @@ These guides provide step-by-step instructions for specific tasks. Each guide as
 ## Configuration
 
 - **[Configure Settings](configure-settings.md)**: Organize settings files, use modular YAML, and manage complex configurations
+- **[Configure Incentives](configure-incentives.md)**: Define investment and production incentives and generate GenX policy inputs
 - **[Configure Renewable Resource Clusters](configure-renewable-clusters.md)**: Set up wind and solar clusters using filters, bins, groups, and agglomerative or k-means clustering
 - **[Configure Capacity Reserve Requirements](configure-capacity-reserves.md)**: Specify technology credit values for capacity reserve constraints
 - **[Run Multi-Scenario Studies](run-scenarios.md)**: Set up and execute multi-scenario runs with parameter variations

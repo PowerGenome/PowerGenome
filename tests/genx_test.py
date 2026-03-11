@@ -11,6 +11,7 @@ from powergenome.GenX import (
     FolderStructure,
     GenXInputData,
     check_vre_profiles,
+    create_incentive_inputs,
     create_multistage_df,
     create_policy_df,
     create_resource_df,
@@ -1320,6 +1321,7 @@ def sample_genx_data_dict():
         "gen_data": pd.DataFrame(
             {
                 "Resource": ["gen_1", "gen_2"],
+                "technology": ["Onshore Wind", "Natural Gas CCS100"],
                 "THERM": [2, 1],
                 "ESR_1": [1, 0],
                 "CapRes_1": [0.8, 0.9],
@@ -1345,6 +1347,23 @@ def sample_genx_data_dict():
 
 def test_process_genx_data_basic(case_folder, sample_genx_data_dict):
     """Test basic functionality of process_genx_data."""
+    # Build incentives and merge into dict to simulate full pipeline
+    incentives = create_incentive_inputs(
+        sample_genx_data_dict["gen_data"],
+        {
+            "investment_incentives": {
+                "Inv_Incentive_1": {"value": 0.2, "technologies": ["wind"]}
+            },
+            "production_incentives": {
+                "Prod_Incentive_1": {
+                    "value": 15,
+                    "type": "MWh",
+                    "technologies": ["CCS", "wind"],
+                }
+            },
+        },
+    )
+    sample_genx_data_dict.update(incentives)
     result = process_genx_data(case_folder, sample_genx_data_dict)
 
     # Check that we get a list of GenXInputData objects
@@ -1358,6 +1377,8 @@ def test_process_genx_data_basic(case_folder, sample_genx_data_dict):
         "RES_CAP_RES",
         "RES_MIN_CAP",
         "RES_MAX_CAP",
+        "RES_INV_INCENTIVE",
+        "RES_PROD_INCENTIVE",
         "MULTISTAGE",
         "GENERATORS_VARIABILITY",
         "DEMAND",
@@ -1371,6 +1392,8 @@ def test_process_genx_data_basic(case_folder, sample_genx_data_dict):
         "CO2_CAP",
         "MIN_CAP",
         "MAX_CAP",
+        "INV_INCENTIVE",
+        "PROD_INCENTIVE",
     }
     result_tags = {data.tag for data in result}
     assert expected_tags == result_tags, "All expected data types should be present"
@@ -1401,6 +1424,22 @@ def test_process_genx_data_folder_structure(case_folder, sample_genx_data_dict):
 
 def test_process_genx_data_file_names(case_folder, sample_genx_data_dict):
     """Test that correct file names are assigned."""
+    incentives = create_incentive_inputs(
+        sample_genx_data_dict["gen_data"],
+        {
+            "investment_incentives": {
+                "Inv_Incentive_1": {"value": 0.2, "technologies": ["wind"]}
+            },
+            "production_incentives": {
+                "Prod_Incentive_1": {
+                    "value": 15,
+                    "type": "MWh",
+                    "technologies": ["CCS", "wind"],
+                }
+            },
+        },
+    )
+    sample_genx_data_dict.update(incentives)
     result = process_genx_data(case_folder, sample_genx_data_dict)
 
     expected_files = {
@@ -1409,6 +1448,8 @@ def test_process_genx_data_file_names(case_folder, sample_genx_data_dict):
         "RES_CAP_RES": "Resource_capacity_reserve_margin.csv",
         "RES_MIN_CAP": "Resource_minimum_capacity_requirement.csv",
         "RES_MAX_CAP": "Resource_maximum_capacity_requirement.csv",
+        "RES_INV_INCENTIVE": "Resource_investment_incentive.csv",
+        "RES_PROD_INCENTIVE": "Resource_production_incentive.csv",
         "MULTISTAGE": "Resource_multistage_data.csv",
         "GENERATORS_VARIABILITY": "Generators_variability.csv",
         "DEMAND": "Demand_data.csv",
@@ -1422,6 +1463,8 @@ def test_process_genx_data_file_names(case_folder, sample_genx_data_dict):
         "CO2_CAP": "CO2_cap.csv",
         "MIN_CAP": "Minimum_capacity_requirement.csv",
         "MAX_CAP": "Maximum_capacity_requirement.csv",
+        "INV_INCENTIVE": "Investment_incentive.csv",
+        "PROD_INCENTIVE": "Production_incentive.csv",
     }
 
     for data in result:

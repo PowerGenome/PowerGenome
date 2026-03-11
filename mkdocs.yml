@@ -89,6 +89,7 @@ nav:
   - How-To Guides:
     - how-to/index.md
     - Configure Settings: how-to/configure-settings.md
+    - Configure Incentives: how-to/configure-incentives.md
     - Add Custom Technologies: how-to/add-technologies.md
     - Modify Generator Attributes: how-to/modify-generator-attributes.md
     - Configure Renewable Clusters: how-to/configure-renewable-clusters.md
@@ -109,6 +110,7 @@ nav:
       - Resource Tags: reference/settings/resource-tags.md
       - Data Tables: reference/settings/data-tables.md
       - Multi-Scenario Management: reference/settings/scenario-management.md
+      - Incentives Settings: reference/settings/incentives-settings.md
     - ATB Technology Names: reference/atb-technologies.md
     - CLI Reference: reference/cli.md
 
