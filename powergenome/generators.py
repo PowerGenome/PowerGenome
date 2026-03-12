@@ -208,7 +208,7 @@ def startup_fuel(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     DataFrame
         Modified dataframe with the new column "Start_Fuel_MMBTU_per_MW".
     """
-    df["Start_Fuel_MMBTU_per_MW"] = 0
+    df["Start_Fuel_MMBTU_per_MW"] = 0.0
     for tech, fuel_use in (settings.get("startup_fuel_use") or {}).items():
         df.loc[df["technology"] == tech, "Start_Fuel_MMBTU_per_MW"] = fuel_use
         df.loc[
@@ -272,7 +272,7 @@ def startup_nonfuel_costs(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
                 table_name=settings["dollar_year_table"],
             )
 
-    df["Start_Cost_per_MW"] = 0
+    df["Start_Cost_per_MW"] = 0.0
 
     for existing_tech, cost_tech in settings.get(
         "existing_startup_costs_tech_map", {}
@@ -1566,7 +1566,8 @@ def add_resource_tags(
             "'model_tags_name' but are not assigned values for any resources"
         )
     for tag_col in set(model_tag_names + global_keys + regional_keys):
-        _df.loc[:, tag_col] = default_model_tag
+        _df[tag_col] = default_model_tag
+        _df[tag_col] = _df[tag_col].astype(object)
     for tag_col in global_keys:
         try:
             for tech, tag_value in sorted(
@@ -4031,7 +4032,8 @@ class GeneratorClusters:
                 utc_offset=self.settings.get("utc_offset", 0),
                 weather_year=self.settings.get("weather_year"),
             )
-            self.results["profile"][i] = clusters["profile"][0]
+            row_index = self.results.index[i]
+            self.results.at[row_index, "profile"] = clusters["profile"].iloc[0]
 
         self.results = rename_gen_cols(self.results)
 
