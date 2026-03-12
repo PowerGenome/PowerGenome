@@ -394,7 +394,8 @@ class TestMainFunction:
         self, mock_build_scenario, mock_init_dm, mock_settings_class, tmp_path
     ):
         """Test that when scenario_definitions_fn is absent, a synthetic
-        scenario DataFrame is built from model_year and passed to build_scenario_settings."""
+        scenario DataFrame is built from model_year and passed to build_scenario_settings.
+        """
         mock_settings = MagicMock()
         settings_data = {
             "data_location": "test_data.db",

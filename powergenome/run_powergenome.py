@@ -258,9 +258,9 @@ def main(**kwargs):
         if isinstance(first_planning_years_raw, list)
         else 1
     )
-    assert num_model_years == num_first_planning_years, (
-        "The number of years in the settings parameter 'model_year' must be the same as 'model_first_planning_year'"
-    )
+    assert (
+        num_model_years == num_first_planning_years
+    ), "The number of years in the settings parameter 'model_year' must be the same as 'model_first_planning_year'"
 
     # Build a dictionary of settings for every planning year and case_id
     scenario_settings = build_scenario_settings(settings, scenario_definitions)
