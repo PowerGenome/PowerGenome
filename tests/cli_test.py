@@ -386,6 +386,104 @@ class TestMainFunction:
                             ]
                             assert len(info_calls) == 1
 
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.Settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
+    def test_main_no_scenario_definitions_fn(
+        self, mock_build_scenario, mock_init_dm, mock_settings_class, tmp_path
+    ):
+        """Test that when scenario_definitions_fn is absent, a synthetic
+        scenario DataFrame is built from model_year and passed to build_scenario_settings."""
+        mock_settings = MagicMock()
+        settings_data = {
+            "data_location": "test_data.db",
+            "input_folder": "inputs",
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2025, 2035],
+        }
+        mock_settings.__getitem__.side_effect = lambda key: settings_data[key]
+        mock_settings.get.side_effect = lambda key, default=None: settings_data.get(
+            key, default
+        )
+        mock_settings_class.return_value = mock_settings
+        mock_build_scenario.return_value = {}
+
+        with patch("pathlib.Path.cwd", return_value=tmp_path):
+            with patch("shutil.copytree"):
+                with patch("shutil.copy"):
+                    main(settings_file="some_settings_folder")
+
+        # build_scenario_settings should be called with a synthetic DataFrame
+        call_args = mock_build_scenario.call_args[0]
+        synthetic_df = call_args[1]
+        assert list(synthetic_df["case_id"]) == ["Inputs", "Inputs"]
+        assert list(synthetic_df["year"]) == [2030, 2040]
+
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.Settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
+    def test_main_no_scenario_single_year(
+        self, mock_build_scenario, mock_init_dm, mock_settings_class, tmp_path
+    ):
+        """Test that scalar model_year (not a list) also works without scenario file."""
+        mock_settings = MagicMock()
+        settings_data = {
+            "data_location": "test_data.db",
+            "input_folder": "inputs",
+            "model_year": 2030,
+            "model_first_planning_year": 2025,
+        }
+        mock_settings.__getitem__.side_effect = lambda key: settings_data[key]
+        mock_settings.get.side_effect = lambda key, default=None: settings_data.get(
+            key, default
+        )
+        mock_settings_class.return_value = mock_settings
+        mock_build_scenario.return_value = {}
+
+        with patch("pathlib.Path.cwd", return_value=tmp_path):
+            with patch("shutil.copytree"):
+                with patch("shutil.copy"):
+                    main(settings_file="some_settings_folder")
+
+        call_args = mock_build_scenario.call_args[0]
+        synthetic_df = call_args[1]
+        assert list(synthetic_df["case_id"]) == ["Inputs"]
+        assert list(synthetic_df["year"]) == [2030]
+
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.Settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
+    def test_main_no_scenario_case_id_warning(
+        self, mock_build_scenario, mock_init_dm, mock_settings_class, tmp_path, caplog
+    ):
+        """Test that using --case-id without scenario_definitions_fn emits a warning."""
+        mock_settings = MagicMock()
+        settings_data = {
+            "data_location": "test_data.db",
+            "input_folder": "inputs",
+            "model_year": [2030],
+            "model_first_planning_year": [2025],
+        }
+        mock_settings.__getitem__.side_effect = lambda key: settings_data[key]
+        mock_settings.get.side_effect = lambda key, default=None: settings_data.get(
+            key, default
+        )
+        mock_settings_class.return_value = mock_settings
+        mock_build_scenario.return_value = {}
+
+        with patch("pathlib.Path.cwd", return_value=tmp_path):
+            with patch("shutil.copytree"):
+                with patch("shutil.copy"):
+                    with caplog.at_level(logging.WARNING, logger="powergenome"):
+                        main(settings_file="some_settings_folder", case_id=["p1"])
+
+        assert any(
+            "--case-id flag is ignored" in record.message for record in caplog.records
+        )
+
     def test_main_kwargs_override(self):
         """Test that kwargs properly override command line arguments."""
         with patch("powergenome.run_powergenome.parse_command_line") as mock_parse:
