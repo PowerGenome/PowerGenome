@@ -2,130 +2,130 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/distributed_generation_migration/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/about/changelog/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/about/contributing/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/about/license/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/explanation/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/explanation/architecture/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/how-to/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/how-to/add-technologies/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/how-to/configure-capacity-reserves/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/how-to/configure-renewable-clusters/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/how-to/configure-settings/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/how-to/modify-generator-attributes/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/how-to/run-scenarios/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/atb-technologies/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/cli/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/settings/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/settings/data-tables/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/settings/demand/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/settings/existing-generators/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/settings/fuels/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/settings/model-definition/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/settings/new-build/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/settings/regions/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/settings/resource-tags/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/settings/scenario-management/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/reference/settings/transmission/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/tutorials/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/tutorials/getting-started/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/tutorials/multi-region-model/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://powergenome.github.io/PowerGenome/latest/tutorials/renewable-resources/</loc>
-         <lastmod>2026-03-11</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
 </urlset>
