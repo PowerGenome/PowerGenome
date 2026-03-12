@@ -1297,8 +1297,6 @@ def simplify_settings_by_year(
     ValueError
         If *all_years* is provided and a year-keyed dict is missing entries
         for one or more planning years.
-    ValueError
-        If a year-keyed dict uses the legacy ``"all"`` fallback key.
 
     Examples
     --------

@@ -188,7 +188,7 @@ Use [Year-Keyed Values](year-keyed-values.md) for the complete rules, validation
 Quick summary:
 
 - Exact year values take priority.
-- `all` and `default` are fallback keys.
+- `default` is a fallback key.
 - Incomplete year coverage without fallback raises a `ValueError`.
 
 Example in `resource_modifiers`:
