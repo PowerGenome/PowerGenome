@@ -1506,14 +1506,17 @@ def filter_empty_columns(df: pd.DataFrame) -> List[str]:
     # Check for non-None values
     notnull_mask = df.notna().sum() > 0
 
-    # Check for non-"No_fuel" values without forcing mixed dtype casts.
-    # Using mask with a string fill value can trigger pandas downcast errors
-    # when numeric columns contain inf values.
-    def has_non_no_fuel_value(col: pd.Series) -> bool:
-        valid = col[col.notna()]
-        return valid.ne("No_fuel").any() if not valid.empty else False
-
-    string_notnone_mask = df.apply(has_non_no_fuel_value, axis=0)
+    # Check for non-"No_fuel" values using vectorized ops scoped to object
+    # columns only.  Applying .ne("No_fuel") to numeric columns triggers a
+    # TypeError in pandas 3.x (nullable / Arrow-backed dtypes refuse cross-type
+    # comparisons).  Numeric columns can never hold "No_fuel", so they default
+    # to True; only object columns need the actual string comparison.
+    string_notnone_mask = pd.Series(True, index=df.columns)
+    obj_cols = df.select_dtypes(include="object").columns
+    if len(obj_cols):
+        string_notnone_mask[obj_cols] = (
+            df[obj_cols].notna() & df[obj_cols].ne("No_fuel")
+        ).any(axis=0)
 
     # Check for non-zero values (treat NaN as False)
     nonzero_mask = df.fillna(0).astype(bool).sum() > 0
