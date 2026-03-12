@@ -25,6 +25,7 @@ from powergenome.settings import (
     fix_param_names,
     get_current_settings,
     load_settings,
+    simplify_settings_by_year,
 )
 
 logger = logging.getLogger(powergenome.__name__)
@@ -1572,3 +1573,132 @@ class TestExpandCapacityReserveValues:
         case_settings = result[2030]["case_high"]
         # Should use overridden value
         assert case_settings["regional_tag_values"]["p1"]["CapRes_1"]["Tech1"] == 0.95
+
+
+class TestSimplifySettingsByYear:
+    """Tests for simplify_settings_by_year and helpers."""
+
+    def test_exact_year_match(self):
+        """Value for exact target year is returned."""
+        settings = {"capex_mw": {2030: 1000, 2040: 900}}
+        result = simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
+        assert result["capex_mw"] == 1000
+
+    def test_missing_year_raises_error(self):
+        """A year not in the dict with no default raises ValueError."""
+        settings = {"capex_mw": {2030: 1000, 2040: 900}}
+        with pytest.raises(ValueError, match="missing values for planning year"):
+            simplify_settings_by_year(settings, 2035, all_years=[2030, 2035, 2040])
+
+    def test_partial_year_coverage_raises_error(self):
+        """If only some planning years are present, a ValueError is raised."""
+        settings = {"capex_mw": {2030: 1000}}
+        with pytest.raises(ValueError, match="missing values for planning year"):
+            simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
+
+    def test_default_key_applies_to_missing_years(self):
+        """A dict with 'default' key is resolved for any target year."""
+        settings = {"capex_mw": {2030: 1000, "default": 500}}
+        result = simplify_settings_by_year(settings, 2045, all_years=[2030, 2045])
+        assert result["capex_mw"] == 500
+
+    def test_default_key_skips_year_coverage_validation(self):
+        """A dict with 'default' key passes validation for uncovered years."""
+        settings = {"capex_mw": {2030: 800, "default": 1000}}
+        result = simplify_settings_by_year(settings, 2050, all_years=[2030, 2050])
+        assert result["capex_mw"] == 1000
+
+    def test_non_year_keyed_dict_not_resolved(self):
+        """Dicts with string keys are traversed recursively, not resolved."""
+        settings = {
+            "resource_modifiers": {
+                "batteries": {
+                    "technology": "Battery",
+                    "tech_detail": "Lithium Ion",
+                }
+            }
+        }
+        result = simplify_settings_by_year(settings, 2030)
+        # Inner dict must be preserved as-is
+        assert result["resource_modifiers"]["batteries"]["technology"] == "Battery"
+
+    def test_nested_year_keyed_dict_resolved(self):
+        """Year-keyed dicts nested inside regular dicts are resolved."""
+        settings = {
+            "resource_modifiers": {
+                "batteries": {
+                    "technology": "Battery",
+                    "tech_detail": "Lithium Ion",
+                    "Var_OM_Cost_per_MWh": {2030: ["add", 0.15], 2040: ["add", 0.10]},
+                }
+            }
+        }
+        result = simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
+        assert result["resource_modifiers"]["batteries"]["Var_OM_Cost_per_MWh"] == [
+            "add",
+            0.15,
+        ]
+
+    def test_settings_management_key_skipped(self):
+        """The settings_management key is never modified by the function."""
+        settings = {
+            "settings_management": {
+                2030: {"some_category": {"low": {"param": "val"}}},
+                2040: {"some_category": {"low": {"param": "other"}}},
+            },
+            "my_param": {2030: "a", 2040: "b"},
+        }
+        result = simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
+        # settings_management must be untouched
+        assert result["settings_management"] == settings["settings_management"]
+        # my_param is resolved normally
+        assert result["my_param"] == "a"
+
+    def test_non_dict_values_unchanged(self):
+        """Scalar and list values pass through unchanged."""
+        settings = {"some_list": [1, 2, 3], "some_scalar": 42, "some_str": "hello"}
+        result = simplify_settings_by_year(settings, 2030)
+        assert result == settings
+
+    def test_empty_year_keyed_dict_treated_as_regular(self):
+        """An empty dict is not treated as a year-keyed dict."""
+        settings = {"empty": {}}
+        result = simplify_settings_by_year(settings, 2030)
+        assert result["empty"] == {}
+
+    def test_multiple_year_keyed_params(self):
+        """Multiple year-keyed params in the same dict are all resolved."""
+        settings = {
+            "capex_mw": {2030: 1000, 2040: 800},
+            "fixed_om_mw": {2030: 20, 2040: 18},
+        }
+        result = simplify_settings_by_year(settings, 2040, all_years=[2030, 2040])
+        assert result["capex_mw"] == 800
+        assert result["fixed_om_mw"] == 18
+
+    def test_build_scenario_settings_resolves_year_keyed_values(self):
+        """build_scenario_settings automatically resolves year-keyed values."""
+        settings = {
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2020, 2031],
+            "capex_mw": {2030: 1000, 2040: 800},
+            "settings_management": {},
+        }
+        df = pd.DataFrame([{"case_id": "base", "year": 2030}])
+        result = build_scenario_settings(settings, df)
+        assert result[2030]["base"]["capex_mw"] == 1000
+
+    def test_build_scenario_settings_raises_on_partial_year_coverage(self):
+        """build_scenario_settings raises ValueError when year coverage is incomplete."""
+        settings = {
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2020, 2031],
+            # Only 2030 is present; 2040 is also a planning year -> should fail
+            "capex_mw": {2030: 1000},
+            "settings_management": {},
+        }
+        df = pd.DataFrame(
+            [{"case_id": "base", "year": 2030}, {"case_id": "base", "year": 2040}]
+        )
+        with pytest.raises(ValueError, match="missing values for planning year"):
+            build_scenario_settings(settings, df)

@@ -6,7 +6,7 @@ This guide shows how to organize and structure settings files for PowerGenome pr
 
 PowerGenome loads settings from a folder containing multiple YAML files:
 
-```
+```text
 my_project/
 ├── settings/
 │   ├── model_definition.yml
@@ -120,7 +120,39 @@ Split settings by functional area:
 
 ### By Model Year
 
-For multi-period models with year-specific parameters, use `settings_management`:
+For multi-period models with year-specific parameters, you now have two options:
+
+- **Year-keyed values**: Best for by-year changes without full scenario matrices.
+- **`settings_management`**: Best for multi-case studies with scenario dimensions.
+
+### Advanced: Year-Keyed Values Across Any Settings Section
+
+Year-keyed values are an advanced pattern that can be used for any
+settings parameter value (including nested values):
+
+```yaml
+carbon_tax:
+  2030: 25
+  2040: 50
+```
+
+Resolution behavior:
+
+1. Exact year match
+2. `default` fallback
+
+If a year-keyed dictionary does not cover all planning years and has no
+fallback, PowerGenome raises a validation error.
+
+See [Use Year-Keyed Settings Values](use-year-keyed-settings.md) for
+step-by-step usage and
+[Year-Keyed Values (Reference)](../reference/settings/year-keyed-values.md)
+for full rules.
+
+### Scenario Management For Multi-Case Workflows
+
+Use `settings_management` when you need parameter swaps across
+multiple scenario dimensions:
 
 ```text
 settings/
@@ -219,7 +251,7 @@ EIA_AEO_YEAR: 2023
 
 **settings/.gitignore**:
 
-```
+```text
 data.yml
 ```
 

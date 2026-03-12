@@ -112,6 +112,19 @@ resource_modifiers:
 
 Each entry creates a candidate resource with the specified unit size.
 
+Parameter values inside each modifier can also be specified as **year-keyed dictionaries** (see [Settings by Model Year](#settings-by-model-year)) to vary costs across planning periods without a full scenario management setup:
+
+```yaml
+resource_modifiers:
+  batteries:
+    technology: Battery
+    tech_detail: "*"
+    Var_OM_Cost_per_MWh:
+      2030: [add, 0.15]
+      2040: [add, 0.10]
+    size_mw: 100
+```
+
 ### `modified_new_resources`
 
 **Type**: Dictionary (new_name → base + modifications)
@@ -166,26 +179,40 @@ modified_new_resources:
 - `[truediv, value]`: Divide base value
 - Direct value: Override base value
 
-### `resource_modifiers`
+## Settings by Model Year
 
-**Type**: Dictionary (technology → parameter → values)
-**Required**: No
-**Example**: See below
+Year-keyed values are supported across all settings sections, not just new-build parameters.
 
-Modify technology costs in-place (applies to all instances of that technology).
+Use [Year-Keyed Values](year-keyed-values.md) for the complete rules, validation behavior, and additional examples.
+
+Quick summary:
+
+- Exact year values take priority.
+- `default` is a fallback key.
+- Incomplete year coverage without fallback raises a `ValueError`.
+
+Example in `resource_modifiers`:
 
 ```yaml
 resource_modifiers:
-  UtilityPV_Class1_Moderate:
+  utility_pv:
+    technology: UtilityPV
+    tech_detail: Class1
     capex_mw:
-      2030: 0.9  # 10% capex reduction in 2030
-      2040: 0.8  # 20% reduction in 2040
-    fixed_o_m_mw:
-      2030: 0.95
-      2040: 0.90
+      2030: [mul, 0.9]
+      2040: [mul, 0.8]
 ```
 
-Multipliers are applied by model year. Use this for across-the-board adjustments.
+Example with fallback:
+
+```yaml
+carbon_tax:
+  2030: 25
+  default: 50
+```
+
+!!! note
+    The `settings_management` key itself is never modified by year-keyed resolution; it is always processed by scenario management logic first.
 
 ## Regional Availability
 

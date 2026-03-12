@@ -61,7 +61,7 @@ from contextvars import ContextVar
 from functools import wraps
 from inspect import signature
 from pathlib import Path
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, FrozenSet, Iterable, List, Optional, Union
 
 import pandas as pd
 from flatten_dict import flatten
@@ -1126,6 +1126,219 @@ def assign_model_planning_years(_settings: dict, year: int) -> dict:
     return _settings
 
 
+_YEAR_KEYED_CATCH_ALL_KEYS = frozenset({"default"})
+
+
+def _is_year_keyed_dict(d: dict) -> bool:
+    """Return True if *d* looks like a year-keyed settings dict.
+
+    A dict is considered year-keyed when every key is either:
+
+    - An integer in the range [1900, 2200], or
+    - The special string key ``"default"``
+
+    AND at least one integer year key is present.
+
+    Parameters
+    ----------
+    d : dict
+        Dictionary to test.
+
+    Returns
+    -------
+    bool
+        True when *d* qualifies as a year-keyed dict.
+    """
+    if not d:
+        return False
+    has_year_key = False
+    for k in d.keys():
+        if isinstance(k, int) and 1900 <= k <= 2200:
+            has_year_key = True
+        elif k in _YEAR_KEYED_CATCH_ALL_KEYS:
+            pass  # special fallback key – OK
+        else:
+            return False
+    return has_year_key
+
+
+def _select_year_value(year_dict: dict, year: int, key_name: Optional[str] = None):
+    """Return the value from a year-keyed dict for *year*.
+
+    Selection priority:
+    1. Exact integer year match.
+    2. Special key ``"default"`` as a fallback value.
+
+    If neither condition is met a :class:`ValueError` is raised.  Callers
+    should ensure that all required planning years are covered (use
+    ``_validate_year_coverage`` when the full set of planning years is known).
+
+    Parameters
+    ----------
+    year_dict : dict
+        Dictionary whose keys are integer years and/or ``"default"``.
+    year : int
+        Target planning year.
+    key_name : str, optional
+        Settings key name used in error messages.
+
+    Returns
+    -------
+    any
+        Value from *year_dict* selected for *year*.
+
+    Raises
+    ------
+    ValueError
+        If *year* is not found and no ``"default"`` key exists.
+    """
+    if year in year_dict:
+        return year_dict[year]
+
+    if "default" in year_dict:
+        return year_dict["default"]
+
+    available = sorted(k for k in year_dict if isinstance(k, int))
+    key_info = f" for key '{key_name}'" if key_name else ""
+    raise ValueError(
+        f"Year {year}{key_info} not found in year-keyed dictionary. "
+        f"Available years: {available}. "
+        "Either add an explicit entry for this year or use the 'default' key "
+        "to apply the same value to uncovered planning years."
+    )
+
+
+def _validate_year_coverage(
+    year_dict: dict, all_years, key_name: Optional[str] = None
+) -> None:
+    """Raise :class:`ValueError` if *year_dict* does not cover every year in *all_years*.
+
+    Coverage is satisfied when:
+
+    - A ``"default"`` key is present, OR
+    - Every year in *all_years* appears as an explicit integer key.
+
+    Partial coverage (some but not all years present) raises an error.
+
+    Parameters
+    ----------
+    year_dict : dict
+        A year-keyed dictionary (already validated by :func:`_is_year_keyed_dict`).
+    all_years : iterable of int
+        The full set of planning years that must be covered.
+    key_name : str, optional
+        Settings key name used in error messages.
+
+    Raises
+    ------
+    ValueError
+        If coverage is incomplete and no ``"default"`` key is present.
+    """
+    if "default" in year_dict:
+        return  # fully covered by catch-all
+
+    missing = sorted(y for y in all_years if y not in year_dict)
+    if missing:
+        key_info = f" for key '{key_name}'" if key_name else ""
+        available = sorted(k for k in year_dict if isinstance(k, int))
+        raise ValueError(
+            f"Year-keyed setting{key_info} is missing values for planning "
+            f"year(s): {missing}. "
+            f"Available years: {available}. "
+            "Either add explicit entries for all planning years or use the "
+            "'default' key to apply the same value to uncovered planning years."
+        )
+
+
+def simplify_settings_by_year(
+    settings: dict,
+    year: int,
+    all_years: Optional[Iterable[int]] = None,
+    _skip_keys: Optional[FrozenSet] = None,
+) -> dict:
+    """Replace year-keyed values in a settings dict with the value for *year*.
+
+    Any value that is a dictionary whose every key is either an integer in the
+    range [1900, 2200] or the special string ``"default"``
+    (with at least one integer key) is treated as a *year-keyed dict* and
+    resolved to the single value appropriate for *year*.  All other
+    dictionaries are traversed recursively.  Non-dict values are returned
+    unchanged.
+
+    This allows settings parameters to vary across planning periods without
+    requiring a full ``settings_management`` / scenario-definitions setup.
+
+    Parameters
+    ----------
+    settings : dict
+        Settings dictionary to process (not modified in place).
+    year : int
+        Target planning year used to select values from year-keyed dicts.
+    all_years : iterable of int, optional
+        The complete set of planning years for the current run.  When
+        provided, every year-keyed dict is validated to ensure it contains
+        an entry for every planning year (or uses ``"default"``).
+        If a year-keyed dict covers only *some* years and lacks a catch-all
+        key, a :class:`ValueError` is raised.
+    _skip_keys : frozenset, optional
+        Top-level keys that are skipped entirely during traversal.  Defaults
+        to ``frozenset({"settings_management"})``.
+
+    Returns
+    -------
+    dict
+        New settings dictionary with all year-keyed values resolved.
+
+    Raises
+    ------
+    ValueError
+        If a year-keyed dict is missing a value for *year* (and no
+        ``"default"`` catch-all is present).
+    ValueError
+        If *all_years* is provided and a year-keyed dict is missing entries
+        for one or more planning years.
+
+    Examples
+    --------
+    >>> settings = {
+    ...     "resource_modifiers": {
+    ...         "batteries": {
+    ...             "technology": "Battery",
+    ...             "tech_detail": "Lithium Ion",
+    ...             "Var_OM_Cost_per_MWh": {2030: ["add", 0.15], 2040: ["add", 0.10]},
+    ...         }
+    ...     }
+    ... }
+    >>> result = simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
+    >>> result["resource_modifiers"]["batteries"]["Var_OM_Cost_per_MWh"]
+    ['add', 0.15]
+
+    Notes
+    -----
+    The ``settings_management`` key is skipped by default to avoid interfering
+    with scenario management logic.
+    """
+    if _skip_keys is None:
+        _skip_keys = frozenset({"settings_management"})
+
+    result = {}
+    for key, value in settings.items():
+        if key in _skip_keys:
+            result[key] = value
+        elif isinstance(value, dict):
+            if _is_year_keyed_dict(value):
+                if all_years is not None:
+                    _validate_year_coverage(value, all_years, key)
+                result[key] = _select_year_value(value, year, key)
+            else:
+                result[key] = simplify_settings_by_year(
+                    value, year, all_years, _skip_keys
+                )
+        else:
+            result[key] = value
+    return result
+
+
 def build_scenario_settings(
     settings: Union[dict, Settings], scenario_definitions: pd.DataFrame
 ) -> Dict[int, Dict[Union[int, str], dict]]:
@@ -1170,6 +1383,9 @@ def build_scenario_settings(
             "The following cases and years are repeated in your scenario definitions file:\n\n"
             + scenario_definitions[dups].to_string(index=False)
         )
+
+    # collect all unique planning years so we can validate year-keyed dicts
+    all_planning_years = set(scenario_definitions["year"].unique())
 
     all_category_levels = set()
     active_category_levels = set()
@@ -1234,6 +1450,11 @@ def build_scenario_settings(
 
         # make sure model year data appears in standard form
         assign_model_planning_years(_settings, year)
+
+        # resolve any year-keyed parameter values for this planning year
+        _settings = simplify_settings_by_year(
+            _settings, year, all_years=all_planning_years
+        )
 
         # expand capacity reserve values into regional_tag_values
         _settings = expand_capacity_reserve_values(_settings)

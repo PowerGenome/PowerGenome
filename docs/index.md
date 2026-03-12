@@ -18,6 +18,7 @@ PowerGenome simplifies the process of creating power system model inputs by tran
 - **Demand Profiles**: Hourly load profiles with electrification scenarios
 - **Time Reduction**: Representative period selection to reduce computational complexity
 - **Multi-Scenario Management**: Run sensitivity analyses across different assumptions
+- **Year-Keyed Settings Values**: Define parameter values by planning year across all settings sections
 - **Flexible Data Sources**: DataManager architecture supports CSV, Parquet, and DuckDB
 
 ## Documentation Structure

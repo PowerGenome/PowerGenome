@@ -18,6 +18,14 @@ Settings are grouped by functional area:
 
     Parameters: `model_year`, `model_first_planning_year`, `model_tag_names`, etc.
 
+  - :material-calendar-range: **[Year-Keyed Values](year-keyed-values.md)**
+
+    ---
+
+    Advanced pattern for resolving parameter values automatically by planning year.
+
+    Works across settings sections, including nested values and cost modifiers.
+
 - :material-map-marker-radius: **[Regional Configuration](regions.md)**
 
     ---
