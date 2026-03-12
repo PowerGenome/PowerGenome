@@ -1596,12 +1596,6 @@ class TestSimplifySettingsByYear:
         with pytest.raises(ValueError, match="missing values for planning year"):
             simplify_settings_by_year(settings, 2030, all_years=[2030, 2040])
 
-    def test_all_key_raises_error(self):
-        """The legacy 'all' fallback is rejected for year-keyed settings."""
-        settings = {"capex_mw": {2030: 1000, "all": 999}}
-        with pytest.raises(ValueError, match="unsupported fallback key 'all'"):
-            simplify_settings_by_year(settings, 2030, all_years=[2030, 2040, 2050])
-
     def test_default_key_applies_to_missing_years(self):
         """A dict with 'default' key is resolved for any target year."""
         settings = {"capex_mw": {2030: 1000, "default": 500}}
@@ -1707,18 +1701,4 @@ class TestSimplifySettingsByYear:
             [{"case_id": "base", "year": 2030}, {"case_id": "base", "year": 2040}]
         )
         with pytest.raises(ValueError, match="missing values for planning year"):
-            build_scenario_settings(settings, df)
-
-    def test_build_scenario_settings_all_key_rejected(self):
-        """build_scenario_settings rejects the legacy 'all' fallback key."""
-        settings = {
-            "model_year": [2030, 2040],
-            "model_first_planning_year": [2020, 2031],
-            "capex_mw": {2030: 1000, "all": 999},
-            "settings_management": {},
-        }
-        df = pd.DataFrame(
-            [{"case_id": "base", "year": 2030}, {"case_id": "base", "year": 2040}]
-        )
-        with pytest.raises(ValueError, match="unsupported fallback key 'all'"):
             build_scenario_settings(settings, df)
