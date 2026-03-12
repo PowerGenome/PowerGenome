@@ -26,7 +26,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "pandas >= 2.2.0",
+    "pandas == 2.3.0",
     "duckdb >= 1.3.0",
     "pyarrow",
     "beautifulsoup4 >= 4.8.13",
