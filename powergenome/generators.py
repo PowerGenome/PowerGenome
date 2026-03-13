@@ -2446,8 +2446,8 @@ def _parse_interconnect_capex(
     interconnect_capex_spec: Optional[Union[Number, Dict[str, Any]]],
     resource_df: pd.DataFrame,
 ) -> pd.Series:
-    """Generate a per-resource interconnection capex Series from a flexible
-    ``interconnect_capex_mw`` specification.
+    """Generate a per-resource interconnection capex Series from
+    ``interconnect_capex_mw``.
 
     Preferred explicit dictionary schema:
 
@@ -2463,41 +2463,13 @@ def _parse_interconnect_capex(
     3. ``by_technology``
     4. ``fallback_capex_mw``
 
-    Legacy dictionary patterns are still supported for backward compatibility
-    (using top-level ``default`` and region/technology mixed pattern styles),
-    but are deprecated.
-
-    Legacy patterns (deprecated):
-
-    1. Scalar number
-       <number>
-       Applies uniformly to all rows.
-    2. Region-only
-       {default: <number>, <region>: <number>, ...}
-       All non-default keys must be region names appearing in ``resource_df['region']``.
-    3. Technology-only
-       {default: <number>, <tech_sub>: <number>, ...}
-       All non-default keys are case-insensitive substrings matched against
-       ``resource_df['technology']``. Shortest substrings applied first; longer (more
-       specific) overwrite previous assignments.
-    4. Region -> Technology nested
-       {default: <number>, <region>: {<tech_sub>: <number>, ...}, ...}
-       Region keys map either directly to a number (uniform in that region) or to a
-       dict of technology substrings. Substring precedence (shortest-first) applies
-       within each region. All top-level non-default keys must be region names.
-    5. Technology -> Region nested
-       {default: <number>, <tech_sub>: {<region>: <number>, ...}, ...}
-       Technology substring keys map to dicts keyed by regions assigning values only to
-       rows matching BOTH substring and region. Technology substrings applied
-       shortest-first; region dict order is irrelevant.
-
-    Mixing region names and technology substrings at the same top level (excluding
-    ``default``) is invalid and raises ``ValueError``.
+    A scalar numeric value is still accepted as shorthand and applies uniformly to all
+    rows. Dictionary specifications must use only the explicit keys documented above.
 
     Parameters
     ----------
     interconnect_capex_spec : Optional[Union[Number, Dict[str, Any]]]
-        Specification object or scalar. ``None`` returns zeros.
+        Specification object or scalar shorthand. ``None`` returns zeros.
     resource_df : pd.DataFrame
         Must contain columns ``region`` and ``technology``.
 
@@ -2550,173 +2522,81 @@ def _parse_interconnect_capex(
             match_mask = mask & tech_lower.str.contains(str(sub).lower(), regex=False)
             series.loc[match_mask] = val
 
-    has_explicit_schema_key = any(k in raw for k in explicit_keys)
-    if has_explicit_schema_key:
-        unknown_keys = set(raw.keys()) - explicit_keys
-        if unknown_keys:
-            raise ValueError(
-                "'interconnect_capex_mw' explicit schema only allows keys "
-                "'fallback_capex_mw', 'by_region', 'by_technology', and "
-                "'by_region_technology'. Unknown key(s): "
-                f"{sorted(unknown_keys)}."
-            )
-
-        fallback_val = raw.get("fallback_capex_mw", 0.0)
-        if not isinstance(fallback_val, Number):
-            raise TypeError(
-                "'fallback_capex_mw' value in 'interconnect_capex_mw' must be numeric."
-            )
-
-        by_technology = raw.get("by_technology") or {}
-        by_region = raw.get("by_region") or {}
-        by_region_technology = raw.get("by_region_technology") or {}
-
-        if not isinstance(by_technology, dict):
-            raise TypeError(
-                "'by_technology' in 'interconnect_capex_mw' must be a dict of "
-                "technology substring to numeric value."
-            )
-        if not isinstance(by_region, dict):
-            raise TypeError(
-                "'by_region' in 'interconnect_capex_mw' must be a dict of "
-                "region to numeric value."
-            )
-        if not isinstance(by_region_technology, dict):
-            raise TypeError(
-                "'by_region_technology' in 'interconnect_capex_mw' must be a dict "
-                "of region to dict of technology substrings."
-            )
-
-        validate_numeric_mapping(by_technology, "by_technology")
-        validate_numeric_mapping(by_region, "by_region")
-
-        capex = pd.Series(fallback_val, index=resource_df.index, dtype=float)
-
-        # Apply broad technology overrides first.
-        apply_substring_values(
-            by_technology,
-            pd.Series(True, index=capex.index),
-            capex,
+    unknown_keys = set(raw.keys()) - explicit_keys
+    if unknown_keys:
+        raise ValueError(
+            "'interconnect_capex_mw' explicit schema only allows keys "
+            "'fallback_capex_mw', 'by_region', 'by_technology', and "
+            "'by_region_technology'. Unknown key(s): "
+            f"{sorted(unknown_keys)}."
         )
 
-        # Region-wide overrides are more specific than technology-only overrides.
-        for region_name, val in by_region.items():
-            if region_name not in regions:
-                raise KeyError(
-                    f"In 'interconnect_capex_mw.by_region', region '{region_name}' not present in resource data."
-                )
-            capex.loc[resource_df["region"] == region_name] = val
-
-        # Region + technology is most specific and applied last.
-        for region_name, tech_map in by_region_technology.items():
-            if region_name not in regions:
-                raise KeyError(
-                    "In 'interconnect_capex_mw.by_region_technology', region "
-                    f"'{region_name}' not present in resource data."
-                )
-            if not isinstance(tech_map, dict):
-                raise TypeError(
-                    "Values in 'interconnect_capex_mw.by_region_technology' must be "
-                    f"dicts of technology substrings. Got {tech_map} for region '{region_name}'."
-                )
-            validate_numeric_mapping(
-                tech_map,
-                f"by_region_technology['{region_name}']",
-            )
-            region_mask = resource_df["region"] == region_name
-            apply_substring_values(tech_map, region_mask, capex)
-
-        return capex.fillna(0.0)
-
-    if "default" in raw:
-        logger.warning(
-            "The key 'default' in 'interconnect_capex_mw' is deprecated. "
-            "Use 'fallback_capex_mw' and explicit override blocks "
-            "('by_region', 'by_technology', 'by_region_technology') instead."
+    fallback_val = raw.get("fallback_capex_mw", 0.0)
+    if not isinstance(fallback_val, Number):
+        raise TypeError(
+            "'fallback_capex_mw' value in 'interconnect_capex_mw' must be numeric."
         )
 
-    non_default_items = [(k, v) for k, v in raw.items() if k != "default"]
-    # Empty dict (only default provided)
-    if not non_default_items:
-        default_val = raw.get("default", 0.0)
-        if not isinstance(default_val, Number):
-            raise TypeError(
-                "'default' value in 'interconnect_capex_mw' must be numeric."
-            )
-        return pd.Series(default_val, index=resource_df.index, dtype=float)
+    by_technology = raw.get("by_technology") or {}
+    by_region = raw.get("by_region") or {}
+    by_region_technology = raw.get("by_region_technology") or {}
 
-    all_numbers = all(isinstance(v, Number) for _, v in non_default_items)
+    if not isinstance(by_technology, dict):
+        raise TypeError(
+            "'by_technology' in 'interconnect_capex_mw' must be a dict of "
+            "technology substring to numeric value."
+        )
+    if not isinstance(by_region, dict):
+        raise TypeError(
+            "'by_region' in 'interconnect_capex_mw' must be a dict of "
+            "region to numeric value."
+        )
+    if not isinstance(by_region_technology, dict):
+        raise TypeError(
+            "'by_region_technology' in 'interconnect_capex_mw' must be a dict "
+            "of region to dict of technology substrings."
+        )
 
-    capex = pd.Series(np.nan, index=resource_df.index, dtype=float)
-    default_val = raw.get("default")
-    if default_val is not None:
-        if not isinstance(default_val, Number):
-            raise TypeError(
-                "'default' value in 'interconnect_capex_mw' must be numeric."
-            )
-        capex.loc[:] = default_val
+    validate_numeric_mapping(by_technology, "by_technology")
+    validate_numeric_mapping(by_region, "by_region")
 
-    if all_numbers:
-        keys_region = [k for k, _ in non_default_items if k in regions]
-        if keys_region and len(keys_region) != len(non_default_items):
-            # mixture of region and technology substrings with numeric values
-            raise ValueError(
-                "'interconnect_capex_mw' mixes region and technology keys at the same level."
-            )
-        if keys_region:
-            # Region-only
-            for region_key, val in non_default_items:
-                capex.loc[resource_df["region"] == region_key] = val
-            return capex.fillna(0.0)
-        # Technology-only
-        tech_map = {k: v for k, v in non_default_items}
-        apply_substring_values(tech_map, pd.Series(True, index=capex.index), capex)
-        return capex.fillna(0.0)
+    capex = pd.Series(fallback_val, index=resource_df.index, dtype=float)
 
-    # Nested patterns (values are dict OR numeric in region->tech case)
-    keys_region = [k for k, _ in non_default_items if k in regions]
-
-    # Region -> tech (allow mixture of numeric and dict values) if all top-level keys are region names
-    if keys_region and len(keys_region) == len(non_default_items):
-        for region_key, val in non_default_items:
-            region_mask = resource_df["region"] == region_key
-            if isinstance(val, Number):
-                capex.loc[region_mask] = val
-            elif isinstance(val, dict):
-                # inner tech substrings
-                inner_map = val
-                apply_substring_values(inner_map, region_mask, capex)
-            else:
-                raise TypeError(
-                    f"In 'interconnect_capex_mw', region '{region_key}' value must be numeric or dict of technology substrings. Got {val}."
-                )
-        return capex.fillna(0.0)
-
-    # Technology -> region (all top-level non-default keys NOT regions, each value must be dict of regions)
-    if not keys_region:
-        ordered_top = sorted(non_default_items, key=lambda kv: len(str(kv[0])))
-        for tech_sub, region_map in ordered_top:
-            if not isinstance(region_map, dict):
-                raise TypeError(
-                    f"In 'interconnect_capex_mw', top-level technology substring '{tech_sub}' must map to a dict of regions. Got {region_map}."
-                )
-            tech_mask = tech_lower.str.contains(str(tech_sub).lower(), regex=False)
-            for region_name, val in region_map.items():
-                if region_name not in regions:
-                    raise KeyError(
-                        f"In 'interconnect_capex_mw', region '{region_name}' referenced under technology '{tech_sub}' not present in resource data."
-                    )
-                if not isinstance(val, Number):
-                    raise TypeError(
-                        f"Value in 'interconnect_capex_mw' for region '{region_name}' under technology '{tech_sub}' must be numeric. Got {val}."
-                    )
-                capex.loc[tech_mask & (resource_df["region"] == region_name)] = val
-        return capex.fillna(0.0)
-
-    # If we reached here pattern is invalid (mix of region & tech dicts)
-    raise ValueError(
-        "'interconnect_capex_mw' specification invalid: mixed region and technology keys at top level."
+    # Apply broad technology overrides first.
+    apply_substring_values(
+        by_technology,
+        pd.Series(True, index=capex.index),
+        capex,
     )
+
+    # Region-wide overrides are more specific than technology-only overrides.
+    for region_name, val in by_region.items():
+        if region_name not in regions:
+            raise KeyError(
+                f"In 'interconnect_capex_mw.by_region', region '{region_name}' not present in resource data."
+            )
+        capex.loc[resource_df["region"] == region_name] = val
+
+    # Region + technology is most specific and applied last.
+    for region_name, tech_map in by_region_technology.items():
+        if region_name not in regions:
+            raise KeyError(
+                "In 'interconnect_capex_mw.by_region_technology', region "
+                f"'{region_name}' not present in resource data."
+            )
+        if not isinstance(tech_map, dict):
+            raise TypeError(
+                "Values in 'interconnect_capex_mw.by_region_technology' must be "
+                f"dicts of technology substrings. Got {tech_map} for region '{region_name}'."
+            )
+        validate_numeric_mapping(
+            tech_map,
+            f"by_region_technology['{region_name}']",
+        )
+        region_mask = resource_df["region"] == region_name
+        apply_substring_values(tech_map, region_mask, capex)
+
+    return capex.fillna(0.0)
 
 
 def calculate_transmission_inv_cost(
