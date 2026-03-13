@@ -1339,6 +1339,93 @@ def simplify_settings_by_year(
     return result
 
 
+def resolve_settings_to_year(
+    settings: Union[dict, Settings],
+    year: int,
+    all_years: Optional[Iterable[int]] = None,
+) -> dict:
+    """
+    Resolve a multi-year settings object into a single-year settings dictionary.
+
+    This is the **default entry point** for per-year settings processing when you
+    are running a single scenario (no scenario definitions file).  It applies
+    all year-resolution steps in the correct order and returns a settings dict
+    that is fully specialised for *year*:
+
+    1. ``assign_model_planning_years`` — converts list-valued ``model_year`` /
+       ``model_first_planning_year`` to scalars for this year.
+    2. ``simplify_settings_by_year`` — recursively resolves year-keyed dicts
+       (keys are ints 1900-2200 or ``"default"``).
+    3. ``expand_capacity_reserve_values`` — expands capacity-reserve shorthand
+       into ``regional_tag_values``.
+    4. ``add_model_tags_to_gen_columns`` — (conditional) adds resource-tag
+       column names to ``generator_columns`` when that key is present.
+
+    Parameters
+    ----------
+    settings : Union[dict, Settings]
+        The full, multi-year settings object.  A ``Settings`` instance is
+        automatically converted to a plain ``dict`` before processing.
+    year : int
+        The planning year to resolve settings for.
+    all_years : Iterable[int], optional
+        All planning years in the study.  Used to validate that year-keyed
+        dicts cover every year.  When *None*, only *year* itself is used for
+        validation (safe for single-year studies).
+
+    Returns
+    -------
+    dict
+        A new settings dictionary fully resolved for *year*.  The input is
+        deep-copied, so the original is never modified.
+
+    Examples
+    --------
+    Single-year usage (the common case — no scenario file needed)::
+
+        settings = Settings(config_path="my_settings/")
+        year_settings = resolve_settings_to_year(settings, year=2030)
+
+    Multi-year usage::
+
+        settings = Settings(config_path="my_settings/")
+        model_years = [2030, 2040]
+        year_settings = {
+            year: resolve_settings_to_year(settings, year, all_years=model_years)
+            for year in model_years
+        }
+
+    See Also
+    --------
+    build_scenario_settings : Builds the full ``{year: {case_id: settings}}``
+        structure when a scenario definitions file is used.
+    """
+    if isinstance(settings, Settings) and hasattr(settings, "to_dict"):
+        settings = settings.to_dict()
+
+    if all_years is None:
+        all_years = {year}
+    else:
+        all_years = set(all_years)
+
+    _settings = copy.deepcopy(settings)
+
+    _settings = assign_model_planning_years(_settings, year)
+
+    _settings = simplify_settings_by_year(_settings, year, all_years=all_years)
+
+    _settings = expand_capacity_reserve_values(_settings)
+
+    if _settings.get("generator_columns"):
+        _settings["generator_columns"] = add_model_tags_to_gen_columns(
+            model_tag_values=_settings.get("model_tag_values", {}),
+            regional_tag_values=_settings.get("regional_tag_values", {}),
+            generator_columns=_settings["generator_columns"],
+        )
+
+    return _settings
+
+
 def build_scenario_settings(
     settings: Union[dict, Settings], scenario_definitions: pd.DataFrame
 ) -> Dict[int, Dict[Union[int, str], dict]]:
@@ -1448,24 +1535,12 @@ def build_scenario_settings(
                         # remember this setting for later
                         modified_settings[key] = f"{category}={level}"
 
-        # make sure model year data appears in standard form
-        assign_model_planning_years(_settings, year)
-
-        # resolve any year-keyed parameter values for this planning year
-        _settings = simplify_settings_by_year(
+        # resolve year-keyed parameters, expand capacity reserves, etc.
+        _settings = resolve_settings_to_year(
             _settings, year, all_years=all_planning_years
         )
 
-        # expand capacity reserve values into regional_tag_values
-        _settings = expand_capacity_reserve_values(_settings)
-
         scenario_settings.setdefault(year, {})[case_id] = _settings
-        if _settings.get("generator_columns"):
-            _settings["generator_columns"] = add_model_tags_to_gen_columns(
-                model_tag_values=_settings.get("model_tag_values", {}),
-                regional_tag_values=_settings.get("regional_tag_values", {}),
-                generator_columns=_settings["generator_columns"],
-            )
 
     # Report any settings in the scenario definitions that had no effect. Values
     # can be changed via either the "all_years" key or a specific year, so we

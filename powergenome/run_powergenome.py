@@ -29,7 +29,11 @@ from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; c
     set_int_cols,
 )
 from powergenome.load_profiles import make_final_load_curves
-from powergenome.settings import Settings, build_scenario_settings
+from powergenome.settings import (
+    Settings,
+    build_scenario_settings,
+    resolve_settings_to_year,
+)
 from powergenome.transmission import (
     agg_transmission_constraints,
     insert_tx_costs,
@@ -232,23 +236,25 @@ def main(**kwargs):
             )
     else:
         logger.info(
-            "No 'scenario_definitions_fn' found in settings. Building scenario "
-            "definitions from 'model_year' settings parameter."
+            "No 'scenario_definitions_fn' found in settings. Resolving settings "
+            "for each planning year from 'model_year' settings parameter."
         )
         model_years = settings["model_year"]
         if not isinstance(model_years, list):
             model_years = [model_years]
-        scenario_definitions = pd.DataFrame(
-            {
-                "case_id": ["Inputs"] * len(model_years),
-                "year": model_years,
-            }
-        )
         if args.case_id:
             logger.warning(
                 "The --case-id flag is ignored when no 'scenario_definitions_fn' is "
                 "specified in settings."
             )
+        scenario_settings = {}
+        for period, year in enumerate(model_years, start=1):
+            year_settings = resolve_settings_to_year(
+                settings, year, all_years=model_years
+            )
+            year_settings["case_id"] = "Inputs"
+            year_settings["case_period"] = period
+            scenario_settings[year] = {"Inputs": year_settings}
 
     model_years_raw = settings["model_year"]
     first_planning_years_raw = settings["model_first_planning_year"]
@@ -262,8 +268,9 @@ def main(**kwargs):
         num_model_years == num_first_planning_years
     ), "The number of years in the settings parameter 'model_year' must be the same as 'model_first_planning_year'"
 
-    # Build a dictionary of settings for every planning year and case_id
-    scenario_settings = build_scenario_settings(settings, scenario_definitions)
+    if has_scenario_definitions:
+        # Build a dictionary of settings for every planning year and scenario
+        scenario_settings = build_scenario_settings(settings, scenario_definitions)
 
     model_regions_gdf = None
     first_year = True
@@ -355,10 +362,13 @@ def main(**kwargs):
                     case_year_data["rep_period"] = representative_point
 
                 else:
-                    gen_variability.index = range(1, len(reduced_resource_profile) + 1)
-                    gen_variability.index.name = "Time_Index"
-                    gen_variability = reduced_resource_profile.reset_index(drop=False)
-                    case_year_data["gen_variability"] = gen_variability
+                    if args.gens:
+                        # gens were computed but load was skipped — store raw
+                        # gen_variability without time domain reduction
+                        gen_variability.index = range(1, len(gen_variability) + 1)
+                        gen_variability.index.name = "Time_Index"
+                        gen_variability = gen_variability.reset_index(drop=False)
+                        case_year_data["gen_variability"] = gen_variability
 
                 if args.transmission:
                     tx_costs = load_tx_costs()

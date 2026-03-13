@@ -25,6 +25,7 @@ from powergenome.settings import (
     fix_param_names,
     get_current_settings,
     load_settings,
+    resolve_settings_to_year,
     simplify_settings_by_year,
 )
 
@@ -491,7 +492,7 @@ def noop_assign_and_tags(monkeypatch):
     from powergenome import settings as settings_module
 
     monkeypatch.setattr(
-        settings_module, "assign_model_planning_years", lambda settings, year: None
+        settings_module, "assign_model_planning_years", lambda settings, year: settings
     )
 
 
@@ -1702,3 +1703,133 @@ class TestSimplifySettingsByYear:
         )
         with pytest.raises(ValueError, match="missing values for planning year"):
             build_scenario_settings(settings, df)
+
+
+class TestResolveSettingsToYear:
+    """Tests for resolve_settings_to_year — the default no-scenario entry point."""
+
+    @pytest.fixture(autouse=True)
+    def restore_real_assign_model_planning_years(self, monkeypatch):
+        """Override the module-level noop_assign_and_tags fixture so that
+        resolve_settings_to_year can call the real assign_model_planning_years."""
+        from powergenome import settings as settings_module
+
+        monkeypatch.setattr(
+            settings_module,
+            "assign_model_planning_years",
+            assign_model_planning_years,
+        )
+
+    def test_returns_dict(self):
+        """Result is always a plain dict."""
+        result = resolve_settings_to_year(
+            {"foo": "bar", "model_first_planning_year": 2030}, 2030
+        )
+        assert isinstance(result, dict)
+
+    def test_does_not_mutate_input(self):
+        """Input settings are deep-copied; original is not modified."""
+        settings = {
+            "capex_mw": {2030: 1000, 2040: 800},
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2020, 2031],
+        }
+        resolve_settings_to_year(settings, 2030, all_years=[2030, 2040])
+        assert settings["capex_mw"] == {2030: 1000, 2040: 800}
+
+    def test_resolves_year_keyed_values(self):
+        """Year-keyed dicts are resolved to a scalar for the target year."""
+        settings = {
+            "capex_mw": {2030: 1000, 2040: 800},
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2020, 2031],
+        }
+        result = resolve_settings_to_year(settings, 2030, all_years=[2030, 2040])
+        assert result["capex_mw"] == 1000
+
+    def test_resolves_model_year_list_to_scalar(self):
+        """List-valued model_year is converted to the target year's scalar."""
+        settings = {
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2020, 2031],
+        }
+        result = resolve_settings_to_year(settings, 2030, all_years=[2030, 2040])
+        assert result["model_year"] == 2030
+        assert result["model_first_planning_year"] == 2020
+
+    def test_single_year_no_all_years(self):
+        """Works with a single year when all_years is not provided."""
+        settings = {
+            "model_year": 2030,
+            "model_first_planning_year": 2025,
+        }
+        result = resolve_settings_to_year(settings, 2030)
+        assert result["model_year"] == 2030
+
+    def test_accepts_settings_instance(self):
+        """Accepts a Settings instance and returns a dict."""
+        s = Settings.from_dict(
+            {
+                "capex_mw": {2030: 500, 2040: 400},
+                "model_year": [2030, 2040],
+                "model_first_planning_year": [2020, 2031],
+            }
+        )
+        result = resolve_settings_to_year(s, 2030, all_years=[2030, 2040])
+        assert result["capex_mw"] == 500
+        assert isinstance(result, dict)
+
+    def test_expands_capacity_reserve_shorthand(self):
+        """CapRes shorthand (capacity_reserve_values + regional_capacity_reserves) is expanded into regional_tag_values."""
+        settings = {
+            "capacity_reserve_values": {"Coal": 0.9},
+            "regional_capacity_reserves": {"CapRes_1": {"p1": 0.15}},
+            "model_tag_values": {},
+            "model_first_planning_year": 2030,
+        }
+        result = resolve_settings_to_year(settings, 2030)
+        # expand_capacity_reserve_values should have populated regional_tag_values
+        assert "regional_tag_values" in result
+        assert result["regional_tag_values"]["p1"]["CapRes_1"] == {"Coal": 0.9}
+
+    def test_adds_model_tags_to_generator_columns(self):
+        """When generator_columns is present, resource-tag column names are added."""
+        settings = {
+            "generator_columns": ["Resource", "Existing_Cap_MW"],
+            "model_tag_values": {"THERM": {"coal": 1}},
+            "regional_tag_values": {},
+            "model_first_planning_year": 2030,
+        }
+        result = resolve_settings_to_year(settings, 2030)
+        assert "THERM" in result["generator_columns"]
+
+    def test_consistent_with_build_scenario_settings(self):
+        """resolve_settings_to_year and build_scenario_settings produce the same output."""
+        settings = {
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2020, 2031],
+            "capex_mw": {2030: 1000, 2040: 800},
+        }
+        direct = resolve_settings_to_year(settings, 2030, all_years=[2030, 2040])
+
+        df = pd.DataFrame([{"case_id": "Inputs", "year": 2030}])
+        via_scenario = build_scenario_settings(settings, df)
+        scenario_result = via_scenario[2030]["Inputs"]
+
+        # Both paths should agree on the resolved capex and model_year
+        assert direct["capex_mw"] == scenario_result["capex_mw"]
+        assert direct["model_year"] == scenario_result["model_year"]
+        assert (
+            direct["model_first_planning_year"]
+            == scenario_result["model_first_planning_year"]
+        )
+
+    def test_raises_on_partial_year_coverage(self):
+        """Raises ValueError when a year-keyed dict is missing the target year."""
+        settings = {
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2020, 2031],
+            "capex_mw": {2030: 1000},
+        }
+        with pytest.raises(ValueError, match="missing values for planning year"):
+            resolve_settings_to_year(settings, 2030, all_years=[2030, 2040])
