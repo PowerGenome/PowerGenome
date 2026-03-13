@@ -1043,6 +1043,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#model_periods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        model_periods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#model_year" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1752,6 +1763,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#model_periods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        model_periods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#model_year" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1945,20 +1967,41 @@
 <h1 id="model-definition-settings">Model Definition Settings<a class="headerlink" href="#model-definition-settings" title="Permanent link">&para;</a></h1>
 <p>These core parameters define the overall model scope, planning periods, and currency adjustments.</p>
 <h2 id="planning-years">Planning Years<a class="headerlink" href="#planning-years" title="Permanent link">&para;</a></h2>
+<h3 id="model_periods"><code>model_periods</code><a class="headerlink" href="#model_periods" title="Permanent link">&para;</a></h3>
+<p><strong>Type</strong>: List of tuples (each a pair of integers)
+<strong>Required</strong>: Yes (or use <code>model_year</code> + <code>model_first_planning_year</code> instead)
+<strong>Example</strong>: <code>[(2026, 2030), (2031, 2040), (2041, 2050)]</code></p>
+<p>A list of <code>(first_year, last_year)</code> tuples that define each planning period. The first value is the first year in the period and the second value is the last year (i.e., the model year).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">model_periods</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">(2026</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030)</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">(2031</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040)</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">(2041</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2050)</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<p>This creates three planning periods:</p>
+<ul>
+<li>2026–2030 (5 years)</li>
+<li>2031–2040 (10 years)</li>
+<li>2041–2050 (10 years)</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">How periods are used</p>
+<ul>
+<li><strong>Demand</strong>: Uses the final year in each period (e.g., 2030 demand for 2026–2030)</li>
+<li><strong>New-build costs</strong>: Averaged across the full period (e.g., 2026–2030 capital costs are mean values over those years)</li>
+<li><strong>Retirements</strong>: Evaluated against the period start/end windows</li>
+</ul>
+</div>
 <h3 id="model_year"><code>model_year</code><a class="headerlink" href="#model_year" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: List of integers
-<strong>Required</strong>: Yes
+<strong>Required</strong>: Yes (if not using <code>model_periods</code>)
 <strong>Example</strong>: <code>[2030, 2040, 2050]</code></p>
-<p>The primary planning year(s) for the model. All costs are calculated for this year, and it determines which technology cost projections to use.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">model_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2030</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2050</span><span class="p p-Indicator">]</span>
+<p>Alternative to <code>model_periods</code>. The primary planning year(s) for the model. All costs are calculated for this year, and it determines which technology cost projections to use.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">model_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2030</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2050</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <h3 id="model_first_planning_year"><code>model_first_planning_year</code><a class="headerlink" href="#model_first_planning_year" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: List of integers
-<strong>Required</strong>: Yes
+<strong>Required</strong>: Yes (if using <code>model_year</code>)
 <strong>Example</strong>: <code>[2025, 2031, 2041]</code></p>
-<p>The first year in a multi-period planning horizon. Used to calculate period lengths and determine which existing generators are retired.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">model_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2030</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2050</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">model_first_planning_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2025</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2031</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2041</span><span class="p p-Indicator">]</span>
+<p>The first year in each planning period. Used together with <code>model_year</code> as an alternative to <code>model_periods</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">model_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2030</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2050</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">model_first_planning_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2025</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2031</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2041</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p>This creates planning periods:</p>
 <ul>
@@ -1966,14 +2009,6 @@
 <li>2031-2040 (10 years)</li>
 <li>2041-2050 (10 years)</li>
 </ul>
-<div class="admonition note">
-<p class="admonition-title">How periods are used</p>
-<ul>
-<li><strong>Demand</strong>: Uses the final <code>model_year</code> in each period (e.g., 2030 demand for 2025-2030)</li>
-<li><strong>New-build costs</strong>: Averaged across the full period (e.g., 2025-2030 capital costs are mean values over those years)</li>
-<li><strong>Retirements</strong>: Evaluated against <code>model_first_planning_year</code>/<code>model_year</code> windows</li>
-</ul>
-</div>
 <p>To shorten/extend the horizon, edit the paired lists. For example, to model 2030, 2035, and 2045 only, set <code>model_year: [2030, 2035, 2045]</code> and <code>model_first_planning_year: [2025, 2031, 2036]</code>.</p>
 <h2 id="currency-conversion">Currency Conversion<a class="headerlink" href="#currency-conversion" title="Permanent link">&para;</a></h2>
 <h3 id="target_usd_year"><code>target_usd_year</code><a class="headerlink" href="#target_usd_year" title="Permanent link">&para;</a></h3>
@@ -1981,7 +2016,7 @@
 <strong>Required</strong>: Yes
 <strong>Example</strong>: <code>2023</code></p>
 <p>All monetary values are converted to this base year USD using CPI data.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">target_usd_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2023</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">target_usd_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2023</span>
 </code></pre></div>
 <p>PowerGenome loads CPI data from <code>data/cpi_data/</code> to perform conversions. Technology costs from ATB (in their native years) and EIA data (various years) are all normalized to this target year.</p>
 <h2 id="time-zone">Time Zone<a class="headerlink" href="#time-zone" title="Permanent link">&para;</a></h2>
@@ -1991,7 +2026,7 @@
 <strong>Default</strong>: 0
 <strong>Example</strong>: <code>-8</code></p>
 <p>Hour offset from UTC for the model timezone. All time-series data is stored in UTC and converted using this offset.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">utc_offset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-8</span><span class="w">  </span><span class="c1"># Pacific Time (UTC-8)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">utc_offset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-8</span><span class="w">  </span><span class="c1"># Pacific Time (UTC-8)</span>
 </code></pre></div>
 <p>US time zones:</p>
 <ul>
@@ -2002,15 +2037,18 @@
 </ul>
 <h2 id="example-configuration">Example Configuration<a class="headerlink" href="#example-configuration" title="Permanent link">&para;</a></h2>
 <p>Complete model definition for a multi-period study:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Planning horizon</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">model_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2030</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2050</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">model_first_planning_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2025</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2031</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2041</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Currency</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="nt">target_usd_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2023</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># Time zone</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="nt">utc_offset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-8</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Planning horizon</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">model_periods</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">(2026</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030)</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">(2031</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040)</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">(2041</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2050)</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Alternatively, use model_year and model_first_planning_year:</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># model_year: [2030, 2040, 2050]</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1"># model_first_planning_year: [2025, 2031, 2041]</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="c1"># Currency</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="nt">target_usd_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2023</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="c1"># Time zone</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="nt">utc_offset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-8</span>
 </code></pre></div>
 <h2 id="related-settings">Related Settings<a class="headerlink" href="#related-settings" title="Permanent link">&para;</a></h2>
 <ul>
