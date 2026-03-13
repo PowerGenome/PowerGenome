@@ -61,12 +61,14 @@ Create minimal settings from scratch:
 
 ```yaml
 # Planning horizon
-model_year: [2030]
-model_first_planning_year: 2030
-model_periods: [1]
+model_periods: [(2026, 2030)]
 
 # Currency
 target_usd_year: 2023
+
+# Alternatively, define the planning horizon using model_year and model_first_planning_year:
+# model_year: [2030]
+# model_first_planning_year: 2030
 
 # Data location
 data_location: /path/to/data
