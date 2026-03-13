@@ -318,7 +318,7 @@ interconnect_capex_mw:
 
 #### 5. Region -> Technology Nested
 
-Region-specific technology costs (region keys at top level):
+Region-specific technology costs with regions as keys under `by_region_technology`:
 
 ```yaml
 interconnect_capex_mw:
