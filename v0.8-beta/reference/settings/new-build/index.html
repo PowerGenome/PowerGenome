@@ -2400,64 +2400,75 @@
 <strong>Example</strong>: See patterns below</p>
 <p>Flexible specification of per-MW interconnection capital cost (USD/MW) applied to new and existing resources. Replaces the deprecated spur line mileage system (<code>transmission_investment_cost</code> with <code>capacity_limit_spur_fn</code> file).</p>
 <p><strong>Important</strong>: All cost values must be in the same dollar year as <code>target_usd_year</code> (the target dollar year for cost normalization). PowerGenome does not automatically adjust interconnection costs for inflation.</p>
-<p><strong>Supported Patterns</strong> (mutually exclusive; <code>default</code> key may accompany any pattern):</p>
+<p><strong>Supported Patterns</strong>:</p>
 <h4 id="1-scalar">1. Scalar<a class="headerlink" href="#1-scalar" title="Permanent link">&para;</a></h4>
 <p>Apply uniform cost to all resources:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">interconnect_capex_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">150000</span><span class="w">  </span><span class="c1"># $150k/MW for all resources</span>
 </code></pre></div>
-<h4 id="2-region-only">2. Region-Only<a class="headerlink" href="#2-region-only" title="Permanent link">&para;</a></h4>
-<p>Different costs by region (exact region name matching):</p>
+<h4 id="2-explicit-schema-recommended">2. Explicit Schema (Recommended)<a class="headerlink" href="#2-explicit-schema-recommended" title="Permanent link">&para;</a></h4>
+<p>Use an explicit fallback with typed override blocks:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">interconnect_capex_mw</span><span class="p">:</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">140000</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">130000</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">125000</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">fallback_capex_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">110000</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">by_technology</span><span class="p">:</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="nt">wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="nt">offshore_wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200000</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="nt">battery</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50000</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">  </span><span class="nt">by_region</span><span class="p">:</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">    </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">125000</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">  </span><span class="nt">by_region_technology</span><span class="p">:</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">    </span><span class="nt">CA_N</span><span class="p">:</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="w">      </span><span class="nt">offshore_wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">210000</span>
 </code></pre></div>
-<h4 id="3-technology-only">3. Technology-Only<a class="headerlink" href="#3-technology-only" title="Permanent link">&para;</a></h4>
-<p>Different costs by technology using case-insensitive substring matching with shortest-first precedence:</p>
+<p>Precedence (most specific to least specific):</p>
+<ol>
+<li><code>by_region_technology</code></li>
+<li><code>by_region</code></li>
+<li><code>by_technology</code></li>
+<li><code>fallback_capex_mw</code></li>
+</ol>
+<h4 id="3-region-only">3. Region-Only<a class="headerlink" href="#3-region-only" title="Permanent link">&para;</a></h4>
+<p>Different costs by region (exact region name matching):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">interconnect_capex_mw</span><span class="p">:</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100000</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span><span class="w">          </span><span class="c1"># matches &#39;LandbasedWind_Class3_Moderate&#39;, &#39;OffshoreWind_Class1_Moderate&#39;</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span><span class="nt">offshore_wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200000</span><span class="w"> </span><span class="c1"># longer substring overwrites previous &#39;wind&#39; assignment</span>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">  </span><span class="nt">battery</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50000</span><span class="w">        </span><span class="c1"># matches &#39;Battery_4Hr_Moderate&#39;, &#39;Battery_*_Moderate&#39;</span>
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">  </span><span class="nt">solar</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">110000</span><span class="w">         </span><span class="c1"># matches &#39;UtilityPV_Class1_Moderate&#39;</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">fallback_capex_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">by_region</span><span class="p">:</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">140000</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">130000</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">    </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">125000</span>
+</code></pre></div>
+<h4 id="4-technology-only">4. Technology-Only<a class="headerlink" href="#4-technology-only" title="Permanent link">&para;</a></h4>
+<p>Different costs by technology using case-insensitive substring matching with shortest-first precedence:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">interconnect_capex_mw</span><span class="p">:</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">fallback_capex_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100000</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">by_technology</span><span class="p">:</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="nt">wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span><span class="w">          </span><span class="c1"># matches &#39;LandbasedWind_Class3_Moderate&#39;, &#39;OffshoreWind_Class1_Moderate&#39;</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span><span class="nt">offshore_wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200000</span><span class="w"> </span><span class="c1"># longer substring overwrites previous &#39;wind&#39; assignment</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span><span class="nt">battery</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50000</span><span class="w">        </span><span class="c1"># matches &#39;Battery_4Hr_Moderate&#39;, &#39;Battery_*_Moderate&#39;</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span><span class="nt">solar</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">110000</span><span class="w">         </span><span class="c1"># matches &#39;UtilityPV_Class1_Moderate&#39;</span>
 </code></pre></div>
 <p><strong>Precedence rule</strong>: Shorter substrings applied first, then longer (more specific) substrings override previous assignments. This allows general categories with specific exceptions.</p>
-<h4 id="4-region-technology-nested">4. Region → Technology Nested<a class="headerlink" href="#4-region-technology-nested" title="Permanent link">&para;</a></h4>
-<p>Region-specific technology costs (region keys at top level):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">interconnect_capex_mw</span><span class="p">:</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">110000</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="nt">battery</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60000</span>
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span><span class="nt">offshore_wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">210000</span>
-<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span><span class="nt">solar</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">105000</span>
-<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span>
-<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="w">    </span><span class="nt">solar</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">95000</span>
-<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="w">    </span><span class="nt">wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">115000</span>
-<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">125000</span><span class="w">  </span><span class="c1"># Can mix dict and numeric values for different regions</span>
+<h4 id="5-region-technology-nested">5. Region -&gt; Technology Nested<a class="headerlink" href="#5-region-technology-nested" title="Permanent link">&para;</a></h4>
+<p>Region-specific technology costs with regions as keys under <code>by_region_technology</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">interconnect_capex_mw</span><span class="p">:</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">fallback_capex_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">110000</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span><span class="nt">by_region_technology</span><span class="p">:</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="nt">CA_N</span><span class="p">:</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">      </span><span class="nt">battery</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60000</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">      </span><span class="nt">offshore_wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">210000</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">      </span><span class="nt">solar</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">105000</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="w">    </span><span class="nt">CA_S</span><span class="p">:</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">      </span><span class="nt">solar</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">95000</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">      </span><span class="nt">wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">115000</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="w">  </span><span class="nt">by_region</span><span class="p">:</span>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="w">    </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">125000</span>
 </code></pre></div>
 <p>Within each region, technology substrings follow shortest-first precedence.</p>
-<h4 id="5-technology-region-nested">5. Technology → Region Nested<a class="headerlink" href="#5-technology-region-nested" title="Permanent link">&para;</a></h4>
-<p>Technology-specific regional costs (technology keys at top level):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">interconnect_capex_mw</span><span class="p">:</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">110000</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span><span class="nt">wind</span><span class="p">:</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">125000</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">115000</span>
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span>
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">  </span><span class="nt">battery</span><span class="p">:</span>
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="w">    </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">55000</span>
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">    </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">52000</span>
-<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">  </span><span class="nt">offshore_wind</span><span class="p">:</span>
-<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="w">    </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">205000</span><span class="w">  </span><span class="c1"># More specific than &#39;wind&#39;, overrides for offshore</span>
-</code></pre></div>
-<p>Technology substrings applied shortest-first; within each technology, regions matched exactly.</p>
 <p><strong>Matching Rules</strong>:</p>
 <ul>
 <li><strong>Technology matching</strong>: Case-insensitive substring search against the <code>technology</code> column</li>
 <li><strong>Substring precedence</strong>: Shortest substrings processed first; longer substrings override</li>
 <li><strong>Region matching</strong>: Exact match against model region names (case-sensitive)</li>
-<li><strong>Invalid mixing</strong>: Cannot mix region and technology keys at the same top level (excluding <code>default</code>)</li>
+<li><strong>Explicit schema</strong>: Use only <code>fallback_capex_mw</code>, <code>by_region</code>, <code>by_technology</code>, and <code>by_region_technology</code> at the top level.</li>
+<li><strong>Invalid mixing</strong>: In legacy syntax, mixing region and technology keys at the same top level is invalid.</li>
 </ul>
 <p><strong>Examples of Invalid Configuration</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># ERROR: Cannot mix region and technology keys</span>
@@ -2465,6 +2476,8 @@
 <a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">140000</span><span class="w">      </span><span class="c1"># Region key</span>
 <a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">  </span><span class="nt">wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span><span class="w">      </span><span class="c1"># Technology key - mixing not allowed!</span>
 </code></pre></div>
+<p><strong>Legacy Syntax (Deprecated)</strong>:</p>
+<p>You may still use the older top-level <code>default</code> style for backward compatibility. A deprecation warning is logged at runtime.</p>
 <p><strong>Behavior</strong>:</p>
 <ul>
 <li><strong>Non-destructive</strong>: Existing non-zero <code>interconnect_capex_mw</code> values in the resource dataframe are never overwritten</li>
@@ -2493,9 +2506,10 @@
 </code></pre></div>
 <p>New approach (recommended):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">interconnect_capex_mw</span><span class="p">:</span>
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span><span class="nt">offshore_wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200000</span><span class="w">  </span><span class="c1"># Direct cost specification</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">  </span><span class="nt">solar</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">105000</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span><span class="nt">fallback_capex_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span><span class="nt">by_technology</span><span class="p">:</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span><span class="nt">offshore_wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200000</span><span class="w">  </span><span class="c1"># Direct cost specification</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">    </span><span class="nt">solar</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">105000</span>
 </code></pre></div>
 <p><strong>Benefits of new system</strong>:</p>
 <ul>
