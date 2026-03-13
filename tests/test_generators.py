@@ -217,6 +217,70 @@ def test_calculate_transmission_inv_cost_region_only():
     assert np.isclose(out.loc[1, "interconnect_annuity"], annuity_B)
 
 
+def test_calculate_transmission_inv_cost_explicit_schema_precedence():
+    spec = {
+        "fallback_capex_mw": 9000,
+        "by_technology": {"wind": 20000, "offshore_wind": 30000},
+        "by_region": {"A": 7000},
+        "by_region_technology": {"A": {"offshore_wind": 25000}},
+    }
+    df = pd.DataFrame(
+        {
+            "region": ["A", "A", "B", "C"],
+            "technology": [
+                "offshore_wind_fixed_mid",
+                "battery_storage",
+                "wind_onshore_mid",
+                "solar_pv",
+            ],
+            "wacc_real": [0.05, 0.05, 0.05, 0.05],
+            "cap_recovery_years": [20, 20, 20, 20],
+        }
+    )
+
+    out = calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
+    assert out.loc[0, "interconnect_capex_mw"] == 25000
+    assert out.loc[1, "interconnect_capex_mw"] == 7000
+    assert out.loc[2, "interconnect_capex_mw"] == 20000
+    assert out.loc[3, "interconnect_capex_mw"] == 9000
+
+
+def test_calculate_transmission_inv_cost_explicit_schema_unknown_keys_error():
+    spec = {
+        "fallback_capex_mw": 10000,
+        "default": 5000,
+    }
+    df = pd.DataFrame(
+        {
+            "region": ["A"],
+            "technology": ["wind_onshore_mid"],
+            "wacc_real": [0.05],
+            "cap_recovery_years": [20],
+        }
+    )
+
+    with pytest.raises(ValueError, match="explicit schema only allows keys"):
+        calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
+
+
+def test_calculate_transmission_inv_cost_legacy_default_warns(caplog):
+    spec = {"default": 10000, "A": 20000}
+    df = pd.DataFrame(
+        {
+            "region": ["A", "B"],
+            "technology": ["solar_pv", "solar_pv"],
+            "wacc_real": [0.05, 0.05],
+            "cap_recovery_years": [25, 25],
+        }
+    )
+
+    caplog.set_level("WARNING", logger="powergenome.generators")
+    out = calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
+    assert out.loc[0, "interconnect_capex_mw"] == 20000
+    assert out.loc[1, "interconnect_capex_mw"] == 10000
+    assert "deprecated" in caplog.text.lower()
+
+
 def test_calculate_transmission_inv_cost_tech_only_precedence():
     # Shortest-first precedence: 'wind' applied first then 'offshore_wind' overwrites matching rows
     spec = {"default": 10000, "wind": 20000, "offshore_wind": 30000}

@@ -2449,7 +2449,25 @@ def _parse_interconnect_capex(
     """Generate a per-resource interconnection capex Series from a flexible
     ``interconnect_capex_mw`` specification.
 
-    Supported mutually exclusive top-level patterns (``default`` may accompany any):
+    Preferred explicit dictionary schema:
+
+    - ``fallback_capex_mw``: numeric fallback for any unmatched row
+    - ``by_technology``: ``{<tech_sub>: <number>, ...}``
+    - ``by_region``: ``{<region>: <number>, ...}``
+    - ``by_region_technology``: ``{<region>: {<tech_sub>: <number>, ...}, ...}``
+
+    In the explicit schema, precedence is:
+
+    1. ``by_region_technology``
+    2. ``by_region``
+    3. ``by_technology``
+    4. ``fallback_capex_mw``
+
+    Legacy dictionary patterns are still supported for backward compatibility
+    (using top-level ``default`` and region/technology mixed pattern styles),
+    but are deprecated.
+
+    Legacy patterns (deprecated):
 
     1. Scalar number
        <number>
@@ -2506,15 +2524,19 @@ def _parse_interconnect_capex(
             f"{type(raw)}"
         )
 
-    non_default_items = [(k, v) for k, v in raw.items() if k != "default"]
-    # Empty dict (only default provided)
-    if not non_default_items:
-        default_val = raw.get("default", 0.0)
-        if not isinstance(default_val, Number):
-            raise TypeError(
-                "'default' value in 'interconnect_capex_mw' must be numeric."
-            )
-        return pd.Series(default_val, index=resource_df.index, dtype=float)
+    explicit_keys = {
+        "fallback_capex_mw",
+        "by_region",
+        "by_technology",
+        "by_region_technology",
+    }
+
+    def validate_numeric_mapping(mapping: Dict[str, Any], key_name: str) -> None:
+        for k, v in mapping.items():
+            if not isinstance(v, Number):
+                raise TypeError(
+                    f"Values in '{key_name}' of 'interconnect_capex_mw' must be numeric. Got key '{k}' with value {v}."
+                )
 
     def apply_substring_values(
         mapping: Dict[str, Number], mask: pd.Series, series: pd.Series
@@ -2527,6 +2549,101 @@ def _parse_interconnect_capex(
                 )
             match_mask = mask & tech_lower.str.contains(str(sub).lower(), regex=False)
             series.loc[match_mask] = val
+
+    has_explicit_schema_key = any(k in raw for k in explicit_keys)
+    if has_explicit_schema_key:
+        unknown_keys = set(raw.keys()) - explicit_keys
+        if unknown_keys:
+            raise ValueError(
+                "'interconnect_capex_mw' explicit schema only allows keys "
+                "'fallback_capex_mw', 'by_region', 'by_technology', and "
+                "'by_region_technology'. Unknown key(s): "
+                f"{sorted(unknown_keys)}."
+            )
+
+        fallback_val = raw.get("fallback_capex_mw", 0.0)
+        if not isinstance(fallback_val, Number):
+            raise TypeError(
+                "'fallback_capex_mw' value in 'interconnect_capex_mw' must be numeric."
+            )
+
+        by_technology = raw.get("by_technology") or {}
+        by_region = raw.get("by_region") or {}
+        by_region_technology = raw.get("by_region_technology") or {}
+
+        if not isinstance(by_technology, dict):
+            raise TypeError(
+                "'by_technology' in 'interconnect_capex_mw' must be a dict of "
+                "technology substring to numeric value."
+            )
+        if not isinstance(by_region, dict):
+            raise TypeError(
+                "'by_region' in 'interconnect_capex_mw' must be a dict of "
+                "region to numeric value."
+            )
+        if not isinstance(by_region_technology, dict):
+            raise TypeError(
+                "'by_region_technology' in 'interconnect_capex_mw' must be a dict "
+                "of region to dict of technology substrings."
+            )
+
+        validate_numeric_mapping(by_technology, "by_technology")
+        validate_numeric_mapping(by_region, "by_region")
+
+        capex = pd.Series(fallback_val, index=resource_df.index, dtype=float)
+
+        # Apply broad technology overrides first.
+        apply_substring_values(
+            by_technology,
+            pd.Series(True, index=capex.index),
+            capex,
+        )
+
+        # Region-wide overrides are more specific than technology-only overrides.
+        for region_name, val in by_region.items():
+            if region_name not in regions:
+                raise KeyError(
+                    f"In 'interconnect_capex_mw.by_region', region '{region_name}' not present in resource data."
+                )
+            capex.loc[resource_df["region"] == region_name] = val
+
+        # Region + technology is most specific and applied last.
+        for region_name, tech_map in by_region_technology.items():
+            if region_name not in regions:
+                raise KeyError(
+                    "In 'interconnect_capex_mw.by_region_technology', region "
+                    f"'{region_name}' not present in resource data."
+                )
+            if not isinstance(tech_map, dict):
+                raise TypeError(
+                    "Values in 'interconnect_capex_mw.by_region_technology' must be "
+                    f"dicts of technology substrings. Got {tech_map} for region '{region_name}'."
+                )
+            validate_numeric_mapping(
+                tech_map,
+                f"by_region_technology['{region_name}']",
+            )
+            region_mask = resource_df["region"] == region_name
+            apply_substring_values(tech_map, region_mask, capex)
+
+        return capex.fillna(0.0)
+
+    if "default" in raw:
+        logger.warning(
+            "The key 'default' in 'interconnect_capex_mw' is deprecated. "
+            "Use 'fallback_capex_mw' and explicit override blocks "
+            "('by_region', 'by_technology', 'by_region_technology') instead."
+        )
+
+    non_default_items = [(k, v) for k, v in raw.items() if k != "default"]
+    # Empty dict (only default provided)
+    if not non_default_items:
+        default_val = raw.get("default", 0.0)
+        if not isinstance(default_val, Number):
+            raise TypeError(
+                "'default' value in 'interconnect_capex_mw' must be numeric."
+            )
+        return pd.Series(default_val, index=resource_df.index, dtype=float)
 
     all_numbers = all(isinstance(v, Number) for _, v in non_default_items)
 
