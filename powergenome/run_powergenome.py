@@ -229,10 +229,14 @@ def main(**kwargs):
                 scenario_definitions["case_id"].isin(args.case_id), :
             ]
 
-        if set(scenario_definitions["year"]) != set(settings["model_year"]):
+        model_years_for_check = settings["model_year"]
+        if not isinstance(model_years_for_check, list):
+            model_years_for_check = [model_years_for_check]
+
+        if set(scenario_definitions["year"]) != set(model_years_for_check):
             logger.warning(
-                f"The years included the scenario definitions file ({set(scenario_definitions['year'])}) "
-                f"does not match the settings parameter `model_year` ({settings['model_year']})"
+                f"The years included in the scenario definitions file ({set(scenario_definitions['year'])}) "
+                f"do not match the settings parameter `model_year` ({settings['model_year']})"
             )
     else:
         logger.info(
