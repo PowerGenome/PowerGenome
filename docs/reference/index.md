@@ -30,9 +30,9 @@ Documentation of input and output file formats:
 
 ## Additional Resources
 
-- [Example Systems](https://github.com/PowerGenome/PowerGenome/tree/master/example_systems): Working configuration examples
+- [System Design Tool](https://gschivley.github.io/PowerGenome-tools/web/): Interactive tool for generating settings files for your study area
+- [System Design Tool Documentation](https://gschivley.github.io/PowerGenome-tools/): Walkthrough of each configuration step
 - [Test System](https://github.com/PowerGenome/PowerGenome/tree/master/tests/test_system): Minimal test configuration
-- [Settings Documentation](https://github.com/PowerGenome/PowerGenome/blob/master/example_systems/settings_documentation.md): Original comprehensive reference
 
 ## API Reference
 

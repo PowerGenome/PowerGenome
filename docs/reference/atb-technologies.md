@@ -490,5 +490,5 @@ See [Adding Technologies](../how-to/add-technologies.md) for complete configurat
 
 - [NREL ATB Website](https://atb.nrel.gov/)
 - [Adding Technologies Guide](../how-to/add-technologies.md)
-- [Technology Settings Reference](settings/technologies.md)
-- [Resource Modifiers](settings/resources.md#resource_modifiers)
+- [Technology Settings Reference](settings/new-build.md)
+- [Resource Modifiers](settings/new-build.md#resource_modifiers)

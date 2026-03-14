@@ -16,7 +16,7 @@ Settings are grouped by functional area:
 
     Core parameters defining planning years, currency conversion, and run scope.
 
-    Parameters: `model_year`, `model_first_planning_year`, `model_tag_names`, etc.
+    Parameters: `model_periods`, `model_tag_names`, etc.
 
   - :material-calendar-range: **[Year-Keyed Values](year-keyed-values.md)**
 
@@ -312,6 +312,6 @@ When the same parameter appears in multiple places:
 ## Next Steps
 
 - [Model Definition Parameters](model-definition.md): Start here for core settings
-- [Settings How-To Guide](../how-to/configure-settings.md): Practical examples
+- [Settings How-To Guide](../../how-to/configure-settings.md): Practical examples
 - [Scenario Management](scenario-management.md): Multi-scenario workflows
 - [Data Tables](data-tables.md): Advanced table configuration

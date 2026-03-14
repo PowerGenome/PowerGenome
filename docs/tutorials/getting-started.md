@@ -232,7 +232,7 @@ See [Debugging](../how-to/debugging.md) for more solutions.
 - **Settings reference**: [Model Definition](../reference/settings/model-definition.md)
 - **How settings work**: [Configure Settings](../how-to/configure-settings.md)
 - **Understanding the pipeline**: [Data Pipeline Flow](../explanation/pipeline.md)
-- **Example systems**: [GitHub examples](https://github.com/PowerGenome/PowerGenome/tree/master/example_systems)
+- **System Design tool**: [Generate settings files for your study area](https://gschivley.github.io/PowerGenome-tools/web/)
 
 ## Get Help
 
