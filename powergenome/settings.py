@@ -1056,11 +1056,14 @@ def assign_model_planning_years(_settings: dict, year: int) -> dict:
     """
     if "model_periods" in _settings:
         if not all(
-            [isinstance(t, tuple) for t in make_iterable(_settings["model_periods"])]
+            [
+                isinstance(t, (tuple, list))
+                for t in make_iterable(_settings["model_periods"])
+            ]
         ):
             raise ValueError(
-                "The settings parameter 'model_periods' must be a list of tuples. It is "
-                f"currently {_settings['model_periods']}"
+                "The settings parameter 'model_periods' must be a list of tuples or lists. "
+                f"It is currently {_settings['model_periods']}"
             )
         if not all(len(t) == 2 for t in make_iterable(_settings["model_periods"])):
             raise ValueError(
