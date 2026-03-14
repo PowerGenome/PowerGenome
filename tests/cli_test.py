@@ -622,9 +622,9 @@ class TestMainFunction:
             f"but it was not. Contents of {out_folder}: {list(out_folder.iterdir()) if out_folder.exists() else 'folder missing'}"
         )
         # Also assert there is no case_id subfolder at the top level
-        assert not (out_folder / "Inputs" / "Inputs" / "Inputs_p1").exists(), (
-            "case_folder should not include a case_id subdirectory in the no-scenario path"
-        )
+        assert not (
+            out_folder / "Inputs" / "Inputs" / "Inputs_p1"
+        ).exists(), "case_folder should not include a case_id subdirectory in the no-scenario path"
 
     def test_main_kwargs_override(self):
         """Test that kwargs properly override command line arguments."""
