@@ -187,7 +187,7 @@ Annuities calculated automatically using plant financial parameters (`wacc_real`
 
 Legacy spur system still supported for backward compatibility but will be removed in a future release.
 
-See [Settings Documentation](../reference/settings/) for complete `interconnect_capex_mw` specification.
+See [Settings Documentation](../reference/settings/index.md) for complete `interconnect_capex_mw` specification.
 
 ## Contributing
 

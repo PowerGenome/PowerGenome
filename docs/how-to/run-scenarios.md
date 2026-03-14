@@ -382,11 +382,7 @@ high_tech,2050,low,100
 **Settings**:
 
 ```yaml
-model_periods: [(2026, 2030), (2031, 2040), (2041, 2050)]
-
-# Alternatively, define the planning horizon using model_year and model_first_planning_year:
-# model_year: [2030, 2040, 2050]
-# model_first_planning_year: [2026, 2031, 2041]
+model_periods: [[2026, 2030], [2031, 2040], [2041, 2050]]
 
 settings_management:
   2030:

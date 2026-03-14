@@ -33,25 +33,9 @@ my_project/
 
 ### Copy Example System
 
-Start with a working example and modify it:
+Use the [PowerGenome System Design tool](https://gschivley.github.io/PowerGenome-tools/web/) to generate a starting settings folder for your study area. The tool walks you through selecting regions, technologies, and policies, then produces a settings folder you can download and modify.
 
-```bash
-# Navigate to PowerGenome repository
-cd PowerGenome/example_systems
-
-# Copy example that matches your region
-cp -r CA_AZ ~/my_project/settings
-
-# Or for multi-zone systems
-cp -r WECC-6-zone ~/my_project/settings
-```
-
-Available examples:
-
-- **CA_AZ**: 2-region California + Arizona
-- **CONUS-3-zone**: 3-region Continental US
-- **WECC-6-zone**: 6-region Western Interconnection
-- **ISONE**: ISO New England
+See the [System Design tool documentation](https://gschivley.github.io/PowerGenome-tools/) for a walkthrough of each step.
 
 ### Minimal Settings
 
@@ -61,7 +45,7 @@ Create minimal settings from scratch:
 
 ```yaml
 # Planning horizon
-model_periods: [(2026, 2030)]
+model_periods: [[2026, 2030]]
 
 # Currency
 target_usd_year: 2023
@@ -168,8 +152,10 @@ settings/
 
 ```yaml
 # Planning periods
-model_year: [2030, 2040, 2050]
-model_first_planning_year: [2020, 2031, 2041]
+model_periods:
+  - [2020, 2030]
+  - [2031, 2040]
+  - [2041, 2050]
 target_usd_year: 2023
 
 model_regions:
@@ -372,8 +358,7 @@ from powergenome.settings import load_settings
 settings = load_settings(Path("settings"))
 
 required = [
-    "model_year",
-    "model_first_planning_year",
+    "model_periods",
     "target_usd_year",
     "model_regions",
     "model_tag_names",
@@ -501,13 +486,13 @@ run_powergenome --settings_file settings/model.yml --results_folder results
 
 ### Parameter Not Found
 
-**Problem**: `KeyError: 'model_year'`
+**Problem**: `KeyError: 'model_periods'`
 
 **Solution**: Check parameter spelling and ensure it's in one of the YAML files:
 
 ```bash
 # Search for parameter in settings
-grep -r "model_year" settings/
+grep -r "model_periods" settings/
 ```
 
 ### Override Not Working
@@ -546,7 +531,7 @@ data_location: ~/powergenome_data
 4. **Version control**: Commit settings folder (except data.yml) to Git
 5. **Test incrementally**: Validate after major changes
 6. **Document assumptions**: Note data sources, policy assumptions, cost adjustments
-7. **Use examples**: Start from working example_systems configurations
+7. **Start from a generated configuration**: Use the [System Design tool](https://gschivley.github.io/PowerGenome-tools/web/) to produce a working settings folder for your region
 
 ## Next Steps
 

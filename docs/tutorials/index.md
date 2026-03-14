@@ -61,7 +61,7 @@ PowerGenome uses data from multiple sources. The tutorials use small test datase
 - Demand time series
 - Transmission network data
 
-See the [Data Tables](../how-to/data-tables.md) guide for details on obtaining and configuring data sources.
+See the [Configure Data Tables](../how-to/configure-data-tables.md) guide for details on obtaining and configuring data sources.
 
 ## Need Help?
 

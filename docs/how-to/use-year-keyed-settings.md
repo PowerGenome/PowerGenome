@@ -10,7 +10,7 @@ without building a full scenario matrix.
 You should already have:
 
 - A working settings folder
-- Planning years defined (`model_year` and `model_first_planning_year`)
+- Planning years defined (e.g., `model_periods`)
 - A parameter you want to vary by year
 
 If you need full multi-case scenario logic, use [Run Multi-Scenario Studies](run-scenarios.md).
@@ -20,8 +20,9 @@ If you need full multi-case scenario logic, use [Run Multi-Scenario Studies](run
 Example planning years:
 
 ```yaml
-model_year: [2030, 2040]
-model_first_planning_year: [2020, 2031]
+model_periods:
+  - [2020, 2030]
+  - [2031, 2040]
 ```
 
 ## 2. Convert A Scalar Value To A Year-Keyed Value

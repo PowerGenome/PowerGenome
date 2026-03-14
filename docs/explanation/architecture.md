@@ -342,6 +342,6 @@ PowerGenome is designed for extension:
 ## Related Documentation
 
 - [Data Pipeline Flow](pipeline.md): Detailed execution sequence
-- [DataManager](../how-to/data-tables.md): Table configuration guide
+- [DataManager](../how-to/configure-data-tables.md): Table configuration guide
 - [Settings](../reference/settings/index.md): All configuration parameters
 - [Generator Clustering](clustering.md): K-means methodology

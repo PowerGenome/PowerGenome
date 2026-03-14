@@ -6,60 +6,45 @@ These core parameters define the overall model scope, planning periods, and curr
 
 ### `model_periods`
 
-**Type**: List of tuples (each a pair of integers)
-**Required**: Yes (or use `model_year` + `model_first_planning_year` instead)
-**Example**: `[(2026, 2030), (2031, 2040), (2041, 2050)]`
+**Type**: List of 2-element lists `[[first_year, last_year], ...]`
+**Required**: Yes
 
-A list of `(first_year, last_year)` tuples that define each planning period. The first value is the first year in the period and the second value is the last year (i.e., the model year).
+Defines planning periods as pairs of `[first_year, last_year]`. The last year is used for demand profiles and technology cost vintages; costs are averaged over the full span of each period.
 
 ```yaml
-model_periods: [(2026, 2030), (2031, 2040), (2041, 2050)]
+# Single period
+model_periods:
+  - [2025, 2030]
+
+# Multi-period study
+model_periods:
+  - [2025, 2030]
+  - [2031, 2040]
+  - [2041, 2050]
 ```
 
-This creates three planning periods:
+This creates planning periods:
 
-- 2026–2030 (5 years)
+- 2025–2030 (6 years)
 - 2031–2040 (10 years)
 - 2041–2050 (10 years)
 
 !!! note "How periods are used"
 
-    - **Demand**: Uses the final year in each period (e.g., 2030 demand for 2026–2030)
-    - **New-build costs**: Averaged across the full period (e.g., 2026–2030 capital costs are mean values over those years)
-    - **Retirements**: Evaluated against the period start/end windows
+    - **Demand**: Uses the last year of each period (e.g., 2030 demand for 2025–2030)
+    - **New-build costs**: Averaged across the full period (e.g., 2025–2030 capital costs are mean values over those years)
+    - **Retirements**: A generator is retired if its expected retirement year falls before the end of a period
 
-### `model_year`
+### Legacy format
 
-**Type**: List of integers
-**Required**: Yes (if not using `model_periods`)
-**Example**: `[2030, 2040, 2050]`
-
-Alternative to `model_periods`. The primary planning year(s) for the model. All costs are calculated for this year, and it determines which technology cost projections to use.
-
-```yaml
-model_year: [2030, 2040, 2050]
-```
-
-### `model_first_planning_year`
-
-**Type**: List of integers
-**Required**: Yes (if using `model_year`)
-**Example**: `[2025, 2031, 2041]`
-
-The first year in each planning period. Used together with `model_year` as an alternative to `model_periods`.
+Planning periods can also be defined as two separate parallel lists:
 
 ```yaml
 model_year: [2030, 2040, 2050]
 model_first_planning_year: [2025, 2031, 2041]
 ```
 
-This creates planning periods:
-
-- 2025-2030 (5 years)
-- 2031-2040 (10 years)
-- 2041-2050 (10 years)
-
-To shorten/extend the horizon, edit the paired lists. For example, to model 2030, 2035, and 2045 only, set `model_year: [2030, 2035, 2045]` and `model_first_planning_year: [2025, 2031, 2036]`.
+Each position in `model_year` is paired with the corresponding entry in `model_first_planning_year`. `model_periods` is preferred because it defines each period in one place, which reduces the risk of list-length mismatches.
 
 ## Currency Conversion
 
@@ -105,11 +90,10 @@ Complete model definition for a multi-period study:
 
 ```yaml
 # Planning horizon
-model_periods: [(2026, 2030), (2031, 2040), (2041, 2050)]
-
-# Alternatively, use model_year and model_first_planning_year:
-# model_year: [2030, 2040, 2050]
-# model_first_planning_year: [2025, 2031, 2041]
+model_periods:
+  - [2025, 2030]
+  - [2031, 2040]
+  - [2041, 2050]
 
 # Currency
 target_usd_year: 2023
