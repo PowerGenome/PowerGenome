@@ -382,10 +382,7 @@ high_tech,2050,low,100
 **Settings**:
 
 ```yaml
-model_periods:
-  - [2020, 2030]
-  - [2031, 2040]
-  - [2041, 2050]
+model_periods: [[2026, 2030], [2031, 2040], [2041, 2050]]
 
 settings_management:
   2030:

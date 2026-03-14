@@ -198,7 +198,7 @@ def test_calculate_transmission_inv_cost_scalar():
 
 
 def test_calculate_transmission_inv_cost_region_only():
-    spec = {"default": 10000, "A": 20000}
+    spec = {"fallback_capex_mw": 10000, "by_region": {"A": 20000}}
     df = pd.DataFrame(
         {
             "region": ["A", "B"],
@@ -217,9 +217,73 @@ def test_calculate_transmission_inv_cost_region_only():
     assert np.isclose(out.loc[1, "interconnect_annuity"], annuity_B)
 
 
+def test_calculate_transmission_inv_cost_explicit_schema_precedence():
+    spec = {
+        "fallback_capex_mw": 9000,
+        "by_technology": {"wind": 20000, "offshore_wind": 30000},
+        "by_region": {"A": 7000},
+        "by_region_technology": {"A": {"offshore_wind": 25000}},
+    }
+    df = pd.DataFrame(
+        {
+            "region": ["A", "A", "B", "C"],
+            "technology": [
+                "offshore_wind_fixed_mid",
+                "battery_storage",
+                "wind_onshore_mid",
+                "solar_pv",
+            ],
+            "wacc_real": [0.05, 0.05, 0.05, 0.05],
+            "cap_recovery_years": [20, 20, 20, 20],
+        }
+    )
+
+    out = calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
+    assert out.loc[0, "interconnect_capex_mw"] == 25000
+    assert out.loc[1, "interconnect_capex_mw"] == 7000
+    assert out.loc[2, "interconnect_capex_mw"] == 20000
+    assert out.loc[3, "interconnect_capex_mw"] == 9000
+
+
+def test_calculate_transmission_inv_cost_explicit_schema_unknown_keys_error():
+    spec = {
+        "fallback_capex_mw": 10000,
+        "default": 5000,
+    }
+    df = pd.DataFrame(
+        {
+            "region": ["A"],
+            "technology": ["wind_onshore_mid"],
+            "wacc_real": [0.05],
+            "cap_recovery_years": [20],
+        }
+    )
+
+    with pytest.raises(ValueError, match="explicit schema only allows keys"):
+        calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
+
+
+def test_calculate_transmission_inv_cost_legacy_default_raises():
+    spec = {"default": 10000, "A": 20000}
+    df = pd.DataFrame(
+        {
+            "region": ["A", "B"],
+            "technology": ["solar_pv", "solar_pv"],
+            "wacc_real": [0.05, 0.05],
+            "cap_recovery_years": [25, 25],
+        }
+    )
+
+    with pytest.raises(ValueError, match="explicit schema only allows keys"):
+        calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
+
+
 def test_calculate_transmission_inv_cost_tech_only_precedence():
     # Shortest-first precedence: 'wind' applied first then 'offshore_wind' overwrites matching rows
-    spec = {"default": 10000, "wind": 20000, "offshore_wind": 30000}
+    spec = {
+        "fallback_capex_mw": 10000,
+        "by_technology": {"wind": 20000, "offshore_wind": 30000},
+    }
     df = pd.DataFrame(
         {
             "region": ["A", "A", "A"],
@@ -243,9 +307,11 @@ def test_calculate_transmission_inv_cost_tech_only_precedence():
 
 def test_calculate_transmission_inv_cost_region_to_tech_nested():
     spec = {
-        "default": 8000,
-        "A": {"battery": 6000, "offshore_wind": 25000},
-        "B": {"battery": 7000},
+        "fallback_capex_mw": 8000,
+        "by_region_technology": {
+            "A": {"battery": 6000, "offshore_wind": 25000},
+            "B": {"battery": 7000},
+        },
     }
     df = pd.DataFrame(
         {
@@ -269,11 +335,14 @@ def test_calculate_transmission_inv_cost_region_to_tech_nested():
 
 
 def test_calculate_transmission_inv_cost_tech_to_region_nested():
-    # Top-level default applied first; tech substring region overrides overwrite.
+    # Technology defaults can be refined by region-technology overrides.
     spec = {
-        "default": 5000,
-        "wind": {"A": 15000, "B": 14000},
-        "battery": {"A": 5000, "C": 5500},
+        "fallback_capex_mw": 5000,
+        "by_technology": {"wind": 14000, "battery": 5000},
+        "by_region_technology": {
+            "A": {"wind": 15000},
+            "C": {"battery": 5500},
+        },
     }
     df = pd.DataFrame(
         {
@@ -307,7 +376,7 @@ def test_calculate_transmission_inv_cost_mixed_error():
             "cap_recovery_years": [20],
         }
     )
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="explicit schema only allows keys"):
         calculate_transmission_inv_cost(df.copy(), interconnect_capex_spec=spec)
 
 

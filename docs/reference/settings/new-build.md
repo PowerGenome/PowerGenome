@@ -252,7 +252,7 @@ Flexible specification of per-MW interconnection capital cost (USD/MW) applied t
 
 **Important**: All cost values must be in the same dollar year as `target_usd_year` (the target dollar year for cost normalization). PowerGenome does not automatically adjust interconnection costs for inflation.
 
-**Supported Patterns** (mutually exclusive; `default` key may accompany any pattern):
+**Supported Patterns**:
 
 #### 1. Scalar
 
@@ -262,78 +262,88 @@ Apply uniform cost to all resources:
 interconnect_capex_mw: 150000  # $150k/MW for all resources
 ```
 
-#### 2. Region-Only
+#### 2. Explicit Schema (Recommended)
+
+Use an explicit fallback with typed override blocks:
+
+```yaml
+interconnect_capex_mw:
+  fallback_capex_mw: 110000
+  by_technology:
+    wind: 120000
+    offshore_wind: 200000
+    battery: 50000
+  by_region:
+    CA_N: 125000
+  by_region_technology:
+    CA_N:
+      offshore_wind: 210000
+```
+
+Precedence (most specific to least specific):
+
+1. `by_region_technology`
+2. `by_region`
+3. `by_technology`
+4. `fallback_capex_mw`
+
+#### 3. Region-Only
 
 Different costs by region (exact region name matching):
 
 ```yaml
 interconnect_capex_mw:
-  default: 120000
-  CA_N: 140000
-  CA_S: 130000
-  AZ: 125000
+  fallback_capex_mw: 120000
+  by_region:
+    CA_N: 140000
+    CA_S: 130000
+    AZ: 125000
 ```
 
-#### 3. Technology-Only
+#### 4. Technology-Only
 
 Different costs by technology using case-insensitive substring matching with shortest-first precedence:
 
 ```yaml
 interconnect_capex_mw:
-  default: 100000
-  wind: 120000          # matches 'LandbasedWind_Class3_Moderate', 'OffshoreWind_Class1_Moderate'
-  offshore_wind: 200000 # longer substring overwrites previous 'wind' assignment
-  battery: 50000        # matches 'Battery_4Hr_Moderate', 'Battery_*_Moderate'
-  solar: 110000         # matches 'UtilityPV_Class1_Moderate'
+  fallback_capex_mw: 100000
+  by_technology:
+    wind: 120000          # matches 'LandbasedWind_Class3_Moderate', 'OffshoreWind_Class1_Moderate'
+    offshore_wind: 200000 # longer substring overwrites previous 'wind' assignment
+    battery: 50000        # matches 'Battery_4Hr_Moderate', 'Battery_*_Moderate'
+    solar: 110000         # matches 'UtilityPV_Class1_Moderate'
 ```
 
 **Precedence rule**: Shorter substrings applied first, then longer (more specific) substrings override previous assignments. This allows general categories with specific exceptions.
 
-#### 4. Region → Technology Nested
+#### 5. Region -> Technology Nested
 
-Region-specific technology costs (region keys at top level):
+Region-specific technology costs with regions as keys under `by_region_technology`:
 
 ```yaml
 interconnect_capex_mw:
-  default: 110000
-  CA_N:
-    battery: 60000
-    offshore_wind: 210000
-    solar: 105000
-  CA_S:
-    solar: 95000
-    wind: 115000
-  AZ: 125000  # Can mix dict and numeric values for different regions
+  fallback_capex_mw: 110000
+  by_region_technology:
+    CA_N:
+      battery: 60000
+      offshore_wind: 210000
+      solar: 105000
+    CA_S:
+      solar: 95000
+      wind: 115000
+  by_region:
+    AZ: 125000
 ```
 
 Within each region, technology substrings follow shortest-first precedence.
-
-#### 5. Technology → Region Nested
-
-Technology-specific regional costs (technology keys at top level):
-
-```yaml
-interconnect_capex_mw:
-  default: 110000
-  wind:
-    CA_N: 125000
-    CA_S: 115000
-    AZ: 120000
-  battery:
-    CA_N: 55000
-    CA_S: 52000
-  offshore_wind:
-    CA_N: 205000  # More specific than 'wind', overrides for offshore
-```
-
-Technology substrings applied shortest-first; within each technology, regions matched exactly.
 
 **Matching Rules**:
 
 - **Technology matching**: Case-insensitive substring search against the `technology` column
 - **Substring precedence**: Shortest substrings processed first; longer substrings override
 - **Region matching**: Exact match against model region names (case-sensitive)
-- **Invalid mixing**: Cannot mix region and technology keys at the same top level (excluding `default`)
+- **Explicit schema**: Use only `fallback_capex_mw`, `by_region`, `by_technology`, and `by_region_technology` at the top level.
+- **Invalid mixing**: In legacy syntax, mixing region and technology keys at the same top level is invalid.
 
 **Examples of Invalid Configuration**:
 
@@ -343,6 +353,10 @@ interconnect_capex_mw:
   CA_N: 140000      # Region key
   wind: 120000      # Technology key - mixing not allowed!
 ```
+
+**Legacy Syntax (Deprecated)**:
+
+You may still use the older top-level `default` style for backward compatibility. A deprecation warning is logged at runtime.
 
 **Behavior**:
 
@@ -378,9 +392,10 @@ New approach (recommended):
 
 ```yaml
 interconnect_capex_mw:
-  default: 120000
-  offshore_wind: 200000  # Direct cost specification
-  solar: 105000
+  fallback_capex_mw: 120000
+  by_technology:
+    offshore_wind: 200000  # Direct cost specification
+    solar: 105000
 ```
 
 **Benefits of new system**:

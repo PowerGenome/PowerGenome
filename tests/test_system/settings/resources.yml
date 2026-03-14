@@ -174,45 +174,54 @@ new_resources:
 # Method 1: flat rate for all generators
 interconnect_capex_mw: 100000
 
-# Method 2: use a key "default". This can be useful if mixing with other methods.
+# Method 2 (preferred explicit schema): use fallback_capex_mw.
 # interconnect_capex_mw:
-#   default: 100000
+#   fallback_capex_mw: 100000
 
 # Method 3: different rates by region
 # interconnect_capex_mw:
-#   p1_2: 100000
-#   p3: 100000
-#   p4: 100000
+#   fallback_capex_mw: 100000
+#   by_region:
+#     p1_2: 100000
+#     p3: 100000
+#     p4: 100000
 
 # Method 4: different rates by technology (substring match to new_resources)
 # interconnect_capex_mw:
-#   NaturalGas: 100000
-#   Nuclear: 150000
-
-# Method 5: different rates by region and technology, where region is the top-level key
-# interconnect_capex_mw:
-#   p1_2:
+#   fallback_capex_mw: 100000
+#   by_technology:
 #     NaturalGas: 100000
 #     Nuclear: 150000
-#   p3:
-#     NaturalGas: 120000
-#     Nuclear: 170000
-#   p4:
-#     NaturalGas: 110000
-#     Nuclear: 160000
 
-# Method 6: different rates by technology and region, where technology is the top-level key
+# Method 5: region-specific technology overrides
 # interconnect_capex_mw:
-#   NaturalGas:
-#     p1_2: 100000
-#     p3: 120000
-#     p4: 110000
-#   Nuclear:
-#     p1_2: 150000
-#     p3: 170000
-#     p4: 160000
+#   fallback_capex_mw: 100000
+#   by_region_technology:
+#     p1_2:
+#       NaturalGas: 100000
+#       Nuclear: 150000
+#     p3:
+#       NaturalGas: 120000
+#       Nuclear: 170000
+#     p4:
+#       NaturalGas: 110000
+#       Nuclear: 160000
 
-# Combine default with specific overrides
+# Method 6: combine override blocks (precedence: by_region_technology > by_region > by_technology > fallback_capex_mw)
+# interconnect_capex_mw:
+#   fallback_capex_mw: 100000
+#   by_technology:
+#     NaturalGas: 100000
+#     Nuclear: 150000
+#   by_region:
+#     p1_2: 120000
+#   by_region_technology:
+#     p3:
+#       Nuclear: 170000
+#     p4:
+#       NaturalGas: 110000
+
+# Legacy syntax (deprecated): default + mixed top-level patterns
 # interconnect_capex_mw:
 #   default: 100000
 #   p1_2: 120000

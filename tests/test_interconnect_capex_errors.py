@@ -20,60 +20,84 @@ def test_spec_type_error():
         _parse_interconnect_capex([1, 2, 3], df)
 
 
-# B. Default value not numeric
-def test_default_non_numeric():
+# B. Unknown keys are rejected (legacy dict keys are no longer supported)
+def test_unknown_key_error():
+    df = _make_resource_df()
+    with pytest.raises(ValueError, match="explicit schema only allows keys"):
+        _parse_interconnect_capex({"default": 5}, df)
+
+
+# C. Fallback value must be numeric
+def test_fallback_non_numeric():
     df = _make_resource_df()
     with pytest.raises(TypeError):
-        _parse_interconnect_capex({"default": "x"}, df)
+        _parse_interconnect_capex({"fallback_capex_mw": "x"}, df)
 
 
-# C. Technology-only pattern with non-numeric value
-def test_technology_only_value_non_numeric():
+# D. by_technology must be a dict
+def test_by_technology_must_be_dict():
     df = _make_resource_df()
     with pytest.raises(TypeError):
-        _parse_interconnect_capex({"solar": "high"}, df)
+        _parse_interconnect_capex({"by_technology": 1}, df)
 
 
-# D. Mixing region and technology keys at top level (numeric values)
-def test_mixed_region_tech_numeric_values():
-    df = _make_resource_df()
-    # R1 is a region; 'solar' is a technology substring
-    with pytest.raises(ValueError):
-        _parse_interconnect_capex({"R1": 10, "solar": 20}, df)
-
-
-# E. Region->tech pattern invalid region value type (list)
-def test_region_value_invalid_type():
+# E. by_region must be a dict
+def test_by_region_must_be_dict():
     df = _make_resource_df()
     with pytest.raises(TypeError):
-        _parse_interconnect_capex({"R1": [10], "R2": 5}, df)
+        _parse_interconnect_capex({"by_region": 1}, df)
 
 
-# F. Technology->region pattern with top-level tech substring mapping to non-dict value (list)
-def test_tech_region_non_dict_mapping():
+# F. by_region_technology must be a dict
+def test_by_region_technology_must_be_dict():
     df = _make_resource_df()
-    # Force nested pattern by including at least one dict value so all_numbers is False
     with pytest.raises(TypeError):
-        _parse_interconnect_capex({"solar": {"R1": 5}, "wind": [10]}, df)
+        _parse_interconnect_capex({"by_region_technology": 1}, df)
 
 
-# G. Technology->region mapping referencing missing region
-def test_tech_region_missing_region():
+# G. by_technology values must be numeric
+def test_by_technology_value_non_numeric():
+    df = _make_resource_df()
+    with pytest.raises(TypeError):
+        _parse_interconnect_capex({"by_technology": {"solar": "high"}}, df)
+
+
+# H. by_region values must be numeric
+def test_by_region_value_non_numeric():
+    df = _make_resource_df()
+    with pytest.raises(TypeError):
+        _parse_interconnect_capex({"by_region": {"R1": "five"}}, df)
+
+
+# I. by_region rejects missing regions
+def test_by_region_missing_region():
     df = _make_resource_df()
     with pytest.raises(KeyError):
-        _parse_interconnect_capex({"solar": {"BAD": 5}}, df)
+        _parse_interconnect_capex({"by_region": {"BAD": 5}}, df)
 
 
-# H. Technology->region mapping with non-numeric region value
-def test_tech_region_value_non_numeric():
+# J. by_region_technology entries must be dicts
+def test_by_region_technology_inner_must_be_dict():
     df = _make_resource_df()
     with pytest.raises(TypeError):
-        _parse_interconnect_capex({"solar": {"R1": "five"}}, df)
+        _parse_interconnect_capex({"by_region_technology": {"R1": 5}}, df)
 
 
-# I. Mixed region & technology dict patterns triggering final invalid specification ValueError
-def test_final_invalid_mixed_nested_patterns():
+# K. by_region_technology rejects missing regions
+def test_by_region_technology_missing_region():
     df = _make_resource_df()
-    # Region key 'R1' has dict (region->tech), technology key 'wind' has dict (tech->region)
-    with pytest.raises(ValueError):
-        _parse_interconnect_capex({"R1": {"solar": 10}, "wind": {"R1": 5}}, df)
+    with pytest.raises(KeyError):
+        _parse_interconnect_capex(
+            {"by_region_technology": {"BAD": {"solar": 5}}},
+            df,
+        )
+
+
+# L. by_region_technology values must be numeric
+def test_by_region_technology_value_non_numeric():
+    df = _make_resource_df()
+    with pytest.raises(TypeError):
+        _parse_interconnect_capex(
+            {"by_region_technology": {"R1": {"solar": "five"}}},
+            df,
+        )
