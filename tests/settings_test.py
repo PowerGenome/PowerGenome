@@ -860,7 +860,7 @@ class TestAssignModelPlanningYears:
 
         with pytest.raises(
             ValueError,
-            match="The settings parameter 'model_periods' must be a list of tuples. It is currently \\[2025, 2030, 2035\\]",
+            match="The settings parameter 'model_periods' must be a list of tuples or lists. It is currently \\[2025, 2030, 2035\\]",
         ):
             assign_model_planning_years(settings, 2030)
 
