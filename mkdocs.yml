@@ -89,6 +89,7 @@ nav:
   - How-To Guides:
     - how-to/index.md
     - Configure Settings: how-to/configure-settings.md
+    - Use Year-Keyed Settings Values: how-to/use-year-keyed-settings.md
     - Add Custom Technologies: how-to/add-technologies.md
     - Modify Generator Attributes: how-to/modify-generator-attributes.md
     - Configure Renewable Clusters: how-to/configure-renewable-clusters.md
@@ -100,6 +101,7 @@ nav:
     - Settings Parameters:
       - reference/settings/index.md
       - Model Definition: reference/settings/model-definition.md
+      - Year-Keyed Values: reference/settings/year-keyed-values.md
       - Regions and Geography: reference/settings/regions.md
       - Existing Generators: reference/settings/existing-generators.md
       - New Build Resources: reference/settings/new-build.md
