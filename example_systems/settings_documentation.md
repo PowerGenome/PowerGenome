@@ -276,7 +276,7 @@ description: The fraction of electricity lost during each 100 miles of transmiss
 
 type: number | dict
 
-description: Flexible specification of per-MW interconnection capital cost applied to new and existing resources. Supports multiple mutually exclusive mapping patterns (a top-level `default` key may accompany any pattern to fill unspecified rows):
+description: Flexible specification of per-MW interconnection capital cost applied to new and existing resources. Preferred format uses an explicit fallback key and typed override blocks.
 
 **Important**: All cost values must be in the same dollar year as `target_usd_year`. PowerGenome does not automatically adjust interconnection costs for inflation.
 
@@ -288,47 +288,61 @@ Scalar
 interconnect_capex_mw: 150000  # applies to every resource
 ```
 
+Explicit schema (recommended)
+
+```yaml
+interconnect_capex_mw:
+  fallback_capex_mw: 110000
+  by_technology:
+    wind: 120000
+    offshore_wind: 200000
+    battery: 50000
+  by_region:
+    CA_N: 125000
+  by_region_technology:
+    CA_N:
+      offshore_wind: 210000
+```
+
+Precedence:
+
+1. `by_region_technology`
+2. `by_region`
+3. `by_technology`
+4. `fallback_capex_mw`
+
 Region-only
 
 ```yaml
 interconnect_capex_mw:
-  default: 120000
-  CA_N: 140000
-  CA_S: 130000
+  fallback_capex_mw: 120000
+  by_region:
+    CA_N: 140000
+    CA_S: 130000
 ```
 
 Technology-only (substring match, case-insensitive, shortest-first precedence)
 
 ```yaml
 interconnect_capex_mw:
-  default: 100000
-  wind: 120000          # matches 'offshore_wind_fixed_mid'
-  offshore_wind: 200000 # longer substring overwrites previous wind value
-  battery: 50000
+  fallback_capex_mw: 100000
+  by_technology:
+    wind: 120000          # matches 'offshore_wind_fixed_mid'
+    offshore_wind: 200000 # longer substring overwrites previous wind value
+    battery: 50000
 ```
 
 Region -> Technology nested
 
 ```yaml
 interconnect_capex_mw:
-  default: 110000
-  CA_N:
-    battery: 60000
-    offshore_wind: 210000
-  CA_S:
-    solar: 105000
-```
-
-Technology -> Region nested
-
-```yaml
-interconnect_capex_mw:
-  wind:
-    CA_N: 125000
-    CA_S: 115000
-  battery:
-    CA_N: 55000
-    CA_S: 52000
+  fallback_capex_mw: 110000
+  by_region_technology:
+    CA_N:
+      battery: 60000
+      offshore_wind: 210000
+    CA_S:
+      solar: 105000
 ```
 
 Matching Rules:
@@ -336,13 +350,22 @@ Matching Rules:
 - Technology keys are substrings matched against the `technology` column (case-insensitive).
 - Substrings are applied shortest-first so that longer, more specific keys override earlier assignments.
 - Region names must exactly match model region values.
-- Mixing region and technology keys at the same top level (other than `default`) is invalid and raises an error.
+- Explicit schema allows only `fallback_capex_mw`, `by_region`, `by_technology`, and `by_region_technology` at the top level.
+- Legacy syntax still works but top-level mixing of region and technology keys is invalid.
 
 Behavior:
 
 - Existing non-zero `interconnect_capex_mw` values are never overwritten.
 - Annuities (`interconnect_annuity`) are computed for newly assigned capex rows and any pre-existing capex rows with zero/blank annuity.
 - When `interconnect_capex_mw` is provided, legacy spur mileage columns (`spur_miles`, `offshore_spur_miles`, `tx_miles`) are ignored and a warning is logged if present.
+
+Legacy syntax (deprecated):
+
+```yaml
+interconnect_capex_mw:
+  default: 120000
+  CA_N: 140000
+```
 
 Deprecated Interaction:
 

@@ -85,16 +85,21 @@ nav:
   - Tutorials:
     - tutorials/index.md
     - Getting Started: tutorials/getting-started.md
+    - Multi-Region Model: tutorials/multi-region-model.md
+    - Renewable Resources: tutorials/renewable-resources.md
 
   - How-To Guides:
     - how-to/index.md
     - Configure Settings: how-to/configure-settings.md
     - Use Year-Keyed Settings Values: how-to/use-year-keyed-settings.md
+    - Configure Data Tables: how-to/configure-data-tables.md
     - Add Custom Technologies: how-to/add-technologies.md
     - Modify Generator Attributes: how-to/modify-generator-attributes.md
     - Configure Renewable Clusters: how-to/configure-renewable-clusters.md
     - Configure Capacity Reserve Requirements: how-to/configure-capacity-reserves.md
     - Run Multi-Scenario Studies: how-to/run-scenarios.md
+    - Configure Energy Share Requirements: how-to/energy-share-requirements.md
+    - Debugging: how-to/debugging.md
 
   - Reference:
     - reference/index.md
@@ -111,13 +116,23 @@ nav:
       - Resource Tags: reference/settings/resource-tags.md
       - Data Tables: reference/settings/data-tables.md
       - Multi-Scenario Management: reference/settings/scenario-management.md
+      - Time Reduction: reference/settings/time-reduction.md
     - ATB Technology Names: reference/atb-technologies.md
+    - Data Schemas:
+      - Input Tables: reference/schemas/input-tables.md
+      - Output Files: reference/schemas/output-files.md
     - CLI Reference: reference/cli.md
 
   - Explanation:
     - explanation/index.md
     - Architecture Overview: explanation/architecture.md
+    - Data Pipeline Flow: explanation/pipeline.md
+    - Generator Clustering: explanation/clustering.md
+    - Multi-Scenario Architecture: explanation/scenarios.md
+    - Output File Format: explanation/output-format.md
+    - Distributed Generation: explanation/distributed-generation.md
 
   - About:
     - Contributing: about/contributing.md
     - Changelog: about/changelog.md
+    - License: about/license.md
