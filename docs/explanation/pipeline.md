@@ -143,16 +143,35 @@ results/
 └── <case_id>/
     └── Inputs/
         └── Inputs_p<period>/
-            ├── Generators_data.csv
-            ├── Load_data.csv
-            ├── Fuels_data.csv
-            ├── Network.csv
-            ├── Energy_share_requirement.csv
-            ├── Minimum_capacity_requirement.csv
-            └── ...
+            ├── system/
+            │   ├── Demand_data.csv
+            │   ├── Fuels_data.csv
+            │   ├── Generators_variability.csv
+            │   └── Network.csv
+            ├── resources/
+            │   ├── Hydro.csv
+            │   ├── Must_run.csv
+            │   ├── Storage.csv
+            │   ├── Thermal.csv
+            │   ├── Vre.csv
+            │   ├── Resource_multistage_data.csv
+            │   └── policy_assignments/
+            │       ├── Resource_capacity_reserve_margin.csv
+            │       ├── Resource_energy_share_requirement.csv
+            │       └── Resource_minimum_capacity_requirement.csv
+            ├── policies/
+            │   ├── Capacity_reserve_margin.csv
+            │   └── Energy_share_requirement.csv
+            └── extra_outputs/
+                ├── existing_gen_units.csv
+                └── *_site_cluster_assignments.csv
 ```
 
-A `powergenome_case_settings.yml` is also written to each case folder recording the exact settings used.
+> **Note:** Not all files listed above will be present in every run — files for unused features (e.g., capacity reserve margins, multistage data) are omitted when the corresponding settings are not configured. Additional files may appear depending on enabled policies and options.
+
+Resource files are split by technology type (`Thermal.csv`, `Vre.csv`, `Storage.csv`, etc.) rather than combined into a single `Generators_data.csv`. System-wide time-series files (`Demand_data.csv`, `Fuels_data.csv`, `Generators_variability.csv`, `Network.csv`) go into `system/`. Policy assignment files go into `resources/policy_assignments/`.
+
+`powergenome_case_settings.yml` is written inside the `Inputs_p<period>/` folder, recording the exact settings used for that period.
 
 ---
 

@@ -7,7 +7,7 @@ PowerGenome generates a folder of CSV files for each scenario/year case. These f
 
 ---
 
-## Folder layout (v6 format)
+## Folder layout
 
 ```
 results/case_2030/
@@ -37,8 +37,6 @@ results/case_2030/
 ├── Minimum_capacity_requirement.csv        # Minimum build mandates
 └── Maximum_capacity_requirement.csv        # Maximum build limits
 ```
-
-In the **legacy format** the `resources/` folder does not exist; all resource attributes appear in a single `Generators_data.csv`, and demand is in `Load_data.csv` instead of `Demand_data.csv`.
 
 ---
 
