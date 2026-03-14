@@ -2594,40 +2594,38 @@
 <p><code>powergenome_case_settings.yml</code> is written inside the <code>Inputs_p&lt;period&gt;/</code> folder, recording the exact settings used for that period.</p>
 <hr />
 <h2 id="full-sequence-diagram">Full sequence diagram<a class="headerlink" href="#full-sequence-diagram" title="Permanent link">&para;</a></h2>
-<p>```mermaid
-sequenceDiagram
+<pre class="mermaid"><code>sequenceDiagram
     participant CLI as run_powergenome CLI
     participant S as Settings
     participant DM as DataManager
     participant GC as GeneratorClusters
     participant LP as Load Profiles
     participant TX as Transmission
-    participant OUT as Output Writer</p>
-<div class="highlight"><pre><span></span><code>CLI-&gt;&gt;S: load settings folder
-CLI-&gt;&gt;DM: initialize_data_manager(settings)
+    participant OUT as Output Writer
 
-loop for each year × scenario
-    CLI-&gt;&gt;DM: update_data_manager(scenario_settings)
-    CLI-&gt;&gt;GC: create_all_generators()
-    GC-&gt;&gt;DM: get_data(&quot;generation&quot;)
-    GC--&gt;&gt;CLI: gen_data, gen_variability
+    CLI-&gt;&gt;S: load settings folder
+    CLI-&gt;&gt;DM: initialize_data_manager(settings)
 
-    CLI-&gt;&gt;LP: make_final_load_curves()
-    LP-&gt;&gt;DM: get_data(&quot;demand&quot;)
-    LP--&gt;&gt;CLI: load profiles
+    loop for each year × scenario
+        CLI-&gt;&gt;DM: update_data_manager(scenario_settings)
+        CLI-&gt;&gt;GC: create_all_generators()
+        GC-&gt;&gt;DM: get_data("generation")
+        GC--&gt;&gt;CLI: gen_data, gen_variability
 
-    CLI-&gt;&gt;LP: reduce_time_domain(gen_variability, load)
-    LP--&gt;&gt;CLI: reduced profiles + weights
+        CLI-&gt;&gt;LP: make_final_load_curves()
+        LP-&gt;&gt;DM: get_data("demand")
+        LP--&gt;&gt;CLI: load profiles
 
-    CLI-&gt;&gt;TX: agg_transmission_constraints()
-    TX-&gt;&gt;DM: get_data(&quot;transmission&quot;)
-    TX--&gt;&gt;CLI: network DataFrame
+        CLI-&gt;&gt;LP: reduce_time_domain(gen_variability, load)
+        LP--&gt;&gt;CLI: reduced profiles + weights
 
-    CLI-&gt;&gt;OUT: process_genx_data + write_results_file
-    OUT--&gt;&gt;CLI: CSV files on disk
-end
-</code></pre></div>
-<p>```</p>
+        CLI-&gt;&gt;TX: agg_transmission_constraints()
+        TX-&gt;&gt;DM: get_data("transmission")
+        TX--&gt;&gt;CLI: network DataFrame
+
+        CLI-&gt;&gt;OUT: process_genx_data + write_results_file
+        OUT--&gt;&gt;CLI: CSV files on disk
+    end</code></pre>
 <hr />
 <h2 id="execution-flags">Execution flags<a class="headerlink" href="#execution-flags" title="Permanent link">&para;</a></h2>
 <p>The <code>run_powergenome</code> CLI accepts flags to skip individual stages:</p>
@@ -2752,6 +2750,8 @@ end
     
     
       <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       
     
   </body>

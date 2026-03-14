@@ -2815,8 +2815,7 @@
 <p class="admonition-title">Geographic Flexibility</p>
 <p>While documentation examples reference US data sources (EIA, NREL ATB, PUDL databases), PowerGenome is <strong>region-agnostic</strong>. The pipeline accepts data tables from any geographic region—Europe, Asia, South America, etc.—as long as they follow the expected schemas. Replace US-specific inputs with your region's generation fleet, technology costs, demand data, and regional definitions.</p>
 </div>
-<p><code>mermaid
-graph LR
+<pre class="mermaid"><code>graph LR
     A[Settings YAML] --&gt; B[Settings Class]
     C[Data Sources] --&gt; D[DataManager]
     B --&gt; E[Pipeline Execution]
@@ -2829,7 +2828,7 @@ graph LR
     G --&gt; J
     H --&gt; J
     I --&gt; J
-    J --&gt; K[Output CSV Files]</code></p>
+    J --&gt; K[Output CSV Files]</code></pre>
 <h2 id="core-components">Core Components<a class="headerlink" href="#core-components" title="Permanent link">&para;</a></h2>
 <h3 id="settings-class">Settings Class<a class="headerlink" href="#settings-class" title="Permanent link">&para;</a></h3>
 <p><strong>Purpose</strong>: Configuration management with frozen dictionary semantics</p>
@@ -2869,8 +2868,7 @@ graph LR
 <li>Automatic column snake_casing</li>
 </ul>
 <p><strong>Data Flow</strong>:</p>
-<p><code>mermaid
-graph TD
+<pre class="mermaid"><code>graph TD
     A[Settings YAML] --&gt; B[DataManager Init]
     B --&gt; C{Table Config}
     C --&gt;|Simple String| D[Load from filename]
@@ -2878,7 +2876,7 @@ graph TD
     D --&gt; F[Register as Standard Table]
     E --&gt; F
     F --&gt; G[get_data table_name]
-    G --&gt; H[Return DataFrame]</code></p>
+    G --&gt; H[Return DataFrame]</code></pre>
 <p><strong>Example Table Config</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Simple</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">generation_table</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;generators.csv&quot;</span>
@@ -2972,28 +2970,26 @@ graph TD
 </code></pre></div>
 <h2 id="data-flow">Data Flow<a class="headerlink" href="#data-flow" title="Permanent link">&para;</a></h2>
 <h3 id="full-pipeline-execution">Full Pipeline Execution<a class="headerlink" href="#full-pipeline-execution" title="Permanent link">&para;</a></h3>
-<p>```mermaid
-sequenceDiagram
+<pre class="mermaid"><code>sequenceDiagram
     participant CLI
     participant Settings
     participant DataMgr as DataManager
     participant GenCls as GeneratorClusters
     participant GenX
-    participant Files</p>
-<div class="highlight"><pre><span></span><code>CLI-&gt;&gt;Settings: load_settings(path)
-CLI-&gt;&gt;DataMgr: initialize(settings, data_loc)
-DataMgr-&gt;&gt;DataMgr: Load all tables
-CLI-&gt;&gt;GenCls: GeneratorClusters(settings)
-GenCls-&gt;&gt;DataMgr: get_data(&quot;generation&quot;)
-DataMgr--&gt;&gt;GenCls: generators DataFrame
-GenCls-&gt;&gt;GenCls: Cluster existing gens
-GenCls-&gt;&gt;GenCls: Add new-build resources
-GenCls-&gt;&gt;GenCls: Calculate costs
-GenCls--&gt;&gt;CLI: all_generators DataFrame
-CLI-&gt;&gt;GenX: Format for GenX
-GenX--&gt;&gt;Files: Write CSV outputs
-</code></pre></div>
-<p>```</p>
+    participant Files
+
+    CLI-&gt;&gt;Settings: load_settings(path)
+    CLI-&gt;&gt;DataMgr: initialize(settings, data_loc)
+    DataMgr-&gt;&gt;DataMgr: Load all tables
+    CLI-&gt;&gt;GenCls: GeneratorClusters(settings)
+    GenCls-&gt;&gt;DataMgr: get_data("generation")
+    DataMgr--&gt;&gt;GenCls: generators DataFrame
+    GenCls-&gt;&gt;GenCls: Cluster existing gens
+    GenCls-&gt;&gt;GenCls: Add new-build resources
+    GenCls-&gt;&gt;GenCls: Calculate costs
+    GenCls--&gt;&gt;CLI: all_generators DataFrame
+    CLI-&gt;&gt;GenX: Format for GenX
+    GenX--&gt;&gt;Files: Write CSV outputs</code></pre>
 <h2 id="module-organization">Module Organization<a class="headerlink" href="#module-organization" title="Permanent link">&para;</a></h2>
 <h3 id="core-pipeline">Core Pipeline<a class="headerlink" href="#core-pipeline" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3023,15 +3019,14 @@ GenX--&gt;&gt;Files: Write CSV outputs
 </ul>
 <h2 id="multi-scenario-architecture">Multi-Scenario Architecture<a class="headerlink" href="#multi-scenario-architecture" title="Permanent link">&para;</a></h2>
 <p>PowerGenome supports running multiple scenarios in one execution:</p>
-<p><code>mermaid
-graph TD
+<pre class="mermaid"><code>graph TD
     A[scenario_definitions.csv] --&gt; B[Load Base Settings]
     B --&gt; C{For Each Scenario}
     C --&gt; D[Apply settings_management]
     D --&gt; E[Update Parameters]
     E --&gt; F[Run Pipeline]
     F --&gt; G[Write to case_id folder]
-    G --&gt; C</code></p>
+    G --&gt; C</code></pre>
 <p><strong>Example scenario_definitions.csv</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>year,case_id,case_name,solar_cost,wind_cost
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>2030,baseline,Baseline,mid,mid
@@ -3171,6 +3166,8 @@ graph TD
     
     
       <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       
     
   </body>
