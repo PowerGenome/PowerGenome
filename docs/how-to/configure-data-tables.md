@@ -33,8 +33,8 @@ Point each setting to a file by name:
 ```yaml
 generation_table: generators.parquet
 demand_table: hourly_demand.parquet
-fuel_prices_table: fuel_prices.csv
-transmission_table: transmission_constraints.csv
+fuel_price_table: fuel_prices.csv
+transmission_constraints_table: transmission_constraints.csv
 ```
 
 PowerGenome resolves each filename inside `data_location`.
@@ -224,8 +224,8 @@ The following settings parameters map to tables in DataManager:
 |---|---|---|
 | `generation_table` | `generation` | Existing power plants |
 | `demand_table` | `demand` | Hourly load time series |
-| `fuel_prices_table` | `fuel_prices` | Fuel cost time series |
-| `transmission_table` | `transmission` | Network topology |
+| `fuel_price_table` | `fuel_price` | Fuel cost time series |
+| `transmission_constraints_table` | `transmission_constraints` | Network topology |
 | `plant_region_table` | `plant_region` | Plant-to-region mapping |
 | `distributed_capacity_table` | `distributed_capacity` | Rooftop solar capacity |
 | `distributed_profiles_table` | `distributed_profiles` | Rooftop solar generation |

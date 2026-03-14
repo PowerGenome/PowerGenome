@@ -63,7 +63,7 @@ During load profile construction, PowerGenome:
 4. Multiplies capacity × profile to get hourly generation
 5. Subtracts hourly DG generation from gross demand → **net load**
 
-Net load is what ends up in GenX's `Load_data.csv`.
+Net load is what is written to GenX's demand input (`system/Demand_data.csv` in the default v6 format; `Load_data.csv` in the legacy `old_genx_format` mode).
 
 ---
 
@@ -79,8 +79,8 @@ data_location: /path/to/data
 distributed_capacity_table: distributed_capacity.parquet
 distributed_profiles_table: distributed_profiles.parquet
 
-# Optional: pick a specific weather year for profiles
-# Defaults to model_year if not set
+# Optional: restrict profiles to a specific weather year
+# If omitted, all available weather years in distributed_profiles_table are used
 weather_year: 2012
 ```
 

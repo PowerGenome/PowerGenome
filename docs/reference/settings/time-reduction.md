@@ -122,7 +122,7 @@ This creates 12 representative weeks, with the peak demand day guaranteed to app
 
 ## Output format
 
-When time reduction is active, the `Load_data.csv` output includes additional
+When time reduction is active, the `system/Demand_data.csv` output (or `Load_data.csv` when using the legacy `old_genx_format`) includes additional
 metadata columns that GenX uses to reconstruct the weight of each representative
 period:
 

@@ -26,7 +26,7 @@ run_powergenome --settings_file settings --results_folder results/
               Settings.load(settings_folder)
 ```
 
-PowerGenome reads all YAML files from your settings folder in alphabetical order, merging them into a single dictionary. Later files override earlier values; nested dictionaries are merged recursively; lists are replaced entirely.
+PowerGenome reads all YAML files from your settings folder, merging them into a single dictionary. Later files override earlier values; nested dictionaries are merged recursively; lists are replaced entirely.
 
 If `scenario_definitions_fn` is present in settings, a scenario matrix is built from the CSV file. Otherwise, the pipeline creates one pass per planning period end year defined in `model_periods`.
 
