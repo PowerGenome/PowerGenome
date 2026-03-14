@@ -8,7 +8,11 @@ from numbers import Number
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
-from powergenome.settings import auto_fill_settings
+from powergenome.settings import (
+    _is_year_keyed_dict,
+    _select_year_value,
+    auto_fill_settings,
+)
 
 os.environ["USE_PYGEOS"] = "0"
 
@@ -2287,6 +2291,8 @@ def add_fuel_labels(df, fuel_prices, settings):
     for tech, fuel in (settings.get("tech_fuel_map") or {}).items():
         scenario = settings.get("fuel_scenarios", {}).get(fuel)
         model_year = settings["model_year"]
+        if isinstance(scenario, dict) and _is_year_keyed_dict(scenario):
+            scenario = _select_year_value(scenario, model_year)
         if not scenario:
             if fuel not in settings.get("user_fuel_price", []) or []:
                 raise KeyError(
@@ -2346,6 +2352,8 @@ def add_fuel_labels(df, fuel_prices, settings):
         ccs_base_name = ("_").join(ccs_fuel.split("_")[:-1])
         if ccs_base_name in (settings.get("fuel_scenarios", {}) or {}).keys():
             scenario = settings["fuel_scenarios"][ccs_base_name]
+            if isinstance(scenario, dict) and _is_year_keyed_dict(scenario):
+                scenario = _select_year_value(scenario, settings["model_year"])
             if has_region_map:
                 for fuel_region, model_regions in settings["fuel_region_map"].items():
                     ccs_fuel_name = ("_").join([fuel_region, scenario, ccs_fuel])
@@ -4148,7 +4156,16 @@ class GeneratorClusters:
         self.fuel_prices = self.fuel_prices.loc[
             self.fuel_prices["full_fuel_name"].isin(gen_fuels)
         ]
-        scenarios = set((self.settings.get("fuel_scenarios", {}) or {}).values())
+        model_year = self.settings.get("model_year")
+        raw_scenarios = (self.settings.get("fuel_scenarios", {}) or {}).values()
+        scenarios = set(
+            (
+                _select_year_value(v, model_year)
+                if isinstance(v, dict) and _is_year_keyed_dict(v)
+                else v
+            )
+            for v in raw_scenarios
+        )
         for s in scenarios:
             self.fuel_prices["full_fuel_name"] = self.fuel_prices[
                 "full_fuel_name"

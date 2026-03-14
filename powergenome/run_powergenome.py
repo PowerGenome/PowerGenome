@@ -29,7 +29,11 @@ from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; c
     set_int_cols,
 )
 from powergenome.load_profiles import make_final_load_curves
-from powergenome.settings import Settings, build_scenario_settings
+from powergenome.settings import (
+    Settings,
+    build_scenario_settings,
+    resolve_settings_to_year,
+)
 from powergenome.transmission import (
     agg_transmission_constraints,
     insert_tx_costs,
@@ -207,32 +211,70 @@ def main(**kwargs):
     input_folder = Path(args.settings_file).parent / Path(settings["input_folder"]).name
     settings["input_folder"] = input_folder
 
-    scenario_definitions = pd.read_csv(
-        input_folder / settings["scenario_definitions_fn"]
-    )
+    has_scenario_definitions = bool(settings.get("scenario_definitions_fn"))
 
-    if args.case_id:
-        missing_case_ids = set(args.case_id) - set(scenario_definitions["case_id"])
-        if missing_case_ids:
-            raise ValueError(
-                f"The requested case IDs {missing_case_ids} are not in your scenario "
-                "inputs file."
-            )
-        scenario_definitions = scenario_definitions.loc[
-            scenario_definitions["case_id"].isin(args.case_id), :
-        ]
-
-    if set(scenario_definitions["year"]) != set(settings["model_year"]):
-        logger.warning(
-            f"The years included the secenario definitions file ({set(scenario_definitions['year'])}) "
-            f"does not match the settings parameter `model_year` ({settings['model_year']})"
+    if has_scenario_definitions:
+        scenario_definitions = pd.read_csv(
+            input_folder / settings["scenario_definitions_fn"]
         )
-    assert len(settings["model_year"]) == len(
-        settings["model_first_planning_year"]
+
+        if args.case_id:
+            missing_case_ids = set(args.case_id) - set(scenario_definitions["case_id"])
+            if missing_case_ids:
+                raise ValueError(
+                    f"The requested case IDs {missing_case_ids} are not in your scenario "
+                    "inputs file."
+                )
+            scenario_definitions = scenario_definitions.loc[
+                scenario_definitions["case_id"].isin(args.case_id), :
+            ]
+
+        model_years_for_check = settings["model_year"]
+        if not isinstance(model_years_for_check, list):
+            model_years_for_check = [model_years_for_check]
+
+        if set(scenario_definitions["year"]) != set(model_years_for_check):
+            logger.warning(
+                f"The years included in the scenario definitions file ({set(scenario_definitions['year'])}) "
+                f"do not match the settings parameter `model_year` ({settings['model_year']})"
+            )
+    else:
+        logger.info(
+            "No 'scenario_definitions_fn' found in settings. Resolving settings "
+            "for each planning year from 'model_year' settings parameter."
+        )
+        model_years = settings["model_year"]
+        if not isinstance(model_years, list):
+            model_years = [model_years]
+        if args.case_id:
+            logger.warning(
+                "The --case-id flag is ignored when no 'scenario_definitions_fn' is "
+                "specified in settings."
+            )
+        scenario_settings = {}
+        for period, year in enumerate(model_years, start=1):
+            year_settings = resolve_settings_to_year(
+                settings, year, all_years=model_years
+            )
+            year_settings["case_id"] = "Inputs"
+            year_settings["case_period"] = period
+            scenario_settings[year] = {"Inputs": year_settings}
+
+    model_years_raw = settings["model_year"]
+    first_planning_years_raw = settings["model_first_planning_year"]
+    num_model_years = len(model_years_raw) if isinstance(model_years_raw, list) else 1
+    num_first_planning_years = (
+        len(first_planning_years_raw)
+        if isinstance(first_planning_years_raw, list)
+        else 1
+    )
+    assert (
+        num_model_years == num_first_planning_years
     ), "The number of years in the settings parameter 'model_year' must be the same as 'model_first_planning_year'"
 
-    # Build a dictionary of settings for every planning year and case_id
-    scenario_settings = build_scenario_settings(settings, scenario_definitions)
+    if has_scenario_definitions:
+        # Build a dictionary of settings for every planning year and scenario
+        scenario_settings = build_scenario_settings(settings, scenario_definitions)
 
     model_regions_gdf = None
     first_year = True
@@ -245,19 +287,29 @@ def main(**kwargs):
                 # Update DataManager for this specific case
                 update_data_manager(updated_settings=scenario_settings_obj)
 
-                case_folder = (
-                    out_folder
-                    / f"{case_id}"
-                    / "Inputs"
-                    / f"Inputs_p{scenario_settings_obj['case_period']}"
-                )
+                if has_scenario_definitions:
+                    case_folder = (
+                        out_folder
+                        / f"{case_id}"
+                        / "Inputs"
+                        / f"Inputs_p{scenario_settings_obj['case_period']}"
+                    )
+                else:
+                    case_folder = (
+                        out_folder
+                        / "Inputs"
+                        / f"Inputs_p{scenario_settings_obj['case_period']}"
+                    )
                 case_folder.mkdir(parents=True, exist_ok=True)
 
                 scenario_settings_obj["extra_outputs"] = case_folder / "extra_outputs"
                 scenario_settings_obj["extra_outputs"].mkdir(
                     parents=True, exist_ok=True
                 )
-                logger.info(f"\n\nStarting year {year} scenario {case_id}\n\n")
+                if has_scenario_definitions:
+                    logger.info(f"\n\nStarting year {year} scenario {case_id}\n\n")
+                else:
+                    logger.info(f"\n\nStarting year {year}\n\n")
 
                 case_year_data = {}
                 if args.gens:
@@ -314,10 +366,13 @@ def main(**kwargs):
                     case_year_data["rep_period"] = representative_point
 
                 else:
-                    gen_variability.index = range(1, len(reduced_resource_profile) + 1)
-                    gen_variability.index.name = "Time_Index"
-                    gen_variability = reduced_resource_profile.reset_index(drop=False)
-                    case_year_data["gen_variability"] = gen_variability
+                    if args.gens:
+                        # gens were computed but load was skipped — store raw
+                        # gen_variability without time domain reduction
+                        gen_variability.index = range(1, len(gen_variability) + 1)
+                        gen_variability.index.name = "Time_Index"
+                        gen_variability = gen_variability.reset_index(drop=False)
+                        case_year_data["gen_variability"] = gen_variability
 
                 if args.transmission:
                     tx_costs = load_tx_costs()

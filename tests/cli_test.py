@@ -386,6 +386,246 @@ class TestMainFunction:
                             ]
                             assert len(info_calls) == 1
 
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.write_case_settings_file")
+    @patch("powergenome.run_powergenome.process_genx_data", return_value=[])
+    @patch("powergenome.run_powergenome.update_data_manager")
+    @patch("powergenome.run_powergenome.resolve_settings_to_year")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.Settings")
+    def test_main_no_scenario_definitions_fn(
+        self,
+        mock_settings_class,
+        mock_init_dm,
+        mock_build_scenario,
+        mock_resolve,
+        mock_update_dm,
+        _mock_genx,
+        _mock_write_settings,
+        tmp_path,
+    ):
+        """Test that when scenario_definitions_fn is absent, resolve_settings_to_year
+        is called once per planning year and build_scenario_settings is not used.
+        """
+        mock_settings = MagicMock()
+        settings_data = {
+            "data_location": "test_data.db",
+            "input_folder": "inputs",
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2025, 2035],
+        }
+        mock_settings.__getitem__.side_effect = lambda key: settings_data[key]
+        mock_settings.get.side_effect = lambda key, default=None: settings_data.get(
+            key, default
+        )
+        mock_settings_class.return_value = mock_settings
+        mock_resolve.return_value = {}
+
+        # Make scenario_settings_obj.get() return falsy defaults to skip
+        # optional pipeline sections (reserves_fn, emission_policies_fn, etc.)
+        scenario_obj = MagicMock()
+        scenario_obj.get.side_effect = lambda k, d=None: d
+        mock_settings_class.for_scenario.return_value.__enter__.return_value = (
+            scenario_obj
+        )
+
+        with patch("pathlib.Path.cwd", return_value=tmp_path):
+            with patch("shutil.copytree"):
+                with patch("shutil.copy"):
+                    main(
+                        settings_file="some_settings_folder",
+                        gens=False,
+                        load=False,
+                        transmission=False,
+                    )
+
+        # build_scenario_settings must NOT be called in the no-scenario path
+        mock_build_scenario.assert_not_called()
+        # resolve_settings_to_year must be called once per planning year
+        assert mock_resolve.call_count == 2
+        call_years = sorted([c[0][1] for c in mock_resolve.call_args_list])
+        assert call_years == [2030, 2040]
+
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.write_case_settings_file")
+    @patch("powergenome.run_powergenome.process_genx_data", return_value=[])
+    @patch("powergenome.run_powergenome.update_data_manager")
+    @patch("powergenome.run_powergenome.resolve_settings_to_year")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.Settings")
+    def test_main_no_scenario_single_year(
+        self,
+        mock_settings_class,
+        mock_init_dm,
+        mock_build_scenario,
+        mock_resolve,
+        mock_update_dm,
+        _mock_genx,
+        _mock_write_settings,
+        tmp_path,
+    ):
+        """Test that a scalar model_year (not a list) also works without a scenario file."""
+        mock_settings = MagicMock()
+        settings_data = {
+            "data_location": "test_data.db",
+            "input_folder": "inputs",
+            "model_year": 2030,
+            "model_first_planning_year": 2025,
+        }
+        mock_settings.__getitem__.side_effect = lambda key: settings_data[key]
+        mock_settings.get.side_effect = lambda key, default=None: settings_data.get(
+            key, default
+        )
+        mock_settings_class.return_value = mock_settings
+        mock_resolve.return_value = {}
+
+        scenario_obj = MagicMock()
+        scenario_obj.get.side_effect = lambda k, d=None: d
+        mock_settings_class.for_scenario.return_value.__enter__.return_value = (
+            scenario_obj
+        )
+
+        with patch("pathlib.Path.cwd", return_value=tmp_path):
+            with patch("shutil.copytree"):
+                with patch("shutil.copy"):
+                    main(
+                        settings_file="some_settings_folder",
+                        gens=False,
+                        load=False,
+                        transmission=False,
+                    )
+
+        mock_build_scenario.assert_not_called()
+        assert mock_resolve.call_count == 1
+        assert mock_resolve.call_args[0][1] == 2030
+
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.write_case_settings_file")
+    @patch("powergenome.run_powergenome.process_genx_data", return_value=[])
+    @patch("powergenome.run_powergenome.update_data_manager")
+    @patch("powergenome.run_powergenome.resolve_settings_to_year")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.Settings")
+    def test_main_no_scenario_case_id_warning(
+        self,
+        mock_settings_class,
+        mock_init_dm,
+        mock_build_scenario,
+        mock_resolve,
+        mock_update_dm,
+        _mock_genx,
+        _mock_write_settings,
+        tmp_path,
+        caplog,
+    ):
+        """Test that using --case-id without scenario_definitions_fn emits a warning."""
+        mock_settings = MagicMock()
+        settings_data = {
+            "data_location": "test_data.db",
+            "input_folder": "inputs",
+            "model_year": [2030],
+            "model_first_planning_year": [2025],
+        }
+        mock_settings.__getitem__.side_effect = lambda key: settings_data[key]
+        mock_settings.get.side_effect = lambda key, default=None: settings_data.get(
+            key, default
+        )
+        mock_settings_class.return_value = mock_settings
+        mock_resolve.return_value = {}
+
+        scenario_obj = MagicMock()
+        scenario_obj.get.side_effect = lambda k, d=None: d
+        mock_settings_class.for_scenario.return_value.__enter__.return_value = (
+            scenario_obj
+        )
+
+        with patch("pathlib.Path.cwd", return_value=tmp_path):
+            with patch("shutil.copytree"):
+                with patch("shutil.copy"):
+                    with caplog.at_level(logging.WARNING, logger="powergenome"):
+                        main(
+                            settings_file="some_settings_folder",
+                            case_id=["p1"],
+                            gens=False,
+                            load=False,
+                            transmission=False,
+                        )
+
+        assert any(
+            "--case-id flag is ignored" in record.message for record in caplog.records
+        )
+
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.write_case_settings_file")
+    @patch("powergenome.run_powergenome.process_genx_data", return_value=[])
+    @patch("powergenome.run_powergenome.update_data_manager")
+    @patch("powergenome.run_powergenome.resolve_settings_to_year")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.Settings")
+    def test_main_no_scenario_case_folder_path(
+        self,
+        mock_settings_class,
+        mock_init_dm,
+        mock_build_scenario,
+        mock_resolve,
+        mock_update_dm,
+        _mock_genx,
+        _mock_write_settings,
+        tmp_path,
+    ):
+        """Test that without scenario_definitions_fn the case_folder path starts with
+        'Inputs/Inputs_p{N}' and does NOT include a case_id subdirectory."""
+        mock_settings = MagicMock()
+        settings_data = {
+            "data_location": "test_data.db",
+            "input_folder": "inputs",
+            "model_year": [2030],
+            "model_first_planning_year": [2025],
+        }
+        mock_settings.__getitem__.side_effect = lambda key: settings_data[key]
+        mock_settings.get.side_effect = lambda key, default=None: settings_data.get(
+            key, default
+        )
+        mock_settings_class.return_value = mock_settings
+        mock_resolve.return_value = {}
+
+        scenario_obj = MagicMock()
+        scenario_obj.get.side_effect = lambda k, d=None: d
+        scenario_obj.__getitem__.side_effect = lambda k: (
+            1 if k == "case_period" else MagicMock()
+        )
+        mock_settings_class.for_scenario.return_value.__enter__.return_value = (
+            scenario_obj
+        )
+
+        out_folder = tmp_path / "results"
+        with patch("pathlib.Path.cwd", return_value=tmp_path):
+            with patch("shutil.copytree"):
+                with patch("shutil.copy"):
+                    main(
+                        settings_file="some_settings_folder",
+                        results_folder="results",
+                        gens=False,
+                        load=False,
+                        transmission=False,
+                    )
+
+        # The case_folder must be directly under out_folder/Inputs/Inputs_p1,
+        # i.e. there must NOT be a case_id subdirectory between out_folder and Inputs.
+        expected_case_folder = out_folder / "Inputs" / "Inputs_p1"
+        assert expected_case_folder.exists(), (
+            f"Expected case_folder {expected_case_folder} to be created, "
+            f"but it was not. Contents of {out_folder}: {list(out_folder.iterdir()) if out_folder.exists() else 'folder missing'}"
+        )
+        # Also assert there is no case_id subfolder at the top level
+        assert not (
+            out_folder / "Inputs" / "Inputs" / "Inputs_p1"
+        ).exists(), "case_folder should not include a case_id subdirectory in the no-scenario path"
+
     def test_main_kwargs_override(self):
         """Test that kwargs properly override command line arguments."""
         with patch("powergenome.run_powergenome.parse_command_line") as mock_parse:

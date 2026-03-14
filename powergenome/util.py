@@ -371,8 +371,19 @@ def remove_fuel_scenario_name(df, settings):
 
 
 def remove_fuel_gen_scenario_name(df, settings):
+    from powergenome.settings import _is_year_keyed_dict, _select_year_value
+
     _df = df.copy()
-    scenarios = set(settings["fuel_scenarios"].values())
+    model_year = settings.get("model_year")
+    raw_values = settings["fuel_scenarios"].values()
+    scenarios = set(
+        (
+            _select_year_value(v, model_year)
+            if isinstance(v, dict) and _is_year_keyed_dict(v)
+            else v
+        )
+        for v in raw_values
+    )
     for s in scenarios:
         _df["Fuel"] = _df["Fuel"].str.replace(f"_{s}", "")
 
