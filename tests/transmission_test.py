@@ -637,3 +637,207 @@ class TestInsertTxCosts:
         # Should successfully merge available data, ignore rows with NA zones
         assert not result.empty
         assert result.loc[0, "Line_Reinforcement_Cost_per_MWyr"] == 1000
+
+
+
+
+class TestCalcNetworkUpgradeCosts:
+    """Tests for calc_network_upgrade_costs function."""
+
+    DATA_DIR = "tests/test_system/test_data"
+
+    # Single-region model regions MUST use the same name as the base region.
+    # AB aggregates p1+p2; p3 and p4 are single-region model regions.
+    MODEL_REGIONS = ["AB", "p3", "p4"]
+    REGION_AGGS = {"AB": ["p1", "p2"]}
+
+    @pytest.fixture(autouse=True)
+    def setup_data_manager(self):
+        """Initialize DataManager with base-region test data before each test."""
+        settings = {
+            "model_regions": self.MODEL_REGIONS,
+            "region_aggregations": self.REGION_AGGS,
+            "zone_num_map": {"AB": 1, "p3": 2, "p4": 3},
+            "transmission_cost_table": "tx_costs_base_regions_test_data.csv",
+            "transmission_constraints_table": "tx_constraints_base_regions_test_data.csv",
+            "demand_table": "load_curves_test_data.csv",
+            "dollar_year_table": "cpi_test_data.csv",
+            "data_location": self.DATA_DIR,
+        }
+        initialize_data_manager(settings, self.DATA_DIR)
+        yield settings
+
+    def test_returns_dataframe(self, setup_data_manager):
+        """calc_network_upgrade_costs returns a non-empty DataFrame."""
+        from powergenome.transmission import calc_network_upgrade_costs
+
+        settings = setup_data_manager
+        result = calc_network_upgrade_costs(
+            model_regions=settings["model_regions"],
+            region_aggregations=settings["region_aggregations"],
+        )
+        assert isinstance(result, pd.DataFrame)
+        assert not result.empty
+
+    def test_output_columns(self, setup_data_manager):
+        """Result contains all required output columns."""
+        from powergenome.transmission import calc_network_upgrade_costs
+
+        settings = setup_data_manager
+        result = calc_network_upgrade_costs(
+            model_regions=settings["model_regions"],
+            region_aggregations=settings["region_aggregations"],
+        )
+        required_cols = [
+            "start_region",
+            "dest_region",
+            "total_interconnect_cost_mw",
+            "total_interconnect_annuity_mw",
+            "total_line_loss_frac",
+            "dollar_year",
+        ]
+        for col in required_cols:
+            assert col in result.columns, f"Missing column: {col}"
+
+    def test_connected_pairs_count(self, setup_data_manager):
+        """Three model-region pairs should be produced (AB-p3, AB-p4, p3-p4)."""
+        from powergenome.transmission import calc_network_upgrade_costs
+
+        settings = setup_data_manager
+        result = calc_network_upgrade_costs(
+            model_regions=settings["model_regions"],
+            region_aggregations=settings["region_aggregations"],
+        )
+        assert len(result) == 3
+
+    def test_single_region_no_intra_cost(self, setup_data_manager):
+        """Model regions consisting of a single base region add no intra cost."""
+        from powergenome.transmission import calc_network_upgrade_costs
+
+        settings = setup_data_manager
+        result = calc_network_upgrade_costs(
+            model_regions=settings["model_regions"],
+            region_aggregations=settings["region_aggregations"],
+        )
+        # p3<->p4: both are single base regions, so total = direct cost only
+        p3_p4 = result[
+            ((result["start_region"] == "p3") & (result["dest_region"] == "p4"))
+            | ((result["start_region"] == "p4") & (result["dest_region"] == "p3"))
+        ]
+        assert len(p3_p4) == 1
+        assert p3_p4.iloc[0]["total_interconnect_cost_mw"] == pytest.approx(150000.0)
+        assert p3_p4.iloc[0]["total_interconnect_annuity_mw"] == pytest.approx(7500.0)
+        assert p3_p4.iloc[0]["total_line_loss_frac"] == pytest.approx(0.015)
+
+    def test_aggregated_region_adds_intra_cost(self, setup_data_manager):
+        """An aggregated model region (AB) should add intra-regional MST cost."""
+        from powergenome.transmission import calc_network_upgrade_costs
+
+        settings = setup_data_manager
+        result = calc_network_upgrade_costs(
+            model_regions=settings["model_regions"],
+            region_aggregations=settings["region_aggregations"],
+        )
+        # AB<->p3: direct = p1-p3 (cost=200000) + intra-AB (p1-p2, cost=100000) + intra-p3 (0)
+        ab_p3 = result[
+            ((result["start_region"] == "AB") & (result["dest_region"] == "p3"))
+            | ((result["start_region"] == "p3") & (result["dest_region"] == "AB"))
+        ]
+        assert len(ab_p3) == 1
+        assert ab_p3.iloc[0]["total_interconnect_cost_mw"] == pytest.approx(300000.0)
+        assert ab_p3.iloc[0]["total_interconnect_annuity_mw"] == pytest.approx(15000.0)
+        assert ab_p3.iloc[0]["total_line_loss_frac"] == pytest.approx(0.03)
+
+    def test_minimum_direct_connection_chosen(self, setup_data_manager):
+        """The minimum cost direct connection between base regions is chosen."""
+        from powergenome.transmission import calc_network_upgrade_costs
+
+        settings = setup_data_manager
+        result = calc_network_upgrade_costs(
+            model_regions=settings["model_regions"],
+            region_aggregations=settings["region_aggregations"],
+        )
+        # AB<->p4: p1-p4 costs 250000 (cheaper than p2-p4 at 350000)
+        ab_p4 = result[
+            ((result["start_region"] == "AB") & (result["dest_region"] == "p4"))
+            | ((result["start_region"] == "p4") & (result["dest_region"] == "AB"))
+        ]
+        assert len(ab_p4) == 1
+        # total = 250000 (p1-p4) + 100000 (intra-AB) + 0 = 350000
+        assert ab_p4.iloc[0]["total_interconnect_cost_mw"] == pytest.approx(350000.0)
+
+    def test_result_saved_to_data_manager(self, setup_data_manager):
+        """The result is stored as 'network_upgrade_costs' in the DataManager."""
+        from powergenome.database import list_tables
+        from powergenome.transmission import calc_network_upgrade_costs
+
+        settings = setup_data_manager
+        calc_network_upgrade_costs(
+            model_regions=settings["model_regions"],
+            region_aggregations=settings["region_aggregations"],
+        )
+        assert "network_upgrade_costs" in list_tables()
+
+    def test_no_demand_table_uses_uniform_weights(self):
+        """Without a demand table uniform weights are used (no crash)."""
+        from powergenome.transmission import calc_network_upgrade_costs
+
+        settings = {
+            "model_regions": self.MODEL_REGIONS,
+            "region_aggregations": self.REGION_AGGS,
+            "transmission_cost_table": "tx_costs_base_regions_test_data.csv",
+            "transmission_constraints_table": "tx_constraints_base_regions_test_data.csv",
+            # no demand_table
+            "dollar_year_table": "cpi_test_data.csv",
+            "data_location": self.DATA_DIR,
+        }
+        initialize_data_manager(settings, self.DATA_DIR)
+
+        result = calc_network_upgrade_costs(
+            model_regions=settings["model_regions"],
+            region_aggregations=settings["region_aggregations"],
+        )
+        # With uniform weights the intra-AB cost is still p1-p2 (only edge in MST)
+        assert not result.empty
+        p3_p4 = result[
+            ((result["start_region"] == "p3") & (result["dest_region"] == "p4"))
+            | ((result["start_region"] == "p4") & (result["dest_region"] == "p3"))
+        ]
+        assert p3_p4.iloc[0]["total_interconnect_cost_mw"] == pytest.approx(150000.0)
+
+    def test_missing_required_columns_raises_key_error(self):
+        """Missing required cost columns raise KeyError."""
+        from unittest.mock import patch
+
+        from powergenome.transmission import calc_network_upgrade_costs
+
+        incomplete_cost_data = pd.DataFrame(
+            {
+                "start_region": ["p1"],
+                "dest_region": ["p2"],
+                # missing total_interconnect_cost_mw and others
+                "dollar_year": [2018],
+            }
+        )
+        with patch("powergenome.transmission.get_data") as mock_get_data:
+            mock_get_data.return_value = incomplete_cost_data
+            with pytest.raises(KeyError, match="Missing required columns"):
+                calc_network_upgrade_costs(
+                    model_regions=["AB", "p3"],
+                    region_aggregations={"AB": ["p1", "p2"]},
+                )
+
+    def test_no_direct_connection_skips_pair(self, setup_data_manager):
+        """Model region pairs with no cost data in the table are skipped."""
+        from powergenome.transmission import calc_network_upgrade_costs
+
+        settings = setup_data_manager
+        # Add a model region with no cost connections to others
+        extra_regions = settings["model_regions"] + ["Isolated"]
+        result = calc_network_upgrade_costs(
+            model_regions=extra_regions,
+            region_aggregations=settings["region_aggregations"],
+        )
+        # "Isolated" has no entries in the cost table, so no row for it
+        assert "Isolated" not in result["start_region"].values
+        assert "Isolated" not in result["dest_region"].values
