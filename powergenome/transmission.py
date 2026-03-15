@@ -432,9 +432,7 @@ def calc_network_upgrade_costs(
             # Determine the set of years common to every region with data
             years_per_region = {
                 r: set(
-                    region_years_df.loc[
-                        region_years_df["region"] == r, "year"
-                    ].tolist()
+                    region_years_df.loc[region_years_df["region"] == r, "year"].tolist()
                 )
                 for r in regions_with_data
             }
@@ -458,9 +456,7 @@ def calc_network_upgrade_costs(
                         sql=s_wy, con=pg_engine, params=regions_with_data
                     )
                     wy_per_region = {
-                        r: set(
-                            wy_df.loc[wy_df["region"] == r, "weather_year"].tolist()
-                        )
+                        r: set(wy_df.loc[wy_df["region"] == r, "weather_year"].tolist())
                         for r in regions_with_data
                     }
                     common_wy = set.intersection(*wy_per_region.values())
@@ -517,12 +513,12 @@ def calc_network_upgrade_costs(
                 if edge_weight < G[u][v]["weight"]:
                     G[u][v].update(
                         weight=edge_weight,
-                        capital_cost=row.get("capital_cost_mw", 0.0)
-                        if has_capital
-                        else 0.0,
-                        annum_cost=row.get("annum_cost_mw", 0.0)
-                        if has_annuity
-                        else 0.0,
+                        capital_cost=(
+                            row.get("capital_cost_mw", 0.0) if has_capital else 0.0
+                        ),
+                        annum_cost=(
+                            row.get("annum_cost_mw", 0.0) if has_annuity else 0.0
+                        ),
                         loss=row["line_loss_frac"],
                     )
             else:
@@ -530,9 +526,9 @@ def calc_network_upgrade_costs(
                     u,
                     v,
                     weight=edge_weight,
-                    capital_cost=row.get("capital_cost_mw", 0.0)
-                    if has_capital
-                    else 0.0,
+                    capital_cost=(
+                        row.get("capital_cost_mw", 0.0) if has_capital else 0.0
+                    ),
                     annum_cost=row.get("annum_cost_mw", 0.0) if has_annuity else 0.0,
                     loss=row["line_loss_frac"],
                 )
@@ -623,9 +619,7 @@ def calc_network_upgrade_costs(
         direct_annuity = float(min_row["annum_cost_mw"]) if has_annuity else 0.0
         direct_loss = float(min_row["line_loss_frac"])
         dollar_year = (
-            int(min_row["dollar_year"])
-            if "dollar_year" in min_row.index
-            else None
+            int(min_row["dollar_year"]) if "dollar_year" in min_row.index else None
         )
 
         total_capital = direct_capital + intra_capital[mr_a] + intra_capital[mr_b]

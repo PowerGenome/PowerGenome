@@ -12,7 +12,10 @@ import sqlalchemy as sa
 
 from powergenome.external_data import insert_user_tx_costs, load_user_tx_costs
 from powergenome.params import DATA_PATHS
-from powergenome.transmission import agg_transmission_constraints, calc_network_upgrade_costs
+from powergenome.transmission import (
+    agg_transmission_constraints,
+    calc_network_upgrade_costs,
+)
 from powergenome.util import (
     build_scenario_settings,
     init_pudl_connection,
@@ -215,9 +218,7 @@ def network_upgrade_engine(tmp_path_factory):
             "line_loss_frac",
             "dollar_year",
         ],
-    ).to_sql(
-        "transmission_cost_nrel_reeds", con, index=False, if_exists="replace"
-    )
+    ).to_sql("transmission_cost_nrel_reeds", con, index=False, if_exists="replace")
 
     # ---- demand table ----
     pd.DataFrame(
@@ -314,9 +315,4 @@ def test_calc_network_upgrade_costs_missing_cost_column(tmp_path):
 
     settings = {"model_regions": ["WEC_BANC", "WECC_AZ"]}
     with pytest.raises(KeyError, match="line_loss_frac"):
-        calc_network_upgrade_costs(
-            bad_engine, settings, cost_table="bad_cost_table"
-        )
-
-
-
+        calc_network_upgrade_costs(bad_engine, settings, cost_table="bad_cost_table")
