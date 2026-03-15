@@ -346,7 +346,10 @@ def calc_network_upgrade_costs(
             "'capital_cost_mw' or 'annum_cost_mw'."
         )
 
-    # Column used as weight when building the MST (prefer capital cost)
+    # Column used as weight when building the MST and selecting the minimum-cost
+    # direct connection.  Capital cost is preferred over the annuity because it
+    # represents the full up-front investment and is less sensitive to assumed
+    # discount rate or project lifetime.
     mst_weight_col = "capital_cost_mw" if has_capital else "annum_cost_mw"
 
     # ------------------------------------------------------------------ #
@@ -395,6 +398,9 @@ def calc_network_upgrade_costs(
         region_col = find_region_col(table_cols, context)
 
         # Find which base regions actually have data
+        # `?` placeholders are filled by the `params` list passed to
+        # pd.read_sql_query; only the column *name* (`region_col`) is
+        # interpolated directly into the query string (not user-supplied data).
         placeholders = ",".join(["?"] * len(agg_base_regions))
         s = (
             f"SELECT DISTINCT year, {region_col} AS region "

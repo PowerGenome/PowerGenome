@@ -1,6 +1,7 @@
 "Test functions for interregional transmission lines"
 
 import os
+import sqlite3
 from collections import namedtuple
 from pathlib import Path
 
@@ -23,6 +24,13 @@ if os.name == "nt":
     sql_prefix = "sqlite:///"
 else:
     sql_prefix = "sqlite:////"
+
+
+def _sqlite_engine(path: str) -> sa.engine.base.Engine:
+    """Return a SQLAlchemy engine for the given SQLite file path."""
+    return sa.create_engine(sql_prefix + path)
+
+
 pudl_engine, pudl_out, pg_engine = init_pudl_connection(
     pudl_db=sql_prefix + str(DATA_PATHS["test_data"] / "pudl_test_data.db"),
     pg_db=sql_prefix + str(DATA_PATHS["test_data"] / "pg_misc_tables.sqlite3"),
@@ -162,8 +170,6 @@ def network_upgrade_engine(tmp_path_factory):
       WEC_CALN : total = 100 MWh in year 2019
       WECC_AZ  : total =  75 MWh in year 2019
     """
-    import sqlite3
-
     tmp_dir = tmp_path_factory.mktemp("tx_cost_test")
     db_path = str(tmp_dir / "test_network_upgrade.sqlite3")
     con = sqlite3.connect(db_path)
@@ -225,11 +231,7 @@ def network_upgrade_engine(tmp_path_factory):
 
     con.close()
 
-    if os.name == "nt":
-        prefix = "sqlite:///"
-    else:
-        prefix = "sqlite:////"
-    return sa.create_engine(prefix + db_path)
+    return _sqlite_engine(db_path)
 
 
 def test_calc_network_upgrade_costs(network_upgrade_engine):
@@ -297,8 +299,6 @@ def test_calc_network_upgrade_costs_no_aggregations(network_upgrade_engine):
 
 def test_calc_network_upgrade_costs_missing_cost_column(tmp_path):
     """KeyError is raised when the cost table lacks required columns."""
-    import sqlite3
-
     db_path = str(tmp_path / "bad_test.sqlite3")
     con = sqlite3.connect(db_path)
     pd.DataFrame(
@@ -310,16 +310,13 @@ def test_calc_network_upgrade_costs_missing_cost_column(tmp_path):
     ).to_sql("bad_cost_table", con, index=False)
     con.close()
 
-    if os.name == "nt":
-        prefix = "sqlite:///"
-    else:
-        prefix = "sqlite:////"
-    bad_engine = sa.create_engine(prefix + db_path)
+    bad_engine = _sqlite_engine(db_path)
 
     settings = {"model_regions": ["WEC_BANC", "WECC_AZ"]}
     with pytest.raises(KeyError, match="line_loss_frac"):
         calc_network_upgrade_costs(
             bad_engine, settings, cost_table="bad_cost_table"
         )
+
 
 
