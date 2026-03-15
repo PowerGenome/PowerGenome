@@ -40,6 +40,7 @@ dependencies = [
     "xlrd",
     "pyarrow",
     "duckdb",
+    "networkx",
 ]
 
 [tool.hatch.version]

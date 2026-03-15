@@ -61,6 +61,14 @@ def create_testing_db():
         columns=["id", "tariff_mills_kwh"]
     )
 
+    s = """
+        SELECT *
+        FROM transmission_cost_nrel_reeds
+        WHERE region_from in ('WECC_AZ', 'WEC_CALN', 'WEC_BANC', 'WEC_LADW')
+        AND region_to in ('WECC_AZ', 'WEC_CALN', 'WEC_BANC', 'WEC_LADW')
+    """
+    tx_costs = pd.read_sql_query(s, pg_engine)
+
     # Write tables to test db
     load_curves_ferc.to_sql(
         "load_curves_ferc", pg_test_conn, if_exists="replace", index=False
@@ -85,6 +93,9 @@ def create_testing_db():
     )
     transmission.to_sql(
         "transmission_single_epaipm", pg_test_conn, if_exists="replace", index=False
+    )
+    tx_costs.to_sql(
+        "transmission_cost_nrel_reeds", pg_test_conn, if_exists="replace", index=False
     )
 
 
