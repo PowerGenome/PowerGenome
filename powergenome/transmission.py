@@ -344,12 +344,10 @@ def _get_demand_weights_for_regions(
     # Confirm consistent weather years across all base regions
     if "weather_year" in year_demand.columns:
         region_weather_years = year_demand.groupby("region")["weather_year"].apply(set)
-        common_weather_years: Optional[set] = None
-        for wy_set in region_weather_years:
-            common_weather_years = (
-                wy_set if common_weather_years is None else common_weather_years & wy_set
-            )
-        common_weather_years = common_weather_years or set()
+        if len(region_weather_years) > 0:
+            common_weather_years = set.intersection(*region_weather_years)
+        else:
+            common_weather_years = set()
 
         all_same = all(wy_set == common_weather_years for wy_set in region_weather_years)
         if not all_same:
@@ -430,8 +428,8 @@ def calc_network_upgrade_costs(
        a. Building a minimum-spanning-tree (MST) over the base regions of the
           model region, using ``total_interconnect_cost_mw`` as the edge weight.
        b. Weighting each MST edge by the sum of demands of its two endpoint
-          nodes, then normalising so the weights sum to 1.
-       c. Multiplying the normalised weights by the cost (and loss fraction) of
+          nodes, then normalizing so the weights sum to 1.
+       c. Multiplying the normalized weights by the cost (and loss fraction) of
           each MST edge and summing to produce a single intra-regional cost.
 
     The results are saved as a new ``network_upgrade_costs`` table in the
@@ -441,10 +439,15 @@ def calc_network_upgrade_costs(
     Parameters
     ----------
     model_regions : List[str], optional
-        List of model region names.  Auto-filled from settings when *None*.
+        List of model region names.  A model region that is **not** listed in
+        ``region_aggregations`` is treated as a single-base-region zone; its
+        name must match the corresponding region name in the
+        ``transmission_cost`` and ``transmission_constraints`` tables.
+        Auto-filled from settings when *None*.
     region_aggregations : Dict[str, List[str]], optional
         Mapping from model region name to the list of base regions it
-        aggregates.  Auto-filled from settings when *None*.
+        aggregates.  Model regions absent from this mapping are treated as
+        single-base-region zones.  Auto-filled from settings when *None*.
     target_usd_year : int, optional
         Target dollar year for inflation adjustment of cost columns.
 
@@ -545,7 +548,7 @@ def calc_network_upgrade_costs(
             continue
 
         # Build graph over base regions with transmission cost as edge weight
-        G: nx.Graph = nx.Graph()
+        G = nx.Graph()
         G.add_nodes_from(base_regs)
         for r1, r2 in itertools.combinations(base_regs, 2):
             entry = cost_lookup.get((r1, r2))

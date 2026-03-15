@@ -646,8 +646,8 @@ class TestCalcNetworkUpgradeCosts:
 
     DATA_DIR = "tests/test_system/test_data"
 
-    # Single-region model regions MUST use the same name as the base region.
-    # AB aggregates p1+p2; p3 and p4 are single-region model regions.
+    # AB aggregates p1+p2; p3 and p4 are single-region model regions whose
+    # names match their base-region names (see calc_network_upgrade_costs docs).
     MODEL_REGIONS = ["AB", "p3", "p4"]
     REGION_AGGS = {"AB": ["p1", "p2"]}
 
