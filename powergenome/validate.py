@@ -657,6 +657,15 @@ def _check_fuel_price_coverage(settings: dict, dm: Any) -> List[ValidationResult
     if not fuel_scenarios or not model_regions:
         return results
 
+    # Resolve which base regions we need prices for once, rather than inside
+    # the fuel/year loops.
+    base_regions_needed: List[str] = []
+    for region in model_regions:
+        if region in region_aggregations:
+            base_regions_needed.extend(region_aggregations[region])
+        else:
+            base_regions_needed.append(region)
+
     try:
         fuel_df = dm.get_data(
             "fuel_price", columns=["year", "fuel", "region", "scenario"]
@@ -682,28 +691,48 @@ def _check_fuel_price_coverage(settings: dict, dm: Any) -> List[ValidationResult
     has_region_col = "region" in fuel_df.columns
     has_scenario_col = "scenario" in fuel_df.columns
 
+    key_columns: List[str] = ["year"]
+    if has_region_col:
+        key_columns.append("region")
+    if "fuel" in fuel_df.columns:
+        key_columns.append("fuel")
+
+    key_columns_with_scenario = key_columns + ["scenario"] if has_scenario_col else None
+
+    existing_keys = set(
+        fuel_df[key_columns].drop_duplicates().itertuples(index=False, name=None)
+    )
+    existing_keys_with_scenario = (
+        set(
+            fuel_df[key_columns_with_scenario]
+            .drop_duplicates()
+            .itertuples(index=False, name=None)
+        )
+        if key_columns_with_scenario is not None
+        else None
+    )
+
     missing: List[str] = []
     for fuel, scenario in fuel_scenarios.items():
         for model_year in model_years:
-            # Resolve which base regions we need prices for
-            base_regions_needed: List[str] = []
-            for region in model_regions:
-                if region in region_aggregations:
-                    base_regions_needed.extend(region_aggregations[region])
-                else:
-                    base_regions_needed.append(region)
-
             for region in base_regions_needed:
-                mask = fuel_df["year"] == model_year
-                if has_region_col:
-                    mask &= fuel_df["region"] == region
                 if has_scenario_col and scenario:
-                    mask &= fuel_df["scenario"] == scenario
-                # Match on fuel name
-                if "fuel" in fuel_df.columns:
-                    mask &= fuel_df["fuel"] == fuel
+                    expected_key = [model_year]
+                    if has_region_col:
+                        expected_key.append(region)
+                    if "fuel" in fuel_df.columns:
+                        expected_key.append(fuel)
+                    expected_key.append(scenario)
+                    found = tuple(expected_key) in existing_keys_with_scenario
+                else:
+                    expected_key = [model_year]
+                    if has_region_col:
+                        expected_key.append(region)
+                    if "fuel" in fuel_df.columns:
+                        expected_key.append(fuel)
+                    found = tuple(expected_key) in existing_keys
 
-                if not mask.any():
+                if not found:
                     missing.append(
                         f"fuel={fuel}, scenario={scenario}, "
                         f"region={region}, year={model_year}"
