@@ -26,8 +26,10 @@ Validation runs automatically at the start of every `run_powergenome` call, in t
   every fuel/region/year combination you need, and that new-resource cost tables cover
   your planning periods.
 
-If Phase 1 finds **errors**, the pipeline stops before loading any data. Phase 2 issues
-are always **warnings** (the pipeline continues, but results may be wrong).
+If Phase 1 finds **errors**, the pipeline stops before loading any data. Phase 2 can
+produce **warnings** or **errors**: warnings allow the pipeline to continue (though
+results may be wrong), while errors will stop execution when validation is run as part
+of `run_powergenome`.
 
 ---
 
@@ -69,12 +71,10 @@ validate_powergenome --settings_file settings --no-fail
 Each issue is reported with a severity level and a category:
 
 ```
-ERROR    powergenome.validate: [required_keys] Missing required settings key: 'model_regions'
-WARNING  powergenome.validate: [fuel_price_coverage] 2 fuel/scenario/region/year combination(s)
-         are missing from the fuel_price table — missing prices will become $0/MMBtu via fillna(0)
-         Detail:
-         fuel=naturalgas, scenario=reference, region=p5, year=2030
-         fuel=naturalgas, scenario=reference, region=p5, year=2040
+ERROR    powergenome.validate: [ERROR] required_keys: Required settings key 'model_regions' is missing or empty
+WARNING  powergenome.validate: [WARNING] fuel_price_coverage: 2 fuel/scenario/region/year combination(s) are missing from the fuel_price table — missing prices will become $0/MMBtu via fillna(0)
+    Detail: fuel=naturalgas, scenario=reference, region=p5, year=2030
+    fuel=naturalgas, scenario=reference, region=p5, year=2040
 ```
 
 ### Severity levels
@@ -97,7 +97,7 @@ WARNING  powergenome.validate: [fuel_price_coverage] 2 fuel/scenario/region/year
 | `paths` | 1 | `data_location`, `RESOURCE_GROUPS`, `RESOURCE_GROUP_PROFILES`, `input_folder` paths exist |
 | `region_consistency` | 1 | Region-keyed settings (`regional_tag_values`, `alt_num_clusters`, etc.) only reference known `model_regions` |
 | `model_tag_coverage` | 1 | Each entry in `new_resources` matches at least one tag in `model_tag_values` |
-| `fuel_consistency` | 1 | `fuel_scenarios` keys match `fuel_emission_factors` and `tech_fuel_map` entries |
+| `fuel_consistency` | 1 | Fuels in `tech_fuel_map` are defined in `fuel_scenarios`; CCS fuels have capture rates and emission factors |
 | `data_tables` | 2 | Every settings-configured table is present in DataManager |
 | `aggregation_base_regions` | 2 | Every base region in `region_aggregations` and every pass-through in `model_regions` appears in at least one data table |
 | `transmission_regions` | 2 | `transmission_cost_table` only references known model or base regions |
@@ -111,10 +111,8 @@ WARNING  powergenome.validate: [fuel_price_coverage] 2 fuel/scenario/region/year
 ### Region name typo in aggregation
 
 ```
-WARNING  aggregation_base_regions: 1 base region(s) referenced in 'model_regions' or
-         'region_aggregations' do not appear in any data table — check for typos
-         Detail:
-         AZ (aggregation): ['q2']
+WARNING  powergenome.validate: [WARNING] aggregation_base_regions: 1 base region(s) referenced in 'model_regions' or 'region_aggregations' do not appear in any data table (plant_region, demand, fuel_price, transmission_cost) — check for typos
+    Detail: AZ (aggregation): ['q2']
 ```
 
 **Cause**: `region_aggregations` maps `AZ` to `[p1, q2]`, but `q2` doesn't exist in any data table (it was probably meant to be `p2`).
@@ -131,8 +129,10 @@ region_aggregations:
 ### Missing fuel prices
 
 ```
-WARNING  fuel_price_coverage: 3 fuel/scenario/region/year combination(s) are missing
-         from the fuel_price table — missing prices will become $0/MMBtu via fillna(0)
+WARNING  powergenome.validate: [WARNING] fuel_price_coverage: 3 fuel/scenario/region/year combination(s) are missing from the fuel_price table — missing prices will become $0/MMBtu via fillna(0)
+    Detail: fuel=coal, scenario=reference, region=p5, year=2030
+    fuel=naturalgas, scenario=reference, region=p5, year=2030
+    fuel=naturalgas, scenario=reference, region=p5, year=2040
 ```
 
 **Cause**: The fuel price table doesn't have rows for some fuel/region/year combinations needed by the model. The `fuels.fuel_cost_table()` function silently fills missing values with `$0`.
@@ -145,10 +145,8 @@ WARNING  fuel_price_coverage: 3 fuel/scenario/region/year combination(s) are mis
 ### New resource with no planning-period cost data
 
 ```
-WARNING  new_resource_cost_years: 1 new resource/period combination(s) have no matching
-         basis_year in the resource_cost table — costs will be $0 via fillna(0)
-         Detail:
-         OffshoreWind_Class1_Moderate: no basis_year in 2035–2040
+WARNING  powergenome.validate: [WARNING] new_resource_cost_years: 1 new resource/period combination(s) have no matching basis_year in the resource_cost table — costs will be $0 via fillna(0)
+    Detail: OffshoreWind/Class1/Moderate: no basis_year in 2035–2040 (available: [2020, 2025, 2030]…)
 ```
 
 **Cause**: The `resource_cost` table has ATB cost data for some years, but none fall within this planning period's range. `new_build.single_generator_row()` averages over the period window; with no matching rows, the average is `NaN`, which becomes `$0`.
@@ -158,7 +156,7 @@ WARNING  new_resource_cost_years: 1 new resource/period combination(s) have no m
 ### Required key missing
 
 ```
-ERROR  required_keys: Missing required settings key: 'model_regions'
+ERROR    powergenome.validate: [ERROR] required_keys: Required settings key 'model_regions' is missing or empty
 ```
 
 **Fix**: Add the missing key to one of your settings YAML files.
