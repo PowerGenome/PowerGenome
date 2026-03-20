@@ -556,11 +556,19 @@ def validate_settings(settings: Any) -> List[ValidationResult]:
     for check_fn in _PHASE1_CHECKS:
         try:
             results.extend(check_fn(d))
-        except Exception:
+        except Exception as exc:
             logger.debug(
                 "Validation check %s raised an unexpected exception",
                 check_fn.__name__,
                 exc_info=True,
+            )
+            results.append(
+                _err(
+                    "internal_error",
+                    f"Validation check '{check_fn.__name__}' raised an unexpected "
+                    f"exception — this is a bug; some checks may have been skipped",
+                    detail=f"{type(exc).__name__}: {exc}",
+                )
             )
     return results
 
@@ -995,11 +1003,19 @@ def validate_settings_with_data(
     for check_fn in _PHASE2_CHECKS:
         try:
             results.extend(check_fn(d, data_manager))
-        except Exception:
+        except Exception as exc:
             logger.debug(
                 "Validation check %s raised an unexpected exception",
                 check_fn.__name__,
                 exc_info=True,
+            )
+            results.append(
+                _err(
+                    "internal_error",
+                    f"Validation check '{check_fn.__name__}' raised an unexpected "
+                    f"exception — this is a bug; some checks may have been skipped",
+                    detail=f"{type(exc).__name__}: {exc}",
+                )
             )
     return results
 

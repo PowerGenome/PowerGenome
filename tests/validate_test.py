@@ -577,14 +577,20 @@ class TestValidateSettings:
             for r in results
         )
 
-    def test_check_exceptions_are_swallowed(self, monkeypatch):
+    def test_check_exceptions_become_error_results(self, monkeypatch):
         import powergenome.validate as validate_mod
 
         def bad_check(_):
             raise RuntimeError("boom")
 
         monkeypatch.setattr(validate_mod, "_PHASE1_CHECKS", [bad_check])
-        assert validate_settings(_minimal_valid_settings()) == []
+        results = validate_settings(_minimal_valid_settings())
+        assert len(results) == 1
+        assert results[0].level == ValidationLevel.ERROR
+        assert results[0].category == "internal_error"
+        assert "bad_check" in results[0].message
+        assert "RuntimeError" in results[0].detail
+        assert "boom" in results[0].detail
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1307,7 +1313,7 @@ class TestCheckAggregationBaseRegions:
         assert _check_aggregation_base_regions(s, FakeDM()) == []
 
 
-def test_validate_settings_with_data_swallow_check_exception(monkeypatch):
+def test_validate_settings_with_data_checker_exception_becomes_error(monkeypatch):
     import powergenome.validate as validate_mod
 
     def bad_check(_settings, _dm):
@@ -1317,7 +1323,13 @@ def test_validate_settings_with_data_swallow_check_exception(monkeypatch):
         available_tables = set()
 
     monkeypatch.setattr(validate_mod, "_PHASE2_CHECKS", [bad_check])
-    assert validate_settings_with_data(_minimal_valid_settings(), FakeDM()) == []
+    results = validate_settings_with_data(_minimal_valid_settings(), FakeDM())
+    assert len(results) == 1
+    assert results[0].level == ValidationLevel.ERROR
+    assert results[0].category == "internal_error"
+    assert "bad_check" in results[0].message
+    assert "RuntimeError" in results[0].detail
+    assert "boom" in results[0].detail
 
 
 class TestValidateCli:
