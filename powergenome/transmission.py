@@ -318,51 +318,122 @@ def _get_demand_weights_for_regions(
         else:
             all_base_regions.append(model_region)
 
+    # Remove duplicates while preserving order
+    all_base_regions = list(dict.fromkeys(all_base_regions))
+
     if "demand" not in list_tables():
         logger.warning(
             "No demand table available. Using uniform weights of 1.0 for all base regions."
         )
         return {r: 1.0 for r in all_base_regions}
 
-    demand_df = get_data("demand")
-    demand_df = demand_df[demand_df["region"].isin(all_base_regions)].copy()
+    # Inspect schema so we only query needed columns.
+    demand_cols = set(
+        get_data("demand", query="DESCRIBE demand")["column_name"].astype(str)
+    )
+    if "load_mw" in demand_cols:
+        demand_col = "load_mw"
+    elif "value" in demand_cols:
+        demand_col = "value"
+    else:
+        logger.warning(
+            "Demand table has neither 'load_mw' nor 'value'. Using uniform weights of 1.0."
+        )
+        return {r: 1.0 for r in all_base_regions}
 
-    if demand_df.empty:
+    # Find the maximum year available in each base region, then choose the minimum
+    # across those values so every region can contribute.
+    region_max_years = get_data(
+        "demand",
+        query=(
+            "SELECT region, MAX(year) AS max_year "
+            "FROM demand "
+            "WHERE region = ANY(?) "
+            "GROUP BY region"
+        ),
+        params=[all_base_regions],
+    )
+    if region_max_years.empty:
         logger.warning(
             "No demand data found for the base regions. Using uniform weights of 1.0."
         )
         return {r: 1.0 for r in all_base_regions}
 
-    # Find the maximum year that is available for ALL base regions
-    region_max_years = demand_df.groupby("region")["year"].max()
-    # Use the smallest of the per-region max years so every region has data
-    final_year = int(region_max_years.min())
+    final_year = int(region_max_years["max_year"].min())
     logger.debug(f"Using final demand year {final_year} for region weighting.")
 
-    year_demand = demand_df[demand_df["year"] == final_year].copy()
+    weather_filter = ""
+    common_weather_years: set = set()
+    if "weather_year" in demand_cols:
+        # Distinct region/weather-year pairs are small and sufficient to determine
+        # whether all regions share the same weather-year set.
+        region_weather = get_data(
+            "demand",
+            query=(
+                "SELECT DISTINCT region, weather_year "
+                "FROM demand "
+                "WHERE region = ANY(?) AND year = ?"
+            ),
+            params=[all_base_regions, final_year],
+        )
 
-    # Confirm consistent weather years across all base regions
-    if "weather_year" in year_demand.columns:
-        region_weather_years = year_demand.groupby("region")["weather_year"].apply(set)
+        if region_weather.empty:
+            logger.warning(
+                "No demand rows found in the final year for the base regions. "
+                "Using uniform weights of 1.0."
+            )
+            return {r: 1.0 for r in all_base_regions}
+
+        region_weather_years = region_weather.groupby("region")["weather_year"].apply(
+            set
+        )
         if len(region_weather_years) > 0:
             common_weather_years = set.intersection(*region_weather_years)
         else:
             common_weather_years = set()
 
-        all_same = all(wy_set == common_weather_years for wy_set in region_weather_years)
+        all_same = all(
+            wy_set == common_weather_years for wy_set in region_weather_years
+        )
         if not all_same:
             logger.warning(
                 "Not all base regions share the same weather years in the demand table "
                 f"for year {final_year}. Using only the common weather years: "
                 f"{sorted(common_weather_years)}"
             )
-        year_demand = year_demand[year_demand["weather_year"].isin(common_weather_years)]
 
-    # Sum demand per region
-    demand_col = "load_mw" if "load_mw" in year_demand.columns else "value"
-    demand_by_region = year_demand.groupby("region")[demand_col].sum()
+        if not common_weather_years:
+            logger.warning(
+                "No common weather years found across base regions. "
+                "Using uniform weights of 1.0."
+            )
+            return {r: 1.0 for r in all_base_regions}
 
-    # For any base region missing from the demand table, use the mean weight
+        weather_filter = " AND weather_year = ANY(?)"
+
+    final_query = (
+        f"SELECT region, SUM({demand_col}) AS total_demand "
+        "FROM demand "
+        f"WHERE region = ANY(?) AND year = ?{weather_filter} "
+        "GROUP BY region"
+    )
+    final_params: List[Any] = [all_base_regions, final_year]
+    if common_weather_years:
+        final_params.append(sorted(common_weather_years))
+
+    demand_by_region_df = get_data(
+        "demand",
+        query=final_query,
+        params=final_params,
+    )
+
+    demand_by_region = (
+        demand_by_region_df.set_index("region")["total_demand"]
+        if not demand_by_region_df.empty
+        else pd.Series(dtype="float64")
+    )
+
+    # For any base region missing from the demand table, use the mean weight.
     mean_demand = float(demand_by_region.mean()) if not demand_by_region.empty else 1.0
     return {r: float(demand_by_region.get(r, mean_demand)) for r in all_base_regions}
 
@@ -400,7 +471,11 @@ def _get_connected_model_region_pairs(
             and model_to in model_regions
             and model_from != model_to
         ):
-            pair = (model_from, model_to) if model_from < model_to else (model_to, model_from)
+            pair = (
+                (model_from, model_to)
+                if model_from < model_to
+                else (model_to, model_from)
+            )
             connected_pairs.add(pair)
     return list(connected_pairs)
 
@@ -523,7 +598,10 @@ def calc_network_upgrade_costs(
             "loss": float(getattr(row, "total_line_loss_frac", 0.0) or 0.0),
             "dollar_year": int(row.dollar_year),
         }
-        for key in [(row.start_region, row.dest_region), (row.dest_region, row.start_region)]:
+        for key in [
+            (row.start_region, row.dest_region),
+            (row.dest_region, row.start_region),
+        ]:
             if key not in cost_lookup:
                 cost_lookup[key] = data
 
@@ -554,7 +632,8 @@ def calc_network_upgrade_costs(
             entry = cost_lookup.get((r1, r2))
             if entry is not None:
                 G.add_edge(
-                    r1, r2,
+                    r1,
+                    r2,
                     weight=entry["cost"],
                     cost=entry["cost"],
                     annuity=entry["annuity"],

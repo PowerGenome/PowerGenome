@@ -397,6 +397,7 @@ class DataManager:
         filters: List[List[Tuple[str, str, Any]]] = None,
         columns: List[str] = None,
         query: str = None,
+        params: List[Any] = None,
     ) -> pd.DataFrame:
         """
         Get data from a standardized table.
@@ -411,6 +412,11 @@ class DataManager:
             Columns to select
         query : str, optional
             Custom SQL query (overrides other parameters)
+        params : List[Any], optional
+            Positional parameters bound to ``?`` placeholders in *query*.
+            Use a nested list as a single parameter for ``= ANY(?)`` style
+            IN-list queries, e.g. ``params=[["a", "b", "c"]]``.
+            Ignored when *query* is None.
 
         Returns
         -------
@@ -429,6 +435,8 @@ class DataManager:
 
         if query:
             try:
+                if params is not None:
+                    return self.connection.execute(query, params).fetchdf()
                 return self.connection.execute(query).fetchdf()
             except Exception as e:
                 raise RuntimeError(f"Query execution failed: {e}")
@@ -864,6 +872,7 @@ def get_data(
     filters: List[List[Tuple[str, str, Any]]] = None,
     columns: List[str] = None,
     query: str = None,
+    params: List[Any] = None,
 ) -> pd.DataFrame:
     """
     Get data from a standardized table using the global DataManager.
@@ -878,13 +887,18 @@ def get_data(
         Columns to select
     query : str, optional
         Custom SQL query (overrides other parameters)
+    params : List[Any], optional
+        Positional parameters bound to ``?`` placeholders in *query*.
+        Use a nested list as a single parameter for ``= ANY(?)`` style
+        IN-list queries, e.g. ``params=[["a", "b", "c"]]``.
+        Ignored when *query* is None.
 
     Returns
     -------
     pd.DataFrame
         Requested data
     """
-    return _data_manager.get_data(table_name, filters, columns, query)
+    return _data_manager.get_data(table_name, filters, columns, query, params)
 
 
 def get_unique_values(table_name: str, column_name: str) -> List[Any]:
