@@ -72,6 +72,7 @@ docs = ["mkdocs>=1.5.0", "mkdocs-material>=9.4.0", "mike>=2.0.0"]
 
 [project.scripts]
 run_powergenome = "powergenome.run_powergenome:main"
+validate_powergenome = "powergenome.validate:validate_powergenome"
 
 [project.urls]
 "Source" = "https://github.com/PowerGenome/PowerGenome"

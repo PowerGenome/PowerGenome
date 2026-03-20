@@ -43,6 +43,11 @@ from powergenome.util import (  # init_pudl_connection,; check_settings,; load_i
     write_case_settings_file,
     write_results_file,
 )
+from powergenome.validate import (
+    report_validation_results,
+    validate_settings,
+    validate_settings_with_data,
+)
 
 if not sys.warnoptions:
     import warnings
@@ -169,7 +174,16 @@ def main(**kwargs):
 
     logger.info("Reading settings file")
     settings = Settings(config_path=args.settings_file)
+
+    logger.info("Running Phase 1 settings validation")
+    report_validation_results(validate_settings(settings))
+
     initialize_data_manager(settings, settings["data_location"])
+
+    logger.info("Running Phase 2 data validation")
+    from powergenome.database import _data_manager
+
+    report_validation_results(validate_settings_with_data(settings, _data_manager))
 
     # Copy the settings file to results folder
     if Path(args.settings_file).is_file():

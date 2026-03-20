@@ -30,6 +30,27 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
+@pytest.fixture(autouse=True)
+def _patch_validation(monkeypatch):
+    """Patch validation functions so CLI tests are not affected by mock Settings objects.
+
+    cli_test.py tests the pipeline control flow using MagicMock settings objects.
+    The validation module is tested separately in validate_test.py.
+    """
+    monkeypatch.setattr(
+        "powergenome.run_powergenome.validate_settings",
+        lambda s: [],
+    )
+    monkeypatch.setattr(
+        "powergenome.run_powergenome.validate_settings_with_data",
+        lambda s, dm: [],
+    )
+    monkeypatch.setattr(
+        "powergenome.run_powergenome.report_validation_results",
+        lambda results, raise_on_error=True: None,
+    )
+
+
 @pytest.fixture
 def test_settings_path():
     """Get path to test system settings directory."""
