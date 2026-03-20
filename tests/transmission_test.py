@@ -639,8 +639,6 @@ class TestInsertTxCosts:
         assert result.loc[0, "Line_Reinforcement_Cost_per_MWyr"] == 1000
 
 
-
-
 class TestCalcNetworkUpgradeCosts:
     """Tests for calc_network_upgrade_costs function."""
 
