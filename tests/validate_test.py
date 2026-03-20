@@ -27,9 +27,13 @@ from powergenome.validate import (
     _check_transmission_regions,
     _check_year_list_consistency,
     _extract_planning_periods,
+    _make_iterable,
+    _parse_validate_args,
+    _settings_as_dict,
     _tech_has_required_tag,
     _tech_matches_any_key,
     report_validation_results,
+    validate_powergenome,
     validate_settings,
     validate_settings_with_data,
 )
@@ -95,6 +99,61 @@ def test_extract_planning_periods_legacy():
 
 def test_extract_planning_periods_empty():
     assert _extract_planning_periods({}) == []
+
+
+def test_extract_planning_periods_empty_model_periods_list():
+    assert _extract_planning_periods({"model_periods": []}) == []
+
+
+def test_extract_planning_periods_skips_invalid_period_entries():
+    s = {"model_periods": [["bad", 2030], [2025, 2030], [2025]]}
+    assert _extract_planning_periods(s) == [(2025, 2030)]
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ([1, 2], [1, 2]),
+        ((1, 2), [1, 2]),
+        (None, []),
+        ("x", ["x"]),
+    ],
+)
+def test_make_iterable_variants(value, expected):
+    assert _make_iterable(value) == expected
+
+
+def test_settings_as_dict_from_dict():
+    d = {"a": 1}
+    assert _settings_as_dict(d) is d
+
+
+def test_settings_as_dict_from_to_dict_object():
+    class HasToDict:
+        def to_dict(self):
+            return {"k": "v"}
+
+    assert _settings_as_dict(HasToDict()) == {"k": "v"}
+
+
+def test_settings_as_dict_from_get_data_object():
+    class HasGetData:
+        def get_data(self):
+            return {"x": 2}
+
+    assert _settings_as_dict(HasGetData()) == {"x": 2}
+
+
+def test_settings_as_dict_rejects_invalid_type():
+    with pytest.raises(TypeError, match="settings must be a dict"):
+        _settings_as_dict(123)
+
+
+def test_validation_result_str_with_and_without_detail():
+    no_detail = ValidationResult(ValidationLevel.WARNING, "cat", "msg")
+    with_detail = ValidationResult(ValidationLevel.ERROR, "cat", "msg", detail="more")
+    assert "Detail:" not in str(no_detail)
+    assert "Detail: more" in str(with_detail)
 
 
 def test_tech_matches_any_key_positive():
@@ -224,6 +283,14 @@ class TestCheckYearListConsistency:
         s = {"model_periods": [2025, 2030]}  # flat single period
         assert _check_year_list_consistency(s) == []
 
+    def test_model_periods_non_numeric_values_are_ignored(self):
+        s = {"model_periods": [["bad", 2030]]}
+        assert _check_year_list_consistency(s) == []
+
+    def test_legacy_non_numeric_values_are_ignored(self):
+        s = {"model_year": ["bad"], "model_first_planning_year": [2025]}
+        assert _check_year_list_consistency(s) == []
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 1 — _check_paths_exist
@@ -314,6 +381,13 @@ class TestCheckRegionConsistency:
             "regional_capacity_reserves" in r.message for r in _warnings(results)
         )
 
+    def test_regional_capacity_reserves_non_dict_is_ignored(self):
+        s = {
+            "model_regions": ["r1"],
+            "regional_capacity_reserves": {"CapRes_1": ["r1", 0.15]},
+        }
+        assert _warnings(_check_region_consistency(s)) == []
+
     def test_unknown_small_hydro_region(self):
         s = {
             "model_regions": ["r1", "r2"],
@@ -386,6 +460,13 @@ class TestCheckModelTagCoverage:
         )
         assert _warnings(_check_model_tag_coverage(s)) == []
 
+    def test_malformed_new_resources_entries_are_ignored(self):
+        s = _minimal_valid_settings(
+            new_resources=["bad-entry", ["NaturalGas"]],
+            modified_new_resources={"bad": "not-a-dict"},
+        )
+        assert _check_model_tag_coverage(s) == []
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 1 — _check_fuel_consistency
@@ -438,6 +519,15 @@ class TestCheckFuelConsistency:
         results = _check_fuel_consistency(s)
         assert any("fuel_emission_factors" in r.message for r in _warnings(results))
 
+    def test_ccs_base_fuel_split_without_ccs_suffix(self):
+        s = _minimal_valid_settings(
+            ccs_fuel_map={"GasCCS": "naturalgas_capture90"},
+            ccs_capture_rate={"naturalgas_capture90": 0.9},
+            fuel_emission_factors={},
+        )
+        results = _check_fuel_consistency(s)
+        assert any("naturalgas" in r.message for r in _warnings(results))
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 1 — validate_settings (integration)
@@ -486,6 +576,15 @@ class TestValidateSettings:
             r.level == ValidationLevel.ERROR and "planning_years" == r.category
             for r in results
         )
+
+    def test_check_exceptions_are_swallowed(self, monkeypatch):
+        import powergenome.validate as validate_mod
+
+        def bad_check(_):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(validate_mod, "_PHASE1_CHECKS", [bad_check])
+        assert validate_settings(_minimal_valid_settings()) == []
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -687,6 +786,116 @@ class TestPhase2WithTestData:
         # coal/reference/RegionB/2030 also missing
         assert "naturalgas" in (warns[0].detail or "")
 
+    def test_fuel_price_coverage_returns_when_no_planning_periods(self):
+        class FakeDM:
+            available_tables = {"fuel_price"}
+
+            def get_data(self, table_name, columns=None, **kwargs):
+                return pd.DataFrame(
+                    {
+                        "year": [2030],
+                        "fuel": ["coal"],
+                        "region": ["RegionA"],
+                        "scenario": ["reference"],
+                    }
+                )
+
+        s = _minimal_valid_settings(model_year=None, model_first_planning_year=None)
+        assert _check_fuel_price_coverage(s, FakeDM()) == []
+
+    def test_fuel_price_coverage_returns_when_fuels_or_regions_missing(self):
+        class FakeDM:
+            available_tables = {"fuel_price"}
+
+            def get_data(self, table_name, columns=None, **kwargs):
+                return pd.DataFrame({"year": [2030], "fuel": ["coal"]})
+
+        s = _minimal_valid_settings(fuel_scenarios={}, model_regions=[])
+        assert _check_fuel_price_coverage(s, FakeDM()) == []
+
+    def test_fuel_price_coverage_warns_when_table_read_fails(self):
+        class FakeDM:
+            available_tables = {"fuel_price"}
+
+            def get_data(self, table_name, columns=None, **kwargs):
+                raise RuntimeError("cannot read fuel table")
+
+        s = _minimal_valid_settings()
+        results = _check_fuel_price_coverage(s, FakeDM())
+        assert any(
+            "Could not load fuel_price table" in r.message for r in _warnings(results)
+        )
+
+    def test_fuel_price_coverage_returns_for_empty_or_no_year(self):
+        class FakeDM:
+            available_tables = {"fuel_price"}
+
+            def get_data(self, table_name, columns=None, **kwargs):
+                return pd.DataFrame()
+
+        s = _minimal_valid_settings()
+        assert _check_fuel_price_coverage(s, FakeDM()) == []
+
+    def test_fuel_price_coverage_handles_non_numeric_year(self):
+        class FakeDM:
+            available_tables = {"fuel_price"}
+
+            def get_data(self, table_name, columns=None, **kwargs):
+                return pd.DataFrame(
+                    {
+                        "year": ["bad"],
+                        "fuel": ["coal"],
+                        "region": ["RegionA"],
+                        "scenario": ["reference"],
+                    }
+                )
+
+        s = _minimal_valid_settings(fuel_scenarios={"coal": "reference"})
+        results = _check_fuel_price_coverage(s, FakeDM())
+        assert _warnings(results)
+
+    def test_fuel_price_coverage_truncates_long_missing_detail(self):
+        class FakeDM:
+            available_tables = {"fuel_price"}
+
+            def get_data(self, table_name, columns=None, **kwargs):
+                # Keep table non-empty so the check reaches the missing-combo logic.
+                return pd.DataFrame(
+                    {
+                        "year": [1990],
+                        "fuel": ["coal"],
+                        "region": ["Nowhere"],
+                        "scenario": ["reference"],
+                    }
+                )
+
+        s = _minimal_valid_settings(
+            model_year=[2030, 2040],
+            model_first_planning_year=[2025, 2031],
+            model_regions=["RegionA", "RegionB", "RegionC"],
+            fuel_scenarios={
+                "coal": "reference",
+                "naturalgas": "reference",
+            },
+        )
+        results = _check_fuel_price_coverage(s, FakeDM())
+        warn = _warnings(results)[0]
+        assert "and" in (warn.detail or "")
+
+    def test_transmission_regions_warns_when_table_read_fails(self):
+        class FakeDM:
+            available_tables = {"transmission_cost"}
+
+            def get_data(self, table_name, columns=None, **kwargs):
+                raise RuntimeError("cannot read tx")
+
+        s = _minimal_valid_settings()
+        results = _check_transmission_regions(s, FakeDM())
+        assert any(
+            "Could not load transmission_cost table" in r.message
+            for r in _warnings(results)
+        )
+
     def test_data_tables_loaded_error_on_missing(self):
         """If a configured table is absent from DataManager, flag as ERROR."""
 
@@ -707,6 +916,18 @@ class TestPhase2WithTestData:
         results = _check_data_tables_loaded(s, FakeDM())
         assert _errors(results) == []
 
+    def test_data_tables_loaded_graceful_when_mapping_unavailable(self, monkeypatch):
+        import powergenome.database as db
+
+        monkeypatch.delattr(db, "DataManager", raising=False)
+
+        class FakeDM:
+            available_tables = set()
+
+        assert (
+            _check_data_tables_loaded({"resource_cost_table": "x.csv"}, FakeDM()) == []
+        )
+
     def test_validate_settings_with_data_integration(
         self, test_settings, initialized_dm
     ):
@@ -716,6 +937,138 @@ class TestPhase2WithTestData:
         report_validation_results(results, raise_on_error=False)
         # The test system should have no ERROR-level issues in Phase 2
         assert _errors(results) == [], f"Unexpected data errors: {_errors(results)}"
+
+    def test_new_resource_cost_years_returns_when_no_new_resources(self):
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame()
+
+        s = _minimal_valid_settings(new_resources=[])
+        assert _check_new_resource_cost_years(s, FakeDM()) == []
+
+    def test_new_resource_cost_years_returns_when_no_planning_periods(self):
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame()
+
+        s = _minimal_valid_settings(
+            new_resources=[["NaturalGas", "CCGT", "Moderate", 500]],
+            model_year=None,
+            model_first_planning_year=None,
+        )
+        assert _check_new_resource_cost_years(s, FakeDM()) == []
+
+    def test_new_resource_cost_years_warns_when_table_read_fails(self):
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                raise RuntimeError("cannot read resource cost")
+
+        s = _minimal_valid_settings(
+            new_resources=[["NaturalGas", "CCGT", "Moderate", 500]]
+        )
+        results = _check_new_resource_cost_years(s, FakeDM())
+        assert any(
+            "Could not load resource_cost table" in r.message
+            for r in _warnings(results)
+        )
+
+    def test_new_resource_cost_years_returns_when_empty_table(self):
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame(
+                    columns=["technology", "tech_detail", "cost_case", "basis_year"]
+                )
+
+        s = _minimal_valid_settings(
+            new_resources=[["NaturalGas", "CCGT", "Moderate", 500]]
+        )
+        assert _check_new_resource_cost_years(s, FakeDM()) == []
+
+    def test_new_resource_cost_years_handles_bad_basis_year_dtype(self):
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame(
+                    {
+                        "technology": ["NaturalGas"],
+                        "tech_detail": ["CCGT"],
+                        "cost_case": ["Moderate"],
+                        "basis_year": ["bad"],
+                    }
+                )
+
+        s = _minimal_valid_settings(
+            new_resources=[["NaturalGas", "CCGT", "Moderate", 500]]
+        )
+        assert _warnings(_check_new_resource_cost_years(s, FakeDM()))
+
+    def test_new_resource_cost_years_skips_malformed_resource_entries(self):
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame(
+                    {
+                        "technology": ["NaturalGas"],
+                        "tech_detail": ["CCGT"],
+                        "cost_case": ["Moderate"],
+                        "basis_year": [2028],
+                    }
+                )
+
+        s = _minimal_valid_settings(new_resources=[["NaturalGas", "CCGT"], "bad"])
+        assert _check_new_resource_cost_years(s, FakeDM()) == []
+
+    def test_new_resource_cost_years_reports_no_matching_rows(self):
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame(
+                    {
+                        "technology": ["Wind"],
+                        "tech_detail": ["Class3"],
+                        "cost_case": ["Moderate"],
+                        "basis_year": [2030],
+                    }
+                )
+
+        s = _minimal_valid_settings(
+            new_resources=[["NaturalGas", "CCGT", "Moderate", 500]]
+        )
+        results = _check_new_resource_cost_years(s, FakeDM())
+        assert any(
+            "no matching rows found" in (r.detail or "") for r in _warnings(results)
+        )
+
+    def test_new_resource_cost_years_ellipsis_for_many_available_years(self):
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame(
+                    {
+                        "technology": ["NaturalGas"] * 8,
+                        "tech_detail": ["CCGT"] * 8,
+                        "cost_case": ["Moderate"] * 8,
+                        "basis_year": [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017],
+                    }
+                )
+
+        s = _minimal_valid_settings(
+            new_resources=[["NaturalGas", "CCGT", "Moderate", 500]]
+        )
+        results = _check_new_resource_cost_years(s, FakeDM())
+        assert "…" in (_warnings(results)[0].detail or "")
 
 
 class TestCheckAggregationBaseRegions:
@@ -912,3 +1265,231 @@ class TestCheckAggregationBaseRegions:
         }
         results = _check_aggregation_base_regions(s, FakeDM())
         assert results == []
+
+    def test_non_list_aggregation_value_is_ignored(self):
+        class FakeDM:
+            available_tables = {"plant_region"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame({"region": ["p1"]})
+
+        s = {"model_regions": ["AZ"], "region_aggregations": {"AZ": "p1"}}
+        assert _check_aggregation_base_regions(s, FakeDM()) == []
+
+    def test_aggregation_base_regions_non_list_entry_ignored_when_unknown_exists(self):
+        class FakeDM:
+            available_tables = {"plant_region"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame({"region": ["p1"]})
+
+        s = {
+            "model_regions": ["AZ", "p2"],
+            "region_aggregations": {"AZ": "p1", "NM": ["q2"]},
+        }
+        warns = _warnings(_check_aggregation_base_regions(s, FakeDM()))
+        assert len(warns) == 1
+        assert "q2" in (warns[0].detail or "")
+
+    def test_aggregation_base_regions_handles_table_read_failures(self):
+        class FakeDM:
+            available_tables = {
+                "plant_region",
+                "demand",
+                "fuel_price",
+                "transmission_cost",
+            }
+
+            def get_data(self, *a, **kw):
+                raise RuntimeError("table read failed")
+
+        s = {"model_regions": ["AZ"], "region_aggregations": {"AZ": ["p1"]}}
+        assert _check_aggregation_base_regions(s, FakeDM()) == []
+
+
+def test_validate_settings_with_data_swallow_check_exception(monkeypatch):
+    import powergenome.validate as validate_mod
+
+    def bad_check(_settings, _dm):
+        raise RuntimeError("boom")
+
+    class FakeDM:
+        available_tables = set()
+
+    monkeypatch.setattr(validate_mod, "_PHASE2_CHECKS", [bad_check])
+    assert validate_settings_with_data(_minimal_valid_settings(), FakeDM()) == []
+
+
+class TestValidateCli:
+    def test_parse_validate_args_flags(self):
+        args = _parse_validate_args(
+            ["-sf", "settings", "--skip-data-checks", "--no-fail"]
+        )
+        assert args.settings_file == "settings"
+        assert args.skip_data_checks is True
+        assert args.no_fail is True
+
+    def test_validate_powergenome_exits_on_errors(self, monkeypatch):
+        import argparse
+
+        import powergenome.settings as settings_mod
+
+        class FakeSettings(dict):
+            def __init__(self, config_path):
+                super().__init__({"data_location": None})
+
+        monkeypatch.setattr(settings_mod, "Settings", FakeSettings)
+        monkeypatch.setattr(
+            "powergenome.validate._parse_validate_args",
+            lambda argv=None: argparse.Namespace(
+                settings_file="settings",
+                skip_data_checks=True,
+                no_fail=False,
+            ),
+        )
+        monkeypatch.setattr(
+            "powergenome.validate.validate_settings",
+            lambda _settings: [ValidationResult(ValidationLevel.ERROR, "x", "err")],
+        )
+        monkeypatch.setattr(
+            "powergenome.validate.report_validation_results",
+            lambda *_a, **_kw: None,
+        )
+
+        with pytest.raises(SystemExit) as exc:
+            validate_powergenome()
+        assert exc.value.code == 1
+
+    def test_validate_powergenome_logs_when_phase2_skipped_for_no_data_location(
+        self, monkeypatch
+    ):
+        import argparse
+
+        import powergenome.settings as settings_mod
+
+        class FakeSettings(dict):
+            def __init__(self, config_path):
+                super().__init__({"data_location": None})
+
+        monkeypatch.setattr(settings_mod, "Settings", FakeSettings)
+        monkeypatch.setattr(
+            "powergenome.validate._parse_validate_args",
+            lambda argv=None: argparse.Namespace(
+                settings_file="settings",
+                skip_data_checks=False,
+                no_fail=True,
+            ),
+        )
+        monkeypatch.setattr(
+            "powergenome.validate.validate_settings", lambda _settings: []
+        )
+
+        validate_powergenome()
+
+    def test_validate_powergenome_runs_phase2_with_no_phase2_results(self, monkeypatch):
+        import argparse
+        import types
+
+        import powergenome.database as db_mod
+        import powergenome.settings as settings_mod
+
+        class FakeSettings(dict):
+            def __init__(self, config_path):
+                super().__init__({"data_location": "tests/test_system/test_data"})
+
+        monkeypatch.setattr(settings_mod, "Settings", FakeSettings)
+        monkeypatch.setattr(
+            "powergenome.validate._parse_validate_args",
+            lambda argv=None: argparse.Namespace(
+                settings_file="settings",
+                skip_data_checks=False,
+                no_fail=True,
+            ),
+        )
+        monkeypatch.setattr(
+            "powergenome.validate.validate_settings", lambda _settings: []
+        )
+        monkeypatch.setattr(
+            "powergenome.validate.validate_settings_with_data", lambda *_a: []
+        )
+        monkeypatch.setattr(
+            "powergenome.validate.report_validation_results", lambda *_a, **_kw: None
+        )
+        monkeypatch.setattr(db_mod, "_data_manager", types.SimpleNamespace())
+        monkeypatch.setattr(db_mod, "initialize_data_manager", lambda *_a, **_kw: None)
+
+        validate_powergenome()
+
+    def test_validate_powergenome_phase2_exception_sets_error(self, monkeypatch):
+        import argparse
+        import types
+
+        import powergenome.database as db_mod
+        import powergenome.settings as settings_mod
+
+        class FakeSettings(dict):
+            def __init__(self, config_path):
+                super().__init__({"data_location": "tests/test_system/test_data"})
+
+        monkeypatch.setattr(settings_mod, "Settings", FakeSettings)
+        monkeypatch.setattr(
+            "powergenome.validate._parse_validate_args",
+            lambda argv=None: argparse.Namespace(
+                settings_file="settings",
+                skip_data_checks=False,
+                no_fail=False,
+            ),
+        )
+        monkeypatch.setattr(
+            "powergenome.validate.validate_settings", lambda _settings: []
+        )
+        monkeypatch.setattr(db_mod, "_data_manager", types.SimpleNamespace())
+
+        def _boom(*_a, **_kw):
+            raise RuntimeError("init failed")
+
+        monkeypatch.setattr(db_mod, "initialize_data_manager", _boom)
+
+        with pytest.raises(SystemExit) as exc:
+            validate_powergenome()
+        assert exc.value.code == 1
+
+    def test_validate_powergenome_phase2_results_with_warnings_and_errors(
+        self, monkeypatch
+    ):
+        import argparse
+        import types
+
+        import powergenome.database as db_mod
+        import powergenome.settings as settings_mod
+
+        class FakeSettings(dict):
+            def __init__(self, config_path):
+                super().__init__({"data_location": "tests/test_system/test_data"})
+
+        monkeypatch.setattr(settings_mod, "Settings", FakeSettings)
+        monkeypatch.setattr(
+            "powergenome.validate._parse_validate_args",
+            lambda argv=None: argparse.Namespace(
+                settings_file="settings",
+                skip_data_checks=False,
+                no_fail=True,
+            ),
+        )
+        monkeypatch.setattr(
+            "powergenome.validate.validate_settings", lambda _settings: []
+        )
+        monkeypatch.setattr(
+            "powergenome.validate.validate_settings_with_data",
+            lambda *_a: [
+                ValidationResult(ValidationLevel.WARNING, "cat", "warn"),
+                ValidationResult(ValidationLevel.ERROR, "cat", "err"),
+            ],
+        )
+        monkeypatch.setattr(
+            "powergenome.validate.report_validation_results", lambda *_a, **_kw: None
+        )
+        monkeypatch.setattr(db_mod, "_data_manager", types.SimpleNamespace())
+        monkeypatch.setattr(db_mod, "initialize_data_manager", lambda *_a, **_kw: None)
+
+        validate_powergenome()
