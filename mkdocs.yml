@@ -102,6 +102,7 @@ nav:
     - Configure Capacity Reserve Requirements: how-to/configure-capacity-reserves.md
     - Run Multi-Scenario Studies: how-to/run-scenarios.md
     - Configure Energy Share Requirements: how-to/energy-share-requirements.md
+    - Validate Settings: how-to/validate-settings.md
     - Debugging: how-to/debugging.md
 
   - Reference:

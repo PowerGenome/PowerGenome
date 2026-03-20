@@ -1,16 +1,23 @@
 # Command Line Interface
 
-PowerGenome provides the `run_powergenome` command for executing the data pipeline.
+PowerGenome provides two commands:
 
-## Basic Usage
+| Command | Purpose |
+|---------|---------|
+| [`run_powergenome`](#run_powergenome) | Execute the full data pipeline and write GenX input files |
+| [`validate_powergenome`](#validate_powergenome) | Check settings and data for configuration mistakes without running the pipeline |
+
+---
+
+## `run_powergenome`
+
+### Basic Usage
 
 ```bash
 run_powergenome --settings_file SETTINGS_PATH --results_folder OUTPUT_PATH
 ```
 
-## Command-Line Flags
-
-### Required Flags
+### Flags
 
 #### `--settings_file` / `-sf`
 
@@ -28,8 +35,6 @@ Directory where output files will be saved. Created if it doesn't exist.
 
 **Type**: String (path)
 **Example**: `--results_folder my_study_outputs`
-
-### Optional Flags
 
 #### `--case_id`
 
@@ -102,9 +107,9 @@ Display help message with all available flags.
 run_powergenome --help
 ```
 
-## Complete Examples
+### Examples
 
-### Basic Run
+#### Basic run
 
 ```bash
 run_powergenome \
@@ -112,7 +117,7 @@ run_powergenome \
     --results_folder my_study/results
 ```
 
-### Run Specific Scenarios
+#### Run specific scenarios
 
 ```bash
 run_powergenome \
@@ -121,7 +126,7 @@ run_powergenome \
     --case_id baseline high_renewable low_cost
 ```
 
-### Greenfield with Sorted Output
+#### Greenfield with sorted output
 
 ```bash
 run_powergenome \
@@ -131,7 +136,7 @@ run_powergenome \
     --sort-gens
 ```
 
-### Debug New Resources Only
+#### Debug new resources only
 
 ```bash
 run_powergenome \
@@ -142,7 +147,7 @@ run_powergenome \
     --verbose
 ```
 
-## Output Organization
+### Output organization
 
 Results are organized by scenario and planning period:
 
@@ -167,7 +172,7 @@ Each scenario folder contains:
 - **Inputs/Inputs_p#/**: GenX input CSV files
 - **log.txt**: Execution log with warnings and info messages
 
-## Exit Codes
+### Exit codes
 
 | Code | Meaning |
 |------|---------|
@@ -175,7 +180,55 @@ Each scenario folder contains:
 | 1 | General error (check log for details) |
 | 2 | Invalid arguments |
 
-## Environment Variables
+---
+
+## `validate_powergenome`
+
+Validates your settings for common configuration mistakes without running the full pipeline.
+See [Validate Settings Before Running](../how-to/validate-settings.md) for a full guide.
+
+### Basic Usage
+
+```bash
+validate_powergenome --settings_file SETTINGS_PATH
+```
+
+### Flags
+
+#### `--settings_file` / `-sf`
+
+**Required.** Path to the folder containing your settings YAML files (same value you pass to `run_powergenome`).
+
+#### `--skip-data-checks`
+
+Only run Phase 1 (settings-only checks). DataManager is not initialized, so no data files need to be present.
+
+**Default**: Both phases run.
+
+```bash
+validate_powergenome -sf settings --skip-data-checks
+```
+
+#### `--no-fail`
+
+Exit with code `0` even when errors are found. Errors are still logged at `ERROR` level. Useful in scripts or CI pipelines where you want to review the output without triggering a failure.
+
+**Default**: Exit with code `1` when any `ERROR`-level issue is found.
+
+```bash
+validate_powergenome -sf settings --no-fail
+```
+
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | No errors found (warnings may still be present) |
+| 1 | One or more `ERROR`-level issues found |
+
+---
+
+## Environment variables
 
 PowerGenome respects these environment variables (legacy, prefer settings YAML):
 
@@ -213,9 +266,9 @@ WARNING:powergenome.generators:Region p5 not found in fuel price data
 INFO:powergenome.GenX:Writing output files to results/case1/Inputs/Inputs_p1/
 ```
 
-## Programmatic Usage
+## Programmatic usage
 
-PowerGenome can also be used programmatically:
+`run_powergenome` can also be called from Python:
 
 ```python
 from powergenome.run_powergenome import main
