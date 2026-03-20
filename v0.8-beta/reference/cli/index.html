@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -934,6 +934,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../how-to/validate-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validate Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../how-to/debugging/" class="md-nav__link">
         
   
@@ -1692,6 +1720,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#run_powergenome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run_powergenome
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="run_powergenome">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#basic-usage" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1701,24 +1741,12 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#command-line-flags" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Command-Line Flags
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Command-Line Flags">
-      <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#required-flags" class="md-nav__link">
+  <a href="#flags" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Required Flags
+        Flags
       
     </span>
   </a>
@@ -1726,38 +1754,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#optional-flags" class="md-nav__link">
+  <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Optional Flags
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#complete-examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Complete Examples
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Complete Examples">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#basic-run" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Basic Run
+        Examples
       
     </span>
   </a>
@@ -1765,62 +1765,79 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#run-specific-scenarios" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Run Specific Scenarios
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#greenfield-with-sorted-output" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Greenfield with Sorted Output
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#debug-new-resources-only" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Debug New Resources Only
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#output-organization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Output Organization
+        Output organization
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#exit-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Exit Codes
+        Exit codes
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validate_powergenome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        validate_powergenome
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="validate_powergenome">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flags_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exit-codes_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exit codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1828,7 +1845,7 @@
   <a href="#environment-variables" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Environment Variables
+        Environment variables
       
     </span>
   </a>
@@ -1850,7 +1867,7 @@
   <a href="#programmatic-usage" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Programmatic Usage
+        Programmatic usage
       
     </span>
   </a>
@@ -2352,6 +2369,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#run_powergenome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run_powergenome
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="run_powergenome">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#basic-usage" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2361,24 +2390,12 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#command-line-flags" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Command-Line Flags
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Command-Line Flags">
-      <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#required-flags" class="md-nav__link">
+  <a href="#flags" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Required Flags
+        Flags
       
     </span>
   </a>
@@ -2386,38 +2403,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#optional-flags" class="md-nav__link">
+  <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Optional Flags
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#complete-examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Complete Examples
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Complete Examples">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#basic-run" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Basic Run
+        Examples
       
     </span>
   </a>
@@ -2425,62 +2414,79 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#run-specific-scenarios" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Run Specific Scenarios
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#greenfield-with-sorted-output" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Greenfield with Sorted Output
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#debug-new-resources-only" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Debug New Resources Only
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#output-organization" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Output Organization
+        Output organization
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
   <a href="#exit-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Exit Codes
+        Exit codes
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validate_powergenome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        validate_powergenome
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="validate_powergenome">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flags_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exit-codes_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exit codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2488,7 +2494,7 @@
   <a href="#environment-variables" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Environment Variables
+        Environment variables
       
     </span>
   </a>
@@ -2510,7 +2516,7 @@
   <a href="#programmatic-usage" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Programmatic Usage
+        Programmatic usage
       
     </span>
   </a>
@@ -2636,12 +2642,31 @@
 
 
 <h1 id="command-line-interface">Command Line Interface<a class="headerlink" href="#command-line-interface" title="Permanent link">&para;</a></h1>
-<p>PowerGenome provides the <code>run_powergenome</code> command for executing the data pipeline.</p>
-<h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h2>
+<p>PowerGenome provides two commands:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="#run_powergenome"><code>run_powergenome</code></a></td>
+<td>Execute the full data pipeline and write GenX input files</td>
+</tr>
+<tr>
+<td><a href="#validate_powergenome"><code>validate_powergenome</code></a></td>
+<td>Check settings and data for configuration mistakes without running the pipeline</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="run_powergenome"><code>run_powergenome</code><a class="headerlink" href="#run_powergenome" title="Permanent link">&para;</a></h2>
+<h3 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>run_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>SETTINGS_PATH<span class="w"> </span>--results_folder<span class="w"> </span>OUTPUT_PATH
 </code></pre></div>
-<h2 id="command-line-flags">Command-Line Flags<a class="headerlink" href="#command-line-flags" title="Permanent link">&para;</a></h2>
-<h3 id="required-flags">Required Flags<a class="headerlink" href="#required-flags" title="Permanent link">&para;</a></h3>
+<h3 id="flags">Flags<a class="headerlink" href="#flags" title="Permanent link">&para;</a></h3>
 <h4 id="-settings_file-sf"><code>--settings_file</code> / <code>-sf</code><a class="headerlink" href="#-settings_file-sf" title="Permanent link">&para;</a></h4>
 <p>Path to the folder containing settings YAML files.</p>
 <p><strong>Type</strong>: String (path)
@@ -2654,7 +2679,6 @@
 <p>Directory where output files will be saved. Created if it doesn't exist.</p>
 <p><strong>Type</strong>: String (path)
 <strong>Example</strong>: <code>--results_folder my_study_outputs</code></p>
-<h3 id="optional-flags">Optional Flags<a class="headerlink" href="#optional-flags" title="Permanent link">&para;</a></h3>
 <h4 id="-case_id"><code>--case_id</code><a class="headerlink" href="#-case_id" title="Permanent link">&para;</a></h4>
 <p>Run only specific scenarios from the scenario definitions file.</p>
 <p><strong>Type</strong>: String or list of strings
@@ -2705,26 +2729,26 @@
 <p>Display help message with all available flags.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>run_powergenome<span class="w"> </span>--help
 </code></pre></div>
-<h2 id="complete-examples">Complete Examples<a class="headerlink" href="#complete-examples" title="Permanent link">&para;</a></h2>
-<h3 id="basic-run">Basic Run<a class="headerlink" href="#basic-run" title="Permanent link">&para;</a></h3>
+<h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
+<h4 id="basic-run">Basic run<a class="headerlink" href="#basic-run" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--settings_file<span class="w"> </span>my_study/settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span>--results_folder<span class="w"> </span>my_study/results
 </code></pre></div>
-<h3 id="run-specific-scenarios">Run Specific Scenarios<a class="headerlink" href="#run-specific-scenarios" title="Permanent link">&para;</a></h3>
+<h4 id="run-specific-scenarios">Run specific scenarios<a class="headerlink" href="#run-specific-scenarios" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>-sf<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>-rf<span class="w"> </span>output<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span>--case_id<span class="w"> </span>baseline<span class="w"> </span>high_renewable<span class="w"> </span>low_cost
 </code></pre></div>
-<h3 id="greenfield-with-sorted-output">Greenfield with Sorted Output<a class="headerlink" href="#greenfield-with-sorted-output" title="Permanent link">&para;</a></h3>
+<h4 id="greenfield-with-sorted-output">Greenfield with sorted output<a class="headerlink" href="#greenfield-with-sorted-output" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>-sf<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>-rf<span class="w"> </span>output<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span>--no-current-gens<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span>--sort-gens
 </code></pre></div>
-<h3 id="debug-new-resources-only">Debug New Resources Only<a class="headerlink" href="#debug-new-resources-only" title="Permanent link">&para;</a></h3>
+<h4 id="debug-new-resources-only">Debug new resources only<a class="headerlink" href="#debug-new-resources-only" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>-sf<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>-rf<span class="w"> </span>output<span class="w"> </span><span class="se">\</span>
@@ -2732,7 +2756,7 @@
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span>--no-load<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span>--verbose
 </code></pre></div>
-<h2 id="output-organization">Output Organization<a class="headerlink" href="#output-organization" title="Permanent link">&para;</a></h2>
+<h3 id="output-organization">Output organization<a class="headerlink" href="#output-organization" title="Permanent link">&para;</a></h3>
 <p>Results are organized by scenario and planning period:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>results_folder/
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>├── case_id_1/
@@ -2753,7 +2777,7 @@
 <li><strong>Inputs/Inputs_p#/</strong>: GenX input CSV files</li>
 <li><strong>log.txt</strong>: Execution log with warnings and info messages</li>
 </ul>
-<h2 id="exit-codes">Exit Codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h2>
+<h3 id="exit-codes">Exit codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2776,7 +2800,47 @@
 </tr>
 </tbody>
 </table>
-<h2 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h2>
+<hr />
+<h2 id="validate_powergenome"><code>validate_powergenome</code><a class="headerlink" href="#validate_powergenome" title="Permanent link">&para;</a></h2>
+<p>Validates your settings for common configuration mistakes without running the full pipeline.
+See <a href="../../how-to/validate-settings/">Validate Settings Before Running</a> for a full guide.</p>
+<h3 id="basic-usage_1">Basic Usage<a class="headerlink" href="#basic-usage_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>SETTINGS_PATH
+</code></pre></div>
+<h3 id="flags_1">Flags<a class="headerlink" href="#flags_1" title="Permanent link">&para;</a></h3>
+<h4 id="-settings_file-sf_1"><code>--settings_file</code> / <code>-sf</code><a class="headerlink" href="#-settings_file-sf_1" title="Permanent link">&para;</a></h4>
+<p><strong>Required.</strong> Path to the folder containing your settings YAML files (same value you pass to <code>run_powergenome</code>).</p>
+<h4 id="-skip-data-checks"><code>--skip-data-checks</code><a class="headerlink" href="#-skip-data-checks" title="Permanent link">&para;</a></h4>
+<p>Only run Phase 1 (settings-only checks). DataManager is not initialized, so no data files need to be present.</p>
+<p><strong>Default</strong>: Both phases run.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>validate_powergenome<span class="w"> </span>-sf<span class="w"> </span>settings<span class="w"> </span>--skip-data-checks
+</code></pre></div>
+<h4 id="-no-fail"><code>--no-fail</code><a class="headerlink" href="#-no-fail" title="Permanent link">&para;</a></h4>
+<p>Exit with code <code>0</code> even when errors are found. Errors are still logged at <code>ERROR</code> level. Useful in scripts or CI pipelines where you want to review the output without triggering a failure.</p>
+<p><strong>Default</strong>: Exit with code <code>1</code> when any <code>ERROR</code>-level issue is found.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>validate_powergenome<span class="w"> </span>-sf<span class="w"> </span>settings<span class="w"> </span>--no-fail
+</code></pre></div>
+<h3 id="exit-codes_1">Exit codes<a class="headerlink" href="#exit-codes_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>No errors found (warnings may still be present)</td>
+</tr>
+<tr>
+<td>1</td>
+<td>One or more <code>ERROR</code>-level issues found</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="environment-variables">Environment variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h2>
 <p>PowerGenome respects these environment variables (legacy, prefer settings YAML):</p>
 <ul>
 <li><code>DATA_LOCATION</code>: Path to data folder</li>
@@ -2787,9 +2851,9 @@
 <div class="admonition warning">
 <p class="admonition-title">Deprecated</p>
 <p>Using environment variables for paths is deprecated. Use settings YAML parameters instead:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/data</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nt">RESOURCE_GROUPS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/groups</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nt">RESOURCE_GROUP_PROFILES</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/profiles</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/data</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nt">RESOURCE_GROUPS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/groups</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="nt">RESOURCE_GROUP_PROFILES</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/profiles</span>
 </code></pre></div>
 </div>
 <h2 id="logging">Logging<a class="headerlink" href="#logging" title="Permanent link">&para;</a></h2>
@@ -2802,34 +2866,34 @@
 <li>Cost calculations</li>
 </ul>
 <p>Example log output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>INFO:powergenome.run_powergenome:Loading settings from settings
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>INFO:powergenome.database:Initializing DataManager
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>INFO:powergenome.generators:Clustering 145 generators into 12 clusters
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>WARNING:powergenome.generators:Region p5 not found in fuel price data
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>INFO:powergenome.GenX:Writing output files to results/case1/Inputs/Inputs_p1/
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>INFO:powergenome.run_powergenome:Loading settings from settings
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>INFO:powergenome.database:Initializing DataManager
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>INFO:powergenome.generators:Clustering 145 generators into 12 clusters
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>WARNING:powergenome.generators:Region p5 not found in fuel price data
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>INFO:powergenome.GenX:Writing output files to results/case1/Inputs/Inputs_p1/
 </code></pre></div>
-<h2 id="programmatic-usage">Programmatic Usage<a class="headerlink" href="#programmatic-usage" title="Permanent link">&para;</a></h2>
-<p>PowerGenome can also be used programmatically:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.run_powergenome</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">main</span><span class="p">(</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="n">settings_file</span><span class="o">=</span><span class="s2">&quot;path/to/settings&quot;</span><span class="p">,</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">results_folder</span><span class="o">=</span><span class="s2">&quot;path/to/results&quot;</span><span class="p">,</span>
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">case_id</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;case1&quot;</span><span class="p">,</span> <span class="s2">&quot;case2&quot;</span><span class="p">],</span>
-<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="p">)</span>
+<h2 id="programmatic-usage">Programmatic usage<a class="headerlink" href="#programmatic-usage" title="Permanent link">&para;</a></h2>
+<p><code>run_powergenome</code> can also be called from Python:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.run_powergenome</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="n">main</span><span class="p">(</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="n">settings_file</span><span class="o">=</span><span class="s2">&quot;path/to/settings&quot;</span><span class="p">,</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="n">results_folder</span><span class="o">=</span><span class="s2">&quot;path/to/results&quot;</span><span class="p">,</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="n">case_id</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;case1&quot;</span><span class="p">,</span> <span class="s2">&quot;case2&quot;</span><span class="p">],</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="p">)</span>
 </code></pre></div>
 <p>See the source code in <code>powergenome/run_powergenome.py</code> for details.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="settings-folder-not-found">Settings folder not found<a class="headerlink" href="#settings-folder-not-found" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Error: Settings path &#39;settings&#39; does not exist
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>Error: Settings path &#39;settings&#39; does not exist
 </code></pre></div>
 <p><strong>Solution</strong>: Provide absolute path or path relative to current directory</p>
 <h3 id="no-scenarios-found">No scenarios found<a class="headerlink" href="#no-scenarios-found" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>Warning: No scenario definitions found
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>Warning: No scenario definitions found
 </code></pre></div>
 <p><strong>Solution</strong>: Check <code>scenario_definitions_fn</code> points to valid CSV file in <code>extra_inputs/</code></p>
 <h3 id="permission-denied-writing-output">Permission denied writing output<a class="headerlink" href="#permission-denied-writing-output" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>PermissionError: [Errno 13] Permission denied: &#39;results/case1&#39;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>PermissionError: [Errno 13] Permission denied: &#39;results/case1&#39;
 </code></pre></div>
 <p><strong>Solution</strong>: Ensure write permissions on output directory or choose different location</p>
 <p>See <a href="../../how-to/debugging/">Debugging</a> for more troubleshooting tips.</p>
