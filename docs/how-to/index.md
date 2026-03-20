@@ -10,6 +10,11 @@ These guides provide step-by-step instructions for specific tasks. Each guide as
 - **[Configure Capacity Reserve Requirements](configure-capacity-reserves.md)**: Specify technology credit values for capacity reserve constraints
 - **[Run Multi-Scenario Studies](run-scenarios.md)**: Set up and execute multi-scenario runs with parameter variations
 
+## Validation and Debugging
+
+- **[Validate Settings Before Running](validate-settings.md)**: Check settings and data for common configuration mistakes before running the pipeline
+- **[Debugging](debugging.md)**: Diagnose and fix common errors
+
 ## Customization
 
 - **[Add Custom Technologies](add-technologies.md)**: Define user technologies, modify standard resources, and configure cost parameters
@@ -27,6 +32,7 @@ These guides provide step-by-step instructions for specific tasks. Each guide as
 | Set up renewable resource clusters | [Configure Renewable Clusters](configure-renewable-clusters.md) | Medium |
 | Run sensitivity analysis | [Run Scenarios](run-scenarios.md) | Medium |
 | Filter renewable sites by LCOE | [Configure Renewable Clusters](configure-renewable-clusters.md) | Medium |
+| Validate settings before a run | [Validate Settings](validate-settings.md) | Easy |
 
 ## Contributing Guides
 
