@@ -1061,6 +1061,55 @@ def report_validation_results(
         )
 
 
+def _print_phase_results(
+    results: List[ValidationResult], phase_name: str
+) -> Tuple[int, int]:
+    """Pretty-print validation results for one phase to stdout.
+
+    Groups ERROR and WARNING results into clearly labelled sections with
+    consistent indentation.  Returns ``(n_errors, n_warnings)``.
+    """
+    errors_ = [r for r in results if r.level == ValidationLevel.ERROR]
+    warnings_ = [r for r in results if r.level == ValidationLevel.WARNING]
+    n_errors, n_warnings = len(errors_), len(warnings_)
+
+    sep = "─" * 64
+    print(f"\n{sep}")
+    print(f"  {phase_name}")
+    print(f"{sep}\n")
+
+    if not results:
+        print("  No issues found.\n")
+        return 0, 0
+
+    if errors_:
+        print("  ERRORS — must be corrected:\n")
+        for r in errors_:
+            print(f"    ✗  [{r.category}]  {r.message}")
+            if r.detail:
+                for line in r.detail.splitlines():
+                    print(f"         {line.strip()}")
+            print()
+
+    if warnings_:
+        print("  WARNINGS — may need to be addressed:\n")
+        for r in warnings_:
+            print(f"    ⚠  [{r.category}]  {r.message}")
+            if r.detail:
+                for line in r.detail.splitlines():
+                    print(f"         {line.strip()}")
+            print()
+
+    summary_parts: List[str] = []
+    if n_errors:
+        summary_parts.append(f"{n_errors} error(s)")
+    if n_warnings:
+        summary_parts.append(f"{n_warnings} warning(s)")
+    print(f"  Result: {', '.join(summary_parts) if summary_parts else 'no issues'}\n")
+
+    return n_errors, n_warnings
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Standalone CLI  (validate_powergenome)
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1127,14 +1176,8 @@ def validate_powergenome() -> None:
 
     logger.info("Running Phase 1 validation (settings-only checks) …")
     p1_results = validate_settings(settings)
-    if p1_results:
-        report_validation_results(p1_results, raise_on_error=False)
-        has_errors = any(r.level == ValidationLevel.ERROR for r in p1_results)
-        p1_warns = sum(r.level == ValidationLevel.WARNING for r in p1_results)
-        p1_errs = sum(r.level == ValidationLevel.ERROR for r in p1_results)
-        logger.info("Phase 1 complete: %d error(s), %d warning(s)", p1_errs, p1_warns)
-    else:
-        logger.info("Phase 1 complete: no issues found.")
+    p1_errs, _ = _print_phase_results(p1_results, "Phase 1: Settings checks")
+    has_errors = p1_errs > 0
 
     # ── Phase 2 ────────────────────────────────────────────────────────────────
     if not args.skip_data_checks:
@@ -1150,22 +1193,8 @@ def validate_powergenome() -> None:
             try:
                 initialize_data_manager(settings, data_location)
                 p2_results = validate_settings_with_data(settings, _data_manager)
-                if p2_results:
-                    report_validation_results(p2_results, raise_on_error=False)
-                    has_errors = has_errors or any(
-                        r.level == ValidationLevel.ERROR for r in p2_results
-                    )
-                    p2_warns = sum(
-                        r.level == ValidationLevel.WARNING for r in p2_results
-                    )
-                    p2_errs = sum(r.level == ValidationLevel.ERROR for r in p2_results)
-                    logger.info(
-                        "Phase 2 complete: %d error(s), %d warning(s)",
-                        p2_errs,
-                        p2_warns,
-                    )
-                else:
-                    logger.info("Phase 2 complete: no issues found.")
+                p2_errs, _ = _print_phase_results(p2_results, "Phase 2: Data checks")
+                has_errors = has_errors or p2_errs > 0
             except Exception as exc:
                 logger.error("Phase 2 validation failed unexpectedly: %s", exc)
                 has_errors = True
