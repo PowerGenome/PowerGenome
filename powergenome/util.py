@@ -841,6 +841,204 @@ def add_row_to_csv(file: Path, new_row: List[str], headers: List[str] = None) ->
             writer.writerow(new_row)  # add the new row to the CSV file
 
 
+# -------------------------
+# Timing & instrumentation
+# -------------------------
+
+
+def _safe_get_settings_enabled(settings: Optional[Dict[str, Any]]) -> bool:
+    """Internal: check settings for a timing enable flag safely."""
+    try:
+        if isinstance(settings, dict):
+            return bool(settings.get("enable_timing", False))
+        # Settings objects may be frozen dict-like
+        return bool(getattr(settings, "get", lambda *_: False)("enable_timing", False))
+    except Exception:
+        return False
+
+
+def is_timing_enabled(settings: Optional[Dict[str, Any]] = None) -> bool:
+    """Return True if timing logs should be emitted.
+
+    Enablement sources (any will turn timing on):
+    - Environment variable `PG_TIMING=1`
+    - Settings flag `enable_timing: true`
+    """
+    env_enabled = os.environ.get("PG_TIMING", "0") in ("1", "true", "True")
+    if env_enabled:
+        return True
+
+    # If settings weren't passed, try to fetch current settings lazily to avoid circular imports
+    if settings is None:
+        try:
+            from powergenome.settings import (
+                get_current_settings,  # local import avoids import-time cycles
+            )
+
+            settings = get_current_settings()
+        except Exception:
+            settings = None
+
+    return _safe_get_settings_enabled(settings)
+
+
+def log_duration(
+    logger_obj: Optional[logging.Logger],
+    label: str,
+    start_ns: int,
+    end_ns: int,
+    cpu_start_ns: int,
+    cpu_end_ns: int,
+    extra: Optional[Dict[str, Any]] = None,
+    min_ms: int = 0,
+):
+    """Emit a DEBUG log with timing information.
+
+    Parameters
+    ----------
+    logger_obj : logging.Logger
+        Logger to use; if None, falls back to module logger.
+    label : str
+        Identifier for the measured block/function.
+    start_ns, end_ns : int
+        Wall-clock perf counter timestamps (nanoseconds).
+    cpu_start_ns, cpu_end_ns : int
+        CPU process time timestamps (nanoseconds).
+    extra : dict, optional
+        Additional contextual fields to include in the log record.
+    min_ms : int
+        Suppress logs if wall time is under this threshold (milliseconds).
+    """
+    _logger = logger_obj or logger
+    wall_ms = (end_ns - start_ns) / 1_000_000.0
+    if wall_ms < float(min_ms):
+        return
+    cpu_ms = (cpu_end_ns - cpu_start_ns) / 1_000_000.0
+    payload = {"label": label, "wall_ms": round(wall_ms, 3), "cpu_ms": round(cpu_ms, 3)}
+    if isinstance(extra, dict):
+        # Shallow merge; avoid expensive computations here
+        payload.update({k: v for k, v in extra.items()})
+    _logger.debug(f"timing: {payload}")
+
+
+class time_block:
+    """Context manager to measure wall and CPU time and log at DEBUG.
+
+    Usage:
+        with time_block("util.load_data_file", logger=logger, extra={"file": path}):
+            df = expensive_op()
+    """
+
+    def __init__(
+        self,
+        label: str,
+        logger: Optional[logging.Logger] = None,
+        extra: Optional[Dict[str, Any]] = None,
+        settings: Optional[Dict[str, Any]] = None,
+        min_ms: int = 0,
+    ):
+        self.label = label
+        self.logger = logger
+        self.extra = extra or {}
+        self.settings = settings
+        self.min_ms = min_ms
+        self._enabled = is_timing_enabled(settings)
+        self._start_ns = 0
+        self._cpu_start_ns = 0
+
+    def __enter__(self):
+        if self._enabled:
+            import time
+
+            self._cpu_start_ns = time.process_time_ns()
+            self._start_ns = time.perf_counter_ns()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self._enabled:
+            return False
+        import time
+
+        end_ns = time.perf_counter_ns()
+        cpu_end_ns = time.process_time_ns()
+        log_duration(
+            self.logger,
+            self.label,
+            self._start_ns,
+            end_ns,
+            self._cpu_start_ns,
+            cpu_end_ns,
+            self.extra,
+            self.min_ms,
+        )
+        # Don't suppress exceptions
+        return False
+
+
+def timeit(
+    logger: Optional[logging.Logger] = None,
+    label: Optional[str] = None,
+    min_ms: int = 0,
+):
+    """Decorator to time a function and emit a DEBUG log.
+
+    Parameters
+    ----------
+    logger : logging.Logger, optional
+        Logger to use; default is module logger.
+    label : str, optional
+        Custom label; defaults to qualified function name.
+    min_ms : int
+        Suppress logs if wall time is under this threshold.
+    """
+
+    def _decorator(func):
+        import functools
+        import time
+
+        @functools.wraps(func)
+        def _wrapped(*args, **kwargs):
+            # Allow optional settings passed via kwargs for enablement; lazily fetch if absent
+            settings = kwargs.get("settings")
+            if settings is None:
+                try:
+                    from powergenome.settings import (
+                        get_current_settings,  # local import to avoid cycles
+                    )
+
+                    settings = get_current_settings()
+                except Exception:
+                    settings = None
+            enabled = is_timing_enabled(settings)
+            if not enabled:
+                return func(*args, **kwargs)
+
+            cpu_start = time.process_time_ns()
+            start = time.perf_counter_ns()
+            result = func(*args, **kwargs)
+            end = time.perf_counter_ns()
+            cpu_end = time.process_time_ns()
+
+            _label = label or getattr(
+                func, "__qualname__", getattr(func, "__name__", "unknown")
+            )
+
+            # If the function returns a DataFrame, add a row count to extra
+            extra: Dict[str, Any] = {}
+            try:
+                if isinstance(result, pd.DataFrame):
+                    extra["rows_after"] = int(result.shape[0])
+            except Exception as e:
+                logger.debug(f"Could not get row count from result: {e}")
+
+            log_duration(logger, _label, start, end, cpu_start, cpu_end, extra, min_ms)
+            return result
+
+        return _wrapped
+
+    return _decorator
+
+
 def get_all_table_names(data_location: Union[Path, str]) -> List[str]:
     """
     Retrieve all table names from the given SQLite or DuckDB database.

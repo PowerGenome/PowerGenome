@@ -15,11 +15,12 @@ from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.preprocessing import StandardScaler
 
 from powergenome.resource_clusters import MERGE
-from powergenome.util import load_data, snake_case_str
+from powergenome.util import load_data, snake_case_str, timeit
 
 logger = logging.getLogger(__name__)
 
 
+@timeit(logger=logger, label="renewables.load_site_profiles", min_ms=5)
 def load_site_profiles(
     path: Path,
     site_ids: List[str],

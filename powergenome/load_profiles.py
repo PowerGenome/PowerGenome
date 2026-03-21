@@ -23,6 +23,7 @@ from powergenome.util import (
     regions_to_keep,
     remove_feb_29,
     reverse_dict_of_lists,
+    timeit,
 )
 
 logger = logging.getLogger(__name__)
@@ -118,6 +119,7 @@ def filter_load_by_region(load_source):  # "decorator factory"
 #     return load_curves
 
 
+@timeit(logger=logger, label="load_profiles.make_load_curves", min_ms=5)
 def make_load_curves(
     settings: dict,
 ) -> pd.DataFrame:
