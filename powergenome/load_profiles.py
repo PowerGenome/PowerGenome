@@ -893,7 +893,6 @@ def add_supplemental_demand(
     return load_curves
 
 
-
 @auto_fill_settings()
 def make_final_load_curves(
     data_location: Path | str = None,

@@ -172,6 +172,11 @@ class DataManager:
             except Exception as e:
                 raise RuntimeError(f"Failed to create table {standard_name}: {e}")
 
+    @staticmethod
+    def _is_tabular_file_source(name: str) -> bool:
+        """Return True if *name* refers to a CSV or Parquet file (has the right extension)."""
+        return name.lower().endswith(".csv") or name.lower().endswith(".parquet")
+
     def _validate_table_config(
         self, table_config: Union[str, Dict], standard_name: str
     ) -> Tuple[str, List, List[str]]:
@@ -277,9 +282,7 @@ class DataManager:
 
         elif self.data_location and self.data_location.is_file():
             # For database files, allow CSV/parquet files co-located in the same directory.
-            if any(
-                source_table.lower().endswith(ext) for ext in [".csv", ".parquet"]
-            ):
+            if self._is_tabular_file_source(source_table):
                 # Treat as a standalone file in the same directory as the database.
                 file_path = self.data_location.parent / source_table
                 if not file_path.is_file():
@@ -344,9 +347,7 @@ class DataManager:
             else:
                 raise ValueError(f"Unsupported file type: {file_extension}")
 
-        elif self.data_location.is_file() and any(
-            source_table.lower().endswith(ext) for ext in [".csv", ".parquet"]
-        ):
+        elif self.data_location.is_file() and self._is_tabular_file_source(source_table):
             # File co-located with the database (e.g. a supplemental CSV next to the DB).
             file_path = self.data_location.parent / source_table
             file_extension = file_path.suffix.lower()
