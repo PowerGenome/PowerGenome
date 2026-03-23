@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 import powergenome.load_profiles as lp_mod
+from powergenome.load_profiles import add_supplemental_demand
 from powergenome.load_profiles import grow_historical_load
 from powergenome.load_profiles import make_load_curves as _make_load_curves
 from powergenome.load_profiles import subtract_distributed_generation
@@ -372,3 +373,243 @@ def test_make_load_curves_all_weather_years(monkeypatch):
     # Expect concatenated all years (renumbered 1-8)
     assert len(out) == 8
     assert list(out["R1"]) == [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0]
+
+
+# ---------------------------------------------------------------------------
+# Tests for add_supplemental_demand
+# ---------------------------------------------------------------------------
+
+
+def _base_load_curves(n_hours=4, regions=("R1", "R2"), base_load=100.0):
+    """Helper: build a simple wide load_curves DataFrame."""
+    idx = pd.RangeIndex(1, n_hours + 1, name="time_index")
+    return pd.DataFrame(
+        {r: [base_load] * n_hours for r in regions},
+        index=idx,
+        dtype=float,
+    )
+
+
+def test_add_supplemental_demand_no_table(monkeypatch):
+    """When supplemental_demand table is absent, load_curves is returned unchanged."""
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: [])
+
+    lc = _base_load_curves()
+    out = add_supplemental_demand(lc, model_year=2030, model_regions=["R1", "R2"])
+    pd.testing.assert_frame_equal(out, lc)
+
+
+def test_add_supplemental_demand_all_hours(monkeypatch):
+    """Rows with time_index='all_hours' are expanded to every hour."""
+
+    supp = pd.DataFrame(
+        {
+            "region": ["R1"],
+            "time_index": ["all_hours"],
+            "load_mw": [50.0],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=4)
+    out = add_supplemental_demand(lc, model_year=2030, model_regions=["R1", "R2"])
+
+    assert list(out["R1"]) == [150.0, 150.0, 150.0, 150.0]
+    assert list(out["R2"]) == [100.0, 100.0, 100.0, 100.0]  # unchanged
+
+
+def test_add_supplemental_demand_specific_time_index(monkeypatch):
+    """Rows with a specific integer time_index modify only that hour."""
+
+    supp = pd.DataFrame(
+        {
+            "region": ["R1"],
+            "time_index": [2],
+            "load_mw": [30.0],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=4)
+    out = add_supplemental_demand(lc, model_year=2030, model_regions=["R1", "R2"])
+
+    # Without weather_year column, no tiling; only hour 2 gets the supplement.
+    assert list(out["R1"]) == [100.0, 130.0, 100.0, 100.0]
+    assert list(out["R2"]) == [100.0, 100.0, 100.0, 100.0]
+
+
+def test_add_supplemental_demand_year_filter(monkeypatch):
+    """When a 'year' column exists, rows are filtered to model_year."""
+
+    # Two rows: one for 2030, one for 2035
+    supp_all = pd.DataFrame(
+        {
+            "year": [2030, 2035],
+            "region": ["R1", "R1"],
+            "time_index": ["all_hours", "all_hours"],
+            "load_mw": [10.0, 999.0],
+        }
+    )
+    # Simulate DataManager filtering: only return the row matching model_year=2030
+    supp_filtered = supp_all[supp_all["year"] == 2030].copy()
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["year", "region", "time_index", "load_mw"]})
+            if query is not None
+            else supp_filtered
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=4)
+    out = add_supplemental_demand(lc, model_year=2030, model_regions=["R1", "R2"])
+
+    assert list(out["R1"]) == [110.0, 110.0, 110.0, 110.0]
+
+
+def test_add_supplemental_demand_tiled_across_weather_years(monkeypatch):
+    """With weather_year col + NULL wy, specific time indices tile across weather-year blocks."""
+
+    # load_curves has 8 hours = 2 weather years × 4 hours each
+    supp = pd.DataFrame(
+        {
+            "region": ["R1"],
+            "time_index": [1],  # should apply to hour 1 of each 4-hour block
+            "load_mw": [20.0],
+            "weather_year": [None],  # NULL → tile across all blocks
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw", "weather_year"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    # Use hours_per_year=4 so that 8 hours = 2 blocks of 4.
+    lc = _base_load_curves(n_hours=8)
+    out = add_supplemental_demand(
+        lc, model_year=2030, model_regions=["R1"], hours_per_year=4
+    )
+
+    # Hours 1 and 5 should get +20
+    assert out.loc[1, "R1"] == 120.0
+    assert out.loc[5, "R1"] == 120.0
+    # All other hours unchanged
+    for idx in [2, 3, 4, 6, 7, 8]:
+        assert out.loc[idx, "R1"] == 100.0
+
+
+def test_add_supplemental_demand_unknown_region(monkeypatch):
+    """Supplemental demand for a region not in load_curves is silently skipped."""
+
+    supp = pd.DataFrame(
+        {
+            "region": ["UNKNOWN"],
+            "time_index": ["all_hours"],
+            "load_mw": [500.0],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=4)
+    out = add_supplemental_demand(lc, model_year=2030, model_regions=["R1", "R2"])
+
+    # Both regions should be unchanged
+    pd.testing.assert_frame_equal(out, lc)
+
+
+def test_add_supplemental_demand_empty_table(monkeypatch):
+    """An empty supplemental demand table leaves load_curves unchanged."""
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw"]})
+            if query is not None
+            else pd.DataFrame(columns=["region", "time_index", "load_mw"])
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=4)
+    out = add_supplemental_demand(lc, model_year=2030, model_regions=["R1", "R2"])
+
+    pd.testing.assert_frame_equal(out, lc)
+
+
+def test_add_supplemental_demand_with_weather_year_null(monkeypatch):
+    """Rows with NULL weather_year tile across all blocks when weather_year col exists."""
+
+    # load_curves: 8 hours (2 blocks of 4)
+    supp = pd.DataFrame(
+        {
+            "region": ["R1"],
+            "time_index": [2],
+            "load_mw": [15.0],
+            "weather_year": [None],  # NULL → apply to all blocks
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame(
+                {"name": ["region", "time_index", "load_mw", "weather_year"]}
+            )
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=8)
+    out = add_supplemental_demand(
+        lc, model_year=2030, model_regions=["R1"], hours_per_year=4
+    )
+
+    # time_index 2 and 6 (= 2 + 4) should get +15
+    assert out.loc[2, "R1"] == 115.0
+    assert out.loc[6, "R1"] == 115.0
+    for idx in [1, 3, 4, 5, 7, 8]:
+        assert out.loc[idx, "R1"] == 100.0

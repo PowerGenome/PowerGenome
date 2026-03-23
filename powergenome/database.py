@@ -55,6 +55,8 @@ class DataManager:
         "regional_cost_factor_table": "regional_cost_factor",
         "transmission_cost_table": "transmission_cost",
         "demand_table": "demand",
+        # Supplemental demand table for adding extra hourly load (e.g. data center forecasts).
+        "supplemental_demand_table": "supplemental_demand",
         # Distributed generation tables (support both legacy and new setting keys).
         # Code expects the standardized table name "distributed_profiles".
         "distributed_profile_table": "distributed_profiles",  # singular key
@@ -274,14 +276,25 @@ class DataManager:
                     )
 
         elif self.data_location and self.data_location.is_file():
-            # For database files, table names should not have extensions
+            # For database files, allow CSV/parquet files co-located in the same directory.
             if any(
+                source_table.lower().endswith(ext) for ext in [".csv", ".parquet"]
+            ):
+                # Treat as a standalone file in the same directory as the database.
+                file_path = self.data_location.parent / source_table
+                if not file_path.is_file():
+                    raise ValueError(
+                        f"Table '{standard_name}' source '{source_table}' has a file "
+                        f"extension but was not found next to the database in "
+                        f"'{self.data_location.parent}'."
+                    )
+            elif any(
                 source_table.lower().endswith(ext)
-                for ext in [".csv", ".parquet", ".db", ".sqlite", ".duckdb"]
+                for ext in [".db", ".sqlite", ".duckdb"]
             ):
                 logger.warning(
                     f"Table '{standard_name}' source '{source_table}' appears to have a "
-                    "file extension, but data_location is a database file. "
+                    "database file extension, but data_location is already a database file. "
                     "Table names in databases should not have extensions."
                 )
 
@@ -322,6 +335,20 @@ class DataManager:
         if self.data_location.is_dir():
             # For file-based data
             file_path = self.data_location / source_table
+            file_extension = file_path.suffix.lower()
+
+            if file_extension == ".csv":
+                source_query = f"read_csv_auto('{file_path}')"
+            elif file_extension == ".parquet":
+                source_query = f"read_parquet('{file_path}')"
+            else:
+                raise ValueError(f"Unsupported file type: {file_extension}")
+
+        elif self.data_location.is_file() and any(
+            source_table.lower().endswith(ext) for ext in [".csv", ".parquet"]
+        ):
+            # File co-located with the database (e.g. a supplemental CSV next to the DB).
+            file_path = self.data_location.parent / source_table
             file_extension = file_path.suffix.lower()
 
             if file_extension == ".csv":

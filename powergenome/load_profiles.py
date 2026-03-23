@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from powergenome.database import get_data
+from powergenome.database import get_data, list_tables
 from powergenome.distributed_gen import get_distributed_gen_hourly_generation
 from powergenome.eia_opendata import get_aeo_load
 from powergenome.external_data import make_demand_response_profiles
@@ -731,6 +731,169 @@ def load_usr_demand_profiles(settings):
         return None
 
 
+def add_supplemental_demand(
+    load_curves: pd.DataFrame,
+    model_year: int,
+    model_regions: List[str],
+    hours_per_year: int = 8760,
+) -> pd.DataFrame:
+    """Add supplemental hourly demand from the DataManager ``supplemental_demand`` table.
+
+    The supplemental demand table should have at minimum the columns:
+
+    * ``region`` – model region name
+    * ``time_index`` – integer hour index (1-based) **or** the string ``"all_hours"``
+    * ``load_mw`` – MW of demand to add
+
+    Optional columns:
+
+    * ``year`` – when present, rows are filtered to ``model_year``
+    * ``weather_year`` – when present, rows with NULL/NaN ``weather_year`` are tiled
+      across all weather-year blocks (see ``hours_per_year``); rows with a specific
+      ``weather_year`` value are applied directly to matching ``time_index`` values.
+
+    A ``time_index`` value of ``"all_hours"`` is expanded to every hour present in
+    ``load_curves`` (i.e., every row in the index).  When a specific integer is given,
+    tiling behaviour depends on whether a ``weather_year`` column is present:
+
+    * **No** ``weather_year`` column – rows with specific ``time_index`` values are
+      applied directly (no tiling).  Use ``"all_hours"`` if the supplement should
+      apply across all weather years.
+    * **With** ``weather_year`` column – rows whose ``weather_year`` is NULL/NaN are
+      tiled across weather-year blocks of ``hours_per_year`` hours each.
+
+    If the ``supplemental_demand`` table is not registered in the DataManager this
+    function is a no-op and returns ``load_curves`` unchanged.
+
+    Parameters
+    ----------
+    load_curves : pd.DataFrame
+        Wide dataframe with one column per model region and ``time_index`` as the index.
+        This is the same format returned by :func:`make_load_curves`.
+    model_year : int
+        Planning year used to filter the supplemental demand table (applied when the
+        table contains a ``year`` column).
+    model_regions : List[str]
+        Model region names; only regions present in both ``load_curves.columns`` and
+        the supplemental demand table are modified.
+    hours_per_year : int, optional
+        Number of hours in a single weather year, used to tile supplemental demand
+        across multiple weather years when ``weather_year`` is NULL/NaN.  Defaults to
+        8760 (standard non-leap year).
+
+    Returns
+    -------
+    pd.DataFrame
+        A copy of ``load_curves`` with the supplemental demand added.
+    """
+    if "supplemental_demand" not in list_tables():
+        return load_curves
+
+    # Discover available columns in the supplemental demand table.
+    try:
+        col_info = get_data(
+            "supplemental_demand",
+            query="PRAGMA table_info('supplemental_demand')",
+        )
+        supp_cols = col_info["name"].tolist()
+    except Exception:
+        col_info = get_data(
+            "supplemental_demand",
+            query="DESCRIBE supplemental_demand",
+        )
+        supp_cols = col_info.iloc[:, 0].tolist()
+
+    # Build filters for the model year.
+    filters = None
+    if "year" in supp_cols:
+        filters = [
+            [("year", "=", model_year)],
+        ]
+
+    supp_df = get_data("supplemental_demand", filters=filters)
+
+    if supp_df.empty:
+        return load_curves
+
+    load_curves = load_curves.copy()
+    all_time_indices = load_curves.index.tolist()
+    total_hours = len(all_time_indices)
+    has_weather_year_col = "weather_year" in supp_cols
+
+    # Determine how many weather-year blocks fit in load_curves.
+    if total_hours > hours_per_year and total_hours % hours_per_year == 0:
+        num_blocks = total_hours // hours_per_year
+    else:
+        num_blocks = 1
+
+    # Separate rows with "all_hours" from rows with specific time indices.
+    all_hours_mask = supp_df["time_index"].astype(str).str.strip() == "all_hours"
+    all_hours_df = supp_df[all_hours_mask].copy()
+    specific_df = supp_df[~all_hours_mask].copy()
+
+    # --- Helper: add a load_mw Series (indexed by time_index) to load_curves ---
+    def _apply(region: str, by_time: "pd.Series") -> None:
+        if region not in load_curves.columns:
+            logger.debug(
+                "Supplemental demand region '%s' not in model regions; skipping.", region
+            )
+            return
+        common = load_curves.index.intersection(by_time.index)
+        if common.empty:
+            return
+        load_curves.loc[common, region] = (
+            load_curves.loc[common, region] + by_time.loc[common]
+        )
+
+    # --- Process "all_hours" rows ---
+    for region, region_df in all_hours_df.groupby("region"):
+        total_mw = region_df["load_mw"].sum()
+        by_time = pd.Series(total_mw, index=all_time_indices, dtype=float)
+        _apply(region, by_time)
+
+    # --- Process specific time_index rows ---
+    if not specific_df.empty:
+        specific_df = specific_df.copy()
+        specific_df["time_index"] = pd.to_numeric(
+            specific_df["time_index"], errors="coerce"
+        )
+        specific_df = specific_df.dropna(subset=["time_index"])
+        specific_df["time_index"] = specific_df["time_index"].astype(int)
+
+        if has_weather_year_col and num_blocks > 1:
+            # Tile rows with NULL weather_year across all weather-year blocks; apply
+            # rows with a specific weather_year directly.
+            null_wy = specific_df["weather_year"].isna()
+            null_wy_df = specific_df[null_wy]
+            valid_wy_df = specific_df[~null_wy]
+
+            if not null_wy_df.empty:
+                expanded_rows = [null_wy_df]
+                for offset in range(1, num_blocks):
+                    shifted = null_wy_df.copy()
+                    shifted["time_index"] = (
+                        shifted["time_index"] + offset * hours_per_year
+                    )
+                    expanded_rows.append(shifted)
+                null_wy_df = pd.concat(expanded_rows, ignore_index=True)
+                for region, region_df in null_wy_df.groupby("region"):
+                    by_time = region_df.groupby("time_index")["load_mw"].sum()
+                    _apply(region, by_time)
+
+            if not valid_wy_df.empty:
+                for region, region_df in valid_wy_df.groupby("region"):
+                    by_time = region_df.groupby("time_index")["load_mw"].sum()
+                    _apply(region, by_time)
+        else:
+            # No weather_year column or single block: apply rows directly.
+            for region, region_df in specific_df.groupby("region"):
+                by_time = region_df.groupby("time_index")["load_mw"].sum()
+                _apply(region, by_time)
+
+    return load_curves
+
+
+
 @auto_fill_settings()
 def make_final_load_curves(
     data_location: Path | str = None,
@@ -854,6 +1017,13 @@ def make_final_load_curves(
         )
     else:
         final_load_curves = load_curves_before_dg
+
+    # Add supplemental demand (e.g. data center forecasts) if the table is available.
+    final_load_curves = add_supplemental_demand(
+        final_load_curves,
+        model_year=settings["model_year"],
+        model_regions=settings["model_regions"],
+    )
 
     final_load_curves = final_load_curves.astype(int)
 

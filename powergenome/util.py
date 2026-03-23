@@ -1109,8 +1109,13 @@ def load_data(
             )
         return load_data_file(file_path, filters, columns)
     else:
-        if file_or_table_name and os.path.splitext(file_or_table_name)[1].lower():
-            raise ValueError(
-                "file_or_table_name should not have an extension when data_location is a database."
-            )
+        extension = os.path.splitext(file_or_table_name)[1].lower()
+        if extension in [".csv", ".parquet"]:
+            # Allow standalone CSV/parquet files located next to the database file.
+            file_path = data_location.parent / file_or_table_name
+            if not file_path.is_file():
+                raise ValueError(
+                    f"File '{file_or_table_name}' not found in '{data_location.parent}'."
+                )
+            return load_data_file(file_path, filters, columns)
         return load_table_from_db(data_location, file_or_table_name, filters, columns)

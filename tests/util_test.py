@@ -418,8 +418,8 @@ def test_load_data_folder_no_filename(tmp_path):
 
 
 def test_load_data_db_with_extension(tmp_sqlite_db):
-    # Passing a file name with extension when data_location is a DB
-    with pytest.raises(ValueError, match=r"should not have an extension"):
+    # Passing a CSV file name when data_location is a DB: file not found next to DB
+    with pytest.raises(ValueError, match=r"not found in"):
         load_data(tmp_sqlite_db, file_or_table_name="foo.csv")
 
 
