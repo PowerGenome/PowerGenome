@@ -229,6 +229,7 @@ The following settings parameters map to tables in DataManager:
 | `plant_region_table` | `plant_region` | Plant-to-region mapping |
 | `distributed_capacity_table` | `distributed_capacity` | Rooftop solar capacity |
 | `distributed_profiles_table` | `distributed_profiles` | Rooftop solar generation |
+| `supplemental_demand_table` | `supplemental_demand` | Extra hourly demand (data centers, etc.) |
 
 ---
 
