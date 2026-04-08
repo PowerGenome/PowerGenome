@@ -748,6 +748,15 @@ def add_supplemental_demand(
     Optional columns:
 
     * ``year`` – when present, rows are filtered to ``model_year``
+    * ``scenario`` – when present, exactly one scenario must be present in the data
+      after any DataManager-level filtering; if multiple scenarios exist, a
+      ``ValueError`` is raised with the list of available scenario names and an
+      example of how to select one via the dict-format settings key::
+
+          supplemental_demand_table:
+            table_name: supplemental_demand.csv
+            scenario: high_data_center
+
     * ``weather_year`` – when present, rows with NULL/NaN ``weather_year`` are tiled
       across all weather-year blocks (see ``hours_per_year``); rows with a specific
       ``weather_year`` value are applied directly to matching ``time_index`` values.
@@ -814,6 +823,22 @@ def add_supplemental_demand(
 
     if supp_df.empty:
         return load_curves
+
+    # If the table has a `scenario` column, verify that exactly one scenario is present
+    # after any DataManager-level filtering. Multiple scenarios mean the user must
+    # specify which one to use via the dict-format table config.
+    if "scenario" in supp_df.columns:
+        scenarios = supp_df["scenario"].dropna().unique().tolist()
+        if len(scenarios) > 1:
+            scenario_list = ", ".join(f"'{s}'" for s in sorted(str(s) for s in scenarios))
+            raise ValueError(
+                "The supplemental_demand table contains multiple scenarios "
+                f"({scenario_list}) but no scenario has been selected. "
+                "Specify which scenario to use in your settings file, for example:\n\n"
+                "    supplemental_demand_table:\n"
+                f"      table_name: <your_table_or_file>\n"
+                f"      scenario: {sorted(str(s) for s in scenarios)[0]}"
+            )
 
     load_curves = load_curves.copy()
     all_time_indices = load_curves.index.tolist()

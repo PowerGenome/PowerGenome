@@ -613,3 +613,102 @@ def test_add_supplemental_demand_with_weather_year_null(monkeypatch):
     assert out.loc[6, "R1"] == 115.0
     for idx in [1, 3, 4, 5, 7, 8]:
         assert out.loc[idx, "R1"] == 100.0
+
+
+def test_add_supplemental_demand_multiple_scenarios_raises(monkeypatch):
+    """Multiple scenarios in table without selection must raise a descriptive ValueError."""
+
+    supp = pd.DataFrame(
+        {
+            "region": ["R1", "R1"],
+            "time_index": ["all_hours", "all_hours"],
+            "load_mw": [100.0, 200.0],
+            "scenario": ["low_demand", "high_demand"],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame(
+                {"name": ["region", "time_index", "load_mw", "scenario"]}
+            )
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=4)
+    with pytest.raises(ValueError, match="multiple scenarios"):
+        add_supplemental_demand(lc, model_year=2030, model_regions=["R1"])
+
+
+def test_add_supplemental_demand_error_shows_scenario_options(monkeypatch):
+    """Error message lists the available scenario names."""
+
+    supp = pd.DataFrame(
+        {
+            "region": ["R1", "R1"],
+            "time_index": ["all_hours", "all_hours"],
+            "load_mw": [100.0, 200.0],
+            "scenario": ["baseline", "high_data_center"],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame(
+                {"name": ["region", "time_index", "load_mw", "scenario"]}
+            )
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=4)
+    with pytest.raises(ValueError) as exc_info:
+        add_supplemental_demand(lc, model_year=2030, model_regions=["R1"])
+
+    error_msg = str(exc_info.value)
+    assert "baseline" in error_msg
+    assert "high_data_center" in error_msg
+    # Error should show how to fix it using the dict-format config
+    assert "supplemental_demand_table" in error_msg
+    assert "scenario:" in error_msg
+
+
+def test_add_supplemental_demand_single_scenario_no_error(monkeypatch):
+    """A single scenario in the table (after filtering) proceeds without error."""
+
+    supp = pd.DataFrame(
+        {
+            "region": ["R1", "R1"],
+            "time_index": ["all_hours", "all_hours"],
+            "load_mw": [50.0, 50.0],
+            "scenario": ["high_data_center", "high_data_center"],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame(
+                {"name": ["region", "time_index", "load_mw", "scenario"]}
+            )
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=4)
+    out = add_supplemental_demand(lc, model_year=2030, model_regions=["R1"])
+
+    # 50 + 50 = 100 MW added to every hour (two rows with the same scenario)
+    assert list(out["R1"]) == [200.0, 200.0, 200.0, 200.0]
