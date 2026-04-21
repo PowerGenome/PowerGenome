@@ -9,6 +9,7 @@ from powergenome.database import get_data, initialize_data_manager
 from powergenome.new_build import (
     auto_create_region_map,
     auto_create_technology_map,
+    build_new_resources,
     validate_cost_coverage,
 )
 from powergenome.settings import Settings
@@ -260,3 +261,69 @@ def test_auto_create_technology_map_with_modified_resources(
     # Should log that the modified resource was mapped
     assert "hydrogen_combustion turbine_Advanced" in caplog.text
     assert "NaturalGas_Combustion Turbine (F-Frame)" in caplog.text
+
+
+def test_build_new_resources_no_missing_map_info_logs(
+    regional_cost_settings, monkeypatch, caplog
+):
+    """Ensure missing-map info logs are not emitted with regional cost factor table."""
+    import copy
+    import logging
+
+    caplog.set_level(logging.INFO)
+
+    settings = copy.deepcopy(regional_cost_settings)
+    settings["model_year"] = 2030
+    settings["model_first_planning_year"] = 2030
+    settings["model_regions"] = ["NWPP"]
+    settings["new_resources"] = [
+        ["NaturalGas", "1-on-1 Combined Cycle (H-Frame)", "Moderate", 500]
+    ]
+
+    resource_costs = pd.DataFrame(
+        {
+            "technology": ["NaturalGas"],
+            "tech_detail": ["1-on-1 Combined Cycle (H-Frame)"],
+            "cost_case": ["Moderate"],
+            "financial_case": ["R&D"],
+            "basis_year": [2030],
+            "capex_mw": [1000.0],
+            "capex_mwh": [0.0],
+            "fixed_o_m_mw": [10.0],
+            "fixed_o_m_mwh": [0.0],
+            "variable_o_m_mwh": [5.0],
+            "wacc_real": [0.07],
+        }
+    )
+    resource_hr = pd.DataFrame(
+        {
+            "technology": ["NaturalGas"],
+            "tech_detail": ["1-on-1 Combined Cycle (H-Frame)"],
+            "cost_case": ["Moderate"],
+            "basis_year": [2030],
+            "heat_rate": [7.0],
+        }
+    )
+
+    def _mock_parallel_region_renewables(
+        settings,
+        new_gen_df,
+        regional_cost_multipliers,
+        rev_mult_region_map,
+        rev_mult_tech_map,
+        region,
+        cluster_builder=None,
+        cache_results=False,
+        use_cache=False,
+    ):
+        return new_gen_df.assign(region=region)
+
+    monkeypatch.setattr(
+        "powergenome.new_build.parallel_region_renewables",
+        _mock_parallel_region_renewables,
+    )
+
+    build_new_resources(resource_costs, resource_hr, settings)
+
+    assert "No 'cost_multiplier_region_map' provided." not in caplog.text
+    assert "No 'cost_multiplier_technology_map' provided." not in caplog.text
