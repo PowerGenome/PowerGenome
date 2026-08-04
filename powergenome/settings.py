@@ -651,7 +651,9 @@ def load_settings(path: Union[str, Path]) -> dict:
             "Path is not recognized. Check that your path is valid."
         )
 
-    settings_folder = path if path.is_dir() else path.parent
+    # Settings directories contain YAML files, while their relative data paths
+    # are rooted at the directory containing the settings folder.
+    settings_folder = path.parent
 
     data_locations = settings.get("data_location")
     if data_locations:

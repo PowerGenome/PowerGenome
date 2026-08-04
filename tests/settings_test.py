@@ -1527,6 +1527,25 @@ class TestExpandCapacityReserveValues:
         ]
         assert result["input_folder"] == settings_folder / "inputs"
 
+    def test_paths_resolve_relative_to_parent_of_settings_directory(self, tmp_path):
+        """Test that directory-based settings retain the study-root convention."""
+        settings_folder = tmp_path / "settings"
+        settings_folder.mkdir()
+        settings_file = settings_folder / "data.yml"
+        settings_content = {
+            "model_regions": ["p1"],
+            "data_location": "test_data",
+            "input_folder": "extra_inputs",
+        }
+
+        with open(settings_file, "w") as f:
+            yaml.dump(settings_content, f)
+
+        result = load_settings(settings_folder)
+
+        assert result["data_location"] == tmp_path / "test_data"
+        assert result["input_folder"] == tmp_path / "extra_inputs"
+
     def test_integration_with_build_scenario_settings(self, tmp_path):
         """Test that expand_capacity_reserve_values works in scenario building."""
         # Create base settings
