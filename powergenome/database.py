@@ -114,7 +114,9 @@ class DataManager:
         self.connection = duckdb.connect(database=":memory:")
         self.settings = self._convert_settings_to_dict(settings)
         if data_location:
-            locations = data_location if isinstance(data_location, list) else [data_location]
+            locations = (
+                data_location if isinstance(data_location, list) else [data_location]
+            )
             self._data_locations = [Path(location) for location in locations]
         else:
             self._data_locations = []
@@ -132,9 +134,7 @@ class DataManager:
         self.data_location = (
             self._data_locations[0]
             if len(self._data_locations) == 1
-            else self._data_locations
-            if self._data_locations
-            else None
+            else self._data_locations if self._data_locations else None
         )
         self.lazy_loading = lazy_loading
         self.table_configurations = {}  # Reset configurations
@@ -394,7 +394,9 @@ class DataManager:
                         f"ATTACH '{str(data_location).replace(chr(39), chr(39) * 2)}' AS {alias}"
                     )
                     self._attached_databases[data_location] = alias
-                source_query = f"{self._attached_databases[data_location]}.{source_table}"
+                source_query = (
+                    f"{self._attached_databases[data_location]}.{source_table}"
+                )
             else:
                 raise ValueError("Unsupported database type")
 
