@@ -288,10 +288,12 @@ def _check_paths_exist(settings: dict) -> List[ValidationResult]:
         val = settings.get(key)
         if val is None:
             continue
-        if not Path(val).exists():
-            results.append(
-                _err("paths", f"Path specified in '{key}' does not exist: {val}")
-            )
+        values = val if isinstance(val, list) else [val]
+        for value in values:
+            if not Path(value).exists():
+                results.append(
+                    _err("paths", f"Path specified in '{key}' does not exist: {value}")
+                )
 
     input_folder = settings.get("input_folder")
     if input_folder:

@@ -77,6 +77,10 @@ class DataManager:
                 if not self._initialized:
                     self.connection = None
                     self.data_location = None
+                    self._data_locations = []
+                    self._table_locations = {}
+                    self._attached_databases = {}
+                    self._database_tables = {}
                     self.available_tables = set()
                     self.table_configurations = {}  # Store original table configs
                     self._initialized = True
@@ -86,7 +90,7 @@ class DataManager:
     def initialize(
         self,
         settings: Union[Dict[str, Any], Settings],
-        data_location: Union[Path, str] = None,
+        data_location: Union[Path, str, List[Union[Path, str]]] = None,
         lazy_loading: bool = True,
     ):
         """
@@ -96,8 +100,9 @@ class DataManager:
         ----------
         settings : Union[Dict[str, Any], Settings]
             Settings dictionary or Settings object containing table configuration parameters
-        data_location : Union[Path, str], optional
-            Path to database file or folder containing data files
+        data_location : Union[Path, str, List[Union[Path, str]]], optional
+            Path(s) to database file(s) or folder(s) containing data files. Each
+            configured table must exist in exactly one location.
         lazy_loading : bool, optional
             If True, create views instead of loading all data into memory, by default True
         """
@@ -107,10 +112,35 @@ class DataManager:
 
         # Create in-memory DuckDB connection
         self.connection = duckdb.connect(database=":memory:")
-        self.data_location = Path(data_location) if data_location else None
         self.settings = self._convert_settings_to_dict(settings)
+        if data_location:
+            locations = data_location if isinstance(data_location, list) else [data_location]
+            self._data_locations = [Path(location) for location in locations]
+        else:
+            self._data_locations = []
+
+        input_folder = self.settings.get("input_folder")
+        if input_folder:
+            input_locations = (
+                input_folder if isinstance(input_folder, list) else [input_folder]
+            )
+            for location in input_locations:
+                location = Path(location)
+                if location not in self._data_locations:
+                    self._data_locations.append(location)
+
+        self.data_location = (
+            self._data_locations[0]
+            if len(self._data_locations) == 1
+            else self._data_locations
+            if self._data_locations
+            else None
+        )
         self.lazy_loading = lazy_loading
         self.table_configurations = {}  # Reset configurations
+        self._table_locations = {}
+        self._attached_databases = {}
+        self._database_tables = {}
 
         # Setup tables based on settings
         self._setup_tables()
@@ -245,47 +275,69 @@ class DataManager:
                     normalized.append(clause_conds)
                 filters = normalized
 
-        # Validate file/table name format based on data location type
-        if self.data_location and self.data_location.is_dir():
-            # For folder-based data, require file extension
-            if not any(
-                source_table.lower().endswith(ext) for ext in [".csv", ".parquet"]
-            ):
-                logger.warning(
-                    f"Table '{standard_name}' source '{source_table}' does not have a "
-                    "file extension (.csv or .parquet). This may cause loading issues."
+        # Resolve the table against exactly one configured data source.
+        if self._data_locations:
+            matches = []
+            for location in self._data_locations:
+                resolved = self._resolve_table_source(location, source_table)
+                if resolved is not None:
+                    matches.append((location, resolved))
+
+            if len(matches) > 1:
+                locations = ", ".join(str(location) for location, _ in matches)
+                raise ValueError(
+                    f"Table '{standard_name}' source '{source_table}' was found in "
+                    f"multiple data locations: {locations}"
+                )
+            if not matches:
+                raise ValueError(
+                    f"Table '{standard_name}' source '{source_table}' was not found in "
+                    f"any data location: {', '.join(map(str, self._data_locations))}"
                 )
 
-                # Attempt to auto-detect the correct file
-                csv_path = self.data_location / f"{source_table}.csv"
-                parquet_path = self.data_location / f"{source_table}.parquet"
-
-                if csv_path.exists():
-                    logger.info(f"Auto-detected CSV file: {csv_path}")
-                    source_table = f"{source_table}.csv"
-                elif parquet_path.exists():
-                    logger.info(f"Auto-detected Parquet file: {parquet_path}")
-                    source_table = f"{source_table}.parquet"
-                else:
-                    raise ValueError(
-                        f"Table '{standard_name}' source '{source_table}' does not have a "
-                        f"file extension and no matching .csv or .parquet file was found in "
-                        f"{self.data_location}"
-                    )
-
-        elif self.data_location and self.data_location.is_file():
-            # For database files, table names should not have extensions
-            if any(
-                source_table.lower().endswith(ext)
-                for ext in [".csv", ".parquet", ".db", ".sqlite", ".duckdb"]
-            ):
-                logger.warning(
-                    f"Table '{standard_name}' source '{source_table}' appears to have a "
-                    "file extension, but data_location is a database file. "
-                    "Table names in databases should not have extensions."
-                )
+            location, source_table = matches[0]
+            self._table_locations[standard_name] = location
 
         return source_table, filters, columns
+
+    def _resolve_table_source(self, location: Path, source_table: str):
+        """Return the source file/table name if it exists at a location."""
+        if location.is_dir():
+            candidate = location / source_table
+            if candidate.is_file():
+                return source_table
+            if Path(source_table).suffix == "":
+                logger.warning(
+                    f"Table source '{source_table}' does not have a file extension "
+                    "(.csv or .parquet). This may cause loading issues."
+                )
+                for extension in (".csv", ".parquet"):
+                    if (location / f"{source_table}{extension}").is_file():
+                        file_type = "CSV" if extension == ".csv" else "Parquet"
+                        logger.info(
+                            f"Auto-detected {file_type} file: "
+                            f"{location / f'{source_table}{extension}'}"
+                        )
+                        return f"{source_table}{extension}"
+            return None
+
+        if not location.is_file():
+            return None
+        if location.suffix.lower() not in (".db", ".sqlite", ".duckdb"):
+            return None
+        if Path(source_table).suffix:
+            logger.warning(
+                f"Table source '{source_table}' appears to have a file extension, "
+                "but data_location is a database file. Table names in databases "
+                "should not have extensions."
+            )
+            return None
+        if location not in self._database_tables:
+            self._database_tables[location] = get_all_table_names(location)
+        return source_table if source_table in self._database_tables[location] else None
+
+    def _location_for_table(self, standard_name: str) -> Path:
+        return self._table_locations.get(standard_name, self.data_location)
 
     def _create_table_view(self, table_config: Union[str, Dict], standard_name: str):
         """
@@ -319,9 +371,10 @@ class DataManager:
         columns: List[str] = None,
     ):
         """Create a view that references external data without loading it into memory."""
-        if self.data_location.is_dir():
+        data_location = self._location_for_table(standard_name)
+        if data_location.is_dir():
             # For file-based data
-            file_path = self.data_location / source_table
+            file_path = data_location / source_table
             file_extension = file_path.suffix.lower()
 
             if file_extension == ".csv":
@@ -333,24 +386,15 @@ class DataManager:
 
         else:
             # For database files
-            if str(self.data_location).endswith((".db", ".sqlite")):
+            if str(data_location).endswith((".db", ".sqlite", ".duckdb")):
                 # Attach SQLite database and reference the table
-                if self.sqlite_attached is False:
+                if data_location not in self._attached_databases:
+                    alias = f"source_db_{len(self._attached_databases)}"
                     self.connection.execute(
-                        f"ATTACH '{self.data_location}' AS source_db"
+                        f"ATTACH '{str(data_location).replace(chr(39), chr(39) * 2)}' AS {alias}"
                     )
-                    self.sqlite_attached = True
-
-                source_query = f"source_db.{source_table}"
-            elif str(self.data_location).endswith(".duckdb"):
-                # For DuckDB files, also use ATTACH method
-                if self.duckdb_attached is False:
-                    self.connection.execute(
-                        f"ATTACH '{self.data_location}' AS source_db"
-                    )
-                    self.duckdb_attached = True
-
-                source_query = f"source_db.{source_table}"
+                    self._attached_databases[data_location] = alias
+                source_query = f"{self._attached_databases[data_location]}.{source_table}"
             else:
                 raise ValueError("Unsupported database type")
 
@@ -369,9 +413,10 @@ class DataManager:
         columns: List[str] = None,
     ):
         """Create a materialized table by loading all data into memory (original behavior)."""
-        if self.data_location:
+        data_location = self._location_for_table(standard_name)
+        if data_location:
             df = load_data(
-                data_location=self.data_location,
+                data_location=data_location,
                 file_or_table_name=source_table,
                 filters=filters,
                 columns=columns,

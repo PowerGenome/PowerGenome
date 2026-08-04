@@ -1505,6 +1505,28 @@ class TestExpandCapacityReserveValues:
         assert "CapRes_1" in result["regional_tag_values"]["p1"]
         assert result["regional_tag_values"]["p1"]["CapRes_1"]["Tech1"] == 0.9
 
+    def test_paths_resolve_relative_to_settings_folder(self, tmp_path):
+        """Test that data paths resolve relative to a settings file or folder."""
+        settings_folder = tmp_path / "settings"
+        settings_folder.mkdir()
+        settings_file = settings_folder / "data.yml"
+        settings_content = {
+            "model_regions": ["p1"],
+            "data_location": ["data", "shared/data.db"],
+            "input_folder": "inputs",
+        }
+
+        with open(settings_file, "w") as f:
+            yaml.dump(settings_content, f)
+
+        result = load_settings(settings_file)
+
+        assert result["data_location"] == [
+            settings_folder / "data",
+            settings_folder / "shared/data.db",
+        ]
+        assert result["input_folder"] == settings_folder / "inputs"
+
     def test_integration_with_build_scenario_settings(self, tmp_path):
         """Test that expand_capacity_reserve_values works in scenario building."""
         # Create base settings

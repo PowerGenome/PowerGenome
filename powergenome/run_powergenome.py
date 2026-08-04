@@ -222,8 +222,7 @@ def main(**kwargs):
     #         "are either in IPM or region_aggregations in the settings YAML file."
     #     )
 
-    input_folder = Path(args.settings_file).parent / Path(settings["input_folder"]).name
-    settings["input_folder"] = input_folder
+    input_folder = Path(settings["input_folder"])
 
     has_scenario_definitions = bool(settings.get("scenario_definitions_fn"))
 

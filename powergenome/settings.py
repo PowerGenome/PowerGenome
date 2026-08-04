@@ -651,8 +651,28 @@ def load_settings(path: Union[str, Path]) -> dict:
             "Path is not recognized. Check that your path is valid."
         )
 
-    if settings.get("input_folder"):
-        settings["input_folder"] = path.parent / settings["input_folder"]
+    settings_folder = path if path.is_dir() else path.parent
+
+    data_locations = settings.get("data_location")
+    if data_locations:
+        values = (
+            data_locations if isinstance(data_locations, list) else [data_locations]
+        )
+        resolved = [
+            value if Path(value).is_absolute() else settings_folder / value
+            for value in values
+        ]
+        settings["data_location"] = (
+            resolved if isinstance(data_locations, list) else resolved[0]
+        )
+
+    input_folder = settings.get("input_folder")
+    if input_folder and not isinstance(input_folder, list):
+        settings["input_folder"] = (
+            input_folder
+            if Path(input_folder).is_absolute()
+            else settings_folder / input_folder
+        )
 
     if settings.get("generator_columns"):
         settings["generator_columns"] = add_model_tags_to_gen_columns(
