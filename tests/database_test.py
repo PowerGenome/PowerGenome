@@ -159,9 +159,7 @@ class TestDataManager:
         assert "plant_region" in dm.available_tables
         assert "demand" in dm.available_tables
 
-    def test_initialization_policy_and_demand_segment_tables(
-        self, temp_csv_folder
-    ):
+    def test_initialization_policy_and_demand_segment_tables(self, temp_csv_folder):
         dm = DataManager()
         dm.initialize(
             {
