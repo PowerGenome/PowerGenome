@@ -288,7 +288,7 @@ def _check_paths_exist(settings: dict) -> List[ValidationResult]:
         val = settings.get(key)
         if val is None:
             continue
-        values = val if isinstance(val, list) else [val]
+        values = val if isinstance(val, (list, tuple)) else [val]
         for value in values:
             if not Path(value).exists():
                 results.append(
