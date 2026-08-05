@@ -226,7 +226,8 @@ def main(**kwargs):
     input_folder = Path(settings["input_folder"])
 
     has_scenario_definitions = bool(settings.get("scenario_definitions_fn"))
-    planning_periods = _extract_planning_periods(settings.to_dict())
+    settings_dict = settings.to_dict()
+    planning_periods = _extract_planning_periods(settings_dict)
     model_years = [period[1] for period in planning_periods]
 
     if has_scenario_definitions:
@@ -269,9 +270,9 @@ def main(**kwargs):
             year_settings["case_period"] = period
             scenario_settings[year] = {"Inputs": year_settings}
 
-    if "model_year" in settings and "model_first_planning_year" in settings:
-        model_years_raw = settings["model_year"]
-        first_planning_years_raw = settings["model_first_planning_year"]
+    if "model_year" in settings_dict and "model_first_planning_year" in settings_dict:
+        model_years_raw = settings_dict["model_year"]
+        first_planning_years_raw = settings_dict["model_first_planning_year"]
         num_model_years = (
             len(model_years_raw) if isinstance(model_years_raw, list) else 1
         )
