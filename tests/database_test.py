@@ -155,6 +155,36 @@ class TestDataManager:
         assert "plant_region" in dm.available_tables
         assert "demand" in dm.available_tables
 
+    def test_initialization_multiple_locations(
+        self, sample_settings_csv, temp_csv_folder, tmp_path
+    ):
+        """Test that tables can be loaded from multiple data locations."""
+        second_folder = tmp_path / "second"
+        second_folder.mkdir()
+        (temp_csv_folder / "load_data.csv").rename(second_folder / "load_data.csv")
+
+        dm = DataManager()
+        dm.initialize(sample_settings_csv, [temp_csv_folder, second_folder])
+
+        assert dm.get_data("generation").shape[0] == 3
+        assert dm.get_data("demand").shape[0] == 4
+
+    def test_duplicate_table_in_multiple_locations_raises(
+        self, sample_settings_csv, temp_csv_folder, tmp_path
+    ):
+        """Test that duplicate table names are rejected."""
+        second_folder = tmp_path / "second"
+        second_folder.mkdir()
+        (second_folder / "generators.csv").write_bytes(
+            (temp_csv_folder / "generators.csv").read_bytes()
+        )
+
+        with pytest.raises(RuntimeError, match="multiple data locations"):
+            DataManager().initialize(
+                {"generation_table": sample_settings_csv["generation_table"]},
+                [temp_csv_folder, second_folder],
+            )
+
     def test_initialization_sqlite_db(self, sample_settings_db, temp_sqlite_db):
         """Test initialization with SQLite database."""
         # Remove CSV-specific table from settings

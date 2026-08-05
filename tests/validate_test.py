@@ -305,6 +305,20 @@ class TestCheckPathsExist:
         s = {"data_location": str(tmp_path)}
         assert _errors(_check_paths_exist(s)) == []
 
+    def test_existing_multiple_data_locations(self, tmp_path):
+        locations = [tmp_path / "data_a", tmp_path / "data_b"]
+        for location in locations:
+            location.mkdir()
+
+        assert _errors(_check_paths_exist({"data_location": locations})) == []
+
+    def test_missing_data_location_in_list(self, tmp_path):
+        locations = [tmp_path, tmp_path / "no_such_folder"]
+        results = _check_paths_exist({"data_location": locations})
+
+        assert len(_errors(results)) == 1
+        assert "no_such_folder" in _errors(results)[0].message
+
     def test_missing_data_location(self, tmp_path):
         s = {"data_location": str(tmp_path / "no_such_folder")}
         results = _check_paths_exist(s)
