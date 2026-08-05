@@ -7,6 +7,7 @@ from typing import Any, List
 import numpy as np
 import pandas as pd
 
+from powergenome.database import get_data
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.settings import auto_fill_settings
 from powergenome.util import remove_feb_29
@@ -286,8 +287,7 @@ def load_policy_scenarios(settings: dict = None) -> pd.DataFrame:
         Emission policies for each case_id/year.
     """
 
-    path = Path(settings["input_folder"]) / settings["emission_policies_fn"]
-    policies = pd.read_csv(path, na_values=["None", "none"])
+    policies = get_data("emission_policies").replace({"None": np.nan, "none": np.nan})
 
     # Update the policies. The column `copy_case_id` can be used to copy values from
     # another policy to reduce human copy/paste errors.
@@ -388,10 +388,7 @@ def load_demand_segments(settings):
         Demand segments with columns such as "Voll", "Demand_segment", etc.
     """
 
-    path = Path(settings["input_folder"]) / settings["demand_segments_fn"]
-    demand_segments = pd.read_csv(path)
-
-    return demand_segments
+    return get_data("demand_segments")
 
 
 def load_user_genx_settings(settings):
