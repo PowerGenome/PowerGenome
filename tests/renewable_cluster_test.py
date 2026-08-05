@@ -1,5 +1,6 @@
 "Test functions for clustering renewable sites"
 
+import logging
 from pathlib import Path
 
 import hypothesis
@@ -551,19 +552,62 @@ def test_load_site_profiles_unsupported_format():
 
 
 def test_load_site_profiles_missing_required_columns_csv(tmp_path):
-    """Test that CSV without required columns raises ValueError."""
+    """Test that CSV without tidy columns and no site_id column matches raises ValueError."""
     bad_csv = tmp_path / "bad_profiles.csv"
     pd.DataFrame({"wrong_col": [1, 2], "another": [3, 4]}).to_csv(bad_csv, index=False)
-    with pytest.raises(ValueError, match="must be in tidy format"):
+    with pytest.raises(ValueError, match="unrecognized format"):
         load_site_profiles(bad_csv, site_ids=[1, 2])
 
 
 def test_load_site_profiles_missing_required_columns_parquet(tmp_path):
-    """Test that parquet without required columns raises ValueError."""
+    """Test that parquet without tidy columns and no site_id column matches raises ValueError."""
     bad_parquet = tmp_path / "bad_profiles.parquet"
     pd.DataFrame({"wrong_col": [1, 2], "another": [3, 4]}).to_parquet(bad_parquet)
-    with pytest.raises(ValueError, match="must be in tidy format"):
+    with pytest.raises(ValueError, match="unrecognized format"):
         load_site_profiles(bad_parquet, site_ids=[1, 2])
+
+
+def test_load_site_profiles_wide_csv(tmp_path, caplog):
+    """Wide CSV without weather_year: warns and loads matching columns."""
+    wide_csv = tmp_path / "wide_profiles.csv"
+    pd.DataFrame({"1": [0.1, 0.2, 0.3], "2": [0.4, 0.5, 0.6]}).to_csv(
+        wide_csv, index=False
+    )
+    site_ids = ["1", "3"]  # "3" is missing
+    with caplog.at_level(logging.WARNING):
+        df = load_site_profiles(wide_csv, site_ids=site_ids)
+    assert "wide format" in caplog.text.lower()
+    assert list(df.columns) == ["1", "3"]
+    assert len(df) == 3
+    assert (df["3"] == 1.0).all()
+
+
+def test_load_site_profiles_wide_parquet(tmp_path, caplog):
+    """Wide parquet without weather_year: warns and loads matching columns."""
+    wide_pq = tmp_path / "wide_profiles.parquet"
+    pd.DataFrame({"1": [0.1, 0.2, 0.3], "2": [0.4, 0.5, 0.6]}).to_parquet(wide_pq)
+    site_ids = ["1", "2"]
+    with caplog.at_level(logging.WARNING):
+        df = load_site_profiles(wide_pq, site_ids=site_ids)
+    assert "wide format" in caplog.text.lower()
+    assert list(df.columns) == ["1", "2"]
+    assert len(df) == 3
+
+
+def test_load_site_profiles_wide_csv_with_weather_year_raises(tmp_path):
+    """Wide CSV with weather_year specified: raises ValueError."""
+    wide_csv = tmp_path / "wide_profiles.csv"
+    pd.DataFrame({"1": [0.1, 0.2], "2": [0.4, 0.5]}).to_csv(wide_csv, index=False)
+    with pytest.raises(ValueError, match="weather_year filtering requires tidy"):
+        load_site_profiles(wide_csv, site_ids=["1"], weather_year=2012)
+
+
+def test_load_site_profiles_wide_parquet_with_weather_year_raises(tmp_path):
+    """Wide parquet with weather_year specified: raises ValueError."""
+    wide_pq = tmp_path / "wide_profiles.parquet"
+    pd.DataFrame({"1": [0.1, 0.2], "2": [0.4, 0.5]}).to_parquet(wide_pq)
+    with pytest.raises(ValueError, match="weather_year filtering requires tidy"):
+        load_site_profiles(wide_pq, site_ids=["1"], weather_year=2012)
 
 
 def test_value_bin_with_bins_outside_data_range(caplog):
