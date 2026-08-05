@@ -1178,7 +1178,7 @@ def get_first_planning_years_from_settings(
         elif isinstance(model_first_planning_year, list) and all(
             isinstance(year, int) for year in model_first_planning_year
         ):
-            return min(model_first_planning_year)
+            return model_first_planning_year
         else:
             raise ValueError(
                 "The 'model_first_planning_year' key must be an integer or a list of integers."
