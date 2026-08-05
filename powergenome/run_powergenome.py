@@ -40,6 +40,8 @@ from powergenome.transmission import (
     load_tx_costs,
 )
 from powergenome.util import (  # init_pudl_connection,; check_settings,; load_ipm_shapefile,; remove_fuel_gen_scenario_name,; remove_fuel_scenario_name,
+    get_first_planning_years_from_settings,
+    get_model_years_from_settings,
     write_case_settings_file,
     write_results_file,
 )
@@ -255,9 +257,11 @@ def main(**kwargs):
     else:
         logger.info(
             "No 'scenario_definitions_fn' found in settings. Resolving settings "
-            "for each planning year from 'model_year' settings parameter."
+            "for each planning year from 'model_year' or 'model_periods' settings parameter."
         )
-        model_years = settings["model_year"]
+        model_years = get_model_years_from_settings(
+            settings.get("model_year"), settings.get("model_periods")
+        )
         if not isinstance(model_years, list):
             model_years = [model_years]
         if args.case_id:
@@ -274,13 +278,12 @@ def main(**kwargs):
             year_settings["case_period"] = period
             scenario_settings[year] = {"Inputs": year_settings}
 
-    model_years_raw = settings["model_year"]
-    first_planning_years_raw = settings["model_first_planning_year"]
-    num_model_years = len(model_years_raw) if isinstance(model_years_raw, list) else 1
+    num_model_years = len(model_years) if isinstance(model_years, list) else 1
+    first_planning_years = get_first_planning_years_from_settings(
+        settings.get("model_first_planning_year"), settings.get("model_periods")
+    )
     num_first_planning_years = (
-        len(first_planning_years_raw)
-        if isinstance(first_planning_years_raw, list)
-        else 1
+        len(first_planning_years) if isinstance(first_planning_years, list) else 1
     )
     assert (
         num_model_years == num_first_planning_years

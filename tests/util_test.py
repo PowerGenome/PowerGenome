@@ -15,6 +15,8 @@ from powergenome.util import (
     build_where_clause_from_filters,
     calculate_file_hash,
     get_all_table_names,
+    get_first_planning_years_from_settings,
+    get_model_years_from_settings,
     hash_string_sha256,
     load_data,
     load_data_file,
@@ -558,3 +560,80 @@ class TestCalculateFileHash:
         # Assert
         assert isinstance(file_hash, str)
         assert len(file_hash) == 16
+
+
+class TestGetModelYearsFromSettings:
+    def test_model_year_int(self):
+        assert get_model_years_from_settings(model_year=2030) == [2030]
+
+    def test_model_year_list_of_ints(self):
+        assert get_model_years_from_settings(model_year=[2030, 2035]) == [2030, 2035]
+
+    def test_model_year_invalid_type_raises(self):
+        with pytest.raises(ValueError, match=r"model_year"):
+            get_model_years_from_settings(model_year="2030")
+
+    def test_model_year_list_with_non_int_raises(self):
+        with pytest.raises(ValueError, match=r"model_year"):
+            get_model_years_from_settings(model_year=[2030, "2035"])
+
+    def test_model_periods_fallback(self):
+        model_periods = [(2026, 2030), (2031, 2035)]
+        assert get_model_years_from_settings(model_periods=model_periods) == [
+            2030,
+            2035,
+        ]
+
+    def test_model_year_takes_precedence_over_model_periods(self):
+        model_periods = [(2026, 2030), (2031, 2035)]
+        assert get_model_years_from_settings(
+            model_year=2040, model_periods=model_periods
+        ) == [2040]
+
+    def test_returns_none_when_no_inputs(self):
+        assert get_model_years_from_settings() is None
+
+
+class TestGetFirstPlanningYearFromSettings:
+    def test_first_planning_year_int(self):
+        assert (
+            get_first_planning_years_from_settings(model_first_planning_year=2026)
+            == 2026
+        )
+
+    def test_first_planning_year_list_of_ints(self):
+        assert (
+            get_first_planning_years_from_settings(
+                model_first_planning_year=[2031, 2026, 2041]
+            )
+            == 2026
+        )
+
+    def test_first_planning_year_invalid_type_raises(self):
+        with pytest.raises(ValueError, match=r"model_first_planning_year"):
+            get_first_planning_years_from_settings(model_first_planning_year="2026")
+
+    def test_first_planning_year_list_with_non_int_raises(self):
+        with pytest.raises(ValueError, match=r"model_first_planning_year"):
+            get_first_planning_years_from_settings(
+                model_first_planning_year=[2026, "2031"]
+            )
+
+    def test_model_periods_fallback(self):
+        model_periods = [(2026, 2030), (2031, 2035)]
+        assert get_first_planning_years_from_settings(model_periods=model_periods) == [
+            2026,
+            2031,
+        ]
+
+    def test_first_planning_year_takes_precedence_over_model_periods(self):
+        model_periods = [(2026, 2030), (2031, 2035)]
+        assert (
+            get_first_planning_years_from_settings(
+                model_first_planning_year=2040, model_periods=model_periods
+            )
+            == 2040
+        )
+
+    def test_returns_none_when_no_inputs(self):
+        assert get_first_planning_years_from_settings() is None
