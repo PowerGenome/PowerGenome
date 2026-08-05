@@ -236,7 +236,8 @@ def main(**kwargs):
     has_scenario_definitions = bool(settings.get("scenario_definitions_fn"))
     settings_dict = settings.to_dict()
     planning_periods = _extract_planning_periods(settings_dict)
-    model_years = [period[1] for period in planning_periods]
+    if planning_periods:
+        model_years = [period[1] for period in planning_periods]
 
     if has_scenario_definitions:
         scenario_definitions = pd.read_csv(
