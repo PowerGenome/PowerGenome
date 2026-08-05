@@ -40,6 +40,8 @@ from powergenome.transmission import (
     load_tx_costs,
 )
 from powergenome.util import (  # init_pudl_connection,; check_settings,; load_ipm_shapefile,; remove_fuel_gen_scenario_name,; remove_fuel_scenario_name,
+    get_first_planning_years_from_settings,
+    get_model_years_from_settings,
     write_case_settings_file,
     write_results_file,
 )
@@ -225,6 +227,12 @@ def main(**kwargs):
 
     input_folder = Path(settings["input_folder"])
 
+    model_years = get_model_years_from_settings(
+        settings.get("model_year"), settings.get("model_periods")
+    )
+    if not isinstance(model_years, list):
+        model_years = [model_years]
+
     has_scenario_definitions = bool(settings.get("scenario_definitions_fn"))
     settings_dict = settings.to_dict()
     planning_periods = _extract_planning_periods(settings_dict)
@@ -254,7 +262,7 @@ def main(**kwargs):
     else:
         logger.info(
             "No 'scenario_definitions_fn' found in settings. Resolving settings "
-            "for each planning year from the configured model planning years."
+            "for each planning year from 'model_year' or 'model_periods' settings parameter."
         )
         if args.case_id:
             logger.warning(
@@ -270,20 +278,16 @@ def main(**kwargs):
             year_settings["case_period"] = period
             scenario_settings[year] = {"Inputs": year_settings}
 
-    if "model_year" in settings_dict and "model_first_planning_year" in settings_dict:
-        model_years_raw = settings_dict["model_year"]
-        first_planning_years_raw = settings_dict["model_first_planning_year"]
-        num_model_years = (
-            len(model_years_raw) if isinstance(model_years_raw, list) else 1
-        )
-        num_first_planning_years = (
-            len(first_planning_years_raw)
-            if isinstance(first_planning_years_raw, list)
-            else 1
-        )
-        assert (
-            num_model_years == num_first_planning_years
-        ), "The number of years in the settings parameter 'model_year' must be the same as 'model_first_planning_year'"
+    num_model_years = len(model_years) if isinstance(model_years, list) else 1
+    first_planning_years = get_first_planning_years_from_settings(
+        settings.get("model_first_planning_year"), settings.get("model_periods")
+    )
+    num_first_planning_years = (
+        len(first_planning_years) if isinstance(first_planning_years, list) else 1
+    )
+    assert (
+        num_model_years == num_first_planning_years
+    ), "The number of years in the settings parameter 'model_year' must be the same as 'model_first_planning_year'"
 
     if has_scenario_definitions:
         # Build a dictionary of settings for every planning year and scenario

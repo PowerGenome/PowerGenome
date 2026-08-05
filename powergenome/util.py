@@ -11,6 +11,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+# from hypothesis import settings
+
 os.environ["USE_PYGEOS"] = "0"
 
 import duckdb
@@ -1114,3 +1116,72 @@ def load_data(
                 "file_or_table_name should not have an extension when data_location is a database."
             )
         return load_table_from_db(data_location, file_or_table_name, filters, columns)
+
+
+def get_model_years_from_settings(
+    model_year: Union[int, List[int]] = None, model_periods: List[Tuple] = None
+) -> List[int]:
+    """
+    Get the list of model years from the settings dictionary. This can be from either the
+    'model_year' key or the second item in each tuple of 'model_periods'.
+
+    Parameters
+    ----------
+    model_year : Union[int, List[int]], optional
+        The model year(s) to include.
+    model_periods : List[Tuple], optional
+        A list of tuples containing period and year information.
+
+    Returns
+    -------
+    List[int]
+        A list of model years.
+    """
+    if model_year is not None:
+        if isinstance(model_year, int):
+            return [model_year]
+        elif isinstance(model_year, list) and all(
+            isinstance(year, int) for year in model_year
+        ):
+            return model_year
+        else:
+            raise ValueError(
+                "The 'model_year' key must be an integer or a list of integers."
+            )
+    if model_periods is not None:
+        return [year for _, year in model_periods]
+
+
+def get_first_planning_years_from_settings(
+    model_first_planning_year: Union[int, List[int]] = None,
+    model_periods: List[Tuple] = None,
+) -> int:
+    """
+    Get the first planning year from the settings dictionary. This can be from either the
+    'model_year' key or the first item in each tuple of 'model_periods'.
+
+    Parameters
+    ----------
+    model_first_planning_year : Union[int, List[int]], optional
+        The first planning year(s) to include.
+    model_periods : List[Tuple], optional
+        A list of tuples containing period and year information.
+
+    Returns
+    -------
+    List[int]
+        The first planning years of each period.
+    """
+    if model_first_planning_year is not None:
+        if isinstance(model_first_planning_year, int):
+            return model_first_planning_year
+        elif isinstance(model_first_planning_year, list) and all(
+            isinstance(year, int) for year in model_first_planning_year
+        ):
+            return model_first_planning_year
+        else:
+            raise ValueError(
+                "The 'model_first_planning_year' key must be an integer or a list of integers."
+            )
+    if model_periods is not None:
+        return [year for year, _ in model_periods]
