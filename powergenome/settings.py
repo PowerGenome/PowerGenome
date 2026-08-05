@@ -661,7 +661,7 @@ def load_settings(path: Union[str, Path]) -> dict:
             data_locations if isinstance(data_locations, list) else [data_locations]
         )
         resolved = [
-            value if Path(value).is_absolute() else settings_folder / value
+            Path(value) if Path(value).is_absolute() else settings_folder / value
             for value in values
         ]
         settings["data_location"] = (
@@ -670,10 +670,11 @@ def load_settings(path: Union[str, Path]) -> dict:
 
     input_folder = settings.get("input_folder")
     if input_folder and not isinstance(input_folder, list):
+        input_folder_path = Path(input_folder)
         settings["input_folder"] = (
-            input_folder
-            if Path(input_folder).is_absolute()
-            else settings_folder / input_folder
+            input_folder_path
+            if input_folder_path.is_absolute()
+            else settings_folder / input_folder_path
         )
 
     if settings.get("generator_columns"):
