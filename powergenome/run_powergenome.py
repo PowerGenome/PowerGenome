@@ -44,6 +44,7 @@ from powergenome.util import (  # init_pudl_connection,; check_settings,; load_i
     write_results_file,
 )
 from powergenome.validate import (
+    _extract_planning_periods,
     report_validation_results,
     validate_settings,
     validate_settings_with_data,
@@ -225,6 +226,8 @@ def main(**kwargs):
     input_folder = Path(settings["input_folder"])
 
     has_scenario_definitions = bool(settings.get("scenario_definitions_fn"))
+    planning_periods = _extract_planning_periods(settings.to_dict())
+    model_years = [period[1] for period in planning_periods]
 
     if has_scenario_definitions:
         scenario_definitions = pd.read_csv(
@@ -242,23 +245,16 @@ def main(**kwargs):
                 scenario_definitions["case_id"].isin(args.case_id), :
             ]
 
-        model_years_for_check = settings["model_year"]
-        if not isinstance(model_years_for_check, list):
-            model_years_for_check = [model_years_for_check]
-
-        if set(scenario_definitions["year"]) != set(model_years_for_check):
+        if set(scenario_definitions["year"]) != set(model_years):
             logger.warning(
                 f"The years included in the scenario definitions file ({set(scenario_definitions['year'])}) "
-                f"do not match the settings parameter `model_year` ({settings['model_year']})"
+                f"do not match the configured model planning years ({set(model_years)})"
             )
     else:
         logger.info(
             "No 'scenario_definitions_fn' found in settings. Resolving settings "
-            "for each planning year from 'model_year' settings parameter."
+            "for each planning year from the configured model planning years."
         )
-        model_years = settings["model_year"]
-        if not isinstance(model_years, list):
-            model_years = [model_years]
         if args.case_id:
             logger.warning(
                 "The --case-id flag is ignored when no 'scenario_definitions_fn' is "
@@ -273,17 +269,20 @@ def main(**kwargs):
             year_settings["case_period"] = period
             scenario_settings[year] = {"Inputs": year_settings}
 
-    model_years_raw = settings["model_year"]
-    first_planning_years_raw = settings["model_first_planning_year"]
-    num_model_years = len(model_years_raw) if isinstance(model_years_raw, list) else 1
-    num_first_planning_years = (
-        len(first_planning_years_raw)
-        if isinstance(first_planning_years_raw, list)
-        else 1
-    )
-    assert (
-        num_model_years == num_first_planning_years
-    ), "The number of years in the settings parameter 'model_year' must be the same as 'model_first_planning_year'"
+    if "model_year" in settings and "model_first_planning_year" in settings:
+        model_years_raw = settings["model_year"]
+        first_planning_years_raw = settings["model_first_planning_year"]
+        num_model_years = (
+            len(model_years_raw) if isinstance(model_years_raw, list) else 1
+        )
+        num_first_planning_years = (
+            len(first_planning_years_raw)
+            if isinstance(first_planning_years_raw, list)
+            else 1
+        )
+        assert (
+            num_model_years == num_first_planning_years
+        ), "The number of years in the settings parameter 'model_year' must be the same as 'model_first_planning_year'"
 
     if has_scenario_definitions:
         # Build a dictionary of settings for every planning year and scenario
