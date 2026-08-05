@@ -376,7 +376,12 @@ class Settings:
         >>> settings.missing_attr  # Returns None, doesn't raise AttributeError
         None
         """
-        return self._data.get(key, None)
+        # During unpickling, _data may not exist yet. Access it via __dict__ to
+        # avoid recursive __getattr__ calls.
+        data = self.__dict__.get("_data")
+        if data is None:
+            raise AttributeError(key)
+        return data.get(key, None)
 
     def __copy__(self):
         """

@@ -962,22 +962,34 @@ def build_new_resources(
             regional_cost_multipliers,
         )
 
-        df_list = []
-        settings = apply_all_tag_to_regions(settings)
+        # Avoid passing Settings objects to multiprocessing workers because
+        # serialization can fail during unpickling. Use a plain deep-copied dict.
+        parallel_settings = (
+            copy.deepcopy(settings.to_dict())
+            if hasattr(settings, "to_dict")
+            else copy.deepcopy(settings)
+        )
+        parallel_settings = apply_all_tag_to_regions(parallel_settings)
 
-        clustering_jobs = settings.get("clustering_n_jobs", 1)
+        clustering_jobs = parallel_settings.get("clustering_n_jobs", 1)
+        worker_cluster_builder = cluster_builder if clustering_jobs == 1 else None
+        if clustering_jobs > 1 and cluster_builder is not None:
+            logger.debug(
+                "Ignoring provided cluster_builder for parallel renewable clustering; "
+                "workers will initialize their own builder to avoid pickling errors."
+            )
         logger.info(
             f"Adding renewable resource clusters using {clustering_jobs} parallel jobs."
         )
         df_list = Parallel(n_jobs=clustering_jobs)(
             delayed(parallel_region_renewables)(
-                copy.deepcopy(settings),
+                parallel_settings,
                 new_gen_df,
                 regional_cost_multipliers,
                 rev_mult_region_map,
                 rev_mult_tech_map,
                 region,
-                cluster_builder,
+                worker_cluster_builder,
                 cache_results=cache_results,
                 use_cache=use_cache,
             )
