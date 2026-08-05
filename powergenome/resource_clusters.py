@@ -568,25 +568,36 @@ class ResourceGroup:
         # Get identifiers from metadata
         ids = self.metadata.read(columns=["id"])["id"]
         columns = self.profiles.columns
-        # All profiles must be in tidy format
         required_cols = {"site_id", "time_index", "value"}
         if not required_cols.issubset(set(columns)):
-            raise ValueError(
-                f"Resource profiles must be in tidy format with columns {required_cols}. "
-                f"Found columns: {columns}"
+            # Not tidy format. Check if it might be wide format (site IDs as columns)
+            requested = set(ids.astype(str))
+            found = requested & set(columns)
+            if found:
+                # Wide format: validate profile length using the first matching column
+                first_id = next(iter(found))
+                df = self.profiles.read(columns=[first_id])
+                n_hours = len(df)
+            else:
+                raise ValueError(
+                    "Profiles file has an unrecognized format. It is neither tidy "
+                    f"(missing columns {required_cols}) nor wide "
+                    "(no column names match metadata IDs). "
+                    f"Found columns: {list(columns)}"
+                )
+        else:
+            # Validate profile length for at least one id
+            first_id = ids.iloc[0]
+            df = self.profiles.read(
+                columns=[
+                    c
+                    for c in ["site_id", "time_index", "value", "weather_year"]
+                    if c in columns
+                ]
             )
-        # Validate profile length for at least one id
-        first_id = ids.iloc[0]
-        df = self.profiles.read(
-            columns=[
-                c
-                for c in ["site_id", "time_index", "value", "weather_year"]
-                if c in columns
-            ]
-        )
-        df = df[df["site_id"] == first_id]
-        # Count unique time_index values (could span multiple weather years)
-        n_hours = df["time_index"].nunique()
+            df = df[df["site_id"] == first_id]
+            # Count unique time_index values (could span multiple weather years)
+            n_hours = df["time_index"].nunique()
         # Valid if it's a multiple of 8760 or 8784 (for multi-year data)
         if n_hours % 8760 != 0 and n_hours % 8784 != 0:
             raise ValueError(
@@ -754,13 +765,52 @@ class ResourceGroup:
             loaded, time_index will span all years.
         """
         cols = self.profiles.columns
-        # All profiles must be in tidy format
         required_cols = {"site_id", "time_index", "value"}
-        if not required_cols.issubset(set(cols)):
-            raise ValueError(
-                f"Resource profiles must be in tidy format with columns {required_cols}. "
-                f"Found columns: {list(cols)}"
+        is_tidy = required_cols.issubset(set(cols))
+
+        if not is_tidy:
+            # Wide format: columns are site IDs, rows are time steps.
+            # Verify that at least one requested site_id appears as a column name,
+            # matching as strings since column names are always strings.
+            cols_str = set(str(c) for c in cols)
+            requested_str = set(str(s) for s in site_ids)
+            found = requested_str & cols_str
+            if not found:
+                raise ValueError(
+                    "Profiles file has an unrecognized format. It is neither tidy "
+                    f"(missing columns {required_cols}) nor wide "
+                    "(no column names match the requested site IDs). "
+                    f"Found columns: {list(cols)}, "
+                    f"requested site IDs: {list(requested_str)}"
+                )
+            if weather_year is not None:
+                raise ValueError(
+                    "weather_year filtering requires tidy-format profiles with a "
+                    "'weather_year' column. The profiles file appears to be in wide "
+                    f"format (columns are site IDs, not {required_cols}). "
+                    f"Found columns: {list(cols)}"
+                )
+            logger.warning(
+                "Profiles file is in wide format (columns are site IDs) rather than "
+                f"tidy format with columns {required_cols}. "
+                "Wide-format loading is deprecated; please convert to tidy format. "
+                "Loading the full timeseries data into memory."
             )
+            # Read columns by their string names, only requesting columns that exist
+            site_ids_str = [str(s) for s in site_ids]
+            available_cols = set(str(c) for c in cols)
+            cols_to_read = [s for s in site_ids_str if s in available_cols]
+            wide = self.profiles.read(columns=cols_to_read)
+            # Map string column names back to original site_id types
+            rename_map = {}
+            for s in site_ids:
+                if str(s) in cols_to_read:
+                    rename_map[str(s)] = s
+            wide = wide.rename(columns=rename_map)
+            # Fill missing site_ids with 1.0
+            for m in set(site_ids) - set(wide.columns):
+                wide[m] = 1.0
+            return wide[list(site_ids)]
 
         years = None
         # If profiles are provided in-memory (no path), fall back to Table.read
