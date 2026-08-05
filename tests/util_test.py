@@ -602,12 +602,9 @@ class TestGetFirstPlanningYearFromSettings:
         )
 
     def test_first_planning_year_list_of_ints(self):
-        assert (
-            get_first_planning_years_from_settings(
-                model_first_planning_year=[2031, 2026, 2041]
-            )
-            == 2026
-        )
+        assert get_first_planning_years_from_settings(
+            model_first_planning_year=[2031, 2026, 2041]
+        ) == [2031, 2026, 2041]
 
     def test_first_planning_year_invalid_type_raises(self):
         with pytest.raises(ValueError, match=r"model_first_planning_year"):

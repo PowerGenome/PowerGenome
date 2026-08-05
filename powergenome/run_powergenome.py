@@ -227,6 +227,12 @@ def main(**kwargs):
     input_folder = Path(args.settings_file).parent / Path(settings["input_folder"]).name
     settings["input_folder"] = input_folder
 
+    model_years = get_model_years_from_settings(
+        settings.get("model_year"), settings.get("model_periods")
+    )
+    if not isinstance(model_years, list):
+        model_years = [model_years]
+
     has_scenario_definitions = bool(settings.get("scenario_definitions_fn"))
 
     if has_scenario_definitions:
@@ -259,11 +265,6 @@ def main(**kwargs):
             "No 'scenario_definitions_fn' found in settings. Resolving settings "
             "for each planning year from 'model_year' or 'model_periods' settings parameter."
         )
-        model_years = get_model_years_from_settings(
-            settings.get("model_year"), settings.get("model_periods")
-        )
-        if not isinstance(model_years, list):
-            model_years = [model_years]
         if args.case_id:
             logger.warning(
                 "The --case-id flag is ignored when no 'scenario_definitions_fn' is "
