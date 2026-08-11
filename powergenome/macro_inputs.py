@@ -472,9 +472,7 @@ def make_vre_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                     _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
                 ),
                 "investment_cost": _num(_gen_value(row, "Inv_Cost_per_MWyr", np.nan)),
-                "availability--timeseries--path": _availability_filename(
-                    stage_number
-                ),
+                "availability--timeseries--path": _availability_filename(stage_number),
                 "availability--timeseries--header": _gen_value(row, "Resource"),
                 "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
                 "capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
@@ -625,9 +623,7 @@ def make_mustrun_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFram
                 "can_expand": _format_bool(_gen_value(row, "New_Build")),
                 "location": _gen_value(row, "region"),
                 "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
-                "availability--timeseries--path": _availability_filename(
-                    stage_number
-                ),
+                "availability--timeseries--path": _availability_filename(stage_number),
                 "availability--timeseries--header": _gen_value(row, "Resource"),
                 "capacity_size": _num(_gen_value(row, "Cap_Size", 1.0), 1.0),
                 **_financial_attrs(row),
@@ -742,9 +738,7 @@ def make_nodes_json(
             {
                 "id": f"elec_{region}",
                 "location": region,
-                "demand": {
-                    "timeseries": {"path": demand_path, "header": header}
-                },
+                "demand": {"timeseries": {"path": demand_path, "header": header}},
             }
         )
     if demand_instances:
@@ -860,9 +854,7 @@ def make_timedata_json(
         "TotalHoursModeled": total_hours,
     }
     if has_period_map and rep_periods > 1:
-        time_data["SubPeriodMap"] = {
-            "path": f"system/Period_map_{stage_number}.csv"
-        }
+        time_data["SubPeriodMap"] = {"path": f"system/Period_map_{stage_number}.csv"}
     return time_data
 
 

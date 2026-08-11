@@ -403,8 +403,7 @@ def test_make_nodes_json_consistency(settings, demand_data, fuels, gen_df):
     assert "elec_R1" in demand_ids
     assert demand_ids["elec_R1"]["demand"]["timeseries"]["header"] == "Demand_MW_z1"
     assert (
-        demand_ids["elec_R1"]["demand"]["timeseries"]["path"]
-        == "system/demand_1.csv"
+        demand_ids["elec_R1"]["demand"]["timeseries"]["path"] == "system/demand_1.csv"
     )
     # fuel supply nodes single-tier with location and price timeseries header
     ng = next(n for n in nodes if n["type"] == "NaturalGas")
