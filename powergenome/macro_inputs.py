@@ -50,6 +50,16 @@ FUEL_COMMODITIES = {
     "hydrogen": "Hydrogen",
 }
 
+# Financial attributes added by the multistage GenX_to_Macro conversion
+# (get_wacc_and_crp / Resource_multistage_data.csv). Macro has built-in
+# defaults for these, so blank cells fall back gracefully.
+FINANCIAL_COLUMNS = [
+    "wacc",
+    "capital_recovery_period",
+    "lifetime",
+    "min_retired_capacity",
+]
+
 # simpleCSV column layouts (order is preserved when writing CSVs).
 # Taken from the multisector_3zone_simpleCSVinputs example assets.
 THERMAL_COLUMNS = [
@@ -82,6 +92,7 @@ THERMAL_COLUMNS = [
     "min_flow_fraction",
     "startup_cost",
     "can_retire",
+    *FINANCIAL_COLUMNS,
 ]
 
 VRE_COLUMNS = [
@@ -98,6 +109,7 @@ VRE_COLUMNS = [
     "availability--timeseries--header",
     "existing_capacity",
     "capacity_size",
+    *FINANCIAL_COLUMNS,
 ]
 
 STORAGE_COLUMNS = [
@@ -128,6 +140,7 @@ STORAGE_COLUMNS = [
     "discharge_existing_capacity",
     "discharge_can_expand",
     "discharge_capacity_size",
+    *FINANCIAL_COLUMNS,
 ]
 
 HYDRO_COLUMNS = [
@@ -159,6 +172,7 @@ HYDRO_COLUMNS = [
     "storage_min_outflow_fraction",
     "discharge_capacity_size",
     "storage_charge_discharge_ratio",
+    *FINANCIAL_COLUMNS,
 ]
 
 MUST_RUN_COLUMNS = [
@@ -172,6 +186,7 @@ MUST_RUN_COLUMNS = [
     "availability--timeseries--path",
     "availability--timeseries--header",
     "capacity_size",
+    *FINANCIAL_COLUMNS,
 ]
 
 TRANSMISSION_COLUMNS = [
@@ -248,6 +263,31 @@ def _format_bool(value) -> str:
     if _is_true(value):
         return "TRUE"
     return "FALSE"
+
+
+def _financial_attrs(row: pd.Series) -> dict:
+    """Return the multistage financial attributes, when the generator has them.
+
+    Reads the PowerGenome/GenX columns (WACC, Capital_Recovery_Period,
+    Lifetime, Min_Retired_Cap_MW) and maps them onto the Macro simpleCSV
+    financial columns. Missing columns produce no entry (blank cell -> Macro
+    default).
+    """
+    mapping = {
+        "WACC": "wacc",
+        "Capital_Recovery_Period": "capital_recovery_period",
+        "Lifetime": "lifetime",
+        "Min_Retired_Cap_MW": "min_retired_capacity",
+    }
+    out = {}
+    for pg_col, macro_col in mapping.items():
+        if pg_col in row.index and row.get(pg_col) is not None:
+            out[macro_col] = row.get(pg_col)
+    return out
+
+
+def _availability_filename(stage_number: int) -> str:
+    return f"system/availability_{stage_number}.csv"
 
 
 # ---------------------------------------------------------------------------
@@ -394,6 +434,7 @@ def make_thermal_csvs(gen_df: pd.DataFrame, settings: dict = None) -> List[tuple
                     "min_flow_fraction": min_flow if min_flow > 0 else "",
                     "startup_cost": _num(_gen_value(row, "Start_Cost_per_MW", np.nan)),
                     "can_retire": _format_bool(_gen_value(row, "Can_Retire")),
+                    **_financial_attrs(row),
                 }
             )
         out.append(
@@ -406,7 +447,7 @@ def make_thermal_csvs(gen_df: pd.DataFrame, settings: dict = None) -> List[tuple
     return out
 
 
-def make_vre_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
+def make_vre_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
     """Build the VRE simpleCSV asset file."""
     gen_df = _prep_gen_df(gen_df)
     if gen_df.empty:
@@ -431,10 +472,13 @@ def make_vre_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                     _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
                 ),
                 "investment_cost": _num(_gen_value(row, "Inv_Cost_per_MWyr", np.nan)),
-                "availability--timeseries--path": "system/availability.csv",
+                "availability--timeseries--path": _availability_filename(
+                    stage_number
+                ),
                 "availability--timeseries--header": _gen_value(row, "Resource"),
                 "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
                 "capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
+                **_financial_attrs(row),
             }
         )
     return pd.DataFrame(records, columns=VRE_COLUMNS)
@@ -499,12 +543,13 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 ),
                 "discharge_can_expand": _format_bool(_gen_value(row, "New_Build")),
                 "discharge_capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
+                **_financial_attrs(row),
             }
         )
     return pd.DataFrame(records, columns=STORAGE_COLUMNS)
 
 
-def make_hydro_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
+def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
     """Build the HydroRes simpleCSV asset file."""
     gen_df = _prep_gen_df(gen_df)
     if gen_df.empty:
@@ -535,7 +580,9 @@ def make_hydro_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 "discharge_ramp_down_fraction": _num(
                     _gen_value(row, "Ramp_Dn_Percentage", 1.0), 1.0
                 ),
-                "inflow_availability--timeseries--path": "system/availability.csv",
+                "inflow_availability--timeseries--path": _availability_filename(
+                    stage_number
+                ),
                 "inflow_availability--timeseries--header": _gen_value(row, "Resource"),
                 "discharge_existing_capacity": _num(
                     _gen_value(row, "Existing_Cap_MW", np.nan)
@@ -553,12 +600,13 @@ def make_hydro_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 ),
                 "discharge_capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
                 "storage_charge_discharge_ratio": ratio,
+                **_financial_attrs(row),
             }
         )
     return pd.DataFrame(records, columns=HYDRO_COLUMNS)
 
 
-def make_mustrun_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
+def make_mustrun_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
     """Build the MustRun simpleCSV asset file."""
     gen_df = _prep_gen_df(gen_df)
     if gen_df.empty:
@@ -577,9 +625,12 @@ def make_mustrun_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 "can_expand": _format_bool(_gen_value(row, "New_Build")),
                 "location": _gen_value(row, "region"),
                 "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
-                "availability--timeseries--path": "system/availability.csv",
+                "availability--timeseries--path": _availability_filename(
+                    stage_number
+                ),
                 "availability--timeseries--header": _gen_value(row, "Resource"),
                 "capacity_size": _num(_gen_value(row, "Cap_Size", 1.0), 1.0),
+                **_financial_attrs(row),
             }
         )
     return pd.DataFrame(records, columns=MUST_RUN_COLUMNS)
@@ -651,6 +702,7 @@ def make_nodes_json(
     fuel_supply_headers: Dict[str, Dict[str, str]],
     co2_sinks: List[dict],
     has_hydro: bool,
+    stage_number: int = 1,
 ) -> list:
     """Build the full nodes.json structure.
 
@@ -666,7 +718,11 @@ def make_nodes_json(
         Sink node entries (id, cap tonnes or None for uncapped generic sink).
     has_hydro : bool
         Whether a hydro_source node should be added.
+    stage_number : int
+        Per-stage suffix used in the demand / fuel price timeseries paths.
     """
+    demand_path = f"system/demand_{stage_number}.csv"
+    fuel_path = f"system/fuel_prices_{stage_number}.csv"
     nodes = []
 
     # Electricity demand nodes (one block)
@@ -687,7 +743,7 @@ def make_nodes_json(
                 "id": f"elec_{region}",
                 "location": region,
                 "demand": {
-                    "timeseries": {"path": "system/demand.csv", "header": header}
+                    "timeseries": {"path": demand_path, "header": header}
                 },
             }
         )
@@ -714,7 +770,7 @@ def make_nodes_json(
                         "segment1": {
                             "price": {
                                 "timeseries": {
-                                    "path": "system/fuel_prices.csv",
+                                    "path": fuel_path,
                                     "header": fuel_supply_headers[commodity][region],
                                 }
                             }
@@ -773,6 +829,7 @@ def make_timedata_json(
     demand_data: pd.DataFrame,
     commodities: List[str],
     has_period_map: bool,
+    stage_number: int = 1,
 ) -> dict:
     """Build time_data.json from the (possibly reduced) demand data."""
     if demand_data is None or demand_data.empty:
@@ -803,7 +860,9 @@ def make_timedata_json(
         "TotalHoursModeled": total_hours,
     }
     if has_period_map and rep_periods > 1:
-        time_data["SubPeriodMap"] = {"path": "system/Period_map.csv"}
+        time_data["SubPeriodMap"] = {
+            "path": f"system/Period_map_{stage_number}.csv"
+        }
     return time_data
 
 
@@ -817,15 +876,42 @@ def make_macro_settings_json() -> dict:
     }
 
 
-def make_system_data_json(assets_folder: str = "assets") -> dict:
-    """Return system_data.json content pointing at the simpleCSV folders."""
+def make_system_data_json(stages: List[int], assets_folder: str = "assets") -> dict:
+    """Return multistage system_data.json content pointing at per-stage folders.
+
+    Follows the layout produced by ``GenX_to_Macro``'s multistage driver: one
+    ``case`` entry per stage (sorted by stage number), each referencing its own
+    assets / time_data / nodes paths, plus a shared settings path.
+    """
+    case_entries = []
+    for stage in sorted(stages):
+        case_entries.append(
+            {
+                "commodities": {"path": "system/commodities.json"},
+                "locations": {"path": "system/locations.json"},
+                "settings": {"path": "settings/macro_settings.json"},
+                "assets": {"path": f"{assets_folder}/assets_{stage}"},
+                "time_data": {"path": f"system/time_data_{stage}.json"},
+                "nodes": {"path": f"system/nodes_{stage}.json"},
+            }
+        )
     return {
-        "commodities": {"path": "system/commodities.json"},
-        "locations": {"path": "system/locations.json"},
-        "settings": {"path": "settings/macro_settings.json"},
-        "assets": {"path": assets_folder},
-        "time_data": {"path": "system/time_data.json"},
-        "nodes": {"path": "system/nodes.json"},
+        "case": case_entries,
+        "settings": {"path": "settings/case_settings.json"},
+    }
+
+
+def make_case_settings_json(n_stages: int) -> dict:
+    """Return the settings/case_settings.json content for a multistage case.
+
+    ``PeriodLengths`` is one entry per stage (each 1 year, matching the
+    single-year planning periods written by PowerGenome). Discount rate and
+    solution algorithm mirror GenX_to_Macro's multistage settings file.
+    """
+    return {
+        "PeriodLengths": [1] * n_stages,
+        "DiscountRate": 0.045,
+        "SolutionAlgorithm": "Monolithic",
     }
 
 
@@ -979,164 +1065,238 @@ def _co2_sinks_for(
     return sinks
 
 
+class MacroCaseBuilder:
+    """Accumulate per-stage Macro simpleCSVinputs output for one case.
+
+    A single Macro case (the "multistage" layout from GenX_to_Macro) is made of
+    one ``case`` entry per planning period (stage). Because PowerGenome's main
+    loop iterates periods out of order for a given case, this class buffers the
+    stage data and only writes the shared, case-level files on ``finalize``.
+    """
+
+    def __init__(self, case_root):
+        self.case_root = Path(case_root)
+        self.stage_numbers: List[int] = []
+        self.commodities: List[str] = []
+        self._stage_data = {}  # stage_number -> (case_year_data, settings)
+
+    @property
+    def _system_folder(self):
+        return self.case_root / "system"
+
+    @property
+    def _settings_folder(self):
+        return self.case_root / "settings"
+
+    def add_stage(self, stage_number, case_year_data, settings) -> None:
+        """Buffer one planning period (stage) for writing on finalize."""
+        if stage_number in self._stage_data:
+            raise ValueError(
+                f"Stage {stage_number} already added to Macro case {self.case_root}"
+            )
+        self.stage_numbers.append(stage_number)
+        self._stage_data[stage_number] = (case_year_data, settings)
+
+    def finalize(self) -> None:
+        """Write all per-stage files and the case-level system_data.json."""
+        stages = sorted(self.stage_numbers)
+        system_folder = self._system_folder
+        settings_folder = self._settings_folder
+        system_folder.mkdir(parents=True, exist_ok=True)
+        settings_folder.mkdir(parents=True, exist_ok=True)
+
+        if not stages:
+            return
+
+        # Buffer commodities across stages (shared commodities.json).
+        for stage in stages:
+            case_year_data, stage_settings = self._stage_data[stage]
+            gen_df = case_year_data.get("gen_data")
+            if gen_df is None or gen_df.empty:
+                continue
+            for file_name, commodity, _ in make_thermal_csvs(gen_df, stage_settings):
+                if commodity and commodity not in self.commodities:
+                    self.commodities.append(commodity)
+
+        # Electricity and CO2 are always present in a Macro case.
+        for name in ("Electricity", "CO2"):
+            if name not in self.commodities:
+                self.commodities.append(name)
+
+        # Per-stage files.
+        for stage in stages:
+            case_year_data, settings = self._stage_data[stage]
+            self._write_stage(stage, case_year_data, settings)
+
+        # Shared / case-level files.
+        with open(system_folder / "commodities.json", "w") as f:
+            json.dump(make_commodities_json(self.commodities), f, indent=4)
+        locations = self._stage_data[stages[0]][1].get("model_regions", [])
+        with open(system_folder / "locations.json", "w") as f:
+            json.dump({"locations": locations}, f, indent=4)
+        with open(settings_folder / "macro_settings.json", "w") as f:
+            json.dump(make_macro_settings_json(), f, indent=2)
+        with open(settings_folder / "case_settings.json", "w") as f:
+            json.dump(make_case_settings_json(len(stages)), f, indent=2)
+        with open(self.case_root / "system_data.json", "w") as f:
+            json.dump(
+                make_system_data_json(stages, assets_folder="assets"), f, indent=4
+            )
+
+    def _write_stage(self, stage_number, case_year_data, settings) -> None:
+        """Write every file belonging to a single stage."""
+        system_folder = self._system_folder
+        assets_folder = self.case_root / "assets" / f"assets_{stage_number}"
+        assets_folder.mkdir(parents=True, exist_ok=True)
+
+        gen_df = case_year_data.get("gen_data")
+        gen_variability = case_year_data.get("gen_variability")
+        demand_data = case_year_data.get("demand_data")
+        network = case_year_data.get("network")
+        fuels = case_year_data.get("fuels")
+        period_map = case_year_data.get("period_map")
+        co2_cap = case_year_data.get("co2_cap")
+
+        # ---- assets ----
+        thermal_files = []
+        thermal_resources = pd.DataFrame()
+        co2_sinks = []
+        if gen_df is not None and not gen_df.empty:
+            # Pin CO2 sinks (also tags in-region thermal gens to capped sinks)
+            co2_sinks = _co2_sinks_for(gen_df, settings, co2_cap)
+            thermal_resources = gen_df[gen_df["THERM"] > 0]
+            thermal_files = make_thermal_csvs(gen_df, settings)
+
+            vre_df = make_vre_csv(gen_df, stage_number=stage_number)
+            if not vre_df.empty:
+                vre_df.to_csv(assets_folder / "vre.csv", index=False)
+            stor_df = make_storage_csv(gen_df)
+            if not stor_df.empty:
+                stor_df.to_csv(assets_folder / "electricity_stor.csv", index=False)
+            hydro_df = make_hydro_csv(gen_df, stage_number=stage_number)
+            if not hydro_df.empty:
+                hydro_df.to_csv(assets_folder / "hydropower.csv", index=False)
+            mustrun_df = make_mustrun_csv(gen_df, stage_number=stage_number)
+            if not mustrun_df.empty:
+                mustrun_df.to_csv(assets_folder / "mustrun.csv", index=False)
+        else:
+            co2_sinks = [{"id": "co2_sink", "cap": None}]
+
+        for file_name, _, df in thermal_files:
+            df.to_csv(assets_folder / file_name, index=False)
+
+        if network is not None and not network.empty:
+            tx_df = make_powerlines_csv(network)
+            if not tx_df.empty:
+                tx_df.to_csv(assets_folder / "powerlines.csv", index=False)
+
+        # ---- system CSVs ----
+        if demand_data is not None and not demand_data.empty:
+            demand_df = make_demand_csv(demand_data)
+            if not demand_df.empty:
+                demand_df.to_csv(
+                    system_folder / f"demand_{stage_number}.csv", index=False
+                )
+
+        time_index = None
+        if gen_variability is not None and "Time_Index" in gen_variability.columns:
+            time_index = gen_variability["Time_Index"]
+        elif demand_data is not None and "Time_Index" in demand_data.columns:
+            time_index = demand_data["Time_Index"]
+        if time_index is None:
+            time_index = pd.Series(range(1, 8761))
+
+        availability_df = make_availability_csv(
+            gen_df, gen_variability, time_index=time_index
+        )
+        if not availability_df.empty:
+            availability_df.to_csv(
+                system_folder / f"availability_{stage_number}.csv", index=False
+            )
+        fuel_prices_df = make_fuel_prices_csv(fuels, thermal_resources, time_index)
+        if not fuel_prices_df.empty:
+            fuel_prices_df.to_csv(
+                system_folder / f"fuel_prices_{stage_number}.csv",
+                index=False,
+                float_format="%.6f",
+            )
+
+        period_map_df = make_period_map_csv(period_map)
+        has_period_map = not period_map_df.empty
+        if has_period_map:
+            period_map_df.to_csv(
+                system_folder / f"Period_map_{stage_number}.csv", index=False
+            )
+
+        # ---- demand header / fuel supply header maps ----
+        zone_num_map = settings.get("zone_num_map", {})
+        demand_headers: Dict[str, str] = {}
+        for region in settings.get("model_regions", []):
+            if demand_data is None or demand_data.empty:
+                break
+            zone = zone_num_map.get(region)
+            header = f"Demand_MW_z{zone}"
+            if any(c == header for c in demand_data.columns):
+                demand_headers[region] = header
+
+        fuel_supply_headers: Dict[str, Dict[str, str]] = {}
+        if not thermal_resources.empty:
+            for _, row in thermal_resources.iterrows():
+                commodity = _fuel_commodity(_gen_value(row, "Fuel"))
+                region = _gen_value(row, "region")
+                if commodity is None or region is None:
+                    continue
+                fuel_supply_headers.setdefault(commodity, {})[
+                    region
+                ] = f"{commodity}_{region}"
+
+        co2_sinks = co2_sinks or [{"id": "co2_sink", "cap": None}]
+
+        has_hydro = bool(
+            gen_df is not None
+            and "HYDRO" in gen_df.columns
+            and (gen_df["HYDRO"] > 0).any()
+        )
+
+        # ---- per-stage JSON files ----
+        with open(system_folder / f"nodes_{stage_number}.json", "w") as f:
+            json.dump(
+                {
+                    "nodes": make_nodes_json(
+                        settings,
+                        demand_headers,
+                        fuel_supply_headers,
+                        co2_sinks,
+                        has_hydro,
+                        stage_number=stage_number,
+                    )
+                },
+                f,
+                indent=4,
+            )
+        with open(system_folder / f"time_data_{stage_number}.json", "w") as f:
+            json.dump(
+                make_timedata_json(
+                    demand_data,
+                    self.commodities,
+                    has_period_map,
+                    stage_number=stage_number,
+                ),
+                f,
+                indent=4,
+            )
+
+
 def write_macro_inputs(
     case_folder,
     case_year_data: Dict[str, pd.DataFrame],
     settings: dict,
 ) -> None:
-    """Write a complete Macro simpleCSVinputs case folder.
+    """Write a single-stage Macro simpleCSVinputs case folder.
 
-    Parameters
-    ----------
-    case_folder : Path-like
-        Folder that will contain the Macro case (system/, assets/, settings/).
-    case_year_data : dict
-        PowerGenome case data including gen_data, gen_variability, demand_data,
-        fuels, network, co2_cap.
-    settings : dict
-        PowerGenome settings for the case (model_regions, zone_num_map, ...).
+    This is a thin convenience wrapper around :class:`MacroCaseBuilder` that
+    produces a runnable (multistage-form) Macro case with a single stage.
     """
-    case_folder = Path(case_folder)
-    system_folder = case_folder / "system"
-    assets_folder = case_folder / "assets"
-    settings_folder = case_folder / "settings"
-    system_folder.mkdir(parents=True, exist_ok=True)
-    assets_folder.mkdir(parents=True, exist_ok=True)
-    settings_folder.mkdir(parents=True, exist_ok=True)
-
-    gen_df = case_year_data.get("gen_data")
-    gen_variability = case_year_data.get("gen_variability")
-    demand_data = case_year_data.get("demand_data")
-    network = case_year_data.get("network")
-    fuels = case_year_data.get("fuels")
-    period_map = case_year_data.get("period_map")
-    co2_cap = case_year_data.get("co2_cap")
-
-    commodities: List[str] = []
-
-    def add_commodity(c):
-        if c and c not in commodities:
-            commodities.append(c)
-
-    # ---- assets ----
-    thermal_files = []
-    thermal_resources = pd.DataFrame()
-    co2_sinks = []
-    if gen_df is not None and not gen_df.empty:
-        # Pin CO2 sinks (also tags in-region thermal gens to capped sinks)
-        co2_sinks = _co2_sinks_for(gen_df, settings, co2_cap)
-        thermal_resources = gen_df[gen_df["THERM"] > 0]
-        thermal_files = make_thermal_csvs(gen_df)
-        for _, commodity, _ in thermal_files:
-            add_commodity(commodity)
-
-        vre_df = make_vre_csv(gen_df)
-        if not vre_df.empty:
-            vre_df.to_csv(assets_folder / "vre.csv", index=False)
-        stor_df = make_storage_csv(gen_df)
-        if not stor_df.empty:
-            stor_df.to_csv(assets_folder / "electricity_stor.csv", index=False)
-        hydro_df = make_hydro_csv(gen_df)
-        if not hydro_df.empty:
-            hydro_df.to_csv(assets_folder / "hydropower.csv", index=False)
-        mustrun_df = make_mustrun_csv(gen_df)
-        if not mustrun_df.empty:
-            mustrun_df.to_csv(assets_folder / "mustrun.csv", index=False)
-    else:
-        co2_sinks = [{"id": "co2_sink", "cap": None}]
-
-    for file_name, _, df in thermal_files:
-        df.to_csv(assets_folder / file_name, index=False)
-
-    if network is not None and not network.empty:
-        tx_df = make_powerlines_csv(network)
-        if not tx_df.empty:
-            tx_df.to_csv(assets_folder / "powerlines.csv", index=False)
-
-    # ---- system CSVs ----
-    if demand_data is not None and not demand_data.empty:
-        demand_df = make_demand_csv(demand_data)
-        if not demand_df.empty:
-            demand_df.to_csv(system_folder / "demand.csv", index=False)
-
-    time_index = None
-    if gen_variability is not None and "Time_Index" in gen_variability.columns:
-        time_index = gen_variability["Time_Index"]
-    elif demand_data is not None and "Time_Index" in demand_data.columns:
-        time_index = demand_data["Time_Index"]
-    if time_index is None:
-        time_index = pd.Series(range(1, 8761))
-
-    availability_df = make_availability_csv(
-        gen_df, gen_variability, time_index=time_index
-    )
-    if not availability_df.empty:
-        availability_df.to_csv(system_folder / "availability.csv", index=False)
-    fuel_prices_df = make_fuel_prices_csv(fuels, thermal_resources, time_index)
-    if not fuel_prices_df.empty:
-        fuel_prices_df.to_csv(
-            system_folder / "fuel_prices.csv", index=False, float_format="%.6f"
-        )
-
-    period_map_df = make_period_map_csv(period_map)
-    has_period_map = not period_map_df.empty
-    if has_period_map:
-        period_map_df.to_csv(system_folder / "Period_map.csv", index=False)
-
-    # ---- demand header / fuel supply header maps ----
-    zone_num_map = settings.get("zone_num_map", {})
-    demand_headers: Dict[str, str] = {}
-    for region in settings.get("model_regions", []):
-        if demand_data is None or demand_data.empty:
-            break
-        zone = zone_num_map.get(region)
-        header = f"Demand_MW_z{zone}"
-        if any(c == header for c in demand_data.columns):
-            demand_headers[region] = header
-
-    fuel_supply_headers: Dict[str, Dict[str, str]] = {}
-    if not thermal_resources.empty:
-        for _, row in thermal_resources.iterrows():
-            commodity = _fuel_commodity(_gen_value(row, "Fuel"))
-            region = _gen_value(row, "region")
-            if commodity is None or region is None:
-                continue
-            fuel_supply_headers.setdefault(commodity, {})[
-                region
-            ] = f"{commodity}_{region}"
-
-    co2_sinks = co2_sinks or [{"id": "co2_sink", "cap": None}]
-
-    has_hydro = bool(
-        gen_df is not None and "HYDRO" in gen_df.columns and (gen_df["HYDRO"] > 0).any()
-    )
-
-    add_commodity("Electricity")
-    add_commodity("CO2")
-
-    # ---- JSON files ----
-    with open(system_folder / "commodities.json", "w") as f:
-        json.dump(make_commodities_json(commodities), f, indent=4)
-    locations = settings.get("model_regions", [])
-    with open(system_folder / "locations.json", "w") as f:
-        json.dump({"locations": locations}, f, indent=4)
-    with open(system_folder / "nodes.json", "w") as f:
-        json.dump(
-            {
-                "nodes": make_nodes_json(
-                    settings, demand_headers, fuel_supply_headers, co2_sinks, has_hydro
-                )
-            },
-            f,
-            indent=4,
-        )
-    with open(system_folder / "time_data.json", "w") as f:
-        json.dump(
-            make_timedata_json(demand_data, commodities, has_period_map),
-            f,
-            indent=4,
-        )
-    with open(settings_folder / "macro_settings.json", "w") as f:
-        json.dump(make_macro_settings_json(), f, indent=2)
-    with open(case_folder / "system_data.json", "w") as f:
-        json.dump(make_system_data_json(assets_folder="assets"), f, indent=4)
+    builder = MacroCaseBuilder(case_folder)
+    builder.add_stage(1, case_year_data, settings)
+    builder.finalize()

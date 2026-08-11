@@ -14,7 +14,9 @@ from powergenome.macro_inputs import (
     STORAGE_COLUMNS,
     THERMAL_COLUMNS,
     VRE_COLUMNS,
+    MacroCaseBuilder,
     make_availability_csv,
+    make_case_settings_json,
     make_commodities_json,
     make_demand_csv,
     make_fuel_prices_csv,
@@ -25,6 +27,7 @@ from powergenome.macro_inputs import (
     make_period_map_csv,
     make_powerlines_csv,
     make_storage_csv,
+    make_system_data_json,
     make_thermal_csvs,
     make_timedata_json,
     make_vre_csv,
@@ -128,6 +131,40 @@ def gen_df():
                 6.0,
                 0.0,
             ],
+            "WACC": [0.08, 0.08, 0.09, 0.07, 0.07, 0.06, 0.06, 0.05, 0.05],
+            "Capital_Recovery_Period": [
+                20.0,
+                20.0,
+                25.0,
+                25.0,
+                20.0,
+                15.0,
+                15.0,
+                30.0,
+                10.0,
+            ],
+            "Lifetime": [
+                25.0,
+                25.0,
+                30.0,
+                30.0,
+                25.0,
+                20.0,
+                20.0,
+                40.0,
+                15.0,
+            ],
+            "Min_Retired_Cap_MW": [
+                np.nan,
+                np.nan,
+                np.nan,
+                np.nan,
+                np.nan,
+                np.nan,
+                np.nan,
+                np.nan,
+                np.nan,
+            ],
         }
     )
 
@@ -223,6 +260,11 @@ def test_make_thermal_csvs_conversions(gen_df):
     assert df.loc[1, "uc"] == "FALSE"
     # fuel_start_vertex points at the single-tier fuel node
     assert df.loc[0, "fuel_start_vertex"] == "NaturalGas_R1"
+    # multistage financial attributes are populated from the generator columns
+    assert df.loc[0, "wacc"] == 0.08
+    assert df.loc[0, "capital_recovery_period"] == 20.0
+    assert df.loc[0, "lifetime"] == 25.0
+    assert "min_retired_capacity" in df.columns
 
 
 def test_thermal_csv_type_id_first_columns(gen_df):
@@ -240,8 +282,15 @@ def test_vre_csv_columns_and_availability(gen_df):
     assert "availability--timeseries--path" in vre_df.columns
     assert "availability--timeseries--header" in vre_df.columns
     for _, row in vre_df.iterrows():
-        assert row["availability--timeseries--path"] == "system/availability.csv"
+        assert row["availability--timeseries--path"] == "system/availability_1.csv"
         assert row["availability--timeseries--header"] == row["id"]
+
+    # stage_number controls the availability CSV path
+    vre_stage2 = make_vre_csv(gen_df, stage_number=2)
+    assert (
+        vre_stage2.iloc[0]["availability--timeseries--path"]
+        == "system/availability_2.csv"
+    )
 
 
 def test_storage_csv_asymmetry(gen_df):
@@ -261,6 +310,10 @@ def test_hydro_csv_availability_columns(gen_df):
     assert "inflow_availability" not in hydro_df.columns
     assert "inflow_availability--timeseries--path" in hydro_df.columns
     assert "inflow_availability--timeseries--header" in hydro_df.columns
+    assert (
+        hydro_df.loc[0, "inflow_availability--timeseries--path"]
+        == "system/availability_1.csv"
+    )
     assert hydro_df.loc[0, "hydro_source"] == "hydro_source"
     # storage_charge_discharge_ratio from Hydro_Energy_to_Power_Ratio
     assert hydro_df.loc[0, "storage_charge_discharge_ratio"] == 6.0
@@ -271,6 +324,10 @@ def test_mustrun_csv_availability_columns(gen_df):
     assert list(mustrun_df["id"]) == ["mustrun_1"]
     assert "availability" not in mustrun_df.columns
     assert "availability--timeseries--path" in mustrun_df.columns
+    assert (
+        mustrun_df.loc[0, "availability--timeseries--path"]
+        == "system/availability_1.csv"
+    )
     assert mustrun_df.loc[0, "availability--timeseries--header"] == "mustrun_1"
 
 
@@ -345,12 +402,20 @@ def test_make_nodes_json_consistency(settings, demand_data, fuels, gen_df):
     demand_ids = {i["id"]: i for i in elec["instance_data"]}
     assert "elec_R1" in demand_ids
     assert demand_ids["elec_R1"]["demand"]["timeseries"]["header"] == "Demand_MW_z1"
+    assert (
+        demand_ids["elec_R1"]["demand"]["timeseries"]["path"]
+        == "system/demand_1.csv"
+    )
     # fuel supply nodes single-tier with location and price timeseries header
     ng = next(n for n in nodes if n["type"] == "NaturalGas")
     assert ng["instance_data"][0]["id"] == "NaturalGas_R1"
     assert (
         ng["instance_data"][0]["supply"]["segment1"]["price"]["timeseries"]["header"]
         == "NaturalGas_R1"
+    )
+    assert (
+        ng["instance_data"][0]["supply"]["segment1"]["price"]["timeseries"]["path"]
+        == "system/fuel_prices_1.csv"
     )
     # hydro_source node present
     assert any(
@@ -375,7 +440,12 @@ def test_make_timedata_json_reduced():
     assert td["NumberOfSubperiods"] == 2
     assert td["HoursPerSubperiod"] == {"Electricity": 3}
     assert td["TotalHoursModeled"] == 18
-    assert td["SubPeriodMap"] == {"path": "system/Period_map.csv"}
+    assert td["SubPeriodMap"] == {"path": "system/Period_map_1.csv"}
+
+    td_stage2 = make_timedata_json(
+        reduced, ["Electricity"], has_period_map=True, stage_number=2
+    )
+    assert td_stage2["SubPeriodMap"] == {"path": "system/Period_map_2.csv"}
 
 
 def test_make_timedata_json_none():
@@ -444,46 +514,58 @@ def test_write_macro_inputs_full_case(
         assert (case / f).is_dir()
     assert (case / "system_data.json").is_file()
 
-    # asset files
+    # asset files live in a per-stage assets/assets_1 folder
     for f in [
-        "assets/naturalgas_power.csv",
-        "assets/coal_power.csv",
-        "assets/vre.csv",
-        "assets/electricity_stor.csv",
-        "assets/hydropower.csv",
-        "assets/mustrun.csv",
-        "assets/powerlines.csv",
+        "assets/assets_1/naturalgas_power.csv",
+        "assets/assets_1/coal_power.csv",
+        "assets/assets_1/vre.csv",
+        "assets/assets_1/electricity_stor.csv",
+        "assets/assets_1/hydropower.csv",
+        "assets/assets_1/mustrun.csv",
+        "assets/assets_1/powerlines.csv",
     ]:
         assert (case / f).is_file(), f"missing {f}"
 
-    # system files
+    # system files (keys shared across stages; the rest are per-stage)
     for f in [
         "system/commodities.json",
         "system/locations.json",
+        "system/nodes_1.json",
+        "system/time_data_1.json",
+        "system/demand_1.csv",
+        "system/availability_1.csv",
+        "system/fuel_prices_1.csv",
+        "settings/macro_settings.json",
+        "settings/case_settings.json",
+    ]:
+        assert (case / f).is_file(), f"missing {f}"
+
+    # old non-suffixed files must NOT exist
+    for f in [
         "system/nodes.json",
         "system/time_data.json",
         "system/demand.csv",
         "system/availability.csv",
         "system/fuel_prices.csv",
-        "settings/macro_settings.json",
+        "assets/vre.csv",
     ]:
-        assert (case / f).is_file(), f"missing {f}"
+        assert not (case / f).exists(), f"legacy file should not exist: {f}"
 
     # every CSV readable, Type is first column, id second
     for csv_name in [
-        "assets/naturalgas_power.csv",
-        "assets/vre.csv",
-        "assets/electricity_stor.csv",
-        "assets/hydropower.csv",
-        "assets/mustrun.csv",
-        "assets/powerlines.csv",
+        "assets/assets_1/naturalgas_power.csv",
+        "assets/assets_1/vre.csv",
+        "assets/assets_1/electricity_stor.csv",
+        "assets/assets_1/hydropower.csv",
+        "assets/assets_1/mustrun.csv",
+        "assets/assets_1/powerlines.csv",
     ]:
         df = pd.read_csv(case / csv_name)
         assert list(df.columns)[:2] == ["Type", "id"], csv_name
 
     # nodes.json demand header matches demand.csv
-    demand_df = pd.read_csv(case / "system/demand.csv")
-    nodes = json.loads((case / "system/nodes.json").read_text())
+    demand_df = pd.read_csv(case / "system/demand_1.csv")
+    nodes = json.loads((case / "system/nodes_1.json").read_text())
     elec = next(
         n
         for n in nodes["nodes"]
@@ -495,10 +577,10 @@ def test_write_macro_inputs_full_case(
         assert header in demand_df.columns
 
     # availability.csv has a header for every VRE/hydro/mustrun asset
-    availability = pd.read_csv(case / "system/availability.csv")
-    vre = pd.read_csv(case / "assets/vre.csv")
-    hydro = pd.read_csv(case / "assets/hydropower.csv")
-    mustrun = pd.read_csv(case / "assets/mustrun.csv")
+    availability = pd.read_csv(case / "system/availability_1.csv")
+    vre = pd.read_csv(case / "assets/assets_1/vre.csv")
+    hydro = pd.read_csv(case / "assets/assets_1/hydropower.csv")
+    mustrun = pd.read_csv(case / "assets/assets_1/mustrun.csv")
     for df in (vre, mustrun):
         for header in df["availability--timeseries--header"].dropna():
             assert header in availability.columns, header
@@ -506,19 +588,28 @@ def test_write_macro_inputs_full_case(
         assert header in availability.columns, header
 
     # fuel_prices.csv header referenced by nodes.json fuel supply nodes
-    fuel_prices = pd.read_csv(case / "system/fuel_prices.csv")
+    fuel_prices = pd.read_csv(case / "system/fuel_prices_1.csv")
     ng = next(n for n in nodes["nodes"] if n["type"] == "NaturalGas")
     for inst in ng["instance_data"]:
         header = inst["supply"]["segment1"]["price"]["timeseries"]["header"]
         assert header in fuel_prices.columns
 
-    # system_data.json paths resolve
+    # multistage system_data.json: one case entry per stage, settings pointer
     sd = json.loads((case / "system_data.json").read_text())
-    assert sd["assets"]["path"] == "assets"
-    assert (case / sd["nodes"]["path"]).is_file()
+    assert len(sd["case"]) == 1
+    entry = sd["case"][0]
+    assert entry["assets"]["path"] == "assets/assets_1"
+    assert (case / entry["assets"]["path"]).is_dir()
+    assert (case / entry["nodes"]["path"]).is_file()
+    assert (case / entry["time_data"]["path"]).is_file()
+    assert sd["settings"]["path"] == "settings/case_settings.json"
+
+    # case_settings.json has one PeriodLength per stage
+    cs = json.loads((case / "settings/case_settings.json").read_text())
+    assert cs["PeriodLengths"] == [1]
 
     # time_data.json default (non-reduced): one subperiod, 24 hours
-    td = json.loads((case / "system/time_data.json").read_text())
+    td = json.loads((case / "system/time_data_1.json").read_text())
     assert td["NumberOfSubperiods"] == 1
     assert td["HoursPerSubperiod"]["Electricity"] == 24
 
@@ -553,12 +644,13 @@ def test_write_macro_inputs_reduced(
         settings,
         period_map=period_map,
     )
-    td = json.loads((case / "system/time_data.json").read_text())
+    td = json.loads((case / "system/time_data_1.json").read_text())
     assert td["NumberOfSubperiods"] == 2
     assert td["HoursPerSubperiod"]["Electricity"] == 12
     assert td["TotalHoursModeled"] == 288
     assert "SubPeriodMap" in td
-    pm = pd.read_csv(case / "system/Period_map.csv")
+    assert td["SubPeriodMap"]["path"] == "system/Period_map_1.csv"
+    pm = pd.read_csv(case / "system/Period_map_1.csv")
     assert list(pm.columns) == ["Period_Index", "Rep_Period", "Rep_Period_Index"]
 
 
@@ -575,7 +667,7 @@ def test_write_macro_inputs_co2_caps(
         settings,
         co2_cap=co2_cap,
     )
-    nodes = json.loads((case / "system/nodes.json").read_text())
+    nodes = json.loads((case / "system/nodes_1.json").read_text())
     co2 = next(n for n in nodes["nodes"] if n["type"] == "CO2")
     ids = [i["id"] for i in co2["instance_data"]]
     assert "co2_sink" in ids
@@ -584,5 +676,94 @@ def test_write_macro_inputs_co2_caps(
         if inst["id"] == "co2_sink_1":
             assert inst["rhs_policy"]["CO2CapConstraint"] == 10.0 * 1e6
     # in-region thermal generator points at the capped sink
-    thermal = pd.read_csv(case / "assets/naturalgas_power.csv")
+    thermal = pd.read_csv(case / "assets/assets_1/naturalgas_power.csv")
     assert "co2_sink" in thermal.columns
+
+
+def test_make_system_data_json_multistage():
+    sd = make_system_data_json([2, 1], assets_folder="assets")
+    assert list(sd.keys()) == ["case", "settings"]
+    # stages are emitted in ascending numeric order
+    assert [e["assets"]["path"] for e in sd["case"]] == [
+        "assets/assets_1",
+        "assets/assets_2",
+    ]
+    for i, entry in enumerate(sd["case"], start=1):
+        assert entry["nodes"]["path"] == f"system/nodes_{i}.json"
+        assert entry["time_data"]["path"] == f"system/time_data_{i}.json"
+        assert entry["commodities"]["path"] == "system/commodities.json"
+        assert entry["settings"]["path"] == "settings/macro_settings.json"
+    assert sd["settings"]["path"] == "settings/case_settings.json"
+
+
+def test_make_case_settings_json():
+    cs = make_case_settings_json(3)
+    assert cs["PeriodLengths"] == [1, 1, 1]
+    assert cs["DiscountRate"] == 0.045
+    assert cs["SolutionAlgorithm"] == "Monolithic"
+
+
+def test_macro_case_builder_multistage(
+    tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings
+):
+    """Two planning periods written out-of-order become two numbered stages."""
+    builder = MacroCaseBuilder(tmp_path)
+    # add stages out of numeric order like the year-major main loop would
+    stage1_data = {
+        "gen_data": gen_df,
+        "gen_variability": gen_variability,
+        "demand_data": demand_data,
+        "fuels": fuels,
+        "network": network,
+    }
+    builder.add_stage(1, stage1_data, settings)
+    builder.add_stage(2, stage1_data, settings)
+    builder.finalize()
+
+    # case entries sorted with assets/assets_N paths
+    sd = json.loads((tmp_path / "system_data.json").read_text())
+    assert [e["assets"]["path"] for e in sd["case"]] == [
+        "assets/assets_1",
+        "assets/assets_2",
+    ]
+
+    # case_settings.json has one PeriodLength per stage
+    cs = json.loads((tmp_path / "settings/case_settings.json").read_text())
+    assert cs["PeriodLengths"] == [1, 1]
+
+    # both stages fully materialized with per-stage file numbers
+    for i in (1, 2):
+        assert (tmp_path / "assets" / f"assets_{i}" / "vre.csv").is_file()
+        assert (tmp_path / "assets" / f"assets_{i}" / "naturalgas_power.csv").is_file()
+        assert (tmp_path / "system" / f"nodes_{i}.json").is_file()
+        assert (tmp_path / "system" / f"time_data_{i}.json").is_file()
+        assert (tmp_path / "system" / f"demand_{i}.csv").is_file()
+        assert (tmp_path / "system" / f"availability_{i}.csv").is_file()
+        assert (tmp_path / "system" / f"fuel_prices_{i}.csv").is_file()
+
+    # assets reference the per-stage availability CSV
+    vre1 = pd.read_csv(tmp_path / "assets/assets_1/vre.csv")
+    assert vre1.iloc[0]["availability--timeseries--path"] == "system/availability_1.csv"
+    vre2 = pd.read_csv(tmp_path / "assets/assets_2/vre.csv")
+    assert vre2.iloc[0]["availability--timeseries--path"] == "system/availability_2.csv"
+
+    # systems files shared across stages
+    assert (tmp_path / "system/commodities.json").is_file()
+    assert (tmp_path / "system/locations.json").is_file()
+    assert (tmp_path / "settings/macro_settings.json").is_file()
+
+
+def test_macro_case_builder_duplicate_stage_raises(
+    tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings
+):
+    builder = MacroCaseBuilder(tmp_path)
+    data = {
+        "gen_data": gen_df,
+        "gen_variability": gen_variability,
+        "demand_data": demand_data,
+        "fuels": fuels,
+        "network": network,
+    }
+    builder.add_stage(2, data, settings)
+    with pytest.raises(ValueError, match="already added"):
+        builder.add_stage(2, data, settings)

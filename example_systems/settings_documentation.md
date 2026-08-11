@@ -1005,3 +1005,11 @@ turns Macro mode on. The semantic mapping (thermal, VRE, storage, must-run, hydr
 supply nodes, CO2 caps, time data) follows the GenX-to-Macro converter at `EmilDimanchev/GenX_to_Macro`. Cross-sector
 assets (hydrogen, liquid fuels, CCS) are not yet emitted. When Macro mode is active, GenX `Inputs/Inputs_pN` files
 are not written.
+
+For multi-period cases, each planning period is written as one Macro stage, following the multistage
+GenX-to-Macro converter (`lbonaldo/GenX_to_Macro`, `lb/multistage` branch): `system_data.json` has a `case` array
+with one entry per period (stage-suffixed files like `assets/assets_N/`, `system/time_data_N.json`,
+`system/nodes_N.json`), and `settings/case_settings.json` lists one `PeriodLengths` entry per period along with
+`DiscountRate` and `SolutionAlgorithm`. Financial attributes (`wacc`, `capital_recovery_period`, `lifetime`,
+`min_retired_capacity`) are written on thermal, VRE, storage, hydro, and must-run assets when the equivalent GenX
+columns are present.

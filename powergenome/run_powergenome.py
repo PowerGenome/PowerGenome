@@ -29,7 +29,7 @@ from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; c
     set_int_cols,
 )
 from powergenome.load_profiles import make_final_load_curves
-from powergenome.macro_inputs import write_macro_inputs
+from powergenome.macro_inputs import MacroCaseBuilder
 from powergenome.settings import (
     Settings,
     build_scenario_settings,
@@ -307,6 +307,11 @@ def main(**kwargs):
 
     model_regions_gdf = None
     first_year = True
+    # Macro cases are written one per case (not per period), with each planning
+    # period becoming a stage. Because the loop below iterates years first, the
+    # stages of a given case are not contiguous, so buffer them here and
+    # finalize (write shared case-level files) once the loop completes.
+    macro_writers = {}
     for year, year_settings in scenario_settings.items():
         for case_id, _settings in year_settings.items():
             # Use the factory method to create scenario-specific settings
@@ -463,8 +468,18 @@ def main(**kwargs):
                         "\n\nWriting Macro simpleCSVinputs format to %s\n\n",
                         case_folder,
                     )
-                    write_macro_inputs(
-                        case_folder, case_year_data, scenario_settings_obj
+                    # The Macro case root is the parent of the GenX-style Inputs
+                    # folder: <out>/<case_id> for scenario definitions and
+                    # <out> for an un-keyed case.
+                    macro_root = case_folder.parent.parent
+                    writer = macro_writers.get(macro_root)
+                    if writer is None:
+                        writer = MacroCaseBuilder(macro_root)
+                        macro_writers[macro_root] = writer
+                    writer.add_stage(
+                        scenario_settings_obj["case_period"],
+                        case_year_data,
+                        scenario_settings_obj,
                     )
                 elif scenario_settings_obj.get("old_genx_format", False) is not True:
                     genx_data = process_genx_data(case_folder, case_year_data)
@@ -487,6 +502,11 @@ def main(**kwargs):
                     file_name="powergenome_case_settings.yml",
                 )
                 first_year = False
+
+    # Finalize buffered Macro cases (writes per-stage files and the shared
+    # case-level system_data.json / case_settings.json).
+    for writer in macro_writers.values():
+        writer.finalize()
 
 
 if __name__ == "__main__":
