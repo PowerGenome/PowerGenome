@@ -193,6 +193,7 @@ TRANSMISSION_COLUMNS = [
 # Small helper functions
 # ---------------------------------------------------------------------------
 
+
 def _is_true(value) -> bool:
     """Treat a value as True if it is a positive number or a truthy string."""
     if value is None:
@@ -252,6 +253,7 @@ def _format_bool(value) -> str:
 # ---------------------------------------------------------------------------
 # Asset CSV builders
 # ---------------------------------------------------------------------------
+
 
 def _gen_has_col(df: pd.DataFrame, col: str) -> bool:
     return col in df.columns
@@ -331,7 +333,8 @@ def make_thermal_csvs(gen_df: pd.DataFrame, settings: dict = None) -> List[tuple
         if commodity is None:
             logger.warning(
                 "Could not map fuel %r to a Macro commodity; skipping generator %s",
-                _gen_value(row, "Fuel"), _gen_value(row, "Resource"),
+                _gen_value(row, "Fuel"),
+                _gen_value(row, "Resource"),
             )
             continue
         by_commodity.setdefault(commodity, []).append(row)
@@ -375,9 +378,7 @@ def make_thermal_csvs(gen_df: pd.DataFrame, settings: dict = None) -> List[tuple
                     ),
                     "min_up_time": _num(_gen_value(row, "Up_Time", np.nan)),
                     "capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
-                    "ramp_down_fraction": _gen_value(
-                        row, "Ramp_Dn_Percentage", np.nan
-                    ),
+                    "ramp_down_fraction": _gen_value(row, "Ramp_Dn_Percentage", np.nan),
                     "emission_rate": emission_rate if _num(co2_content) else "",
                     "variable_om_cost": _num(
                         _gen_value(row, "Var_OM_Cost_per_MWh", np.nan)
@@ -389,13 +390,9 @@ def make_thermal_csvs(gen_df: pd.DataFrame, settings: dict = None) -> List[tuple
                         _gen_value(row, "Start_Fuel_MMBTU_per_MW", np.nan)
                     )
                     * conv,
-                    "ramp_up_fraction": _gen_value(
-                        row, "Ramp_Up_Percentage", np.nan
-                    ),
+                    "ramp_up_fraction": _gen_value(row, "Ramp_Up_Percentage", np.nan),
                     "min_flow_fraction": min_flow if min_flow > 0 else "",
-                    "startup_cost": _num(
-                        _gen_value(row, "Start_Cost_per_MW", np.nan)
-                    ),
+                    "startup_cost": _num(_gen_value(row, "Start_Cost_per_MW", np.nan)),
                     "can_retire": _format_bool(_gen_value(row, "Can_Retire")),
                 }
             )
@@ -433,14 +430,10 @@ def make_vre_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 "fixed_om_cost": _num(
                     _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
                 ),
-                "investment_cost": _num(
-                    _gen_value(row, "Inv_Cost_per_MWyr", np.nan)
-                ),
+                "investment_cost": _num(_gen_value(row, "Inv_Cost_per_MWyr", np.nan)),
                 "availability--timeseries--path": "system/availability.csv",
                 "availability--timeseries--header": _gen_value(row, "Resource"),
-                "existing_capacity": _num(
-                    _gen_value(row, "Existing_Cap_MW", np.nan)
-                ),
+                "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
                 "capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
             }
         )
@@ -472,9 +465,7 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 "discharge_constraints--CapacityConstraint": "TRUE",
                 "storage_can_retire": _format_bool(_gen_value(row, "Can_Retire")),
                 "location": _gen_value(row, "region"),
-                "storage_max_duration": _num(
-                    _gen_value(row, "Max_Duration", np.nan)
-                ),
+                "storage_max_duration": _num(_gen_value(row, "Max_Duration", np.nan)),
                 "discharge_investment_cost": _num(
                     _gen_value(row, "Inv_Cost_per_MWyr", np.nan)
                 ),
@@ -492,18 +483,14 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                     _gen_value(row, "Var_OM_Cost_per_MWh", np.nan)
                 ),
                 "charge_efficiency": _num(_gen_value(row, "Eff_Up", np.nan)),
-                "storage_min_duration": _num(
-                    _gen_value(row, "Min_Duration", np.nan)
-                ),
+                "storage_min_duration": _num(_gen_value(row, "Min_Duration", np.nan)),
                 "charge_variable_om_cost": _num(
                     _gen_value(row, "Var_OM_Cost_per_MWh_In", np.nan)
                 ),
                 "storage_existing_capacity": _num(
                     _gen_value(row, "Existing_Cap_MWh", np.nan)
                 )
-                or _num(
-                    _gen_value(row, "Max_Cap_MWh", np.nan)
-                ),
+                or _num(_gen_value(row, "Max_Cap_MWh", np.nan)),
                 "discharge_min_flow_fraction": _num(
                     _gen_value(row, "Min_Power", 0.0), 0.0
                 ),
@@ -511,9 +498,7 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                     _gen_value(row, "Existing_Cap_MW", np.nan)
                 ),
                 "discharge_can_expand": _format_bool(_gen_value(row, "New_Build")),
-                "discharge_capacity_size": _num(
-                    _gen_value(row, "Cap_Size", np.nan)
-                ),
+                "discharge_capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
             }
         )
     return pd.DataFrame(records, columns=STORAGE_COLUMNS)
@@ -555,9 +540,7 @@ def make_hydro_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 "discharge_existing_capacity": _num(
                     _gen_value(row, "Existing_Cap_MW", np.nan)
                 ),
-                "discharge_efficiency": _num(
-                    _gen_value(row, "Eff_Down", 1.0), 1.0
-                ),
+                "discharge_efficiency": _num(_gen_value(row, "Eff_Down", 1.0), 1.0),
                 "inflow_efficiency": _num(_gen_value(row, "Eff_Up", 1.0), 1.0),
                 "discharge_fixed_om_cost": _num(
                     _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
@@ -568,9 +551,7 @@ def make_hydro_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 "storage_min_outflow_fraction": _num(
                     _gen_value(row, "Min_Power", np.nan)
                 ),
-                "discharge_capacity_size": _num(
-                    _gen_value(row, "Cap_Size", np.nan)
-                ),
+                "discharge_capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
                 "storage_charge_discharge_ratio": ratio,
             }
         )
@@ -595,9 +576,7 @@ def make_mustrun_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 ),
                 "can_expand": _format_bool(_gen_value(row, "New_Build")),
                 "location": _gen_value(row, "region"),
-                "existing_capacity": _num(
-                    _gen_value(row, "Existing_Cap_MW", np.nan)
-                ),
+                "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
                 "availability--timeseries--path": "system/availability.csv",
                 "availability--timeseries--header": _gen_value(row, "Resource"),
                 "capacity_size": _num(_gen_value(row, "Cap_Size", 1.0), 1.0),
@@ -617,9 +596,9 @@ def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
         if start is None or dest is None:
             continue
         max_flow = _num(_gen_value(row, "Line_Max_Flow_MW", 0.0), 0.0)
-        reinforcement = _num(
-            _gen_value(row, "Line_Max_Reinforcement_MW", np.nan), 0.0
-        ) or 0.0
+        reinforcement = (
+            _num(_gen_value(row, "Line_Max_Reinforcement_MW", np.nan), 0.0) or 0.0
+        )
         records.append(
             {
                 "Type": TRANSMISSION_TYPE,
@@ -645,6 +624,7 @@ def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # System (JSON + CSV) builders
 # ---------------------------------------------------------------------------
+
 
 def make_locations_json(settings: dict) -> tuple:
     """Return locations.json content (dict) and the region list."""
@@ -706,12 +686,18 @@ def make_nodes_json(
             {
                 "id": f"elec_{region}",
                 "location": region,
-                "demand": {"timeseries": {"path": "system/demand.csv", "header": header}},
+                "demand": {
+                    "timeseries": {"path": "system/demand.csv", "header": header}
+                },
             }
         )
     if demand_instances:
         nodes.append(
-            {"type": "Electricity", "global_data": electricity_global, "instance_data": demand_instances}
+            {
+                "type": "Electricity",
+                "global_data": electricity_global,
+                "instance_data": demand_instances,
+            }
         )
 
     # Fuel supply nodes (one block per commodity, single-tier with location)
@@ -794,13 +780,21 @@ def make_timedata_json(
         hours_per_subperiod = 8760
         total_hours = 8760
     else:
-        rep_periods = int(demand_data["Rep_Periods"].iloc[0]) if "Rep_Periods" in demand_data.columns else 1
+        rep_periods = (
+            int(demand_data["Rep_Periods"].iloc[0])
+            if "Rep_Periods" in demand_data.columns
+            else 1
+        )
         hours_per_subperiod = (
             int(demand_data["Timesteps_per_Rep_Period"].iloc[0])
             if "Timesteps_per_Rep_Period" in demand_data.columns
             else 8760
         )
-        total_hours = int(demand_data["Sub_Weights"].sum()) if "Sub_Weights" in demand_data.columns else hours_per_subperiod
+        total_hours = (
+            int(demand_data["Sub_Weights"].sum())
+            if "Sub_Weights" in demand_data.columns
+            else hours_per_subperiod
+        )
 
     time_data = {
         "HoursPerSubperiod": {c: hours_per_subperiod for c in commodities},
@@ -922,7 +916,7 @@ def make_fuel_prices_csv(
     for commodity, regions in commodity_regions.items():
         for region, (fuel, prices) in regions.items():
             # prices rows are per hour; convert MMBtu -> MWh
-            converted = (prices.to_numpy() / CONV_MMBTU_TO_MWH)
+            converted = prices.to_numpy() / CONV_MMBTU_TO_MWH
             header = f"{commodity}_{region}"
             cols[header] = converted[: len(time_index)]
     return pd.DataFrame(cols)
@@ -935,7 +929,11 @@ def make_period_map_csv(period_map: pd.DataFrame) -> pd.DataFrame:
     out = period_map.copy()
     if "Rep_Period_Index" in out.columns and "Rep_Period" not in out.columns:
         out["Rep_Period"] = out["Rep_Period_Index"]
-    keep = [c for c in ("Period_Index", "Rep_Period", "Rep_Period_Index") if c in out.columns]
+    keep = [
+        c
+        for c in ("Period_Index", "Rep_Period", "Rep_Period_Index")
+        if c in out.columns
+    ]
     return out[keep].reset_index(drop=True)
 
 
@@ -943,14 +941,21 @@ def make_period_map_csv(period_map: pd.DataFrame) -> pd.DataFrame:
 # Orchestrator
 # ---------------------------------------------------------------------------
 
-def _co2_sinks_for(gen_df: pd.DataFrame, settings: dict, co2_cap: pd.DataFrame) -> List[dict]:
+
+def _co2_sinks_for(
+    gen_df: pd.DataFrame, settings: dict, co2_cap: pd.DataFrame
+) -> List[dict]:
     """Build the list of CO2 sink node entries used in nodes.json."""
-    sinks: List[dict] = [{ "id": "co2_sink", "cap": None }]
+    sinks: List[dict] = [{"id": "co2_sink", "cap": None}]
     if co2_cap is None or co2_cap.empty:
         return sinks
     zone_num_map = settings.get("zone_num_map", {})
     zone_to_region = {int(zone): reg for reg, zone in zone_num_map.items()}
-    cap_cols = [c for c in co2_cap.columns if str(c).startswith("CO_2") or str(c).startswith("co2")]
+    cap_cols = [
+        c
+        for c in co2_cap.columns
+        if str(c).startswith("CO_2") or str(c).startswith("co2")
+    ]
     for _, row in co2_cap.iterrows():
         zone = row.get("Network_zones")
         if pd.isna(zone):
@@ -1062,12 +1067,16 @@ def write_macro_inputs(
     if time_index is None:
         time_index = pd.Series(range(1, 8761))
 
-    availability_df = make_availability_csv(gen_df, gen_variability, time_index=time_index)
+    availability_df = make_availability_csv(
+        gen_df, gen_variability, time_index=time_index
+    )
     if not availability_df.empty:
         availability_df.to_csv(system_folder / "availability.csv", index=False)
     fuel_prices_df = make_fuel_prices_csv(fuels, thermal_resources, time_index)
     if not fuel_prices_df.empty:
-        fuel_prices_df.to_csv(system_folder / "fuel_prices.csv", index=False, float_format="%.6f")
+        fuel_prices_df.to_csv(
+            system_folder / "fuel_prices.csv", index=False, float_format="%.6f"
+        )
 
     period_map_df = make_period_map_csv(period_map)
     has_period_map = not period_map_df.empty
@@ -1092,11 +1101,15 @@ def write_macro_inputs(
             region = _gen_value(row, "region")
             if commodity is None or region is None:
                 continue
-            fuel_supply_headers.setdefault(commodity, {})[region] = f"{commodity}_{region}"
+            fuel_supply_headers.setdefault(commodity, {})[
+                region
+            ] = f"{commodity}_{region}"
 
     co2_sinks = co2_sinks or [{"id": "co2_sink", "cap": None}]
 
-    has_hydro = bool(gen_df is not None and "HYDRO" in gen_df.columns and (gen_df["HYDRO"] > 0).any())
+    has_hydro = bool(
+        gen_df is not None and "HYDRO" in gen_df.columns and (gen_df["HYDRO"] > 0).any()
+    )
 
     add_commodity("Electricity")
     add_commodity("CO2")

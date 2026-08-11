@@ -65,13 +65,33 @@ def gen_df():
             "STOR": [0, 0, 0, 0, 0, 1, 2, 0, 0],  # 2 = asymmetric
             "HYDRO": [0, 0, 0, 0, 0, 0, 0, 1, 0],
             "MUST_RUN": [0, 0, 0, 0, 0, 0, 0, 0, 1],
-            "Existing_Cap_MW": [100.0, 200.0, 300.0, 400.0, 500.0, 200.0, 400.0, 800.0, 50.0],
+            "Existing_Cap_MW": [
+                100.0,
+                200.0,
+                300.0,
+                400.0,
+                500.0,
+                200.0,
+                400.0,
+                800.0,
+                50.0,
+            ],
             "Max_Cap_MW": [200.0, 300.0, 400.0, 600.0, 700.0, 0.0, 0.0, 0.0, 0.0],
             "New_Build": [1, 0, 1, 1, 0, 0, 1, 0, 0],
             "Can_Retire": [1, 1, 0, 0, 1, 1, 0, 1, 0],
             "Min_Power": [0.4, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             "Heat_Rate_MMBTU_per_MWh": [7.0, 8.0, 9.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            "CO2_content_tons_per_MMBtu": [0.053, 0.053, 0.205, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            "CO2_content_tons_per_MMBtu": [
+                0.053,
+                0.053,
+                0.205,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+            ],
             "Up_Time": [4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             "Down_Time": [2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             "Ramp_Up_Percentage": [0.3, 0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
@@ -79,7 +99,17 @@ def gen_df():
             "Start_Cost_per_MW": [60.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             "Start_Fuel_MMBTU_per_MW": [5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             "Var_OM_Cost_per_MWh": [2.0, 3.0, 4.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
-            "Fixed_OM_Cost_per_MWyr": [10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0],
+            "Fixed_OM_Cost_per_MWyr": [
+                10.0,
+                11.0,
+                12.0,
+                13.0,
+                14.0,
+                15.0,
+                16.0,
+                17.0,
+                18.0,
+            ],
             "Inv_Cost_per_MWyr": [100.0, 0.0, 90.0, 60.0, 70.0, 20.0, 25.0, 0.0, 0.0],
             "Cap_Size": [50.0, 50.0, 50.0, 10.0, 5.0, 25.0, 25.0, 20.0, 1.0],
             "Existing_Cap_MWh": [0.0, 0.0, 0.0, 0.0, 0.0, 800.0, 1600.0, 0.0, 0.0],
@@ -87,7 +117,17 @@ def gen_df():
             "Min_Duration": [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
             "Eff_Up": [0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.8, 1.0, 0.0],
             "Eff_Down": [0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.8, 0.9, 0.0],
-            "Hydro_Energy_to_Power_Ratio": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 6.0, 0.0],
+            "Hydro_Energy_to_Power_Ratio": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                6.0,
+                0.0,
+            ],
         }
     )
 
@@ -248,9 +288,7 @@ def test_make_availability_csv_includes_all_resources(gen_df, gen_variability):
     assert availability["mustrun_1"].iloc[0] == 1.0
 
 
-def test_make_availability_csv_missing_profile_filled_with_one(
-    gen_df, gen_variability
-):
+def test_make_availability_csv_missing_profile_filled_with_one(gen_df, gen_variability):
     variational = gen_variability.drop(columns=["wind_1"])
     availability = make_availability_csv(gen_df, variational)
     assert "wind_1" in availability.columns
@@ -288,10 +326,22 @@ def test_make_nodes_json_consistency(settings, demand_data, fuels, gen_df):
         "Coal": {"R2": "Coal_R2"},
     }
     has_hydro = "HYDRO" in gen_df.columns and (gen_df["HYDRO"] > 0).any()
-    nodes = make_nodes_json(settings, demand_headers, fuel_supply_headers, [{"id": "co2_sink", "cap": None}], has_hydro)
+    nodes = make_nodes_json(
+        settings,
+        demand_headers,
+        fuel_supply_headers,
+        [{"id": "co2_sink", "cap": None}],
+        has_hydro,
+    )
     types = [n["type"] for n in nodes]
     assert "Electricity" in types and "CO2" in types
-    elec = next(n for n in nodes if n["type"] == "Electricity" and "instance_data" in n and n["instance_data"][0].get("demand"))
+    elec = next(
+        n
+        for n in nodes
+        if n["type"] == "Electricity"
+        and "instance_data" in n
+        and n["instance_data"][0].get("demand")
+    )
     demand_ids = {i["id"]: i for i in elec["instance_data"]}
     assert "elec_R1" in demand_ids
     assert demand_ids["elec_R1"]["demand"]["timeseries"]["header"] == "Demand_MW_z1"
@@ -303,7 +353,13 @@ def test_make_nodes_json_consistency(settings, demand_data, fuels, gen_df):
         == "NaturalGas_R1"
     )
     # hydro_source node present
-    assert any(n.get("global_data", {}).get("constraints", {}).get("BalanceConstraint") is False and n["global_data"]["time_interval"] == "Electricity" and n["instance_data"][0]["id"] == "hydro_source" for n in nodes)
+    assert any(
+        n.get("global_data", {}).get("constraints", {}).get("BalanceConstraint")
+        is False
+        and n["global_data"]["time_interval"] == "Electricity"
+        and n["instance_data"][0]["id"] == "hydro_source"
+        for n in nodes
+    )
 
 
 def test_make_timedata_json_reduced():
@@ -353,7 +409,17 @@ def test_make_fuel_prices_csv(gen_df, fuels):
     assert abs(prices["NaturalGas_R1"].iloc[0] - expected) < 1e-6
 
 
-def _write_full_case(tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings, co2_cap=None, period_map=None):
+def _write_full_case(
+    tmp_path,
+    gen_df,
+    gen_variability,
+    demand_data,
+    fuels,
+    network,
+    settings,
+    co2_cap=None,
+    period_map=None,
+):
     case_year_data = {
         "gen_data": gen_df,
         "gen_variability": gen_variability,
@@ -367,7 +433,9 @@ def _write_full_case(tmp_path, gen_df, gen_variability, demand_data, fuels, netw
     return tmp_path
 
 
-def test_write_macro_inputs_full_case(tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings):
+def test_write_macro_inputs_full_case(
+    tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings
+):
     case = _write_full_case(
         tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings
     )
@@ -419,7 +487,8 @@ def test_write_macro_inputs_full_case(tmp_path, gen_df, gen_variability, demand_
     elec = next(
         n
         for n in nodes["nodes"]
-        if n["type"] == "Electricity" and n["instance_data"][0].get("demand") is not None
+        if n["type"] == "Electricity"
+        and n["instance_data"][0].get("demand") is not None
     )
     for inst in elec["instance_data"]:
         header = inst["demand"]["timeseries"]["header"]
@@ -454,7 +523,9 @@ def test_write_macro_inputs_full_case(tmp_path, gen_df, gen_variability, demand_
     assert td["HoursPerSubperiod"]["Electricity"] == 24
 
 
-def test_write_macro_inputs_reduced(tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings):
+def test_write_macro_inputs_reduced(
+    tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings
+):
     reduced = pd.DataFrame(
         {
             "Time_Index": range(1, 25),
@@ -491,7 +562,9 @@ def test_write_macro_inputs_reduced(tmp_path, gen_df, gen_variability, demand_da
     assert list(pm.columns) == ["Period_Index", "Rep_Period", "Rep_Period_Index"]
 
 
-def test_write_macro_inputs_co2_caps(tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings, co2_cap):
+def test_write_macro_inputs_co2_caps(
+    tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings, co2_cap
+):
     case = _write_full_case(
         tmp_path,
         gen_df,
