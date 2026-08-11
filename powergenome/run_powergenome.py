@@ -29,6 +29,7 @@ from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; c
     set_int_cols,
 )
 from powergenome.load_profiles import make_final_load_curves
+from powergenome.macro_inputs import write_macro_inputs
 from powergenome.settings import (
     Settings,
     build_scenario_settings,
@@ -131,6 +132,16 @@ def parse_command_line(argv):
         dest="multi_period",
         action="store_false",
         help=("Use multi-period output format."),
+    )
+    parser.add_argument(
+        "--macro",
+        dest="macro",
+        action="store_true",
+        help=(
+            "Write MacroEnergy.jl simpleCSVinputs-format case inputs instead of "
+            "GenX Inputs files. Can also be enabled with 'macro_output: true' in a "
+            "settings file."
+        ),
     )
     arguments = parser.parse_args(argv[1:])
     return arguments
@@ -444,21 +455,32 @@ def main(**kwargs):
                         / scenario_settings_obj["reserves_fn"]
                     )
 
-                if scenario_settings_obj.get("old_genx_format", False) is not True:
+                macro_enabled = bool(args.macro) or bool(
+                    scenario_settings_obj.get("macro_output", False)
+                )
+                if macro_enabled:
+                    logger.info(
+                        "\n\nWriting Macro simpleCSVinputs format to %s\n\n",
+                        case_folder,
+                    )
+                    write_macro_inputs(
+                        case_folder, case_year_data, scenario_settings_obj
+                    )
+                elif scenario_settings_obj.get("old_genx_format", False) is not True:
                     genx_data = process_genx_data(case_folder, case_year_data)
                 else:
                     genx_data = process_genx_data_old_format(
                         case_folder, case_year_data
                     )
 
-                for data in genx_data:
-                    if data.dataframe is not None and not data.dataframe.empty:
-                        write_results_file(
-                            data.dataframe,
-                            data.folder,
-                            data.file_name,
-                        )
-
+                if not macro_enabled:
+                    for data in genx_data:
+                        if data.dataframe is not None and not data.dataframe.empty:
+                            write_results_file(
+                                data.dataframe,
+                                data.folder,
+                                data.file_name,
+                            )
                 write_case_settings_file(
                     settings=scenario_settings_obj.to_dict(),
                     folder=case_folder,

@@ -989,3 +989,19 @@ description: Mapping of NREL ATB and user-defined technology names (new-build ge
 type: List[str]
 
 description: Column names from the new and existing generators dataframes to keep.
+
+## MacroEnergy (Macro) output
+
+### macro_output
+
+type: bool
+
+description: When `true`, PowerGenome writes case inputs for the MacroEnergy.jl capacity expansion model
+(Macro) instead of GenX. Outputs use only the Macro `simpleCSVinputs` format (assets as CSVs in `assets/` plus
+JSON/CSV system files under `system/` and `settings/`, with a top-level `system_data.json`), matching the
+structure of the Macro examples (e.g. `macroenergy/MacroEnergyExamples.jl/examples/multisector_3zone_simpleCSVinputs`).
+The same option can be enabled from the command line with the `--macro` flag to `run_powergenome`; either trigger
+turns Macro mode on. The semantic mapping (thermal, VRE, storage, must-run, hydro, transmission, demand, fuel
+supply nodes, CO2 caps, time data) follows the GenX-to-Macro converter at `EmilDimanchev/GenX_to_Macro`. Cross-sector
+assets (hydrogen, liquid fuels, CCS) are not yet emitted. When Macro mode is active, GenX `Inputs/Inputs_pN` files
+are not written.
