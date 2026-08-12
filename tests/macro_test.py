@@ -267,10 +267,66 @@ def test_make_thermal_csvs_conversions(gen_df):
     assert "min_retired_capacity" in df.columns
 
 
+def test_thermal_emission_rate_from_fuels_table_fallback(gen_df, fuels):
+    """Emission rate is derived from the fuels table when the generator dataframe
+    has no CO2_content column (the normal pipeline path)."""
+    gen_df = gen_df.copy()
+    gen_df = gen_df.drop(columns=["CO2_content_tons_per_MMBtu"])
+    file_name, commodity, df = make_thermal_csvs(gen_df, fuels=fuels)[0]
+    assert commodity == "NaturalGas"
+    expected_emission = 0.053 / CONV_MMBTU_TO_MWH
+    assert all(
+        abs(v - expected_emission) < 1e-6 for v in df["emission_rate"]
+    ), df["emission_rate"].tolist()
+
+
+def test_thermal_emission_rate_zero_when_no_fuels_source(gen_df):
+    """Without a fuels table or CO2 column, emission rate falls back to blank (0)."""
+    gen_df = gen_df.copy()
+    gen_df = gen_df.drop(columns=["CO2_content_tons_per_MMBtu"])
+    file_name, commodity, df = make_thermal_csvs(gen_df)[0]
+    assert df["emission_rate"].notna().all()
+    # no CO2 source available -> blank cells (treated as 0 by Macro)
+    assert all(v == "" for v in df["emission_rate"])
+
+
 def test_thermal_csv_type_id_first_columns(gen_df):
     _, _, df = _thermal_asset(gen_df)
     cols = list(df.columns)
     assert cols[0] == "Type" and cols[1] == "id"
+
+
+def test_can_retire_derived_from_new_build_when_missing():
+    """When Can_Retire is absent, derive it from New_Build (GenX semantics)."""
+    df = pd.DataFrame(
+        {
+            "Resource": ["nb_minus1", "nb_zero", "nb_one"],
+            "region": ["R1", "R1", "R1"],
+            "THERM": [1, 1, 1],
+            "New_Build": [-1, 0, 1],
+            "Fuel": ["natural_gas_power", "natural_gas_power", "natural_gas_power"],
+            "Min_Power": [0.5, 0.5, 0.5],
+            "Heat_Rate_MMBTU_per_MWh": [7.0, 7.0, 7.0],
+            "CO2_content_tons_per_MMBtu": [0.053, 0.053, 0.053],
+            "Cap_Size": [50.0, 50.0, 50.0],
+            "Existing_Cap_MW": [100.0, 100.0, 100.0],
+            "Inv_Cost_per_MWyr": [100.0, 100.0, 100.0],
+            "Fixed_OM_Cost_per_MWyr": [10.0, 10.0, 10.0],
+            "Var_OM_Cost_per_MWh": [2.0, 2.0, 2.0],
+            "Start_Fuel_MMBTU_per_MW": [0.0, 0.0, 0.0],
+            "Up_Time": [0.0, 0.0, 0.0],
+            "Down_Time": [0.0, 0.0, 0.0],
+            "Ramp_Up_Percentage": [0.0, 0.0, 0.0],
+            "Ramp_Dn_Percentage": [0.0, 0.0, 0.0],
+            "Start_Cost_per_MW": [0.0, 0.0, 0.0],
+            # no Can_Retire column on purpose
+        }
+    )
+    _, _, thermal_df = _thermal_asset(df)
+    # New_Build == -1 means never retire (matches GenX update_newbuild_canretire)
+    assert list(thermal_df["can_retire"]) == ["FALSE", "TRUE", "TRUE"]
+    # ...while can_expand is driven purely by positive New_Build
+    assert list(thermal_df["can_expand"]) == ["FALSE", "FALSE", "TRUE"]
 
 
 def test_vre_csv_columns_and_availability(gen_df):

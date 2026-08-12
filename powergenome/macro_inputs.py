@@ -339,9 +339,14 @@ def _prep_gen_df(gen_df: pd.DataFrame) -> pd.DataFrame:
     # All resource rows need an id and a region
     if "Resource" not in df.columns:
         return pd.DataFrame()
-    for col in ("region", "New_Build", "Can_Retire", "Existing_Cap_MW"):
+    for col in ("region", "New_Build", "Existing_Cap_MW"):
         if col not in df.columns:
             df[col] = 0
+    # GenX stores "never retire" as New_Build == -1 and derives Can_Retire
+    # from it (see GenX.update_newbuild_canretire). Replicate that so Macro
+    # retires the same assets GenX would.
+    if "Can_Retire" not in df.columns:
+        df["Can_Retire"] = (df["New_Build"] != -1).astype(int)
     for col in ("Inv_Cost_per_MWyr", "Fixed_OM_Cost_per_MWyr"):
         if col not in df.columns:
             df[col] = 0.0
@@ -352,8 +357,17 @@ def _thermal_asset_filename(commodity: str) -> str:
     return f"{commodity.lower()}_power.csv"
 
 
-def make_thermal_csvs(gen_df: pd.DataFrame, settings: dict = None) -> List[tuple]:
+def make_thermal_csvs(
+    gen_df: pd.DataFrame,
+    settings: dict = None,
+    fuels: pd.DataFrame = None,
+) -> List[tuple]:
     """Build one thermal simpleCSV asset file per base fuel commodity.
+
+    CO2 emission rates are taken from the ``fuels`` table (the GenX
+    ``Fuels_data`` format, where row 0 holds per-fuel CO2 content in tonnes
+    per MMBtu) when present, otherwise from a ``CO2_content_tons_per_MMBtu``
+    column on the generator dataframe.
 
     Returns a list of ``(file_name, commodity, DataFrame)`` tuples. Each file
     contains the thermal generators (THERM tag) that burn the corresponding fuel.
@@ -386,7 +400,13 @@ def make_thermal_csvs(gen_df: pd.DataFrame, settings: dict = None) -> List[tuple
             committed = _is_committed(row)
             heat_rate = _num(_gen_value(row, "Heat_Rate_MMBTU_per_MWh", np.nan), 0.0)
             fuel_consumption = heat_rate * conv
-            co2_content = _gen_value(row, "CO2_content_tons_per_MMBtu", np.nan)
+            fuel_name = _gen_value(row, "Fuel")
+            co2_content = _num(
+                _gen_value(row, "CO2_content_tons_per_MMBtu", np.nan), np.nan
+            )
+            if not _num(co2_content) and fuels is not None:
+                # CO2 content lives in the fuels table (row 0 of each fuel column)
+                _, co2_content = _fuel_price_by_fullname(fuels, fuel_name)
             emission_rate = _num(co2_content, 0.0) / conv if _num(co2_content) else 0.0
             region = _gen_value(row, "region")
             resource = _gen_value(row, "Resource")
@@ -456,8 +476,12 @@ def make_vre_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
     records = []
     for _, row in res.iterrows():
         region = _gen_value(row, "region")
+        # GenX uses Max_Cap_MW <= 0 (or NaN) to mean "no explicit upper bound".
+        # Writing 0 here locks an existing resource out entirely, so fall back to
+        # the existing capacity instead (new-build VRE always carries a positive
+        # Max_Cap_MW, so it is never affected by this fallback).
         max_cap = _num(_gen_value(row, "Max_Cap_MW", np.nan))
-        if max_cap is None:
+        if max_cap is None or max_cap <= 0:
             max_cap = _num(_gen_value(row, "Existing_Cap_MW", np.nan), 0.0)
         records.append(
             {
@@ -529,10 +553,12 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 "charge_variable_om_cost": _num(
                     _gen_value(row, "Var_OM_Cost_per_MWh_In", np.nan)
                 ),
+                # Existing_Cap_MWh is 0.0 for new-build-only storage and NaN when
+                # absent; never fall through to Max_Cap_MWh (GenX's -1 "no max"
+                # sentinel is not an existing capacity and makes Macro infeasible).
                 "storage_existing_capacity": _num(
-                    _gen_value(row, "Existing_Cap_MWh", np.nan)
-                )
-                or _num(_gen_value(row, "Max_Cap_MWh", np.nan)),
+                    _gen_value(row, "Existing_Cap_MWh", np.nan), 0.0
+                ),
                 "discharge_min_flow_fraction": _num(
                     _gen_value(row, "Min_Power", 0.0), 0.0
                 ),
@@ -1106,7 +1132,10 @@ class MacroCaseBuilder:
             gen_df = case_year_data.get("gen_data")
             if gen_df is None or gen_df.empty:
                 continue
-            for file_name, commodity, _ in make_thermal_csvs(gen_df, stage_settings):
+            fuels = case_year_data.get("fuels")
+            for file_name, commodity, _ in make_thermal_csvs(
+                gen_df, stage_settings, fuels
+            ):
                 if commodity and commodity not in self.commodities:
                     self.commodities.append(commodity)
 
@@ -1157,7 +1186,7 @@ class MacroCaseBuilder:
             # Pin CO2 sinks (also tags in-region thermal gens to capped sinks)
             co2_sinks = _co2_sinks_for(gen_df, settings, co2_cap)
             thermal_resources = gen_df[gen_df["THERM"] > 0]
-            thermal_files = make_thermal_csvs(gen_df, settings)
+            thermal_files = make_thermal_csvs(gen_df, settings, fuels)
 
             vre_df = make_vre_csv(gen_df, stage_number=stage_number)
             if not vre_df.empty:
