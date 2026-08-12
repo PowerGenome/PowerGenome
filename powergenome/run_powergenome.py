@@ -224,7 +224,8 @@ def main(**kwargs):
     #         "One or more model regions is not valid. Check to make sure all regions "
     #         "are either in IPM or region_aggregations in the settings YAML file."
     #     )
-
+    if not settings.get("input_folder"):
+        settings["input_folder"] = "extra_inputs"
     input_folder = Path(settings["input_folder"])
 
     model_years = get_model_years_from_settings(
