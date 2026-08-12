@@ -495,7 +495,9 @@ def make_vre_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                 "fixed_om_cost": _num(
                     _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
                 ),
-                "annualized_investment_cost": _num(_gen_value(row, "Inv_Cost_per_MWyr", np.nan)),
+                "annualized_investment_cost": _num(
+                    _gen_value(row, "Inv_Cost_per_MWyr", np.nan)
+                ),
                 "availability--timeseries--path": _availability_filename(stage_number),
                 "availability--timeseries--header": _gen_value(row, "Resource"),
                 "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
