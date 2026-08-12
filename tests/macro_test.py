@@ -372,8 +372,28 @@ def test_hydro_csv_availability_columns(gen_df):
         == "system/availability_1.csv"
     )
     assert hydro_df.loc[0, "hydro_source"] == "hydro_source"
-    # storage_charge_discharge_ratio from Hydro_Energy_to_Power_Ratio
-    assert hydro_df.loc[0, "storage_charge_discharge_ratio"] == 6.0
+    # Hydro reservoir energy capacity: StorageCapacityConstraint + StorageMaxDurationConstraint
+    # model the GenX HYDRO_RES_KNOWN_CAP bound (ratio * capacity), matching the reference
+    # GenX_to_Macro converter (storage_charge_discharge_ratio = 1.0, constraint enabled).
+    assert (
+        hydro_df.loc[0, "storage_constraints--StorageCapacityConstraint"] == "TRUE"
+    )
+    assert (
+        hydro_df.loc[0, "storage_constraints--StorageMaxDurationConstraint"] == "TRUE"
+    )
+    assert (
+        hydro_df.loc[0, "storage_constraints--StorageChargeDischargeRatioConstraint"]
+        == "TRUE"
+    )
+    # Discharge edge constraints mirror GenX's cHydroMaxOutflow (discharge <= prior-hour
+    # storage). The reference converter always enables Capacity + RampingLimit + this one.
+    assert (
+        hydro_df.loc[0, "discharge_constraints--StorageDischargeLimitConstraint"]
+        == "TRUE"
+    )
+    assert hydro_df.loc[0, "storage_existing_capacity"] == 6.0 * 800.0
+    assert hydro_df.loc[0, "storage_max_duration"] == 6.0
+    assert hydro_df.loc[0, "storage_charge_discharge_ratio"] == 1.0
 
 
 def test_mustrun_csv_availability_columns(gen_df):

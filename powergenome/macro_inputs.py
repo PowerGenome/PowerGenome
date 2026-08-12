@@ -153,10 +153,13 @@ HYDRO_COLUMNS = [
     "storage_long_duration",
     "storage_constraints--MinStorageOutflowConstraint",
     "storage_constraints--LongDurationStorageImplicitMinMaxConstraint",
+    "storage_constraints--StorageCapacityConstraint",
+    "storage_constraints--StorageMaxDurationConstraint",
     "storage_constraints--StorageChargeDischargeRatioConstraint",
     "storage_constraints--BalanceConstraint",
     "discharge_constraints--CapacityConstraint",
     "discharge_constraints--RampingLimitConstraint",
+    "discharge_constraints--StorageDischargeLimitConstraint",
     "hydro_source",
     "storage_can_expand",
     "discharge_can_expand",
@@ -172,6 +175,8 @@ HYDRO_COLUMNS = [
     "discharge_fixed_om_cost",
     "discharge_ramp_up_fraction",
     "storage_min_outflow_fraction",
+    "storage_existing_capacity",
+    "storage_max_duration",
     "discharge_capacity_size",
     "storage_charge_discharge_ratio",
     *FINANCIAL_COLUMNS,
@@ -599,6 +604,8 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
     records = []
     for _, row in res.iterrows():
         ratio = _num(_gen_value(row, "Hydro_Energy_to_Power_Ratio", 1.0), 1.0)
+        existing_cap = _num(_gen_value(row, "Existing_Cap_MW", np.nan))
+        known_cap = ratio > 0 and not np.isnan(existing_cap)
         records.append(
             {
                 "Type": HYDRO_TYPE,
@@ -608,10 +615,19 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                 "storage_long_duration": "FALSE",
                 "storage_constraints--MinStorageOutflowConstraint": "FALSE",
                 "storage_constraints--LongDurationStorageImplicitMinMaxConstraint": "FALSE",
-                "storage_constraints--StorageChargeDischargeRatioConstraint": "FALSE",
+                "storage_constraints--StorageCapacityConstraint": _format_bool(
+                    known_cap
+                ),
+                "storage_constraints--StorageMaxDurationConstraint": _format_bool(
+                    known_cap
+                ),
+                "storage_constraints--StorageChargeDischargeRatioConstraint": _format_bool(
+                    known_cap
+                ),
                 "storage_constraints--BalanceConstraint": "TRUE",
                 "discharge_constraints--CapacityConstraint": "TRUE",
                 "discharge_constraints--RampingLimitConstraint": "TRUE",
+                "discharge_constraints--StorageDischargeLimitConstraint": "TRUE",
                 "hydro_source": "hydro_source",
                 "storage_can_expand": _format_bool(_gen_value(row, "New_Build")),
                 "discharge_can_expand": _format_bool(False),
@@ -625,9 +641,7 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                     stage_number
                 ),
                 "inflow_availability--timeseries--header": _gen_value(row, "Resource"),
-                "discharge_existing_capacity": _num(
-                    _gen_value(row, "Existing_Cap_MW", np.nan)
-                ),
+                "discharge_existing_capacity": existing_cap,
                 "discharge_efficiency": _num(_gen_value(row, "Eff_Down", 1.0), 1.0),
                 "inflow_efficiency": _num(_gen_value(row, "Eff_Up", 1.0), 1.0),
                 "discharge_fixed_om_cost": _num(
@@ -639,8 +653,10 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                 "storage_min_outflow_fraction": _num(
                     _gen_value(row, "Min_Power", np.nan)
                 ),
+                "storage_existing_capacity": ratio * existing_cap if known_cap else np.nan,
+                "storage_max_duration": ratio if known_cap else np.nan,
                 "discharge_capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
-                "storage_charge_discharge_ratio": ratio,
+                "storage_charge_discharge_ratio": 1.0 if known_cap else ratio,
                 **_financial_attrs(row),
             }
         )
