@@ -15,6 +15,7 @@ from powergenome.macro_inputs import (
     THERMAL_COLUMNS,
     VRE_COLUMNS,
     MacroCaseBuilder,
+    load_nsd_segments,
     make_availability_csv,
     make_case_settings_json,
     make_commodities_json,
@@ -480,6 +481,67 @@ def test_make_nodes_json_consistency(settings, demand_data, fuels, gen_df):
         and n["instance_data"][0]["id"] == "hydro_source"
         for n in nodes
     )
+
+
+def test_load_nsd_segments_from_demand_segments_csv(tmp_path):
+    """VOLL demand segments CSV maps to Macro NSD price_nsd / max_nsd vectors."""
+    seg_csv = tmp_path / "demand_segments_voll.csv"
+    seg_csv.write_text(
+        "Voll,Demand_Segment,Cost_of_Demand_Curtailment_per_MW,"
+        "Max_Demand_Curtailment,$/MWh\n"
+        "2000,1,1,1,2000\n"
+        ",2,0.9,0.04,1800\n"
+        ",3,0.55,0.024,1100\n"
+        ",4,0.2,0.003,400\n"
+    )
+    settings = {
+        "input_folder": str(tmp_path),
+        "demand_segments_fn": "demand_segments_voll.csv",
+    }
+    max_nsd, price_nsd = load_nsd_segments(settings)
+    # Sorted by descending cost: 2000, 1800, 1100, 400
+    assert price_nsd == [2000.0, 1800.0, 1100.0, 400.0]
+    assert max_nsd == [1.0, 0.04, 0.024, 0.003]
+
+
+def test_load_nsd_segments_default_when_no_file():
+    """Without a demand segments file, the single-segment default is used."""
+    settings = {}
+    max_nsd, price_nsd = load_nsd_segments(settings)
+    assert max_nsd == [1]
+    assert price_nsd == [5000.0]
+
+
+def test_make_nodes_json_uses_demand_segments(tmp_path):
+    """nodes.json price_nsd / max_nsd come from the demand segments CSV."""
+    seg_csv = tmp_path / "demand_segments_voll.csv"
+    seg_csv.write_text(
+        "Voll,Demand_Segment,Cost_of_Demand_Curtailment_per_MW,"
+        "Max_Demand_Curtailment,$/MWh\n"
+        "2000,1,1,1,2000\n"
+        ",2,0.9,0.04,1800\n"
+    )
+    settings = {
+        "model_regions": ["R1"],
+        "zone_num_map": {"R1": 1},
+        "input_folder": str(tmp_path),
+        "demand_segments_fn": "demand_segments_voll.csv",
+    }
+    nodes = make_nodes_json(
+        settings,
+        demand_headers={"R1": "Demand_MW_z1"},
+        fuel_supply_headers={},
+        co2_sinks=[{"id": "co2_sink", "cap": None}],
+        has_hydro=False,
+    )
+    elec = next(
+        n for n in nodes
+        if n["type"] == "Electricity"
+        and n.get("instance_data", [{}])[0].get("demand")
+    )
+    gd = elec["global_data"]
+    assert gd["price_nsd"] == [2000.0, 1800.0]
+    assert gd["max_nsd"] == [1.0, 0.04]
 
 
 def test_make_timedata_json_reduced():

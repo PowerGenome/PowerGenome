@@ -20,6 +20,8 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from powergenome.external_data import load_demand_segments
+
 logger = logging.getLogger(__name__)
 
 # Conversion factor MMBtu -> MWh (1 MWh = 3.412 MMBtu)
@@ -720,6 +722,49 @@ def make_commodities_json(commodities: List[str]) -> dict:
     return {"commodities": ordered}
 
 
+def load_nsd_segments(settings: dict) -> tuple:
+    """Load non-served-demand (VOLL) segments from the GenX demand-segments CSV.
+
+    Maps each GenX demand segment to a Macro NSD segment:
+
+    - ``price_nsd[s]`` ← ``$/MWh`` (the actual per-MWh curtailment cost)
+    - ``max_nsd[s]`` ← ``Max_Demand_Curtailment`` (fraction of demand)
+
+    Falls back to a single segment ``{max_nsd: [1], price_nsd: [5000]}`` when
+    no demand-segments file is configured.
+
+    Returns
+    -------
+    (max_nsd, price_nsd) : tuple of list[float]
+    """
+    fn = settings.get("demand_segments_fn")
+    if not fn:
+        return [1], [5000.0]
+    try:
+        df = load_demand_segments(settings)
+    except Exception:
+        logger.warning("Could not load demand segments file '%s'; "
+                       "using default single-segment VOLL.", fn)
+        return [1], [5000.0]
+
+    price_col = next((c for c in ("$/MWh", "Cost_per_MWh")
+                      if c in df.columns), None)
+    max_col = next((c for c in ("Max_Demand_Curtailment",
+                                "Max_Demand_Curtailment_MW")
+                    if c in df.columns), None)
+
+    if price_col is None or max_col is None:
+        logger.warning("Demand segments file missing required columns; "
+                       "using default single-segment VOLL.")
+        return [1], [5000.0]
+
+    # Sort by descending cost (GenX convention: segment 1 = highest VOLL)
+    df = df.sort_values(price_col, ascending=False).reset_index(drop=True)
+    max_nsd = [float(v) for v in df[max_col].tolist()]
+    price_nsd = [float(v) for v in df[price_col].tolist()]
+    return max_nsd, price_nsd
+
+
 def make_nodes_json(
     settings: dict,
     demand_headers: Dict[str, str],
@@ -749,11 +794,14 @@ def make_nodes_json(
     fuel_path = f"system/fuel_prices_{stage_number}.csv"
     nodes = []
 
+    # Load VOLL / non-served-demand segments from the GenX demand-segments CSV
+    max_nsd, price_nsd = load_nsd_segments(settings)
+
     # Electricity demand nodes (one block)
     electricity_global = {
         "time_interval": "Electricity",
-        "max_nsd": [1],
-        "price_nsd": [5000.0],
+        "max_nsd": max_nsd,
+        "price_nsd": price_nsd,
         "constraints": {
             "BalanceConstraint": True,
             "MaxNonServedDemandConstraint": True,
