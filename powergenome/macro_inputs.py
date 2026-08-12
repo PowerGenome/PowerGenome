@@ -86,7 +86,7 @@ THERMAL_COLUMNS = [
     "ramp_down_fraction",
     "emission_rate",
     "variable_om_cost",
-    "investment_cost",
+    "annualized_investment_cost",
     "startup_fuel_consumption",
     "ramp_up_fraction",
     "min_flow_fraction",
@@ -104,7 +104,7 @@ VRE_COLUMNS = [
     "max_capacity",
     "location",
     "fixed_om_cost",
-    "investment_cost",
+    "annualized_investment_cost",
     "availability--timeseries--path",
     "availability--timeseries--header",
     "existing_capacity",
@@ -126,11 +126,11 @@ STORAGE_COLUMNS = [
     "storage_can_retire",
     "location",
     "storage_max_duration",
-    "discharge_investment_cost",
+    "discharge_annualized_investment_cost",
     "discharge_efficiency",
     "storage_fixed_om_cost",
     "discharge_fixed_om_cost",
-    "storage_investment_cost",
+    "storage_annualized_investment_cost",
     "discharge_variable_om_cost",
     "charge_efficiency",
     "storage_min_duration",
@@ -197,7 +197,7 @@ TRANSMISSION_COLUMNS = [
     "transmission_origin",
     "loss_fraction",
     "existing_capacity",
-    "investment_cost",
+    "annualized_investment_cost",
     "commodity",
     "distance",
     "transmission_dest",
@@ -443,7 +443,7 @@ def make_thermal_csvs(
                     "variable_om_cost": _num(
                         _gen_value(row, "Var_OM_Cost_per_MWh", np.nan)
                     ),
-                    "investment_cost": _num(
+                    "annualized_investment_cost": _num(
                         _gen_value(row, "Inv_Cost_per_MWyr", np.nan)
                     ),
                     "startup_fuel_consumption": _num(
@@ -495,7 +495,7 @@ def make_vre_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                 "fixed_om_cost": _num(
                     _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
                 ),
-                "investment_cost": _num(_gen_value(row, "Inv_Cost_per_MWyr", np.nan)),
+                "annualized_investment_cost": _num(_gen_value(row, "Inv_Cost_per_MWyr", np.nan)),
                 "availability--timeseries--path": _availability_filename(stage_number),
                 "availability--timeseries--header": _gen_value(row, "Resource"),
                 "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
@@ -532,7 +532,7 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 "storage_can_retire": _format_bool(_gen_value(row, "Can_Retire")),
                 "location": _gen_value(row, "region"),
                 "storage_max_duration": _num(_gen_value(row, "Max_Duration", np.nan)),
-                "discharge_investment_cost": _num(
+                "discharge_annualized_investment_cost": _num(
                     _gen_value(row, "Inv_Cost_per_MWyr", np.nan)
                 ),
                 "discharge_efficiency": _num(_gen_value(row, "Eff_Down", np.nan)),
@@ -542,7 +542,7 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 "discharge_fixed_om_cost": _num(
                     _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
                 ),
-                "storage_investment_cost": _num(
+                "storage_annualized_investment_cost": _num(
                     _gen_value(row, "Inv_Cost_per_MWhyr", np.nan)
                 ),
                 "discharge_variable_om_cost": _num(
@@ -683,7 +683,7 @@ def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
                     _gen_value(row, "Line_Loss_Percentage", 0.0), 0.0
                 ),
                 "existing_capacity": max_flow,
-                "investment_cost": _num(
+                "annualized_investment_cost": _num(
                     _gen_value(row, "Line_Reinforcement_Cost_per_MWyr", np.nan)
                 ),
                 "commodity": "Electricity",
