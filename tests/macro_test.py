@@ -535,9 +535,9 @@ def test_make_nodes_json_uses_demand_segments(tmp_path):
         has_hydro=False,
     )
     elec = next(
-        n for n in nodes
-        if n["type"] == "Electricity"
-        and n.get("instance_data", [{}])[0].get("demand")
+        n
+        for n in nodes
+        if n["type"] == "Electricity" and n.get("instance_data", [{}])[0].get("demand")
     )
     gd = elec["global_data"]
     assert gd["price_nsd"] == [2000.0, 1800.0]

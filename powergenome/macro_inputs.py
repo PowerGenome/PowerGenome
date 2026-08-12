@@ -743,19 +743,28 @@ def load_nsd_segments(settings: dict) -> tuple:
     try:
         df = load_demand_segments(settings)
     except Exception:
-        logger.warning("Could not load demand segments file '%s'; "
-                       "using default single-segment VOLL.", fn)
+        logger.warning(
+            "Could not load demand segments file '%s'; "
+            "using default single-segment VOLL.",
+            fn,
+        )
         return [1], [5000.0]
 
-    price_col = next((c for c in ("$/MWh", "Cost_per_MWh")
-                      if c in df.columns), None)
-    max_col = next((c for c in ("Max_Demand_Curtailment",
-                                "Max_Demand_Curtailment_MW")
-                    if c in df.columns), None)
+    price_col = next((c for c in ("$/MWh", "Cost_per_MWh") if c in df.columns), None)
+    max_col = next(
+        (
+            c
+            for c in ("Max_Demand_Curtailment", "Max_Demand_Curtailment_MW")
+            if c in df.columns
+        ),
+        None,
+    )
 
     if price_col is None or max_col is None:
-        logger.warning("Demand segments file missing required columns; "
-                       "using default single-segment VOLL.")
+        logger.warning(
+            "Demand segments file missing required columns; "
+            "using default single-segment VOLL."
+        )
         return [1], [5000.0]
 
     # Sort by descending cost (GenX convention: segment 1 = highest VOLL)
