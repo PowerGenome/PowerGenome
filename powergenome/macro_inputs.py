@@ -447,7 +447,7 @@ def make_thermal_csvs(
                         _gen_value(row, "Inv_Cost_per_MWyr", np.nan)
                     ),
                     "startup_fuel_consumption": _num(
-                        _gen_value(row, "Start_Fuel_MMBTU_per_MW", np.nan)
+                        _gen_value(row, "Start_Fuel_MMBTU_per_MW", np.nan), 0.0
                     )
                     * conv,
                     "ramp_up_fraction": _gen_value(row, "Ramp_Up_Percentage", np.nan),
