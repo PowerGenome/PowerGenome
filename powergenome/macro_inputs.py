@@ -274,6 +274,10 @@ def _financial_attrs(row: pd.Series) -> dict:
     Lifetime, Min_Retired_Cap_MW) and maps them onto the Macro simpleCSV
     financial columns. Missing columns produce no entry (blank cell -> Macro
     default).
+
+    ``min_retired_capacity`` is capped at the resource's existing capacity so
+    that a GenX multistage file that requests more retirement than the plant
+    has does not make the Macro model infeasible.
     """
     mapping = {
         "WACC": "wacc",
@@ -285,6 +289,15 @@ def _financial_attrs(row: pd.Series) -> dict:
     for pg_col, macro_col in mapping.items():
         if pg_col in row.index and row.get(pg_col) is not None:
             out[macro_col] = row.get(pg_col)
+    existing = _num(_gen_value(row, "Existing_Cap_MW", np.nan), np.nan)
+    min_retired = _num(out.get("min_retired_capacity"), 0.0)
+    if (
+        min_retired is not None
+        and existing is not None
+        and not np.isnan(existing)
+        and min_retired > existing
+    ):
+        out["min_retired_capacity"] = existing
     return out
 
 
