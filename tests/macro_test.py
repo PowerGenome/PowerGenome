@@ -275,9 +275,9 @@ def test_thermal_emission_rate_from_fuels_table_fallback(gen_df, fuels):
     file_name, commodity, df = make_thermal_csvs(gen_df, fuels=fuels)[0]
     assert commodity == "NaturalGas"
     expected_emission = 0.053 / CONV_MMBTU_TO_MWH
-    assert all(
-        abs(v - expected_emission) < 1e-6 for v in df["emission_rate"]
-    ), df["emission_rate"].tolist()
+    assert all(abs(v - expected_emission) < 1e-6 for v in df["emission_rate"]), df[
+        "emission_rate"
+    ].tolist()
 
 
 def test_thermal_emission_rate_zero_when_no_fuels_source(gen_df):
