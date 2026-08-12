@@ -375,9 +375,7 @@ def test_hydro_csv_availability_columns(gen_df):
     # Hydro reservoir energy capacity: StorageCapacityConstraint + StorageMaxDurationConstraint
     # model the GenX HYDRO_RES_KNOWN_CAP bound (ratio * capacity), matching the reference
     # GenX_to_Macro converter (storage_charge_discharge_ratio = 1.0, constraint enabled).
-    assert (
-        hydro_df.loc[0, "storage_constraints--StorageCapacityConstraint"] == "TRUE"
-    )
+    assert hydro_df.loc[0, "storage_constraints--StorageCapacityConstraint"] == "TRUE"
     assert (
         hydro_df.loc[0, "storage_constraints--StorageMaxDurationConstraint"] == "TRUE"
     )

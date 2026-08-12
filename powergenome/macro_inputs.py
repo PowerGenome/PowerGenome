@@ -653,7 +653,9 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                 "storage_min_outflow_fraction": _num(
                     _gen_value(row, "Min_Power", np.nan)
                 ),
-                "storage_existing_capacity": ratio * existing_cap if known_cap else np.nan,
+                "storage_existing_capacity": (
+                    ratio * existing_cap if known_cap else np.nan
+                ),
                 "storage_max_duration": ratio if known_cap else np.nan,
                 "discharge_capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
                 "storage_charge_discharge_ratio": 1.0 if known_cap else ratio,
