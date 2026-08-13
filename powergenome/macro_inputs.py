@@ -126,6 +126,7 @@ STORAGE_COLUMNS = [
     "discharge_constraints--StorageDischargeLimitConstraint",
     "discharge_constraints--CapacityConstraint",
     "storage_can_retire",
+    "storage_can_expand",
     "location",
     "storage_max_duration",
     "discharge_annualized_investment_cost",
@@ -141,6 +142,8 @@ STORAGE_COLUMNS = [
     "discharge_min_flow_fraction",
     "discharge_existing_capacity",
     "discharge_can_expand",
+    "charge_can_retire",
+    "charge_can_expand",
     "discharge_capacity_size",
     *FINANCIAL_COLUMNS,
 ]
@@ -521,7 +524,10 @@ def make_vre_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                 "availability--timeseries--path": _availability_filename(stage_number),
                 "availability--timeseries--header": _gen_value(row, "Resource"),
                 "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
-                "capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
+                # GenX treats VRE capacity as continuous (no discrete unit sizes), so
+                # the reference converter hardcodes capacity_size = 1.0 here; writing
+                # GenX's Cap_Size would instead treat every MW as its own "unit".
+                "capacity_size": 1.0,
                 **_financial_attrs(row),
             }
         )
@@ -552,6 +558,7 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 "discharge_constraints--StorageDischargeLimitConstraint": "TRUE",
                 "discharge_constraints--CapacityConstraint": "TRUE",
                 "storage_can_retire": _format_bool(_gen_value(row, "Can_Retire")),
+                "storage_can_expand": _format_bool(_gen_value(row, "New_Build")),
                 "location": _gen_value(row, "region"),
                 "storage_max_duration": _num(_gen_value(row, "Max_Duration", np.nan)),
                 "discharge_annualized_investment_cost": _num(
@@ -588,7 +595,12 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                     _gen_value(row, "Existing_Cap_MW", np.nan)
                 ),
                 "discharge_can_expand": _format_bool(_gen_value(row, "New_Build")),
-                "discharge_capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
+                "charge_can_retire": _format_bool(_gen_value(row, "Can_Retire")),
+                "charge_can_expand": _format_bool(_gen_value(row, "New_Build")),
+                # GenX storage capacity is continuous; the reference converter
+                # hardcodes storage/charge/discharge capacity_size = 1.0 (Macro's
+                # default), rather than GenX's Cap_Size cluster size.
+                "discharge_capacity_size": 1.0,
                 **_financial_attrs(row),
             }
         )
@@ -605,13 +617,21 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
     for _, row in res.iterrows():
         ratio = _num(_gen_value(row, "Hydro_Energy_to_Power_Ratio", 1.0), 1.0)
         existing_cap = _num(_gen_value(row, "Existing_Cap_MW", np.nan))
-        known_cap = ratio > 0 and not np.isnan(existing_cap)
+        # Reservoir hydro (GenX HYDRO_RES_KNOWN_CAP, matching the reference
+        # converter's known-capacity set) is any hydro with a positive
+        # energy-to-power ratio; only these carry reservoir storage/duration limits
+        # and only these can expand or retire storage (run-of-river cannot).
+        known_cap = ratio > 0
+        new_build = _is_true(_gen_value(row, "New_Build", False))
+        can_retire = _is_true(_gen_value(row, "Can_Retire", False))
         records.append(
             {
                 "Type": HYDRO_TYPE,
                 "id": _gen_value(row, "Resource"),
-                "discharge_can_retire": _format_bool(_gen_value(row, "Can_Retire")),
-                "inflow_can_retire": _format_bool(False),
+                "discharge_can_retire": _format_bool(can_retire),
+                # The inflow edge mirrors GenX's hydro resource: it retires together
+                # with the plant, but inflow capacity is never built.
+                "inflow_can_retire": _format_bool(can_retire),
                 "storage_long_duration": "FALSE",
                 "storage_constraints--MinStorageOutflowConstraint": "FALSE",
                 "storage_constraints--LongDurationStorageImplicitMinMaxConstraint": "FALSE",
@@ -629,10 +649,10 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                 "discharge_constraints--RampingLimitConstraint": "TRUE",
                 "discharge_constraints--StorageDischargeLimitConstraint": "TRUE",
                 "hydro_source": "hydro_source",
-                "storage_can_expand": _format_bool(_gen_value(row, "New_Build")),
-                "discharge_can_expand": _format_bool(False),
-                "inflow_can_expand": _format_bool(_gen_value(row, "New_Build")),
-                "storage_can_retire": _format_bool(_gen_value(row, "Can_Retire")),
+                "storage_can_expand": _format_bool(new_build and known_cap),
+                "discharge_can_expand": _format_bool(new_build),
+                "inflow_can_expand": _format_bool(new_build),
+                "storage_can_retire": _format_bool(can_retire and known_cap),
                 "location": _gen_value(row, "region"),
                 "discharge_ramp_down_fraction": _num(
                     _gen_value(row, "Ramp_Dn_Percentage", 1.0), 1.0
@@ -657,8 +677,10 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                     ratio * existing_cap if known_cap else np.nan
                 ),
                 "storage_max_duration": ratio if known_cap else np.nan,
-                "discharge_capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
-                "storage_charge_discharge_ratio": 1.0 if known_cap else ratio,
+                # GenX hydro capacity is continuous; the reference converter hardcodes
+                # discharge capacity_size = 1.0 for hydro.
+                "discharge_capacity_size": 1.0,
+                "storage_charge_discharge_ratio": 1.0,
                 **_financial_attrs(row),
             }
         )
@@ -686,7 +708,10 @@ def make_mustrun_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFram
                 "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
                 "availability--timeseries--path": _availability_filename(stage_number),
                 "availability--timeseries--header": _gen_value(row, "Resource"),
-                "capacity_size": _num(_gen_value(row, "Cap_Size", 1.0), 1.0),
+                # The reference converter notes that "GenX internally assumes
+                # capacity_size = 1.0 for must run generators"; GenX's must-run output
+                # is pP_Max * eTotalCap (continuous, ignoring Cap_Size entirely).
+                "capacity_size": 1.0,
                 **_financial_attrs(row),
             }
         )

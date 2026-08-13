@@ -341,6 +341,8 @@ def test_vre_csv_columns_and_availability(gen_df):
     for _, row in vre_df.iterrows():
         assert row["availability--timeseries--path"] == "system/availability_1.csv"
         assert row["availability--timeseries--header"] == row["id"]
+        # GenX VRE capacity is continuous -> capacity_size = 1.0 (not Cap_Size).
+        assert row["capacity_size"] == 1.0
 
     # stage_number controls the availability CSV path
     vre_stage2 = make_vre_csv(gen_df, stage_number=2)
@@ -359,6 +361,16 @@ def test_storage_csv_asymmetry(gen_df):
     assert asym["storage_constraints--StorageSymmetricCapacityConstraint"] == "FALSE"
     assert stor_df.loc[0, "storage_existing_capacity"] == 800.0
     assert stor_df.loc[1, "storage_existing_capacity"] == 1600.0
+    # storage/charge can_expand follow GenX New_Build; can_retire follows Can_Retire
+    # (batt_sym: New_Build=0, Can_Retire=1; batt_asym: New_Build=1, Can_Retire=0)
+    assert sym["storage_can_expand"] == "FALSE"
+    assert sym["charge_can_expand"] == "FALSE"
+    assert sym["charge_can_retire"] == "TRUE"
+    assert asym["storage_can_expand"] == "TRUE"
+    assert asym["charge_can_expand"] == "TRUE"
+    assert asym["charge_can_retire"] == "FALSE"
+    # GenX storage capacity is continuous -> discharge capacity_size = 1.0 (not Cap_Size)
+    assert stor_df["discharge_capacity_size"].tolist() == [1.0, 1.0]
 
 
 def test_hydro_csv_availability_columns(gen_df):
@@ -392,6 +404,15 @@ def test_hydro_csv_availability_columns(gen_df):
     assert hydro_df.loc[0, "storage_existing_capacity"] == 6.0 * 800.0
     assert hydro_df.loc[0, "storage_max_duration"] == 6.0
     assert hydro_df.loc[0, "storage_charge_discharge_ratio"] == 1.0
+    # expand/retire flags follow GenX New_Build / Can_Retire (reference converter):
+    # in/outflow retire with the plant and only discharge/inflow can be built;
+    # reservoir storage can only expand/retire for known-capacity (reservoir) hydro.
+    assert hydro_df.loc[0, "inflow_can_retire"] == "TRUE"  # Can_Retire = 1
+    assert hydro_df.loc[0, "storage_can_retire"] == "TRUE"  # Can_Retire & known_cap
+    assert hydro_df.loc[0, "discharge_can_expand"] == "FALSE"  # New_Build = 0
+    assert hydro_df.loc[0, "storage_can_expand"] == "FALSE"  # New_Build = 0
+    # GenX hydro capacity is continuous -> capacity_size is 1.0 (not Cap_Size = 20)
+    assert hydro_df.loc[0, "discharge_capacity_size"] == 1.0
 
 
 def test_mustrun_csv_availability_columns(gen_df):
@@ -404,6 +425,8 @@ def test_mustrun_csv_availability_columns(gen_df):
         == "system/availability_1.csv"
     )
     assert mustrun_df.loc[0, "availability--timeseries--header"] == "mustrun_1"
+    # GenX's must-run output ignores Cap_Size -> capacity_size = 1.0
+    assert mustrun_df.loc[0, "capacity_size"] == 1.0
 
 
 def test_make_availability_csv_includes_all_resources(gen_df, gen_variability):

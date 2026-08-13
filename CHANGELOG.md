@@ -29,6 +29,8 @@ and this project adheres to Semantic Versioning.
 
 ### Changed
 
+- Macro output: VRE, storage-discharge, hydro-discharge, and must-run asset `capacity_size` are now written as 1.0 (matching the reference `GenX_to_Macro` converter, which hardcodes these to 1.0 because GenX treats them as continuous resources). Thermal `capacity_size` continues to use the generator's `Cap_Size`, as in the reference converter.
+- Macro hydro output: `inflow_can_retire` is set from the generator's Can_Retire flag, `discharge_can_expand` from New_Build, and `storage_can_expand`/`storage_can_retire` from New_Build/Can_Retire ANDed with a known-capacity check (`Hydro_Energy_to_Power_Ratio > 0`). `storage_charge_discharge_ratio` is written as the constant 1.0 and `discharge_capacity_size` as 1.0, matching the reference converter.
 - BREAKING: Standardized renewable generation profile inputs to tidy format only. Legacy wide-format (one column per site) is no longer supported. Tidy schema is site_id, time_index, value, and optional weather_year.
 - Profile IO refactored to use the centralized DataManager loader (DNF filters + column projection) to avoid full-file reads of large tidy files; no pre-scan is performed. A warning is issued if requested weather_years are unavailable.
 - Site identifiers are no longer coerced to strings during profile loading and clustering; native types are preserved end-to-end.
