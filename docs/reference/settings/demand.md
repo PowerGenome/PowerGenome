@@ -101,7 +101,7 @@ supplemental_demand_table:
 **Required columns**:
 
 - `region`: Model region name (must match `model_regions`)
-- `time_index`: Integer hour index (1-based) **or** the string `all_hours`
+- `time_index`: Integer hour index (1-based) **or** the strings `all` / `all_hours`
 - `load_mw`: MW of demand to add
 
 **Optional columns**:
@@ -111,14 +111,20 @@ supplemental_demand_table:
   loading. If multiple scenarios are found and none has been selected, PowerGenome raises
   a descriptive error listing the available scenario names and showing how to select one
   (see below).
-- `weather_year`: When present, rows with a blank `weather_year` are tiled across all
-  weather-year blocks (block size controlled by `hours_per_year`, default 8760); rows
-  with a specific `weather_year` are applied only to that block.
+- `weather_year`: When present, controls which weather-year block a row applies to:
+  `all` applies the row to every weather-year block, a specific value (e.g. `2012`)
+  applies it only to that block, and a **blank** value causes the row to be skipped
+  (block size controlled by `hours_per_year`, default 8760). When the load data spans
+  multiple weather years, every weather year must be covered by either a specific-value
+  row or an `all` row; a missing weather year raises an error. No coverage check is
+  performed when this column is absent.
 
 **`time_index` values**:
 
-- **`all_hours`** – adds the demand increment to every hour in the load curves (flat load addition).
-- **Integer** – adds the demand increment only to the hour with that index.
+- **`all` / `all_hours`** – adds the demand increment to every hour of the weather-year
+  block(s) selected by `weather_year` (flat load addition).
+- **Integer** – adds the demand increment only to the hour with that index; with
+  `weather_year` set to `all`, it is applied to that hour in every weather-year block.
 
 **Scenario handling**:
 

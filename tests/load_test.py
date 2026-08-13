@@ -490,7 +490,7 @@ def test_add_supplemental_demand_year_filter(monkeypatch):
 
 
 def test_add_supplemental_demand_tiled_across_weather_years(monkeypatch):
-    """With weather_year col + NULL wy, specific time indices tile across weather-year blocks."""
+    """With weather_year='all', specific time indices tile across weather-year blocks."""
 
     # load_curves has 8 hours = 2 weather years × 4 hours each
     supp = pd.DataFrame(
@@ -498,7 +498,7 @@ def test_add_supplemental_demand_tiled_across_weather_years(monkeypatch):
             "region": ["R1"],
             "time_index": [1],  # should apply to hour 1 of each 4-hour block
             "load_mw": [20.0],
-            "weather_year": [None],  # NULL → tile across all blocks
+            "weather_year": ["all"],  # "all" → tile across all blocks
         }
     )
 
@@ -516,7 +516,11 @@ def test_add_supplemental_demand_tiled_across_weather_years(monkeypatch):
     # Use hours_per_year=4 so that 8 hours = 2 blocks of 4.
     lc = _base_load_curves(n_hours=8)
     out = add_supplemental_demand(
-        lc, model_year=2030, model_regions=["R1"], hours_per_year=4
+        lc,
+        model_year=2030,
+        model_regions=["R1"],
+        hours_per_year=4,
+        weather_years=[2012, 2013],
     )
 
     # Hours 1 and 5 should get +20
@@ -576,8 +580,8 @@ def test_add_supplemental_demand_empty_table(monkeypatch):
     pd.testing.assert_frame_equal(out, lc)
 
 
-def test_add_supplemental_demand_with_weather_year_null(monkeypatch):
-    """Rows with NULL weather_year tile across all blocks when weather_year col exists."""
+def test_add_supplemental_demand_with_weather_year_all(monkeypatch):
+    """Rows with weather_year='all' tile across all blocks when weather_year col exists."""
 
     # load_curves: 8 hours (2 blocks of 4)
     supp = pd.DataFrame(
@@ -585,7 +589,7 @@ def test_add_supplemental_demand_with_weather_year_null(monkeypatch):
             "region": ["R1"],
             "time_index": [2],
             "load_mw": [15.0],
-            "weather_year": [None],  # NULL → apply to all blocks
+            "weather_year": ["all"],  # "all" → apply to all blocks
         }
     )
 
@@ -602,13 +606,296 @@ def test_add_supplemental_demand_with_weather_year_null(monkeypatch):
 
     lc = _base_load_curves(n_hours=8)
     out = add_supplemental_demand(
-        lc, model_year=2030, model_regions=["R1"], hours_per_year=4
+        lc,
+        model_year=2030,
+        model_regions=["R1"],
+        hours_per_year=4,
+        weather_years=[2012, 2013],
     )
 
     # time_index 2 and 6 (= 2 + 4) should get +15
     assert out.loc[2, "R1"] == 115.0
     assert out.loc[6, "R1"] == 115.0
     for idx in [1, 3, 4, 5, 7, 8]:
+        assert out.loc[idx, "R1"] == 100.0
+
+
+def test_add_supplemental_demand_all_hours_specific_weather_year(monkeypatch):
+    """all_hours rows apply only to the matching weather-year block."""
+
+    # load_curves: 8 hours = 2 weather years x 4 hours each.
+    # 2013 is covered by a separate row so the coverage check passes.
+    supp = pd.DataFrame(
+        {
+            "region": ["R1", "R1"],
+            "time_index": ["all_hours", "all_hours"],
+            "load_mw": [300.0, 100.0],
+            "weather_year": [2012, 2013],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw", "weather_year"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=8)
+    out = add_supplemental_demand(
+        lc,
+        model_year=2030,
+        model_regions=["R1"],
+        hours_per_year=4,
+        weather_years=[2012, 2013],
+    )
+
+    # Only the 2012 block (hours 1-4) should get +300;
+    # the 2013 block gets its own +100.
+    for idx in [1, 2, 3, 4]:
+        assert out.loc[idx, "R1"] == 400.0
+    for idx in [5, 6, 7, 8]:
+        assert out.loc[idx, "R1"] == 200.0
+
+
+def test_add_supplemental_demand_all_time_index_alias(monkeypatch):
+    """time_index='all' behaves like 'all_hours' (no weather_year column)."""
+
+    supp = pd.DataFrame(
+        {
+            "region": ["R1"],
+            "time_index": ["all"],
+            "load_mw": [25.0],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=4)
+    out = add_supplemental_demand(lc, model_year=2030, model_regions=["R1", "R2"])
+
+    assert list(out["R1"]) == [125.0, 125.0, 125.0, 125.0]
+    assert list(out["R2"]) == [100.0, 100.0, 100.0, 100.0]
+
+
+def test_add_supplemental_demand_weather_year_all_all_hours(monkeypatch):
+    """all_hours with weather_year='all' applies to every block."""
+
+    supp = pd.DataFrame(
+        {
+            "region": ["R1"],
+            "time_index": ["all_hours"],
+            "load_mw": [10.0],
+            "weather_year": ["all"],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw", "weather_year"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=8)
+    out = add_supplemental_demand(
+        lc,
+        model_year=2030,
+        model_regions=["R1"],
+        hours_per_year=4,
+        weather_years=[2012, 2013],
+    )
+
+    assert list(out["R1"]) == [110.0] * 8
+
+
+def test_add_supplemental_demand_blank_weather_year_skipped(monkeypatch):
+    """Rows with a blank weather_year are skipped, not tiled."""
+
+    supp = pd.DataFrame(
+        {
+            "region": ["R1"],
+            "time_index": [1],
+            "load_mw": [50.0],
+            "weather_year": [None],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw", "weather_year"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=8)
+    out = add_supplemental_demand(
+        lc,
+        model_year=2030,
+        model_regions=["R1"],
+        hours_per_year=4,
+        weather_years=[2012, 2013],
+    )
+
+    assert list(out["R1"]) == [100.0] * 8
+
+
+def test_add_supplemental_demand_missing_weather_year_raises(monkeypatch):
+    """A weather year present in load data but missing from supp demand raises."""
+
+    # Only 2012 is covered; 2013 is present in weather_years but uncovered.
+    supp = pd.DataFrame(
+        {
+            "region": ["R1"],
+            "time_index": ["all_hours"],
+            "load_mw": [50.0],
+            "weather_year": [2012],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw", "weather_year"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=8)
+    with pytest.raises(ValueError, match="does not cover weather year"):
+        add_supplemental_demand(
+            lc,
+            model_year=2030,
+            model_regions=["R1"],
+            hours_per_year=4,
+            weather_years=[2012, 2013],
+        )
+
+
+def test_add_supplemental_demand_missing_wy_no_error_without_col(monkeypatch):
+    """No error when supp demand has no weather_year column, even with weather_years set."""
+
+    supp = pd.DataFrame(
+        {
+            "region": ["R1"],
+            "time_index": ["all_hours"],
+            "load_mw": [50.0],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=4)
+    out = add_supplemental_demand(
+        lc,
+        model_year=2030,
+        model_regions=["R1"],
+        weather_years=[2012, 2013],
+    )
+
+    assert list(out["R1"]) == [150.0] * 4
+
+
+def test_add_supplemental_demand_specific_wy_unknown_raises(monkeypatch):
+    """A specific weather_year row without matching weather_years info raises."""
+
+    supp = pd.DataFrame(
+        {
+            "region": ["R1"],
+            "time_index": ["all_hours"],
+            "load_mw": [50.0],
+            "weather_year": [2012],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw", "weather_year"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=8)
+    # weather_years=None -> block mapping unavailable for a specific year.
+    with pytest.raises(ValueError, match="cites weather_year 2012"):
+        add_supplemental_demand(
+            lc, model_year=2030, model_regions=["R1"], hours_per_year=4
+        )
+
+
+def test_add_supplemental_demand_specific_time_with_weather_year(monkeypatch):
+    """A specific time_index with a specific weather_year hits only that block's hour."""
+
+    # Hour 2 of the 2012 block (index 2), not hour 6.
+    # A no-op 2013 row keeps the coverage check happy.
+    supp = pd.DataFrame(
+        {
+            "region": ["R1", "R1"],
+            "time_index": [2, "all_hours"],
+            "load_mw": [15.0, 0.0],
+            "weather_year": [2012, 2013],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw", "weather_year"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=8)
+    out = add_supplemental_demand(
+        lc,
+        model_year=2030,
+        model_regions=["R1"],
+        hours_per_year=4,
+        weather_years=[2012, 2013],
+    )
+
+    assert out.loc[2, "R1"] == 115.0
+    for idx in [1, 3, 4, 5, 6, 7, 8]:
         assert out.loc[idx, "R1"] == 100.0
 
 

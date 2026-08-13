@@ -731,24 +731,51 @@ def load_usr_demand_profiles(settings):
         return None
 
 
+def _norm_weather_year(value):
+    """Normalize a ``weather_year`` value for matching.
+
+    ``None``/``NaN``/empty string -> ``None``, ``"all"`` (any case) -> ``"all"``,
+    numeric strings and numbers -> ``int``, anything else is returned unchanged.
+    """
+    if value is None:
+        return None
+    if isinstance(value, float) and np.isnan(value):
+        return None
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+        if s.lower() == "all":
+            return "all"
+        try:
+            return int(s)
+        except ValueError:
+            return value
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    return value
+
+
 def add_supplemental_demand(
     load_curves: pd.DataFrame,
     model_year: int,
     model_regions: List[str],
     hours_per_year: int = 8760,
+    weather_years: Optional[List[int]] = None,
 ) -> pd.DataFrame:
     """Add supplemental hourly demand from the DataManager ``supplemental_demand`` table.
 
     The supplemental demand table should have at minimum the columns:
 
     * ``region`` – model region name
-    * ``time_index`` – integer hour index (1-based) **or** the string ``"all_hours"``
+    * ``time_index`` – integer hour index (1-based) **or** the strings
+      ``"all"``/``"all_hours"``
     * ``load_mw`` – MW of demand to add
 
     Optional columns:
 
     * ``year`` – when present, rows are filtered to ``model_year``
-    * ``scenario`` – when present, exactly one scenario must be present in the data
+    * ``scenario`` – when present, exactly one scenario must remain in the data
       after any DataManager-level filtering; if multiple scenarios exist, a
       ``ValueError`` is raised with the list of available scenario names and an
       example of how to select one via the dict-format settings key::
@@ -757,19 +784,33 @@ def add_supplemental_demand(
             table_name: supplemental_demand.csv
             scenario: high_data_center
 
-    * ``weather_year`` – when present, rows with NULL/NaN ``weather_year`` are tiled
-      across all weather-year blocks (see ``hours_per_year``); rows with a specific
-      ``weather_year`` value are applied directly to matching ``time_index`` values.
+    * ``weather_year`` – when present, controls which weather-year block a row is
+      applied to.  A value of ``"all"`` applies the row to every weather-year block;
+      a specific weather year (matching ``weather_years``) applies the row only to
+      that block.  Rows with a **blank** ``weather_year`` are skipped (use ``"all"``
+      to apply across every weather year).  If the ``weather_year`` column is present
+      and ``weather_years`` is provided, a ``ValueError`` is raised when the load
+      data contains a weather year that is not covered by the supplemental demand
+      table (either by a row with that specific year or by a row with ``"all"``).
 
-    A ``time_index`` value of ``"all_hours"`` is expanded to every hour present in
-    ``load_curves`` (i.e., every row in the index).  When a specific integer is given,
-    tiling behaviour depends on whether a ``weather_year`` column is present:
+    ``time_index`` values of ``"all"`` and ``"all_hours"`` (case-insensitive) are
+    expanded to every hour of the weather-year block(s) selected by ``weather_year``.
 
-    * **No** ``weather_year`` column – rows with specific ``time_index`` values are
-      applied directly (no tiling).  Use ``"all_hours"`` if the supplement should
-      apply across all weather years.
-    * **With** ``weather_year`` column – rows whose ``weather_year`` is NULL/NaN are
-      tiled across weather-year blocks of ``hours_per_year`` hours each.
+    Weather-year placement rules (``weather_year`` column present):
+
+    * ``time_index`` = ``"all"``/``"all_hours"``, ``weather_year`` = a specific year
+      – every hour of that year's block receives the supplement.
+    * ``time_index`` = ``"all"``/``"all_hours"``, ``weather_year`` = ``"all"`` –
+      every hour of every block receives the supplement.
+    * ``time_index`` = integer ``t``, ``weather_year`` = a specific year – only hour
+      ``t`` of that year's block receives the supplement.
+    * ``time_index`` = integer ``t``, ``weather_year`` = ``"all"`` – hour ``t`` of
+      every block receives the supplement (tiled with ``hours_per_year`` spacing).
+    * ``weather_year`` blank/empty – the row is skipped.
+
+    If the ``supplemental_demand`` table has **no** ``weather_year`` column,
+    ``"all"``/``"all_hours"`` rows apply to every hour and specific ``time_index``
+    rows apply to just that hour (no tiling across weather years).
 
     If the ``supplemental_demand`` table is not registered in the DataManager this
     function is a no-op and returns ``load_curves`` unchanged.
@@ -777,8 +818,8 @@ def add_supplemental_demand(
     Parameters
     ----------
     load_curves : pd.DataFrame
-        Wide dataframe with one column per model region and ``time_index`` as the index.
-        This is the same format returned by :func:`make_load_curves`.
+        Wide dataframe with one column per model region and ``time_index`` as the
+        index.  This is the same format returned by :func:`make_load_curves`.
     model_year : int
         Planning year used to filter the supplemental demand table (applied when the
         table contains a ``year`` column).
@@ -786,9 +827,15 @@ def add_supplemental_demand(
         Model region names; only regions present in both ``load_curves.columns`` and
         the supplemental demand table are modified.
     hours_per_year : int, optional
-        Number of hours in a single weather year, used to tile supplemental demand
-        across multiple weather years when ``weather_year`` is NULL/NaN.  Defaults to
-        8760 (standard non-leap year).
+        Number of hours in a single weather-year block, used to place
+        ``weather_year``-specific and tiled rows.  Defaults to 8760 (standard
+        non-leap year).
+    weather_years : Optional[List[int]], optional
+        Ordered list of weather years in ``load_curves`` (typically
+        ``settings["weather_year"]``).  Used to map a specific ``weather_year`` value
+        to its block and to validate that every loaded weather year is covered by the
+        supplemental demand table.  When ``None``, weather-year-specific rows and the
+        coverage check are disabled (``"all"`` still applies to every block).
 
     Returns
     -------
@@ -797,6 +844,13 @@ def add_supplemental_demand(
     """
     if "supplemental_demand" not in list_tables():
         return load_curves
+
+    # Normalize the requested weather years into an ordered list of comparable values.
+    if weather_years is not None:
+        if not isinstance(weather_years, list):
+            weather_years = [_norm_weather_year(weather_years)]
+        else:
+            weather_years = [_norm_weather_year(w) for w in weather_years]
 
     # Discover available columns in the supplemental demand table.
     try:
@@ -824,9 +878,9 @@ def add_supplemental_demand(
     if supp_df.empty:
         return load_curves
 
-    # If the table has a `scenario` column, verify that exactly one scenario is present
-    # after any DataManager-level filtering. Multiple scenarios mean the user must
-    # specify which one to use via the dict-format table config.
+    # If the table has a `scenario` column, verify that exactly one scenario is
+    # present after any DataManager-level filtering. Multiple scenarios mean the user
+    # must specify which one to use via the dict-format table config.
     if "scenario" in supp_df.columns:
         scenarios = supp_df["scenario"].dropna().unique().tolist()
         if len(scenarios) > 1:
@@ -850,15 +904,62 @@ def add_supplemental_demand(
     # Determine how many weather-year blocks fit in load_curves.
     if total_hours > hours_per_year and total_hours % hours_per_year == 0:
         num_blocks = total_hours // hours_per_year
+        block_size = hours_per_year
     else:
         num_blocks = 1
+        block_size = total_hours
 
-    # Separate rows with "all_hours" from rows with specific time indices.
-    all_hours_mask = supp_df["time_index"].astype(str).str.strip() == "all_hours"
-    all_hours_df = supp_df[all_hours_mask].copy()
-    specific_df = supp_df[~all_hours_mask].copy()
+    supp_df = supp_df.copy()
 
-    # --- Helper: add a load_mw Series (indexed by time_index) to load_curves ---
+    # Normalize the time_index column: "all" / "all_hours" -> "all".
+    def _norm_time_index(value):
+        if isinstance(value, str):
+            s = value.strip().lower()
+            if s in ("all", "all_hours"):
+                return "all"
+        return value
+
+    supp_df["_time"] = supp_df["time_index"].map(_norm_time_index)
+
+    if has_weather_year_col:
+        # Normalize weather_year values: blank -> None (skipped), "all" -> "all",
+        # numeric strings -> int.
+        supp_df["_norm_wy"] = supp_df["weather_year"].map(_norm_weather_year)
+
+        # Blank weather_year rows are not applied; tell the user about them since
+        # this behaviour changed from earlier versions that tiled blank rows.
+        blank_mask = supp_df["_norm_wy"].isna()
+        n_blank = int(blank_mask.sum())
+        if n_blank:
+            logger.info(
+                "Skipping %d supplemental demand row(s) with a blank weather_year; "
+                "use weather_year='all' to apply them across every weather year.",
+                n_blank,
+            )
+            supp_df = supp_df[~blank_mask]
+
+        if supp_df.empty:
+            return load_curves
+
+        # Every weather year present in the load data must be covered by the
+        # supplemental demand table, either by a row for that specific year or by a
+        # row with weather_year="all". This check only runs when weather_years is
+        # known and the supplemental demand table has a weather_year column.
+        if weather_years:
+            covered_years = set(
+                supp_df.loc[supp_df["_norm_wy"] != "all", "_norm_wy"]
+            )
+            if (supp_df["_norm_wy"] == "all").any():
+                covered_years = set(weather_years)
+            missing_years = sorted(set(weather_years) - covered_years)
+            if missing_years:
+                raise ValueError(
+                    "The supplemental_demand table does not cover weather year(s) "
+                    f"{missing_years} present in the load data. Add rows with "
+                    "weather_year='all' or a row for each specific weather year so "
+                    "the supplemental demand can be applied to every weather year."
+                )
+
     def _apply(region: str, by_time: "pd.Series") -> None:
         if region not in load_curves.columns:
             logger.debug(
@@ -873,49 +974,82 @@ def add_supplemental_demand(
             load_curves.loc[common, region] + by_time.loc[common]
         )
 
-    # --- Process "all_hours" rows ---
-    for region, region_df in all_hours_df.groupby("region"):
-        total_mw = region_df["load_mw"].sum()
-        by_time = pd.Series(total_mw, index=all_time_indices, dtype=float)
-        _apply(region, by_time)
+    def _block_indices(b: int) -> List[int]:
+        start = b * block_size + 1
+        return list(range(start, start + block_size))
+
+    def _wy_block(wy) -> int:
+        """Absolute block index for a specific normalized weather year."""
+        if not weather_years or wy not in weather_years:
+            raise ValueError(
+                f"A supplemental demand row cites weather_year {wy}, but the weather "
+                "years of the load curves are not known or do not include this year. "
+                "Set `weather_year` in your settings file (the same value used to "
+                "load the demand table) so weather-year-specific supplemental demand "
+                "can be placed in the correct hours."
+            )
+        return list(weather_years).index(wy)
+
+    # --- Process "all" time_index rows ---
+    all_mask = supp_df["_time"].astype(str).str.strip().str.lower() == "all"
+    all_df = supp_df[all_mask]
+
+    if not all_df.empty:
+        if has_weather_year_col:
+            for (region, wy), region_df in all_df.groupby(["region", "_norm_wy"]):
+                total_mw = region_df["load_mw"].sum()
+                if wy == "all":
+                    indices = all_time_indices
+                else:
+                    indices = _block_indices(_wy_block(wy))
+                _apply(region, pd.Series(total_mw, index=indices, dtype=float))
+        else:
+            for region, region_df in all_df.groupby("region"):
+                total_mw = region_df["load_mw"].sum()
+                _apply(
+                    region,
+                    pd.Series(total_mw, index=all_time_indices, dtype=float),
+                )
 
     # --- Process specific time_index rows ---
+    specific_df = supp_df[~all_mask].copy()
     if not specific_df.empty:
-        specific_df = specific_df.copy()
-        specific_df["time_index"] = pd.to_numeric(
-            specific_df["time_index"], errors="coerce"
+        specific_df["_time"] = pd.to_numeric(
+            specific_df["_time"], errors="coerce"
         )
-        specific_df = specific_df.dropna(subset=["time_index"])
-        specific_df["time_index"] = specific_df["time_index"].astype(int)
+        n_dropped = int(specific_df["_time"].isna().sum())
+        if n_dropped:
+            logger.warning(
+                "Dropping %d supplemental demand row(s) with a non-numeric, "
+                "non-all time_index.",
+                n_dropped,
+            )
+        specific_df = specific_df.dropna(subset=["_time"])
+        specific_df["_time"] = specific_df["_time"].astype(int)
 
-        if has_weather_year_col and num_blocks > 1:
-            # Tile rows with NULL weather_year across all weather-year blocks; apply
-            # rows with a specific weather_year directly.
-            null_wy = specific_df["weather_year"].isna()
-            null_wy_df = specific_df[null_wy]
-            valid_wy_df = specific_df[~null_wy]
-
-            if not null_wy_df.empty:
-                expanded_rows = [null_wy_df]
-                for offset in range(1, num_blocks):
-                    shifted = null_wy_df.copy()
-                    shifted["time_index"] = (
-                        shifted["time_index"] + offset * hours_per_year
-                    )
-                    expanded_rows.append(shifted)
-                null_wy_df = pd.concat(expanded_rows, ignore_index=True)
-                for region, region_df in null_wy_df.groupby("region"):
-                    by_time = region_df.groupby("time_index")["load_mw"].sum()
-                    _apply(region, by_time)
-
-            if not valid_wy_df.empty:
-                for region, region_df in valid_wy_df.groupby("region"):
-                    by_time = region_df.groupby("time_index")["load_mw"].sum()
-                    _apply(region, by_time)
+        if has_weather_year_col:
+            for (region, wy), region_df in specific_df.groupby(
+                ["region", "_norm_wy"]
+            ):
+                by_time = region_df.groupby("_time")["load_mw"].sum()
+                if wy == "all":
+                    # Tile hour t of every weather-year block.
+                    tiled = [
+                        pd.Series(
+                            by_time.values,
+                            index=[int(t) + b * block_size for t in by_time.index],
+                        )
+                        for b in range(num_blocks)
+                    ]
+                    by_time = pd.concat(tiled)
+                else:
+                    # Apply directly to the matching block.
+                    b = _wy_block(wy)
+                    by_time.index = [b * block_size + int(t) for t in by_time.index]
+                _apply(region, by_time)
         else:
-            # No weather_year column or single block: apply rows directly.
             for region, region_df in specific_df.groupby("region"):
-                by_time = region_df.groupby("time_index")["load_mw"].sum()
+                by_time = region_df.groupby("_time")["load_mw"].sum()
                 _apply(region, by_time)
 
     return load_curves
@@ -1050,6 +1184,7 @@ def make_final_load_curves(
         final_load_curves,
         model_year=settings["model_year"],
         model_regions=settings["model_regions"],
+        weather_years=settings.get("weather_year"),
     )
 
     final_load_curves = final_load_curves.astype(int)
