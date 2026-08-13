@@ -453,9 +453,7 @@ def make_thermal_csvs(
             resource = _gen_value(row, "Resource")
             min_flow = _num(_gen_value(row, "Min_Power", 0.0), 0.0)
 
-            is_ccs = (
-                _num(_gen_value(row, "CO2_Capture_Fraction", 0.0), 0.0) > 0
-            )
+            is_ccs = _num(_gen_value(row, "CO2_Capture_Fraction", 0.0), 0.0) > 0
             file_has_ccs = file_has_ccs or is_ccs
 
             record = {
@@ -478,9 +476,7 @@ def make_thermal_csvs(
                 "fixed_om_cost": _num(
                     _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
                 ),
-                "existing_capacity": _num(
-                    _gen_value(row, "Existing_Cap_MW", np.nan)
-                ),
+                "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
                 "min_up_time": _num(_gen_value(row, "Up_Time", np.nan)),
                 "capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
                 "ramp_down_fraction": _gen_value(row, "Ramp_Dn_Percentage", np.nan),
@@ -1273,9 +1269,7 @@ def _co2_sinks_for(
             flagged = co2_cap[co2_cap[flag_col] == 1]
         if flagged.empty:
             continue
-        rhs = sum(
-            _num(value, 0.0) for value in flagged[max_col].tolist()
-        ) * 1e6
+        rhs = sum(_num(value, 0.0) for value in flagged[max_col].tolist()) * 1e6
         sink_id = f"co2_sink_{cap_num}"
         sinks.append({"id": sink_id, "cap": rhs})
         for _, row in flagged.iterrows():

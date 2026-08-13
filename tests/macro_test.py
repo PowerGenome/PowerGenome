@@ -314,9 +314,7 @@ def test_ccs_thermal_asset_split(gen_df):
     df = df.drop(columns=["co2_sink"], errors="ignore")
     df["CO2_Capture_Fraction"] = [0.95, 0.0]
     df["CCS_Disposal_Cost_per_Metric_Ton"] = [5.0, np.nan]
-    df.loc[df["Resource"] == "gas_committed", "Var_OM_Cost_per_MWh"] += (
-        4.21 * 0.95
-    )
+    df.loc[df["Resource"] == "gas_committed", "Var_OM_Cost_per_MWh"] += 4.21 * 0.95
     file_name, commodity, ccs_df = make_thermal_csvs(df)[0]
     assert commodity == "NaturalGas"
     assert file_name == "naturalgas_power.csv"
@@ -339,9 +337,7 @@ def test_ccs_thermal_asset_split(gen_df):
 
     # a gas file with any CCS row carries the CCS columns for every row
     assert "capture_rate" in ccs_df.columns
-    assert all(
-        c in ccs_df.columns for c in CCS_COLUMNS
-    )
+    assert all(c in ccs_df.columns for c in CCS_COLUMNS)
 
 
 def test_make_nodes_json_adds_co2_captured_sink(settings):
