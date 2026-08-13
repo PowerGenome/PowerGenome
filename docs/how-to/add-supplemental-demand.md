@@ -19,7 +19,7 @@ Create a CSV (or Parquet) file with the additional load you want to add. At mini
 
 | Column | Description |
 |--------|-------------|
-| `region` | Model region name (must match your `model_regions`) |
+| `region` | Base region **or** model region name (see [Step 5: Choose base or model regions](#step-5-choose-base-or-model-regions)) |
 | `time_index` | Integer hour index (1-based) **or** the string `all` / `all_hours` |
 | `load_mw` | MW of demand to add |
 
@@ -29,7 +29,7 @@ Optional columns that PowerGenome will automatically use if present:
 |--------|-------------|
 | `year` | Planning year; when present, rows are filtered to the current `model_year` |
 | `scenario` | Scenario identifier; when present **exactly one** scenario must remain after loading (see [Step 3](#step-3-select-a-scenario-optional)) |
-| `weather_year` | Weather year; use `all` to apply to every weather year, a specific year (e.g. `2012`) to apply only to that block, or a blank value to **skip** the row (see [Step 4](#step-4-handle-multiple-weather-years)) |
+| `weather_year` | Weather year; use `all` to apply to every weather year, a specific year (e.g. `2012`) to apply only to that weather year, or a blank value to **skip** the row (see [Step 4](#step-4-handle-multiple-weather-years)) |
 
 ### Using `all` / `all_hours`
 
@@ -119,11 +119,11 @@ PowerGenome will filter the table to rows where `scenario = "high_data_center"` 
 
 ## Step 4: Handle multiple weather years
 
-If your load curves span several weather years (e.g. three years of 8 760 hours = 26 280 hours total), the `weather_year` column controls which weather-year block a row is applied to:
+If your load curves span several weather years (e.g. three years of 8 760 hours = 26 280 hours total), the `weather_year` column controls which weather year a row is applied to:
 
 **Option A — apply to every weather year (most common)**
 
-Leave out the `weather_year` column entirely and use `all` / `all_hours`, or set `weather_year` to `all`. PowerGenome applies the row to every weather-year block.
+Leave out the `weather_year` column entirely and use `all` / `all_hours`, or set `weather_year` to `all`. PowerGenome applies the row to every weather year present in the load data.
 
 ```csv
 region,time_index,load_mw,year
@@ -137,22 +137,34 @@ WEST,all_hours,500,2035,all
 
 **Option B — apply only to a specific weather year**
 
-Give the row a specific `weather_year` value. An `all` / `all_hours` row then applies to every hour of only that year's block; a specific integer `time_index` applies to just that hour within the block.
+Give the row a specific `weather_year` value. An `all` / `all_hours` row then applies to every hour of only that weather year; a specific integer `time_index` applies to just that hour within the weather year.
 
 ```csv
 region,time_index,load_mw,year,weather_year
-WEST,all_hours,500,2035,2012      # every hour of the 2012 block
-WEST,all_hours,300,2035,2013      # every hour of the 2013 block
-WEST,3,400,2035,2013              # hour 3 of the 2013 block only
+WEST,all_hours,500,2035,2012      # every hour of 2012
+WEST,all_hours,300,2035,2013      # every hour of 2013
+WEST,3,400,2035,2013              # hour 3 of 2013 only
 ```
 
 !!! warning "Blank `weather_year` rows are skipped"
     A row with a blank/empty `weather_year` is **not** applied. Use `weather_year: all` when you want a row to apply across every weather year.
 
 !!! warning "Coverage check"
-    When your load data uses multiple weather years, every weather year must be covered by the supplemental demand table — either by a row for that specific year or by a row with `weather_year: all`. A missing weather year raises an error naming the years that aren't covered. No coverage check is performed when the supplemental demand table has no `weather_year` column.
+    When the supplemental demand table includes a `weather_year` column **and** the load data's weather years are known (via the `weather_year` setting), every weather year present in the load data must be covered by the supplemental demand table — either by a row for that specific year or by a row with `weather_year: all`. A missing weather year raises an error naming the years that aren't covered. No coverage check is performed when the supplemental demand table has no `weather_year` column.
 
-The block size is controlled by `hours_per_year` (default 8 760).
+!!! tip "How supplemental demand is added"
+    Supplemental demand is joined into the **base load data stage**, before the per-weather-year hours are renumbered 1..N and before base regions are aggregated into model regions. Rows that share the same `(region, weather_year, time_index)` are summed together, so there is **no tiling** and **no fixed weather-year length assumption**: weather years of different lengths (e.g. a 8 784-hour leap year next to a normal 8 760-hour year) are handled correctly. This is unlike the older implementation, which block-tiled supplemental load using a fixed `hours_per_year`.
+
+---
+
+## Step 5: Choose base or model regions
+
+The `region` column accepts **either** a base region name or a model region name:
+
+- **Base region name** — the row is mapped to the model region that contains that base region (as configured by `region_aggregations`), and its demand is added to the aggregate's load. If a base region is part of an aggregation, the added demand contributes to the aggregated model region.
+- **Model region name** — the row is applied as-is to the model region.
+
+When the name is a base region that is part of a model-region aggregation, the supplemental demand is added to that one base region, and the aggregation then includes it in the model region. This is equivalent to adding it directly to the model region. Names that match neither a known base region nor a known model region are logged as a warning and ignored.
 
 ---
 

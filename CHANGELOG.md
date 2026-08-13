@@ -12,6 +12,8 @@ and this project adheres to Semantic Versioning.
 - Simplified capacity reserve credit specification with `capacity_reserve_values` and auto-expansion. Users can now specify technology credits in a flat format (single constraint) or nested format (multiple constraints) that automatically populate `regional_tag_values`, reducing configuration boilerplate for complex multi-constraint systems. Explicit `regional_tag_values` entries take precedence, allowing mixed automatic and manual specification.
 - weather_year filter support for renewable generation profiles (tidy format). Accepts a single int or a list of ints; when multiple years are provided, profiles are concatenated and a continuous per-site time_index is rebuilt.
 - weather_year filter support for hourly demand profiles. When present, demand is filtered to the requested year and the per-region time_index is rebuilt to be sequential starting at 1.
+- Supplemental demand (`supplemental_demand_table`) region names may now be either a base region or a model region; base-region names are mapped to their aggregated model region automatically.
+- Supplemental demand coverage validation: when the supplemental table has a `weather_year` column and the load data's weather years are known, every weather year must be covered by a specific-year row or an `all` row, otherwise a descriptive error is raised.
 - Comprehensive distributed generation (DG) test suite covering capacity interpolation/extrapolation, multi-weather-year profiles, aggregation, timezone shifting, and hourly generation.
 - Comprehensive error handling test suite for `_parse_interconnect_capex` covering all TypeError, ValueError, and KeyError paths (9 distinct error conditions validated).
 - Interpolation/extrapolation summary logging for DG capacity: single consolidated message listing regions interpolated, backward/forward extrapolated, exact matches, and missing.
@@ -38,6 +40,9 @@ and this project adheres to Semantic Versioning.
 - Hourly DG generation now passes `year` into profile loading to ensure correct capacity-weighted aggregation without relying on global settings state.
 - Regional cost multiplier application now supports automatic averaging for aggregated regions and provides better logging for technologies without explicit mappings.
 - Fuel price workflow simplified: legacy AEO mapping parameters (`fuel_series_scenario_names`, `fuel_series_names`, `fuel_series_region_names`, `fuel_region_map`) are now optional. When not provided, fuel prices are expected directly in the fuel price table for all base regions, and PowerGenome automatically averages base region prices for aggregated regions.
+
+- Supplemental demand is now applied at the base load-data stage (long format) inside `make_load_curves`, before per-weather-year hours are renumbered 1..N and before base regions are aggregated. The old wide-format block-tiling approach (which assumed every weather year had `hours_per_year` hours) has been removed; `weather_year: all` rows now expand to one copy per weather year actually present in the load data, so leap years and other unequal-length weather years are handled correctly.
+- Supplemental demand is no longer applied to the user-supplied wide load path by default. The user-supplied WIDE load path (`load_usr_demand_profiles`) still gets supplemental demand applied in wide format, but weather-year-specific rows are rejected there with a descriptive error.
 
 ### Deprecated
 

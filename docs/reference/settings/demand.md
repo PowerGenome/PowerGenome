@@ -82,7 +82,9 @@ Common scenarios:
 **Required**: No
 **Example**: See below
 
-Optional table of additional hourly demand (e.g. data-center forecasts, new industrial loads) to add on top of the baseline demand profiles. Added after distributed-generation subtraction and before integer conversion.
+Optional table of additional hourly demand (e.g. data-center forecasts, new industrial loads) to add on top of the baseline demand profiles.
+
+**How it is applied**: Supplemental demand is joined into the **base load data stage** inside `make_load_curves` — in long format, one row per (region × hour), *before* per-weather-year hours are renumbered to 1..N and *before* base regions are aggregated into model regions. Rows sharing the same `(region, weather_year, time_index)` are summed with the base load, so **no block-tiling is used** and **weather years of unequal length** (e.g. an 8 784-hour leap year next to a normal 8 760-hour year) are handled correctly. A `weather_year: all` row expands to one copy for each weather year actually present in the load data, rather than tiling a fixed block size.
 
 **Simple** (file in `data_location` folder, or co-located with a database):
 
@@ -100,7 +102,10 @@ supplemental_demand_table:
 
 **Required columns**:
 
-- `region`: Model region name (must match `model_regions`)
+- `region`: Base region **or** model region name. Base region names are mapped to the
+  aggregated model region that contains them (per `region_aggregations`); model region
+  names are used as-is. Names matching neither a known base region nor a model region
+  are logged as a warning and ignored.
 - `time_index`: Integer hour index (1-based) **or** the strings `all` / `all_hours`
 - `load_mw`: MW of demand to add
 
@@ -111,20 +116,25 @@ supplemental_demand_table:
   loading. If multiple scenarios are found and none has been selected, PowerGenome raises
   a descriptive error listing the available scenario names and showing how to select one
   (see below).
-- `weather_year`: When present, controls which weather-year block a row applies to:
-  `all` applies the row to every weather-year block, a specific value (e.g. `2012`)
-  applies it only to that block, and a **blank** value causes the row to be skipped
-  (block size controlled by `hours_per_year`, default 8760). When the load data spans
-  multiple weather years, every weather year must be covered by either a specific-value
-  row or an `all` row; a missing weather year raises an error. No coverage check is
-  performed when this column is absent.
+- `weather_year`: When present, controls which weather-year the row applies to:
+  `all` applies the row to every weather year present in the load data, a specific
+  value (e.g. `2012`) applies it only to that weather year, and a **blank** value
+  causes the row to be skipped. There is **no fixed block size**: an `all` row expands
+  to one copy for each weather year actually present, and weather years of different
+  lengths are supported. When the load data spans multiple weather years (its weather
+  years are known via the `weather_year` setting), every weather year must be covered
+  by either a specific-value row or an `all` row; a missing weather year raises an
+  error naming the uncovered years. A specific `weather_year` that does not match any
+  weather year in the load data raises a descriptive error telling you to set the
+  `weather_year` setting. No coverage check is performed when this column is absent.
 
 **`time_index` values**:
 
-- **`all` / `all_hours`** – adds the demand increment to every hour of the weather-year
-  block(s) selected by `weather_year` (flat load addition).
+- **`all` / `all_hours`** – adds the demand increment to every hour of the weather
+  year(s) selected by `weather_year` (flat load addition). For each selected weather
+  year, one copy is added per hour actually present in that weather year.
 - **Integer** – adds the demand increment only to the hour with that index; with
-  `weather_year` set to `all`, it is applied to that hour in every weather-year block.
+  `weather_year` set to `all`, it is applied to that hour in every weather year.
 
 **Scenario handling**:
 
