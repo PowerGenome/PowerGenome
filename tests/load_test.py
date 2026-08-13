@@ -405,9 +405,7 @@ def test_add_supplemental_demand_missing_required_columns(monkeypatch):
         lp_mod,
         "get_data",
         lambda table_name, filters=None, columns=None, query=None: (
-            pd.DataFrame({"name": ["region", "load_mw"]})
-            if query is not None
-            else supp
+            pd.DataFrame({"name": ["region", "load_mw"]}) if query is not None else supp
         ),
     )
 
