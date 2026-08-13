@@ -376,7 +376,12 @@ class Settings:
         >>> settings.missing_attr  # Returns None, doesn't raise AttributeError
         None
         """
-        return self._data.get(key, None)
+        # During unpickling, _data may not exist yet. Access it via __dict__ to
+        # avoid recursive __getattr__ calls.
+        data = self.__dict__.get("_data")
+        if data is None:
+            raise AttributeError(key)
+        return data.get(key, None)
 
     def __copy__(self):
         """
@@ -651,8 +656,31 @@ def load_settings(path: Union[str, Path]) -> dict:
             "Path is not recognized. Check that your path is valid."
         )
 
-    if settings.get("input_folder"):
-        settings["input_folder"] = path.parent / settings["input_folder"]
+    # Settings directories contain YAML files, while their relative data paths
+    # are rooted at the directory containing the settings folder.
+    settings_folder = path.parent
+
+    data_locations = settings.get("data_location")
+    if data_locations:
+        values = (
+            data_locations if isinstance(data_locations, list) else [data_locations]
+        )
+        resolved = [
+            Path(value) if Path(value).is_absolute() else settings_folder / value
+            for value in values
+        ]
+        settings["data_location"] = (
+            resolved if isinstance(data_locations, list) else resolved[0]
+        )
+
+    input_folder = settings.get("input_folder")
+    if input_folder and not isinstance(input_folder, list):
+        input_folder_path = Path(input_folder)
+        settings["input_folder"] = (
+            input_folder_path
+            if input_folder_path.is_absolute()
+            else settings_folder / input_folder_path
+        )
 
     if settings.get("generator_columns"):
         settings["generator_columns"] = add_model_tags_to_gen_columns(

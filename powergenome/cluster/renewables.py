@@ -20,6 +20,93 @@ from powergenome.util import load_data, snake_case_str
 logger = logging.getLogger(__name__)
 
 
+def _load_wide_or_raise(
+    path: Path,
+    site_ids: List[str],
+    weather_year: Optional[Union[int, List[int]]],
+    columns: List[str],
+    required_cols: set,
+) -> pd.DataFrame:
+    """Handle wide-format or unrecognized profile files.
+
+    If ``weather_year`` is specified but the file is wide format, raise ValueError.
+    If ``weather_year`` is None and the file is wide format (columns match site_ids),
+    warn and load matching columns. Otherwise raise ValueError for unrecognized format.
+
+    Parameters
+    ----------
+    path : Path
+        Path to profiles file.
+    site_ids : List[str]
+        Requested site identifiers.
+    weather_year : Optional[Union[int, List[int]]]
+        Weather year filter.
+    columns : List[str]
+        Column names from the file.
+    required_cols : set
+        Set of required tidy column names.
+
+    Returns
+    -------
+    pd.DataFrame
+        Wide DataFrame with requested site_ids as columns.
+
+    Raises
+    ------
+    ValueError
+        If format is unrecognized or weather_year is specified on wide format.
+    """
+    cols_set = set(columns)
+    site_ids_str = [str(s) for s in site_ids]
+    found = set(site_ids_str) & cols_set
+
+    if not found:
+        raise ValueError(
+            "Profiles file has an unrecognized format. It is neither tidy "
+            f"(missing columns {required_cols}) nor wide "
+            "(no column names match the requested site IDs). "
+            f"Found columns: {columns}, "
+            f"requested site IDs: {site_ids}"
+        )
+
+    if weather_year is not None:
+        raise ValueError(
+            "weather_year filtering requires tidy-format profiles with a "
+            "'weather_year' column. The profiles file appears to be in wide "
+            f"format (columns are site IDs, not {required_cols}). "
+            f"Found columns: {columns}"
+        )
+
+    logger.warning(
+        "Profiles file is in wide format (columns are site IDs) rather than "
+        f"tidy format with columns {required_cols}. "
+        "Wide-format loading is deprecated; please convert to tidy format. "
+        "Loading the full timeseries data into memory."
+    )
+
+    # Read only the requested site columns that exist
+    cols_to_read = [s for s in site_ids_str if s in cols_set]
+    suffix = path.suffix
+    if suffix == ".parquet":
+        df = pq.read_table(path, columns=cols_to_read).to_pandas()
+    elif suffix == ".csv":
+        df = pd.read_csv(path, usecols=cols_to_read)
+    else:
+        raise ValueError(f"Unsupported profile file format: {suffix}")
+
+    # Rename string column names back to original site_id types
+    rename_map = {}
+    for s in site_ids:
+        if str(s) in cols_to_read:
+            rename_map[str(s)] = s
+    df = df.rename(columns=rename_map)
+
+    # Fill missing site_ids with 1.0
+    for m in set(site_ids) - set(df.columns):
+        df[m] = 1.0
+    return df[list(site_ids)]
+
+
 def load_site_profiles(
     path: Path,
     site_ids: List[str],
@@ -87,17 +174,19 @@ def load_site_profiles(
         return wide[site_ids]
 
     if suffix == ".parquet":
-        # Validate tidy format
+        # Read schema to determine format
         try:
             schema_names = pq.read_schema(path).names
         except Exception:
             schema_names = []
         required_cols = {"site_id", "time_index", "value"}
-        if not required_cols.issubset(set(schema_names)):
-            raise ValueError(
-                f"Resource profiles must be in tidy format with columns {required_cols}. "
-                f"Found columns: {schema_names}"
+        is_tidy = required_cols.issubset(set(schema_names))
+
+        if not is_tidy:
+            return _load_wide_or_raise(
+                path, site_ids, weather_year, schema_names, required_cols
             )
+
         # Read minimal columns via duckdb with DNF filters
         cols = ["site_id", "time_index", "value"]
         if "weather_year" in schema_names:
@@ -112,13 +201,13 @@ def load_site_profiles(
         df = load_data(path.parent, path.name, filters=filters, columns=cols)
         return _pivot_tidy(df)
     elif suffix == ".csv":
-        # Validate tidy format
         header = pd.read_csv(path, nrows=0).columns.tolist()
         required_cols = {"site_id", "time_index", "value"}
-        if not required_cols.issubset(set(header)):
-            raise ValueError(
-                f"Resource profiles must be in tidy format with columns {required_cols}. "
-                f"Found columns: {header}"
+        is_tidy = required_cols.issubset(set(header))
+
+        if not is_tidy:
+            return _load_wide_or_raise(
+                path, site_ids, weather_year, header, required_cols
             )
         usecols = [
             c for c in ["site_id", "time_index", "value", "weather_year"] if c in header

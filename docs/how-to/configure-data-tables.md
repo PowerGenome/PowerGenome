@@ -20,7 +20,19 @@ Tell PowerGenome where your data files live with `data_location`:
 data_location: /path/to/your/data_folder # Can also be /path/to/database.db
 ```
 
-This is the base path used for all table lookups. All filenames in table settings are resolved relative to this folder.
+Paths may be relative to the settings file (or settings directory), and multiple
+locations may be provided:
+
+```yaml
+data_location:
+  - data
+  - /shared/powergenome_data.db
+input_folder: extra_inputs
+```
+
+PowerGenome searches `input_folder` as well as `data_location` for configured
+tables. Each table must be found in exactly one location; duplicate table names
+are rejected.
 
 ---
 
@@ -37,7 +49,7 @@ fuel_price_table: fuel_prices.csv
 transmission_constraints_table: transmission_constraints.csv
 ```
 
-PowerGenome resolves each filename inside `data_location`.
+PowerGenome resolves each filename inside the configured data locations.
 
 ### Advanced configuration (with filters)
 
