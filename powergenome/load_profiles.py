@@ -830,7 +830,9 @@ def add_supplemental_demand(
     if "scenario" in supp_df.columns:
         scenarios = supp_df["scenario"].dropna().unique().tolist()
         if len(scenarios) > 1:
-            scenario_list = ", ".join(f"'{s}'" for s in sorted(str(s) for s in scenarios))
+            scenario_list = ", ".join(
+                f"'{s}'" for s in sorted(str(s) for s in scenarios)
+            )
             raise ValueError(
                 "The supplemental_demand table contains multiple scenarios "
                 f"({scenario_list}) but no scenario has been selected. "
@@ -860,7 +862,8 @@ def add_supplemental_demand(
     def _apply(region: str, by_time: "pd.Series") -> None:
         if region not in load_curves.columns:
             logger.debug(
-                "Supplemental demand region '%s' not in model regions; skipping.", region
+                "Supplemental demand region '%s' not in model regions; skipping.",
+                region,
             )
             return
         common = load_curves.index.intersection(by_time.index)
