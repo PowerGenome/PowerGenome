@@ -12,6 +12,23 @@ from powergenome.load_profiles import make_load_curves as _make_load_curves
 from powergenome.load_profiles import subtract_distributed_generation
 
 
+@pytest.fixture(autouse=True)
+def _isolate_data_manager(monkeypatch):
+    """Isolate ``load_profiles.list_tables`` from any DataManager state leaked by
+    other test modules.
+
+    Some test modules (e.g. ``fuel_test``) initialize the global DataManager
+    singleton against the ``tests/test_system`` data folder, which registers a
+    ``supplemental_demand`` table.  Tests in this module that call
+    ``make_load_curves`` directly only patch ``get_data``, so without this the
+    real ``list_tables()`` would report ``supplemental_demand`` and the fake
+    ``get_data`` would serve demand rows as supplemental demand (double-counting
+    every hour).  Default to *no* supplemental table; tests that exercise
+    supplemental demand re-patch ``list_tables`` to register the table.
+    """
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: [])
+
+
 def test_grow_historical_load():
     base_load = {"region": ["A", "A", "B", "B"], "load_mw": [1, 1, 1, 1]}
     base_load_df = pd.DataFrame(base_load)
