@@ -18,7 +18,7 @@ For the full parameter reference see [Demand Settings](../reference/settings/dem
 Create a CSV (or Parquet) file with the additional load you want to add. At minimum you need three columns:
 
 | Column | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `region` | Model region name (must match your `model_regions`) |
 | `time_index` | Integer hour index (1-based) **or** the string `all` / `all_hours` |
 | `load_mw` | MW of demand to add |
@@ -26,7 +26,7 @@ Create a CSV (or Parquet) file with the additional load you want to add. At mini
 Optional columns that PowerGenome will automatically use if present:
 
 | Column | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `year` | Planning year; when present, rows are filtered to the current `model_year` |
 | `scenario` | Scenario identifier; when present **exactly one** scenario must remain after loading (see [Step 3](#step-3-select-a-scenario-optional)) |
 | `weather_year` | Weather year; use `all` to apply to every weather year, a specific year (e.g. `2012`) to apply only to that block, or a blank value to **skip** the row (see [Step 4](#step-4-handle-multiple-weather-years)) |
@@ -123,7 +123,7 @@ If your load curves span several weather years (e.g. three years of 8 760 hours 
 
 **Option A — apply to every weather year (most common)**
 
-Leave out the `weather_year` column entirely and use `all` / `all_hours`, or set `weather_year` to `all`. PowerGenome applies the row to every weather-year block.
+Leave out the `weather_year` column entirely, and use `all_hours` or a specific `time_index`. PowerGenome automatically adds the supplemental demand across every weather-year block.
 
 ```csv
 region,time_index,load_mw,year
