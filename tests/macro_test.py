@@ -670,9 +670,7 @@ def test_load_nsd_segments_falls_back_to_per_mwh(tmp_path):
     """When Voll/Cost columns are absent, $/MWh is used as the price."""
     seg_csv = tmp_path / "demand_segments_voll.csv"
     seg_csv.write_text(
-        "Demand_Segment,Max_Demand_Curtailment,$/MWh\n"
-        "1,1,2000\n"
-        "2,0.04,1800\n"
+        "Demand_Segment,Max_Demand_Curtailment,$/MWh\n" "1,1,2000\n" "2,0.04,1800\n"
     )
     settings = {
         "input_folder": str(tmp_path),

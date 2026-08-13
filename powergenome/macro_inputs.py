@@ -884,7 +884,11 @@ def load_nsd_segments(settings: dict) -> tuple:
         if "Cost_of_Demand_Curtailment_per_MW" in df.columns
         else None
     )
-    if voll_col is not None and frac_col is not None and not df[voll_col].dropna().empty:
+    if (
+        voll_col is not None
+        and frac_col is not None
+        and not df[voll_col].dropna().empty
+    ):
         voll = df[voll_col].dropna().iloc[0]
         price_series = pd.to_numeric(df[frac_col], errors="coerce") * float(voll)
     else:
