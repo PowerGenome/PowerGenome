@@ -425,6 +425,12 @@ def test_load_data_db_with_extension(tmp_sqlite_db):
         load_data(tmp_sqlite_db, file_or_table_name="foo.csv")
 
 
+def test_load_data_db_unsupported_extension(tmp_sqlite_db):
+    # A non-CSV/parquet name next to a DB is neither a supported file nor a table.
+    with pytest.raises(ValueError, match=r"unsupported extension"):
+        load_data(tmp_sqlite_db, file_or_table_name="foo.xlsx")
+
+
 def test_load_table_from_db_unsupported_type(tmp_path):
     # Using an unsupported database type
     fake_db = tmp_path / "not_a_db.txt"

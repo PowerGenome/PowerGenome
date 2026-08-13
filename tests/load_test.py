@@ -389,6 +389,33 @@ def _base_load_curves(n_hours=4, regions=("R1", "R2"), base_load=100.0):
     )
 
 
+def test_add_supplemental_demand_missing_required_columns(monkeypatch):
+    """Missing required columns (region/time_index/load_mw) raise a descriptive error."""
+
+    # Table is missing time_index
+    supp = pd.DataFrame(
+        {
+            "region": ["R1"],
+            "load_mw": [50.0],
+        }
+    )
+
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, filters=None, columns=None, query=None: (
+            pd.DataFrame({"name": ["region", "load_mw"]})
+            if query is not None
+            else supp
+        ),
+    )
+
+    lc = _base_load_curves(n_hours=4)
+    with pytest.raises(ValueError, match="time_index"):
+        add_supplemental_demand(lc, model_year=2030, model_regions=["R1"])
+
+
 def test_add_supplemental_demand_no_table(monkeypatch):
     """When supplemental_demand table is absent, load_curves is returned unchanged."""
     monkeypatch.setattr(lp_mod, "list_tables", lambda: [])

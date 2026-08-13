@@ -1093,8 +1093,11 @@ def load_data(
     ------
     ValueError
         If file_or_table_name is not provided.
-        If file_or_table_name has an extension and data_location is a database.
         If the specified file is not found in the folder.
+        If file_or_table_name has an extension other than ``.csv``/``.parquet``
+        when data_location is a database (only CSV/Parquet files located next to
+        the database are loaded; otherwise file_or_table_name is treated as a table
+        name).
         If an unsupported database type is used.
     """
     data_location = Path(data_location)
@@ -1120,6 +1123,13 @@ def load_data(
                     f"File '{file_or_table_name}' not found in '{data_location.parent}'."
                 )
             return load_data_file(file_path, filters, columns)
+        if extension:
+            raise ValueError(
+                f"file_or_table_name '{file_or_table_name}' has an unsupported "
+                f"extension '{extension}'. When data_location is a database, "
+                "file_or_table_name should be a table name or a .csv/.parquet file "
+                f"located in '{data_location.parent}'."
+            )
         return load_table_from_db(data_location, file_or_table_name, filters, columns)
 
 

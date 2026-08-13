@@ -866,6 +866,21 @@ def add_supplemental_demand(
         )
         supp_cols = col_info.iloc[:, 0].tolist()
 
+    # Validate that the table has the required columns so users get a helpful
+    # error instead of a raw KeyError later.
+    missing_cols = [
+        c for c in ("region", "time_index", "load_mw") if c not in supp_cols
+    ]
+    if missing_cols:
+        raise ValueError(
+            "The supplemental_demand table is missing required column(s): "
+            f"{', '.join(missing_cols)}. It must include 'region', 'time_index', "
+            "and 'load_mw'. Check the table/file configured in your settings "
+            "file, for example:\n\n"
+            "    supplemental_demand_table:\n"
+            "      table_name: <your_table_or_file>"
+        )
+
     # Build filters for the model year.
     filters = None
     if "year" in supp_cols:
