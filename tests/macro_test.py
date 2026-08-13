@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from powergenome.macro_inputs import (
+    CCS_COLUMNS,
     CONV_MMBTU_TO_MWH,
     HYDRO_COLUMNS,
     MUST_RUN_COLUMNS,
@@ -305,6 +306,62 @@ def test_thermal_csv_type_id_first_columns(gen_df):
     _, _, df = _thermal_asset(gen_df)
     cols = list(df.columns)
     assert cols[0] == "Type" and cols[1] == "id"
+
+
+def test_ccs_thermal_asset_split(gen_df):
+    """CCS generators become ThermalPowerCCS with residual + captured CO2 flows."""
+    df = gen_df.iloc[[0, 1]].copy()  # gas_committed, gas_nc
+    df = df.drop(columns=["co2_sink"], errors="ignore")
+    df["CO2_Capture_Fraction"] = [0.95, 0.0]
+    df["CCS_Disposal_Cost_per_Metric_Ton"] = [5.0, np.nan]
+    df.loc[df["Resource"] == "gas_committed", "Var_OM_Cost_per_MWh"] += (
+        4.21 * 0.95
+    )
+    file_name, commodity, ccs_df = make_thermal_csvs(df)[0]
+    assert commodity == "NaturalGas"
+    assert file_name == "naturalgas_power.csv"
+    ccs_row = ccs_df.loc[ccs_df["id"] == "gas_committed"].iloc[0]
+    plain_row = ccs_df.loc[ccs_df["id"] == "gas_nc"].iloc[0]
+    # type distinguishes CCS assets
+    assert ccs_row["Type"] == "ThermalPowerCCS"
+    assert plain_row["Type"] == "ThermalPower"
+    # total emissions split into residual + captured (capture fraction 0.95)
+    co2_content = 0.053  # t CO2/MMBtu from the fixture
+    conv = CONV_MMBTU_TO_MWH
+    assert abs(ccs_row["emission_rate"] - (1 - 0.95) * co2_content / conv) < 1e-9
+    assert abs(ccs_row["capture_rate"] - 0.95 * co2_content / conv) < 1e-9
+    # captured CO2 flows to the location-less uncapped injection node
+    assert ccs_row["edges--co2_captured_edge--end_vertex"] == "co2_sink_injection"
+    assert ccs_row["edges--co2_captured_edge--variable_om_cost"] == 5.0
+    # plain thermal has no captured-CO2 edge populated
+    assert plain_row["capture_rate"] == ""
+    assert plain_row["edges--co2_captured_edge--end_vertex"] == ""
+
+    # a gas file with any CCS row carries the CCS columns for every row
+    assert "capture_rate" in ccs_df.columns
+    assert all(
+        c in ccs_df.columns for c in CCS_COLUMNS
+    )
+
+
+def test_make_nodes_json_adds_co2_captured_sink(settings):
+    """has_ccs=True adds the CO2Captured sink node; has_ccs=False does not."""
+    base = dict(
+        settings=settings,
+        demand_headers={"R1": "Demand_MW_z1", "R2": "Demand_MW_z2"},
+        fuel_supply_headers={},
+        co2_sinks=[{"id": "co2_sink", "cap": None}],
+        has_hydro=False,
+    )
+    no_ccs = make_nodes_json(**base)
+    yes_ccs = make_nodes_json(**base, has_ccs=True)
+    assert not any(n["type"] == "CO2Captured" for n in no_ccs)
+    captured = [n for n in yes_ccs if n["type"] == "CO2Captured"]
+    assert len(captured) == 1
+    node = captured[0]
+    assert node["global_data"]["time_interval"] == "CO2Captured"
+    assert node["global_data"]["constraints"]["BalanceConstraint"] is False
+    assert node["instance_data"][0]["id"] == "co2_sink_injection"
 
 
 def test_can_retire_derived_from_new_build_when_missing():
