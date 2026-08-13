@@ -830,13 +830,18 @@ def make_commodities_json(commodities: List[str]) -> dict:
 def load_nsd_segments(settings: dict) -> tuple:
     """Load non-served-demand (VOLL) segments from the GenX demand-segments CSV.
 
-    Maps each GenX demand segment to a Macro NSD segment:
+    Maps each GenX demand segment to a Macro NSD segment, matching the price
+    GenX itself derives: ``price_nsd[s] = Cost_of_Demand_Curtailment_per_MW[s]
+    × Voll[1]`` (each segment's cost is a fraction of the base value of lost
+    service). ``Voll`` is a single base value (the first non-null entry), and
+    the ``$/MWh`` column is purely informational:
 
-    - ``price_nsd[s]`` ← ``$/MWh`` (the actual per-MWh curtailment cost)
+    - ``price_nsd[s]`` ← ``Cost_of_Demand_Curtailment_per_MW[s] * Voll[1]``
     - ``max_nsd[s]`` ← ``Max_Demand_Curtailment`` (fraction of demand)
 
-    Falls back to a single segment ``{max_nsd: [1], price_nsd: [5000]}`` when
-    no demand-segments file is configured.
+    Falls back to the ``$/MWh`` column when the ``Voll`` / ``Cost_...``
+    columns are absent, and to a single segment ``{max_nsd: [1], price_nsd:
+    [5000]}`` when no demand-segments file is configured.
 
     Returns
     -------
@@ -855,7 +860,6 @@ def load_nsd_segments(settings: dict) -> tuple:
         )
         return [1], [5000.0]
 
-    price_col = next((c for c in ("$/MWh", "Cost_per_MWh") if c in df.columns), None)
     max_col = next(
         (
             c
@@ -864,18 +868,43 @@ def load_nsd_segments(settings: dict) -> tuple:
         ),
         None,
     )
-
-    if price_col is None or max_col is None:
+    if max_col is None:
         logger.warning(
             "Demand segments file missing required columns; "
             "using default single-segment VOLL."
         )
         return [1], [5000.0]
 
+    # GenX prices each segment as Cost_of_Demand_Curtailment_per_MW × Voll[1].
+    # "Voll" is a single base value (first non-null entry); the per-segment
+    # column holds the fraction of that base value served by each segment.
+    voll_col = "Voll" if "Voll" in df.columns else None
+    frac_col = (
+        "Cost_of_Demand_Curtailment_per_MW"
+        if "Cost_of_Demand_Curtailment_per_MW" in df.columns
+        else None
+    )
+    if voll_col is not None and frac_col is not None and not df[voll_col].dropna().empty:
+        voll = df[voll_col].dropna().iloc[0]
+        price_series = pd.to_numeric(df[frac_col], errors="coerce") * float(voll)
+    else:
+        # Fallback: use the actual $/MWh column when present
+        price_col = next(
+            (c for c in ("$/MWh", "Cost_per_MWh") if c in df.columns), None
+        )
+        if price_col is None:
+            logger.warning(
+                "Demand segments file missing required columns; "
+                "using default single-segment VOLL."
+            )
+            return [1], [5000.0]
+        price_series = pd.to_numeric(df[price_col], errors="coerce")
+
+    df = df.assign(_price=price_series)
     # Sort by descending cost (GenX convention: segment 1 = highest VOLL)
-    df = df.sort_values(price_col, ascending=False).reset_index(drop=True)
+    df = df.sort_values("_price", ascending=False).reset_index(drop=True)
     max_nsd = [float(v) for v in df[max_col].tolist()]
-    price_nsd = [float(v) for v in df[price_col].tolist()]
+    price_nsd = [float(v) for v in df["_price"].tolist()]
     return max_nsd, price_nsd
 
 

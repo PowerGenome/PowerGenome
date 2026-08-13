@@ -640,6 +640,49 @@ def test_load_nsd_segments_default_when_no_file():
     assert price_nsd == [5000.0]
 
 
+def test_load_nsd_segments_uses_voll_base_price(tmp_path):
+    """price_nsd = Cost_of_Demand_Curtailment_per_MW x Voll[1], matching GenX.
+
+    The $/MWh column is informational; when the user raises Voll (the base
+    value of lost service) without touching $/MWh, the Macro NSD price must
+    track GenX's pC_D_Curtail (Cost_frac x Voll[1]).
+    """
+    seg_csv = tmp_path / "demand_segments_voll.csv"
+    seg_csv.write_text(
+        "Voll,Demand_Segment,Cost_of_Demand_Curtailment_per_MW,"
+        "Max_Demand_Curtailment,$/MWh\n"
+        "10000,1,1,1,2000\n"
+        ",2,0.9,0.04,1800\n"
+        ",3,0.55,0.024,1100\n"
+        ",4,0.2,0.003,400\n"
+    )
+    settings = {
+        "input_folder": str(tmp_path),
+        "demand_segments_fn": "demand_segments_voll.csv",
+    }
+    max_nsd, price_nsd = load_nsd_segments(settings)
+    # Cost fraction x Voll[1] = [1.0, 0.9, 0.55, 0.2] x 10000
+    assert price_nsd == [10000.0, 9000.0, 5500.0, 2000.0]
+    assert max_nsd == [1.0, 0.04, 0.024, 0.003]
+
+
+def test_load_nsd_segments_falls_back_to_per_mwh(tmp_path):
+    """When Voll/Cost columns are absent, $/MWh is used as the price."""
+    seg_csv = tmp_path / "demand_segments_voll.csv"
+    seg_csv.write_text(
+        "Demand_Segment,Max_Demand_Curtailment,$/MWh\n"
+        "1,1,2000\n"
+        "2,0.04,1800\n"
+    )
+    settings = {
+        "input_folder": str(tmp_path),
+        "demand_segments_fn": "demand_segments_voll.csv",
+    }
+    max_nsd, price_nsd = load_nsd_segments(settings)
+    assert price_nsd == [2000.0, 1800.0]
+    assert max_nsd == [1.0, 0.04]
+
+
 def test_make_nodes_json_uses_demand_segments(tmp_path):
     """nodes.json price_nsd / max_nsd come from the demand segments CSV."""
     seg_csv = tmp_path / "demand_segments_voll.csv"
