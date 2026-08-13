@@ -238,7 +238,15 @@ def network():
 
 @pytest.fixture
 def co2_cap():
-    return pd.DataFrame({"Network_zones": [1, 2], "CO_2_cap": [10.0, 5.0]})
+    return pd.DataFrame(
+        {
+            "Network_zones": [1, 2],
+            "CO_2_Cap_Zone_1": [1, 0],
+            "CO_2_Cap_Zone_2": [0, 1],
+            "CO_2_Max_Mtons_1": [10.0, 0.0],
+            "CO_2_Max_Mtons_2": [0.0, 5.0],
+        }
+    )
 
 
 def _thermal_asset(gen_df):

@@ -29,6 +29,7 @@ CONV_MMBTU_TO_MWH = 0.29307107
 
 # Macro asset type names used in the simpleCSV "Type" column
 THERMAL_TYPE = "ThermalPower"
+THERMALCCS_TYPE = "ThermalPowerCCS"
 VRE_TYPE = "VRE"
 STORAGE_TYPE = "Battery"
 HYDRO_TYPE = "HydroRes"
@@ -96,6 +97,21 @@ THERMAL_COLUMNS = [
     "can_retire",
     *FINANCIAL_COLUMNS,
 ]
+
+# Extra simpleCSV columns present only on CCS (ThermalPowerCCS) assets. The
+# ``edges--co2_captured_edge--*`` nesting maps into
+# ``data[:edges][:co2_captured_edge][:end_vertex]`` / ``[:variable_om_cost]``,
+# which Macro's ThermalPowerCCS requires for the captured-CO2 edge.
+CCS_COLUMNS = [
+    "capture_rate",
+    "edges--co2_captured_edge--end_vertex",
+    "edges--co2_captured_edge--variable_om_cost",
+]
+
+# Name of the single (location-less, uncapped) CO2Captured sink node shared by
+# every CCS asset's captured-CO2 edge. Matches the GenX_to_Macro "co2_sink_injection"
+# convention.
+CO2_CAPTURED_NODE = "co2_sink_injection"
 
 VRE_COLUMNS = [
     "Type",
@@ -420,6 +436,7 @@ def make_thermal_csvs(
     out = []
     for commodity, rows in by_commodity.items():
         records = []
+        file_has_ccs = False
         for row in rows:
             committed = _is_committed(row)
             heat_rate = _num(_gen_value(row, "Heat_Rate_MMBTU_per_MWh", np.nan), 0.0)
@@ -436,56 +453,84 @@ def make_thermal_csvs(
             resource = _gen_value(row, "Resource")
             min_flow = _num(_gen_value(row, "Min_Power", 0.0), 0.0)
 
-            records.append(
-                {
-                    "Type": THERMAL_TYPE,
-                    "id": resource,
-                    "co2_sink": _gen_value(row, "co2_sink", "co2_sink"),
-                    "timedata": commodity,
-                    "fuel_commodity": commodity,
-                    "fuel_start_vertex": f"{commodity}_{region}",
-                    "uc": _format_bool(committed),
-                    "elec_constraints--MinFlowConstraint": _format_bool(min_flow > 0),
-                    "elec_constraints--MinDownTimeConstraint": _format_bool(committed),
-                    "elec_constraints--CapacityConstraint": "TRUE",
-                    "elec_constraints--MinUpTimeConstraint": _format_bool(committed),
-                    "elec_constraints--RampingLimitConstraint": "TRUE",
-                    "location": region,
-                    "can_expand": _format_bool(_gen_value(row, "New_Build")),
-                    "min_down_time": _num(_gen_value(row, "Down_Time", np.nan)),
-                    "fuel_consumption": fuel_consumption if heat_rate else "",
-                    "fixed_om_cost": _num(
-                        _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
-                    ),
-                    "existing_capacity": _num(
-                        _gen_value(row, "Existing_Cap_MW", np.nan)
-                    ),
-                    "min_up_time": _num(_gen_value(row, "Up_Time", np.nan)),
-                    "capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
-                    "ramp_down_fraction": _gen_value(row, "Ramp_Dn_Percentage", np.nan),
-                    "emission_rate": emission_rate if _num(co2_content) else "",
-                    "variable_om_cost": _num(
-                        _gen_value(row, "Var_OM_Cost_per_MWh", np.nan)
-                    ),
-                    "annualized_investment_cost": _num(
-                        _gen_value(row, "Inv_Cost_per_MWyr", np.nan)
-                    ),
-                    "startup_fuel_consumption": _num(
-                        _gen_value(row, "Start_Fuel_MMBTU_per_MW", np.nan), 0.0
-                    )
-                    * conv,
-                    "ramp_up_fraction": _gen_value(row, "Ramp_Up_Percentage", np.nan),
-                    "min_flow_fraction": min_flow if min_flow > 0 else "",
-                    "startup_cost": _num(_gen_value(row, "Start_Cost_per_MW", np.nan)),
-                    "can_retire": _format_bool(_gen_value(row, "Can_Retire")),
-                    **_financial_attrs(row),
-                }
+            is_ccs = (
+                _num(_gen_value(row, "CO2_Capture_Fraction", 0.0), 0.0) > 0
             )
+            file_has_ccs = file_has_ccs or is_ccs
+
+            record = {
+                "Type": THERMAL_TYPE,
+                "id": resource,
+                "co2_sink": _gen_value(row, "co2_sink", "co2_sink"),
+                "timedata": commodity,
+                "fuel_commodity": commodity,
+                "fuel_start_vertex": f"{commodity}_{region}",
+                "uc": _format_bool(committed),
+                "elec_constraints--MinFlowConstraint": _format_bool(min_flow > 0),
+                "elec_constraints--MinDownTimeConstraint": _format_bool(committed),
+                "elec_constraints--CapacityConstraint": "TRUE",
+                "elec_constraints--MinUpTimeConstraint": _format_bool(committed),
+                "elec_constraints--RampingLimitConstraint": "TRUE",
+                "location": region,
+                "can_expand": _format_bool(_gen_value(row, "New_Build")),
+                "min_down_time": _num(_gen_value(row, "Down_Time", np.nan)),
+                "fuel_consumption": fuel_consumption if heat_rate else "",
+                "fixed_om_cost": _num(
+                    _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
+                ),
+                "existing_capacity": _num(
+                    _gen_value(row, "Existing_Cap_MW", np.nan)
+                ),
+                "min_up_time": _num(_gen_value(row, "Up_Time", np.nan)),
+                "capacity_size": _num(_gen_value(row, "Cap_Size", np.nan)),
+                "ramp_down_fraction": _gen_value(row, "Ramp_Dn_Percentage", np.nan),
+                "emission_rate": emission_rate if _num(co2_content) else "",
+                "variable_om_cost": _num(
+                    _gen_value(row, "Var_OM_Cost_per_MWh", np.nan)
+                ),
+                "annualized_investment_cost": _num(
+                    _gen_value(row, "Inv_Cost_per_MWyr", np.nan)
+                ),
+                "startup_fuel_consumption": _num(
+                    _gen_value(row, "Start_Fuel_MMBTU_per_MW", np.nan), 0.0
+                )
+                * conv,
+                "ramp_up_fraction": _gen_value(row, "Ramp_Up_Percentage", np.nan),
+                "min_flow_fraction": min_flow if min_flow > 0 else "",
+                "startup_cost": _num(_gen_value(row, "Start_Cost_per_MW", np.nan)),
+                "can_retire": _format_bool(_gen_value(row, "Can_Retire")),
+                **_financial_attrs(row),
+            }
+
+            # CCS assets split total emissions into a residual flow on the CO2
+            # edge (co2_sink, at the capped sink like any other thermal plant)
+            # and a captured flow on the co2_captured_edge, which ends at the
+            # location-less, uncapped CO2Captured sink node.
+            if is_ccs:
+                cf = _num(_gen_value(row, "CO2_Capture_Fraction", 0.0), 0.0)
+                record["Type"] = THERMALCCS_TYPE
+                record["emission_rate"] = (
+                    (1 - cf) * co2_content / conv if _num(co2_content) else ""
+                )
+                record["capture_rate"] = (
+                    cf * co2_content / conv if _num(co2_content) else ""
+                )
+                record["edges--co2_captured_edge--end_vertex"] = CO2_CAPTURED_NODE
+                record["edges--co2_captured_edge--variable_om_cost"] = _num(
+                    _gen_value(row, "CCS_Disposal_Cost_per_Metric_Ton", np.nan)
+                )
+            else:
+                record["capture_rate"] = ""
+                record["edges--co2_captured_edge--end_vertex"] = ""
+                record["edges--co2_captured_edge--variable_om_cost"] = ""
+
+            records.append(record)
+        columns = THERMAL_COLUMNS + (CCS_COLUMNS if file_has_ccs else [])
         out.append(
             (
                 _thermal_asset_filename(commodity),
                 commodity,
-                pd.DataFrame(records, columns=THERMAL_COLUMNS),
+                pd.DataFrame(records, columns=columns),
             )
         )
     return out
@@ -845,6 +890,7 @@ def make_nodes_json(
     co2_sinks: List[dict],
     has_hydro: bool,
     stage_number: int = 1,
+    has_ccs: bool = False,
 ) -> list:
     """Build the full nodes.json structure.
 
@@ -862,6 +908,11 @@ def make_nodes_json(
         Whether a hydro_source node should be added.
     stage_number : int
         Per-stage suffix used in the demand / fuel price timeseries paths.
+    has_ccs : bool
+        Whether any CCS (ThermalPowerCCS) asset exists; when true a location-less
+        CO2Captured sink node (``co2_sink_injection``) is added so captured CO2
+        flows out of the system (matching GenX, where captured emissions do not
+        count toward the caps).
     """
     demand_path = f"system/demand_{stage_number}.csv"
     fuel_path = f"system/fuel_prices_{stage_number}.csv"
@@ -962,6 +1013,19 @@ def make_nodes_json(
                     "constraints": {"BalanceConstraint": False},
                 },
                 "instance_data": [{"id": "hydro_source"}],
+            }
+        )
+
+    # CO2Captured sink node shared by all CCS assets' captured-CO2 edges
+    if has_ccs:
+        nodes.append(
+            {
+                "type": "CO2Captured",
+                "global_data": {
+                    "time_interval": "CO2Captured",
+                    "constraints": {"BalanceConstraint": False},
+                },
+                "instance_data": [{"id": CO2_CAPTURED_NODE}],
             }
         )
 
@@ -1172,37 +1236,63 @@ def make_period_map_csv(period_map: pd.DataFrame) -> pd.DataFrame:
 def _co2_sinks_for(
     gen_df: pd.DataFrame, settings: dict, co2_cap: pd.DataFrame
 ) -> List[dict]:
-    """Build the list of CO2 sink node entries used in nodes.json."""
+    """Build the CO2 sink node entries and tag thermal generators' ``co2_sink``.
+
+    Emulates GenX ``co2_cap!`` mass-cap semantics. Each cap ``p`` in the (GenX
+    ``CO2_cap.csv``) table has a ``CO_2_Cap_Zone_p`` flag column and a
+    ``CO_2_Max_Mtons_p`` column. The cap binds across the flagged zones, with RHS
+
+    .. math::
+       \\sum_{z \\in \\mathcal{Z}^{cap}_p} \\text{CO2MaxMtons}_{z,p} \\times 10^6
+
+    We create one sink node ``co2_sink_<p>`` per cap carrying that RHS through
+    its ``CO2CapConstraint``, and point every thermal generator located in a
+    capped zone at the first cap that flags its zone. Generators in zones that
+    belong to no cap keep the generic uncapped ``co2_sink``.
+
+    Returns the list of ``(id, cap)`` entries for the CO2 node block in nodes.json.
+    """
     sinks: List[dict] = [{"id": "co2_sink", "cap": None}]
     if co2_cap is None or co2_cap.empty:
         return sinks
     zone_num_map = settings.get("zone_num_map", {})
     zone_to_region = {int(zone): reg for reg, zone in zone_num_map.items()}
-    cap_cols = [
-        c
-        for c in co2_cap.columns
-        if str(c).startswith("CO_2") or str(c).startswith("co2")
-    ]
-    for _, row in co2_cap.iterrows():
-        zone = row.get("Network_zones")
-        if pd.isna(zone):
+    max_cols = sorted(
+        (c for c in co2_cap.columns if str(c).startswith("CO_2_Max_Mtons_")),
+        key=lambda c: str(c).rsplit("_", 1)[-1],
+    )
+    zone_to_sink: Dict[int, str] = {}
+    for max_col in max_cols:
+        cap_num = str(max_col).rsplit("_", 1)[-1]
+        flag_col = f"CO_2_Cap_Zone_{cap_num}"
+        if flag_col not in co2_cap.columns:
             continue
-        zone = int(zone)
-        region = zone_to_region.get(zone)
-        for col in cap_cols:
-            cap_mt = _num(row.get(col))
-            if cap_mt is None:
+        try:
+            flagged = co2_cap[co2_cap[flag_col].astype(float) == 1]
+        except (TypeError, ValueError):
+            flagged = co2_cap[co2_cap[flag_col] == 1]
+        if flagged.empty:
+            continue
+        rhs = sum(
+            _num(value, 0.0) for value in flagged[max_col].tolist()
+        ) * 1e6
+        sink_id = f"co2_sink_{cap_num}"
+        sinks.append({"id": sink_id, "cap": rhs})
+        for _, row in flagged.iterrows():
+            zone = row.get("Network_zones")
+            if pd.isna(zone):
                 continue
-            sink_id = f"co2_sink_{zone}"
-            sinks.append({"id": sink_id, "cap": cap_mt * 1e6})
-            # Tag in-region thermal generators to point at the capped sink
-            if region is not None:
-                mask = (gen_df["region"] == region) & (gen_df["THERM"] > 0)
-                if "co2_sink" in gen_df.columns:
-                    gen_df.loc[mask, "co2_sink"] = sink_id
-                else:
-                    gen_df["co2_sink"] = "co2_sink"
-                    gen_df.loc[mask, "co2_sink"] = sink_id
+            # First cap that flags a zone wins (caps are zone-disjoint in practice).
+            zone_to_sink.setdefault(int(zone), sink_id)
+
+    if "co2_sink" not in gen_df.columns:
+        gen_df["co2_sink"] = "co2_sink"
+    for zone, sink_id in zone_to_sink.items():
+        region = zone_to_region.get(zone)
+        if region is None:
+            continue
+        mask = (gen_df["region"] == region) & (gen_df["THERM"] > 0)
+        gen_df.loc[mask, "co2_sink"] = sink_id
     return sinks
 
 
@@ -1250,11 +1340,17 @@ class MacroCaseBuilder:
             return
 
         # Buffer commodities across stages (shared commodities.json).
+        has_ccs = False
         for stage in stages:
             case_year_data, stage_settings = self._stage_data[stage]
             gen_df = case_year_data.get("gen_data")
             if gen_df is None or gen_df.empty:
                 continue
+            if (
+                "CO2_Capture_Fraction" in gen_df.columns
+                and (gen_df["CO2_Capture_Fraction"].fillna(0) > 0).any()
+            ):
+                has_ccs = True
             fuels = case_year_data.get("fuels")
             for file_name, commodity, _ in make_thermal_csvs(
                 gen_df, stage_settings, fuels
@@ -1266,6 +1362,10 @@ class MacroCaseBuilder:
         for name in ("Electricity", "CO2"):
             if name not in self.commodities:
                 self.commodities.append(name)
+        # CCS assets add a CO2Captured commodity so Macro builds a
+        # ``time_data[:CO2Captured]`` timeseries (via the CO2 supertype fallback).
+        if has_ccs and "CO2Captured" not in self.commodities:
+            self.commodities.append("CO2Captured")
 
         # Per-stage files.
         for stage in stages:
@@ -1401,6 +1501,11 @@ class MacroCaseBuilder:
             and "HYDRO" in gen_df.columns
             and (gen_df["HYDRO"] > 0).any()
         )
+        has_ccs = bool(
+            gen_df is not None
+            and "CO2_Capture_Fraction" in gen_df.columns
+            and (gen_df["CO2_Capture_Fraction"].fillna(0) > 0).any()
+        )
 
         # ---- per-stage JSON files ----
         with open(system_folder / f"nodes_{stage_number}.json", "w") as f:
@@ -1413,6 +1518,7 @@ class MacroCaseBuilder:
                         co2_sinks,
                         has_hydro,
                         stage_number=stage_number,
+                        has_ccs=has_ccs,
                     )
                 },
                 f,
