@@ -230,6 +230,8 @@ def network():
             "Line_Loss_Percentage": [0.01, 0.01],
             "Line_Reinforcement_Cost_per_MWyr": [1500.0, 1500.0],
             "distance_mile": [100.0, 100.0],
+            "Capital_Recovery_Period": [60.0, 60.0],
+            "WACC": [0.044, 0.044],
         }
     )
 
@@ -459,6 +461,30 @@ def test_make_powerlines_csv(network):
     assert tx_df.loc[0, "max_capacity"] == 750.0
     assert tx_df.loc[0, "existing_capacity"] == 500.0
     assert tx_df.loc[1, "max_capacity"] == 500.0
+    # financial attributes carried through from the GenX network columns
+    assert list(tx_df["wacc"]) == [0.044, 0.044]
+    assert list(tx_df["capital_recovery_period"]) == [60.0, 60.0]
+    # No GenX per-line Lifetime: lifetime falls back to capital_recovery_period
+    assert list(tx_df["lifetime"]) == [60.0, 60.0]
+
+
+def test_make_powerlines_csv_no_financial_cols():
+    network = pd.DataFrame(
+        {
+            "start_region": ["R1"],
+            "dest_region": ["R2"],
+            "Line_Max_Flow_MW": [500.0],
+            "Line_Max_Reinforcement_MW": [0.0],
+            "Line_Loss_Percentage": [0.01],
+            "Line_Reinforcement_Cost_per_MWyr": [1500.0],
+            "distance_mile": [100.0],
+        }
+    )
+    tx_df = make_powerlines_csv(network)
+    # blank financial cells -> Macro defaults
+    assert pd.isna(tx_df.loc[0, "wacc"])
+    assert pd.isna(tx_df.loc[0, "capital_recovery_period"])
+    assert pd.isna(tx_df.loc[0, "lifetime"])
 
 
 def test_make_locations_json(settings):
@@ -720,6 +746,14 @@ def test_write_macro_inputs_full_case(
     ]:
         df = pd.read_csv(case / csv_name)
         assert list(df.columns)[:2] == ["Type", "id"], csv_name
+
+    # powerlines.csv carries the transmission financial attributes
+    tx = pd.read_csv(case / "assets/assets_1/powerlines.csv")
+    assert set(["wacc", "capital_recovery_period", "lifetime"]) <= set(tx.columns)
+    assert (tx["wacc"] == 0.044).all()
+    assert (tx["capital_recovery_period"] == 60.0).all()
+    # no per-line Lifetime in GenX -> falls back to capital_recovery_period
+    assert (tx["lifetime"] == 60.0).all()
 
     # nodes.json demand header matches demand.csv
     demand_df = pd.read_csv(case / "system/demand_1.csv")

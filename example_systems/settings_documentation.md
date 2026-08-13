@@ -1011,5 +1011,5 @@ GenX-to-Macro converter (`lbonaldo/GenX_to_Macro`, `lb/multistage` branch): `sys
 with one entry per period (stage-suffixed files like `assets/assets_N/`, `system/time_data_N.json`,
 `system/nodes_N.json`), and `settings/case_settings.json` lists one `PeriodLengths` entry per period along with
 `DiscountRate` and `SolutionAlgorithm`. Financial attributes (`wacc`, `capital_recovery_period`, `lifetime`,
-`min_retired_capacity`) are written on thermal, VRE, storage, hydro, and must-run assets when the equivalent GenX
-columns are present.
+`min_retired_capacity`) are written on thermal, VRE, storage, hydro, must-run, and transmission (`powerlines.csv`; the
+lifetime falls back to `capital_recovery_period`) when the equivalent GenX columns are present.

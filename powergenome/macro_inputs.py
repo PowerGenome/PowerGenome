@@ -211,6 +211,7 @@ TRANSMISSION_COLUMNS = [
     "commodity",
     "distance",
     "transmission_dest",
+    *FINANCIAL_COLUMNS,
 ]
 
 
@@ -732,6 +733,12 @@ def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
         reinforcement = (
             _num(_gen_value(row, "Line_Max_Reinforcement_MW", np.nan), 0.0) or 0.0
         )
+        financial = _financial_attrs(row)
+        # GenX provides no per-line Lifetime for transmission. Fall back to
+        # the capital_recovery_period so Macro does not treat the line as a
+        # 1-year asset (which would force premature retirement of new builds).
+        if "lifetime" not in financial and "capital_recovery_period" in financial:
+            financial["lifetime"] = financial["capital_recovery_period"]
         records.append(
             {
                 "Type": TRANSMISSION_TYPE,
@@ -749,6 +756,7 @@ def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
                 "commodity": "Electricity",
                 "distance": _num(_gen_value(row, "distance_mile", np.nan)),
                 "transmission_dest": f"elec_{dest}",
+                **financial,
             }
         )
     return pd.DataFrame(records, columns=TRANSMISSION_COLUMNS)
