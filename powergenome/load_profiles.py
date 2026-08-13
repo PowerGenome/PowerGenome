@@ -946,9 +946,7 @@ def add_supplemental_demand(
         # row with weather_year="all". This check only runs when weather_years is
         # known and the supplemental demand table has a weather_year column.
         if weather_years:
-            covered_years = set(
-                supp_df.loc[supp_df["_norm_wy"] != "all", "_norm_wy"]
-            )
+            covered_years = set(supp_df.loc[supp_df["_norm_wy"] != "all", "_norm_wy"])
             if (supp_df["_norm_wy"] == "all").any():
                 covered_years = set(weather_years)
             missing_years = sorted(set(weather_years) - covered_years)
@@ -1014,9 +1012,7 @@ def add_supplemental_demand(
     # --- Process specific time_index rows ---
     specific_df = supp_df[~all_mask].copy()
     if not specific_df.empty:
-        specific_df["_time"] = pd.to_numeric(
-            specific_df["_time"], errors="coerce"
-        )
+        specific_df["_time"] = pd.to_numeric(specific_df["_time"], errors="coerce")
         n_dropped = int(specific_df["_time"].isna().sum())
         if n_dropped:
             logger.warning(
@@ -1028,9 +1024,7 @@ def add_supplemental_demand(
         specific_df["_time"] = specific_df["_time"].astype(int)
 
         if has_weather_year_col:
-            for (region, wy), region_df in specific_df.groupby(
-                ["region", "_norm_wy"]
-            ):
+            for (region, wy), region_df in specific_df.groupby(["region", "_norm_wy"]):
                 by_time = region_df.groupby("_time")["load_mw"].sum()
                 if wy == "all":
                     # Tile hour t of every weather-year block.
