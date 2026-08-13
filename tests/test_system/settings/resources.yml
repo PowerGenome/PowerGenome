@@ -158,6 +158,7 @@ alt_resource_cap_recovery_years:
 
 new_resources:
   - [NaturalGas, 1-on-1 Combined Cycle (H-Frame), Moderate, 500]
+  - [NaturalGas, 1-on-1 Combined Cycle (H-Frame) 95% CCS, Moderate, 500]
   # - [NaturalGas, Combustion Turbine (F-Frame), Moderate, 100]
   - [LandbasedWind, Class3, Moderate, 1]
   # - [OffShoreWind, Class12, Moderate, 1]
