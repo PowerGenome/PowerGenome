@@ -866,13 +866,16 @@ def _load_supplemental_demand(model_year: int) -> Optional[pd.DataFrame]:
     supp_df["_time"] = supp_df["time_index"].map(_norm_time_index)
     time_as_str = supp_df["_time"].astype(str).str.strip().str.lower()
     not_all = ~time_as_str.eq("all")
-    supp_df.loc[not_all, "_time"] = pd.to_numeric(
-        supp_df.loc[not_all, "_time"], errors="coerce"
-    )
+
+    # Coerce to numeric and reject non-integer hours (e.g. 2.5) rather than truncating.
+    numeric = pd.to_numeric(supp_df.loc[not_all, "_time"], errors="coerce")
+    numeric = numeric.where(numeric.mod(1).eq(0))
+    supp_df.loc[not_all, "_time"] = numeric
+
     n_dropped = int(supp_df["_time"].isna().sum())
     if n_dropped:
         logger.warning(
-            "Dropping %d supplemental demand row(s) with a non-numeric, non-all "
+            "Dropping %d supplemental demand row(s) with a non-numeric, non-integer, non-all "
             "time_index.",
             n_dropped,
         )
@@ -1037,7 +1040,7 @@ def add_supplemental_demand_long(
             return present_wys if has_base_wy else [None]
         wy = row["_norm_wy"]
         if wy == "all":
-            return present_wys
+            return present_wys if has_base_wy else [None]
         if not has_base_wy or wy not in present_wys:
             raise ValueError(
                 f"A supplemental demand row cites weather_year {wy}, but the "

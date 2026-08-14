@@ -421,6 +421,8 @@ def _make_supp_get_data(demand, supp, demand_cols, supp_cols):
         data = demand if table_name == "demand" else supp
         df = data.copy()
         if filters:
+            # DataManager filters are DNF: OR-of-AND conjunctions.
+            keep = pd.Series(False, index=df.index)
             for conjunction in filters:
                 mask = pd.Series(True, index=df.index)
                 for col, op, val in conjunction:
@@ -430,8 +432,8 @@ def _make_supp_get_data(demand, supp, demand_cols, supp_cols):
                         mask &= df[col].isin(val)
                     elif op == "!=":
                         mask &= df[col] != val
-                df = df.loc[mask]
-        return df
+                keep |= mask
+            df = df.loc[keep]
 
     return fake_get_data
 
