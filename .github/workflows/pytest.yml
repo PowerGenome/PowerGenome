@@ -5,9 +5,6 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
     strategy:
       max-parallel: 5
       # matrix:
@@ -15,35 +12,29 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
-    - name: Install Conda environment with Micromamba
-      uses: mamba-org/setup-micromamba@v1
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
       with:
-        environment-file: environment.yml
-        cache-environment: true
-    - run: |
-        conda info
-        conda list
-        conda config --show-sources
-        conda config --show
-        printenv | sort
-    - name: install powergenome
+        python-version: "3.11"
+    - name: Install powergenome with dev dependencies
       run: |
-        pip install -e .
+        uv sync --extra dev
     - name: Lint with flake8
       run: |
-        pip install flake8
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        uv pip install flake8
+        # stop the build if there are Python syntax errors or undefined names.
+        # Exclude .venv since uv creates it inside the workspace (the previous
+        # micromamba environment lived outside the repo).
+        uv run flake8 . --exclude=.venv --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        uv run flake8 . --exclude=.venv --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       env:
         RESOURCE_GROUPS: ${{ secrets.RESOURCE_GROUPS }}
         PUDL_DB: ${{ secrets.PUDL_DB }}
         PG_DB: ${{ secrets.PG_DB }}
       run: |
-        pip install pytest-cov
-        pytest --cov=powergenome tests/ --cov-report=xml
+        uv run pytest --cov=powergenome tests/ --cov-report=xml
     - name: Upload test coverage report to CodeCov
       uses: codecov/codecov-action@v4
       env:
