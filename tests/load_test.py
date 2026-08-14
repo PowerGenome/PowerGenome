@@ -434,6 +434,7 @@ def _make_supp_get_data(demand, supp, demand_cols, supp_cols):
                         mask &= df[col] != val
                 keep |= mask
             df = df.loc[keep]
+        return df
 
     return fake_get_data
 
