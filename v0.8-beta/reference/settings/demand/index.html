@@ -934,6 +934,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../../how-to/add-supplemental-demand/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add Supplemental Hourly Demand
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../../how-to/validate-settings/" class="md-nav__link">
         
   
@@ -1422,6 +1450,34 @@
     <span class="md-ellipsis">
       
         Demand Scenarios
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supplemental-demand" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supplemental Demand
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Supplemental Demand">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#supplemental_demand_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        supplemental_demand_table
       
     </span>
   </a>
@@ -2253,6 +2309,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#supplemental-demand" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supplemental Demand
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Supplemental Demand">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#supplemental_demand_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        supplemental_demand_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#related-settings" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2406,9 +2490,87 @@
 <li><strong>high_electrification</strong>: Widespread building/industrial electrification</li>
 <li><strong>low_growth</strong>: Slower demand growth with efficiency improvements</li>
 </ul>
+<h2 id="supplemental-demand">Supplemental Demand<a class="headerlink" href="#supplemental-demand" title="Permanent link">&para;</a></h2>
+<h3 id="supplemental_demand_table"><code>supplemental_demand_table</code><a class="headerlink" href="#supplemental_demand_table" title="Permanent link">&para;</a></h3>
+<p><strong>Type</strong>: String or dictionary
+<strong>Required</strong>: No
+<strong>Example</strong>: See below</p>
+<p>Optional table of additional hourly demand (e.g. data-center forecasts, new industrial loads) to add on top of the baseline demand profiles.</p>
+<p><strong>How it is applied</strong>: Supplemental demand is joined into the <strong>base load data stage</strong> inside <code>make_load_curves</code> — in long format, one row per (region × hour), <em>before</em> per-weather-year hours are renumbered to 1..N and <em>before</em> base regions are aggregated into model regions. Rows sharing the same <code>(region, weather_year, time_index)</code> are summed with the base load, so <strong>no block-tiling is used</strong> and <strong>weather years of unequal length</strong> (e.g. an 8 784-hour leap year next to a normal 8 760-hour year) are handled correctly. A <code>weather_year: all</code> row expands to one copy for each weather year actually present in the load data, rather than tiling a fixed block size.</p>
+<p><strong>Simple</strong> (file in <code>data_location</code> folder, or co-located with a database):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">supplemental_demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">supplemental_demand.csv</span>
+</code></pre></div>
+<p><strong>Advanced</strong> (with scenario selection):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">supplemental_demand_table</span><span class="p">:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">supplemental_demand.csv</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_data_center</span>
+</code></pre></div>
+<p><strong>Required columns</strong>:</p>
+<ul>
+<li><code>region</code>: Base region <strong>or</strong> model region name. Base region names are mapped to the
+  aggregated model region that contains them (per <code>region_aggregations</code>); model region
+  names are used as-is. Names matching neither a known base region nor a model region
+  are logged as a warning and ignored.</li>
+<li><code>time_index</code>: Integer hour index (1-based) <strong>or</strong> the strings <code>all</code> / <code>all_hours</code></li>
+<li><code>load_mw</code>: MW of demand to add</li>
+</ul>
+<p><strong>Optional columns</strong>:</p>
+<ul>
+<li><code>year</code>: When present, rows are filtered to the current <code>model_year</code></li>
+<li><code>scenario</code>: Scenario identifier; when present, exactly one scenario must remain after
+  loading. If multiple scenarios are found and none has been selected, PowerGenome raises
+  a descriptive error listing the available scenario names and showing how to select one
+  (see below).</li>
+<li><code>weather_year</code>: When present, controls which weather-year the row applies to:
+  <code>all</code> applies the row to every weather year present in the load data, a specific
+  value (e.g. <code>2012</code>) applies it only to that weather year, and a <strong>blank</strong> value
+  causes the row to be skipped. There is <strong>no fixed block size</strong>: an <code>all</code> row expands
+  to one copy for each weather year actually present, and weather years of different
+  lengths are supported. When the load data spans multiple weather years (its weather
+  years are known via the <code>weather_year</code> setting), every weather year must be covered
+  by either a specific-value row or an <code>all</code> row; a missing weather year raises an
+  error naming the uncovered years. A specific <code>weather_year</code> that does not match any
+  weather year in the load data raises a descriptive error telling you to set the
+  <code>weather_year</code> setting. No coverage check is performed when this column is absent.</li>
+</ul>
+<p><strong><code>time_index</code> values</strong>:</p>
+<ul>
+<li><strong><code>all</code> / <code>all_hours</code></strong> – adds the demand increment to every hour of the weather
+  year(s) selected by <code>weather_year</code> (flat load addition). For each selected weather
+  year, one copy is added per hour actually present in that weather year.</li>
+<li><strong>Integer</strong> – adds the demand increment only to the hour with that index; with
+  <code>weather_year</code> set to <code>all</code>, it is applied to that hour in every weather year.</li>
+</ul>
+<p><strong>Scenario handling</strong>:</p>
+<p>If the supplemental demand file contains multiple scenarios and no scenario is specified, PowerGenome raises:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ValueError: The supplemental_demand table contains multiple scenarios
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>(&#39;baseline&#39;, &#39;high_data_center&#39;) but no scenario has been selected.
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>Specify which scenario to use in your settings file, for example:
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    supplemental_demand_table:
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>      table_name: supplemental_demand.csv
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>      scenario: baseline
+</code></pre></div>
+<p><strong>File co-located with a database</strong>:</p>
+<p>When <code>data_location</code> points to a database file (<code>.db</code>, <code>.duckdb</code>), a filename with a
+<code>.csv</code> or <code>.parquet</code> extension is resolved relative to the database's parent directory:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/pg_data.db</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nt">supplemental_demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">supplemental_demand.csv</span><span class="w">  </span><span class="c1"># → /data/supplemental_demand.csv</span>
+</code></pre></div>
+<p><strong>Example supplemental demand CSV</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>region,time_index,load_mw,year,scenario
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>WEST,all_hours,500,2030,base_data_center
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>WEST,all_hours,800,2035,base_data_center
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>EAST,all_hours,200,2030,base_data_center
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>EAST,1,300,2030,base_data_center
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>WEST,all_hours,1000,2030,high_data_center
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>WEST,all_hours,1500,2035,high_data_center
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>EAST,all_hours,400,2030,high_data_center
+</code></pre></div>
+<p>For a step-by-step guide see <a href="../../../how-to/add-supplemental-demand/">Add Supplemental Hourly Demand</a>.</p>
 <h2 id="related-settings">Related Settings<a class="headerlink" href="#related-settings" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../data-tables/">Data Tables</a>: Format specification for <code>demand_table</code></li>
+<li><a href="../data-tables/">Data Tables</a>: Format specification for all data tables</li>
 <li><a href="../regions/">Regions</a>: Model region definitions</li>
 <li><a href="../time-reduction/">Time Reduction</a>: Representative period selection</li>
 <li><a href="../model-definition/">Model Definition</a>: Planning years configuration</li>

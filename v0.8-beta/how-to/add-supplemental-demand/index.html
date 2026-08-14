@@ -12,13 +12,13 @@
         <meta name="author" content="PowerGenome Team">
       
       
-        <link rel="canonical" href="https://powergenome.github.io/PowerGenome/latest/how-to/debugging/">
+        <link rel="canonical" href="https://powergenome.github.io/PowerGenome/latest/how-to/add-supplemental-demand/">
       
       
-        <link rel="prev" href="../validate-settings/">
+        <link rel="prev" href="../energy-share-requirements/">
       
       
-        <link rel="next" href="../../reference/">
+        <link rel="next" href="../validate-settings/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Debugging - PowerGenome Documentation</title>
+        <title>Add Supplemental Hourly Demand - PowerGenome Documentation</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#debugging" class="md-skip">
+        <a href="#add-supplemental-hourly-demand" class="md-skip">
           Skip to content
         </a>
       
@@ -120,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Debugging
+              Add Supplemental Hourly Demand
             
           </span>
         </div>
@@ -934,10 +934,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../add-supplemental-demand/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Add Supplemental Hourly Demand
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -953,6 +980,181 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-create-the-supplemental-demand-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Create the supplemental demand file
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 1: Create the supplemental demand file">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-all-all_hours" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using all / all_hours
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-specific-hour-indices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using specific hour indices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mixing-all_hours-and-specific-hours" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mixing all_hours and specific hours
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-point-settings-at-the-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Point settings at the file
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 2: Point settings at the file">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-location-is-a-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data location is a folder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-location-is-a-database-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data location is a database file
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-select-a-scenario-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Select a scenario (optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-handle-multiple-weather-years" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Handle multiple weather years
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-choose-base-or-model-regions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Choose base or model regions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -990,37 +1192,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Debugging
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../debugging/" class="md-nav__link">
         
   
   
@@ -1036,197 +1211,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#where-to-look-first" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where to look first
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#common-errors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Common errors
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Common errors">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#keyerror-model_year-or-other-required-parameter" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        KeyError: 'model_year' (or other required parameter)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#runtimeerror-failed-to-create-table-name" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        RuntimeError: Failed to create table &lt;name&gt;
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#filenotfounderror-no-such-file-or-directory" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        FileNotFoundError: No such file or directory
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#assertionerror-number-of-years-in-model_year-must-equal-model_first_planning_year" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        AssertionError: number of years in model_year must equal model_first_planning_year
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#valueerror-the-requested-case-ids-are-not-in-your-scenario-inputs-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ValueError: The requested case IDs … are not in your scenario inputs file
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#warning-one-or-more-model-regions-is-not-valid" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Warning: One or more model regions is not valid
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#warning-the-years-in-scenario_definitions_fn-do-not-match-model_year" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Warning: The years in scenario_definitions_fn do not match model_year
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#generator-clustering-produces-unexpected-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Generator clustering produces unexpected groups
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#load-profiles-are-all-zeros-or-missing-regions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Load profiles are all zeros or missing regions
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#time-domain-reduction-produces-errors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Time domain reduction produces errors
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#output-files-are-empty-or-very-small" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Output files are empty or very small
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#checking-settings-are-correct" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Checking settings are correct
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#getting-help" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Getting help
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2357,10 +2341,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#where-to-look-first" class="md-nav__link">
+  <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Where to look first
+        Prerequisites
       
     </span>
   </a>
@@ -2368,22 +2352,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#common-errors" class="md-nav__link">
+  <a href="#step-1-create-the-supplemental-demand-file" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Common errors
+        Step 1: Create the supplemental demand file
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Common errors">
+    <nav class="md-nav" aria-label="Step 1: Create the supplemental demand file">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#keyerror-model_year-or-other-required-parameter" class="md-nav__link">
+  <a href="#using-all-all_hours" class="md-nav__link">
     <span class="md-ellipsis">
       
-        KeyError: 'model_year' (or other required parameter)
+        Using all / all_hours
       
     </span>
   </a>
@@ -2391,10 +2375,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#runtimeerror-failed-to-create-table-name" class="md-nav__link">
+  <a href="#using-specific-hour-indices" class="md-nav__link">
     <span class="md-ellipsis">
       
-        RuntimeError: Failed to create table &lt;name&gt;
+        Using specific hour indices
       
     </span>
   </a>
@@ -2402,98 +2386,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#filenotfounderror-no-such-file-or-directory" class="md-nav__link">
+  <a href="#mixing-all_hours-and-specific-hours" class="md-nav__link">
     <span class="md-ellipsis">
       
-        FileNotFoundError: No such file or directory
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#assertionerror-number-of-years-in-model_year-must-equal-model_first_planning_year" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        AssertionError: number of years in model_year must equal model_first_planning_year
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#valueerror-the-requested-case-ids-are-not-in-your-scenario-inputs-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ValueError: The requested case IDs … are not in your scenario inputs file
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#warning-one-or-more-model-regions-is-not-valid" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Warning: One or more model regions is not valid
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#warning-the-years-in-scenario_definitions_fn-do-not-match-model_year" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Warning: The years in scenario_definitions_fn do not match model_year
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#generator-clustering-produces-unexpected-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Generator clustering produces unexpected groups
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#load-profiles-are-all-zeros-or-missing-regions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Load profiles are all zeros or missing regions
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#time-domain-reduction-produces-errors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Time domain reduction produces errors
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#output-files-are-empty-or-very-small" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Output files are empty or very small
+        Mixing all_hours and specific hours
       
     </span>
   </a>
@@ -2506,10 +2402,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#checking-settings-are-correct" class="md-nav__link">
+  <a href="#step-2-point-settings-at-the-file" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Checking settings are correct
+        Step 2: Point settings at the file
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 2: Point settings at the file">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-location-is-a-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data location is a folder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-location-is-a-database-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data location is a database file
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-select-a-scenario-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Select a scenario (optional)
       
     </span>
   </a>
@@ -2517,10 +2452,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#getting-help" class="md-nav__link">
+  <a href="#step-4-handle-multiple-weather-years" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Getting help
+        Step 4: Handle multiple weather years
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-choose-base-or-model-regions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Choose base or model regions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related documentation
       
     </span>
   </a>
@@ -2595,195 +2563,186 @@
   
 
 
-<h1 id="debugging">Debugging<a class="headerlink" href="#debugging" title="Permanent link">&para;</a></h1>
-<p>This guide covers the most common errors and problems you may encounter when running PowerGenome and how to fix them.</p>
-<h2 id="where-to-look-first">Where to look first<a class="headerlink" href="#where-to-look-first" title="Permanent link">&para;</a></h2>
-<p>PowerGenome writes a detailed log file to your results folder:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>results/
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>└── log.txt   ← check here first
-</code></pre></div>
-<p>The log captures <code>DEBUG</code>-level messages, including which tables were loaded, what clusters were built, and any warnings about missing data. The terminal only shows <code>INFO</code> and above.</p>
+<h1 id="add-supplemental-hourly-demand">Add Supplemental Hourly Demand<a class="headerlink" href="#add-supplemental-hourly-demand" title="Permanent link">&para;</a></h1>
+<p>This guide explains how to inject additional hourly demand (e.g. data-center load forecasts, new industrial loads) into an existing PowerGenome scenario on top of the baseline demand profiles.</p>
+<p>For the full parameter reference see <a href="../../reference/settings/demand/#supplemental_demand_table">Demand Settings</a>.</p>
 <hr />
-<h2 id="common-errors">Common errors<a class="headerlink" href="#common-errors" title="Permanent link">&para;</a></h2>
-<h3 id="keyerror-model_year-or-other-required-parameter"><code>KeyError: 'model_year'</code> (or other required parameter)<a class="headerlink" href="#keyerror-model_year-or-other-required-parameter" title="Permanent link">&para;</a></h3>
-<p><strong>Cause</strong>: A required settings parameter is missing from your YAML files.</p>
-<p><strong>Fix</strong>: Check that the parameter is present in one of your settings files:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;model_year&quot;</span><span class="w"> </span>settings/
-</code></pre></div>
-<p>Common required parameters:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">model_periods</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2020</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">target_usd_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2022</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nt">model_regions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">CA_N</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CA_S</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">model_tag_names</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">THERM</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">VRE</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">MUST_RUN</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">STOR</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">FLEX</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">HYDRO</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">LDS</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">ELECTROLYZER</span><span class="p p-Indicator">]</span>
-</code></pre></div>
-<p>See <a href="../../reference/settings/model-definition/">Model Definition</a> for the full list.</p>
-<hr />
-<h3 id="runtimeerror-failed-to-create-table-name"><code>RuntimeError: Failed to create table &lt;name&gt;</code><a class="headerlink" href="#runtimeerror-failed-to-create-table-name" title="Permanent link">&para;</a></h3>
-<p><strong>Cause</strong>: DataManager could not load a table specified in settings.</p>
-<p><strong>Fix</strong>: Check three things:</p>
-<ol>
-<li>
-<p><strong>File exists</strong> — confirm the file is in <code>data_location</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>ls<span class="w"> </span>/path/to/data_location/
-</code></pre></div>
-</li>
-<li>
-<p><strong>Correct key</strong> — verify the setting name matches the expected key (e.g., <code>generation_table</code>, not <code>generators</code>):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Correct</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">generation_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generators.parquet</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Wrong key — will be silently ignored</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="nt">generators</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generators.parquet</span>
-</code></pre></div>
-</li>
-<li>
-<p><strong>File extension</strong> — always include <code>.csv</code> or <code>.parquet</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Correct</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand.parquet</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># May fail if auto-detection doesn&#39;t find it</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="nt">demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand</span>
-</code></pre></div>
-</li>
-</ol>
-<hr />
-<h3 id="filenotfounderror-no-such-file-or-directory"><code>FileNotFoundError: No such file or directory</code><a class="headerlink" href="#filenotfounderror-no-such-file-or-directory" title="Permanent link">&para;</a></h3>
-<p><strong>Cause</strong>: A path in settings doesn't exist. Most commonly <code>data_location</code>, <code>input_folder</code>, or a file pointed to by a <code>_fn</code> parameter.</p>
-<p><strong>Fix</strong>: Use an absolute path to rule out working-directory issues:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Use absolute path</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/Users/me/powergenome_data</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="nt">input_folder</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">extra_inputs</span><span class="w">   </span><span class="c1"># Relative paths are resolved from the settings folder</span>
-</code></pre></div>
-<p>Run PowerGenome from the same directory that contains your settings folder.</p>
-<hr />
-<h3 id="assertionerror-number-of-years-in-model_year-must-equal-model_first_planning_year"><code>AssertionError: number of years in model_year must equal model_first_planning_year</code><a class="headerlink" href="#assertionerror-number-of-years-in-model_year-must-equal-model_first_planning_year" title="Permanent link">&para;</a></h3>
-<p><strong>Cause</strong>: Using the legacy <code>model_year</code> + <code>model_first_planning_year</code> format with lists of different lengths.</p>
-<p><strong>Fix</strong>: Switch to <code>model_periods</code> (preferred), or ensure both lists are the same length — one entry per planning period:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Preferred</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nt">model_periods</span><span class="p">:</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2020</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2031</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2041</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2050</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Legacy equivalent (lists must be the same length)</span>
-<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="nt">model_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2030</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2050</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="nt">model_first_planning_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2020</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2031</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2041</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># same length</span>
-</code></pre></div>
-<hr />
-<h3 id="valueerror-the-requested-case-ids-are-not-in-your-scenario-inputs-file"><code>ValueError: The requested case IDs … are not in your scenario inputs file</code><a class="headerlink" href="#valueerror-the-requested-case-ids-are-not-in-your-scenario-inputs-file" title="Permanent link">&para;</a></h3>
-<p><strong>Cause</strong>: You passed <code>--case-id</code> values to the CLI that don't exist in <code>scenario_definitions_fn</code>.</p>
-<p><strong>Fix</strong>: Check the <code>case_id</code> column in your scenario definitions CSV:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>head<span class="w"> </span>-1<span class="w"> </span>extra_inputs/scenario_definitions.csv
-</code></pre></div>
-<p>Or omit <code>--case-id</code> to run all cases.</p>
-<hr />
-<h3 id="warning-one-or-more-model-regions-is-not-valid"><code>Warning: One or more model regions is not valid</code><a class="headerlink" href="#warning-one-or-more-model-regions-is-not-valid" title="Permanent link">&para;</a></h3>
-<p><strong>Cause</strong>: A region name in <code>model_regions</code> doesn't match any IPM region or key in <code>region_aggregations</code>.</p>
-<p><strong>Fix</strong>: Check spelling carefully — region names are case-sensitive:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">model_regions</span><span class="p">:</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CA_N</span><span class="w">    </span><span class="c1"># must match keys in region_aggregations</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CA_S</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="nt">region_aggregations</span><span class="p">:</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">WEC_CALN</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">WEC_LADW</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">WEC_SCE</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">WEC_SDGE</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">WECC_TID</span><span class="p p-Indicator">]</span>
-</code></pre></div>
-<hr />
-<h3 id="warning-the-years-in-scenario_definitions_fn-do-not-match-model_year"><code>Warning: The years in scenario_definitions_fn do not match model_year</code><a class="headerlink" href="#warning-the-years-in-scenario_definitions_fn-do-not-match-model_year" title="Permanent link">&para;</a></h3>
-<p><strong>Cause</strong>: The <code>year</code> column of your scenario definitions CSV doesn't match the planning period end years.</p>
-<p><strong>Fix</strong>: Make sure the <code>year</code> values in the CSV match the last year of each period in <code>model_periods</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># settings</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nt">model_periods</span><span class="p">:</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2020</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2031</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">]</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a># scenario_definitions.csv
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>case_id,year,...
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>baseline,2030,...
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>baseline,2040,...
-</code></pre></div>
-<hr />
-<h3 id="generator-clustering-produces-unexpected-groups">Generator clustering produces unexpected groups<a class="headerlink" href="#generator-clustering-produces-unexpected-groups" title="Permanent link">&para;</a></h3>
-<p><strong>Cause</strong>: Multiple possible causes — technology name mismatches, incorrect cluster counts, or plants being filtered out.</p>
-<p><strong>Diagnostics</strong>:</p>
-<ol>
-<li>Check <code>log.txt</code> for messages about the number of plants being clustered per region/technology.</li>
-<li>Verify that technology names in your data match what's expected in <code>tech_fuel_map</code> and <code>model_tag_values</code>. Technology name matching is case-insensitive substring matching.</li>
-<li>
-<p>Check <code>num_clusters</code> and <code>alt_num_clusters</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">num_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">  </span><span class="c1"># Default clusters per region/tech</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="nt">alt_num_clusters</span><span class="p">:</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="nt">NaturalGas_CCAvgCF_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">  </span><span class="c1"># Override for a specific region/tech</span>
-</code></pre></div>
-</li>
-</ol>
-<hr />
-<h3 id="load-profiles-are-all-zeros-or-missing-regions">Load profiles are all zeros or missing regions<a class="headerlink" href="#load-profiles-are-all-zeros-or-missing-regions" title="Permanent link">&para;</a></h3>
-<p><strong>Cause</strong>: <code>demand_table</code> configuration doesn't include all model regions, or the region column name differs from what PowerGenome expects.</p>
-<p><strong>Fix</strong>:</p>
-<ol>
-<li>Check the column names in your demand file — PowerGenome auto-detects the region column but expects values to match <code>model_regions</code>.</li>
-<li>
-<p>If using a filtered demand table, ensure the filter includes all required regions:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">demand_table</span><span class="p">:</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand.parquet</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;in&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;CA_N&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;CA_S&#39;</span><span class="p p-Indicator">]]</span>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
-</code></pre></div>
-</li>
-</ol>
-<hr />
-<h3 id="time-domain-reduction-produces-errors">Time domain reduction produces errors<a class="headerlink" href="#time-domain-reduction-produces-errors" title="Permanent link">&para;</a></h3>
-<p><strong>Cause</strong>: Usually a mismatch between <code>time_domain_periods</code> and the number of hours in your data, or missing required parameters.</p>
-<p><strong>Fix</strong>: Ensure all four required parameters are present when <code>reduce_time_domain: true</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">reduce_time_domain</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="nt">time_domain_periods</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">12</span><span class="w">          </span><span class="c1"># number of representative periods</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="nt">time_domain_days_per_period</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span><span class="w">   </span><span class="c1"># days per period (7 = weekly)</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="nt">include_peak_day</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="nt">demand_weight_factor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
-</code></pre></div>
-<p>Time domain reduction only works on data with ≤ 8760 hourly rows. Check <code>log.txt</code> for the warning message if it's being skipped.</p>
-<hr />
-<h3 id="output-files-are-empty-or-very-small">Output files are empty or very small<a class="headerlink" href="#output-files-are-empty-or-very-small" title="Permanent link">&para;</a></h3>
-<p><strong>Cause</strong>: Missing resource tag assignments, or all generators were filtered out before output.</p>
-<p><strong>Fix</strong>:</p>
-<ol>
-<li>Check that <code>model_tag_names</code> is fully defined and all resources have tag values assigned.</li>
-<li>
-<p>Verify <code>model_tag_values</code> covers your resource types (use substring matching — <code>NaturalGas</code> will match <code>NaturalGas_CCAvgCF_Moderate</code>):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">model_tag_names</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">THERM</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">VRE</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">MUST_RUN</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">STOR</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nt">model_tag_values</span><span class="p">:</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span><span class="nt">NaturalGas</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">THERM</span><span class="p">:</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="nt"> VRE</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">}</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span><span class="nt">UtilityPV</span><span class="p">:</span><span class="w">  </span><span class="p p-Indicator">{</span><span class="nt">THERM</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nt"> VRE</span><span class="p">:</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">}</span>
-</code></pre></div>
-</li>
-</ol>
-<hr />
-<h2 id="checking-settings-are-correct">Checking settings are correct<a class="headerlink" href="#checking-settings-are-correct" title="Permanent link">&para;</a></h2>
-<p>Validate settings load without running the full pipeline:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_settings</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;settings&quot;</span><span class="p">))</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model_year&quot;</span><span class="p">))</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model_regions&quot;</span><span class="p">))</span>
-</code></pre></div>
-<p>Confirm DataManager can see your tables:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">initialize_data_manager</span><span class="p">,</span> <span class="n">get_data_manager</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">initialize_data_manager</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">settings</span><span class="p">[</span><span class="s2">&quot;data_location&quot;</span><span class="p">])</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">dm</span> <span class="o">=</span> <span class="n">get_data_manager</span><span class="p">()</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">dm</span><span class="o">.</span><span class="n">list_tables</span><span class="p">())</span>
-</code></pre></div>
-<hr />
-<h2 id="getting-help">Getting help<a class="headerlink" href="#getting-help" title="Permanent link">&para;</a></h2>
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Review the <a href="../../reference/settings/">Settings Reference</a> to check parameter names and types</li>
-<li>Use the <a href="https://gschivley.github.io/PowerGenome-tools/web/">System Design tool</a> to generate a known-good settings baseline to compare against</li>
-<li>Open an issue on <a href="https://github.com/PowerGenome/PowerGenome">GitHub</a> with your log file attached</li>
+<li>Completed the <a href="../../tutorials/getting-started/">Getting Started</a> tutorial</li>
+<li>Baseline demand already configured via <a href="../../reference/settings/demand/#demand_table"><code>demand_table</code></a></li>
+</ul>
+<hr />
+<h2 id="step-1-create-the-supplemental-demand-file">Step 1: Create the supplemental demand file<a class="headerlink" href="#step-1-create-the-supplemental-demand-file" title="Permanent link">&para;</a></h2>
+<p>Create a CSV (or Parquet) file with the additional load you want to add. At minimum you need three columns:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>region</code></td>
+<td>Base region <strong>or</strong> model region name (see <a href="#step-5-choose-base-or-model-regions">Step 5: Choose base or model regions</a>)</td>
+</tr>
+<tr>
+<td><code>time_index</code></td>
+<td>Integer hour index (1-based) <strong>or</strong> the string <code>all</code> / <code>all_hours</code></td>
+</tr>
+<tr>
+<td><code>load_mw</code></td>
+<td>MW of demand to add</td>
+</tr>
+</tbody>
+</table>
+<p>Optional columns that PowerGenome will automatically use if present:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>year</code></td>
+<td>Planning year; when present, rows are filtered to the current <code>model_year</code></td>
+</tr>
+<tr>
+<td><code>scenario</code></td>
+<td>Scenario identifier; when present <strong>exactly one</strong> scenario must remain after loading (see <a href="#step-3-select-a-scenario-optional">Step 3</a>)</td>
+</tr>
+<tr>
+<td><code>weather_year</code></td>
+<td>Weather year; use <code>all</code> to apply to every weather year, a specific year (e.g. <code>2012</code>) to apply only to that weather year, or a blank value to <strong>skip</strong> the row (see <a href="#step-4-handle-multiple-weather-years">Step 4</a>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="using-all-all_hours">Using <code>all</code> / <code>all_hours</code><a class="headerlink" href="#using-all-all_hours" title="Permanent link">&para;</a></h3>
+<p>Setting <code>time_index</code> to <code>all</code> (or the equivalent <code>all_hours</code>) adds a flat increment to <strong>every</strong> hour in the load curves. This is the most common way to add a new constant load:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>region,time_index,load_mw,year
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>WEST,all_hours,500,2035
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>EAST,all,200,2035
+</code></pre></div>
+<h3 id="using-specific-hour-indices">Using specific hour indices<a class="headerlink" href="#using-specific-hour-indices" title="Permanent link">&para;</a></h3>
+<p>Supply an integer <code>time_index</code> when the extra load should only appear at certain hours:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>region,time_index,load_mw,year
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>WEST,1,300,2035
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>WEST,2,310,2035
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>WEST,3,295,2035
+</code></pre></div>
+<h3 id="mixing-all_hours-and-specific-hours">Mixing <code>all_hours</code> and specific hours<a class="headerlink" href="#mixing-all_hours-and-specific-hours" title="Permanent link">&para;</a></h3>
+<p>You can include both in the same file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>region,time_index,load_mw,year,scenario
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>WEST,all_hours,500,2035,high_data_center
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>EAST,1,200,2035,high_data_center
+</code></pre></div>
+<hr />
+<h2 id="step-2-point-settings-at-the-file">Step 2: Point settings at the file<a class="headerlink" href="#step-2-point-settings-at-the-file" title="Permanent link">&para;</a></h2>
+<h3 id="data-location-is-a-folder">Data location is a folder<a class="headerlink" href="#data-location-is-a-folder" title="Permanent link">&para;</a></h3>
+<p>If <code>data_location</code> is a folder, place the file in that folder and reference it by name:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># settings/data.yml</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/data_folder</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nt">supplemental_demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">supplemental_demand.csv</span>
+</code></pre></div>
+<h3 id="data-location-is-a-database-file">Data location is a database file<a class="headerlink" href="#data-location-is-a-database-file" title="Permanent link">&para;</a></h3>
+<p>You can place the CSV or Parquet file <strong>next to the database</strong> and reference it by filename. PowerGenome resolves it relative to the database's parent directory:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/pg_data.db</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># resolved as /data/supplemental_demand.csv</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nt">supplemental_demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">supplemental_demand.csv</span>
+</code></pre></div>
+<p>Alternatively, if the supplemental demand is stored as a table <strong>inside</strong> the database, reference it without an extension:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/pg_data.db</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nt">supplemental_demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">supplemental_demand</span><span class="w">  </span><span class="c1"># table inside pg_data.db</span>
+</code></pre></div>
+<hr />
+<h2 id="step-3-select-a-scenario-optional">Step 3: Select a scenario (optional)<a class="headerlink" href="#step-3-select-a-scenario-optional" title="Permanent link">&para;</a></h2>
+<p>If your supplemental demand file contains multiple scenarios (identified by a <code>scenario</code> column), you <strong>must</strong> specify which one to use. Without a selection, PowerGenome raises an error listing the available options.</p>
+<p>Use the dictionary format:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">supplemental_demand_table</span><span class="p">:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">supplemental_demand.csv</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_data_center</span>
+</code></pre></div>
+<p>PowerGenome will filter the table to rows where <code>scenario = "high_data_center"</code> before applying the demand additions.</p>
+<div class="admonition tip">
+<p class="admonition-title">Multi-scenario studies</p>
+<p>You can vary the <code>supplemental_demand_table</code> scenario across runs using the <a href="../run-scenarios/">scenario management</a> system, just like any other settings value.</p>
+</div>
+<hr />
+<h2 id="step-4-handle-multiple-weather-years">Step 4: Handle multiple weather years<a class="headerlink" href="#step-4-handle-multiple-weather-years" title="Permanent link">&para;</a></h2>
+<p>If your load curves span several weather years (e.g. three years of 8 760 hours = 26 280 hours total), the <code>weather_year</code> column controls which weather year a row is applied to:</p>
+<p><strong>Option A — apply to every weather year (most common)</strong></p>
+<p>Leave out the <code>weather_year</code> column entirely and use <code>all</code> / <code>all_hours</code>, or set <code>weather_year</code> to <code>all</code>. PowerGenome applies the row to every weather year present in the load data.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>region,time_index,load_mw,year
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>WEST,all_hours,500,2035
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>region,time_index,load_mw,year,weather_year
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>WEST,all_hours,500,2035,all
+</code></pre></div>
+<p><strong>Option B — apply only to a specific weather year</strong></p>
+<p>Give the row a specific <code>weather_year</code> value. An <code>all</code> / <code>all_hours</code> row then applies to every hour of only that weather year; a specific integer <code>time_index</code> applies to just that hour within the weather year.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>region,time_index,load_mw,year,weather_year
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>WEST,all_hours,500,2035,2012      # every hour of 2012
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>WEST,all_hours,300,2035,2013      # every hour of 2013
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>WEST,3,400,2035,2013              # hour 3 of 2013 only
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Blank <code>weather_year</code> rows are skipped</p>
+<p>A row with a blank/empty <code>weather_year</code> is <strong>not</strong> applied. Use <code>weather_year: all</code> when you want a row to apply across every weather year.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Coverage check</p>
+<p>When the supplemental demand table includes a <code>weather_year</code> column <strong>and</strong> the load data's weather years are known (via the <code>weather_year</code> setting), every weather year present in the load data must be covered by the supplemental demand table — either by a row for that specific year or by a row with <code>weather_year: all</code>. A missing weather year raises an error naming the years that aren't covered. No coverage check is performed when the supplemental demand table has no <code>weather_year</code> column.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">How supplemental demand is added</p>
+<p>Supplemental demand is joined into the <strong>base load data stage</strong>, before the per-weather-year hours are renumbered 1..N and before base regions are aggregated into model regions. Rows that share the same <code>(region, weather_year, time_index)</code> are summed together, so there is <strong>no tiling</strong> and <strong>no fixed weather-year length assumption</strong>: weather years of different lengths (e.g. a 8 784-hour leap year next to a normal 8 760-hour year) are handled correctly. This is unlike the older implementation, which block-tiled supplemental load using a fixed <code>hours_per_year</code>.</p>
+</div>
+<hr />
+<h2 id="step-5-choose-base-or-model-regions">Step 5: Choose base or model regions<a class="headerlink" href="#step-5-choose-base-or-model-regions" title="Permanent link">&para;</a></h2>
+<p>The <code>region</code> column accepts <strong>either</strong> a base region name or a model region name:</p>
+<ul>
+<li><strong>Base region name</strong> — the row is mapped to the model region that contains that base region (as configured by <code>region_aggregations</code>), and its demand is added to the aggregate's load. If a base region is part of an aggregation, the added demand contributes to the aggregated model region.</li>
+<li><strong>Model region name</strong> — the row is applied as-is to the model region.</li>
+</ul>
+<p>When the name is a base region that is part of a model-region aggregation, the supplemental demand is added to that one base region, and the aggregation then includes it in the model region. This is equivalent to adding it directly to the model region. Names that match neither a known base region nor a known model region are logged as a warning and ignored.</p>
+<hr />
+<h2 id="complete-example">Complete example<a class="headerlink" href="#complete-example" title="Permanent link">&para;</a></h2>
+<p><strong><code>supplemental_demand.csv</code></strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>region,time_index,load_mw,year,scenario
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>WEST,all_hours,500,2030,base_data_center
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>WEST,all_hours,800,2035,base_data_center
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>EAST,all_hours,200,2030,base_data_center
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>EAST,all_hours,300,2035,base_data_center
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>WEST,all_hours,1000,2030,high_data_center
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>WEST,all_hours,1500,2035,high_data_center
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>EAST,all_hours,400,2030,high_data_center
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>EAST,all_hours,600,2035,high_data_center
+</code></pre></div>
+<p><strong><code>settings/data.yml</code></strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/pg_data.db</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="nt">supplemental_demand_table</span><span class="p">:</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">supplemental_demand.csv</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_data_center</span>
+</code></pre></div>
+<p>PowerGenome will:</p>
+<ol>
+<li>Load rows where <code>scenario = "high_data_center"</code></li>
+<li>Filter to the current <code>model_year</code> (because the <code>year</code> column is present)</li>
+<li>Add the <code>load_mw</code> values to every hour in every matching region</li>
+</ol>
+<hr />
+<h2 id="related-documentation">Related documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../../reference/settings/demand/">Demand Settings Reference</a>: Full <code>supplemental_demand_table</code> parameter reference</li>
+<li><a href="../configure-data-tables/">Configure Data Tables</a>: General data table configuration guide</li>
+<li><a href="../run-scenarios/">Run Multi-Scenario Studies</a>: Vary supplemental demand across scenarios</li>
 </ul>
 
 
