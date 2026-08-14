@@ -420,9 +420,15 @@ def test_load_data_folder_no_filename(tmp_path):
 
 
 def test_load_data_db_with_extension(tmp_sqlite_db):
-    # Passing a file name with extension when data_location is a DB
-    with pytest.raises(ValueError, match=r"should not have an extension"):
+    # Passing a CSV file name when data_location is a DB: file not found next to DB
+    with pytest.raises(ValueError, match=r"not found in"):
         load_data(tmp_sqlite_db, file_or_table_name="foo.csv")
+
+
+def test_load_data_db_unsupported_extension(tmp_sqlite_db):
+    # A non-CSV/parquet name next to a DB is neither a supported file nor a table.
+    with pytest.raises(ValueError, match=r"unsupported extension"):
+        load_data(tmp_sqlite_db, file_or_table_name="foo.xlsx")
 
 
 def test_load_table_from_db_unsupported_type(tmp_path):

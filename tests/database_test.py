@@ -764,8 +764,8 @@ class TestValidation:
         # Tables should be successfully created
         assert len(dm.available_tables) > 0
 
-    def test_database_table_with_extension_warning(self, sample_data, caplog):
-        """Test warning when database table names have file extensions."""
+    def test_database_table_with_extension_not_found(self, sample_data):
+        """Test error when a file with extension is not found next to the database."""
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
             db_path = temp_file.name
 
@@ -777,26 +777,13 @@ class TestValidation:
             conn.close()
 
             settings = {
-                "generation_table": "generators.csv"  # Table name with extension (wrong for DB)
+                "generation_table": "generators.csv"  # file doesn't exist next to the DB
             }
 
             dm = DataManager()
-            with caplog.at_level(logging.WARNING):
-                # Expect RuntimeError due to table not found (DB doesn't have generators.csv table)
-                with pytest.raises(
-                    RuntimeError, match="Failed to create table generation"
-                ):
-                    dm.initialize(settings, Path(db_path))
-
-            # Check that warnings were logged before the error occurred
-            warning_messages = [
-                record.message
-                for record in caplog.records
-                if record.levelno >= logging.WARNING
-            ]
-            assert any(
-                "appears to have a file extension" in msg for msg in warning_messages
-            )
+            # Expect RuntimeError wrapping ValueError about file not found
+            with pytest.raises(RuntimeError, match="Failed to create table generation"):
+                dm.initialize(settings, Path(db_path))
 
         finally:
             Path(db_path).unlink(missing_ok=True)
@@ -824,6 +811,49 @@ class TestValidation:
 
         # Tables should be successfully created
         assert len(dm.available_tables) > 0
+
+    def test_csv_file_colocated_with_database(self, sample_data):
+        """Test loading a CSV file co-located in the same directory as the database."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            db_path = tmp_path / "data.db"
+
+            # Create a SQLite database
+            conn = sqlite3.connect(str(db_path))
+            sample_data["generators"].to_sql(
+                "generators", conn, index=False, if_exists="replace"
+            )
+            conn.close()
+
+            # Write a CSV file next to the database
+            csv_path = tmp_path / "supplemental_demand.csv"
+            supp_df = pd.DataFrame(
+                {
+                    "region": ["R1", "R1"],
+                    "time_index": [1, 2],
+                    "load_mw": [100.0, 200.0],
+                }
+            )
+            supp_df.to_csv(csv_path, index=False)
+
+            settings = {
+                "generation_table": "generators",
+                "supplemental_demand_table": "supplemental_demand.csv",
+            }
+
+            dm = DataManager()
+            dm.initialize(settings, db_path)
+
+            # Both tables should be available
+            assert "generation" in dm.available_tables
+            assert "supplemental_demand" in dm.available_tables
+
+            # Verify the CSV data is accessible
+            result = dm.get_data("supplemental_demand")
+            assert len(result) == 2
+            assert list(result["region"]) == ["R1", "R1"]
 
     def test_dict_config_validation_warning(self, temp_csv_folder, caplog):
         """Test validation with dictionary configuration."""

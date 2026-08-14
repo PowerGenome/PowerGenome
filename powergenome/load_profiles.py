@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from powergenome.database import get_data
+from powergenome.database import get_data, list_tables
 from powergenome.distributed_gen import get_distributed_gen_hourly_generation
 from powergenome.eia_opendata import get_aeo_load
 from powergenome.external_data import make_demand_response_profiles
@@ -190,6 +190,7 @@ def make_load_curves(
     load_curve_columns = get_data(
         table_name="demand", query="PRAGMA table_info('demand')"
     ).name.to_list()
+    weather_years = None
     if "weather_year" in load_curve_columns:
         if settings.get("weather_year"):
             weather_years = (
@@ -227,7 +228,8 @@ def make_load_curves(
         columns=[c for c in get_cols if c in load_curve_columns],
         filters=filters,
     )
-    if "weather_year" in load_curves.columns:
+    has_weather_year = "weather_year" in load_curves.columns
+    if has_weather_year:
         if load_curves.weather_year.nunique() < len(weather_years):
             missing_years = set(weather_years) - set(load_curves.weather_year.unique())
             raise ValueError(
@@ -236,13 +238,29 @@ def make_load_curves(
                 f"available in the demand profiles table: {missing_years}. "
                 "*********************\n"
             )
-        for r in keep_regions:
-            region_mask = load_curves["region"] == r
-            region_data = load_curves.loc[region_mask]
-            if not region_data.empty:
-                load_curves.loc[region_mask, "time_index"] = np.arange(
-                    1, len(region_data) + 1
-                )
+
+    # Merge supplemental demand (e.g. data-center forecasts) into the LONG load
+    # frame NOW, before hours are renumbered and base regions are aggregated.
+    # Supplemental rows carry the same (region, weather_year, time_index) as the
+    # base load hour they augment, so the renumbering + aggregation below handles
+    # them with no block-tiling and no fixed weather-year length.
+    load_curves = add_supplemental_demand_long(
+        load_curves,
+        model_year=settings["model_year"],
+        keep_regions=keep_regions,
+        region_agg_map=region_agg_map,
+        region_aggregations=settings.get("region_aggregations", {}) or {},
+        weather_years=weather_years if has_weather_year else None,
+    )
+
+    # Renumber hours sequentially 1..N per region. Base and supplemental rows
+    # that share (region, weather_year, time_index) receive the SAME renumbered
+    # hour, and weather-year block lengths are derived from the base-load rows so
+    # variable-length (e.g. leap vs non-leap) weather years both work. The frame
+    # is sorted by (region, weather_year, time_index) first so the numbering is
+    # deterministic regardless of the order rows arrive from the database.
+    if has_weather_year:
+        load_curves = _renumber_load_hours(load_curves, weather_years)
     # if settings["model_year"] in demand_years["year"].to_list():
     #     s = f"""
     #         SELECT year, region, time_index, load_mw
@@ -731,6 +749,582 @@ def load_usr_demand_profiles(settings):
         return None
 
 
+def _norm_weather_year(value):
+    """Normalize a ``weather_year`` value for matching.
+
+    ``None``/``NaN``/empty string -> ``None``, ``"all"`` (any case) -> ``"all"``,
+    numeric strings and numbers -> ``int``, anything else is returned unchanged.
+    """
+    if value is None:
+        return None
+    if isinstance(value, float) and np.isnan(value):
+        return None
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+        if s.lower() == "all":
+            return "all"
+        try:
+            return int(s)
+        except ValueError:
+            return value
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    return value
+
+
+def _load_supplemental_demand(model_year: int) -> Optional[pd.DataFrame]:
+    """Load and normalize the ``supplemental_demand`` table from DataManager.
+
+    Returns a long-format DataFrame with at least the columns ``region``,
+    ``time_index``, ``load_mw``, plus the normalized helper column ``_time``
+    (either the string ``"all"`` or a single integer hour) and, when the table has
+    a ``weather_year`` column, the normalized ``_norm_wy`` column (a concrete
+    year, ``"all"``, or ``None`` for blank).  Returns ``None`` when the table is
+    not registered or is empty after filtering.
+
+    Because the result is long format, ``time_index`` here is the *per-weather
+    year* hour number (e.g. 1..8760) rather than a global hour number — the caller
+    is responsible for arranging the rows into weather-year blocks.
+
+    Parameters
+    ----------
+    model_year : int
+        Planning year used to filter the table (only applied when the table
+        contains a ``year`` column).
+    """
+    if "supplemental_demand" not in list_tables():
+        return None
+
+    # Discover the columns available in the supplemental demand table.
+    try:
+        col_info = get_data(
+            "supplemental_demand", query="PRAGMA table_info('supplemental_demand')"
+        )
+        supp_cols = col_info["name"].tolist()
+    except Exception:
+        col_info = get_data("supplemental_demand", query="DESCRIBE supplemental_demand")
+        supp_cols = col_info.iloc[:, 0].tolist()
+
+    # Validate that the table has the required columns so users get a helpful
+    # error instead of a raw KeyError later.
+    missing_cols = [
+        c for c in ("region", "time_index", "load_mw") if c not in supp_cols
+    ]
+    if missing_cols:
+        raise ValueError(
+            "The supplemental_demand table is missing required column(s): "
+            f"{', '.join(missing_cols)}. It must include 'region', 'time_index', "
+            "and 'load_mw'. Check the table/file configured in your settings "
+            "file, for example:\n\n"
+            "    supplemental_demand_table:\n"
+            "      table_name: <your_table_or_file>"
+        )
+
+    # Only keep rows for the current model year when the table has a year column;
+    # the rest of the filtering is left to the DataManager config.
+    filters = None
+    if "year" in supp_cols:
+        filters = [
+            [("year", "=", model_year)],
+        ]
+
+    supp_df = get_data("supplemental_demand", filters=filters)
+    if supp_df.empty:
+        return None
+
+    # A `scenario` column must resolve to exactly one scenario after any
+    # DataManager-level filtering; otherwise the user must select one in settings.
+    if "scenario" in supp_df.columns:
+        scenarios = supp_df["scenario"].dropna().unique().tolist()
+        if len(scenarios) > 1:
+            scenario_list = ", ".join(
+                f"'{s}'" for s in sorted(str(s) for s in scenarios)
+            )
+            raise ValueError(
+                "The supplemental_demand table contains multiple scenarios "
+                f"({scenario_list}) but no scenario has been selected. "
+                "Specify which scenario to use in your settings file, for "
+                "example:\n\n"
+                "    supplemental_demand_table:\n"
+                f"      table_name: <your_table_or_file>\n"
+                f"      scenario: {sorted(str(s) for s in scenarios)[0]}"
+            )
+
+    supp_df = supp_df.copy()
+
+    # Normalize time_index: "all" / "all_hours" -> "all"; anything else must be a
+    # single integer hour (rows with other values are dropped with a warning).
+    def _norm_time_index(value):
+        if isinstance(value, str):
+            s = value.strip().lower()
+            if s in ("all", "all_hours"):
+                return "all"
+        return value
+
+    supp_df["_time"] = supp_df["time_index"].map(_norm_time_index)
+    time_as_str = supp_df["_time"].astype(str).str.strip().str.lower()
+    not_all = ~time_as_str.eq("all")
+
+    # Coerce to numeric and reject non-integer hours (e.g. 2.5) rather than truncating.
+    numeric = pd.to_numeric(supp_df.loc[not_all, "_time"], errors="coerce")
+    numeric = numeric.where(numeric.mod(1).eq(0))
+    supp_df.loc[not_all, "_time"] = numeric
+
+    n_dropped = int(supp_df["_time"].isna().sum())
+    if n_dropped:
+        logger.warning(
+            "Dropping %d supplemental demand row(s) with a non-numeric, non-integer, non-all "
+            "time_index.",
+            n_dropped,
+        )
+    supp_df = supp_df.dropna(subset=["_time"])
+    if not supp_df.empty:
+        time_as_str = supp_df["_time"].astype(str).str.strip().str.lower()
+        numeric_mask = ~time_as_str.eq("all")
+        supp_df.loc[numeric_mask, "_time"] = supp_df.loc[numeric_mask, "_time"].astype(
+            int
+        )
+
+    if "weather_year" in supp_cols:
+        # Normalize weather_year: blank -> None (skipped), "all" -> "all",
+        # numeric strings -> int.
+        supp_df["_norm_wy"] = supp_df["weather_year"].map(_norm_weather_year)
+        blank_mask = supp_df["_norm_wy"].isna()
+        n_blank = int(blank_mask.sum())
+        if n_blank:
+            logger.info(
+                "Skipping %d supplemental demand row(s) with a blank weather_year; "
+                "use weather_year='all' to apply them across every weather year.",
+                n_blank,
+            )
+        supp_df = supp_df[~blank_mask]
+
+    if supp_df.empty:
+        return None
+
+    return supp_df
+
+
+def _resolve_supp_region(
+    region: str,
+    region_agg_map: Dict[str, str],
+    region_aggregations: Dict[str, List[str]],
+    keep_regions: List[str],
+) -> Optional[str]:
+    """Resolve a supplemental demand region name to a base load-region name.
+
+    Supplemental demand rows may name a region either by its **base** (IPM
+    sub-region) name or by the **model** region it is aggregated into.  Returns
+    the base region whose rows the supplement should be added to, or ``None`` if
+    the name does not resolve to any base or model region.
+
+    Resolution order:
+
+      1. A base region that is aggregated into a model region (a key of
+         ``region_agg_map``, e.g. ``p1``) is used as-is.
+      2. A model region name (a key of ``region_aggregations``, e.g. ``p1_2``) is
+         mapped to its *first* base region.  Because base regions are summed when
+         aggregated, adding the supplement to any one member of the group adds
+         exactly the supplemental amount to the aggregated model-region profile.
+      3. A standalone model region (present in ``keep_regions``, e.g. ``p3``) has
+         the same name as its base region and is used as-is.
+
+    A name matching none of these is logged as a warning and skipped.
+    """
+    if region in region_agg_map:
+        return region
+    if region in region_aggregations:
+        return region_aggregations[region][0]
+    if region in keep_regions:
+        return region
+    logger.warning(
+        "Supplemental demand region '%s' does not match any base or model region; "
+        "its rows will be skipped. Check the 'region' values in your "
+        "supplemental_demand table.",
+        region,
+    )
+    return None
+
+
+def add_supplemental_demand_long(
+    load_curves: pd.DataFrame,
+    model_year: int,
+    keep_regions: List[str],
+    region_agg_map: Dict[str, str],
+    region_aggregations: Dict[str, List[str]],
+    weather_years: Optional[List[int]] = None,
+) -> pd.DataFrame:
+    """Add supplemental demand to a long (one row per region x hour) load frame.
+
+    Called from :func:`make_load_curves` after the base demand rows are loaded but
+    BEFORE hours are renumbered to 1..N and before base regions are aggregated to
+    model regions.  Supplemental rows are emitted in the same long format as the
+    base load rows (one row per region x weather year x hour) and concatenated
+    onto ``load_curves``; the caller's renumbering + groupby/sum aggregation then
+    merges the two sets of rows.  There is no block-tiling and no assumption that
+    every weather year has the same number of hours.
+
+    Each row is tagged with ``_is_supp`` (0 = base load, 1 = supplemental) so the
+    renumbering step can size weather-year blocks from the base-load rows alone.
+
+    Parameters
+    ----------
+    load_curves : pd.DataFrame
+        Long dataframe of base load with columns ``region``, ``time_index``,
+        ``load_mw`` and (optionally) ``weather_year``.
+    model_year : int
+        Planning year passed to :func:`_load_supplemental_demand`.
+    keep_regions, region_agg_map, region_aggregations
+        Region resolution inputs from :func:`powergenome.util.regions_to_keep`.
+    weather_years : Optional[List[int]], optional
+        Ordered list of weather years known to the load data (usually
+        ``settings["weather_year"]``).  Used to expand ``"all"`` weather_year rows
+        and to validate coverage and specific-year references.
+    """
+    load_curves = load_curves.copy()
+    load_curves["_is_supp"] = 0
+
+    supp = _load_supplemental_demand(model_year)
+    if supp is None:
+        return load_curves
+
+    has_wy_col = "weather_year" in supp.columns
+    has_base_wy = "weather_year" in load_curves.columns
+    present_wys = (
+        sorted(load_curves["weather_year"].dropna().unique().tolist())
+        if has_base_wy
+        else []
+    )
+
+    # Coverage check: run only when the supplemental table has a weather_year
+    # column AND the load data's weather years are known.  Every weather year in
+    # the load data must be covered by a specific-year row or an "all" row.
+    if has_wy_col and weather_years:
+        covered_years = set(
+            supp.loc[~supp["_norm_wy"].astype(str).eq("all"), "_norm_wy"]
+        )
+        if (supp["_norm_wy"] == "all").any():
+            covered_years = set(weather_years)
+        missing_years = sorted(set(weather_years) - covered_years)
+        if missing_years:
+            raise ValueError(
+                "The supplemental_demand table does not cover weather year(s) "
+                f"{missing_years} present in the load data. Add rows with "
+                "weather_year='all' or a row for each specific weather year so "
+                "the supplemental demand can be applied to every weather year."
+            )
+
+    # Base hours present in the load data per (region, weather_year).  Used to
+    # expand "all" rows to the real hours and to skip hours that do not exist.
+    if has_base_wy:
+        base_hours = {
+            (reg, wy): sorted(grp["time_index"].dropna().unique().tolist())
+            for (reg, wy), grp in load_curves.groupby(
+                ["region", "weather_year"], dropna=False, sort=False
+            )
+        }
+    else:
+        base_hours = {
+            reg: sorted(grp["time_index"].dropna().unique().tolist())
+            for reg, grp in load_curves.groupby("region", dropna=False, sort=False)
+        }
+
+    def _target_wys(row) -> List:
+        """Weather-year values a row should be applied to."""
+        if not has_wy_col:
+            # No weather_year column: apply to every weather year in the load
+            # data (or, if the load data has no weather-year structure at all,
+            # to every hour of the region).
+            return present_wys if has_base_wy else [None]
+        wy = row["_norm_wy"]
+        if wy == "all":
+            return present_wys if has_base_wy else [None]
+        if not has_base_wy or wy not in present_wys:
+            raise ValueError(
+                f"A supplemental demand row cites weather_year {wy}, but the "
+                "weather years of the load curves are not known or do not include "
+                f"this year for model year {model_year}. Set `weather_year` in "
+                "your settings file (the same value used to load the demand table) "
+                "so weather-year-specific supplemental demand can be placed in the "
+                "correct hours."
+            )
+        return [wy]
+
+    supp_rows = []
+    for _, row in supp.iterrows():
+        base = _resolve_supp_region(
+            row["region"], region_agg_map, region_aggregations, keep_regions
+        )
+        if base is None:
+            continue
+
+        time_idx = row["_time"]
+        if time_idx == "all":
+            # Expand to every hour of each selected weather-year block.
+            for wy_i in _target_wys(row):
+                key = (base, wy_i) if has_base_wy else base
+                for h in base_hours.get(key, []):
+                    supp_rows.append(
+                        {
+                            "region": base,
+                            "weather_year": wy_i,
+                            "time_index": h,
+                            "load_mw": row["load_mw"],
+                            "_is_supp": 1,
+                        }
+                    )
+        else:
+            # A single integer hour.
+            hour = int(time_idx)
+            for wy_i in _target_wys(row):
+                key = (base, wy_i) if has_base_wy else base
+                if hour not in base_hours.get(key, []):
+                    logger.warning(
+                        "Supplemental demand row for region '%s', weather year %s, "
+                        "hour %d targets an hour that does not exist in the base "
+                        "load data; skipping.",
+                        base,
+                        wy_i,
+                        hour,
+                    )
+                    continue
+                supp_rows.append(
+                    {
+                        "region": base,
+                        "weather_year": wy_i,
+                        "time_index": hour,
+                        "load_mw": row["load_mw"],
+                        "_is_supp": 1,
+                    }
+                )
+
+    if not supp_rows:
+        return load_curves
+
+    supp_long = pd.DataFrame(supp_rows)
+    if not has_base_wy:
+        supp_long = supp_long.drop(columns=["weather_year"])
+
+    return pd.concat([load_curves, supp_long], ignore_index=True)
+
+
+def _renumber_load_hours(
+    load_curves: pd.DataFrame,
+    weather_years: Optional[List[int]] = None,
+) -> pd.DataFrame:
+    """Renumber hours 1..N within each region, merging base and supplemental rows.
+
+    The load frame may contain several weather years, each with an independent
+    (possibly different-length) hour index.  This assigns a single sequential
+    1..N hour number per region.  Weather-year block lengths are measured from the
+    base-load rows only (tagged ``_is_supp == 0``), so a leap year (8784 hours)
+    and a standard year (8760 hours) both work with no fixed ``hours_per_year``
+    assumption.
+
+    Base and supplemental rows that share ``(region, weather_year, time_index)``
+    describe the SAME hour (the supplemental row augments that hour's load), so
+    they receive the same renumbered hour.  The frame is explicitly ordered by
+    ``(region, weather_year, time_index)`` first so the numbering is deterministic
+    regardless of the order rows arrived from the database.
+    """
+    if weather_years is not None:
+        if not isinstance(weather_years, list):
+            weather_years = [_norm_weather_year(weather_years)]
+        else:
+            weather_years = [_norm_weather_year(w) for w in weather_years]
+
+    load_curves = load_curves.copy()
+    if "_is_supp" not in load_curves.columns:
+        load_curves["_is_supp"] = 0
+
+    # Normalize weather_year values so ints/floats/numeric strings compare equal.
+    if "weather_year" in load_curves.columns:
+        load_curves["weather_year"] = load_curves["weather_year"].map(
+            _norm_weather_year
+        )
+
+    present_wys = sorted(
+        load_curves.loc[load_curves["weather_year"].notna(), "weather_year"]
+        .unique()
+        .tolist()
+    )
+    ordered_wys = weather_years if weather_years else present_wys
+    wy_rank = {_norm_weather_year(w): i for i, w in enumerate(ordered_wys)}
+    stragglers = [w for w in present_wys if _norm_weather_year(w) not in wy_rank]
+    for i, w in enumerate(stragglers):
+        wy_rank[_norm_weather_year(w)] = len(ordered_wys) + i
+
+    load_curves["_wy_rank"] = (
+        load_curves["weather_year"]
+        .map(lambda v: wy_rank.get(_norm_weather_year(v), len(wy_rank)))
+        .astype(int)
+    )
+
+    # Deterministic ordering: region -> weather year -> hour -> base/supp.  Sorting
+    # by hour within a weather year puts each supplemental row directly after the
+    # base row for the same (region, weather_year, time_index).
+    load_curves = load_curves.sort_values(
+        ["region", "_wy_rank", "time_index", "_is_supp"], kind="stable"
+    ).reset_index(drop=True)
+
+    base = load_curves.loc[load_curves["_is_supp"] == 0].copy()
+    # 1-based rank of each base hour within its (region, weather_year) block.
+    base["_block_rank"] = (
+        base.groupby(["region", "weather_year"], sort=False)["time_index"]
+        .rank(method="first", ascending=True)
+        .astype(int)
+    )
+    # Weather-year block length (number of distinct base hours) per
+    # (region, weather_year) -- never a fixed hours_per_year.
+    block_sizes = base.groupby(["region", "weather_year"], sort=False)[
+        "time_index"
+    ].nunique()
+    # 0-based starting hour of each block within its region.
+    block_starts = block_sizes.groupby(level=0, sort=False).cumsum() - block_sizes
+
+    merged = load_curves.merge(
+        base[["region", "weather_year", "time_index", "_block_rank"]],
+        on=["region", "weather_year", "time_index"],
+        how="left",
+    )
+    missing = merged["_block_rank"].isna()
+    if missing.any():
+        bad = list(
+            zip(
+                merged.loc[missing, "region"],
+                merged.loc[missing, "weather_year"],
+                merged.loc[missing, "time_index"],
+            )
+        )[:5]
+        raise ValueError(
+            "Could not map every (region, weather_year, time_index) to a base load "
+            "hour while renumbering hours. Supplemental demand rows must target "
+            f"hours that exist in the base load data. Problematic keys include: {bad}"
+        )
+
+    merged = merged.merge(
+        block_starts.rename("_block_start").reset_index(),
+        on=["region", "weather_year"],
+        how="left",
+    )
+    merged["time_index"] = (merged["_block_start"] + merged["_block_rank"]).astype(
+        "int64"
+    )
+    merged = merged.drop(
+        columns=["_block_start", "_block_rank", "_wy_rank", "_is_supp"]
+    )
+    return merged
+
+
+def add_supplemental_demand(
+    load_curves: pd.DataFrame,
+    model_year: int,
+    model_regions: List[str],
+    keep_regions: Optional[List[str]] = None,
+    region_agg_map: Optional[Dict[str, str]] = None,
+    region_aggregations: Optional[Dict[str, List[str]]] = None,
+    weather_years: Optional[List[int]] = None,
+) -> pd.DataFrame:
+    """Add supplemental demand to a WIDE load frame (one column per model region).
+
+    This is a slim variant kept for the user-supplied WIDE load path in
+    :func:`make_final_load_curves` (when ``load_usr_demand_profiles`` supplies the
+    load and :func:`make_load_curves` is never called).  Normal pipelines apply
+    supplemental demand inside :func:`make_load_curves` (via
+    :func:`add_supplemental_demand_long`) in long format.
+
+    A wide frame has no weather-year structure, so no tiling is performed and no
+    fixed ``hours_per_year`` block size is assumed: ``"all"``/``"all_hours"`` rows
+    add to every hour and integer ``time_index`` rows add to just that hour.
+    Weather-year-specific rows are not supported here and raise a ``ValueError``.
+
+    Parameters
+    ----------
+    load_curves : pd.DataFrame
+        Wide dataframe with one column per model region and ``time_index`` as the
+        index.
+    model_year : int
+        Planning year passed to :func:`_load_supplemental_demand`.
+    model_regions : List[str]
+        Model region names; used as a fallback for ``keep_regions`` when not given.
+    keep_regions, region_agg_map, region_aggregations
+        Optional region resolution inputs from :func:`powergenome.util.regions_to_keep`.
+    weather_years : Optional[List[int]], optional
+        Unused in this wide path (no weather-year structure); accepted for
+        signature compatibility.
+    """
+    if "supplemental_demand" not in list_tables():
+        return load_curves
+
+    keep_regions = keep_regions if keep_regions is not None else model_regions
+    region_agg_map = region_agg_map if region_agg_map is not None else {}
+    region_aggregations = region_aggregations if region_aggregations is not None else {}
+
+    supp = _load_supplemental_demand(model_year)
+    if supp is None:
+        return load_curves
+
+    # The wide frame cannot represent per-weather-year hours.
+    if "weather_year" in supp.columns:
+        specific = supp.loc[
+            ~supp["_norm_wy"].astype(str).eq("all"), "_norm_wy"
+        ].dropna()
+        if not specific.empty:
+            years = sorted({int(s) for s in specific})
+            raise ValueError(
+                "The wide (user-supplied) load path does not support weather-year-"
+                f"specific supplemental demand rows (found weather_year values "
+                f"{years}). Use weather_year='all' to apply a row across every "
+                "hour, or apply supplemental demand through the standard load "
+                "pipeline (make_load_curves) instead."
+            )
+
+    load_curves = load_curves.copy()
+    all_indices = load_curves.index.tolist()
+
+    def _apply(region: str, by_time: "pd.Series") -> None:
+        if region not in load_curves.columns:
+            logger.debug(
+                "Supplemental demand region '%s' not in model regions; skipping.",
+                region,
+            )
+            return
+        common = load_curves.index.intersection(by_time.index)
+        if common.empty:
+            return
+        load_curves.loc[common, region] = (
+            load_curves.loc[common, region] + by_time.loc[common]
+        )
+
+    for region, region_df in supp.groupby("region", sort=False):
+        base = _resolve_supp_region(
+            region, region_agg_map, region_aggregations, keep_regions
+        )
+        if base is None:
+            continue
+        # Map base -> model so we mutate the correct wide column.  A base region
+        # resolves to its aggregated model region; a standalone model region maps
+        # to itself.
+        model = region_agg_map.get(base, base)
+
+        all_mask = region_df["_time"].astype(str).str.strip().str.lower().eq("all")
+        all_df = region_df[all_mask]
+        if not all_df.empty:
+            _apply(
+                model,
+                pd.Series(all_df["load_mw"].sum(), index=all_indices, dtype=float),
+            )
+        specific_df = region_df[~all_mask]
+        if not specific_df.empty:
+            by_time = specific_df.groupby("_time")["load_mw"].sum()
+            by_time.index = by_time.index.astype("int64")
+            _apply(model, by_time)
+
+    return load_curves
+
+
 @auto_fill_settings()
 def make_final_load_curves(
     data_location: Path | str = None,
@@ -763,10 +1357,22 @@ def make_final_load_curves(
     logger.info("Creating hourly demand profiles")
     user_load_curves = load_usr_demand_profiles(settings)
 
+    # Region resolution inputs, used both by the electrification branch and the
+    # wide-format supplemental-demand application for the user-supplied load path.
+    keep_regions, region_agg_map = regions_to_keep(
+        settings["model_regions"], settings.get("region_aggregations", {}) or {}
+    )
+    region_aggregations = settings.get("region_aggregations", {}) or {}
+
+    # Whether the load came entirely from a user-supplied WIDE file. Only that
+    # path needs the wide-format `add_supplemental_demand` below; all other paths
+    # apply supplemental demand inside make_load_curves (long format).
+    used_user_load = False
     if user_load_curves is not None and all(
         [r in user_load_curves.columns for r in settings["model_regions"]]
     ):
         load_curves_before_dr = user_load_curves
+        used_user_load = True
 
     else:
         load_sources = settings.get("load_source_table_name")
@@ -816,9 +1422,6 @@ def make_final_load_curves(
         "electrification_scenario"
     ):
         load_curves_before_dg = load_curves_before_dr.copy()
-        keep_regions, region_agg_map = regions_to_keep(
-            settings["model_regions"], settings.get("region_aggregations", {}) or {}
-        )
 
         flex_profiles = electrification_profiles(
             settings.get("electrification_stock_fn"),
@@ -854,6 +1457,28 @@ def make_final_load_curves(
         )
     else:
         final_load_curves = load_curves_before_dg
+
+    # Supplemental demand is normally added INSIDE make_load_curves (long format,
+    # before hours are renumbered), so it is applied once per load source. With a
+    # single load source (the common default) that applies it exactly once. With
+    # multiple sources in `load_source_table_name` it is applied per source — if
+    # your supplemental table is scoped to a specific region that only exists in
+    # one source, or you keep each source's regions disjoint, this is still
+    # correct; a table that targets the same hours in overlapping sources would
+    # be counted once per source. See also the user-supplied WIDE load path below.
+    # The user-supplied WIDE load path (load_usr_demand_profiles) bypasses
+    # make_load_curves entirely, so supplemental demand is applied here on the
+    # final wide frame to preserve that coverage:
+    if used_user_load:
+        final_load_curves = add_supplemental_demand(
+            final_load_curves,
+            model_year=settings["model_year"],
+            model_regions=settings["model_regions"],
+            keep_regions=keep_regions,
+            region_agg_map=region_agg_map,
+            region_aggregations=region_aggregations,
+            weather_years=settings.get("weather_year"),
+        )
 
     final_load_curves = final_load_curves.astype(int)
 
