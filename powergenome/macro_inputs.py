@@ -335,10 +335,6 @@ def _availability_filename(stage_number: int) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _gen_has_col(df: pd.DataFrame, col: str) -> bool:
-    return col in df.columns
-
-
 def _gen_value(series: pd.Series, name: str, default=None):
     """Return a value from a generator row if the column exists."""
     if name in series.index:
@@ -806,12 +802,6 @@ def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # System (JSON + CSV) builders
 # ---------------------------------------------------------------------------
-
-
-def make_locations_json(settings: dict) -> tuple:
-    """Return locations.json content (dict) and the region list."""
-    regions = list(settings.get("model_regions", []))
-    return {"locations": regions}
 
 
 def make_commodities_json(commodities: List[str]) -> dict:
@@ -1562,18 +1552,3 @@ class MacroCaseBuilder:
                 f,
                 indent=4,
             )
-
-
-def write_macro_inputs(
-    case_folder,
-    case_year_data: Dict[str, pd.DataFrame],
-    settings: dict,
-) -> None:
-    """Write a single-stage Macro simpleCSVinputs case folder.
-
-    This is a thin convenience wrapper around :class:`MacroCaseBuilder` that
-    produces a runnable (multistage-form) Macro case with a single stage.
-    """
-    builder = MacroCaseBuilder(case_folder)
-    builder.add_stage(1, case_year_data, settings)
-    builder.finalize()

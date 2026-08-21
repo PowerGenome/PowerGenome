@@ -23,7 +23,6 @@ from powergenome.macro_inputs import (
     make_demand_csv,
     make_fuel_prices_csv,
     make_hydro_csv,
-    make_locations_json,
     make_mustrun_csv,
     make_nodes_json,
     make_period_map_csv,
@@ -33,7 +32,6 @@ from powergenome.macro_inputs import (
     make_thermal_csvs,
     make_timedata_json,
     make_vre_csv,
-    write_macro_inputs,
 )
 
 
@@ -548,11 +546,6 @@ def test_make_powerlines_csv_no_financial_cols():
     assert pd.isna(tx_df.loc[0, "lifetime"])
 
 
-def test_make_locations_json(settings):
-    locs, regions = make_locations_json(settings), None
-    assert locs["locations"] == ["R1", "R2"]
-
-
 def test_make_commodities_json():
     comms = make_commodities_json(["NaturalGas", "Coal"])
     assert comms["commodities"] == ["Electricity", "NaturalGas", "Coal", "CO2"]
@@ -785,7 +778,9 @@ def _write_full_case(
         "co2_cap": co2_cap,
         "period_map": period_map,
     }
-    write_macro_inputs(tmp_path, case_year_data, settings)
+    builder = MacroCaseBuilder(tmp_path)
+    builder.add_stage(1, case_year_data, settings)
+    builder.finalize()
     return tmp_path
 
 
