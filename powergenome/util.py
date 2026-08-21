@@ -17,6 +17,7 @@ os.environ["USE_PYGEOS"] = "0"
 
 import duckdb
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import requests
 import yaml
@@ -1007,6 +1008,278 @@ def load_data_file(
 
     con.close()
     return data
+
+
+class _FastScanFallback(Exception):
+    """Raised internally when the ordered-scan fast path cannot be used."""
+
+
+def read_tidy_profiles_wide(
+    path: Union[Path, str],
+    site_ids: Iterable[Any],
+    weather_year: Optional[Union[int, List[int]]] = None,
+) -> pd.DataFrame:
+    """Read a tidy-format profile file into a wide DataFrame.
+
+    Filters rows to ``site_ids`` (and ``weather_year``, when given) inside DuckDB and
+    reshapes the tidy rows (site_id, time_index, value) to wide (time_index x site_id).
+
+    Two execution strategies are used:
+
+    * **Ordered scan (fast path)** -- when a single continuous time series per site is
+      requested (``weather_year`` is a single year, or the file has no ``weather_year``
+      column), rows are streamed from DuckDB with a single thread in physical file
+      order and written directly into a pre-allocated NumPy plate. The output is built
+      in chunks of sites so peak memory is bounded by one chunk plus the (float dtype
+      preserving) result plate, avoiding both the superlinear cost of
+      ``DataFrame.pivot`` and the large hash-aggregate buffers of a SQL ``PIVOT``.
+    * **SQL PIVOT (fallback)** -- used when multiple weather years are concatenated
+      into one continuous series per site (``weather_year=None`` with a
+      ``weather_year`` column, or a multi-element list), when site identifiers are not
+      integers, or when the file's rows are not grouped by site in physical order.
+
+    When ``weather_year`` is ``None`` and the file has a ``weather_year`` column, all
+    available years are concatenated into one continuous series per site (a sequential
+    ``time_index`` spanning 8760 * len(years) steps), matching the reference pandas
+    implementation. When ``weather_year`` is given, only those years are used.
+
+    The result column dtype matches the source ``value`` column dtype. For the large
+    renewable profile files this is typically already ``float32``, keeping peak memory
+    for ~66k sites near 6 GB.
+
+    Parameters
+    ----------
+    path : Union[Path, str]
+        Path to a tidy-format CSV or Parquet profile file. Must contain columns
+        ``site_id``, ``time_index``, and ``value`` (and optionally ``weather_year``).
+    site_ids : Iterable[Any]
+        Requested site identifiers. The returned DataFrame has one column per site, in
+        the order given, keyed by the original (unstringified) identifiers.
+    weather_year : Optional[Union[int, List[int]]]
+        Weather year(s) to filter on. Multiple years are concatenated into a
+        continuous time series.
+
+    Returns
+    -------
+    pd.DataFrame
+        Wide profile DataFrame indexed by ``time_index`` with one column per requested
+        site. Missing sites (or sites with no rows for the requested weather year) are
+        filled with ``1.0`` in every hour.
+    """
+    path = Path(path)
+    extension = path.suffix.lower()
+    if extension not in (".csv", ".parquet"):
+        raise ValueError(f"Unsupported profile file type: {extension}")
+
+    site_id_strs = [str(s) for s in site_ids]
+
+    # Discover the file's columns.  DESCRIBE inspects only the file metadata.
+    con = duckdb.connect(database=":memory:")
+    try:
+        if extension == ".parquet":
+            cols = con.execute(
+                f"DESCRIBE SELECT * FROM read_parquet('{path}')"
+            ).fetchall()
+        else:
+            cols = con.execute(
+                f"DESCRIBE SELECT * FROM read_csv_auto('{path}')"
+            ).fetchall()
+    finally:
+        con.close()
+    col_names = [c[0] for c in cols]
+    has_wy = "weather_year" in col_names
+
+    # Quote identifiers for safe use in the generated SQL.
+    def q(ident: str) -> str:
+        return '"' + ident.replace('"', '""') + '"'
+
+    def lit(v: Any) -> str:
+        return "'" + str(v).replace("'", "''") + "'"
+
+    escape = "READ_PARQUET" if extension == ".parquet" else "READ_CSV_AUTO"
+
+    # ---- Fast path: ordered single-thread scan + NumPy reshape ----
+    # Applicable when a single continuous time series per site is requested
+    # (no weather_year concatenation) and site ids are integers. Rows are read
+    # with a single thread in physical file order (each site's rows contiguous),
+    # verified per-block, and written straight into a pre-allocated plate. This
+    # avoids both DataFrame.pivot's superlinear cost and the large hash-aggregate
+    # buffers of SQL PIVOT, keeping peak memory bounded by one chunk + the result.
+    years = None
+    if has_wy and weather_year is not None:
+        years = weather_year if isinstance(weather_year, list) else [weather_year]
+    single_series = (years is None and not has_wy) or (
+        years is not None and len(years) == 1
+    )
+    if single_series and all(s.lstrip("-").isdigit() for s in site_id_strs):
+        try:
+            return _scan_tidy_profiles_wide_fast(
+                path=path,
+                site_id_strs=site_id_strs,
+                site_ids=list(site_ids),
+                years=years,
+                escape=escape,
+                q=q,
+                lit=lit,
+            )
+        except _FastScanFallback as exc:
+            logger.debug(
+                "Ordered-scan fast path unavailable for %s (%s); "
+                "falling back to SQL PIVOT.",
+                path,
+                exc,
+            )
+    # ---- Fallback: SQL PIVOT ----
+    inner = f"""
+        SELECT {q("site_id")} AS site_id,
+               ROW_NUMBER() OVER (
+                   PARTITION BY {q("site_id")}
+                   ORDER BY {q("weather_year") if has_wy else "1"}, {q("time_index")}
+               ) AS time_index,
+               {q("value")} AS value
+        FROM {escape}('{path}')
+        WHERE {q("site_id")} IN ({", ".join(lit(s) for s in site_id_strs)})
+    """
+    if has_wy and weather_year is not None:
+        inner += f" AND {q('weather_year')} IN ({', '.join(lit(y) for y in years)})"
+
+    query = f"""
+        SELECT * FROM (
+            PIVOT (
+                {inner}
+            )
+            ON site_id USING FIRST(value) GROUP BY time_index
+        ) ORDER BY time_index
+    """
+    con = duckdb.connect(database=":memory:")
+    try:
+        wide = con.execute(query).fetchdf()
+    finally:
+        con.close()
+
+    # Restore requested column order and key columns by the original site_id
+    # types.  DuckDB emits pivot columns as VARCHAR, so map each emitted column
+    # back to the requested identifier (preserving its type) via its str form.
+    id_by_str: Dict[Any, Any] = {}
+    for s in site_ids:
+        id_by_str.setdefault(str(s), s)
+    wide = wide.rename(
+        columns={c: id_by_str[str(c)] for c in wide.columns if str(c) in id_by_str}
+    )
+    if "time_index" not in wide.columns:
+        # No matching rows at all: return an empty frame with the requested columns.
+        return pd.DataFrame(
+            index=pd.Index([], name="time_index"), columns=list(site_ids)
+        )
+    wide = wide.set_index("time_index")
+    present = [s for s in site_ids if s in wide.columns]
+    missing = [s for s in site_ids if s not in present]
+    if missing:
+        logger.warning(
+            f"The profiles for sites {set(missing)} were not found in {path}. "
+            "The value of '1' will be used in all hours."
+        )
+    for m in missing:
+        wide[m] = 1.0
+    return wide[list(site_ids)]
+
+
+def _scan_tidy_profiles_wide_fast(
+    path: Path,
+    site_id_strs: List[str],
+    site_ids: List[Any],
+    years: Optional[List[Any]],
+    escape: str,
+    q,
+    lit,
+) -> pd.DataFrame:
+    """Fast-path implementation for :func:`read_tidy_profiles_wide`.
+
+    Streams rows from ``path`` with a single DuckDB thread (so a site's rows come
+    back contiguous in physical file order), splits them into per-site blocks,
+    verifies each block has a constant site id and a sequential ``time_index``
+    of length N, and writes them into a pre-allocated NumPy plate. Column dtype
+    matches the source ``value`` column, so e.g. float32 source stays float32.
+
+    Raises :class:`_FastScanFallback` if the file cannot be processed safely this
+    way (e.g. ragged per-site lengths, non-sequential time indexes, or a shifted
+    value dtype), in which case the caller falls back to SQL PIVOT.
+    """
+    try:
+        int_sids = [int(s) for s in site_id_strs]
+    except ValueError:
+        raise _FastScanFallback("non-integer site ids")
+    if len(set(int_sids)) != len(int_sids):
+        raise _FastScanFallback("duplicate site ids")
+    req_pos = {sid_int: i for i, sid_int in enumerate(int_sids)}
+
+    wy_clause = ""
+    if years is not None:
+        wy_clause = f" AND {q('weather_year')} IN ({', '.join(lit(y) for y in years)})"
+
+    con = duckdb.connect(database=":memory:")
+    try:
+        con.execute("SET threads=1")
+        plate = None
+        N = None
+        val_dtype = None
+        found = set()
+        CHUNK = 5000
+        for start in range(0, len(site_id_strs), CHUNK):
+            chunk = site_id_strs[start : start + CHUNK]
+            inlist = ", ".join(lit(s) for s in chunk)
+            sql = (
+                f"SELECT CAST({q('site_id')} AS BIGINT) AS sid, "
+                f"       {q('time_index')} AS ti, {q('value')} AS val "
+                f"FROM {escape}('{path}') "
+                f"WHERE {q('site_id')} IN ({inlist}){wy_clause}"
+            )
+            df = con.execute(sql).fetchdf()
+            if df.empty:
+                continue
+            sid = df["sid"].to_numpy()
+            ti = df["ti"].to_numpy()
+            val = df["val"].to_numpy()
+            if val_dtype is None:
+                val_dtype = val.dtype
+            # Boundaries between contiguous per-site blocks (a site id change).
+            starts = np.flatnonzero(np.concatenate(([True], sid[1:] != sid[:-1])))
+            starts = np.append(starts, len(sid))
+            for b in range(len(starts) - 1):
+                s0, s1 = starts[b], starts[b + 1]
+                n = s1 - s0
+                if N is None:
+                    N = n
+                    plate = np.full((N, len(int_sids)), 1.0, dtype=val_dtype)
+                elif n != N:
+                    raise _FastScanFallback("ragged per-site row counts")
+                if not np.array_equal(ti[s0:s1], np.arange(1, n + 1)):
+                    raise _FastScanFallback("time_index not sequential")
+                col = req_pos.get(int(sid[s0]))
+                if col is None:
+                    raise _FastScanFallback("unrequested site encountered")
+                plate[:, col] = val[s0:s1]
+                found.add(int(sid[s0]))
+    finally:
+        con.close()
+
+    if N is None:
+        # No matching rows at all: return an empty frame with the requested columns.
+        return pd.DataFrame(
+            index=pd.Index([], name="time_index"), columns=list(site_ids)
+        )
+
+    missing = [s for s in site_ids if int(s) not in found]
+    if missing:
+        logger.warning(
+            f"The profiles for sites {set(missing)} were not found in {path}. "
+            "The value of '1' will be used in all hours."
+        )
+    return pd.DataFrame(
+        plate,
+        index=pd.Index(np.arange(1, N + 1), name="time_index"),
+        columns=list(site_ids),
+    )
 
 
 def load_table_from_db(

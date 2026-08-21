@@ -28,6 +28,7 @@ and this project adheres to Semantic Versioning.
 
 ### Changed
 
+- Large tidy profile reads (renewable resource profiles, demand) now reshape to wide inside DuckDB (`read_tidy_profiles_wide`) instead of loading the full tidy file into pandas and calling `DataFrame.pivot`. For single weather-year loads an ordered single-thread scan writes directly into a pre-allocated NumPy plate (bounded peak memory, preserves the source value dtype such as `float32`); multi-year concatenation and non-integer site ids fall back to a SQL `PIVOT`. This keeps peak memory well under ~8 GB and removes the superlinear pivot cost for tens of thousands of sites.
 - BREAKING: Standardized renewable generation profile inputs to tidy format only. Legacy wide-format (one column per site) is no longer supported. Tidy schema is site_id, time_index, value, and optional weather_year.
 - Profile IO refactored to use the centralized DataManager loader (DNF filters + column projection) to avoid full-file reads of large tidy files; no pre-scan is performed. A warning is issued if requested weather_years are unavailable.
 - Site identifiers are no longer coerced to strings during profile loading and clustering; native types are preserved end-to-end.
