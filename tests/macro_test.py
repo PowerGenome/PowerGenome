@@ -23,6 +23,7 @@ from powergenome.macro_inputs import (
     make_demand_csv,
     make_fuel_prices_csv,
     make_hydro_csv,
+    make_macro_settings_json,
     make_mustrun_csv,
     make_nodes_json,
     make_period_map_csv,
@@ -758,6 +759,20 @@ def test_make_fuel_prices_csv(gen_df, fuels):
     assert abs(prices["NaturalGas_R1"].iloc[0] - expected) < 1e-6
 
 
+def test_make_fuel_prices_csv_fallback(gen_df, fuels):
+    thermal = gen_df[gen_df["THERM"] > 0].copy()
+    time_index = pd.Series(range(1, 25), name="Time_Index")
+    # drop fuels table so every fuel falls back to default_price
+    missing = make_fuel_prices_csv(
+        None, thermal, time_index, default_price=12.5
+    )
+    assert set(missing.columns) == {"Time_Index", "NaturalGas_R1", "Coal_R2"}
+    assert (missing["NaturalGas_R1"] == 12.5).all()
+    # default fallback is a constant 0 when not specified
+    zero = make_fuel_prices_csv(None, thermal, time_index)
+    assert (zero["NaturalGas_R1"] == 0.0).all()
+
+
 def _write_full_case(
     tmp_path,
     gen_df,
@@ -991,6 +1006,56 @@ def test_make_case_settings_json():
     assert cs["DiscountRate"] == 0.045
     assert cs["SolutionAlgorithm"] == "Monolithic"
 
+    # settings-backed overrides
+    cs2 = make_case_settings_json(
+        2,
+        {
+            "macro_period_lengths": [1, 5],
+            "macro_discount_rate": 0.06,
+            "macro_solution_algorithm": "Nested",
+        },
+    )
+    assert cs2["PeriodLengths"] == [1, 5]
+    assert cs2["DiscountRate"] == 0.06
+    assert cs2["SolutionAlgorithm"] == "Nested"
+
+
+def test_make_macro_settings_json_overrides():
+    default = make_macro_settings_json()
+    assert default == {
+        "ConstraintScaling": True,
+        "WriteSubcommodities": True,
+        "AutoCreateNodes": False,
+        "AutoCreateLocations": True,
+    }
+    overridden = make_macro_settings_json(
+        {
+            "macro_constraint_scaling": False,
+            "macro_write_subcommodities": False,
+            "macro_auto_create_nodes": True,
+            "macro_auto_create_locations": False,
+        }
+    )
+    assert overridden == {
+        "ConstraintScaling": False,
+        "WriteSubcommodities": False,
+        "AutoCreateNodes": True,
+        "AutoCreateLocations": False,
+    }
+
+
+def test_load_nsd_segments_default_overrides():
+    # no demand segments file -> settings-driven single-segment fallback
+    max_nsd, price_nsd = load_nsd_segments(
+        {"macro_default_max_nsd": 0.5, "macro_default_voll": 1000.0}
+    )
+    assert max_nsd == [0.5]
+    assert price_nsd == [1000.0]
+    # defaults preserved when no settings given
+    max_nsd, price_nsd = load_nsd_segments({})
+    assert max_nsd == [1]
+    assert price_nsd == [5000.0]
+
 
 def test_macro_case_builder_multistage(
     tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings
@@ -1040,6 +1105,53 @@ def test_macro_case_builder_multistage(
     assert (tmp_path / "system/commodities.json").is_file()
     assert (tmp_path / "system/locations.json").is_file()
     assert (tmp_path / "settings/macro_settings.json").is_file()
+
+
+def test_macro_case_builder_settings_overrides(
+    tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings
+):
+    """Settings supplied to add_stage drive case-level and per-stage files."""
+    overrides = dict(settings)
+    overrides.update(
+        {
+            "macro_period_lengths": [1, 3],
+            "macro_discount_rate": 0.07,
+            "macro_solution_algorithm": "Nested",
+            "macro_constraint_scaling": False,
+            "macro_write_subcommodities": False,
+            "macro_auto_create_nodes": True,
+            "macro_auto_create_locations": False,
+            "macro_default_fuel_price": 2.5,
+        }
+    )
+    builder = MacroCaseBuilder(tmp_path)
+    data = {
+        "gen_data": gen_df,
+        "gen_variability": gen_variability,
+        "demand_data": demand_data,
+        "fuels": None,  # force the fuel-price fallback
+        "network": network,
+    }
+    builder.add_stage(1, data, overrides)
+    builder.add_stage(2, data, overrides)
+    builder.finalize()
+
+    cs = json.loads((tmp_path / "settings/case_settings.json").read_text())
+    assert cs["PeriodLengths"] == [1, 3]
+    assert cs["DiscountRate"] == 0.07
+    assert cs["SolutionAlgorithm"] == "Nested"
+
+    ms = json.loads((tmp_path / "settings/macro_settings.json").read_text())
+    assert ms == {
+        "ConstraintScaling": False,
+        "WriteSubcommodities": False,
+        "AutoCreateNodes": True,
+        "AutoCreateLocations": False,
+    }
+
+    # per-stage fuel fallback price ($/MWh) applied to the missing fuel
+    fp1 = pd.read_csv(tmp_path / "system/fuel_prices_1.csv")
+    assert abs(fp1["NaturalGas_R1"].iloc[0] - 2.5) < 1e-6
 
 
 def test_macro_case_builder_duplicate_stage_raises(

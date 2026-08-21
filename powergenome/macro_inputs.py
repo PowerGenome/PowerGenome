@@ -830,16 +830,20 @@ def load_nsd_segments(settings: dict) -> tuple:
     - ``max_nsd[s]`` ← ``Max_Demand_Curtailment`` (fraction of demand)
 
     Falls back to the ``$/MWh`` column when the ``Voll`` / ``Cost_...``
-    columns are absent, and to a single segment ``{max_nsd: [1], price_nsd:
-    [5000]}`` when no demand-segments file is configured.
+    columns are absent, and to a single segment when no demand-segments file
+    is configured. The fallback maximum curtailment fraction and value of
+    lost service can be overridden from settings (``macro_default_max_nsd``,
+    default 1, and ``macro_default_voll``, default $5000/MWh).
 
     Returns
     -------
     (max_nsd, price_nsd) : tuple of list[float]
     """
+    default_max_nsd = float(settings.get("macro_default_max_nsd", 1))
+    default_voll = float(settings.get("macro_default_voll", 5000.0))
     fn = settings.get("demand_segments_fn")
     if not fn:
-        return [1], [5000.0]
+        return [default_max_nsd], [default_voll]
     try:
         df = load_demand_segments(settings)
     except Exception:
@@ -848,7 +852,7 @@ def load_nsd_segments(settings: dict) -> tuple:
             "using default single-segment VOLL.",
             fn,
         )
-        return [1], [5000.0]
+        return [default_max_nsd], [default_voll]
 
     max_col = next(
         (
@@ -863,7 +867,7 @@ def load_nsd_segments(settings: dict) -> tuple:
             "Demand segments file missing required columns; "
             "using default single-segment VOLL."
         )
-        return [1], [5000.0]
+        return [default_max_nsd], [default_voll]
 
     # GenX prices each segment as Cost_of_Demand_Curtailment_per_MW × Voll[1].
     # "Voll" is a single base value (first non-null entry); the per-segment
@@ -891,7 +895,7 @@ def load_nsd_segments(settings: dict) -> tuple:
                 "Demand segments file missing required columns; "
                 "using default single-segment VOLL."
             )
-            return [1], [5000.0]
+            return [default_max_nsd], [default_voll]
         price_series = pd.to_numeric(df[price_col], errors="coerce")
 
     df = df.assign(_price=price_series)
@@ -1090,13 +1094,24 @@ def make_timedata_json(
     return time_data
 
 
-def make_macro_settings_json() -> dict:
-    """Return macro_settings.json content matching the example set."""
+def make_macro_settings_json(settings: Optional[dict] = None) -> dict:
+    """Return macro_settings.json content matching the example set.
+
+    Each flag can be overridden from settings (``macro_constraint_scaling``,
+    ``macro_write_subcommodities``, ``macro_auto_create_nodes``,
+    ``macro_auto_create_locations``); defaults match the
+    ``multisector_3zone_simpleCSVinputs`` example set.
+    """
+    settings = settings or {}
     return {
-        "ConstraintScaling": True,
-        "WriteSubcommodities": True,
-        "AutoCreateNodes": False,
-        "AutoCreateLocations": True,
+        "ConstraintScaling": bool(settings.get("macro_constraint_scaling", True)),
+        "WriteSubcommodities": bool(
+            settings.get("macro_write_subcommodities", True)
+        ),
+        "AutoCreateNodes": bool(settings.get("macro_auto_create_nodes", False)),
+        "AutoCreateLocations": bool(
+            settings.get("macro_auto_create_locations", True)
+        ),
     }
 
 
@@ -1125,17 +1140,27 @@ def make_system_data_json(stages: List[int], assets_folder: str = "assets") -> d
     }
 
 
-def make_case_settings_json(n_stages: int) -> dict:
+def make_case_settings_json(
+    n_stages: int, settings: Optional[dict] = None
+) -> dict:
     """Return the settings/case_settings.json content for a multistage case.
 
     ``PeriodLengths`` is one entry per stage (each 1 year, matching the
     single-year planning periods written by PowerGenome). Discount rate and
     solution algorithm mirror GenX_to_Macro's multistage settings file.
+
+    Overridable from settings: ``macro_period_lengths`` (list, one entry per
+    stage), ``macro_discount_rate`` (float), and ``macro_solution_algorithm``
+    (e.g. ``"Monolithic"`` or ``"Nested"``).
     """
+    settings = settings or {}
     return {
-        "PeriodLengths": [1] * n_stages,
-        "DiscountRate": 0.045,
-        "SolutionAlgorithm": "Monolithic",
+        "PeriodLengths": settings.get("macro_period_lengths")
+        or [1] * n_stages,
+        "DiscountRate": settings.get("macro_discount_rate", 0.045),
+        "SolutionAlgorithm": settings.get(
+            "macro_solution_algorithm", "Monolithic"
+        ),
     }
 
 
@@ -1202,11 +1227,14 @@ def make_fuel_prices_csv(
     fuels: pd.DataFrame,
     thermal_resources: pd.DataFrame,
     time_index: pd.Series,
+    default_price: float = 0.0,
 ) -> pd.DataFrame:
     """Build fuel_prices.csv with per-commodity/region price columns.
 
     Prices are converted from $/MMBtu to $/MWh by dividing by the
-    MMBtu->MWh conversion factor.
+    MMBtu->MWh conversion factor. When a fuel is not present in the fuels
+    table, its price falls back to ``default_price`` in $/MWh (a constant;
+    overridable from settings via ``macro_default_fuel_price``).
     """
     cols = {"Time_Index": time_index.to_numpy()}
     commodity_regions: Dict[str, Dict[str, tuple]] = {}
@@ -1219,8 +1247,13 @@ def make_fuel_prices_csv(
         if region not in commodity_regions.setdefault(commodity, {}):
             prices, _ = _fuel_price_by_fullname(fuels, fuel)
             if prices is None:
-                # fall back to a constant 0 price if the fuel is not in the fuels table
-                prices = pd.Series(0.0, index=range(len(time_index)))
+                # fall back to a constant price ($/MWh) if the fuel is not in
+                # the fuels table; convert to $/MMBtu so the shared conversion
+                # below yields ``default_price`` $/MWh again
+                prices = pd.Series(
+                    float(default_price) * CONV_MMBTU_TO_MWH,
+                    index=range(len(time_index)),
+                )
             commodity_regions[commodity][region] = (fuel, prices)
 
     for commodity, regions in commodity_regions.items():
@@ -1395,10 +1428,15 @@ class MacroCaseBuilder:
         locations = self._stage_data[stages[0]][1].get("model_regions", [])
         with open(system_folder / "locations.json", "w") as f:
             json.dump({"locations": locations}, f, indent=4)
+        # Case-level settings are written from the first stage's settings
+        # (all stages share the same scenario settings object).
+        case_settings = self._stage_data[stages[0]][1]
         with open(settings_folder / "macro_settings.json", "w") as f:
-            json.dump(make_macro_settings_json(), f, indent=2)
+            json.dump(make_macro_settings_json(case_settings), f, indent=2)
         with open(settings_folder / "case_settings.json", "w") as f:
-            json.dump(make_case_settings_json(len(stages)), f, indent=2)
+            json.dump(
+                make_case_settings_json(len(stages), case_settings), f, indent=2
+            )
         with open(self.case_root / "system_data.json", "w") as f:
             json.dump(
                 make_system_data_json(stages, assets_folder="assets"), f, indent=4
@@ -1474,7 +1512,12 @@ class MacroCaseBuilder:
             availability_df.to_csv(
                 system_folder / f"availability_{stage_number}.csv", index=False
             )
-        fuel_prices_df = make_fuel_prices_csv(fuels, thermal_resources, time_index)
+        fuel_prices_df = make_fuel_prices_csv(
+            fuels,
+            thermal_resources,
+            time_index,
+            default_price=settings.get("macro_default_fuel_price", 0.0),
+        )
         if not fuel_prices_df.empty:
             fuel_prices_df.to_csv(
                 system_folder / f"fuel_prices_{stage_number}.csv",

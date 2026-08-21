@@ -1013,3 +1013,80 @@ with one entry per period (stage-suffixed files like `assets/assets_N/`, `system
 `DiscountRate` and `SolutionAlgorithm`. Financial attributes (`wacc`, `capital_recovery_period`, `lifetime`,
 `min_retired_capacity`) are written on thermal, VRE, storage, hydro, must-run, and transmission (`powerlines.csv`; the
 lifetime falls back to `capital_recovery_period`) when the equivalent GenX columns are present.
+
+The model-run settings, `settings/macro_settings.json` flags, and fallback values used when source data is missing
+are all configurable; see `macro_discount_rate`, `macro_solution_algorithm`, `macro_period_lengths`,
+`macro_constraint_scaling`, `macro_write_subcommodities`, `macro_auto_create_nodes`, `macro_auto_create_locations`,
+`macro_default_max_nsd`, `macro_default_voll`, and `macro_default_fuel_price` below. A commented example settings file
+(`macro.yml`) is included in the test system (`tests/test_system/settings/macro.yml`).
+
+### macro_period_lengths
+
+type: List[int]
+
+description: One entry per planning period (stage) written to `settings/case_settings.json` `PeriodLengths`.
+Defaults to one 1-year period per stage. Not used outside Macro output mode.
+
+### macro_discount_rate
+
+type: float
+
+description: Annual discount rate applied to future costs in `settings/case_settings.json`. Defaults to `0.045`.
+Not used outside Macro output mode.
+
+### macro_solution_algorithm
+
+type: str
+
+description: How Macro solves multi-period cases, written to `settings/case_settings.json`. Either `"Monolithic"`
+or `"Nested"`. Defaults to `"Monolithic"`. Not used outside Macro output mode.
+
+### macro_constraint_scaling
+
+type: bool
+
+description: Whether to set `ConstraintScaling` in `settings/macro_settings.json` (scales constraint coefficients
+to help solver numerics). Defaults to `true`. Not used outside Macro output mode.
+
+### macro_write_subcommodities
+
+type: bool
+
+description: Whether to set `WriteSubcommodities` in `settings/macro_settings.json` (write per-commodity
+sub-commodity timeseries to disk). Defaults to `true`. Not used outside Macro output mode.
+
+### macro_auto_create_nodes
+
+type: bool
+
+description: Whether to set `AutoCreateNodes` in `settings/macro_settings.json`. When `false` (default), Macro
+uses exactly the node set written in `nodes.json` instead of auto-creating nodes. Not used outside Macro output mode.
+
+### macro_auto_create_locations
+
+type: bool
+
+description: Whether to set `AutoCreateLocations` in `settings/macro_settings.json` (let Macro auto-create
+locations from the regions referenced by assets). Defaults to `true`. Not used outside Macro output mode.
+
+### macro_default_max_nsd
+
+type: float
+
+description: Maximum non-served-demand curtailment fraction (single segment) used as the fallback when no
+`demand_segments_fn` is configured (or it cannot be interpreted). Defaults to `1`. Not used outside Macro output mode.
+
+### macro_default_voll
+
+type: float
+
+description: Value of lost service in $/MWh for the single-segment non-served-demand fallback used when no
+`demand_segments_fn` is configured (or it cannot be interpreted). Defaults to `5000.0`. Not used outside Macro output mode.
+
+### macro_default_fuel_price
+
+type: float
+
+description: Constant fuel price in $/MWh used when a fuel consumed by a thermal resource is not present in the
+fuels table (fuel supply nodes still get a constant price series instead of being dropped). Defaults to `0.0`.
+Not used outside Macro output mode.

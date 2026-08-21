@@ -1,0 +1,57 @@
+##############################################################
+# MacroEnergy (Macro) output settings
+#
+# PowerGenome can write case inputs for the MacroEnergy.jl capacity
+# expansion model (https://github.com/macroenergy/MacroEnergy.jl) in the
+# "simpleCSVinputs" format instead of GenX. All values below are the
+# defaults used when this file (or the corresponding keys) is absent, so
+# this file is safe to include in any study. Uncomment / change only the
+# keys you need.
+#
+# See example_systems/settings_documentation.md -> "MacroEnergy (Macro)
+# output" for the full reference.
+##############################################################
+
+# Set to true to write Macro simpleCSVinputs instead of GenX Inputs files.
+# The same option can be enabled from the command line with the --macro
+# flag to run_powergenome (either trigger turns Macro mode on). Keeping
+# this false leaves the default GenX output untouched.
+# macro_output: false
+
+# ---- model-run settings (settings/case_settings.json) ----
+
+# One entry per planning period (stage). Defaults to 1 year per period.
+# macro_period_lengths: [1, 1]
+
+# Annual discount rate applied to future costs.
+# macro_discount_rate: 0.045
+
+# How Macro solves the multi-period case: "Monolithic" or "Nested".
+# macro_solution_algorithm: Monolithic
+
+# ---- macro_settings.json flags ----
+
+# Scale constraint coefficients to help solver numerics.
+# macro_constraint_scaling: true
+
+# Write per-commodity sub-commodity timeseries to disk.
+# macro_write_subcommodities: true
+
+# Let Macro auto-create nodes not referenced by any asset (false keeps the
+# node set exactly as written in nodes.json).
+# macro_auto_create_nodes: false
+
+# Let Macro auto-create locations from the regions referenced by assets.
+# macro_auto_create_locations: true
+
+# ---- fallback values used when source data is missing ----
+
+# Single-segment non-served-demand fallback when no demand-segments CSV
+# (demand_segments_fn) is configured: maximum curtailment fraction and
+# value of lost service in $/MWh.
+# macro_default_max_nsd: 1
+# macro_default_voll: 5000.0
+
+# Constant fuel price ($/MWh) used when a fuel is not present in the fuels
+# table (defaults to a free fuel).
+# macro_default_fuel_price: 0.0
