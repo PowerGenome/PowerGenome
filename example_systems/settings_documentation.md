@@ -997,35 +997,14 @@ description: Column names from the new and existing generators dataframes to kee
 type: bool
 
 description: When `true`, PowerGenome writes case inputs for the MacroEnergy.jl capacity expansion model
-(Macro), in addition to (not instead of) the default GenX output. Outputs use only the Macro `simpleCSVinputs`
-format (assets as CSVs in `assets/` plus JSON/CSV system files under `system/` and `settings/`, with a top-level
-`system_data.json`), matching the structure of the Macro examples (e.g.
-`macroenergy/MacroEnergyExamples.jl/examples/multisector_3zone_simpleCSVinputs`). The same option can be enabled
-from the command line with the `--macro` flag to `run_powergenome`; either trigger turns Macro output on. The
-semantic mapping (thermal, VRE, storage, must-run, hydro, transmission, demand, fuel supply nodes, CO2 caps, time
-data) follows the GenX-to-Macro converter at `EmilDimanchev/GenX_to_Macro`. Cross-sector assets (hydrogen, liquid
-fuels, CCS) are not yet emitted.
-
-GenX stays the default output, so enabling Macro does not disable it: a single `run_powergenome` call writes both
-the GenX `Inputs/Inputs_pN` files and the Macro `simpleCSVinputs` case. Writing both formats in one run reuses all
-of the intermediate data processing and is therefore faster than running PowerGenome twice (once per model). To
-write Macro inputs only, set `genx_output` to `false` in a settings file, or (for a CLI-only run without editing
-settings) pass `--macro --no-genx` on the command line.
-
-### genx_output
-
-type: bool
-
-description: Controls whether PowerGenome writes the standard GenX `Inputs/Inputs_pN` files. GenX is the default
-output format, so this key is only needed to disable GenX or to state it explicitly. It is independent of
-`macro_output`: with both set to `true` (or by passing both `--genx` and `--macro` on the command line), one
-`run_powergenome` call writes both the GenX inputs and the Macro `simpleCSVinputs`, which is faster than running
-PowerGenome once per model. Setting `genx_output: false` while `macro_output: true` writes Macro inputs only. The
-`--genx` command-line flag forces GenX output on even when `genx_output` is `false` in a settings file; the
-`--no-genx` flag forces GenX output off even when `genx_output` is `true` (a hard override, winning over both
-`--genx` and the setting) — pass `--macro --no-genx` to write Macro inputs only without editing a settings file.
-Both the flags and the settings values are case-insensitive (`true`/`True`/`TRUE`; `--genx`/`--Genx`/`--GENX`;
-`--no-genx`/`--No-GenX`).
+(Macro) instead of GenX. Outputs use only the Macro `simpleCSVinputs` format (assets as CSVs in `assets/` plus
+JSON/CSV system files under `system/` and `settings/`, with a top-level `system_data.json`), matching the
+structure of the Macro examples (e.g. `macroenergy/MacroEnergyExamples.jl/examples/multisector_3zone_simpleCSVinputs`).
+The same option can be enabled from the command line with the `--macro` flag to `run_powergenome`; either trigger
+turns Macro mode on. The semantic mapping (thermal, VRE, storage, must-run, hydro, transmission, demand, fuel
+supply nodes, CO2 caps, time data) follows the GenX-to-Macro converter at `EmilDimanchev/GenX_to_Macro`. Cross-sector
+assets (hydrogen, liquid fuels, CCS) are not yet emitted. When Macro mode is active, GenX `Inputs/Inputs_pN` files
+are not written.
 
 For multi-period cases, each planning period is written as one Macro stage, following the multistage
 GenX-to-Macro converter (`lbonaldo/GenX_to_Macro`, `lb/multistage` branch): `system_data.json` has a `case` array
