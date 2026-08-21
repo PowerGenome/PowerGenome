@@ -763,9 +763,7 @@ def test_make_fuel_prices_csv_fallback(gen_df, fuels):
     thermal = gen_df[gen_df["THERM"] > 0].copy()
     time_index = pd.Series(range(1, 25), name="Time_Index")
     # drop fuels table so every fuel falls back to default_price
-    missing = make_fuel_prices_csv(
-        None, thermal, time_index, default_price=12.5
-    )
+    missing = make_fuel_prices_csv(None, thermal, time_index, default_price=12.5)
     assert set(missing.columns) == {"Time_Index", "NaturalGas_R1", "Coal_R2"}
     assert (missing["NaturalGas_R1"] == 12.5).all()
     # default fallback is a constant 0 when not specified

@@ -1105,13 +1105,9 @@ def make_macro_settings_json(settings: Optional[dict] = None) -> dict:
     settings = settings or {}
     return {
         "ConstraintScaling": bool(settings.get("macro_constraint_scaling", True)),
-        "WriteSubcommodities": bool(
-            settings.get("macro_write_subcommodities", True)
-        ),
+        "WriteSubcommodities": bool(settings.get("macro_write_subcommodities", True)),
         "AutoCreateNodes": bool(settings.get("macro_auto_create_nodes", False)),
-        "AutoCreateLocations": bool(
-            settings.get("macro_auto_create_locations", True)
-        ),
+        "AutoCreateLocations": bool(settings.get("macro_auto_create_locations", True)),
     }
 
 
@@ -1140,9 +1136,7 @@ def make_system_data_json(stages: List[int], assets_folder: str = "assets") -> d
     }
 
 
-def make_case_settings_json(
-    n_stages: int, settings: Optional[dict] = None
-) -> dict:
+def make_case_settings_json(n_stages: int, settings: Optional[dict] = None) -> dict:
     """Return the settings/case_settings.json content for a multistage case.
 
     ``PeriodLengths`` is one entry per stage (each 1 year, matching the
@@ -1155,12 +1149,9 @@ def make_case_settings_json(
     """
     settings = settings or {}
     return {
-        "PeriodLengths": settings.get("macro_period_lengths")
-        or [1] * n_stages,
+        "PeriodLengths": settings.get("macro_period_lengths") or [1] * n_stages,
         "DiscountRate": settings.get("macro_discount_rate", 0.045),
-        "SolutionAlgorithm": settings.get(
-            "macro_solution_algorithm", "Monolithic"
-        ),
+        "SolutionAlgorithm": settings.get("macro_solution_algorithm", "Monolithic"),
     }
 
 
@@ -1434,9 +1425,7 @@ class MacroCaseBuilder:
         with open(settings_folder / "macro_settings.json", "w") as f:
             json.dump(make_macro_settings_json(case_settings), f, indent=2)
         with open(settings_folder / "case_settings.json", "w") as f:
-            json.dump(
-                make_case_settings_json(len(stages), case_settings), f, indent=2
-            )
+            json.dump(make_case_settings_json(len(stages), case_settings), f, indent=2)
         with open(self.case_root / "system_data.json", "w") as f:
             json.dump(
                 make_system_data_json(stages, assets_folder="assets"), f, indent=4
