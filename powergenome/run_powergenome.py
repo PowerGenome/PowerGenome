@@ -59,12 +59,49 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 
+def _as_bool(value, default=False):
+    """Coerce a settings value to a boolean, accepting case-insensitive forms.
+
+    YAML booleans arrive as Python ``bool``; also handle string forms such as
+    ``"true"``, ``"TRUE"``, ``"yes"``, ``"on"``, ``"1"`` (and their negatives).
+    ``None`` (the key is absent) falls back to ``default``.
+    """
+    if value is None:
+        return default
+    if isinstance(value, (bool, int)):
+        return bool(value)
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def resolve_output_formats(args, settings):
+    """Return ``(macro_enabled, genx_enabled)`` for a case.
+
+    CLI flags and per-case settings are combined so both formats can be written
+    in a single run. GenX is the default output when no output flag or output
+    setting is present; Macro is written in addition to GenX unless GenX is
+    explicitly disabled with ``genx_output: false``.
+    """
+    macro_enabled = getattr(args, "macro", False) or _as_bool(
+        settings.get("macro_output"), default=False
+    )
+    genx_enabled = getattr(args, "genx", False) or _as_bool(
+        settings.get("genx_output"), default=True
+    )
+    return macro_enabled, genx_enabled
+
+
 def parse_command_line(argv):
     """
     Parse command line arguments. See the -h option.
 
     :param argv: arguments on the command line must include caller file name.
     """
+    # Accept long option names in any case (e.g. --MACRO, --Genx). Option values
+    # are left untouched.
+    argv = [
+        arg if not arg.startswith("--") else arg[:2] + arg[2:].lower()
+        for arg in argv
+    ]
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-sf",
@@ -138,9 +175,21 @@ def parse_command_line(argv):
         dest="macro",
         action="store_true",
         help=(
-            "Write MacroEnergy.jl simpleCSVinputs-format case inputs instead of "
-            "GenX Inputs files. Can also be enabled with 'macro_output: true' in a "
-            "settings file."
+            "Write MacroEnergy.jl simpleCSVinputs-format case inputs in addition "
+            "to the default GenX output (single run writes both). Can also be "
+            "enabled with 'macro_output: true' in a settings file. Set "
+            "'genx_output: false' to write Macro inputs only."
+        ),
+    )
+    parser.add_argument(
+        "--genx",
+        dest="genx",
+        action="store_true",
+        help=(
+            "Write GenX Inputs files (the default output when no output flag or "
+            "output setting is set). Can be combined with --macro to write both "
+            "formats in a single run. Can also be controlled with "
+            "'genx_output: true' in a settings file."
         ),
     )
     arguments = parser.parse_args(argv[1:])
@@ -460,10 +509,11 @@ def main(**kwargs):
                         / scenario_settings_obj["reserves_fn"]
                     )
 
-                macro_enabled = bool(args.macro) or bool(
-                    scenario_settings_obj.get("macro_output", False)
+                macro_output_enabled, genx_output_enabled = resolve_output_formats(
+                    args, scenario_settings_obj
                 )
-                if macro_enabled:
+
+                if macro_output_enabled:
                     logger.info(
                         "\n\nWriting Macro simpleCSVinputs format to %s\n\n",
                         case_folder,
@@ -481,14 +531,17 @@ def main(**kwargs):
                         case_year_data,
                         scenario_settings_obj,
                     )
-                elif scenario_settings_obj.get("old_genx_format", False) is not True:
-                    genx_data = process_genx_data(case_folder, case_year_data)
-                else:
-                    genx_data = process_genx_data_old_format(
-                        case_folder, case_year_data
-                    )
 
-                if not macro_enabled:
+                if genx_output_enabled:
+                    if (
+                        scenario_settings_obj.get("old_genx_format", False)
+                        is not True
+                    ):
+                        genx_data = process_genx_data(case_folder, case_year_data)
+                    else:
+                        genx_data = process_genx_data_old_format(
+                            case_folder, case_year_data
+                        )
                     for data in genx_data:
                         if data.dataframe is not None and not data.dataframe.empty:
                             write_results_file(

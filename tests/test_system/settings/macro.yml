@@ -12,11 +12,20 @@
 # output" for the full reference.
 ##############################################################
 
-# Set to true to write Macro simpleCSVinputs instead of GenX Inputs files.
-# The same option can be enabled from the command line with the --macro
-# flag to run_powergenome (either trigger turns Macro mode on). Keeping
-# this false leaves the default GenX output untouched.
+# Set to true to write Macro simpleCSVinputs-format case inputs. The same
+# option can be enabled from the command line with the --macro flag to
+# run_powergenome. Macro output is written in addition to (not instead of)
+# the default GenX output, so a single run can produce both formats at once —
+# this is faster than running PowerGenome once per model. To write Macro
+# inputs only, also set genx_output: false. Keeping macro_output false leaves
+# the default GenX output untouched.
 # macro_output: false
+
+# Set to false to skip writing GenX Inputs files. GenX is the default output
+# format, so this key is only needed to turn GenX off (e.g. to write Macro
+# inputs only) or to state it explicitly. The --genx flag to run_powergenome
+# forces GenX output on even when genx_output is false in a settings file.
+# genx_output: true
 
 # ---- model-run settings (settings/case_settings.json) ----
 

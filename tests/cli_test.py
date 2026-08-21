@@ -16,7 +16,7 @@ import pandas as pd
 import pytest
 
 import powergenome
-from powergenome.run_powergenome import main, parse_command_line
+from powergenome.run_powergenome import main, parse_command_line, resolve_output_formats
 from powergenome.settings import Settings
 
 logger = logging.getLogger(powergenome.__name__)
@@ -90,6 +90,48 @@ class TestParseCommandLine:
         assert (
             args.multi_period is True
         )  # Default is True, becomes False when flag is used
+        assert args.macro is False  # Macro output is opt-in
+        assert args.genx is False  # GenX is the default in main(); flag is explicit
+
+    def test_macro_flag(self):
+        """Test the --macro flag enables Macro output."""
+        argv = ["script_name", "--macro"]
+        args = parse_command_line(argv)
+        assert args.macro is True
+        assert args.genx is False
+
+    def test_genx_flag(self):
+        """Test the --genx flag explicitly enables GenX output."""
+        argv = ["script_name", "--genx"]
+        args = parse_command_line(argv)
+        assert args.genx is True
+        assert args.macro is False
+
+    def test_both_output_flags(self):
+        """Test --macro and --genx together write both output formats."""
+        argv = ["script_name", "--macro", "--genx"]
+        args = parse_command_line(argv)
+        assert args.macro is True
+        assert args.genx is True
+
+    def test_output_flags_case_insensitive(self):
+        """Test output flags are matched case-insensitively."""
+        argv = ["script_name", "--MACRO", "--Genx"]
+        args = parse_command_line(argv)
+        assert args.macro is True
+        assert args.genx is True
+
+        argv = ["script_name", "--Macro", "--GENX"]
+        args = parse_command_line(argv)
+        assert args.macro is True
+        assert args.genx is True
+
+    def test_output_flags_case_insensitive_unknown_preserved(self):
+        """Test only flags (not their values) are lowercased."""
+        argv = ["script_name", "--MACRO", "--settings_file", "MyCaps.Settings.yml"]
+        args = parse_command_line(argv)
+        assert args.macro is True
+        assert args.settings_file == "MyCaps.Settings.yml"
 
     def test_settings_file_argument(self):
         """Test specifying settings file."""
@@ -192,6 +234,75 @@ class TestParseCommandLine:
         assert args.sort_gens is True
         assert args.case_id == ["case1", "case2"]
         assert args.multi_period is False
+
+
+class TestResolveOutputFormats:
+    """Test the macro/genx output-format selection logic."""
+
+    def _settings(self, **values):
+        return MagicMock(get=lambda key, default=None: values.get(key, default))
+
+    def test_default_genx_only(self):
+        macro, genx = resolve_output_formats(
+            Mock(macro=False, genx=False), self._settings()
+        )
+        assert macro is False
+        assert genx is True
+
+    def test_macro_flag_adds_macro_keeps_genx(self):
+        macro, genx = resolve_output_formats(
+            Mock(macro=True, genx=False), self._settings()
+        )
+        assert macro is True
+        assert genx is True
+
+    def test_macro_setting_adds_macro_keeps_genx(self):
+        macro, genx = resolve_output_formats(
+            Mock(macro=False, genx=False), self._settings(macro_output=True)
+        )
+        assert macro is True
+        assert genx is True
+
+    def test_macro_only_settings(self):
+        macro, genx = resolve_output_formats(
+            Mock(macro=False, genx=False),
+            self._settings(macro_output=True, genx_output=False),
+        )
+        assert macro is True
+        assert genx is False
+
+    def test_genx_flag_overrides_false_setting(self):
+        macro, genx = resolve_output_formats(
+            Mock(macro=False, genx=True),
+            self._settings(genx_output=False),
+        )
+        assert macro is False
+        assert genx is True
+
+    def test_both_flags_both_formats(self):
+        macro, genx = resolve_output_formats(
+            Mock(macro=True, genx=True), self._settings()
+        )
+        assert macro is True
+        assert genx is True
+
+    def test_boolish_string_values_case_insensitive(self):
+        # A settings file loaded with a string (non-YAML) value.
+        macro, genx = resolve_output_formats(
+            Mock(macro=False, genx=False),
+            self._settings(macro_output="TRUE", genx_output="False"),
+        )
+        assert macro is True
+        assert genx is False
+
+    def test_namespace_without_flag_attrs(self):
+        # Some callers build a Namespace without macro/genx attributes.
+        args = Mock()
+        del args.macro
+        del args.genx
+        macro, genx = resolve_output_formats(args, self._settings())
+        assert macro is False
+        assert genx is True
 
 
 class TestMainFunction:
