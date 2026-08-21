@@ -1152,10 +1152,7 @@ def _planning_period_lengths(settings: dict) -> list:
         # A single period may be stored as a flat [first, last]
         if periods and not isinstance(periods[0], (list, tuple)):
             periods = [periods]
-        return [
-            max(int(last) - int(first) + 1, 1)
-            for first, last in periods
-        ]
+        return [max(int(last) - int(first) + 1, 1) for first, last in periods]
     first = settings.get("model_first_planning_year")
     last = settings.get("model_year")
     if first is None or last is None:
@@ -1475,12 +1472,8 @@ class MacroCaseBuilder:
         if case_settings.get("macro_period_lengths") is None:
             stage_lengths = []
             for stage in stages:
-                stage_lengths_for = _planning_period_lengths(
-                    self._stage_data[stage][1]
-                )
-                stage_lengths.append(
-                    stage_lengths_for[-1] if stage_lengths_for else 1
-                )
+                stage_lengths_for = _planning_period_lengths(self._stage_data[stage][1])
+                stage_lengths.append(stage_lengths_for[-1] if stage_lengths_for else 1)
         else:
             stage_lengths = None
         with open(settings_folder / "macro_settings.json", "w") as f:

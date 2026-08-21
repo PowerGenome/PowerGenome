@@ -1033,9 +1033,7 @@ def test_make_case_settings_json_period_length_derivation():
     assert cs2["PeriodLengths"] == [6, 10]
 
     # an explicit macro_period_lengths still wins over derivation
-    cs3 = make_case_settings_json(
-        2, {**settings, "macro_period_lengths": [1, 3]}
-    )
+    cs3 = make_case_settings_json(2, {**settings, "macro_period_lengths": [1, 3]})
     assert cs3["PeriodLengths"] == [1, 3]
 
     # explicit period_lengths argument wins over everything
