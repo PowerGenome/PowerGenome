@@ -92,6 +92,7 @@ class TestParseCommandLine:
         )  # Default is True, becomes False when flag is used
         assert args.macro is False  # Macro output is opt-in
         assert args.genx is False  # GenX is the default in main(); flag is explicit
+        assert args.no_genx is False
 
     def test_macro_flag(self):
         """Test the --macro flag enables Macro output."""
@@ -105,6 +106,14 @@ class TestParseCommandLine:
         argv = ["script_name", "--genx"]
         args = parse_command_line(argv)
         assert args.genx is True
+        assert args.macro is False
+
+    def test_no_genx_flag(self):
+        """Test the --no-genx flag disables GenX output."""
+        argv = ["script_name", "--no-genx"]
+        args = parse_command_line(argv)
+        assert args.no_genx is True
+        assert args.genx is False
         assert args.macro is False
 
     def test_both_output_flags(self):
@@ -242,30 +251,29 @@ class TestResolveOutputFormats:
     def _settings(self, **values):
         return MagicMock(get=lambda key, default=None: values.get(key, default))
 
+    def _args(self, macro=False, genx=False, no_genx=False):
+        return argparse.Namespace(macro=macro, genx=genx, no_genx=no_genx)
+
     def test_default_genx_only(self):
-        macro, genx = resolve_output_formats(
-            Mock(macro=False, genx=False), self._settings()
-        )
+        macro, genx = resolve_output_formats(self._args(), self._settings())
         assert macro is False
         assert genx is True
 
     def test_macro_flag_adds_macro_keeps_genx(self):
-        macro, genx = resolve_output_formats(
-            Mock(macro=True, genx=False), self._settings()
-        )
+        macro, genx = resolve_output_formats(self._args(macro=True), self._settings())
         assert macro is True
         assert genx is True
 
     def test_macro_setting_adds_macro_keeps_genx(self):
         macro, genx = resolve_output_formats(
-            Mock(macro=False, genx=False), self._settings(macro_output=True)
+            self._args(), self._settings(macro_output=True)
         )
         assert macro is True
         assert genx is True
 
     def test_macro_only_settings(self):
         macro, genx = resolve_output_formats(
-            Mock(macro=False, genx=False),
+            self._args(),
             self._settings(macro_output=True, genx_output=False),
         )
         assert macro is True
@@ -273,15 +281,38 @@ class TestResolveOutputFormats:
 
     def test_genx_flag_overrides_false_setting(self):
         macro, genx = resolve_output_formats(
-            Mock(macro=False, genx=True),
+            self._args(genx=True),
             self._settings(genx_output=False),
         )
         assert macro is False
         assert genx is True
 
+    def test_no_genx_disables_genx(self):
+        macro, genx = resolve_output_formats(
+            self._args(macro=True, no_genx=True), self._settings()
+        )
+        assert macro is True
+        assert genx is False
+
+    def test_no_genx_overrides_genx_setting_true(self):
+        macro, genx = resolve_output_formats(
+            self._args(macro=True, no_genx=True),
+            self._settings(genx_output=True),
+        )
+        assert macro is True
+        assert genx is False
+
+    def test_no_genx_overrides_genx_flag(self):
+        # --no-genx is a hard override, winning over --genx.
+        macro, genx = resolve_output_formats(
+            self._args(macro=True, genx=True, no_genx=True), self._settings()
+        )
+        assert macro is True
+        assert genx is False
+
     def test_both_flags_both_formats(self):
         macro, genx = resolve_output_formats(
-            Mock(macro=True, genx=True), self._settings()
+            self._args(macro=True, genx=True), self._settings()
         )
         assert macro is True
         assert genx is True
@@ -289,18 +320,15 @@ class TestResolveOutputFormats:
     def test_boolish_string_values_case_insensitive(self):
         # A settings file loaded with a string (non-YAML) value.
         macro, genx = resolve_output_formats(
-            Mock(macro=False, genx=False),
+            self._args(),
             self._settings(macro_output="TRUE", genx_output="False"),
         )
         assert macro is True
         assert genx is False
 
     def test_namespace_without_flag_attrs(self):
-        # Some callers build a Namespace without macro/genx attributes.
-        args = Mock()
-        del args.macro
-        del args.genx
-        macro, genx = resolve_output_formats(args, self._settings())
+        # Some callers build a Namespace without macro/genx/no_genx attributes.
+        macro, genx = resolve_output_formats(argparse.Namespace(), self._settings())
         assert macro is False
         assert genx is True
 

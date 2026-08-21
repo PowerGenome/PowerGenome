@@ -79,13 +79,15 @@ def resolve_output_formats(args, settings):
     CLI flags and per-case settings are combined so both formats can be written
     in a single run. GenX is the default output when no output flag or output
     setting is present; Macro is written in addition to GenX unless GenX is
-    explicitly disabled with ``genx_output: false``.
+    disabled. ``--no-genx`` (or ``--genx``/``genx_output`` absent) turns GenX
+    off, so Macro-only output is available from the command line alone.
     """
     macro_enabled = getattr(args, "macro", False) or _as_bool(
         settings.get("macro_output"), default=False
     )
-    genx_enabled = getattr(args, "genx", False) or _as_bool(
-        settings.get("genx_output"), default=True
+    genx_enabled = not getattr(args, "no_genx", False) and (
+        getattr(args, "genx", False)
+        or _as_bool(settings.get("genx_output"), default=True)
     )
     return macro_enabled, genx_enabled
 
@@ -189,6 +191,16 @@ def parse_command_line(argv):
             "output setting is set). Can be combined with --macro to write both "
             "formats in a single run. Can also be controlled with "
             "'genx_output: true' in a settings file."
+        ),
+    )
+    parser.add_argument(
+        "--no-genx",
+        dest="no_genx",
+        action="store_true",
+        help=(
+            "Do not write GenX Inputs files, even if 'genx_output: true' is set "
+            "in a settings file. Combine with --macro (or 'macro_output: true') "
+            "to write Macro inputs only without editing the settings file."
         ),
     )
     arguments = parser.parse_args(argv[1:])

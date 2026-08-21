@@ -24,7 +24,9 @@
 # Set to false to skip writing GenX Inputs files. GenX is the default output
 # format, so this key is only needed to turn GenX off (e.g. to write Macro
 # inputs only) or to state it explicitly. The --genx flag to run_powergenome
-# forces GenX output on even when genx_output is false in a settings file.
+# forces GenX output on, and the --no-genx flag forces it off (e.g.
+# `run_powergenome --macro --no-genx` writes Macro inputs only without
+# editing this file), even when the corresponding setting says otherwise.
 # genx_output: true
 
 # ---- model-run settings (settings/case_settings.json) ----
