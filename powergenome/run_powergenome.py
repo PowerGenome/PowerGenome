@@ -99,8 +99,7 @@ def parse_command_line(argv):
     # Accept long option names in any case (e.g. --MACRO, --Genx). Option values
     # are left untouched.
     argv = [
-        arg if not arg.startswith("--") else arg[:2] + arg[2:].lower()
-        for arg in argv
+        arg if not arg.startswith("--") else arg[:2] + arg[2:].lower() for arg in argv
     ]
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -533,10 +532,7 @@ def main(**kwargs):
                     )
 
                 if genx_output_enabled:
-                    if (
-                        scenario_settings_obj.get("old_genx_format", False)
-                        is not True
-                    ):
+                    if scenario_settings_obj.get("old_genx_format", False) is not True:
                         genx_data = process_genx_data(case_folder, case_year_data)
                     else:
                         genx_data = process_genx_data_old_format(
