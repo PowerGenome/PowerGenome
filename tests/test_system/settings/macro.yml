@@ -20,8 +20,12 @@
 
 # ---- model-run settings (settings/case_settings.json) ----
 
-# One entry per planning period (stage). Defaults to 1 year per period.
-# macro_period_lengths: [1, 1]
+# One entry per planning period (stage). By default each period's length is
+# derived from the model_periods / model_first_planning_year / model_year
+# settings that PowerGenome already requires (the inclusive span of each
+# period's start and end years), so you do not normally need to set this.
+# Set it explicitly only to override the derived lengths.
+# macro_period_lengths: [6, 10]
 
 # Annual discount rate applied to future costs.
 # macro_discount_rate: 0.045
@@ -50,7 +54,7 @@
 # (demand_segments_fn) is configured: maximum curtailment fraction and
 # value of lost service in $/MWh.
 # macro_default_max_nsd: 1
-# macro_default_voll: 5000.0
+# macro_default_voll: 10000.0
 
 # Constant fuel price ($/MWh) used when a fuel is not present in the fuels
 # table (defaults to a free fuel).

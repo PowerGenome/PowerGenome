@@ -631,7 +631,7 @@ def test_load_nsd_segments_default_when_no_file():
     settings = {}
     max_nsd, price_nsd = load_nsd_segments(settings)
     assert max_nsd == [1]
-    assert price_nsd == [5000.0]
+    assert price_nsd == [10000.0]
 
 
 def test_load_nsd_segments_uses_voll_base_price(tmp_path):
@@ -1018,6 +1018,33 @@ def test_make_case_settings_json():
     assert cs2["SolutionAlgorithm"] == "Nested"
 
 
+def test_make_case_settings_json_period_length_derivation():
+    """Period lengths are derived from the planning years when not set."""
+    settings = {
+        "model_first_planning_year": [2025, 2031],
+        "model_year": [2030, 2040],
+    }
+    cs = make_case_settings_json(2, settings)
+    assert cs["PeriodLengths"] == [6, 10]
+
+    # model_periods form gives the same result
+    settings2 = {"model_periods": [(2025, 2030), (2031, 2040)]}
+    cs2 = make_case_settings_json(2, settings2)
+    assert cs2["PeriodLengths"] == [6, 10]
+
+    # an explicit macro_period_lengths still wins over derivation
+    cs3 = make_case_settings_json(
+        2, {**settings, "macro_period_lengths": [1, 3]}
+    )
+    assert cs3["PeriodLengths"] == [1, 3]
+
+    # explicit period_lengths argument wins over everything
+    cs4 = make_case_settings_json(
+        2, {**settings, "macro_period_lengths": [1, 3]}, period_lengths=[2, 8]
+    )
+    assert cs4["PeriodLengths"] == [2, 8]
+
+
 def test_make_macro_settings_json_overrides():
     default = make_macro_settings_json()
     assert default == {
@@ -1052,7 +1079,7 @@ def test_load_nsd_segments_default_overrides():
     # defaults preserved when no settings given
     max_nsd, price_nsd = load_nsd_segments({})
     assert max_nsd == [1]
-    assert price_nsd == [5000.0]
+    assert price_nsd == [10000.0]
 
 
 def test_macro_case_builder_multistage(

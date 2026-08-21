@@ -833,14 +833,14 @@ def load_nsd_segments(settings: dict) -> tuple:
     columns are absent, and to a single segment when no demand-segments file
     is configured. The fallback maximum curtailment fraction and value of
     lost service can be overridden from settings (``macro_default_max_nsd``,
-    default 1, and ``macro_default_voll``, default $5000/MWh).
+    default 1, and ``macro_default_voll``, default $10000/MWh).
 
     Returns
     -------
     (max_nsd, price_nsd) : tuple of list[float]
     """
     default_max_nsd = float(settings.get("macro_default_max_nsd", 1))
-    default_voll = float(settings.get("macro_default_voll", 5000.0))
+    default_voll = float(settings.get("macro_default_voll", 10000.0))
     fn = settings.get("demand_segments_fn")
     if not fn:
         return [default_max_nsd], [default_voll]
@@ -1136,11 +1136,53 @@ def make_system_data_json(stages: List[int], assets_folder: str = "assets") -> d
     }
 
 
-def make_case_settings_json(n_stages: int, settings: Optional[dict] = None) -> dict:
+def _planning_period_lengths(settings: dict) -> list:
+    """Return the per-period lengths (years) from PowerGenome period settings.
+
+    Derives one length per planning period from ``model_periods`` (a list of
+    ``(first_year, last_year)`` tuples) or from the paired
+    ``model_first_planning_year`` / ``model_year`` lists; each span is
+    inclusive (``last - first + 1``). Returns an empty list when no planning
+    period information is present.
+    """
+    if not settings:
+        return []
+    if settings.get("model_periods"):
+        periods = settings["model_periods"]
+        # A single period may be stored as a flat [first, last]
+        if periods and not isinstance(periods[0], (list, tuple)):
+            periods = [periods]
+        return [
+            max(int(last) - int(first) + 1, 1)
+            for first, last in periods
+        ]
+    first = settings.get("model_first_planning_year")
+    last = settings.get("model_year")
+    if first is None or last is None:
+        return []
+    if not isinstance(first, (list, tuple)):
+        first = [first]
+    if not isinstance(last, (list, tuple)):
+        last = [last]
+    return [
+        max(int(last_year) - int(first_year) + 1, 1)
+        for first_year, last_year in zip(first, last)
+    ]
+
+
+def make_case_settings_json(
+    n_stages: int,
+    settings: Optional[dict] = None,
+    period_lengths: Optional[list] = None,
+) -> dict:
     """Return the settings/case_settings.json content for a multistage case.
 
-    ``PeriodLengths`` is one entry per stage (each 1 year, matching the
-    single-year planning periods written by PowerGenome). Discount rate and
+    ``PeriodLengths`` has one entry per stage. Each period's length is
+    derived from PowerGenome's planning period definitions
+    (``model_periods`` or the paired ``model_first_planning_year`` /
+    ``model_year``; each span inclusive). An explicit ``period_lengths``
+    list takes precedence, then an explicit ``macro_period_lengths`` setting,
+    then derivation, then a fallback of 1 year per stage. Discount rate and
     solution algorithm mirror GenX_to_Macro's multistage settings file.
 
     Overridable from settings: ``macro_period_lengths`` (list, one entry per
@@ -1148,8 +1190,13 @@ def make_case_settings_json(n_stages: int, settings: Optional[dict] = None) -> d
     (e.g. ``"Monolithic"`` or ``"Nested"``).
     """
     settings = settings or {}
+    if period_lengths is None:
+        period_lengths = settings.get("macro_period_lengths")
+    if period_lengths is None:
+        derived = _planning_period_lengths(settings)
+        period_lengths = (derived + [1] * n_stages)[:n_stages]
     return {
-        "PeriodLengths": settings.get("macro_period_lengths") or [1] * n_stages,
+        "PeriodLengths": list(period_lengths),
         "DiscountRate": settings.get("macro_discount_rate", 0.045),
         "SolutionAlgorithm": settings.get("macro_solution_algorithm", "Monolithic"),
     }
@@ -1422,10 +1469,30 @@ class MacroCaseBuilder:
         # Case-level settings are written from the first stage's settings
         # (all stages share the same scenario settings object).
         case_settings = self._stage_data[stages[0]][1]
+        # Derive each stage's period length from its own planning years
+        # (model_first_planning_year / model_year), unless the user supplied
+        # an explicit macro_period_lengths override.
+        if case_settings.get("macro_period_lengths") is None:
+            stage_lengths = []
+            for stage in stages:
+                stage_lengths_for = _planning_period_lengths(
+                    self._stage_data[stage][1]
+                )
+                stage_lengths.append(
+                    stage_lengths_for[-1] if stage_lengths_for else 1
+                )
+        else:
+            stage_lengths = None
         with open(settings_folder / "macro_settings.json", "w") as f:
             json.dump(make_macro_settings_json(case_settings), f, indent=2)
         with open(settings_folder / "case_settings.json", "w") as f:
-            json.dump(make_case_settings_json(len(stages), case_settings), f, indent=2)
+            json.dump(
+                make_case_settings_json(
+                    len(stages), case_settings, period_lengths=stage_lengths
+                ),
+                f,
+                indent=2,
+            )
         with open(self.case_root / "system_data.json", "w") as f:
             json.dump(
                 make_system_data_json(stages, assets_folder="assets"), f, indent=4

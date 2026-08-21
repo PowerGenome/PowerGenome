@@ -1025,7 +1025,10 @@ are all configurable; see `macro_discount_rate`, `macro_solution_algorithm`, `ma
 type: List[int]
 
 description: One entry per planning period (stage) written to `settings/case_settings.json` `PeriodLengths`.
-Defaults to one 1-year period per stage. Not used outside Macro output mode.
+By default each period's length is derived from the `model_periods` / `model_first_planning_year` / `model_year`
+settings that PowerGenome already requires (the inclusive span of each period's start and end years), so this key
+does not normally need to be set. Set it explicitly only to override the derived lengths. Not used outside Macro
+output mode.
 
 ### macro_discount_rate
 
@@ -1081,7 +1084,7 @@ description: Maximum non-served-demand curtailment fraction (single segment) use
 type: float
 
 description: Value of lost service in $/MWh for the single-segment non-served-demand fallback used when no
-`demand_segments_fn` is configured (or it cannot be interpreted). Defaults to `5000.0`. Not used outside Macro output mode.
+`demand_segments_fn` is configured (or it cannot be interpreted). Defaults to `10000.0`. Not used outside Macro output mode.
 
 ### macro_default_fuel_price
 
