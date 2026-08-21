@@ -40,6 +40,7 @@ from powergenome.transmission import (
     load_tx_costs,
 )
 from powergenome.util import (  # init_pudl_connection,; check_settings,; load_ipm_shapefile,; remove_fuel_gen_scenario_name,; remove_fuel_scenario_name,
+    clear_file_hash_cache,
     get_first_planning_years_from_settings,
     get_model_years_from_settings,
     write_case_settings_file,
@@ -139,6 +140,11 @@ def parse_command_line(argv):
 def main(**kwargs):
     args = parse_command_line(sys.argv)
     args.__dict__.update(kwargs)
+
+    # Each top-level run may hash large profile files for cache-key computation.
+    # Reset the memoized-hash cache so in-process edits to data files are detected.
+    clear_file_hash_cache()
+
     cwd = Path.cwd()
 
     out_folder = cwd / args.results_folder

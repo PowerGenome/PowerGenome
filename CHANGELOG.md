@@ -28,6 +28,7 @@ and this project adheres to Semantic Versioning.
 
 ### Changed
 
+- File hashing for renewable cluster cache keys (`calculate_file_hash`) is now memoized within a top-level run and uses 1 MB read blocks. Previously each of the 16+ regions re-hashed the full multi-GB profile parquet files, spending >80% of a warm-cache pipeline run (~4.4 min of a 5.5 min run) re-reading tens of gigabytes. Hashes are keyed on path + mtime + size and are reset at the start of each `run_powergenome` invocation so modified files are still detected.
 - Large tidy profile reads (renewable resource profiles, demand) now reshape to wide inside DuckDB (`read_tidy_profiles_wide`) instead of loading the full tidy file into pandas and calling `DataFrame.pivot`. For single weather-year loads an ordered single-thread scan writes directly into a pre-allocated NumPy plate (bounded peak memory, preserves the source value dtype such as `float32`); multi-year concatenation and non-integer site ids fall back to a SQL `PIVOT`. This keeps peak memory well under ~8 GB and removes the superlinear pivot cost for tens of thousands of sites.
 - BREAKING: Standardized renewable generation profile inputs to tidy format only. Legacy wide-format (one column per site) is no longer supported. Tidy schema is site_id, time_index, value, and optional weather_year.
 - Profile IO refactored to use the centralized DataManager loader (DNF filters + column projection) to avoid full-file reads of large tidy files; no pre-scan is performed. A warning is issued if requested weather_years are unavailable.
