@@ -142,6 +142,13 @@ class TestParseCommandLine:
         assert args.macro is True
         assert args.settings_file == "MyCaps.Settings.yml"
 
+    def test_output_flags_case_insensitive_equals_syntax_value_preserved(self):
+        """Test `--flag=Value` lowercases the flag name only, not the value."""
+        argv = ["script_name", "--MACRO", "--settings_file=MyCaps.Settings.yml"]
+        args = parse_command_line(argv)
+        assert args.macro is True
+        assert args.settings_file == "MyCaps.Settings.yml"
+
     def test_settings_file_argument(self):
         """Test specifying settings file."""
         argv = ["script_name", "-sf", "custom_settings.yml"]

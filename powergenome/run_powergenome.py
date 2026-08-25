@@ -9,6 +9,8 @@ import pandas as pd
 
 import powergenome
 from powergenome.database import initialize_data_manager, update_data_manager
+
+logger = logging.getLogger(__name__)
 from powergenome.external_data import make_generator_variability
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters
@@ -63,8 +65,9 @@ def _as_bool(value, default=False):
     """Coerce a settings value to a boolean, accepting case-insensitive forms.
 
     YAML booleans arrive as Python ``bool``; also handle string forms such as
-    ``"true"``, ``"TRUE"``, ``"yes"``, ``"on"``, ``"1"`` (and their negatives).
-    ``None`` (the key is absent) falls back to ``default``.
+    ``"true"``, ``"TRUE"``, ``"yes"``, ``"on"``, ``"1"``. Anything else
+    (including ``"false"``/``"no"``/``"off"`` and unrecognized strings) is
+    ``False``; ``None`` (the key is absent) falls back to ``default``.
     """
     if value is None:
         return default
@@ -85,6 +88,11 @@ def resolve_output_formats(args, settings):
     macro_enabled = getattr(args, "macro", False) or _as_bool(
         settings.get("macro_output"), default=False
     )
+    if getattr(args, "no_genx", False) and getattr(args, "genx", False):
+        logger.warning(
+            "Both --genx and --no-genx were passed; --no-genx takes precedence "
+            "and GenX output will not be written."
+        )
     genx_enabled = not getattr(args, "no_genx", False) and (
         getattr(args, "genx", False)
         or _as_bool(settings.get("genx_output"), default=True)
@@ -99,10 +107,15 @@ def parse_command_line(argv):
     :param argv: arguments on the command line must include caller file name.
     """
     # Accept long option names in any case (e.g. --MACRO, --Genx). Option values
-    # are left untouched.
-    argv = [
-        arg if not arg.startswith("--") else arg[:2] + arg[2:].lower() for arg in argv
-    ]
+    # are left untouched, including the value side of `--flag=value` syntax.
+    lower_flags = []
+    for arg in argv:
+        if not arg.startswith("--"):
+            lower_flags.append(arg)
+            continue
+        flag, eq, value = arg.partition("=")
+        lower_flags.append(flag[:2] + flag[2:].lower() + (eq + value if eq else ""))
+    argv = lower_flags
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-sf",
@@ -524,11 +537,18 @@ def main(**kwargs):
                     args, scenario_settings_obj
                 )
 
+                formats = []
+                if genx_output_enabled:
+                    formats.append("GenX")
                 if macro_output_enabled:
-                    logger.info(
-                        "\n\nWriting Macro simpleCSVinputs format to %s\n\n",
-                        case_folder,
-                    )
+                    formats.append("Macro simpleCSVinputs")
+                logger.info(
+                    "\n\nWriting model input files (%s) to %s\n\n",
+                    " + ".join(formats),
+                    case_folder,
+                )
+
+                if macro_output_enabled:
                     # The Macro case root is the parent of the GenX-style Inputs
                     # folder: <out>/<case_id> for scenario definitions and
                     # <out> for an un-keyed case.
