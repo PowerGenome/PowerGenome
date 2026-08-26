@@ -16,6 +16,17 @@ from powergenome.macro_inputs import (
     THERMAL_COLUMNS,
     VRE_COLUMNS,
     MacroCaseBuilder,
+    _clean_fuel_name,
+    _co2_sinks_for,
+    _financial_attrs,
+    _format_bool,
+    _fuel_commodity,
+    _is_committed,
+    _is_true,
+    _num,
+    _planning_period_lengths,
+    _prep_gen_df,
+    _storage_is_asymmetric,
     load_nsd_segments,
     make_availability_csv,
     make_case_settings_json,
@@ -1191,3 +1202,412 @@ def test_macro_case_builder_duplicate_stage_raises(
     builder.add_stage(2, data, settings)
     with pytest.raises(ValueError, match="already added"):
         builder.add_stage(2, data, settings)
+
+
+# ---------------------------------------------------------------------------
+# Small helper functions: edge cases not exercised by the higher-level asset
+# builder tests above (malformed/missing values, alternate column forms).
+# ---------------------------------------------------------------------------
+
+
+def test_boolean_and_numeric_helpers_edge_cases():
+    """_is_true/_num/_clean_fuel_name/_fuel_commodity/_format_bool fallbacks."""
+    # _is_true: string forms, unparsable strings, and NaN all resolve to bool
+    assert _is_true("yes") is True
+    assert _is_true("no") is False
+    assert _is_true("not_a_number") is False  # float() raises -> False
+    assert _is_true(np.nan) is False
+    assert _is_true(None) is False
+    assert _is_true([1, 2]) is False  # non-scalar: float() raises TypeError
+
+    # _num: unparsable strings and None fall back to the default
+    assert _num("not_a_number", default=-1) == -1
+    assert _num(None, default=7) == 7
+    assert _num(np.nan, default=3) == 3
+
+    # _clean_fuel_name: None/NaN input produces no fuel name
+    assert _clean_fuel_name(None) is None
+    assert _clean_fuel_name(np.nan) is None
+
+    # _fuel_commodity: no name, or a name with no matching fragment -> None
+    assert _fuel_commodity(None) is None
+    assert _fuel_commodity("some_unmapped_fuel_xyz") is None
+
+    # _format_bool: None/NaN serialize to a blank cell (Macro default)
+    assert _format_bool(None) == ""
+    assert _format_bool(np.nan) == ""
+    assert _format_bool("true") == "TRUE"
+    assert _format_bool(0) == "FALSE"
+
+
+def test_financial_attrs_caps_min_retired_capacity_to_existing():
+    """Min_Retired_Cap_MW above Existing_Cap_MW is capped so Macro stays feasible."""
+    row = pd.Series(
+        {
+            "WACC": 0.07,
+            "Capital_Recovery_Period": 20.0,
+            "Lifetime": 25.0,
+            "Min_Retired_Cap_MW": 500.0,
+            "Existing_Cap_MW": 100.0,
+        }
+    )
+    out = _financial_attrs(row)
+    assert out["min_retired_capacity"] == 100.0
+
+    # Below existing capacity: value passes through unchanged
+    row2 = row.copy()
+    row2["Min_Retired_Cap_MW"] = 20.0
+    out2 = _financial_attrs(row2)
+    assert out2["min_retired_capacity"] == 20.0
+
+
+def test_is_committed_and_storage_asymmetric_detection():
+    """Commit/Model/THERM fallback chain for unit commitment and storage symmetry."""
+    # Explicit Commit column wins outright
+    assert _is_committed(pd.Series({"Commit": 1})) is True
+    assert _is_committed(pd.Series({"Commit": 0})) is False
+    # No Commit column: a Model string containing "commit" implies UC
+    assert _is_committed(pd.Series({"Model": "Commit"})) is True
+    assert _is_committed(pd.Series({"Model": "LinearOnly"})) is False
+    # No Commit/Model at all, but no THERM column either -> fallback False
+    assert _is_committed(pd.Series({"region": "R1"})) is False
+
+    # Storage: a Model string mentioning "asym" implies asymmetric charge/discharge
+    assert _storage_is_asymmetric(pd.Series({"Model": "Asymmetric"})) is True
+    assert _storage_is_asymmetric(pd.Series({"Model": "Symmetric"})) is False
+    # No Model/STOR columns at all -> fallback False (symmetric)
+    assert _storage_is_asymmetric(pd.Series({"region": "R1"})) is False
+
+
+def test_prep_gen_df_missing_columns():
+    """_prep_gen_df drops invalid input and fills optional columns with defaults."""
+    # No "Resource" column at all -> unusable, treated as empty
+    no_resource = pd.DataFrame({"region": ["R1"], "THERM": [1]})
+    assert make_thermal_csvs(no_resource) == []
+
+    # Minimal generator row missing region/New_Build/Existing_Cap_MW/cost columns
+    minimal = pd.DataFrame(
+        {
+            "Resource": ["gas_minimal"],
+            "Fuel": ["natural_gas_power"],
+            "THERM": [1],
+            "VRE": [0],
+            "STOR": [0],
+            "HYDRO": [0],
+            "MUST_RUN": [0],
+        }
+    )
+    out = make_thermal_csvs(minimal)
+    assert len(out) == 1
+    _, commodity, df = out[0]
+    assert commodity == "NaturalGas"
+    row = df.iloc[0]
+    # region/New_Build/Existing_Cap_MW default to 0; costs default to 0.0
+    assert row["existing_capacity"] == 0.0
+    assert row["can_expand"] == "FALSE"
+    assert row["annualized_investment_cost"] == 0.0
+    # Can_Retire absent -> derived True (New_Build 0 != -1, matches GenX)
+    assert row["can_retire"] == "TRUE"
+
+
+def test_asset_builders_handle_missing_generator_data():
+    """None/empty generator and network inputs return empty (not an error)."""
+    assert make_thermal_csvs(None) == []
+    assert make_thermal_csvs(pd.DataFrame()) == []
+    assert make_vre_csv(None).empty
+    assert make_storage_csv(pd.DataFrame()).empty
+    assert make_hydro_csv(None).empty
+    assert make_mustrun_csv(pd.DataFrame()).empty
+    assert make_powerlines_csv(None).empty
+    assert make_powerlines_csv(pd.DataFrame()).empty
+
+
+def test_make_vre_csv_falls_back_to_existing_capacity_when_max_cap_missing():
+    """Max_Cap_MW <= 0 (or NaN) means 'no explicit bound'; use Existing_Cap_MW."""
+    df = pd.DataFrame(
+        {
+            "Resource": ["solar_no_max", "solar_nan_max"],
+            "region": ["R1", "R1"],
+            "VRE": [1, 1],
+            "Max_Cap_MW": [0.0, np.nan],
+            "Existing_Cap_MW": [250.0, 300.0],
+            "New_Build": [0, 0],
+        }
+    )
+    out = make_vre_csv(df)
+    assert list(out["max_capacity"]) == [250.0, 300.0]
+
+
+def test_make_powerlines_csv_skips_rows_missing_region():
+    """Rows without a start or dest region are dropped rather than erroring."""
+    network = pd.DataFrame(
+        {
+            "start_region": ["R1", None],
+            "dest_region": ["R2", "R3"],
+            "Line_Max_Flow_MW": [100.0, 50.0],
+        }
+    )
+    out = make_powerlines_csv(network)
+    assert len(out) == 1
+    assert out.iloc[0]["id"] == "R1_to_R2"
+
+
+def test_planning_period_lengths_flat_and_scalar_forms():
+    """A single planning period may be stored flat, or as bare scalars."""
+    # model_periods as a flat [first, last] pair (not a list of tuples)
+    assert _planning_period_lengths({"model_periods": [2025, 2030]}) == [6]
+    # model_first_planning_year / model_year as bare scalars (not lists)
+    assert _planning_period_lengths(
+        {"model_first_planning_year": 2025, "model_year": 2030}
+    ) == [6]
+    # No planning-year information at all
+    assert _planning_period_lengths({}) == []
+    assert _planning_period_lengths(None) == []
+
+
+def test_load_nsd_segments_error_and_missing_column_fallbacks(tmp_path):
+    """Unreadable or malformed demand-segments files fall back to defaults."""
+    # File configured but missing on disk -> load raises, caught and defaulted
+    missing_file_settings = {
+        "input_folder": str(tmp_path),
+        "demand_segments_fn": "does_not_exist.csv",
+        "macro_default_max_nsd": 0.8,
+        "macro_default_voll": 5000.0,
+    }
+    max_nsd, price_nsd = load_nsd_segments(missing_file_settings)
+    assert max_nsd == [0.8]
+    assert price_nsd == [5000.0]
+
+    # File present but missing both curtailment-fraction columns
+    no_max_col_csv = tmp_path / "no_max_col.csv"
+    no_max_col_csv.write_text("Voll,Cost_of_Demand_Curtailment_per_MW\n2000,1\n")
+    settings = {
+        "input_folder": str(tmp_path),
+        "demand_segments_fn": "no_max_col.csv",
+    }
+    max_nsd, price_nsd = load_nsd_segments(settings)
+    assert max_nsd == [1]
+    assert price_nsd == [10000.0]
+
+    # File present with a max-curtailment column, but no price columns at all
+    no_price_col_csv = tmp_path / "no_price_col.csv"
+    no_price_col_csv.write_text("Max_Demand_Curtailment\n1\n")
+    settings2 = {
+        "input_folder": str(tmp_path),
+        "demand_segments_fn": "no_price_col.csv",
+    }
+    max_nsd, price_nsd = load_nsd_segments(settings2)
+    assert max_nsd == [1]
+    assert price_nsd == [10000.0]
+
+
+def test_co2_sinks_for_edge_cases():
+    """Malformed/partial CO2 cap tables are handled without raising.
+
+    Covers: a cap missing its zone-flag column, a numeric-parse failure on
+    the flag column (falls back to a raw equality check), a cap with no
+    flagged zones, a flagged row with a NaN zone, and a flagged zone that
+    is not present in zone_num_map.
+    """
+    gen_df = pd.DataFrame(
+        {
+            "region": ["R1", "R2"],
+            "THERM": [1, 1],
+        }
+    )
+    co2_cap = pd.DataFrame(
+        {
+            "Network_zones": [1, 2, np.nan, 3],
+            # Non-numeric entry forces the astype(float) path to raise;
+            # the fallback raw "== 1" check still matches the int-1 rows.
+            "CO_2_Cap_Zone_1": [1, 0, 1, "oops"],
+            "CO_2_Max_Mtons_1": [10.0, 0.0, 2.0, 0.0],
+            # All-zero flag column: astype succeeds, but nothing is flagged.
+            "CO_2_Cap_Zone_2": [0, 0, 0, 0],
+            "CO_2_Max_Mtons_2": [5.0, 5.0, 5.0, 5.0],
+            # No matching CO_2_Cap_Zone_3 column -> this cap is skipped.
+            "CO_2_Max_Mtons_3": [1.0, 1.0, 1.0, 1.0],
+        }
+    )
+    # zone 1 (flagged for cap 1) is intentionally absent from zone_num_map
+    settings = {"zone_num_map": {"R2": 2}}
+
+    sinks = _co2_sinks_for(gen_df, settings, co2_cap)
+    sink_ids = {s["id"]: s for s in sinks}
+    assert "co2_sink_1" in sink_ids
+    # rhs = (10.0 + 2.0) Mtons * 1e6 (row with NaN zone still counts toward rhs)
+    assert sink_ids["co2_sink_1"]["cap"] == 12.0e6
+    # cap 2 has no flagged rows -> no sink created
+    assert "co2_sink_2" not in sink_ids
+    # cap 3 has no matching flag column -> no sink created
+    assert "co2_sink_3" not in sink_ids
+    # zone 1 has no region mapping, so no generator is retagged to co2_sink_1
+    assert not (gen_df["co2_sink"] == "co2_sink_1").any()
+
+
+def test_macro_case_builder_ccs_and_empty_gen_stage(
+    tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings
+):
+    """CCS assets add a CO2Captured commodity; a gen-less stage still writes valid
+    defaults (e.g. a Macro-only run with generator clustering skipped)."""
+    ccs_gen_df = gen_df.copy()
+    ccs_gen_df["CO2_Capture_Fraction"] = 0.0
+    ccs_gen_df.loc[
+        ccs_gen_df["Resource"] == "gas_committed", "CO2_Capture_Fraction"
+    ] = 0.9
+
+    builder = MacroCaseBuilder(tmp_path)
+    stage1 = {
+        "gen_data": ccs_gen_df,
+        "gen_variability": gen_variability,
+        "demand_data": demand_data,
+        "fuels": fuels,
+        "network": network,
+    }
+    # Stage 2 has no generator data at all (e.g. --no-gens combined with --macro)
+    stage2 = {
+        "gen_data": pd.DataFrame(),
+        "gen_variability": None,
+        "demand_data": demand_data,
+        "fuels": None,
+        "network": None,
+    }
+    builder.add_stage(1, stage1, settings)
+    builder.add_stage(2, stage2, settings)
+    builder.finalize()
+
+    commodities = json.loads((tmp_path / "system/commodities.json").read_text())
+    assert "CO2Captured" in commodities["commodities"]
+
+    nodes2 = json.loads((tmp_path / "system/nodes_2.json").read_text())["nodes"]
+    co2_nodes = [n for n in nodes2 if n["type"] == "CO2"]
+    assert co2_nodes and co2_nodes[0]["instance_data"] == [
+        {
+            "id": "co2_sink",
+            "constraints": {"BalanceConstraint": False, "CO2CapConstraint": False},
+            "rhs_policy": {"CO2CapConstraint": 0},
+        }
+    ]
+    # no asset files written for the gen-less stage
+    assert not (tmp_path / "assets" / "assets_2" / "vre.csv").exists()
+
+
+def test_make_thermal_csvs_no_thermal_rows_and_unmapped_fuel():
+    """No THERM>0 rows, and a Fuel that maps to no Macro commodity, both yield []."""
+    no_therm = pd.DataFrame(
+        {"Resource": ["solar_1"], "region": ["R1"], "THERM": [0], "VRE": [1]}
+    )
+    assert make_thermal_csvs(no_therm) == []
+
+    unmapped_fuel = pd.DataFrame(
+        {
+            "Resource": ["mystery_gen"],
+            "region": ["R1"],
+            "THERM": [1],
+            "Fuel": ["some_mystery_fuel"],
+        }
+    )
+    assert make_thermal_csvs(unmapped_fuel) == []
+
+
+def test_make_availability_csv_edge_cases():
+    """No VRE/HYDRO/MUST_RUN resources, and multiple time-index fallbacks."""
+    gen_df_no_vre = pd.DataFrame({"Resource": ["gas1"], "THERM": [1]})
+    assert make_availability_csv(gen_df_no_vre, None).empty
+
+    gen_df_vre = pd.DataFrame({"Resource": ["solar_1"], "VRE": [1]})
+    # gen_variability with rows but no Time_Index column -> derive from length
+    variability_no_time_idx = pd.DataFrame({"solar_1": [0.1, 0.2, 0.3]})
+    out = make_availability_csv(gen_df_vre, variability_no_time_idx)
+    assert list(out["Time_Index"]) == [1, 2, 3]
+
+    # no gen_variability at all -> fallback to a full 8760-hour range
+    out2 = make_availability_csv(gen_df_vre, None)
+    assert len(out2) == 8760
+    assert out2["Time_Index"].iloc[0] == 1
+    assert out2["Time_Index"].iloc[-1] == 8760
+
+
+def test_make_nodes_json_skips_empty_fuel_commodity_regions(settings):
+    """A commodity with no region headers is dropped rather than emitting an
+    empty node block."""
+    nodes = make_nodes_json(
+        settings=settings,
+        demand_headers={},
+        fuel_supply_headers={"NaturalGas": {}, "Coal": {"R1": "Coal_R1"}},
+        co2_sinks=[{"id": "co2_sink", "cap": None}],
+        has_hydro=False,
+    )
+    types = [n["type"] for n in nodes]
+    assert "Coal" in types
+    assert "NaturalGas" not in types
+
+
+def test_make_fuel_prices_csv_skips_unmapped_fuel_commodity():
+    """A thermal resource whose Fuel maps to no Macro commodity is skipped."""
+    thermal = pd.DataFrame(
+        {
+            "Resource": ["mystery_gen"],
+            "region": ["R1"],
+            "Fuel": ["some_mystery_fuel"],
+        }
+    )
+    time_index = pd.Series(range(1, 4), name="Time_Index")
+    out = make_fuel_prices_csv(None, thermal, time_index)
+    assert list(out.columns) == ["Time_Index"]
+
+
+def test_make_period_map_csv_renames_rep_period_index():
+    """Rep_Period_Index is used as Rep_Period when the latter is absent."""
+    pm = pd.DataFrame({"Period_Index": [1, 2], "Rep_Period_Index": [1, 1]})
+    out = make_period_map_csv(pm)
+    assert list(out.columns) == ["Period_Index", "Rep_Period", "Rep_Period_Index"]
+    assert list(out["Rep_Period"]) == [1, 1]
+
+
+def test_make_demand_csv_empty_input():
+    assert make_demand_csv(None).empty
+    assert make_demand_csv(pd.DataFrame()).empty
+
+
+def test_macro_case_builder_finalize_without_stages(tmp_path):
+    """finalize() with no stages added is a no-op, not an error."""
+    builder = MacroCaseBuilder(tmp_path)
+    builder.finalize()
+    assert not (tmp_path / "system_data.json").exists()
+
+
+def test_macro_case_builder_stage_without_time_index_or_demand(tmp_path, settings):
+    """No demand/variability Time_Index anywhere falls back to a full 8760-hour
+    index; missing demand data leaves demand headers empty; a thermal resource
+    with an unmapped fuel is skipped when building fuel-supply headers."""
+    gen_df = pd.DataFrame(
+        {
+            "Resource": ["solar_1", "gas_mystery"],
+            "region": ["R1", "R1"],
+            "VRE": [1, 0],
+            "THERM": [0, 1],
+            "STOR": [0, 0],
+            "HYDRO": [0, 0],
+            "MUST_RUN": [0, 0],
+            "Fuel": [None, "some_mystery_fuel"],
+            "Existing_Cap_MW": [100.0, 50.0],
+        }
+    )
+    builder = MacroCaseBuilder(tmp_path)
+    builder.add_stage(
+        1,
+        {
+            "gen_data": gen_df,
+            "gen_variability": None,
+            "demand_data": None,
+            "fuels": None,
+            "network": None,
+        },
+        settings,
+    )
+    builder.finalize()
+
+    avail = pd.read_csv(tmp_path / "system/availability_1.csv")
+    assert len(avail) == 8760
+    assert not (tmp_path / "system" / "demand_1.csv").exists()
