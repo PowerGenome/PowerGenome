@@ -2642,6 +2642,8 @@
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">input_folder</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">extra_inputs</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">emission_policies_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emission_policies.csv</span>
 </code></pre></div>
+<p><code>emission_policies_fn</code> is loaded through the DataManager, so the value may use
+any supported DataManager table configuration rather than only a CSV path.</p>
 <hr />
 <h2 id="step-3-define-which-resources-are-eligible">Step 3: Define which resources are eligible<a class="headerlink" href="#step-3-define-which-resources-are-eligible" title="Permanent link">&para;</a></h2>
 <p>In <code>model_tag_values</code> in settings, add ESR tags. The tag names must match the column names in your CSV (<code>ESR_1</code>, <code>ESR_2</code>, etc.):</p>

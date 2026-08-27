@@ -1758,6 +1758,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#demand-segments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Demand Segments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#cost-multipliers" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2938,6 +2949,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#demand-segments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Demand Segments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#cost-multipliers" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3565,6 +3587,9 @@
 <h3 id="emission-policies">Emission Policies<a class="headerlink" href="#emission-policies" title="Permanent link">&para;</a></h3>
 <p><strong>Setting</strong>: <code>emission_policies_fn</code>
 <strong>Purpose</strong>: RPS, CES, carbon constraints by case/region/year</p>
+<p>This setting names a DataManager table source. It can use the same file or
+database table configuration supported by other DataManager inputs; it is not
+limited to a CSV in <code>input_folder</code>.</p>
 <p><strong>Required columns</strong>:</p>
 <ul>
 <li><code>case_id</code>: Case identifier</li>
@@ -3580,6 +3605,11 @@
 <p><strong>Example</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">emission_policies_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emission_policies.csv</span>
 </code></pre></div>
+<h3 id="demand-segments">Demand Segments<a class="headerlink" href="#demand-segments" title="Permanent link">&para;</a></h3>
+<p><strong>Setting</strong>: <code>demand_segments_fn</code>
+<strong>Purpose</strong>: Value of lost load and demand segmentation parameters</p>
+<p>This setting names a DataManager table source and supports the same file and
+database table configurations as other DataManager inputs.</p>
 <h3 id="cost-multipliers">Cost Multipliers<a class="headerlink" href="#cost-multipliers" title="Permanent link">&para;</a></h3>
 <p><strong>Setting</strong>: <code>cost_multiplier_fn</code>
 <strong>Purpose</strong>: Regional construction cost adjustments</p>
