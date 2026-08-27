@@ -1739,6 +1739,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/settings/macro-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2608,7 +2636,7 @@
 <h3 id="keyerror-model_year-or-other-required-parameter"><code>KeyError: 'model_year'</code> (or other required parameter)<a class="headerlink" href="#keyerror-model_year-or-other-required-parameter" title="Permanent link">&para;</a></h3>
 <p><strong>Cause</strong>: A required settings parameter is missing from your YAML files.</p>
 <p><strong>Fix</strong>: Check that the parameter is present in one of your settings files:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;model_year&quot;</span><span class="w"> </span>settings/
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">"model_year"</span><span class="w"> </span>settings/
 </code></pre></div>
 <p>Common required parameters:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">model_periods</span><span class="p">:</span>
@@ -2642,7 +2670,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Correct</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand.parquet</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># May fail if auto-detection doesn&#39;t find it</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># May fail if auto-detection doesn't find it</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="nt">demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand</span>
 </code></pre></div>
 </li>
@@ -2730,8 +2758,8 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">demand_table</span><span class="p">:</span>
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand.parquet</span>
 <a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;in&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;CA_N&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;CA_S&#39;</span><span class="p p-Indicator">]]</span>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'in'</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">'CA_N'</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'CA_S'</span><span class="p p-Indicator">]]</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 </li>
 </ol>
@@ -2767,14 +2795,14 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_settings</span>
 <a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;settings&quot;</span><span class="p">))</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model_year&quot;</span><span class="p">))</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model_regions&quot;</span><span class="p">))</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"settings"</span><span class="p">))</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"model_year"</span><span class="p">))</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"model_regions"</span><span class="p">))</span>
 </code></pre></div>
 <p>Confirm DataManager can see your tables:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">initialize_data_manager</span><span class="p">,</span> <span class="n">get_data_manager</span>
 <a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">initialize_data_manager</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">settings</span><span class="p">[</span><span class="s2">&quot;data_location&quot;</span><span class="p">])</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">initialize_data_manager</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"data_location"</span><span class="p">])</span>
 <a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">dm</span> <span class="o">=</span> <span class="n">get_data_manager</span><span class="p">()</span>
 <a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">dm</span><span class="o">.</span><span class="n">list_tables</span><span class="p">())</span>
 </code></pre></div>

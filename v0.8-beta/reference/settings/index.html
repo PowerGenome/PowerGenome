@@ -1720,6 +1720,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="macro-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2658,6 +2686,12 @@
 <p>Multi-scenario execution, parameter swapping, case definitions.</p>
 <p>Parameters: <code>scenario_definitions_fn</code>, <code>settings_management</code>, <code>input_folder</code>, etc.</p>
 </li>
+<li>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6m-1 1.5L18.5 9H13m-4.07 3.22H16v7.07l-2.12-2.12L11.05 20l-2.83-2.83 2.83-2.82"/></svg></span> <strong><a href="macro-output/">Output Formats</a></strong></p>
+<hr />
+<p>Which model input format(s) to write (GenX and/or Macro simpleCSVinputs) and Macro model-run settings.</p>
+<p>Parameters: <code>macro_output</code>, <code>genx_output</code>, <code>macro_discount_rate</code>, etc.</p>
+</li>
 </ul>
 </div>
 <h2 id="common-patterns">Common Patterns<a class="headerlink" href="#common-patterns" title="Permanent link">&para;</a></h2>
@@ -2680,15 +2714,15 @@
 </code></pre></div>
 <h3 id="table-configurations">Table Configurations<a class="headerlink" href="#table-configurations" title="Permanent link">&para;</a></h3>
 <p><strong>Simple</strong> (just filename):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">generation_table</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;generators.csv&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">generation_table</span><span class="p">:</span><span class="w"> </span><span class="s">"generators.csv"</span>
 </code></pre></div>
 <p><strong>Advanced</strong> (with filters):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">demand_table</span><span class="p">:</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand_timeseries.parquet</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HighEV</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;CA&#39;</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;&gt;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'CA'</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'&gt;='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">columns</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">time_index</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">weather_year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">load_mw</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">year</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p>Filter logic uses <strong>DNF (Disjunctive Normal Form)</strong>:</p>
@@ -2714,8 +2748,8 @@
 <a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="nt">Natural Gas Fired Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
 </code></pre></div>
 <p>Access pattern in code:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">combined_cycle_techs</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">&quot;tech_groups&quot;</span><span class="p">][</span><span class="s2">&quot;Combined Cycle&quot;</span><span class="p">]</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">clusters</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">&quot;num_clusters&quot;</span><span class="p">][</span><span class="s2">&quot;CA_N&quot;</span><span class="p">][</span><span class="s2">&quot;Conventional Steam Coal&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">combined_cycle_techs</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"tech_groups"</span><span class="p">][</span><span class="s2">"Combined Cycle"</span><span class="p">]</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">clusters</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"num_clusters"</span><span class="p">][</span><span class="s2">"CA_N"</span><span class="p">][</span><span class="s2">"Conventional Steam Coal"</span><span class="p">]</span>
 </code></pre></div>
 <h3 id="regional-parameters">Regional Parameters<a class="headerlink" href="#regional-parameters" title="Permanent link">&para;</a></h3>
 <p>Regional settings can use model region names as keys:</p>
@@ -2743,7 +2777,7 @@
 <p>These apply changes to base technology costs using operators like <code>mul</code>, <code>add</code>, <code>sub</code>.</p>
 <h3 id="technology-matching">Technology Matching<a class="headerlink" href="#technology-matching" title="Permanent link">&para;</a></h3>
 <p>Technology names are matched <strong>case-insensitively</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># These all match &quot;naturalgas_ccavgcf_moderate&quot; resource</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># These all match "naturalgas_ccavgcf_moderate" resource</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nt">tech_groups</span><span class="p">:</span>
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nt">Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">NaturalGas_CCAvgCF</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">naturalgas_ccavgcf</span><span class="p p-Indicator">]</span>
 </code></pre></div>
@@ -2754,10 +2788,10 @@
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Correct: point to folder</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;my_study/settings&quot;</span><span class="p">))</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"my_study/settings"</span><span class="p">))</span>
 <a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># Incorrect: don&#39;t point to specific file</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="c1"># settings = load_settings(Path(&quot;my_study/settings/generators.yml&quot;))</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># Incorrect: don't point to specific file</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="c1"># settings = load_settings(Path("my_study/settings/generators.yml"))</span>
 </code></pre></div>
 <p><strong>Load Order</strong>:</p>
 <ol>
@@ -2783,10 +2817,10 @@
 </ul>
 <p>Use <code>.get(key, default)</code> for optional parameters:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Required (error if missing)</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">year</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">&quot;model_year&quot;</span><span class="p">]</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">year</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"model_year"</span><span class="p">]</span>
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Optional (use default)</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">reduce_time</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;reduce_time_domain&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">reduce_time</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"reduce_time_domain"</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="environment-variables-deprecated">Environment Variables (Deprecated)<a class="headerlink" href="#environment-variables-deprecated" title="Permanent link">&para;</a></h2>
 <p>Older versions used <code>.env</code> files for data paths:</p>

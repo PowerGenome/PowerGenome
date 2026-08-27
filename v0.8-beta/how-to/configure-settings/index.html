@@ -1973,6 +1973,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/settings/macro-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3281,7 +3309,7 @@ multiple scenario dimensions:</p>
 </code></pre></div>
 <p><strong>settings/more_technologies.yml</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">new_resources</span><span class="p">:</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Battery</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;*&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Replaces entire list above!</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Battery</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"*"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Replaces entire list above!</span>
 </code></pre></div>
 <p><strong>Result</strong>: Only <code>Battery</code> is in <code>new_resources</code>.</p>
 <p><strong>Solution</strong>: Keep lists in one file or use complete lists in later files:</p>
@@ -3289,7 +3317,7 @@ multiple scenario dimensions:</p>
 <a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">NaturalGas</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CCAvgCF</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">500</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">UtilityPV</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LandbasedWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Battery</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;*&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Complete list</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Battery</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"*"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Complete list</span>
 </code></pre></div>
 <h3 id="dictionary-merging">Dictionary Merging<a class="headerlink" href="#dictionary-merging" title="Permanent link">&para;</a></h3>
 <p>Nested dictionaries merge recursively:</p>
@@ -3312,34 +3340,34 @@ multiple scenario dimensions:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_settings</span>
 <a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;settings&quot;</span><span class="p">))</span>
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model_year&quot;</span><span class="p">))</span>
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model_regions&quot;</span><span class="p">))</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"settings"</span><span class="p">))</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"model_year"</span><span class="p">))</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"model_regions"</span><span class="p">))</span>
 </code></pre></div>
 <h3 id="validate-required-parameters">Validate Required Parameters<a class="headerlink" href="#validate-required-parameters" title="Permanent link">&para;</a></h3>
 <p>Check for missing required parameters:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_settings</span>
 <a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;settings&quot;</span><span class="p">))</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"settings"</span><span class="p">))</span>
 <a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>
 <a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="n">required</span> <span class="o">=</span> <span class="p">[</span>
-<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>    <span class="s2">&quot;model_periods&quot;</span><span class="p">,</span>
-<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>    <span class="s2">&quot;target_usd_year&quot;</span><span class="p">,</span>
-<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>    <span class="s2">&quot;model_regions&quot;</span><span class="p">,</span>
-<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>    <span class="s2">&quot;model_tag_names&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>    <span class="s2">"model_periods"</span><span class="p">,</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>    <span class="s2">"target_usd_year"</span><span class="p">,</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>    <span class="s2">"model_regions"</span><span class="p">,</span>
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>    <span class="s2">"model_tag_names"</span><span class="p">,</span>
 <a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="p">]</span>
 <a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a>
 <a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a><span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">required</span> <span class="k">if</span> <span class="n">p</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">settings</span><span class="p">]</span>
 <a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a><span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
-<a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing required parameters: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Missing required parameters: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="test-data-loading">Test Data Loading<a class="headerlink" href="#test-data-loading" title="Permanent link">&para;</a></h3>
 <p>Verify data tables are accessible:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_settings</span>
 <a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.database</span><span class="w"> </span><span class="kn">import</span> <span class="n">initialize_data_manager</span>
 <a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;settings&quot;</span><span class="p">))</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="n">data_location</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;data_location&quot;</span><span class="p">)</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"settings"</span><span class="p">))</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="n">data_location</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data_location"</span><span class="p">)</span>
 <a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>
 <a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="n">initialize_data_manager</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">data_location</span><span class="p">)</span>
 <a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>
@@ -3415,7 +3443,7 @@ multiple scenario dimensions:</p>
 <p><strong>Problem</strong>: <code>KeyError: 'model_periods'</code></p>
 <p><strong>Solution</strong>: Check parameter spelling and ensure it's in one of the YAML files:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="c1"># Search for parameter in settings</span>
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;model_periods&quot;</span><span class="w"> </span>settings/
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">"model_periods"</span><span class="w"> </span>settings/
 </code></pre></div>
 <h3 id="override-not-working">Override Not Working<a class="headerlink" href="#override-not-working" title="Permanent link">&para;</a></h3>
 <p><strong>Problem</strong>: Parameter value not updating from later file</p>

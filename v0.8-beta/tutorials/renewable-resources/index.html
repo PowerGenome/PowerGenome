@@ -1912,6 +1912,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/settings/macro-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2990,11 +3018,11 @@
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Load example resource groups</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">resource_groups</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="s2">&quot;tests/test_system/test_data/resource_groups/test_resource_groups.csv&quot;</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="s2">"tests/test_system/test_data/resource_groups/test_resource_groups.csv"</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">)</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="nb">print</span><span class="p">(</span><span class="n">resource_groups</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="nb">print</span><span class="p">(</span><span class="n">resource_groups</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;region&#39;</span><span class="p">,</span> <span class="s1">&#39;technology&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="nb">print</span><span class="p">(</span><span class="n">resource_groups</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">'region'</span><span class="p">,</span> <span class="s1">'technology'</span><span class="p">])</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
 </code></pre></div>
 <h2 id="step-2-basic-renewable-configuration">Step 2: Basic Renewable Configuration<a class="headerlink" href="#step-2-basic-renewable-configuration" title="Permanent link">&para;</a></h2>
 <p>Add renewables to your new-build resources in <code>settings/resources.yml</code>:</p>
@@ -3129,39 +3157,39 @@
 <h3 id="examine-renewable-resources">Examine Renewable Resources<a class="headerlink" href="#examine-renewable-resources" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">gens</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;renewable_test/p1/Inputs/Inputs_p1/Generators_data.csv&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">gens</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"renewable_test/p1/Inputs/Inputs_p1/Generators_data.csv"</span><span class="p">)</span>
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
 <a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="c1"># Filter to renewables</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">renewables</span> <span class="o">=</span> <span class="n">gens</span><span class="p">[</span><span class="n">gens</span><span class="p">[</span><span class="s1">&#39;technology&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">&#39;landbasedwind&#39;</span><span class="p">,</span> <span class="s1">&#39;utilitypv&#39;</span><span class="p">,</span> <span class="s1">&#39;offshorewind&#39;</span><span class="p">])]</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">renewables</span> <span class="o">=</span> <span class="n">gens</span><span class="p">[</span><span class="n">gens</span><span class="p">[</span><span class="s1">'technology'</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">'landbasedwind'</span><span class="p">,</span> <span class="s1">'utilitypv'</span><span class="p">,</span> <span class="s1">'offshorewind'</span><span class="p">])]</span>
 <a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total renewable clusters: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">renewables</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">By technology:&quot;</span><span class="p">)</span>
-<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="nb">print</span><span class="p">(</span><span class="n">renewables</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;technology&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Total renewable clusters: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">renewables</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">By technology:"</span><span class="p">)</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="nb">print</span><span class="p">(</span><span class="n">renewables</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">'technology'</span><span class="p">)</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
 <a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>
-<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">By region and technology:&quot;</span><span class="p">)</span>
-<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="nb">print</span><span class="p">(</span><span class="n">renewables</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;region&#39;</span><span class="p">,</span> <span class="s1">&#39;technology&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">By region and technology:"</span><span class="p">)</span>
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="nb">print</span><span class="p">(</span><span class="n">renewables</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">'region'</span><span class="p">,</span> <span class="s1">'technology'</span><span class="p">])</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
 <a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>
 <a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="c1"># Check cost range</span>
-<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Wind investment costs ($/MW-yr):&quot;</span><span class="p">)</span>
-<a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="n">wind</span> <span class="o">=</span> <span class="n">renewables</span><span class="p">[</span><span class="n">renewables</span><span class="p">[</span><span class="s1">&#39;technology&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;landbasedwind&#39;</span><span class="p">]</span>
-<a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Min: $</span><span class="si">{</span><span class="n">wind</span><span class="p">[</span><span class="s1">&#39;Inv_Cost_per_MWyr&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Max: $</span><span class="si">{</span><span class="n">wind</span><span class="p">[</span><span class="s1">&#39;Inv_Cost_per_MWyr&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Wind investment costs ($/MW-yr):"</span><span class="p">)</span>
+<a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="n">wind</span> <span class="o">=</span> <span class="n">renewables</span><span class="p">[</span><span class="n">renewables</span><span class="p">[</span><span class="s1">'technology'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'landbasedwind'</span><span class="p">]</span>
+<a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Min: $</span><span class="si">{</span><span class="n">wind</span><span class="p">[</span><span class="s1">'Inv_Cost_per_MWyr'</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Max: $</span><span class="si">{</span><span class="n">wind</span><span class="p">[</span><span class="s1">'Inv_Cost_per_MWyr'</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a>
 <a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a><span class="c1"># Capacity available</span>
-<a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Total wind capacity available: </span><span class="si">{</span><span class="n">wind</span><span class="p">[</span><span class="s1">&#39;Max_Cap_MW&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2"> MW&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Total wind capacity available: </span><span class="si">{</span><span class="n">wind</span><span class="p">[</span><span class="s1">'Max_Cap_MW'</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">,.0f</span><span class="si">}</span><span class="s2"> MW"</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="check-generation-profiles">Check Generation Profiles<a class="headerlink" href="#check-generation-profiles" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Load variability profiles</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">profiles</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;renewable_test/p1/Inputs/Inputs_p1/Generators_variability.csv&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">profiles</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"renewable_test/p1/Inputs/Inputs_p1/Generators_variability.csv"</span><span class="p">)</span>
 <a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
 <a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Get wind resources</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">wind_resources</span> <span class="o">=</span> <span class="n">renewables</span><span class="p">[</span><span class="n">renewables</span><span class="p">[</span><span class="s1">&#39;technology&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;landbasedwind&#39;</span><span class="p">][</span><span class="s1">&#39;Resource&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">wind_resources</span> <span class="o">=</span> <span class="n">renewables</span><span class="p">[</span><span class="n">renewables</span><span class="p">[</span><span class="s1">'technology'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'landbasedwind'</span><span class="p">][</span><span class="s1">'Resource'</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 <a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
 <a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># Check capacity factors</span>
 <a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="k">for</span> <span class="n">resource</span> <span class="ow">in</span> <span class="n">wind_resources</span><span class="p">:</span>
 <a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    <span class="k">if</span> <span class="n">resource</span> <span class="ow">in</span> <span class="n">profiles</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
 <a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>        <span class="n">cf</span> <span class="o">=</span> <span class="n">profiles</span><span class="p">[</span><span class="n">resource</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
-<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">resource</span><span class="si">}</span><span class="s2">: CF = </span><span class="si">{</span><span class="n">cf</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">resource</span><span class="si">}</span><span class="s2">: CF = </span><span class="si">{</span><span class="n">cf</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="advanced-topics">Advanced Topics<a class="headerlink" href="#advanced-topics" title="Permanent link">&para;</a></h2>
 <h3 id="hierarchical-clustering">Hierarchical Clustering<a class="headerlink" href="#hierarchical-clustering" title="Permanent link">&para;</a></h3>

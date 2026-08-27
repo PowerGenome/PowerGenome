@@ -2005,6 +2005,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../macro-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3342,7 +3370,7 @@
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.parquet</span>
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_gas</span>
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;&gt;=&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2025</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'&gt;='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2025</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p><strong>Expected columns</strong>:</p>
 <ul>
@@ -3431,7 +3459,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nt">carbon_tax</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">  </span><span class="c1"># $/tonne CO₂</span>
 </code></pre></div>
 <p>Carbon costs are calculated as:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>carbon_cost_per_mmbtu = carbon_tax * fuel_emission_factors[fuel][&#39;co2_tons_per_mmbtu&#39;]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>carbon_cost_per_mmbtu = carbon_tax * fuel_emission_factors[fuel]['co2_tons_per_mmbtu']
 </code></pre></div>
 <h2 id="example-configurations">Example Configurations<a class="headerlink" href="#example-configurations" title="Permanent link">&para;</a></h2>
 <h3 id="simplified-workflow-example">Simplified Workflow Example<a class="headerlink" href="#simplified-workflow-example" title="Permanent link">&para;</a></h3>
@@ -3544,7 +3572,7 @@
 <h3 id="aeo-api">AEO API<a class="headerlink" href="#aeo-api" title="Permanent link">&para;</a></h3>
 <p>PowerGenome can fetch fuel prices directly from EIA's AEO API:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Requires EIA API key in settings or environment</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">eia_api_key</span><span class="p">:</span> <span class="s2">&quot;YOUR_API_KEY_HERE&quot;</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">eia_api_key</span><span class="p">:</span> <span class="s2">"YOUR_API_KEY_HERE"</span>
 </code></pre></div>
 <p>Set <code>EIA_API_KEY</code> environment variable or include in settings.</p>
 <h3 id="custom-data-tables">Custom Data Tables<a class="headerlink" href="#custom-data-tables" title="Permanent link">&para;</a></h3>

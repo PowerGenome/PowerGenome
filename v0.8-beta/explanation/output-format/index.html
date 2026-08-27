@@ -1518,6 +1518,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/settings/macro-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2165,6 +2193,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#macro-simplecsvinputs-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Macro simpleCSVinputs format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Macro simpleCSVinputs format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#folder-structure_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Folder structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resource-mapping-highlights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource mapping highlights
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#related-documentation" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2585,6 +2652,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#macro-simplecsvinputs-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Macro simpleCSVinputs format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Macro simpleCSVinputs format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#folder-structure_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Folder structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resource-mapping-highlights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource mapping highlights
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#related-documentation" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2664,8 +2770,11 @@
 
 
 <h1 id="output-file-format">Output File Format<a class="headerlink" href="#output-file-format" title="Permanent link">&para;</a></h1>
-<p>PowerGenome writes input files for the <a href="https://github.com/GenXProject/GenX.jl">GenX</a> capacity expansion model. This page describes the folder structure, file names, and the key content of each output.</p>
-<p>For the full GenX documentation on input file schemas, see the <a href="https://genxproject.github.io/GenX.jl/stable/">GenX documentation</a>.</p>
+<p>PowerGenome writes input files for the <a href="https://github.com/GenXProject/GenX.jl">GenX</a> capacity expansion model and,
+optionally, for <a href="https://github.com/macroenergy/MacroEnergy.jl">MacroEnergy.jl</a> (Macro) in its <code>simpleCSVinputs</code>
+format. This page describes the folder structure, file names, and the key content of each output.</p>
+<p>For the full GenX documentation on input file schemas, see the <a href="https://genxproject.github.io/GenX.jl/stable/">GenX documentation</a>.
+For Macro, see the <a href="https://github.com/macroenergy/MacroEnergyExamples.jl">MacroEnergy Examples</a> repository.</p>
 <hr />
 <h2 id="folder-structure">Folder structure<a class="headerlink" href="#folder-structure" title="Permanent link">&para;</a></h2>
 <p>Each (case_id, planning period) pair produces a folder:</p>
@@ -2958,11 +3067,102 @@
 </code></pre></div>
 <p>PowerGenome then writes <code>Generators_data.csv</code> combining all resource types, and <code>Load_data.csv</code> rather than <code>Demand_data.csv</code>.</p>
 <hr />
+<h2 id="macro-simplecsvinputs-format">Macro <code>simpleCSVinputs</code> format<a class="headerlink" href="#macro-simplecsvinputs-format" title="Permanent link">&para;</a></h2>
+<p>When enabled (see <a href="../../reference/settings/macro-output/">Macro Output Settings</a>), PowerGenome additionally writes
+a Macro case in the <code>simpleCSVinputs</code> format — the same structure used by Macro's
+<a href="https://github.com/macroenergy/MacroEnergyExamples.jl/tree/main/examples/multisector_3zone_simpleCSVinputs"><code>multisector_3zone_simpleCSVinputs</code> example</a>.
+Only the simpleCSV format is produced (not Macro's JSON asset format). The semantic mapping of generators,
+transmission, demand, fuel supply, and CO2 caps follows the <a href="https://github.com/EmilDimanchev/GenX_to_Macro">GenX-to-Macro converter</a>
+(<code>lb/multistage</code> branch for multi-period runs).</p>
+<p>Both formats are written in the same <code>run_powergenome</code> call by default. Because all intermediate data processing
+(storage clustering, time reduction, market data) is shared, writing GenX and Macro inputs together in one run is
+<strong>faster than running PowerGenome twice</strong> (once per model). Use <code>--no-genx</code> / <code>genx_output: false</code> to produce Macro
+inputs only.</p>
+<h3 id="folder-structure_1">Folder structure<a class="headerlink" href="#folder-structure_1" title="Permanent link">&para;</a></h3>
+<p>The Macro case is written to a <code>macro_out/</code>-style folder (per planning period when multi-period), containing
+<code>system_data.json</code> plus three input subfolders:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>&lt;macro case folder&gt;/
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>├── system_data.json          # Top-level manifest: commodities, locations, settings, assets, time_data, nodes
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>├── settings/
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>│   ├── case_settings.json    # PeriodLengths, DiscountRate, SolutionAlgorithm, ...
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>│   └── macro_settings.json   # ConstraintScaling, WriteSubcommodities, AutoCreateNodes, ...
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>├── system/
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>│   ├── commodities.json      # Electricity, NaturalGas, CO2, Uranium, Coal, ...
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>│   ├── locations.json        # Model region names
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>│   ├── nodes.json            # Electricity demand nodes, fuel supply nodes, CO2 sinks, hydro source
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>│   ├── time_data.json        # HoursPerSubperiod, HoursPerTimeStep, NumberOfSubperiods, ...
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>│   ├── Period_map.csv        # Sub-period mapping (only when time reduction is active)
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>│   ├── demand.csv            # Time_Index, Demand_MW_z&lt;zone&gt;...
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>│   ├── availability.csv      # Time_Index, &lt;resource&gt;...  (non-constant VRE/hydro/must-run profiles)
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>│   └── fuel_prices.csv       # Time_Index, &lt;fuel&gt;_&lt;region&gt;... price timeseries per fuel node
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>└── assets/
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>    ├── &lt;base fuel&gt;_power.csv # Type=ThermalPower (one file per base fuel)
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>    ├── vre.csv               # Type=VRE
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    ├── electricity_stor.csv  # Type=Battery
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    ├── hydropower.csv        # Type=HydroRes
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>    ├── mustrun.csv           # Type=MustRun
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>    └── powerlines.csv        # Type=TransmissionLink
+</code></pre></div>
+<h3 id="resource-mapping-highlights">Resource mapping highlights<a class="headerlink" href="#resource-mapping-highlights" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>GenX concept</th>
+<th>Macro output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Existing_Cap_MW</code></td>
+<td><code>existing_capacity</code> / <code>discharge_existing_capacity</code> (thermal, VRE, storage, hydro)</td>
+</tr>
+<tr>
+<td><code>Heat_Rate_MMBTU_per_MWh</code></td>
+<td><code>fuel_consumption</code> = heat rate × 0.29307107 MWh/MMBtu</td>
+</tr>
+<tr>
+<td>CO2 emissions</td>
+<td><code>emission_rate</code> = fuel CO2 content / 0.29307107, plus a <code>co2_sink</code> node</td>
+</tr>
+<tr>
+<td><code>Eff_Up</code> / <code>Eff_Down</code></td>
+<td><code>charge_efficiency</code> / <code>discharge_efficiency</code> (storage, hydro)</td>
+</tr>
+<tr>
+<td><code>New_Build</code> / <code>Can_Retire</code></td>
+<td><code>can_expand</code> / <code>can_retire</code></td>
+</tr>
+<tr>
+<td><code>Line_Max_Flow_MW</code> + reinforcement</td>
+<td><code>existing_capacity</code> + <code>max_capacity</code> on a <code>TransmissionLink</code></td>
+</tr>
+<tr>
+<td>VRE variability</td>
+<td><code>availability</code> column in <code>system/availability.csv</code></td>
+</tr>
+<tr>
+<td>Demand data</td>
+<td><code>Demand_MW_z&lt;zone&gt;</code> columns in <code>system/demand.csv</code> + electricity nodes in <code>nodes.json</code></td>
+</tr>
+<tr>
+<td>Fuel prices</td>
+<td>per-(fuel, region) supply node + <code>system/fuel_prices.csv</code></td>
+</tr>
+<tr>
+<td>CO2 caps</td>
+<td>CO2 sink node with <code>CO2CapConstraint</code></td>
+</tr>
+</tbody>
+</table>
+<p>Cross-sector assets (hydrogen, liquid fuels, CCS detail, demand-side) are not yet emitted; PowerGenome is
+electricity-centric and the Macro writer is scoped to the electricity system in v1.</p>
+<hr />
 <h2 id="related-documentation">Related documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../../reference/settings/resource-tags/">Resource Tags Settings</a>: How <code>THERM</code>, <code>VRE</code>, <code>STOR</code> etc. are assigned</li>
 <li><a href="../../reference/settings/time-reduction/">Time Reduction Settings</a>: Controls <code>Rep_Periods</code> and <code>Sub_Weights</code></li>
 <li><a href="../../reference/settings/transmission/">Transmission Settings</a>: Network parameters</li>
+<li><a href="../../reference/settings/macro-output/">Macro Output Settings</a>: How to enable GenX and/or Macro output</li>
 <li><a href="../pipeline/">Data Pipeline Flow</a>: How outputs are assembled from pipeline stages</li>
 </ul>
 

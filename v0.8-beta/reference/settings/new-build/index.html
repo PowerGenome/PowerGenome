@@ -1821,6 +1821,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../macro-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2788,7 +2816,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">new_resources</span><span class="p">:</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">NaturalGas</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CCCCSAvgCF</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">500</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">NaturalGas</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CTAvgCF</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Battery</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;*&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Battery</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"*"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">UtilityPV</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LandbasedWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">OffshoreWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
@@ -2850,7 +2878,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">resource_modifiers</span><span class="p">:</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">batteries</span><span class="p">:</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Battery</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;*&quot;</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="s">"*"</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="nt">Var_OM_Cost_per_MWh</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.15</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="nt">Var_OM_Cost_per_MWh_In</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.15</span>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="nt">size_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
@@ -2860,7 +2888,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">resource_modifiers</span><span class="p">:</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">batteries</span><span class="p">:</span>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Battery</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;*&quot;</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="s">"*"</span>
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="nt">Var_OM_Cost_per_MWh</span><span class="p">:</span>
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">      </span><span class="nt">2030</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.15</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">      </span><span class="nt">2040</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.10</span><span class="p p-Indicator">]</span>
@@ -3009,10 +3037,10 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">interconnect_capex_mw</span><span class="p">:</span>
 <a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">fallback_capex_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100000</span>
 <a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">by_technology</span><span class="p">:</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="nt">wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span><span class="w">          </span><span class="c1"># matches &#39;LandbasedWind_Class3_Moderate&#39;, &#39;OffshoreWind_Class1_Moderate&#39;</span>
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span><span class="nt">offshore_wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200000</span><span class="w"> </span><span class="c1"># longer substring overwrites previous &#39;wind&#39; assignment</span>
-<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span><span class="nt">battery</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50000</span><span class="w">        </span><span class="c1"># matches &#39;Battery_4Hr_Moderate&#39;, &#39;Battery_*_Moderate&#39;</span>
-<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span><span class="nt">solar</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">110000</span><span class="w">         </span><span class="c1"># matches &#39;UtilityPV_Class1_Moderate&#39;</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="nt">wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120000</span><span class="w">          </span><span class="c1"># matches 'LandbasedWind_Class3_Moderate', 'OffshoreWind_Class1_Moderate'</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span><span class="nt">offshore_wind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200000</span><span class="w"> </span><span class="c1"># longer substring overwrites previous 'wind' assignment</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span><span class="nt">battery</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50000</span><span class="w">        </span><span class="c1"># matches 'Battery_4Hr_Moderate', 'Battery_*_Moderate'</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span><span class="nt">solar</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">110000</span><span class="w">         </span><span class="c1"># matches 'UtilityPV_Class1_Moderate'</span>
 </code></pre></div>
 <p><strong>Precedence rule</strong>: Shorter substrings applied first, then longer (more specific) substrings override previous assignments. This allows general categories with specific exceptions.</p>
 <h4 id="5-region-technology-nested">5. Region -&gt; Technology Nested<a class="headerlink" href="#5-region-technology-nested" title="Permanent link">&para;</a></h4>
@@ -3217,7 +3245,7 @@
 <a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="nt">new_resources</span><span class="p">:</span>
 <a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">NaturalGas</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CCCCSAvgCF</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Conservative</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">500</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">NaturalGas</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CTAvgCF</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Battery</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;*&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Battery</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"*"</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">UtilityPV</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LandbasedWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Nuclear</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Nuclear - Large</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1000</span><span class="p p-Indicator">]</span>
@@ -3226,7 +3254,7 @@
 <a id="__codelineno-20-15" name="__codelineno-20-15" href="#__codelineno-20-15"></a><span class="nt">resource_modifiers</span><span class="p">:</span>
 <a id="__codelineno-20-16" name="__codelineno-20-16" href="#__codelineno-20-16"></a><span class="w">  </span><span class="nt">batteries</span><span class="p">:</span>
 <a id="__codelineno-20-17" name="__codelineno-20-17" href="#__codelineno-20-17"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Battery</span>
-<a id="__codelineno-20-18" name="__codelineno-20-18" href="#__codelineno-20-18"></a><span class="w">    </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;*&quot;</span>
+<a id="__codelineno-20-18" name="__codelineno-20-18" href="#__codelineno-20-18"></a><span class="w">    </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="s">"*"</span>
 <a id="__codelineno-20-19" name="__codelineno-20-19" href="#__codelineno-20-19"></a><span class="w">    </span><span class="nt">Var_OM_Cost_per_MWh</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.15</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-20-20" name="__codelineno-20-20" href="#__codelineno-20-20"></a>
 <a id="__codelineno-20-21" name="__codelineno-20-21" href="#__codelineno-20-21"></a><span class="c1"># Regional restrictions</span>

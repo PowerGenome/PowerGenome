@@ -1889,6 +1889,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/settings/macro-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3074,28 +3102,28 @@
 <h3 id="generators-by-region">Generators by Region<a class="headerlink" href="#generators-by-region" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">gens</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;multi_region_test/p1/Inputs/Inputs_p1/Generators_data.csv&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">gens</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"multi_region_test/p1/Inputs/Inputs_p1/Generators_data.csv"</span><span class="p">)</span>
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
 <a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="c1"># Capacity by region and technology</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">regional_capacity</span> <span class="o">=</span> <span class="n">gens</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;region&#39;</span><span class="p">,</span> <span class="s1">&#39;technology&#39;</span><span class="p">])[</span><span class="s1">&#39;Existing_Cap_MW&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">regional_capacity</span> <span class="o">=</span> <span class="n">gens</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">'region'</span><span class="p">,</span> <span class="s1">'technology'</span><span class="p">])[</span><span class="s1">'Existing_Cap_MW'</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 <a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="nb">print</span><span class="p">(</span><span class="n">regional_capacity</span><span class="p">)</span>
 <a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>
 <a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="c1"># New-build availability by region</span>
-<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="n">new_build</span> <span class="o">=</span> <span class="n">gens</span><span class="p">[</span><span class="n">gens</span><span class="p">[</span><span class="s1">&#39;New_Build&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;region&#39;</span><span class="p">)[</span><span class="s1">&#39;technology&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="n">new_build</span> <span class="o">=</span> <span class="n">gens</span><span class="p">[</span><span class="n">gens</span><span class="p">[</span><span class="s1">'New_Build'</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">'region'</span><span class="p">)[</span><span class="s1">'technology'</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
 <a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="k">for</span> <span class="n">region</span><span class="p">,</span> <span class="n">techs</span> <span class="ow">in</span> <span class="n">new_build</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="n">region</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">techs</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="si">{</span><span class="n">region</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">techs</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="transmission-network">Transmission Network<a class="headerlink" href="#transmission-network" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">network</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;multi_region_test/p1/Inputs/Inputs_p1/Network.csv&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">network</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"multi_region_test/p1/Inputs/Inputs_p1/Network.csv"</span><span class="p">)</span>
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">network</span><span class="p">[[</span><span class="s1">&#39;Network_Lines&#39;</span><span class="p">,</span> <span class="s1">&#39;z1&#39;</span><span class="p">,</span> <span class="s1">&#39;z2&#39;</span><span class="p">,</span> <span class="s1">&#39;Line_Max_Flow_MW&#39;</span><span class="p">,</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>               <span class="s1">&#39;transmission_path_name&#39;</span><span class="p">,</span> <span class="s1">&#39;Line_Loss_Percentage&#39;</span><span class="p">]])</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">network</span><span class="p">[[</span><span class="s1">'Network_Lines'</span><span class="p">,</span> <span class="s1">'z1'</span><span class="p">,</span> <span class="s1">'z2'</span><span class="p">,</span> <span class="s1">'Line_Max_Flow_MW'</span><span class="p">,</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>               <span class="s1">'transmission_path_name'</span><span class="p">,</span> <span class="s1">'Line_Loss_Percentage'</span><span class="p">]])</span>
 <a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>
 <a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="c1"># Check if expansion is allowed</span>
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Expansion allowed: </span><span class="si">{</span><span class="n">network</span><span class="p">[</span><span class="s1">&#39;Line_Max_Reinforcement_MW&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Expansion allowed: </span><span class="si">{</span><span class="n">network</span><span class="p">[</span><span class="s1">'Line_Max_Reinforcement_MW'</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="regional-demand">Regional Demand<a class="headerlink" href="#regional-demand" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">load</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;multi_region_test/p1/Inputs/Inputs_p1/Load_data.csv&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">load</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"multi_region_test/p1/Inputs/Inputs_p1/Load_data.csv"</span><span class="p">)</span>
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
 <a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c1"># Total annual load by region</span>
 <a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">annual_load</span> <span class="o">=</span> <span class="n">load</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
@@ -3103,7 +3131,7 @@
 <a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
 <a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="c1"># Peak load by region</span>
 <a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="n">peak_load</span> <span class="o">=</span> <span class="n">load</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
-<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Peak loads:</span><span class="se">\n</span><span class="si">{</span><span class="n">peak_load</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Peak loads:</span><span class="se">\n</span><span class="si">{</span><span class="n">peak_load</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="common-pitfalls">Common Pitfalls<a class="headerlink" href="#common-pitfalls" title="Permanent link">&para;</a></h2>
 <h3 id="region-name-mismatches">Region Name Mismatches<a class="headerlink" href="#region-name-mismatches" title="Permanent link">&para;</a></h3>
@@ -3188,7 +3216,7 @@
 </code></pre></div>
 <p><strong><code>extra_inputs/ipm_tx_corrections.csv</code></strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>region_from,region_to,firm_ttc_mw,notes
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a># No rows with hawaii - it&#39;s isolated
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a># No rows with hawaii - it's isolated
 </code></pre></div>
 <p>Hawaii will be modeled as an independent grid with no inter-regional flows.</p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
