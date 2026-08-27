@@ -102,6 +102,7 @@ nav:
     - Configure Capacity Reserve Requirements: how-to/configure-capacity-reserves.md
     - Run Multi-Scenario Studies: how-to/run-scenarios.md
     - Configure Energy Share Requirements: how-to/energy-share-requirements.md
+    - Add Supplemental Hourly Demand: how-to/add-supplemental-demand.md
     - Validate Settings: how-to/validate-settings.md
     - Debugging: how-to/debugging.md
 
@@ -121,6 +122,7 @@ nav:
       - Data Tables: reference/settings/data-tables.md
       - Multi-Scenario Management: reference/settings/scenario-management.md
       - Time Reduction: reference/settings/time-reduction.md
+      - Output Formats: reference/settings/macro-output.md
     - ATB Technology Names: reference/atb-technologies.md
     - Data Schemas:
       - Input Tables: reference/schemas/input-tables.md

@@ -102,6 +102,20 @@ results/
 └── low_cost_2040/
 ```
 
+To also write a MacroEnergy.jl `simpleCSVinputs` case for each scenario, add `--macro` (or set
+`macro_output: true` in settings). GenX inputs are still written by default, so one run produces both formats —
+reusing the intermediate data processing is faster than running PowerGenome once per model. Use `--no-genx` for
+Macro-only output:
+
+```bash
+run_powergenome \
+  --settings_file settings \
+  --results_folder results \
+  --macro --no-genx
+```
+
+See [Macro Output Settings](../reference/settings/macro-output.md) for the full set of Macro output options.
+
 ## Parameter Swap Examples
 
 ### Technology Costs

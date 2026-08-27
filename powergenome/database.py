@@ -57,6 +57,8 @@ class DataManager:
         "demand_table": "demand",
         "emission_policies_fn": "emission_policies",
         "demand_segments_fn": "demand_segments",
+        # Supplemental demand table for adding extra hourly load (e.g. data center forecasts).
+        "supplemental_demand_table": "supplemental_demand",
         # Distributed generation tables (support both legacy and new setting keys).
         # Code expects the standardized table name "distributed_profiles".
         "distributed_profile_table": "distributed_profiles",  # singular key
@@ -202,6 +204,11 @@ class DataManager:
             except Exception as e:
                 raise RuntimeError(f"Failed to create table {standard_name}: {e}")
 
+    @staticmethod
+    def _is_tabular_file_source(name: str) -> bool:
+        """Return True if *name* refers to a CSV or Parquet file (has the right extension)."""
+        return name.lower().endswith(".csv") or name.lower().endswith(".parquet")
+
     def _validate_table_config(
         self, table_config: Union[str, Dict], standard_name: str
     ) -> Tuple[str, List, List[str]]:
@@ -327,6 +334,10 @@ class DataManager:
             return None
         if location.suffix.lower() not in (".db", ".sqlite", ".duckdb"):
             return None
+        if self._is_tabular_file_source(source_table):
+            # Allow CSV/parquet files co-located in the same directory as the database.
+            file_path = location.parent / source_table
+            return source_table if file_path.is_file() else None
         if Path(source_table).suffix:
             logger.warning(
                 f"Table source '{source_table}' appears to have a file extension, "
@@ -377,6 +388,18 @@ class DataManager:
         if data_location.is_dir():
             # For file-based data
             file_path = data_location / source_table
+            file_extension = file_path.suffix.lower()
+
+            if file_extension == ".csv":
+                source_query = f"read_csv_auto('{file_path}')"
+            elif file_extension == ".parquet":
+                source_query = f"read_parquet('{file_path}')"
+            else:
+                raise ValueError(f"Unsupported file type: {file_extension}")
+
+        elif data_location.is_file() and self._is_tabular_file_source(source_table):
+            # File co-located with the database (e.g. a supplemental CSV next to the DB).
+            file_path = data_location.parent / source_table
             file_extension = file_path.suffix.lower()
 
             if file_extension == ".csv":

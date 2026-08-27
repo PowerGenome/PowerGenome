@@ -133,6 +133,7 @@ PowerGenome expects certain table names for core data:
 | `capacity_limit_spur_table` | `capacity_limit_spur` | New-build capacity limits |
 | `dg_capacity_table` | `dg_capacity` | Distributed gen capacity |
 | `dg_profiles_table` | `dg_profiles` | Distributed gen profiles |
+| `supplemental_demand_table` | `supplemental_demand` | Extra hourly demand (data centers, etc.) |
 
 ## Core Data Tables
 

@@ -2,6 +2,11 @@
 
 PowerGenome generates a folder of CSV files for each scenario/year case. These files conform to the [GenX](https://genxproject.github.io/GenX.jl/) input format.
 
+!!! note "Macro output"
+    When Macro output is enabled (see [Output Formats](../settings/macro-output.md)), PowerGenome also writes a
+    MacroEnergy.jl `simpleCSVinputs` case alongside the GenX files. This page documents the GenX layout; the
+    Macro layout and its GenX-to-Macro mapping are described in the [Output File Format explanation](../../explanation/output-format.md).
+
 !!! note "v6 vs legacy format"
     The output structure differs between GenX v6+ and the legacy format. Set `genx_v6: true` in your settings to use the v6 layout (default). The legacy format uses `Generators_data.csv` and `Load_data.csv` instead of separate resource-type files.
 

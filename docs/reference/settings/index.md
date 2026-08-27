@@ -109,6 +109,14 @@ Settings are grouped by functional area:
 
     Parameters: `scenario_definitions_fn`, `settings_management`, `input_folder`, etc.
 
+- :material-file-export: **[Output Formats](macro-output.md)**
+
+    ---
+
+    Which model input format(s) to write (GenX and/or Macro simpleCSVinputs) and Macro model-run settings.
+
+    Parameters: `macro_output`, `genx_output`, `macro_discount_rate`, etc.
+
 </div>
 
 ## Common Patterns

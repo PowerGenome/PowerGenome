@@ -9,6 +9,7 @@ These guides provide step-by-step instructions for specific tasks. Each guide as
 - **[Configure Renewable Resource Clusters](configure-renewable-clusters.md)**: Set up wind and solar clusters using filters, bins, groups, and agglomerative or k-means clustering
 - **[Configure Capacity Reserve Requirements](configure-capacity-reserves.md)**: Specify technology credit values for capacity reserve constraints
 - **[Run Multi-Scenario Studies](run-scenarios.md)**: Set up and execute multi-scenario runs with parameter variations
+- **[Add Supplemental Hourly Demand](add-supplemental-demand.md)**: Inject additional hourly demand (data-center forecasts, new industrial loads) on top of baseline demand profiles
 
 ## Validation and Debugging
 
@@ -32,6 +33,7 @@ These guides provide step-by-step instructions for specific tasks. Each guide as
 | Set up renewable resource clusters | [Configure Renewable Clusters](configure-renewable-clusters.md) | Medium |
 | Run sensitivity analysis | [Run Scenarios](run-scenarios.md) | Medium |
 | Filter renewable sites by LCOE | [Configure Renewable Clusters](configure-renewable-clusters.md) | Medium |
+| Add data-center or industrial load | [Add Supplemental Hourly Demand](add-supplemental-demand.md) | Easy |
 | Validate settings before a run | [Validate Settings](validate-settings.md) | Easy |
 
 ## Contributing Guides
