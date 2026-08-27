@@ -24,6 +24,7 @@ model_tag_names:
   - MinCapTag_1
   - MinCapTag_2
   - MinCapTag_3
+  - CO2_Capture_Fraction
   - Reg_Max
   - Rsv_Max
 
@@ -90,6 +91,7 @@ model_tag_values:
     Natural Gas Fired Combustion Turbine: 1
     Natural Gas Internal Combustion Engine: 1
     Natural Gas Steam Turbine: 1
+    NaturalGas_: 1
     NGCCS100: 1
     Nuclear: 1
     Other_peaker: 1 # Is there any way to do this based on the underlying categories?
@@ -213,6 +215,12 @@ model_tag_values:
     Wood/Wood Waste Biomass: 1
     Biomass: 1
     distributed_gen: 1
+  CO2_Capture_Fraction:
+    Combined Cycle (H-Frame) 95% CCS: 0.95
+  CO2_Capture_Fraction_Startup:
+    Combined Cycle (H-Frame) 95% CCS: 0.95
+  CCS_Disposal_Cost_per_Metric_Ton:
+    Combined Cycle (H-Frame) 95% CCS: 20.0
 
 # Tags for a technology in a specific region
 # Format should be regional_tag_values: <region>: <tag name>: <technology>: <tag value>

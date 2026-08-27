@@ -1,0 +1,7 @@
+﻿case_id,year,region,CO_2_Cap_Zone_1,CO_2_Cap_Zone_2,CO_2_Max_Mtons_1,CO_2_Max_Mtons_2
+all,2030,p1_2,1,0,0.2,0
+all,2030,p3,0,1,0,0.002
+all,2030,p4,0,1,0,0
+all,2040,p1_2,1,0,0.01,0
+all,2040,p3,0,1,0,0.0001
+all,2040,p4,0,1,0,0
