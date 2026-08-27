@@ -55,6 +55,8 @@ class DataManager:
         "regional_cost_factor_table": "regional_cost_factor",
         "transmission_cost_table": "transmission_cost",
         "demand_table": "demand",
+        "emission_policies_fn": "emission_policies",
+        "demand_segments_fn": "demand_segments",
         # Supplemental demand table for adding extra hourly load (e.g. data center forecasts).
         "supplemental_demand_table": "supplemental_demand",
         # Distributed generation tables (support both legacy and new setting keys).

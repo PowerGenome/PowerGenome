@@ -373,6 +373,10 @@ weather_year,time_index,site_id,value
 **Setting**: `emission_policies_fn`
 **Purpose**: RPS, CES, carbon constraints by case/region/year
 
+This setting names a DataManager table source. It can use the same file or
+database table configuration supported by other DataManager inputs; it is not
+limited to a CSV in `input_folder`.
+
 **Required columns**:
 
 - `case_id`: Case identifier
@@ -390,6 +394,14 @@ weather_year,time_index,site_id,value
 ```yaml
 emission_policies_fn: emission_policies.csv
 ```
+
+### Demand Segments
+
+**Setting**: `demand_segments_fn`
+**Purpose**: Value of lost load and demand segmentation parameters
+
+This setting names a DataManager table source and supports the same file and
+database table configurations as other DataManager inputs.
 
 ### Cost Multipliers
 

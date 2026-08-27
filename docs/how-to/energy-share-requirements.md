@@ -92,6 +92,9 @@ input_folder: extra_inputs
 emission_policies_fn: emission_policies.csv
 ```
 
+`emission_policies_fn` is loaded through the DataManager, so the value may use
+any supported DataManager table configuration rather than only a CSV path.
+
 ---
 
 ## Step 3: Define which resources are eligible

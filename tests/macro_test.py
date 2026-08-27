@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from powergenome.database import initialize_data_manager
 from powergenome.macro_inputs import (
     CCS_COLUMNS,
     CONV_MMBTU_TO_MWH,
@@ -45,6 +46,33 @@ from powergenome.macro_inputs import (
     make_timedata_json,
     make_vre_csv,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_data_manager():
+    """Reset the global DataManager singleton before each test.
+
+    ``load_demand_segments`` (used by ``load_nsd_segments`` / ``make_nodes_json``)
+    reads through the DataManager, so tests that exercise it must initialize the
+    manager against their own ``tmp_path`` folder.  Because the manager is a
+    singleton, reset it before every test to avoid state leaking between tests
+    (e.g. a demand_segments table registered by an earlier test).
+    """
+    from powergenome.database import _data_manager
+
+    _data_manager.connection = None
+    _data_manager._initialized = False
+    _data_manager.available_tables = set()
+    _data_manager.table_configurations = {}
+    _data_manager._table_locations = {}
+    _data_manager._data_locations = []
+    yield
+
+
+def _init_dm_for_folder(folder):
+    """Initialize the DataManager against a folder so ``get_data`` can resolve
+    the ``demand_segments`` table from the ``demand_segments_fn`` setting."""
+    initialize_data_manager({"demand_segments_fn": "demand_segments_voll.csv"}, folder)
 
 
 @pytest.fixture
@@ -631,6 +659,7 @@ def test_load_nsd_segments_from_demand_segments_csv(tmp_path):
         "input_folder": str(tmp_path),
         "demand_segments_fn": "demand_segments_voll.csv",
     }
+    _init_dm_for_folder(tmp_path)
     max_nsd, price_nsd = load_nsd_segments(settings)
     # Sorted by descending cost: 2000, 1800, 1100, 400
     assert price_nsd == [2000.0, 1800.0, 1100.0, 400.0]
@@ -665,6 +694,7 @@ def test_load_nsd_segments_uses_voll_base_price(tmp_path):
         "input_folder": str(tmp_path),
         "demand_segments_fn": "demand_segments_voll.csv",
     }
+    _init_dm_for_folder(tmp_path)
     max_nsd, price_nsd = load_nsd_segments(settings)
     # Cost fraction x Voll[1] = [1.0, 0.9, 0.55, 0.2] x 10000
     assert price_nsd == [10000.0, 9000.0, 5500.0, 2000.0]
@@ -681,6 +711,7 @@ def test_load_nsd_segments_falls_back_to_per_mwh(tmp_path):
         "input_folder": str(tmp_path),
         "demand_segments_fn": "demand_segments_voll.csv",
     }
+    _init_dm_for_folder(tmp_path)
     max_nsd, price_nsd = load_nsd_segments(settings)
     assert price_nsd == [2000.0, 1800.0]
     assert max_nsd == [1.0, 0.04]
@@ -701,6 +732,7 @@ def test_make_nodes_json_uses_demand_segments(tmp_path):
         "input_folder": str(tmp_path),
         "demand_segments_fn": "demand_segments_voll.csv",
     }
+    _init_dm_for_folder(tmp_path)
     nodes = make_nodes_json(
         settings,
         demand_headers={"R1": "Demand_MW_z1"},

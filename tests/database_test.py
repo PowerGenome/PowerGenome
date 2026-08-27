@@ -73,6 +73,10 @@ def sample_data():
                 "load": [1000, 1500, 1100, 1600],
             }
         ),
+        "policies": pd.DataFrame(
+            {"case_id": ["base"], "year": [2030], "region": ["A"]}
+        ),
+        "segments": pd.DataFrame({"Voll": [1000], "Demand_segment": [1]}),
     }
 
 
@@ -154,6 +158,20 @@ class TestDataManager:
         assert "generation" in dm.available_tables
         assert "plant_region" in dm.available_tables
         assert "demand" in dm.available_tables
+
+    def test_initialization_policy_and_demand_segment_tables(self, temp_csv_folder):
+        dm = DataManager()
+        dm.initialize(
+            {
+                "emission_policies_fn": {"table_name": "policies.csv"},
+                "demand_segments_fn": {"table_name": "segments.csv"},
+            },
+            temp_csv_folder,
+        )
+
+        assert {"emission_policies", "demand_segments"} <= dm.available_tables
+        assert dm.get_data("emission_policies").iloc[0]["case_id"] == "base"
+        assert dm.get_data("demand_segments").iloc[0]["Voll"] == 1000
 
     def test_initialization_multiple_locations(
         self, sample_settings_csv, temp_csv_folder, tmp_path
