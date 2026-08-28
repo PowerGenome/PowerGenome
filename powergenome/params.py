@@ -4,7 +4,7 @@ Parameters and settings
 
 import os
 from pathlib import Path
-from typing import Union
+from typing import List, Union
 
 from dotenv import load_dotenv
 
@@ -45,18 +45,26 @@ SETTINGS["RESOURCE_GROUP_PROFILES"] = os.environ.get("RESOURCE_GROUP_PROFILES")
 
 
 def build_resource_clusters(
-    group_path: Union[str, Path] = None, profile_path: Union[str, Path] = None
+    group_path: Union[str, Path, List[Union[str, Path]]] = None,
+    profile_path: Union[str, Path, List[Union[str, Path]]] = None,
 ) -> ClusterBuilder:
     if not group_path:
         group_path = SETTINGS.get("RESOURCE_GROUPS")
     if not profile_path:
         profile_path = SETTINGS.get("RESOURCE_GROUP_PROFILES")
     if profile_path is not None:
-        profile_path = Path(profile_path)
+        if isinstance(profile_path, list):
+            profile_path = [Path(p) for p in profile_path]
+        else:
+            profile_path = Path(profile_path)
     if not group_path:
         cluster_builder = ClusterBuilder([])
     else:
-        cluster_builder = ClusterBuilder.from_json(
-            Path(group_path, ".").glob("**/*.json"), profile_path
-        )
+        group_paths = group_path if isinstance(group_path, list) else [group_path]
+        json_paths = [
+            json_file
+            for gp in group_paths
+            for json_file in Path(gp, ".").glob("**/*.json")
+        ]
+        cluster_builder = ClusterBuilder.from_json(json_paths, profile_path)
     return cluster_builder

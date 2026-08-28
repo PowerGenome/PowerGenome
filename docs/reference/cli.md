@@ -278,6 +278,10 @@ PowerGenome respects these environment variables (legacy, prefer settings YAML):
 - `RESOURCE_GROUP_PROFILES`: Path to generation profiles
 - `EFS_DATA`: Path to NREL EFS electrification data
 
+Environment variables are always single paths. When using settings YAML,
+`RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` may instead be a list of paths
+(split across multiple folders).
+
 !!! warning "Deprecated"
     Using environment variables for paths is deprecated. Use settings YAML parameters instead:
 

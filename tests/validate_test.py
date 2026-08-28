@@ -329,6 +329,25 @@ class TestCheckPathsExist:
         results = _check_paths_exist(s)
         assert any("RESOURCE_GROUPS" in r.message for r in _errors(results))
 
+    def test_existing_resource_groups_list(self, tmp_path):
+        locations = [tmp_path / "groups_a", tmp_path / "groups_b"]
+        for location in locations:
+            location.mkdir()
+        s = {"RESOURCE_GROUPS": locations}
+        assert _errors(_check_paths_exist(s)) == []
+
+    def test_existing_resource_group_profiles_list(self, tmp_path):
+        locations = [tmp_path / "profiles_a", tmp_path / "profiles_b"]
+        for location in locations:
+            location.mkdir()
+        s = {"RESOURCE_GROUP_PROFILES": locations}
+        assert _errors(_check_paths_exist(s)) == []
+
+    def test_missing_resource_groups_in_list(self, tmp_path):
+        locations = [tmp_path, tmp_path / "no_such_groups"]
+        results = _check_paths_exist({"RESOURCE_GROUPS": locations})
+        assert any("RESOURCE_GROUPS" in r.message for r in _errors(results))
+
     def test_existing_input_folder_with_scenario_file(self, tmp_path):
         scenario_file = tmp_path / "scenarios.csv"
         scenario_file.write_text("case_id,year\nbaseline,2030\n")

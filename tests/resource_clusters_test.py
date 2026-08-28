@@ -1,11 +1,13 @@
 """Tests for resource_clusters.py — ResourceGroup._read_profiles and test_profiles."""
 
+import json
 import logging
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from powergenome.params import build_resource_clusters
 from powergenome.resource_clusters import ResourceGroup
 
 
@@ -295,3 +297,115 @@ class TestTestProfiles:
         rg = ResourceGroup(group, metadata=metadata_df, profiles=bad_wide)
         with pytest.raises(ValueError, match="not a multiple of 8760 or 8784"):
             rg.test_profiles()
+
+
+# ── Profile path resolution (single path or list) ─────────────────────
+
+
+def _write_group(tmp_path, technology, metadata, profiles):
+    """Write a minimal resource group alongside its metadata file."""
+    (tmp_path / "meta.csv").write_text("id,region,capacity_mw\n1,A,10\n")
+    group = {
+        "technology": technology,
+        "metadata": metadata,
+        "profiles": profiles,
+    }
+    return group
+
+
+class TestProfilePathList:
+    """Profile files may live in any of several listed profile folders."""
+
+    def test_profile_resolved_from_first_matching_root(self, tmp_path):
+        root_a = tmp_path / "profiles_a"
+        root_a.mkdir()
+        root_b = tmp_path / "profiles_b"
+        root_b.mkdir()
+        (root_a / "pv_profiles.csv").write_text("0\n0.5\n")
+
+        group = _write_group(tmp_path, "utilitypv", "meta.csv", "pv_profiles.csv")
+        rg = ResourceGroup(group, path=str(tmp_path), profile_path=[root_a, root_b])
+
+        assert rg.group["profiles"] == root_a / "pv_profiles.csv"
+
+    def test_profile_searched_in_later_listed_root(self, tmp_path):
+        root_a = tmp_path / "profiles_a"
+        root_a.mkdir()
+        root_b = tmp_path / "profiles_b"
+        root_b.mkdir()
+        (root_b / "wind_profiles.csv").write_text("0\n0.5\n")
+
+        group = _write_group(tmp_path, "landbasedwind", "meta.csv", "wind_profiles.csv")
+        rg = ResourceGroup(group, path=str(tmp_path), profile_path=[root_a, root_b])
+
+        assert rg.group["profiles"] == root_b / "wind_profiles.csv"
+
+    def test_falls_back_to_group_folder_when_no_root_matches(self, tmp_path):
+        root = tmp_path / "profiles"
+        root.mkdir()
+        (tmp_path / "profiles.csv").write_text("0\n0.5\n")
+
+        group = _write_group(tmp_path, "utilitypv", "meta.csv", "profiles.csv")
+        rg = ResourceGroup(group, path=str(tmp_path), profile_path=[root])
+
+        assert rg.group["profiles"] == tmp_path / "profiles.csv"
+
+    def test_settins_list_profile_roots_are_checked(self, tmp_path, monkeypatch):
+        import powergenome.params as params
+
+        root = tmp_path / "profiles"
+        root.mkdir()
+        (root / "solar_profiles.csv").write_text("0\n0.5\n")
+        monkeypatch.setitem(
+            params.SETTINGS,
+            "RESOURCE_GROUP_PROFILES",
+            [tmp_path / "missing", root],
+        )
+
+        group = _write_group(tmp_path, "utilitypv", "meta.csv", "solar_profiles.csv")
+        rg = ResourceGroup(group, path=str(tmp_path))
+
+        assert rg.group["profiles"] == root / "solar_profiles.csv"
+
+
+class TestBuildResourceClusters:
+    """Resource group JSONs may be spread across multiple folders."""
+
+    def test_single_group_folder(self, tmp_path):
+        g = tmp_path / "groups"
+        g.mkdir()
+        (g / "a.json").write_text(
+            json.dumps({"technology": "utilitypv", "metadata": "meta.csv"})
+        )
+        (g / "meta.csv").write_text("id,region,capacity_mw\n1,A,10\n")
+
+        builder = build_resource_clusters(group_path=g)
+
+        assert len(builder.groups) == 1
+        assert builder.groups[0].group["technology"] == "utilitypv"
+
+    def test_multiple_group_folders(self, tmp_path):
+        g1 = tmp_path / "groups_a"
+        g1.mkdir()
+        g2 = tmp_path / "groups_b"
+        g2.mkdir()
+        (g1 / "a.json").write_text(
+            json.dumps({"technology": "utilitypv", "metadata": "meta.csv"})
+        )
+        (g2 / "b.json").write_text(
+            json.dumps({"technology": "landbasedwind", "metadata": "meta.csv"})
+        )
+        (g1 / "meta.csv").write_text("id,region,capacity_mw\n1,A,10\n")
+        (g2 / "meta.csv").write_text("id,region,capacity_mw\n2,A,20\n")
+
+        builder = build_resource_clusters(group_path=[g1, g2])
+
+        assert len(builder.groups) == 2
+        assert {g.group["technology"] for g in builder.groups} == {
+            "utilitypv",
+            "landbasedwind",
+        }
+
+    def test_no_groups_returns_empty(self):
+        builder = build_resource_clusters(group_path=None)
+        assert len(builder.groups) == 0

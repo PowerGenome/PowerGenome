@@ -237,6 +237,18 @@ PUDL_DB: /Users/me/databases/pudl.db
 EIA_AEO_YEAR: 2023
 ```
 
+`RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` accept **either a single path or a
+list of paths**, so data can be split across multiple folders:
+
+```yaml
+RESOURCE_GROUPS:
+  - /Users/me/resource_groups/onshore
+  - /Users/me/resource_groups/offshore
+RESOURCE_GROUP_PROFILES:
+  - /Users/me/nrel_profiles/wind
+  - /Users/me/nrel_profiles/solar
+```
+
 **settings/.gitignore**:
 
 ```text
