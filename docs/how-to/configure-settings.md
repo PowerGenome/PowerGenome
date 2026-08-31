@@ -467,7 +467,7 @@ Configure renewable portfolio standards:
 **settings/policies.yml**:
 
 ```yaml
-emission_policies_fn: emission_policies.csv
+emission_policies_table: emission_policies.csv
 energy_share_req_fn: energy_share_requirements.csv
 ```
 

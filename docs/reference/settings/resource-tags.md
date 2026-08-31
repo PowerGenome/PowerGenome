@@ -232,7 +232,7 @@ model_tag_values:
     NaturalGas: 1  # Counts toward gas maximum
 ```
 
-Configure requirements in `emission_policies_fn` or via GenX settings.
+Configure requirements in `emission_policies_table` (legacy alias: `emission_policies_fn`) or via GenX settings.
 
 ## Capacity Reserve Tags
 

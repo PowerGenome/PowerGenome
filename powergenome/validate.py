@@ -864,6 +864,7 @@ def _check_data_tables_loaded(settings: dict, dm: Any) -> List[ValidationResult]
 
     try:
         from powergenome.database import DataManager as _DM
+        from powergenome.database import get_table_setting_value
 
         mapping = _DM.STANDARD_TABLE_MAPPING
     except Exception:
@@ -871,7 +872,10 @@ def _check_data_tables_loaded(settings: dict, dm: Any) -> List[ValidationResult]
 
     available = dm.available_tables or set()
     for setting_key, standard_name in mapping.items():
-        if settings.get(setting_key) and standard_name not in available:
+        if (
+            get_table_setting_value(settings, setting_key)
+            and standard_name not in available
+        ):
             results.append(
                 _err(
                     "data_tables",

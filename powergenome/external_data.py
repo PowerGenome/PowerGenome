@@ -279,7 +279,8 @@ def load_policy_scenarios(settings: dict = None) -> pd.DataFrame:
     settings : dict
         User-defined parameters from a settings file. Should have keys of `input_folder`
         (a Path object of where to find user-supplied data) and
-        `emission_policies_fn` (the file to load).
+        `emission_policies_table` (the file to load; the legacy
+        `emission_policies_fn` key is also accepted as an alias).
 
     Returns
     -------
@@ -380,7 +381,8 @@ def load_demand_segments(settings):
     ----------
     settings : dict
         User defined PowerGenome settings. Must have the keys "input_folder" and
-        "demand_segments_fn".
+        "demand_segments_table" (the legacy "demand_segments_fn" key is also
+        accepted as an alias).
 
     Returns
     -------

@@ -407,12 +407,15 @@ weather_year,time_index,site_id,value
 
 ### Emission Policies
 
-**Setting**: `emission_policies_fn`
+**Setting**: `emission_policies_table`
 **Purpose**: RPS, CES, carbon constraints by case/region/year
 
 This setting names a DataManager table source. It can use the same file or
 database table configuration supported by other DataManager inputs; it is not
 limited to a CSV in `input_folder`.
+
+The legacy `emission_policies_fn` key is still accepted as an alias; if both
+are set, `emission_policies_table` takes precedence.
 
 **Required columns**:
 
@@ -429,16 +432,18 @@ limited to a CSV in `input_folder`.
 **Example**:
 
 ```yaml
-emission_policies_fn: emission_policies.csv
+emission_policies_table: emission_policies.csv
 ```
 
 ### Demand Segments
 
-**Setting**: `demand_segments_fn`
+**Setting**: `demand_segments_table`
 **Purpose**: Value of lost load and demand segmentation parameters
 
 This setting names a DataManager table source and supports the same file and
-database table configurations as other DataManager inputs.
+database table configurations as other DataManager inputs. The legacy
+`demand_segments_fn` key is still accepted as an alias; if both are set,
+`demand_segments_table` takes precedence.
 
 ### Cost Multipliers
 

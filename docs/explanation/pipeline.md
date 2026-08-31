@@ -121,7 +121,7 @@ agg_transmission_constraints() → insert_tx_costs() → network_*()
 - Adds line loss percentages and expansion cost parameters
 - Builds the `Network.csv` content
 
-Policy files (RPS, CO₂ caps, minimum/maximum capacity constraints) are also assembled in this stage from files referenced by `emission_policies_fn`, `energy_share_req_fn`, etc.
+Policy files (RPS, CO₂ caps, minimum/maximum capacity constraints) are also assembled in this stage from files referenced by `emission_policies_table` (legacy alias: `emission_policies_fn`), `energy_share_req_fn`, etc.
 
 **Key outputs**: `network`, `esr`, `co2_cap`, `min_cap`, `max_cap`, `cap_reserves` DataFrames.
 

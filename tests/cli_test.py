@@ -590,7 +590,7 @@ class TestMainFunction:
         mock_resolve.return_value = {}
 
         # Make scenario_settings_obj.get() return falsy defaults to skip
-        # optional pipeline sections (reserves_fn, emission_policies_fn, etc.)
+        # optional pipeline sections (reserves_fn, emission_policies_table, etc.)
         scenario_obj = MagicMock()
         scenario_obj.get.side_effect = lambda k, d=None: d
         mock_settings_class.for_scenario.return_value.__enter__.return_value = (

@@ -55,8 +55,8 @@ class DataManager:
         "regional_cost_factor_table": "regional_cost_factor",
         "transmission_cost_table": "transmission_cost",
         "demand_table": "demand",
-        "emission_policies_fn": "emission_policies",
-        "demand_segments_fn": "demand_segments",
+        "emission_policies_table": "emission_policies",
+        "demand_segments_table": "demand_segments",
         # Supplemental demand table for adding extra hourly load (e.g. data center forecasts).
         "supplemental_demand_table": "supplemental_demand",
         # Distributed generation tables (support both legacy and new setting keys).
@@ -64,6 +64,13 @@ class DataManager:
         "distributed_profile_table": "distributed_profiles",  # singular key
         "distributed_profiles_table": "distributed_profiles",  # plural key
         "distributed_capacity_table": "distributed_capacity",
+    }
+
+    # Legacy settings keys kept as aliases for backward compatibility. When the
+    # canonical (``*_table``) key is not set, its alias value is used instead.
+    STANDARD_TABLE_ALIASES = {
+        "emission_policies_table": "emission_policies_fn",
+        "demand_segments_table": "demand_segments_fn",
     }
 
     def __new__(cls):
@@ -186,7 +193,7 @@ class DataManager:
         self.available_tables.clear()
 
         for setting_key, standard_name in self.STANDARD_TABLE_MAPPING.items():
-            table_config = self.settings.get(setting_key)
+            table_config = get_table_setting_value(self.settings, setting_key)
 
             if not table_config:
                 continue
@@ -794,7 +801,7 @@ class DataManager:
         # Find tables where configuration has changed
         tables_to_update = set()
         for setting_key, standard_name in self.STANDARD_TABLE_MAPPING.items():
-            new_config = self.settings.get(setting_key)
+            new_config = get_table_setting_value(self.settings, setting_key)
             old_config = self.table_configurations.get(standard_name, {}).get("config")
 
             if new_config != old_config:
@@ -813,7 +820,7 @@ class DataManager:
                 logger.warning(f"Could not find setting key for table {standard_name}")
                 continue
 
-            table_config = self.settings.get(setting_key)
+            table_config = get_table_setting_value(self.settings, setting_key)
 
             if not table_config:
                 # Remove table if no longer configured
@@ -884,6 +891,33 @@ class DataManager:
 
 # Convenience functions for global access
 _data_manager = DataManager()
+
+
+def get_table_setting_value(settings, setting_key: str):
+    """Return the configured value for a DataManager table setting key.
+
+    Falls back to the legacy alias key (``DataManager.STANDARD_TABLE_ALIASES``)
+    when the canonical key is not set, so old ``*_fn`` settings keep working.
+    The canonical key takes precedence when both are configured.
+
+    Parameters
+    ----------
+    settings : Union[Dict[str, Any], Settings]
+        Settings dictionary or Settings object
+    setting_key : str
+        A canonical table setting key (e.g. ``"emission_policies_table"``)
+
+    Returns
+    -------
+    Any
+        The configured value, or ``None`` if the key (and any alias) is unset.
+    """
+    value = settings.get(setting_key)
+    if value is None:
+        alias = DataManager.STANDARD_TABLE_ALIASES.get(setting_key)
+        if alias is not None:
+            value = settings.get(alias)
+    return value
 
 
 def initialize_data_manager(

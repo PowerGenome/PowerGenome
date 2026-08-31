@@ -89,11 +89,12 @@ alternative,2030,all,baseline,
 ```yaml
 # settings/policies.yml
 input_folder: extra_inputs
-emission_policies_fn: emission_policies.csv
+emission_policies_table: emission_policies.csv
 ```
 
-`emission_policies_fn` is loaded through the DataManager, so the value may use
-any supported DataManager table configuration rather than only a CSV path.
+`emission_policies_table` is loaded through the DataManager, so the value may use
+any supported DataManager table configuration rather than only a CSV path. The
+legacy `emission_policies_fn` key is still accepted as an alias.
 
 ---
 
@@ -168,7 +169,7 @@ Cross-check that the technologies you expect to be eligible are marked `1`.
 
 **ESR columns missing from output**
 
-Confirm `emission_policies_fn` is set in settings and the file is in `input_folder`. If the CSV has no `ESR_*` columns, no ESR output is produced.
+Confirm `emission_policies_table` is set in settings and the file is in `input_folder`. If the CSV has no `ESR_*` columns, no ESR output is produced.
 
 **Resources not marked as eligible**
 

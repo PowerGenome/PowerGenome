@@ -20,6 +20,7 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from powergenome.database import get_table_setting_value
 from powergenome.external_data import load_demand_segments
 
 logger = logging.getLogger(__name__)
@@ -841,7 +842,7 @@ def load_nsd_segments(settings: dict) -> tuple:
     """
     default_max_nsd = float(settings.get("macro_default_max_nsd", 1))
     default_voll = float(settings.get("macro_default_voll", 10000.0))
-    fn = settings.get("demand_segments_fn")
+    fn = get_table_setting_value(settings, "demand_segments_table")
     if not fn:
         return [default_max_nsd], [default_voll]
     try:
