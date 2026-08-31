@@ -3632,11 +3632,13 @@ profiles in another.</p>
 </code></pre></div>
 <h2 id="policy-and-cost-tables">Policy and Cost Tables<a class="headerlink" href="#policy-and-cost-tables" title="Permanent link">&para;</a></h2>
 <h3 id="emission-policies">Emission Policies<a class="headerlink" href="#emission-policies" title="Permanent link">&para;</a></h3>
-<p><strong>Setting</strong>: <code>emission_policies_fn</code>
+<p><strong>Setting</strong>: <code>emission_policies_table</code>
 <strong>Purpose</strong>: RPS, CES, carbon constraints by case/region/year</p>
 <p>This setting names a DataManager table source. It can use the same file or
 database table configuration supported by other DataManager inputs; it is not
 limited to a CSV in <code>input_folder</code>.</p>
+<p>The legacy <code>emission_policies_fn</code> key is still accepted as an alias; if both
+are set, <code>emission_policies_table</code> takes precedence.</p>
 <p><strong>Required columns</strong>:</p>
 <ul>
 <li><code>case_id</code>: Case identifier</li>
@@ -3650,13 +3652,15 @@ limited to a CSV in <code>input_folder</code>.</p>
 <li><code>CO2_cap</code>: CO2 emissions limit (tonnes)</li>
 </ul>
 <p><strong>Example</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nt">emission_policies_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emission_policies.csv</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nt">emission_policies_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emission_policies.csv</span>
 </code></pre></div>
 <h3 id="demand-segments">Demand Segments<a class="headerlink" href="#demand-segments" title="Permanent link">&para;</a></h3>
-<p><strong>Setting</strong>: <code>demand_segments_fn</code>
+<p><strong>Setting</strong>: <code>demand_segments_table</code>
 <strong>Purpose</strong>: Value of lost load and demand segmentation parameters</p>
 <p>This setting names a DataManager table source and supports the same file and
-database table configurations as other DataManager inputs.</p>
+database table configurations as other DataManager inputs. The legacy
+<code>demand_segments_fn</code> key is still accepted as an alias; if both are set,
+<code>demand_segments_table</code> takes precedence.</p>
 <h3 id="cost-multipliers">Cost Multipliers<a class="headerlink" href="#cost-multipliers" title="Permanent link">&para;</a></h3>
 <p><strong>Setting</strong>: <code>cost_multiplier_fn</code>
 <strong>Purpose</strong>: Regional construction cost adjustments</p>

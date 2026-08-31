@@ -2640,10 +2640,11 @@
 <h2 id="step-2-point-settings-to-the-file">Step 2: Point settings to the file<a class="headerlink" href="#step-2-point-settings-to-the-file" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># settings/policies.yml</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">input_folder</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">extra_inputs</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">emission_policies_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emission_policies.csv</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">emission_policies_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emission_policies.csv</span>
 </code></pre></div>
-<p><code>emission_policies_fn</code> is loaded through the DataManager, so the value may use
-any supported DataManager table configuration rather than only a CSV path.</p>
+<p><code>emission_policies_table</code> is loaded through the DataManager, so the value may use
+any supported DataManager table configuration rather than only a CSV path. The
+legacy <code>emission_policies_fn</code> key is still accepted as an alias.</p>
 <hr />
 <h2 id="step-3-define-which-resources-are-eligible">Step 3: Define which resources are eligible<a class="headerlink" href="#step-3-define-which-resources-are-eligible" title="Permanent link">&para;</a></h2>
 <p>In <code>model_tag_values</code> in settings, add ESR tags. The tag names must match the column names in your CSV (<code>ESR_1</code>, <code>ESR_2</code>, etc.):</p>
@@ -2697,7 +2698,7 @@ any supported DataManager table configuration rather than only a CSV path.</p>
 <hr />
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <p><strong>ESR columns missing from output</strong></p>
-<p>Confirm <code>emission_policies_fn</code> is set in settings and the file is in <code>input_folder</code>. If the CSV has no <code>ESR_*</code> columns, no ESR output is produced.</p>
+<p>Confirm <code>emission_policies_table</code> is set in settings and the file is in <code>input_folder</code>. If the CSV has no <code>ESR_*</code> columns, no ESR output is produced.</p>
 <p><strong>Resources not marked as eligible</strong></p>
 <p>Check that the technology name in <code>model_tag_values</code> is a substring of the resource names in your output. Technology matching is case-insensitive. Use <code>Generators_data.csv</code> (or the equivalent resources CSV) to see actual resource names, then adjust tag key strings accordingly.</p>
 <p><strong>Wrong fraction applied to a region</strong></p>
