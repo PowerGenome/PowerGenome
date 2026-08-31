@@ -478,33 +478,41 @@ class ResourceGroup:
         metadata: pd.DataFrame = None,
         profiles: pd.DataFrame = None,
         path: str = ".",
-        profile_path: str = None,
+        profile_path: Union[str, os.PathLike, List[Union[str, os.PathLike]]] = None,
     ) -> None:
         from powergenome.params import SETTINGS
 
         self.group = {"existing": False, "tree": None, **group.copy()}
 
         # Convert relative paths (relative to group file) to absolute paths
-        # Profiles may be stored in a single location and reused across resource groups
+        # Profiles may be stored in one or more locations (a single path or a list)
+        # and reused across resource groups. Candidate roots are checked in order:
+        # the location passed as an arg (probably from settings), then SETTINGS
+        # (from the .env file), then assumed to be in the same folder as the JSON file.
         if self.group.get("metadata"):
             self.group["metadata"] = Path(path) / self.group["metadata"]
         if self.group.get("profiles"):
-            # Check for location passed as an arg (probably from settings file),
-            # then the SETTINGS (from .env file), then assume they are in the same folder
-            # as the JSON file
-            if profile_path and (profile_path / self.group["profiles"]).exists():
-                self.group["profiles"] = Path(profile_path) / self.group["profiles"]
-            elif (
-                SETTINGS.get("RESOURCE_GROUP_PROFILES")
-                and (
-                    Path(SETTINGS["RESOURCE_GROUP_PROFILES"]) / self.group["profiles"]
-                ).exists()
-            ):
-                self.group["profiles"] = (
-                    Path(SETTINGS["RESOURCE_GROUP_PROFILES"]) / self.group["profiles"]
+            profile_roots = []
+            if profile_path:
+                profile_roots.extend(
+                    profile_path if isinstance(profile_path, list) else [profile_path]
                 )
-            else:
-                self.group["profiles"] = Path(path) / self.group["profiles"]
+            settings_profiles = SETTINGS.get("RESOURCE_GROUP_PROFILES")
+            if settings_profiles:
+                profile_roots.extend(
+                    settings_profiles
+                    if isinstance(settings_profiles, list)
+                    else [settings_profiles]
+                )
+            resolved_profiles = None
+            for root in profile_roots:
+                candidate = Path(root) / self.group["profiles"]
+                if candidate.exists():
+                    resolved_profiles = candidate
+                    break
+            if resolved_profiles is None:
+                resolved_profiles = Path(path) / self.group["profiles"]
+            self.group["profiles"] = resolved_profiles
         required = ["technology"]
         if metadata is None:
             required.append("metadata")
@@ -520,7 +528,9 @@ class ResourceGroup:
 
     @classmethod
     def from_json(
-        cls, path: Union[str, os.PathLike], profile_path: Union[str, os.PathLike] = None
+        cls,
+        path: Union[str, os.PathLike],
+        profile_path: Union[str, os.PathLike, List[Union[str, os.PathLike]]] = None,
     ) -> "ResourceGroup":
         """
         Build from JSON file.
@@ -950,7 +960,7 @@ class ClusterBuilder:
     def from_json(
         cls,
         paths: Iterable[Union[str, os.PathLike]],
-        profile_path: Union[str, os.PathLike] = None,
+        profile_path: Union[str, os.PathLike, List[Union[str, os.PathLike]]] = None,
     ) -> "ClusterBuilder":
         """
         Load resources from resource group JSON files.

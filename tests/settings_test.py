@@ -1546,6 +1546,25 @@ class TestExpandCapacityReserveValues:
         assert result["data_location"] == tmp_path / "test_data"
         assert result["input_folder"] == tmp_path / "extra_inputs"
 
+    def test_resource_group_paths_accept_single_or_list(self, tmp_path):
+        """RESOURCE_GROUPS / RESOURCE_GROUP_PROFILES accept a single path or a list."""
+        settings_folder = tmp_path / "settings"
+        settings_folder.mkdir()
+        settings_file = settings_folder / "data.yml"
+        settings_content = {
+            "model_regions": ["p1"],
+            "RESOURCE_GROUPS": ["groups_a", "groups_b"],
+            "RESOURCE_GROUP_PROFILES": "profiles",
+        }
+
+        with open(settings_file, "w") as f:
+            yaml.dump(settings_content, f)
+
+        result = load_settings(settings_file)
+
+        assert result["RESOURCE_GROUPS"] == [Path("groups_a"), Path("groups_b")]
+        assert result["RESOURCE_GROUP_PROFILES"] == Path("profiles")
+
     def test_integration_with_build_scenario_settings(self, tmp_path):
         """Test that expand_capacity_reserve_values works in scenario building."""
         # Create base settings

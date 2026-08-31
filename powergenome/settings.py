@@ -699,8 +699,12 @@ def load_settings(path: Union[str, Path]) -> dict:
         "DISTRIBUTED_GEN_DATA",
         "RESOURCE_GROUP_PROFILES",
     ]:
-        if settings.get(key):
-            settings[key] = Path(settings[key])
+        value = settings.get(key)
+        if value:
+            if isinstance(value, list):
+                settings[key] = [Path(v) for v in value]
+            else:
+                settings[key] = Path(value)
 
     settings["model_regions"] = sorted(settings["model_regions"])
     zones = settings["model_regions"]

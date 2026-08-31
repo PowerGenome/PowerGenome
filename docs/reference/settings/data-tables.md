@@ -326,10 +326,39 @@ dg_profiles_table: dg_generation_profiles.parquet
 
 ## Renewable Resource Tables
 
+### Resource Groups
+
+**Setting**: `RESOURCE_GROUPS` (path, or list of paths)
+**Purpose**: Folder(s) containing renewable resource group definition JSON files
+(one JSON per resource group). All `.json` files are discovered recursively in
+each configured folder, so you can point at a single folder or split the JSON files
+across several folders.
+
+**Example**:
+
+```yaml
+RESOURCE_GROUPS: /data/resource_groups
+```
+
+Or from multiple folders:
+
+```yaml
+RESOURCE_GROUPS:
+  - /data/resource_groups/onshore
+  - /data/resource_groups/offshore
+```
+
 ### Resource Group Profiles
 
-**Setting**: `RESOURCE_GROUP_PROFILES` (path)
+**Setting**: `RESOURCE_GROUP_PROFILES` (path, or list of paths)
 **Purpose**: Hourly generation profiles for renewable clusters
+
+`RESOURCE_GROUP_PROFILES` accepts either a single folder or a list of folders.
+When a list is provided, each profile file named in a resource group JSON is
+searched for in the listed folders (in order, plus the `RESOURCE_GROUP_PROFILES`
+environment variable if set) before falling back to the resource group JSON's own
+folder. This lets you, for example, keep wind profiles in one folder and solar
+profiles in another.
 
 **File naming**: `{technology}_profiles_{suffix}.csv` or `.parquet`
 
@@ -344,6 +373,14 @@ dg_profiles_table: dg_generation_profiles.parquet
 
 ```yaml
 RESOURCE_GROUP_PROFILES: /data/nrel_profiles/
+```
+
+Or from multiple folders:
+
+```yaml
+RESOURCE_GROUP_PROFILES:
+  - /data/nrel_profiles/wind
+  - /data/nrel_profiles/solar
 ```
 
 Files in folder:
