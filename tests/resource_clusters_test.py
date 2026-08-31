@@ -233,7 +233,10 @@ class TestReadProfiles:
         self, resource_group_tidy_weather, caplog
     ):
         """Tidy multiyear without explicit weather_year: concatenates all years."""
-        with caplog.at_level(logging.DEBUG):
+        # Target the module logger explicitly: settings_test imports set the
+        # parent "powergenome" logger to INFO, which would otherwise suppress
+        # the DEBUG record regardless of the root logger level.
+        with caplog.at_level(logging.DEBUG, logger="powergenome.resource_clusters"):
             result = resource_group_tidy_weather._read_profiles(site_ids=[0])
         assert "concatenating all available years" in caplog.text
         assert len(result) == 48  # 2 years × 24h
