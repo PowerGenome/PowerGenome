@@ -275,14 +275,12 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
                 target_year=fuel_price_target_year,
             )
         except (KeyError, TypeError):
-            logger.warning(
-                """
+            logger.warning("""
     ************
     Unable to inflate fuel prices. Check your settings file to ensure the keys
     "target_usd_year" and "aeo_fuel_usd_year" are valid integers.
     ************
-                """
-            )
+                """)
 
     return final
 
