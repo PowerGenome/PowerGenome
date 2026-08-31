@@ -409,6 +409,12 @@ class TestBuildResourceClusters:
             "landbasedwind",
         }
 
-    def test_no_groups_returns_empty(self):
+    def test_no_groups_returns_empty(self, monkeypatch):
+        # CI sets RESOURCE_GROUPS via the environment (loaded into SETTINGS at
+        # import time), so clear it to keep this test hermetic.
+        import powergenome.params as params
+
+        monkeypatch.setitem(params.SETTINGS, "RESOURCE_GROUPS", None)
+        monkeypatch.setitem(params.SETTINGS, "RESOURCE_GROUP_PROFILES", None)
         builder = build_resource_clusters(group_path=None)
         assert len(builder.groups) == 0
