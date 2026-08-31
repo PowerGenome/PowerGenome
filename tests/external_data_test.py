@@ -14,7 +14,7 @@ def test_load_demand_segments_uses_data_manager(monkeypatch):
     monkeypatch.setattr(external_data, "get_data", fake_get_data)
 
     result = external_data.load_demand_segments(
-        {"demand_segments_fn": "segments.parquet"}
+        {"demand_segments_table": "segments.parquet"}
     )
 
     pd.testing.assert_frame_equal(result, expected)
@@ -28,7 +28,7 @@ def test_load_policy_scenarios_uses_data_manager(monkeypatch):
     monkeypatch.setattr(external_data, "get_data", lambda table_name: expected)
 
     result = external_data.load_policy_scenarios(
-        {"emission_policies_fn": "policies.parquet", "case_id": "base"}
+        {"emission_policies_table": "policies.parquet", "case_id": "base"}
     )
 
     assert result.index.names == ["case_id", "year"]

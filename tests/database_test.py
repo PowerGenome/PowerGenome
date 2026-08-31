@@ -163,6 +163,21 @@ class TestDataManager:
         dm = DataManager()
         dm.initialize(
             {
+                "emission_policies_table": {"table_name": "policies.csv"},
+                "demand_segments_table": {"table_name": "segments.csv"},
+            },
+            temp_csv_folder,
+        )
+
+        assert {"emission_policies", "demand_segments"} <= dm.available_tables
+        assert dm.get_data("emission_policies").iloc[0]["case_id"] == "base"
+        assert dm.get_data("demand_segments").iloc[0]["Voll"] == 1000
+
+    def test_initialization_policy_tables_legacy_fn_alias(self, temp_csv_folder):
+        """Legacy ``*_fn`` settings keys still configure the same tables."""
+        dm = DataManager()
+        dm.initialize(
+            {
                 "emission_policies_fn": {"table_name": "policies.csv"},
                 "demand_segments_fn": {"table_name": "segments.csv"},
             },
@@ -172,6 +187,22 @@ class TestDataManager:
         assert {"emission_policies", "demand_segments"} <= dm.available_tables
         assert dm.get_data("emission_policies").iloc[0]["case_id"] == "base"
         assert dm.get_data("demand_segments").iloc[0]["Voll"] == 1000
+
+    def test_initialization_policy_tables_table_key_takes_precedence(
+        self, temp_csv_folder
+    ):
+        """When both ``*_table`` and legacy ``*_fn`` are set, ``*_table`` wins."""
+        dm = DataManager()
+        dm.initialize(
+            {
+                "emission_policies_table": "policies.csv",
+                "emission_policies_fn": "does_not_exist.csv",
+            },
+            temp_csv_folder,
+        )
+
+        assert "emission_policies" in dm.available_tables
+        assert dm.get_data("emission_policies").iloc[0]["case_id"] == "base"
 
     def test_initialization_multiple_locations(
         self, sample_settings_csv, temp_csv_folder, tmp_path

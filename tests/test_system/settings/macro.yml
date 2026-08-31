@@ -62,8 +62,8 @@
 # ---- fallback values used when source data is missing ----
 
 # Single-segment non-served-demand fallback when no demand-segments CSV
-# (demand_segments_fn) is configured: maximum curtailment fraction and
-# value of lost service in $/MWh.
+# (demand_segments_table; legacy alias demand_segments_fn) is configured:
+# maximum curtailment fraction and value of lost service in $/MWh.
 # macro_default_max_nsd: 1
 # macro_default_voll: 10000.0
 

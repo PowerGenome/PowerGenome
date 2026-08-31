@@ -8,7 +8,11 @@ from pathlib import Path
 import pandas as pd
 
 import powergenome
-from powergenome.database import initialize_data_manager, update_data_manager
+from powergenome.database import (
+    get_table_setting_value,
+    initialize_data_manager,
+    update_data_manager,
+)
 
 logger = logging.getLogger(__name__)
 from powergenome.external_data import make_generator_variability
@@ -518,7 +522,9 @@ def main(**kwargs):
                             )
                     case_year_data["network"] = network
 
-                    if scenario_settings_obj.get("emission_policies_fn"):
+                    if get_table_setting_value(
+                        scenario_settings_obj, "emission_policies_table"
+                    ):
                         energy_share_req = create_policy_req(
                             col_str_match="ESR",
                         )

@@ -71,8 +71,10 @@ def _reset_data_manager():
 
 def _init_dm_for_folder(folder):
     """Initialize the DataManager against a folder so ``get_data`` can resolve
-    the ``demand_segments`` table from the ``demand_segments_fn`` setting."""
-    initialize_data_manager({"demand_segments_fn": "demand_segments_voll.csv"}, folder)
+    the ``demand_segments`` table from the ``demand_segments_table`` setting."""
+    initialize_data_manager(
+        {"demand_segments_table": "demand_segments_voll.csv"}, folder
+    )
 
 
 @pytest.fixture
@@ -657,13 +659,34 @@ def test_load_nsd_segments_from_demand_segments_csv(tmp_path):
     )
     settings = {
         "input_folder": str(tmp_path),
-        "demand_segments_fn": "demand_segments_voll.csv",
+        "demand_segments_table": "demand_segments_voll.csv",
     }
     _init_dm_for_folder(tmp_path)
     max_nsd, price_nsd = load_nsd_segments(settings)
     # Sorted by descending cost: 2000, 1800, 1100, 400
     assert price_nsd == [2000.0, 1800.0, 1100.0, 400.0]
     assert max_nsd == [1.0, 0.04, 0.024, 0.003]
+
+
+def test_load_nsd_segments_legacy_fn_alias(tmp_path):
+    """The legacy ``demand_segments_fn`` setting still configures Macro NSD."""
+    seg_csv = tmp_path / "demand_segments_voll.csv"
+    seg_csv.write_text(
+        "Voll,Demand_Segment,Cost_of_Demand_Curtailment_per_MW,"
+        "Max_Demand_Curtailment,$/MWh\n"
+        "2000,1,1,1,2000\n"
+        ",2,0.9,0.04,1800\n"
+    )
+    settings = {
+        "input_folder": str(tmp_path),
+        "demand_segments_fn": "demand_segments_voll.csv",
+    }
+    initialize_data_manager(
+        {"demand_segments_fn": "demand_segments_voll.csv"}, tmp_path
+    )
+    max_nsd, price_nsd = load_nsd_segments(settings)
+    assert price_nsd == [2000.0, 1800.0]
+    assert max_nsd == [1.0, 0.04]
 
 
 def test_load_nsd_segments_default_when_no_file():
@@ -692,7 +715,7 @@ def test_load_nsd_segments_uses_voll_base_price(tmp_path):
     )
     settings = {
         "input_folder": str(tmp_path),
-        "demand_segments_fn": "demand_segments_voll.csv",
+        "demand_segments_table": "demand_segments_voll.csv",
     }
     _init_dm_for_folder(tmp_path)
     max_nsd, price_nsd = load_nsd_segments(settings)
@@ -709,7 +732,7 @@ def test_load_nsd_segments_falls_back_to_per_mwh(tmp_path):
     )
     settings = {
         "input_folder": str(tmp_path),
-        "demand_segments_fn": "demand_segments_voll.csv",
+        "demand_segments_table": "demand_segments_voll.csv",
     }
     _init_dm_for_folder(tmp_path)
     max_nsd, price_nsd = load_nsd_segments(settings)
@@ -730,7 +753,7 @@ def test_make_nodes_json_uses_demand_segments(tmp_path):
         "model_regions": ["R1"],
         "zone_num_map": {"R1": 1},
         "input_folder": str(tmp_path),
-        "demand_segments_fn": "demand_segments_voll.csv",
+        "demand_segments_table": "demand_segments_voll.csv",
     }
     _init_dm_for_folder(tmp_path)
     nodes = make_nodes_json(
@@ -1402,7 +1425,7 @@ def test_load_nsd_segments_error_and_missing_column_fallbacks(tmp_path):
     # File configured but missing on disk -> load raises, caught and defaulted
     missing_file_settings = {
         "input_folder": str(tmp_path),
-        "demand_segments_fn": "does_not_exist.csv",
+        "demand_segments_table": "does_not_exist.csv",
         "macro_default_max_nsd": 0.8,
         "macro_default_voll": 5000.0,
     }
@@ -1415,7 +1438,7 @@ def test_load_nsd_segments_error_and_missing_column_fallbacks(tmp_path):
     no_max_col_csv.write_text("Voll,Cost_of_Demand_Curtailment_per_MW\n2000,1\n")
     settings = {
         "input_folder": str(tmp_path),
-        "demand_segments_fn": "no_max_col.csv",
+        "demand_segments_table": "no_max_col.csv",
     }
     max_nsd, price_nsd = load_nsd_segments(settings)
     assert max_nsd == [1]
@@ -1426,7 +1449,7 @@ def test_load_nsd_segments_error_and_missing_column_fallbacks(tmp_path):
     no_price_col_csv.write_text("Max_Demand_Curtailment\n1\n")
     settings2 = {
         "input_folder": str(tmp_path),
-        "demand_segments_fn": "no_price_col.csv",
+        "demand_segments_table": "no_price_col.csv",
     }
     max_nsd, price_nsd = load_nsd_segments(settings2)
     assert max_nsd == [1]
