@@ -2935,6 +2935,9 @@ See <a href="../../how-to/validate-settings/">Validate Settings Before Running</
 <li><code>RESOURCE_GROUP_PROFILES</code>: Path to generation profiles</li>
 <li><code>EFS_DATA</code>: Path to NREL EFS electrification data</li>
 </ul>
+<p>Environment variables are always single paths. When using settings YAML,
+<code>RESOURCE_GROUPS</code> and <code>RESOURCE_GROUP_PROFILES</code> may instead be a list of paths
+(split across multiple folders).</p>
 <div class="admonition warning">
 <p class="admonition-title">Deprecated</p>
 <p>Using environment variables for paths is deprecated. Use settings YAML parameters instead:</p>
