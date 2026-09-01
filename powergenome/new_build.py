@@ -1314,8 +1314,13 @@ def add_renewables_clusters(
         cache_cluster_fn = unique_hash + "_cluster_data.parquet"
         cache_site_assn_fn = unique_hash + "_site_assn.parquet"
 
-        sub_folder = settings.get("RESOURCE_GROUPS") or SETTINGS.get("RESOURCE_GROUPS")
-        sub_folder = str(sub_folder).replace("/", "_").replace("\\", "_")
+        rg_paths = settings.get("RESOURCE_GROUPS") or SETTINGS.get("RESOURCE_GROUPS")
+        if isinstance(rg_paths, list):
+            sub_folder = "__".join(
+                str(p).replace("/", "_").replace("\\", "_") for p in rg_paths
+            )
+        else:
+            sub_folder = str(rg_paths).replace("/", "_").replace("\\", "_")
         cache_folder = Path(
             settings["input_folder"] / "cluster_assignments" / sub_folder
         )

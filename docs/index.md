@@ -1,6 +1,6 @@
 # PowerGenome Documentation
 
-Welcome to the PowerGenome documentation! PowerGenome is a data pipeline tool that generates input files for capacity expansion models, primarily GenX.
+Welcome to the PowerGenome documentation! PowerGenome is a data pipeline tool that generates input files for capacity expansion models, primarily [GenX](https://genxproject.github.io/GenX.jl/), with optional output for [MacroEnergy.jl](https://github.com/macroenergy/MacroEnergy.jl) (see [Output Formats](reference/settings/macro-output.md)).
 
 !!! tip "First time user or setting up a new system?"
     Use the **[PowerGenome System Design tool](https://gschivley.github.io/PowerGenome-tools/web/)** to generate a starting settings folder for your study area. The interactive tool walks you through selecting regions, planning periods, technologies, and policies, then produces a ready-to-use settings folder you can download and customise. See the [System Design tool documentation](https://gschivley.github.io/PowerGenome-tools/) for a step-by-step walkthrough.

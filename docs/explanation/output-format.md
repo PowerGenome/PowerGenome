@@ -1,8 +1,11 @@
 # Output File Format
 
-PowerGenome writes input files for the [GenX](https://github.com/GenXProject/GenX.jl) capacity expansion model. This page describes the folder structure, file names, and the key content of each output.
+PowerGenome writes input files for the [GenX](https://github.com/GenXProject/GenX.jl) capacity expansion model and,
+optionally, for [MacroEnergy.jl](https://github.com/macroenergy/MacroEnergy.jl) (Macro) in its `simpleCSVinputs`
+format. This page describes the folder structure, file names, and the key content of each output.
 
 For the full GenX documentation on input file schemas, see the [GenX documentation](https://genxproject.github.io/GenX.jl/stable/).
+For Macro, see the [MacroEnergy Examples](https://github.com/macroenergy/MacroEnergyExamples.jl) repository.
 
 ---
 
@@ -176,9 +179,73 @@ PowerGenome then writes `Generators_data.csv` combining all resource types, and 
 
 ---
 
+## Macro `simpleCSVinputs` format
+
+When enabled (see [Macro Output Settings](../reference/settings/macro-output.md)), PowerGenome additionally writes
+a Macro case in the `simpleCSVinputs` format — the same structure used by Macro's
+[`multisector_3zone_simpleCSVinputs` example](https://github.com/macroenergy/MacroEnergyExamples.jl/tree/main/examples/multisector_3zone_simpleCSVinputs).
+Only the simpleCSV format is produced (not Macro's JSON asset format). The semantic mapping of generators,
+transmission, demand, fuel supply, and CO2 caps follows the [GenX-to-Macro converter](https://github.com/EmilDimanchev/GenX_to_Macro)
+(`lb/multistage` branch for multi-period runs).
+
+Both formats are written in the same `run_powergenome` call by default. Because all intermediate data processing
+(storage clustering, time reduction, market data) is shared, writing GenX and Macro inputs together in one run is
+**faster than running PowerGenome twice** (once per model). Use `--no-genx` / `genx_output: false` to produce Macro
+inputs only.
+
+### Folder structure
+
+The Macro case is written to a `macro_out/`-style folder (per planning period when multi-period), containing
+`system_data.json` plus three input subfolders:
+
+```
+<macro case folder>/
+├── system_data.json          # Top-level manifest: commodities, locations, settings, assets, time_data, nodes
+├── settings/
+│   ├── case_settings.json    # PeriodLengths, DiscountRate, SolutionAlgorithm, ...
+│   └── macro_settings.json   # ConstraintScaling, WriteSubcommodities, AutoCreateNodes, ...
+├── system/
+│   ├── commodities.json      # Electricity, NaturalGas, CO2, Uranium, Coal, ...
+│   ├── locations.json        # Model region names
+│   ├── nodes.json            # Electricity demand nodes, fuel supply nodes, CO2 sinks, hydro source
+│   ├── time_data.json        # HoursPerSubperiod, HoursPerTimeStep, NumberOfSubperiods, ...
+│   ├── Period_map.csv        # Sub-period mapping (only when time reduction is active)
+│   ├── demand.csv            # Time_Index, Demand_MW_z<zone>...
+│   ├── availability.csv      # Time_Index, <resource>...  (non-constant VRE/hydro/must-run profiles)
+│   └── fuel_prices.csv       # Time_Index, <fuel>_<region>... price timeseries per fuel node
+└── assets/
+    ├── <base fuel>_power.csv # Type=ThermalPower (one file per base fuel)
+    ├── vre.csv               # Type=VRE
+    ├── electricity_stor.csv  # Type=Battery
+    ├── hydropower.csv        # Type=HydroRes
+    ├── mustrun.csv           # Type=MustRun
+    └── powerlines.csv        # Type=TransmissionLink
+```
+
+### Resource mapping highlights
+
+| GenX concept | Macro output |
+|---|---|
+| `Existing_Cap_MW` | `existing_capacity` / `discharge_existing_capacity` (thermal, VRE, storage, hydro) |
+| `Heat_Rate_MMBTU_per_MWh` | `fuel_consumption` = heat rate × 0.29307107 MWh/MMBtu |
+| CO2 emissions | `emission_rate` = fuel CO2 content / 0.29307107, plus a `co2_sink` node |
+| `Eff_Up` / `Eff_Down` | `charge_efficiency` / `discharge_efficiency` (storage, hydro) |
+| `New_Build` / `Can_Retire` | `can_expand` / `can_retire` |
+| `Line_Max_Flow_MW` + reinforcement | `existing_capacity` + `max_capacity` on a `TransmissionLink` |
+| VRE variability | `availability` column in `system/availability.csv` |
+| Demand data | `Demand_MW_z<zone>` columns in `system/demand.csv` + electricity nodes in `nodes.json` |
+| Fuel prices | per-(fuel, region) supply node + `system/fuel_prices.csv` |
+| CO2 caps | CO2 sink node with `CO2CapConstraint` |
+
+Cross-sector assets (hydrogen, liquid fuels, CCS detail, demand-side) are not yet emitted; PowerGenome is
+electricity-centric and the Macro writer is scoped to the electricity system in v1.
+
+---
+
 ## Related documentation
 
 - [Resource Tags Settings](../reference/settings/resource-tags.md): How `THERM`, `VRE`, `STOR` etc. are assigned
 - [Time Reduction Settings](../reference/settings/time-reduction.md): Controls `Rep_Periods` and `Sub_Weights`
 - [Transmission Settings](../reference/settings/transmission.md): Network parameters
+- [Macro Output Settings](../reference/settings/macro-output.md): How to enable GenX and/or Macro output
 - [Data Pipeline Flow](pipeline.md): How outputs are assembled from pipeline stages

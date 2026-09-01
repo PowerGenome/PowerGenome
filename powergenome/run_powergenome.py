@@ -8,7 +8,13 @@ from pathlib import Path
 import pandas as pd
 
 import powergenome
-from powergenome.database import initialize_data_manager, update_data_manager
+from powergenome.database import (
+    get_table_setting_value,
+    initialize_data_manager,
+    update_data_manager,
+)
+
+logger = logging.getLogger(__name__)
 from powergenome.external_data import make_generator_variability
 from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters
@@ -29,6 +35,7 @@ from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; c
     set_int_cols,
 )
 from powergenome.load_profiles import make_final_load_curves
+from powergenome.macro_inputs import MacroCaseBuilder
 from powergenome.settings import (
     Settings,
     build_scenario_settings,
@@ -59,12 +66,61 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 
+def _as_bool(value, default=False):
+    """Coerce a settings value to a boolean, accepting case-insensitive forms.
+
+    YAML booleans arrive as Python ``bool``; also handle string forms such as
+    ``"true"``, ``"TRUE"``, ``"yes"``, ``"on"``, ``"1"``. Anything else
+    (including ``"false"``/``"no"``/``"off"`` and unrecognized strings) is
+    ``False``; ``None`` (the key is absent) falls back to ``default``.
+    """
+    if value is None:
+        return default
+    if isinstance(value, (bool, int)):
+        return bool(value)
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def resolve_output_formats(args, settings):
+    """Return ``(macro_enabled, genx_enabled)`` for a case.
+
+    CLI flags and per-case settings are combined so both formats can be written
+    in a single run. GenX is the default output when no output flag or output
+    setting is present; Macro is written in addition to GenX unless GenX is
+    disabled. ``--no-genx`` (or ``--genx``/``genx_output`` absent) turns GenX
+    off, so Macro-only output is available from the command line alone.
+    """
+    macro_enabled = getattr(args, "macro", False) or _as_bool(
+        settings.get("macro_output"), default=False
+    )
+    if getattr(args, "no_genx", False) and getattr(args, "genx", False):
+        logger.warning(
+            "Both --genx and --no-genx were passed; --no-genx takes precedence "
+            "and GenX output will not be written."
+        )
+    genx_enabled = not getattr(args, "no_genx", False) and (
+        getattr(args, "genx", False)
+        or _as_bool(settings.get("genx_output"), default=True)
+    )
+    return macro_enabled, genx_enabled
+
+
 def parse_command_line(argv):
     """
     Parse command line arguments. See the -h option.
 
     :param argv: arguments on the command line must include caller file name.
     """
+    # Accept long option names in any case (e.g. --MACRO, --Genx). Option values
+    # are left untouched, including the value side of `--flag=value` syntax.
+    lower_flags = []
+    for arg in argv:
+        if not arg.startswith("--"):
+            lower_flags.append(arg)
+            continue
+        flag, eq, value = arg.partition("=")
+        lower_flags.append(flag[:2] + flag[2:].lower() + (eq + value if eq else ""))
+    argv = lower_flags
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-sf",
@@ -132,6 +188,38 @@ def parse_command_line(argv):
         dest="multi_period",
         action="store_false",
         help=("Use multi-period output format."),
+    )
+    parser.add_argument(
+        "--macro",
+        dest="macro",
+        action="store_true",
+        help=(
+            "Write MacroEnergy.jl simpleCSVinputs-format case inputs in addition "
+            "to the default GenX output (single run writes both). Can also be "
+            "enabled with 'macro_output: true' in a settings file. Set "
+            "'genx_output: false' to write Macro inputs only."
+        ),
+    )
+    parser.add_argument(
+        "--genx",
+        dest="genx",
+        action="store_true",
+        help=(
+            "Write GenX Inputs files (the default output when no output flag or "
+            "output setting is set). Can be combined with --macro to write both "
+            "formats in a single run. Can also be controlled with "
+            "'genx_output: true' in a settings file."
+        ),
+    )
+    parser.add_argument(
+        "--no-genx",
+        dest="no_genx",
+        action="store_true",
+        help=(
+            "Do not write GenX Inputs files, even if 'genx_output: true' is set "
+            "in a settings file. Combine with --macro (or 'macro_output: true') "
+            "to write Macro inputs only without editing the settings file."
+        ),
     )
     arguments = parser.parse_args(argv[1:])
     return arguments
@@ -230,7 +318,8 @@ def main(**kwargs):
     #         "One or more model regions is not valid. Check to make sure all regions "
     #         "are either in IPM or region_aggregations in the settings YAML file."
     #     )
-
+    if not settings.get("input_folder"):
+        settings["input_folder"] = "extra_inputs"
     input_folder = Path(settings["input_folder"])
 
     model_years = get_model_years_from_settings(
@@ -302,6 +391,11 @@ def main(**kwargs):
 
     model_regions_gdf = None
     first_year = True
+    # Macro cases are written one per case (not per period), with each planning
+    # period becoming a stage. Because the loop below iterates years first, the
+    # stages of a given case are not contiguous, so buffer them here and
+    # finalize (write shared case-level files) once the loop completes.
+    macro_writers = {}
     for year, year_settings in scenario_settings.items():
         for case_id, _settings in year_settings.items():
             # Use the factory method to create scenario-specific settings
@@ -428,7 +522,9 @@ def main(**kwargs):
                             )
                     case_year_data["network"] = network
 
-                    if scenario_settings_obj.get("emission_policies_fn"):
+                    if get_table_setting_value(
+                        scenario_settings_obj, "emission_policies_table"
+                    ):
                         energy_share_req = create_policy_req(
                             col_str_match="ESR",
                         )
@@ -450,27 +546,61 @@ def main(**kwargs):
                         / scenario_settings_obj["reserves_fn"]
                     )
 
-                if scenario_settings_obj.get("old_genx_format", False) is not True:
-                    genx_data = process_genx_data(case_folder, case_year_data)
-                else:
-                    genx_data = process_genx_data_old_format(
-                        case_folder, case_year_data
+                macro_output_enabled, genx_output_enabled = resolve_output_formats(
+                    args, scenario_settings_obj
+                )
+
+                formats = []
+                if genx_output_enabled:
+                    formats.append("GenX")
+                if macro_output_enabled:
+                    formats.append("Macro simpleCSVinputs")
+                logger.info(
+                    "\n\nWriting model input files (%s) to %s\n\n",
+                    " + ".join(formats),
+                    case_folder,
+                )
+
+                if macro_output_enabled:
+                    # The Macro case root is the parent of the GenX-style Inputs
+                    # folder: <out>/<case_id> for scenario definitions and
+                    # <out> for an un-keyed case.
+                    macro_root = case_folder.parent.parent
+                    writer = macro_writers.get(macro_root)
+                    if writer is None:
+                        writer = MacroCaseBuilder(macro_root)
+                        macro_writers[macro_root] = writer
+                    writer.add_stage(
+                        scenario_settings_obj["case_period"],
+                        case_year_data,
+                        scenario_settings_obj,
                     )
 
-                for data in genx_data:
-                    if data.dataframe is not None and not data.dataframe.empty:
-                        write_results_file(
-                            data.dataframe,
-                            data.folder,
-                            data.file_name,
+                if genx_output_enabled:
+                    if scenario_settings_obj.get("old_genx_format", False) is not True:
+                        genx_data = process_genx_data(case_folder, case_year_data)
+                    else:
+                        genx_data = process_genx_data_old_format(
+                            case_folder, case_year_data
                         )
-
+                    for data in genx_data:
+                        if data.dataframe is not None and not data.dataframe.empty:
+                            write_results_file(
+                                data.dataframe,
+                                data.folder,
+                                data.file_name,
+                            )
                 write_case_settings_file(
                     settings=scenario_settings_obj.to_dict(),
                     folder=case_folder,
                     file_name="powergenome_case_settings.yml",
                 )
                 first_year = False
+
+    # Finalize buffered Macro cases (writes per-stage files and the shared
+    # case-level system_data.json / case_settings.json).
+    for writer in macro_writers.values():
+        writer.finalize()
 
 
 if __name__ == "__main__":
