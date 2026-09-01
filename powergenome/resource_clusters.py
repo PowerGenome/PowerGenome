@@ -12,7 +12,7 @@ import pyarrow
 import pyarrow.parquet as pq
 import scipy.cluster.hierarchy
 
-from powergenome.util import find_region_col, load_data
+from powergenome.util import find_region_col, read_tidy_profiles_wide
 
 logger = logging.getLogger(__name__)
 
@@ -834,23 +834,17 @@ class ResourceGroup:
             df = self.profiles.read(columns=read_cols)
             df = df[df["site_id"].isin(site_ids)]
         else:
-            # On-disk: use centralized DuckDB-based loader
+            # On-disk: pivot in DuckDB (single query), keeping only the wide result
+            # in pandas memory. Much faster than scanning the full tidy parquet into
+            # pandas and reshaping with DataFrame.pivot, which scales superlinearly.
             p = Path(self.profiles.path)
-            read_cols = [
-                c
-                for c in ["site_id", "time_index", "value", "weather_year"]
-                if c in cols
-            ]
-            if weather_year is not None and "weather_year" in cols:
-                years = (
-                    weather_year if isinstance(weather_year, list) else [weather_year]
+            wide = read_tidy_profiles_wide(p, site_ids, weather_year)
+            if weather_year is not None and wide.empty:
+                raise ValueError(
+                    f"None of the requested weather years {weather_year} are available "
+                    "in the profile data."
                 )
-            # Build DNF filters: always filter by site_id
-            filters = [
-                [("site_id", "in", site_ids)]
-                + ([("weather_year", "in", years)] if years is not None else [])
-            ]
-            df = load_data(p.parent, p.name, filters=filters, columns=read_cols)
+            return wide
 
         # Handle weather_year selection and optional concatenation
         if "weather_year" in df.columns:

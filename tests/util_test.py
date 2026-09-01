@@ -3,10 +3,13 @@ Test util functions
 """
 
 import csv
+import logging
 import sqlite3
 from collections.abc import Iterable
+from pathlib import Path
 
 import duckdb
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -23,9 +26,30 @@ from powergenome.util import (
     load_table_from_db,
     make_iterable,
     prepend_db_to_tables,
+    read_tidy_profiles_wide,
     sort_nested_dict,
     update_dictionary,
 )
+
+FAST_PATH_LOGGED = "Ordered-scan fast path unavailable"
+
+
+def _write_tidy_parquet(path, rows, value_dtype=np.float32):
+    """Write a tidy profile parquet from (site_id, time_index, value[, weather_year]) tuples.
+
+    Row order in ``rows`` is preserved in the file so tests can control the
+    physical order DuckDB scans, which the fast path relies on.
+    """
+    df = pd.DataFrame(rows)
+    df.columns = (
+        ["site_id", "time_index", "value", "weather_year"]
+        if df.shape[1] == 4
+        else ["site_id", "time_index", "value"]
+    )
+    if value_dtype is not None:
+        df["value"] = df["value"].astype(value_dtype)
+    df.to_parquet(Path(path), index=False)
+    return df
 
 
 def test_sort_nested_dict():
@@ -640,3 +664,247 @@ class TestGetFirstPlanningYearFromSettings:
 
     def test_returns_none_when_no_inputs(self):
         assert get_first_planning_years_from_settings() is None
+
+
+def test_read_tidy_profiles_wide_fast_path(tmp_path, caplog):
+    """A site-major tidy parquet takes the fast path with exact values and dtype."""
+    path = tmp_path / "profiles.parquet"
+    rows = []
+    for site, base in ((10, 0.1), (20, 0.2), (30, 0.3)):
+        for t in range(1, 4):
+            rows.append((site, t, base + t / 10))
+    _write_tidy_parquet(path, rows)
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [10, 20, 30])
+
+    # The fast path should succeed without logging a fallback.
+    assert FAST_PATH_LOGGED not in caplog.text
+    assert list(out.columns) == [10, 20, 30]
+    assert out.index.name == "time_index"
+    assert out.index.tolist() == [1, 2, 3]
+    # Source value column was float32, so the output plate must stay float32.
+    assert out.dtypes.tolist() == [np.float32] * 3
+    assert out[10].tolist() == pytest.approx([0.2, 0.3, 0.4])
+    assert out[20].tolist() == pytest.approx([0.3, 0.4, 0.5])
+    assert out[30].tolist() == pytest.approx([0.4, 0.5, 0.6])
+
+
+def test_read_tidy_profiles_wide_interleaved_falls_back(tmp_path, caplog):
+    """Rows interleaved across sites (not site-major) fall back to SQL PIVOT."""
+    path = tmp_path / "profiles.parquet"
+    rows = [
+        (10, 1, 0.10),
+        (20, 1, 0.20),
+        (10, 2, 0.11),
+        (20, 2, 0.21),
+        (10, 3, 0.12),
+        (20, 3, 0.22),
+    ]
+    _write_tidy_parquet(path, rows)
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [10, 20])
+
+    assert FAST_PATH_LOGGED in caplog.text
+    assert list(out.columns) == [10, 20]
+    assert out[10].tolist() == pytest.approx([0.10, 0.11, 0.12])
+    assert out[20].tolist() == pytest.approx([0.20, 0.21, 0.22])
+
+
+def test_read_tidy_profiles_wide_ragged_falls_back(tmp_path, caplog):
+    """Ragged per-site row counts fall back and keep each site's series."""
+    path = tmp_path / "profiles.parquet"
+    rows = [
+        (1, 1, 0.10),
+        (1, 2, 0.11),
+        (1, 3, 0.12),  # site 1 has 3 rows
+        (2, 1, 0.20),
+        (2, 2, 0.21),  # site 2 has 2 rows
+    ]
+    _write_tidy_parquet(path, rows)
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [1, 2])
+
+    assert FAST_PATH_LOGGED in caplog.text
+    assert list(out.columns) == [1, 2]
+    assert out[1].tolist() == pytest.approx([0.10, 0.11, 0.12])
+    # Site 2 only has two time steps; the trailing step is NaN (as in the
+    # reference pandas pivot), not filled.
+    assert out[2].tolist()[:2] == pytest.approx([0.20, 0.21])
+    assert pd.isna(out[2].iloc[2])
+
+
+def test_read_tidy_profiles_wide_duplicate_falls_back(tmp_path, caplog):
+    """Duplicate (site_id, time_index) rows fail rather than shifting hours."""
+    path = tmp_path / "profiles.parquet"
+    rows = [
+        (1, 1, 0.10),
+        (1, 1, 0.99),  # duplicate time_index for site 1
+        (1, 2, 0.12),
+    ]
+    _write_tidy_parquet(path, rows)
+
+    with caplog.at_level(logging.DEBUG):
+        with pytest.raises(
+            duckdb.InvalidInputException,
+            match="Duplicate site_id/time_index rows",
+        ):
+            read_tidy_profiles_wide(path, [1])
+
+    assert FAST_PATH_LOGGED in caplog.text
+
+
+def test_read_tidy_profiles_wide_generator_site_ids(tmp_path):
+    """One-shot site-id iterables retain their values across both paths."""
+    path = tmp_path / "profiles.parquet"
+    rows = [(1, 1, 0.1), (1, 2, 0.2), (2, 1, 0.3), (2, 2, 0.4)]
+    _write_tidy_parquet(path, rows)
+
+    out = read_tidy_profiles_wide(path, (site_id for site_id in [1, 2]))
+
+    assert list(out.columns) == [1, 2]
+    assert out[1].tolist() == pytest.approx([0.1, 0.2])
+    assert out[2].tolist() == pytest.approx([0.3, 0.4])
+
+
+def test_read_tidy_profiles_wide_path_with_apostrophe(tmp_path):
+    """Valid file paths containing apostrophes are safely quoted in DuckDB SQL."""
+    path = tmp_path / "profile's data.parquet"
+    rows = [(1, 1, 0.1), (1, 2, 0.2)]
+    _write_tidy_parquet(path, rows)
+
+    out = read_tidy_profiles_wide(path, [1])
+
+    assert out[1].tolist() == pytest.approx([0.1, 0.2])
+
+
+def test_read_tidy_profiles_wide_ragged_preserves_time_index(tmp_path, caplog):
+    """Fallback aligns sparse profiles on their original time index."""
+    path = tmp_path / "profiles.parquet"
+    rows = [
+        (1, 1, 0.1),
+        (1, 3, 0.3),
+        (2, 1, 0.4),
+        (2, 2, 0.5),
+        (2, 3, 0.6),
+    ]
+    _write_tidy_parquet(path, rows)
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [1, 2])
+
+    assert FAST_PATH_LOGGED in caplog.text
+    assert out.index.tolist() == [1, 2, 3]
+    assert pd.isna(out.loc[2, 1])
+    assert out[2].tolist() == pytest.approx([0.4, 0.5, 0.6])
+
+
+def test_read_tidy_profiles_wide_single_year_preserves_time_index(tmp_path, caplog):
+    """A weather-year filter does not compress gaps into synthetic hours."""
+    path = tmp_path / "profiles.parquet"
+    rows = [
+        (1, 1, 0.1, 2012),
+        (1, 3, 0.3, 2012),
+        (2, 1, 0.4, 2012),
+        (2, 2, 0.5, 2012),
+        (2, 3, 0.6, 2012),
+    ]
+    _write_tidy_parquet(path, rows)
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [1, 2], weather_year=2012)
+
+    assert FAST_PATH_LOGGED in caplog.text
+    assert out.index.tolist() == [1, 2, 3]
+    assert pd.isna(out.loc[2, 1])
+    assert out[2].tolist() == pytest.approx([0.4, 0.5, 0.6])
+
+
+def test_read_tidy_profiles_wide_single_year_rejects_duplicate_hour(tmp_path, caplog):
+    """A weather-year column does not make duplicate site/hour rows valid."""
+    path = tmp_path / "profiles.parquet"
+    rows = [(1, 1, 0.1, 2012), (1, 1, 0.2, 2012), (1, 2, 0.3, 2012)]
+    _write_tidy_parquet(path, rows)
+
+    with caplog.at_level(logging.DEBUG):
+        with pytest.raises(
+            duckdb.InvalidInputException,
+            match="Duplicate site_id/time_index rows",
+        ):
+            read_tidy_profiles_wide(path, [1], weather_year=2012)
+
+    assert FAST_PATH_LOGGED in caplog.text
+
+
+def test_read_tidy_profiles_wide_non_integer_ids_use_pivot(tmp_path, caplog):
+    """Non-integer site ids skip the fast path entirely and use SQL PIVOT."""
+    path = tmp_path / "profiles.parquet"
+    rows = [
+        ("site_1", 1, 0.10),
+        ("site_1", 2, 0.11),
+        ("site_2", 1, 0.20),
+        ("site_2", 2, 0.21),
+    ]
+    _write_tidy_parquet(path, rows)
+
+    out = read_tidy_profiles_wide(path, ["site_1", "site_2"])
+
+    # No fast-path debug message because the string ids never attempt it.
+    assert FAST_PATH_LOGGED not in caplog.text
+    assert list(out.columns) == ["site_1", "site_2"]
+    assert out["site_1"].tolist() == pytest.approx([0.10, 0.11])
+    assert out["site_2"].tolist() == pytest.approx([0.20, 0.21])
+
+
+def test_read_tidy_profiles_wide_multi_year_concatenates(tmp_path):
+    """Multiple weather years are concatenated through the SQL PIVOT path."""
+    path = tmp_path / "profiles.parquet"
+    rows = []
+    for site, base in ((1, 0.1), (2, 0.2)):
+        for year in (2012, 2013):
+            for t in range(1, 4):
+                rows.append((site, t, base + t / 10, year))
+    df = pd.DataFrame(rows, columns=["site_id", "time_index", "value", "weather_year"])
+    df.to_parquet(path, index=False)
+
+    out = read_tidy_profiles_wide(path, [1, 2], weather_year=[2012, 2013])
+
+    assert list(out.columns) == [1, 2]
+    assert len(out) == 6
+    # First three rows are the 2012 series, next three the 2013 series.
+    assert out[1].tolist() == pytest.approx([0.2, 0.3, 0.4, 0.2, 0.3, 0.4])
+    assert out[2].tolist() == pytest.approx([0.3, 0.4, 0.5, 0.3, 0.4, 0.5])
+
+
+def test_read_tidy_profiles_wide_missing_site_filled(tmp_path, caplog):
+    """Sites absent from the file are filled with 1.0 in every hour."""
+    path = tmp_path / "profiles.parquet"
+    rows = [(1, 1, 0.5), (1, 2, 0.6), (2, 1, 0.7), (2, 2, 0.8)]
+    _write_tidy_parquet(path, rows)
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [1, 2, 999])
+
+    assert FAST_PATH_LOGGED not in caplog.text
+    assert list(out.columns) == [1, 2, 999]
+    assert (out[999] == 1.0).all()
+
+
+def test_read_tidy_profiles_wide_many_sites_chunked(tmp_path):
+    """More than a chunk's worth of sites pivot in slices and join back in order."""
+    n = 5005  # > _PROFILE_CHUNK_SIZE so the fallback runs multiple chunks
+    path = tmp_path / "profiles.parquet"
+    rows = [(f"s{i:05d}", 1, 0.001 * i) for i in range(n)]
+    _write_tidy_parquet(path, rows, value_dtype=np.float64)
+
+    # Request ids in reverse file order to also check column-order restoration.
+    site_ids = [f"s{i:05d}" for i in range(n - 1, -1, -1)]
+    out = read_tidy_profiles_wide(path, site_ids)
+
+    assert list(out.columns) == site_ids
+    assert len(out) == 1
+    assert out.iloc[0].tolist() == pytest.approx(
+        [0.001 * i for i in range(n - 1, -1, -1)]
+    )
