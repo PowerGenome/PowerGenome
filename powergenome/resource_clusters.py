@@ -828,7 +828,13 @@ class ResourceGroup:
             # in pandas memory. Much faster than scanning the full tidy parquet into
             # pandas and reshaping with DataFrame.pivot, which scales superlinearly.
             p = Path(self.profiles.path)
-            return read_tidy_profiles_wide(p, site_ids, weather_year)
+            wide = read_tidy_profiles_wide(p, site_ids, weather_year)
+            if weather_year is not None and wide.empty:
+                raise ValueError(
+                    f"None of the requested weather years {weather_year} are available "
+                    "in the profile data."
+                )
+            return wide
 
         # Handle weather_year selection and optional concatenation
         if "weather_year" in df.columns:
