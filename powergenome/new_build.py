@@ -919,10 +919,6 @@ def build_new_resources(
                 settings["cost_multiplier_region_map"]
             )
         else:
-            logger.info(
-                "No 'cost_multiplier_region_map' provided. Auto-generating region mapping "
-                "from regional cost factor table."
-            )
             # Create direct mapping, will handle aggregation in regional_capex_multiplier
             rev_mult_region_map = auto_create_region_map(
                 settings["model_regions"],
@@ -936,10 +932,6 @@ def build_new_resources(
                 settings["cost_multiplier_technology_map"]
             )
         else:
-            logger.info(
-                "No 'cost_multiplier_technology_map' provided. Auto-generating technology "
-                "mapping using substring matching from regional cost factor table."
-            )
             # Create a temporary DataFrame with the structure auto_create_technology_map expects
             temp_df = pd.DataFrame(
                 {
