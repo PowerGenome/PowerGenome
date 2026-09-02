@@ -1,0 +1,53 @@
+name: Publish Python Package
+
+# Publish releases to PyPI via trusted publishing (no API token needed).
+# PyPI publisher config: Repository PowerGenome/PowerGenome, workflow
+# release.yml, environment name "release".
+#
+# To cut a release: bump the version in powergenome/version.py on main,
+# then run:
+#   git tag v0.8.1 && git push origin v0.8.1
+# Tests already run on every push via pytest.yml, so this workflow only
+# builds and publishes.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write # trusted publishing (and build attestations)
+      attestations: write
+      contents: write # create the GitHub release for the tag
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build backend
+        run: pip install build
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Attest build artifacts
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/*
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/*
