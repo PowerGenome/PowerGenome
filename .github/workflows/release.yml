@@ -46,7 +46,7 @@ jobs:
     steps:
       # First checkout the default branch so tag listing works; the real
       # checkout of the target ref happens in the next step.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Resolve ref to publish
         id: target
@@ -73,12 +73,12 @@ jobs:
         env:
           INPUT_REF: ${{ inputs.ref }}
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ steps.target.outputs.ref }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
 
@@ -89,19 +89,19 @@ jobs:
         run: python -m build
 
       - name: Attest build artifacts
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: dist/*
 
       - name: Publish to TestPyPI
         if: inputs.event == 'Publish to TestPyPI'
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1 (v1.14.2)
         with:
           repository-url: https://test.pypi.org/legacy/
 
       - name: Publish to PyPI
         if: inputs.event != 'Publish to TestPyPI'
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1 (v1.14.2)
 
       - name: Check for existing GitHub release
         id: ghrelease
@@ -117,7 +117,7 @@ jobs:
 
       - name: Create GitHub release
         if: steps.ghrelease.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: ${{ steps.target.outputs.ref }}
           generate_release_notes: true
