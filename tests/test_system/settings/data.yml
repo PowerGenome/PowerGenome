@@ -1,0 +1,20 @@
+RESOURCE_GROUPS: test_data/resource_groups
+
+data_location: test_data
+generation_table: generators_test_data.csv
+plant_region_table: plant_region_map_test_data.csv
+resource_heat_rate_table: technology_heat_rates_test_data.csv
+resource_cost_table: technology_costs_test_data.csv
+operational_constraints_table: operational_constraints_test_data.csv
+transmission_constraints_table: reeds_ba_tx_NARIS_avg_test_data.csv
+fuel_price_table:
+  table_name: fuel_prices_test_data_simplified.csv
+  filters:
+    - - [fuel, 'in', ['coal', 'naturalgas']]
+dollar_year_table: cpi_test_data.csv
+transmission_cost_table: network_costs_test_data.csv
+demand_table: load_curves_test_data.csv
+supplemental_demand_table: supplemental_demand.csv
+regional_cost_factor_table: regional_cost_multipliers.csv
+distributed_capacity_table: distributed_capacity_test_data.csv
+distributed_profile_table: distributed_profiles_test_data.csv

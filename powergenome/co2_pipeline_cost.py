@@ -20,6 +20,7 @@ def merge_co2_pipeline_costs(
     fuel_emission_factors: Dict[str, float] = None,
     extra_ccs_cost_tonne: float = None,
     target_usd_year: int = None,
+    settings: dict = None,
 ) -> pd.DataFrame:
     """Merge columns with CO2 pipeline costs to a dataframe.
 
@@ -70,6 +71,8 @@ def merge_co2_pipeline_costs(
                     co2_df.loc[co2_df["dollar_year"] == dollar_year, "parameter_value"],
                     dollar_year,
                     target_usd_year,
+                    data_location=settings["data_location"],
+                    table_name=settings["dollar_year_table"],
                 )
             )
     for k, v in (region_aggregations or {}).items():

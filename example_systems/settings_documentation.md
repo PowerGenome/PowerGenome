@@ -35,6 +35,41 @@ type: Dict[str, Dict[str, float]]
 
 description: A nested dictionary of capacity reserve constraints for model regions. The top-level keys are of form `CapRes_<num>`. The next level of keys are model regions, with values equal to the capacity reserve requirements.
 
+### capacity_reserve_values
+
+type: Dict[str, float] or Dict[str, Dict[str, float]]
+
+description: Technology credit values for capacity reserve requirements. Supports two formats:
+
+**Flat format** (single capacity reserve constraint): A dictionary mapping technology names to credit values. These values are automatically applied to all capacity reserve constraints defined in `regional_capacity_reserves`.
+
+Example:
+
+```yaml
+capacity_reserve_values:
+  Conventional Steam Coal: 0.9
+  Natural Gas Fired Combined Cycle: 0.9
+  Solar Photovoltaic: 0.25
+```
+
+**Nested format** (multiple capacity reserve constraints): A dictionary mapping constraint names to technology-value dictionaries. Use this when different constraints have different credit values for the same technologies.
+
+Example:
+
+```yaml
+capacity_reserve_values:
+  CapRes_1:
+    Conventional Steam Coal: 0.9
+    Natural Gas Fired Combined Cycle: 0.9
+  CapRes_2:
+    Conventional Steam Coal: 0.95
+    Natural Gas Fired Combined Cycle: 0.95
+```
+
+The function `expand_capacity_reserve_values()` automatically detects which format is used and transforms the settings into the standard `regional_tag_values` structure. This provides a user-friendly shorthand for specifying capacity reserve credits across multiple regions and constraints, reducing configuration boilerplate compared to manually building nested `regional_tag_values` entries.
+
+Note: Explicit entries in `regional_tag_values` take precedence over values generated from `capacity_reserve_values`, allowing for mixed specification (automatic + manual overrides).
+
 ### cap_res_network_derate_default
 
 type: float
@@ -223,7 +258,7 @@ description: If true, use precalculated interconnection_annuity from resource cl
 
 type: dict
 
-description: These three dictionaries have keys `capex_mw_mile`, `wacc`, and `investment_years`. Capex values are provided for each model region, and used in conjuction with the weighted average cost of capital (`wacc`) and investment years to calculate annuities for transmission expansion/reinforcement. All three types can be used when calculating interconnection costs for new power plants. `tx` is used to calculate the cost of inter-regional transmission expansion.
+description: (Deprecated) These three dictionaries have keys `capex_mw_mile`, `wacc`, and `investment_years`. Capex values are provided for each model region, and used in conjuction with the weighted average cost of capital (`wacc`) and investment years to calculate annuities for transmission expansion/reinforcement. All three types can be used when calculating interconnection costs for new power plants. `tx` is used to calculate the cost of inter-regional transmission expansion. Prefer the new `interconnect_capex_mw` parameter for simplified, flexible specification. This parameter will be removed in a future release.
 
 ### tx_expansion_per_period
 
@@ -236,6 +271,133 @@ description: How much inter-regional transmission can be expanded/increased with
 type: float, int
 
 description: The fraction of electricity lost during each 100 miles of transmission between regions due to line loss. The default value of 0.01 represents a 1% loss per 100 miles.
+
+### interconnect_capex_mw
+
+type: number | dict
+
+description: Flexible specification of per-MW interconnection capital cost applied to new and existing resources. Preferred format uses an explicit fallback key and typed override blocks.
+
+**Important**: All cost values must be in the same dollar year as `target_usd_year`. PowerGenome does not automatically adjust interconnection costs for inflation.
+
+Patterns:
+
+Scalar
+
+```yaml
+interconnect_capex_mw: 150000  # applies to every resource
+```
+
+Explicit schema (recommended)
+
+```yaml
+interconnect_capex_mw:
+  fallback_capex_mw: 110000
+  by_technology:
+    wind: 120000
+    offshore_wind: 200000
+    battery: 50000
+  by_region:
+    CA_N: 125000
+  by_region_technology:
+    CA_N:
+      offshore_wind: 210000
+```
+
+Precedence:
+
+1. `by_region_technology`
+2. `by_region`
+3. `by_technology`
+4. `fallback_capex_mw`
+
+Region-only
+
+```yaml
+interconnect_capex_mw:
+  fallback_capex_mw: 120000
+  by_region:
+    CA_N: 140000
+    CA_S: 130000
+```
+
+Technology-only (substring match, case-insensitive, shortest-first precedence)
+
+```yaml
+interconnect_capex_mw:
+  fallback_capex_mw: 100000
+  by_technology:
+    wind: 120000          # matches 'offshore_wind_fixed_mid'
+    offshore_wind: 200000 # longer substring overwrites previous wind value
+    battery: 50000
+```
+
+Region -> Technology nested
+
+```yaml
+interconnect_capex_mw:
+  fallback_capex_mw: 110000
+  by_region_technology:
+    CA_N:
+      battery: 60000
+      offshore_wind: 210000
+    CA_S:
+      solar: 105000
+```
+
+Matching Rules:
+
+- Technology keys are substrings matched against the `technology` column (case-insensitive).
+- Substrings are applied shortest-first so that longer, more specific keys override earlier assignments.
+- Region names must exactly match model region values.
+- Explicit schema allows only `fallback_capex_mw`, `by_region`, `by_technology`, and `by_region_technology` at the top level.
+- Legacy syntax still works but top-level mixing of region and technology keys is invalid.
+
+Behavior:
+
+- Existing non-zero `interconnect_capex_mw` values are never overwritten.
+- Annuities (`interconnect_annuity`) are computed for newly assigned capex rows and any pre-existing capex rows with zero/blank annuity.
+- When `interconnect_capex_mw` is provided, legacy spur mileage columns (`spur_miles`, `offshore_spur_miles`, `tx_miles`) are ignored and a warning is logged if present.
+
+Legacy syntax (deprecated):
+
+```yaml
+interconnect_capex_mw:
+  default: 120000
+  CA_N: 140000
+```
+
+Deprecated Interaction:
+
+- Providing `interconnect_capex_mw` bypasses the deprecated `transmission_investment_cost` spur/offshore/tx logic.
+
+Examples of Invalid Configuration (mixed region + tech same level):
+
+```yaml
+interconnect_capex_mw:
+  CA_N: 140000
+  wind: 120000   # ERROR: cannot mix region and technology keys
+```
+
+Transition Guidance:
+
+- Old call style: `calculate_transmission_inv_cost(df, settings)`
+- New explicit style (note: `wacc_real` and `cap_recovery_years` arguments are reserved for future use; currently the function reads these from dataframe columns):
+
+  ```python
+  calculate_transmission_inv_cost(
+    df,
+    interconnect_capex_spec=settings.get("interconnect_capex_mw"),
+    interest_compound_method=settings.get("interest_compound_method", "discrete"),
+    legacy_transmission_cost=settings.get("transmission_investment_cost"),
+  )
+  ```
+
+For combining costs later:
+
+```python
+add_transmission_inv_cost(df, use_total=True, interest_compound_method="discrete")
+```
 
 ### partial_ces
 
@@ -398,6 +560,55 @@ description: This is the default value that each of the `model_tag_names` column
 type: Dict[str, Dict[str, Union[int, float, str]]]
 
 description: This nested dictionary should have top-level keys equal to the `model_tag_names` values. The second level keys will be string matched against EIA, ATB, or user-added technologies/resources. The values are "tags" or other identification infomation populated in the column for each matched resource.
+
+## Data tables and scenarios
+
+PowerGenome reads input data from either a folder of CSV/Parquet files or from a database (SQLite/DuckDB). The settings file lets you specify the source for each standardized table (e.g., `generation_table`, `demand_table`, etc.). You can provide each table as either a simple string or a dictionary with additional options.
+
+### Table configuration
+
+- As a string: the file name (for folder data) or table name (for DBs).
+  - Example: `generation_table: generators.csv` (folder mode)
+  - Example: `generation_table: generators` (database mode)
+
+- As a dictionary: supports filtering and scenario selection.
+  - Keys:
+    - `table_name` (or `name`): source file/table.
+    - `columns` (optional): list of columns to select.
+    - `filters` (optional): filters in disjunctive normal form (DNF). Accepted shapes:
+      - Single condition: `[col, op, val]` or `(col, op, val)`
+      - Single conjunction: `[[col, op, val], ...]`
+      - Full DNF: `[[(...), (...)] , [(...)]]`
+    - `scenario` (optional): convenience selector for a `scenario` column. This is automatically ANDed into every OR-clause of `filters`. If a clause already includes a `scenario` condition, it is not duplicated.
+
+The DataManager converts the configuration into a view or in-memory table with a standardized name (`generation`, `demand`, etc.). When `lazy_loading` is true (default), views are created so data are not fully loaded into memory.
+
+### Scenario usage examples
+
+Single table with scenario column (recommended when data contain multiple scenarios in one logical dataset):
+
+```yaml
+demand_table:
+  table_name: demand_timeseries.csv   # or a DB table name, e.g. demand_timeseries
+  scenario: HighEV                    # injects WHERE scenario = 'HighEV'
+  # optional: additional filters combined with scenario
+  # filters:
+  #   - - [region, '=', CA]
+  #     - [year, '=', 2035]
+  # columns: [region, year, time_index, value, scenario]
+```
+
+Separate table per scenario (useful for operational isolation or very large datasets):
+
+```yaml
+demand_table: demand_timeseries_HighEV  # swap this value to pick another scenario
+```
+
+Notes
+
+- In folder mode, file names should include an extension (`.csv` or `.parquet`).
+- In database mode (`.db`, `.sqlite`, or `.duckdb`), provide table names without extensions.
+- Filter normalization is YAML-friendly: lists or tuples are accepted, including flat forms like `[col, op, val]` or `[[col, op, val], ...]`.
 
 Case insensitive string matching is used to identify technologies, so is not necessary to use full resource names. This is helpful when switching between ATB cost cases, because the resource name will include the cost case. Be careful though, because some resources may be matched against two different tag values.
 
@@ -567,53 +778,129 @@ description: This parameter lets you set future growth rates for individual IPM 
 
 ## Fuel prices
 
-### aeo_fuel_region_map
+PowerGenome supports two approaches for fuel price data:
 
-type: Dict[str, list]
+1. **Simplified approach (recommended)**: Provide a fuel price table where the `region`, `scenario`, and `fuel` column values match your model regions and the fuel names used in `fuel_scenarios` and `tech_fuel_map`. This approach doesn't require the legacy mapping parameters below.
 
-description: Keys are EIA fuel region names (from `eia_series_region_names`), values are a list of model regions that correspond to each region. Some regional may not fit fully within the EIA regions - this is which region you want to use AEO fuel price data from.
+2. **Legacy approach**: Use the mapping parameters (`fuel_series_region_names`, `fuel_series_names`, `fuel_series_scenario_names`, `fuel_region_map`) to convert AEO codes to your preferred naming convention.
 
-### eia_series_region_names
-
-type: Dict[str, str]
-
-description: A mapping of model names for each AEO fuel region to the string code used in EIA's API.
-
-### eia_series_fuel_names
-
-type: Dict[str, str]
-
-description: A mapping of model names for each AEO fuel type to the string code used in EIA's API.
-
-### eia_aeo_year
+### fuel_data_year
 
 type: int
 
-description: The year of EIA AEO data to use for fuel prices. Note that different years have different scenario names so those may need to be modified accordingly in `eia_series_scenario_names`.
+description: The year of fuel price data to use if your fuel price table contains multiple data years. If your table only contains one data year, this parameter is optional.
 
-### eia_series_scenario_names
-
-type: Dict[str, str]
-
-description: A mapping of the model name for each AEO scenario to the string code used in EIA's API. These may change based on the AEO year used, and not all scenarios are included in the example file. For a full list, look at the eia [open data page](https://www.eia.gov/opendata/qb.php?category=3604304).
-
-### aeo_fuel_scenarios
+### fuel_scenarios
 
 type: Dict[str, str]
 
-description: The AEO scenario (names from `eia_series_scenario_names`) to use for each fuel type.
-
-### aeo_fuel_usd_year
-
-type: int
-
-description: The dollar year of AEO fuel price data.
+description: Maps each fuel type to a scenario name. With the **simplified approach**, scenario names should match the `scenario` column in your fuel price table. With the **legacy approach**, they should match keys in `fuel_series_scenario_names`.
 
 ### tech_fuel_map
 
 type: Dict[str, str]
 
-description: A mapping of fuel types (from `aeo_fuel_scenarios` or `user_fuel_prices`) to EIA technology names. ATB technologies are mapped to the EIA names in `eia_atb_tech_map`. Both technologies are assigned a fuel type based on this parameter. Mappings can be done directly to non-EIA technologies but they must include the complete string match of a technology.
+description: A mapping of fuel types to EIA technology names. ATB technologies are mapped to the EIA names in `eia_atb_tech_map`. Both technologies are assigned a fuel type based on this parameter. Mappings can be done directly to non-EIA technologies but they must include the complete string match of a technology. Fuel names should match the `fuel` column in your fuel price table (simplified approach) or keys in `fuel_series_names` (legacy approach).
+
+### fuel_emission_factors
+
+type: Dict[str, float]
+
+description: Emission factors in tonnes CO2 per MMBTU for each fuel type. The fuel names should match those used in `fuel_scenarios`. Emission factors provided in the example settings file are from EIA. Coal emission factors are average for the electric power sector.
+
+### Legacy Mapping Parameters (Optional)
+
+The following parameters were designed for use with AEO data and are now **optional**. Only include them if you need to map from AEO codes to your own naming convention:
+
+### fuel_series_region_names
+
+type: Dict[str, str]
+
+description: **(Optional - legacy)** A mapping of model names for each AEO fuel region to the string code used in EIA's API. Only needed if using AEO data directly.
+
+### fuel_series_names
+
+type: Dict[str, str]
+
+description: **(Optional - legacy)** A mapping of model names for each AEO fuel type to the string code used in EIA's API. Only needed if using AEO data directly.
+
+### fuel_series_scenario_names
+
+type: Dict[str, str]
+
+description: **(Optional - legacy)** A mapping of the model name for each AEO scenario to the string code used in EIA's API. These may change based on the AEO year used, and not all scenarios are included in the example file. For a full list, look at the eia [open data page](https://www.eia.gov/opendata/qb.php?category=3604304). Only needed if using AEO data directly.
+
+### fuel_region_map
+
+type: Dict[str, list]
+
+description: **(Optional - legacy)** Maps base region names (e.g., AEO census divisions) to lists of model regions. Only required if using `regional_fuel_adjustments` with the legacy workflow to create modified copies from base regions. Not needed if modifying existing regional prices in-place.
+
+### regional_fuel_adjustments
+
+type: Dict[str, Union[List, Dict]]
+
+description: **(Optional)** Modifications of fuel prices by region or fuel within region. Supports two modes:
+
+1. **With fuel_region_map (legacy)**: Creates modified copies of fuel prices from base regions for specific model regions.
+2. **Without fuel_region_map (simplified)**: Modifies existing regional fuel prices in your table directly.
+
+Format: `{region: [operator, value]}` or `{region: {fuel: [operator, value]}}` where operator is one of 'add', 'mul', 'truediv', 'sub'.
+
+Example (simplified, no fuel_region_map):
+
+```yaml
+regional_fuel_adjustments:
+  CA_N: ['mul', 1.1]  # Multiply all CA_N fuel prices by 1.1
+  CA_S:
+    naturalgas: ['add', 2.0]  # Add $2/MMBtu to CA_S natural gas
+```
+
+### Deprecated Parameters
+
+The following parameters are deprecated and replaced by the parameters above:
+
+### aeo_fuel_region_map
+
+type: Dict[str, list]
+
+description: **Deprecated** - use `fuel_region_map` instead.
+
+### eia_series_region_names
+
+type: Dict[str, str]
+
+description: **Deprecated** - use `fuel_series_region_names` instead.
+
+### eia_series_fuel_names
+
+type: Dict[str, str]
+
+description: **Deprecated** - use `fuel_series_names` instead.
+
+### eia_aeo_year
+
+type: int
+
+description: **Deprecated** - use `fuel_data_year` instead.
+
+### eia_series_scenario_names
+
+type: Dict[str, str]
+
+description: **Deprecated** - use `fuel_series_scenario_names` instead.
+
+### aeo_fuel_scenarios
+
+type: Dict[str, str]
+
+description: **Deprecated** - use `fuel_scenarios` instead.
+
+### aeo_fuel_usd_year
+
+type: int
+
+description: **Deprecated** - Dollar year information should now be included as a column in your fuel price data table.
 
 ### user_fuel_prices
 
@@ -650,12 +937,6 @@ description: Pipeline and other costs for CCS disposal operations that are added
 type: Union[int, float]
 
 description: This parameter adds a carbon tax cost to fuel costs.
-
-### fuel_emission_factors
-
-type: Dict[str, float]
-
-description: Emission factors provided in the example settings file are from EIA. Coal emission factors are average for the electric power sector.
 
 ## Generator startup costs
 

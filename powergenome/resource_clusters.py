@@ -1,5 +1,6 @@
 import copy
 import json
+import logging
 import os
 import re
 from pathlib import Path
@@ -11,7 +12,11 @@ import pyarrow
 import pyarrow.parquet as pq
 import scipy.cluster.hierarchy
 
-CAPACITY = "mw"
+from powergenome.util import find_region_col, load_data
+
+logger = logging.getLogger(__name__)
+
+CAPACITY = "capacity_mw"
 MERGE = {
     "sums": [CAPACITY, "area"],
     "means": [
@@ -27,12 +32,18 @@ MERGE = {
         "m_popden",
     ],
     "weight": CAPACITY,
-    "uniques": ["ipm_region", "metro_id"],
+    "uniques": ["region", "metro_id"],
 }
 NREL_ATB_TECHNOLOGY_MAP = {
     ("utilitypv", None): {"technology": "utilitypv"},
     ("landbasedwind", None): {"technology": "landbasedwind"},
     ("offshorewind", None): {"technology": "offshorewind"},
+    ("geothermal", "hydrobinary"): {
+        "technology": "geothermal",
+        "type": "geohydrobinary",
+    },
+    ("geothermal", "hydroflash"): {"technology": "geothermal", "type": "geohydroflash"},
+    ("geothermal", "nfegsflash"): {"technology": "geothermal", "type": "egs"},
     ("hydropower", None): {"technology": "hydro"},
     **{
         ("offshorewind", f"otrg{x}"): {
@@ -65,10 +76,25 @@ NREL_ATB_TECHNOLOGY_MAP = {
 }
 EIA_TECHNOLOGY_MAP = {
     "conventionalhydroelectric": {"technology": "hydro", "small": False},
-    "smallhydroelectric": {"technology": "hydro", "small": True},
+    "runofriverhydroelectric": {"technology": "hydro", "small": True},
+    # "smallhydroelectric": {"technology": "hydro", "small": True},
     "onshorewindturbine": {"technology": "landbasedwind"},
     "offshorewindturbine": {"technology": "offshorewind"},
     "solarphotovoltaic": {"technology": "utilitypv"},
+    "hydnd": {"technology": "hydro", "type": "hydend"},
+    "hydd": {"technology": "hydro", "type": "hydd"},
+    "hyded": {"technology": "hydro", "type": "hyded"},
+    "hydend": {"technology": "hydro", "type": "hydend"},
+    "hydnd": {"technology": "hydro", "type": "hydnd"},
+    "hydnpd": {"technology": "hydro", "type": "hydnpd"},
+    "hydnpnd": {"technology": "hydro", "type": "hydnpnd"},
+    "hydsd": {"technology": "hydro", "type": "hydsd"},
+    "hydsnd": {"technology": "hydro", "type": "hydsnd"},
+    "hydud": {"technology": "hydro", "type": "hydud"},
+    "hydund": {"technology": "hydro", "type": "hydund"},
+    "wind-ons": {"technology": "landbasedwind"},
+    "upv": {"technology": "utilitypv"},
+    "pvb": {"technology": "utilitypv"},
 }
 
 
@@ -92,7 +118,7 @@ def _normalize(x: Optional[str]) -> Optional[str]:
     return re.sub(r"\s+|_", "", x.lower())
 
 
-def map_nrel_atb_technology(tech: str, detail: str = None) -> Dict[str, Any]:
+def map_technologies(tech: str, detail: str = None) -> Dict[str, Any]:
     """
     Map NREL ATB technology to resource groups.
 
@@ -110,21 +136,21 @@ def map_nrel_atb_technology(tech: str, detail: str = None) -> Dict[str, Any]:
 
     Examples
     --------
-    >>> map_nrel_atb_technology('UtilityPV', 'LosAngeles')
+    >>> map_technologies('UtilityPV', 'LosAngeles')
     {'technology': 'utilitypv'}
-    >>> map_nrel_atb_technology('LandbasedWind', 'LTRG1')
+    >>> map_technologies('LandbasedWind', 'LTRG1')
     {'technology': 'landbasedwind'}
-    >>> map_nrel_atb_technology('OffShoreWind')
+    >>> map_technologies('OffShoreWind')
     {'technology': 'offshorewind'}
-    >>> map_nrel_atb_technology('OffShoreWind', 'OTRG3')
+    >>> map_technologies('OffShoreWind', 'OTRG3')
     {'technology': 'offshorewind', 'turbine_type': 'fixed'}
-    >>> map_nrel_atb_technology('OffShoreWind', 'OTRG7')
+    >>> map_technologies('OffShoreWind', 'OTRG7')
     {'technology': 'offshorewind', 'turbine_type': 'floating'}
-    >>> map_nrel_atb_technology('Hydropower')
+    >>> map_technologies('Hydropower')
     {'technology': 'hydro'}
-    >>> map_nrel_atb_technology('Hydropower', 'NSD4')
+    >>> map_technologies('Hydropower', 'NSD4')
     {'technology': 'hydro'}
-    >>> map_nrel_atb_technology('Unknown')
+    >>> map_technologies('Unknown')
     {}
     """
     tech = _normalize(tech)
@@ -310,12 +336,27 @@ class Table:
             cache = columns is None
         read_columns = None if cache else columns
         if self.format == "csv":
+            if read_columns is None:
+                read_columns = self.columns
             df = pd.read_csv(self.path, usecols=read_columns, dtype={"metro_id": str})
         elif self.format == "parquet":
-            df = self._dataset.read(columns=read_columns).to_pandas()
+            if read_columns is None:
+                read_columns = self.columns
+            df = self._dataset.read(columns=list(read_columns)).to_pandas()
         if cache:
             self.df = df
-        return df[columns] if columns is not None else df
+
+        if columns is None:
+            # Usually when getting metadata, not profiles
+            return df
+        missing_cols = set(columns) - set(df.columns)
+        if missing_cols:
+            logger.warning(
+                f"The columns {missing_cols} were not found in {self.path} and will be "
+                "omitted. If no profiles exist for a region the value of '1' will be used "
+                "in all hours."
+            )
+        return df[[c for c in columns if c in df.columns]]
 
     def clear(self) -> None:
         """
@@ -355,14 +396,14 @@ class ResourceGroup:
 
         - `id`: int
           Resource identifier, unique within the group.
-        - `ipm_region` : str
-          IPM region to which the resource delivers power.
-        - `mw` : float
+        - `region` : str
+          Model region to which the resource delivers power.
+        - `capacity_mw` : float
           Maximum resource capacity in MW.
         - `lcoe` : float, optional
           Levelized cost of energy, used to guide the selection
           (from lowest to highest) and clustering (by nearest) of resources.
-          If missing, selection and clustering is by largest and nearest `mw`.
+          If missing, selection and clustering is by largest and nearest `capacity_mw`.
 
         Resources representing hierarchical trees (see `group.tree`)
         require additional attributes.
@@ -381,7 +422,7 @@ class ResourceGroup:
 
         The following resource attributes (all float) are propagaged as:
 
-        - weighted means (weighted by `mw`):
+        - weighted means (weighted by `capacity_mw`):
 
             - `lcoe`
             - `interconnect_annuity`
@@ -394,12 +435,12 @@ class ResourceGroup:
 
         - sums:
 
-            - `mw`
+            - `capacity_mw`
             - `area`
 
         - uniques:
 
-            - `ipm_region`
+            - `region`
             - `metro_id`
 
     profiles
@@ -421,13 +462,13 @@ class ResourceGroup:
     Examples
     --------
     >>> group = {'technology': 'utilitypv'}
-    >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['A', 'A'], 'mw': [1, 2]})
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['A', 'A'], 'capacity_mw': [1, 2]})
     >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> rg = ResourceGroup(group, metadata, profiles)
     >>> rg.test_metadata()
     >>> rg.test_profiles()
     >>> rg.get_clusters(max_clusters=1)
-           ipm_region  mw                                            profile
+           region  mw                                            profile
     (1, 0)          A   3  [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, ...
     """
 
@@ -503,7 +544,7 @@ class ResourceGroup:
             Resource metadata missing required keys.
         """
         columns = self.metadata.columns
-        required = ["ipm_region", "id", "mw"]
+        required = ["region", "id", "capacity_mw"]
         if self.group.get("tree"):
             required.extend(["parent_id", "level", self.group["tree"]])
         missing = [key for key in required if key not in columns]
@@ -517,26 +558,55 @@ class ResourceGroup:
         Raises
         ------
         ValueError
-            Resource profiles column names do not match resource identifiers.
+            Resource profiles missing required tidy format columns.
         ValueError
-            Resource profiles are not either 8760 or 8784 elements.
+            Resource profiles are not either 8760 or 8784 elements (or multiples thereof
+            for multi-year profiles).
         """
         if self.profiles is None:
             return None
-        # Cast identifiers to string to match profile columns
-        ids = self.metadata.read(columns=["id"])["id"].astype(str)
+        # Get identifiers from metadata
+        ids = self.metadata.read(columns=["id"])["id"]
         columns = self.profiles.columns
-        if not set(columns) == set(ids):
-            raise ValueError(
-                "Resource profiles column names do not match resource identifiers"
+        required_cols = {"site_id", "time_index", "value"}
+        if not required_cols.issubset(set(columns)):
+            # Not tidy format. Check if it might be wide format (site IDs as columns)
+            requested = set(ids.astype(str))
+            found = requested & set(columns)
+            if found:
+                # Wide format: validate profile length using the first matching column
+                first_id = next(iter(found))
+                df = self.profiles.read(columns=[first_id])
+                n_hours = len(df)
+            else:
+                raise ValueError(
+                    "Profiles file has an unrecognized format. It is neither tidy "
+                    f"(missing columns {required_cols}) nor wide "
+                    "(no column names match metadata IDs). "
+                    f"Found columns: {list(columns)}"
+                )
+        else:
+            # Validate profile length for at least one id
+            first_id = ids.iloc[0]
+            df = self.profiles.read(
+                columns=[
+                    c
+                    for c in ["site_id", "time_index", "value", "weather_year"]
+                    if c in columns
+                ]
             )
-        df = self.profiles.read(columns=columns[0])
-        if len(df) not in [8760, 8784]:
-            raise ValueError("Resource profiles are not either 8760 or 8784 elements")
+            df = df[df["site_id"] == first_id]
+            # Count unique time_index values (could span multiple weather years)
+            n_hours = df["time_index"].nunique()
+        # Valid if it's a multiple of 8760 or 8784 (for multi-year data)
+        if n_hours % 8760 != 0 and n_hours % 8784 != 0:
+            raise ValueError(
+                f"Resource profiles have {n_hours} time steps, which is not a multiple of 8760 or 8784"
+            )
 
     def get_clusters(
         self,
-        ipm_regions: Iterable[str] = None,
+        regions: Iterable[str] = None,
         min_capacity: float = None,
         max_clusters: int = None,
         max_lcoe: float = None,
@@ -544,13 +614,14 @@ class ResourceGroup:
         profiles: bool = True,
         utc_offset: int = 0,
         sub_region=None,
+        weather_year: Optional[Union[int, List[int]]] = None,
     ) -> pd.DataFrame:
         """
         Compute resource clusters.
 
         Parameters
         ----------
-        ipm_regions
+        regions
             IPM regions in which to select resources.
             If `None`, all IPM regions are selected.
         min_capacity
@@ -582,9 +653,10 @@ class ResourceGroup:
             No resources found or selected.
         """
         df = self.metadata.read().set_index("id")
-        if ipm_regions is not None:
+        if regions is not None:
+            region_col = find_region_col(df.columns)
             # Filter by IPM region
-            df = df[df["ipm_region"].isin(ipm_regions)]
+            df = df[df[region_col].isin(regions)]
         if sub_region is not None:
             df = df.loc[df[self.group["sub_region"]] == sub_region, :]
         if cap_multiplier is not None:
@@ -599,7 +671,7 @@ class ResourceGroup:
                 No resources for the group
                 {group_info}
                 were found in the model region containing IPM Regions
-                {ipm_regions}
+                {regions}
             """
             )
         # Sort resources by lcoe (ascending) or capacity (descending)
@@ -648,17 +720,176 @@ class ResourceGroup:
         merge = copy.deepcopy(MERGE)
         # Prepare profiles
         if profiles and self.profiles is not None:
-            df["profile"] = list(
-                np.roll(
-                    self.profiles.read(columns=df.index.astype(str)).values.T,
-                    utc_offset,
+            p = self._read_profiles(
+                site_ids=df.index.tolist(), weather_year=weather_year
+            )
+            df["profile"] = (
+                list(
+                    np.roll(
+                        p.values.T,
+                        utc_offset,
+                    )
                 )
+                or None
             )
             merge["means"].append("profile")
         # Compute clusters
         if tree:
             return cluster_trees(df, by=by, tree=tree, max_rows=max_clusters, **merge)
         return cluster_rows(df, by=df[[by]], max_rows=max_clusters, **merge)
+
+    def _read_profiles(
+        self,
+        site_ids: Iterable[str],
+        weather_year: Optional[Union[int, List[int]]] = None,
+    ) -> pd.DataFrame:
+        """Return wide profiles DataFrame for requested site IDs.
+
+        All profiles must be in tidy format with columns: site_id, time_index, value,
+        and optionally weather_year.
+
+        Parameters
+        ----------
+        site_ids : Iterable[str]
+            Resource/site identifiers as strings.
+        weather_year : Optional[Union[int, List[int]]]
+            Optional weather year(s) to filter tidy profiles. Can be a single int or
+            list of ints. Multiple years will be concatenated into a continuous time
+            series.
+
+        Returns
+        -------
+        pd.DataFrame
+            Wide DataFrame with columns matching site_ids (order preserved). Missing
+            IDs are filled with 1.0 across all hours. If multiple weather years are
+            loaded, time_index will span all years.
+        """
+        cols = self.profiles.columns
+        required_cols = {"site_id", "time_index", "value"}
+        is_tidy = required_cols.issubset(set(cols))
+
+        if not is_tidy:
+            # Wide format: columns are site IDs, rows are time steps.
+            # Verify that at least one requested site_id appears as a column name,
+            # matching as strings since column names are always strings.
+            cols_str = set(str(c) for c in cols)
+            requested_str = set(str(s) for s in site_ids)
+            found = requested_str & cols_str
+            if not found:
+                raise ValueError(
+                    "Profiles file has an unrecognized format. It is neither tidy "
+                    f"(missing columns {required_cols}) nor wide "
+                    "(no column names match the requested site IDs). "
+                    f"Found columns: {list(cols)}, "
+                    f"requested site IDs: {list(requested_str)}"
+                )
+            if weather_year is not None:
+                raise ValueError(
+                    "weather_year filtering requires tidy-format profiles with a "
+                    "'weather_year' column. The profiles file appears to be in wide "
+                    f"format (columns are site IDs, not {required_cols}). "
+                    f"Found columns: {list(cols)}"
+                )
+            logger.warning(
+                "Profiles file is in wide format (columns are site IDs) rather than "
+                f"tidy format with columns {required_cols}. "
+                "Wide-format loading is deprecated; please convert to tidy format. "
+                "Loading the full timeseries data into memory."
+            )
+            # Read columns by their string names, only requesting columns that exist
+            site_ids_str = [str(s) for s in site_ids]
+            available_cols = set(str(c) for c in cols)
+            cols_to_read = [s for s in site_ids_str if s in available_cols]
+            wide = self.profiles.read(columns=cols_to_read)
+            # Map string column names back to original site_id types
+            rename_map = {}
+            for s in site_ids:
+                if str(s) in cols_to_read:
+                    rename_map[str(s)] = s
+            wide = wide.rename(columns=rename_map)
+            # Fill missing site_ids with 1.0
+            for m in set(site_ids) - set(wide.columns):
+                wide[m] = 1.0
+            return wide[list(site_ids)]
+
+        years = None
+        # If profiles are provided in-memory (no path), fall back to Table.read
+        # Keeping this for now, but should eventually standardize on DuckDB-based loader
+        if not getattr(self.profiles, "path", None):
+            read_cols = [
+                c
+                for c in ["site_id", "time_index", "value", "weather_year"]
+                if c in cols
+            ]
+            df = self.profiles.read(columns=read_cols)
+            df = df[df["site_id"].isin(site_ids)]
+        else:
+            # On-disk: use centralized DuckDB-based loader
+            p = Path(self.profiles.path)
+            read_cols = [
+                c
+                for c in ["site_id", "time_index", "value", "weather_year"]
+                if c in cols
+            ]
+            if weather_year is not None and "weather_year" in cols:
+                years = (
+                    weather_year if isinstance(weather_year, list) else [weather_year]
+                )
+            # Build DNF filters: always filter by site_id
+            filters = [
+                [("site_id", "in", site_ids)]
+                + ([("weather_year", "in", years)] if years is not None else [])
+            ]
+            df = load_data(p.parent, p.name, filters=filters, columns=read_cols)
+
+        # Handle weather_year selection and optional concatenation
+        if "weather_year" in df.columns:
+            available_years = sorted(df["weather_year"].dropna().unique().tolist())
+            if weather_year is not None:
+                years = (
+                    weather_year if isinstance(weather_year, list) else [weather_year]
+                )
+                missing_years = [y for y in years if y not in available_years]
+                if missing_years:
+                    logger.warning(
+                        f"Requested weather years {missing_years} are not available in the profile data. "
+                        f"Available years: {available_years}. Using only available requested years."
+                    )
+                years = [y for y in years if y in available_years]
+                if not years:
+                    raise ValueError(
+                        f"None of the requested weather years {weather_year} are available in the profile data. "
+                        f"Available years: {available_years}."
+                    )
+                df = df[df["weather_year"].isin(years)]
+            else:
+                # No explicit weather_year selection:
+                # If multiple years exist, concatenate all of them into one continuous series.
+                # This avoids silent dropping of data and supports multi-year clustering
+                # while keeping backward-compatible behavior (single year unaffected).
+                if len(available_years) > 1:
+                    logger.debug(
+                        f"No weather_year specified; concatenating all available years: {available_years} "
+                        f"for resource {self.group}.",
+                    )
+                # If exactly one year, or none (all NaN), leave df unchanged.
+                # For a single year, downstream logic expects a continuous index already.
+                # For no valid years (all NaN), treat as single block and skip reindexing.
+            # Rebuild a continuous time_index per site across (possibly multiple) years.
+            sort_cols = [c for c in ["weather_year", "time_index"] if c in df.columns]
+            if sort_cols:
+                df = df.sort_values(by=sort_cols)
+            df["time_index"] = df.groupby("site_id").cumcount() + 1
+
+        wide = df.pivot(
+            index="time_index", columns="site_id", values="value"
+        ).sort_index()
+        present = [c for c in site_ids if c in wide.columns]
+        missing = [c for c in site_ids if c not in wide.columns]
+        wide = wide.reindex(columns=present)
+        for m in missing:
+            wide[m] = 1.0
+        return wide[site_ids]
 
 
 class ClusterBuilder:
@@ -680,33 +911,33 @@ class ClusterBuilder:
 
     >>> groups = []
     >>> group = {'technology': 'utilitypv'}
-    >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['A', 'A'], 'mw': [1, 2]})
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['A', 'A'], 'capacity_mw': [1, 2]})
     >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> groups.append(ResourceGroup(group, metadata, profiles))
     >>> group = {'technology': 'utilitypv', 'existing': True}
-    >>> metadata = pd.DataFrame({'id': [0, 1], 'ipm_region': ['B', 'B'], 'mw': [1, 2]})
+    >>> metadata = pd.DataFrame({'id': [0, 1], 'region': ['B', 'B'], 'capacity_mw': [1, 2]})
     >>> profiles = pd.DataFrame({'0': np.full(8784, 0.1), '1': np.full(8784, 0.4)})
     >>> groups.append(ResourceGroup(group, metadata, profiles))
     >>> builder = ClusterBuilder(groups)
 
     Compute resource clusters.
 
-    >>> builder.get_clusters(ipm_regions=['A'], max_clusters=1,
+    >>> builder.get_clusters(regions=['A'], max_clusters=1,
     ...     technology='utilitypv', existing=False)
-          ids ipm_region  mw  ...         profile technology  existing
+          ids region  mw  ...         profile technology  existing
     0  (1, 0)          A   3  [0.3, 0.3, 0.3, ...  utilitypv     False
-    >>> builder.get_clusters(ipm_regions=['B'], min_capacity=2,
+    >>> builder.get_clusters(regions=['B'], min_capacity=2,
     ...     technology='utilitypv', existing=True)
-        ids ipm_region  mw  ...         profile technology  existing
+        ids region  mw  ...         profile technology  existing
     0  (1,)          B   2  [0.4, 0.4, 0.4, ...  utilitypv      True
 
     Errors arise if search criteria is either ambiguous or results in an empty result.
 
-    >>> builder.get_clusters(ipm_regions=['A'], technology='utilitypv')
+    >>> builder.get_clusters(regions=['A'], technology='utilitypv')
     Traceback (most recent call last):
       ...
     ValueError: Parameters match multiple resource groups: [{...}, {...}]
-    >>> builder.get_clusters(ipm_regions=['B'], technology='utilitypv', existing=False)
+    >>> builder.get_clusters(regions=['B'], technology='utilitypv', existing=False)
     Traceback (most recent call last):
       ...
     ValueError: No resources found or selected
@@ -760,12 +991,13 @@ class ClusterBuilder:
 
     def get_clusters(
         self,
-        ipm_regions: Iterable[str] = None,
+        regions: Iterable[str] = None,
         min_capacity: float = None,
         max_clusters: int = None,
         max_lcoe: float = None,
         cap_multiplier: float = None,
         utc_offset: int = 0,
+        weather_year: Optional[Union[int, List[int]]] = None,
         **kwargs: Any,
     ) -> pd.DataFrame:
         """
@@ -780,7 +1012,7 @@ class ClusterBuilder:
 
         Parameters
         ----------
-        ipm_regions
+        regions
         min_capacity
         max_clusters
         max_lcoe
@@ -804,12 +1036,13 @@ class ClusterBuilder:
         return (
             groups[0]
             .get_clusters(
-                ipm_regions=ipm_regions,
+                regions=regions,
                 min_capacity=min_capacity,
                 max_clusters=max_clusters,
                 max_lcoe=max_lcoe,
                 cap_multiplier=cap_multiplier,
                 utc_offset=utc_offset,
+                weather_year=weather_year,
                 sub_region=kwargs.get("sub_region"),
             )
             .assign(**kwargs)
@@ -868,15 +1101,15 @@ def merge_row_pair(
 
     Examples
     --------
-    >>> df = pd.DataFrame({'mw': [1, 2], 'area': [10, 20], 'lcoe': [0.1, 0.4]})
+    >>> df = pd.DataFrame({'capacity_mw': [1, 2], 'area': [10, 20], 'lcoe': [0.1, 0.4]})
     >>> a, b = df.to_dict('records')
-    >>> merge_row_pair(a, b, sums=['area', 'mw'], means=['lcoe'], weight='mw')
-    {'area': 30, 'mw': 3, 'lcoe': 0.3}
-    >>> merge_row_pair(a, b, sums=['area', 'mw'], means=['lcoe'])
-    {'area': 30, 'mw': 3, 'lcoe': 0.25}
-    >>> b['mw'] = 1
-    >>> merge_row_pair(a, b, uniques=['mw', 'area'])
-    {'mw': 1, 'area': None}
+    >>> merge_row_pair(a, b, sums=['area', 'capacity_mw'], means=['lcoe'], weight='capacity_mw')
+    {'area': 30, 'capacity_mw': 3, 'lcoe': 0.3}
+    >>> merge_row_pair(a, b, sums=['area', 'capacity_mw'], means=['lcoe'])
+    {'area': 30, 'capacity_mw': 3, 'lcoe': 0.25}
+    >>> b['capacity_mw'] = 1
+    >>> merge_row_pair(a, b, uniques=['capacity_mw', 'area'])
+    {'capacity_mw': 1, 'area': None}
     """
     merge = {}
     if sums:
@@ -937,8 +1170,8 @@ def cluster_rows(
     --------
     With the default (range) row index:
 
-    >>> df = pd.DataFrame({'mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
-    >>> kwargs = {'sums': ['mw', 'area'], 'means': ['lcoe'], 'weight': 'mw'}
+    >>> df = pd.DataFrame({'capacity_mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
+    >>> kwargs = {'sums': ['capacity_mw', 'area'], 'means': ['lcoe'], 'weight': 'capacity_mw'}
     >>> cluster_rows(df, by=df[['lcoe']], **kwargs)
           mw  area  lcoe
     (0,)   1     4   0.1
@@ -1041,8 +1274,8 @@ def build_tree(
 
     Examples
     --------
-    >>> df = pd.DataFrame({'mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
-    >>> kwargs = {'sums': ['area', 'mw'], 'means': ['lcoe'], 'weight': 'mw'}
+    >>> df = pd.DataFrame({'capacity_mw': [1, 2, 3], 'area': [4, 5, 6], 'lcoe': [0.1, 0.4, 0.2]})
+    >>> kwargs = {'sums': ['area', 'capacity_mw'], 'means': ['lcoe'], 'weight': 'capacity_mw'}
     >>> build_tree(df, by=df[['lcoe']], **kwargs)
                mw  area   lcoe  id  parent_id  level
     (0,)        1     4  0.100   0          3      3
@@ -1158,17 +1391,17 @@ def cluster_trees(
     >>> df = pd.DataFrame({
     ...     'level': [3, 3, 3, 2, 1],
     ...     'parent_id': pd.Series([3, 3, 4, 4, float('nan')], dtype='Int64'),
-    ...     'mw': [0.1, 0.1, 0.1, 0.2, 0.3],
+    ...     'capacity_mw': [0.1, 0.1, 0.1, 0.2, 0.3],
     ...     'area': [1, 1, 1, 2, 3]
     ... }, index=[0, 1, 2, 3, 4])
-    >>> cluster_trees(df, by='mw', sums=['mw', 'area'], max_rows=2)
+    >>> cluster_trees(df, by='capacity_mw', sums=['capacity_mw', 'area'], max_rows=2)
              mw  area
     (2,)    0.1     1
     (0, 1)  0.2     2
-    >>> cluster_trees(df, by='mw', sums=['mw'], max_rows=1)
+    >>> cluster_trees(df, by='capacity_mw', sums=['capacity_mw'], max_rows=1)
                 mw
     (2, 0, 1)  0.3
-    >>> cluster_trees(df, by='mw', sums=['mw'])
+    >>> cluster_trees(df, by='capacity_mw', sums=['capacity_mw'])
            mw
     (0,)  0.1
     (1,)  0.1
@@ -1364,10 +1597,10 @@ def prepare_merge(merge: dict, df: pd.DataFrame) -> dict:
 
     Examples
     --------
-    >>> df = pd.DataFrame(columns=['mw', 'lcoe'])
-    >>> merge = {'sums': ['mw', 'area'], 'means': ['lcoe'], 'weight': 'mw'}
+    >>> df = pd.DataFrame(columns=['capacity_mw', 'lcoe'])
+    >>> merge = {'sums': ['capacity_mw', 'area'], 'means': ['lcoe'], 'weight': 'capacity_mw'}
     >>> prepare_merge(merge, df)
-    {'sums': ['mw'], 'means': ['lcoe'], 'weight': 'mw'}
+    {'sums': ['capacity_mw'], 'means': ['lcoe'], 'weight': 'capacity_mw'}
     """
     reduced = {}
     for key in "sums", "means", "uniques":
@@ -1403,12 +1636,12 @@ def get_merge_columns(merge: dict, df: pd.DataFrame = None) -> list:
 
     Examples
     --------
-    >>> merge = {'sums': ['mw'], 'means': ['lcoe'], 'uniques': None, 'weight': 'lcoe'}
+    >>> merge = {'sums': ['capacity_mw'], 'means': ['lcoe'], 'uniques': None, 'weight': 'lcoe'}
     >>> get_merge_columns(merge)
-    ['mw', 'lcoe']
-    >>> get_merge_columns(merge, pd.DataFrame(columns=['lcoe', 'mw']))
-    ['lcoe', 'mw']
-    >>> get_merge_columns({'sums': ['mw'], 'means': ['mw']})
+    ['capacity_mw', 'lcoe']
+    >>> get_merge_columns(merge, pd.DataFrame(columns=['lcoe', 'capacity_mw']))
+    ['lcoe', 'capacity_mw']
+    >>> get_merge_columns({'sums': ['capacity_mw'], 'means': ['capacity_mw']})
     Traceback (most recent call last):
       ...
     ValueError: Column names duplicated in merge

@@ -4,15 +4,31 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from powergenome.co2_pipeline_cost import merge_co2_pipeline_costs
+from powergenome.database import initialize_data_manager
 from powergenome.GenX import add_co2_costs_to_o_m
 
 CWD = Path.cwd()
 DATA_FOLDER = CWD / "tests" / "data" / "co2"
 
 
-def test_merge_co2_costs():
+@pytest.fixture
+def sample_settings():
+    """Sample settings dictionary for testing."""
+    settings = {
+        "data_location": "tests/test_system/test_data",
+        "dollar_year_table": "cpi_test_data.csv",
+    }
+
+    # Initialize DataManager for testing
+    initialize_data_manager(settings, settings["data_location"])
+
+    return settings
+
+
+def test_merge_co2_costs(sample_settings):
     data = {
         "region": ["NY_Z_A", "NY_Z_A", "ERCOT"],
         "technology": ["other", "Coal_CCS90AvgCF_Mod", "Coal_CCS90AvgCF_Mod"],
@@ -41,6 +57,7 @@ def test_merge_co2_costs():
         region_aggregations,
         fuel_emission_factors,
         target_usd_year=2020,
+        settings=sample_settings,
     )
     assert len(merge_df) == 3
     assert merge_df.loc[1:, :].notna().all().all()
@@ -62,6 +79,10 @@ def test_merge_co2_costs():
         region_aggregations,
         fuel_emission_factors,
         target_usd_year=2020,
+        settings={
+            "data_location": "tests/test_system/test_data",
+            "dollar_year_table": "cpi_test_data.csv",
+        },
     )
     assert len(merge_df) == 2
 

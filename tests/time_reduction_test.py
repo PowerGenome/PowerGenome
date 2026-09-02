@@ -1,5 +1,6 @@
 from typing import List, Tuple
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -112,3 +113,68 @@ def test_kmeans_time_clustering(test_data):
     assert len(time_series_mapping["Period_Index"]) == int(
         len(load_profiles) / (days_in_group * 24)
     ), "Period index mismatch"
+
+
+def test_kmeans_time_clustering_distinct_groups():
+    # 3 clusters, 2 days per group, 24 hours per day
+    days_in_group = 2
+    num_clusters = 3
+    hours_per_group = days_in_group * 24
+
+    # Create 3 groups with distinct constant values
+    group_values = [10, 50, 100]
+    resource_profiles = pd.DataFrame(
+        {
+            "Resource_1": np.concatenate(
+                [
+                    np.full(hours_per_group, group_values[0]),
+                    np.full(hours_per_group, group_values[1]),
+                    np.full(hours_per_group, group_values[2]),
+                ]
+            ),
+            "Resource_2": np.concatenate(
+                [
+                    np.full(hours_per_group, group_values[0] + 1),
+                    np.full(hours_per_group, group_values[1] + 1),
+                    np.full(hours_per_group, group_values[2] + 1),
+                ]
+            ),
+        }
+    )
+    load_profiles = pd.DataFrame(
+        {
+            "Load_1": np.concatenate(
+                [
+                    np.full(hours_per_group, group_values[0] + 2),
+                    np.full(hours_per_group, group_values[1] + 2),
+                    np.full(hours_per_group, group_values[2] + 2),
+                ]
+            )
+        }
+    )
+
+    results, rep_points, cluster_weights = kmeans_time_clustering(
+        resource_profiles, load_profiles, days_in_group, num_clusters, n_init=10
+    )
+
+    # The representative points should correspond to the three distinct groups
+    rep_indices = [int(s[1:]) for s in rep_points["slot"]]
+    rep_indices.sort()
+    assert rep_indices == [
+        1,
+        2,
+        3,
+    ], "Representative points do not match expected groups"
+
+    # Each cluster weight should be 1 (since each group is unique)
+    assert sorted(cluster_weights) == [1, 1, 1], "Cluster weights are not all 1"
+
+    # The reduced profiles should have the correct values for each group
+    reduced_resource = results["resource_profiles"]
+    reduced_load = results["load_profiles"]
+    for i, val in enumerate(group_values):
+        start = i * hours_per_group
+        end = (i + 1) * hours_per_group
+        assert (reduced_resource.iloc[start:end, 0] == val).all()
+        assert (reduced_resource.iloc[start:end, 1] == val + 1).all()
+        assert (reduced_load.iloc[start:end, 0] == val + 2).all()

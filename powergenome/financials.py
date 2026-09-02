@@ -1,15 +1,17 @@
 "Functions for financial calculation of investment costs from capex and WACC"
+
 import json
 import logging
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
-from typing import NamedTuple, Union
+from typing import Any, NamedTuple, Union
 
 import numpy as np
 import pandas as pd
 import requests
 
+from powergenome.database import get_data
 from powergenome.params import DATA_PATHS
 
 logger = logging.getLogger(__name__)
@@ -24,9 +26,9 @@ class MonthlyCPI(NamedTuple):
 
 
 def investment_cost_calculator(
-    capex: Union[ListLike, float],
-    wacc: Union[ListLike, float],
-    cap_rec_years: Union[ListLike, int],
+    capex: Union[list, pd.Series, np.array, float],
+    wacc: Union[list, pd.Series, np.array, float],
+    cap_rec_years: Union[list, pd.Series, np.array, int],
     compound_method: str = "discrete",
 ) -> np.array:
     """Calculate annualized investment cost using either discrete or continuous compounding.
@@ -172,128 +174,35 @@ def _discrete_inv_cost_calc(
     return inv_cost
 
 
-def get_cpi_data(start_year: int = 1980, end_year: int = None) -> pd.DataFrame:
-    """Get monthly consumer price index data from the US BLS API, create annual averages.
+def load_dollar_year_data() -> pd.DataFrame:
+    """
+    Load dollar year data from the DataManager.
 
-    BLS has 2 versions of their API. V1 does not require an API key but it restricts the
-    number of API queries per day and only returns monthly data. Since V2 requires a key
-    I'm using V1, even though it requires a little extra work to go from monthly to
-    annual data.
-
-    According to BLS documentation (https://www.bls.gov/cpi/factsheets/cpi-math-calculations.pdf),
-    "Annual averages are the sum of the 12 monthly data points (i.e. indexes), divided
-    by 12."
-
-    Parameters
-    ----------
-    start_year : int, optional
-        First year of CPI data in the timeseries, by default 1980
-    end_year : int, optional
-        Final year of CPI data in the timeseries, by default None. If value is None,
-        the current year will be used.
+    This function retrieves a DataFrame containing dollar year information from the
+    DataManager's standardized "dollar_year" table. It validates that the DataFrame is not empty and
+    contains the required 'year' and 'value' columns.
 
     Returns
     -------
     pd.DataFrame
-        Annual averages of BLS CPI for all years from `start_year` to `end_year` (inclusive)
-        that have 12 months of data.
+        A DataFrame containing the dollar year data with 'year' and 'value' columns.
 
-    Examples
-    --------
-    >>> get_cpi_data(start_year=2015, end_year=2020)
-        year    period  value
-    0   2015    12      237.017
-    1   2016    12      240.007167
-    2   2017    12      245.119583
-    3   2018    12      251.106833
-    4   2019    12      255.657417
-    5   2020    12      258.811167
+    Raises
+    ------
+    ValueError
+        If the loaded table is empty or does not contain the required columns.
     """
-    if end_year is None:
-        todays_date = date.today()
-        end_year = todays_date.year
-    headers = {"Content-type": "application/json"}
 
-    df_list = []
-    e_y = start_year + 10
-    while start_year <= end_year:
-        data = json.dumps(
-            {
-                "seriesid": ["CUUR0000SA0"],
-                "startyear": str(start_year),
-                "endyear": str(e_y),
-            }
+    df = get_data("dollar_year")
+    if df.empty:
+        raise ValueError(
+            f"The dollar year table is empty. " "Please check the data file."
         )
-        p = requests.post(
-            "https://api.bls.gov/publicAPI/v1/timeseries/data/",
-            data=data,
-            headers=headers,
+    if "year" not in df.columns or "value" not in df.columns:
+        raise ValueError(
+            "The dollar year table must contain 'year' and 'value' columns."
         )
-        json_data = json.loads(p.text)
-
-        data_list = []
-        for m_data in json_data["Results"]["series"][0]["data"]:
-            monthly_cpi = MonthlyCPI(
-                int(m_data["year"]),
-                int(m_data["period"].lstrip("M")),
-                float(m_data["value"]),
-            )
-            data_list.append(monthly_cpi)
-
-        m_cpi_df = pd.DataFrame(data_list)
-        a_cpi_df = m_cpi_df.groupby("year", as_index=False).agg(
-            {"period": "count", "value": "mean"}
-        )
-        a_cpi_df = a_cpi_df.query("period == 12")
-        df_list.append(a_cpi_df)
-        start_year = e_y
-        e_y = start_year + 10
-
-    annual_cpi = pd.concat(df_list)
-
-    return annual_cpi
-
-
-@lru_cache()
-def load_cpi_data(
-    reload_data: bool = False, data_path: Path = None, **kwargs
-) -> pd.DataFrame:
-    """Load BLS CPI data from CSV file if it exists and `reload_data` is False, otherwise
-    get it from the API and write results to file.
-
-    Parameters
-    ----------
-    reload_data : bool, optional
-        If data should be reloaded from the BLS API, by default False
-    data_path: Path, option
-        Path to CSV file where CPI data is stored or will be saved, by default None. If
-        None, use DATA_PATHS["cpi_data"] from the params module.
-    **kwargs: optional
-        Optional keyword arguments for the function `get_cpi_data`. Only used if
-        `reload_data` is True or the CPI data file doesn't already exist.
-
-    Returns
-    -------
-    pd.DataFrame
-        Annual averages of BLS CPI. If data are reloaded then the results will be
-    """
-    if not data_path:
-        data_path = DATA_PATHS["cpi_data"]
-    if reload_data or not data_path.exists():
-        data_path.parent.mkdir(exist_ok=True)
-        start_year = 1980
-        end_year = None
-        for k, v in kwargs.items():
-            if k == "start_year":
-                start_year = v
-            if k == "end_year":
-                end_year = v
-        cpi_data = get_cpi_data(start_year, end_year)
-        cpi_data.to_csv(data_path, index=False, float_format="%g")
-    else:
-        cpi_data = pd.read_csv(data_path)
-
-    return cpi_data
+    return df
 
 
 def inflation_price_adjustment(
@@ -349,30 +258,73 @@ def inflation_price_adjustment(
 
     base_year = int(base_year)
     target_year = int(target_year)
-    data_path = kwargs.pop("data_path", None)
-    reload_data = kwargs.pop("reload_data", False)
-    cpi_data = load_cpi_data(reload_data=reload_data, data_path=data_path)
-    if cpi_data["year"].max() < max(target_year, base_year):
-        logger.info("Updating CPI data")
-        kwargs.update({"end_year": target_year})
-        cpi_data = load_cpi_data(reload_data=True, data_path=data_path, **kwargs)
-        if cpi_data["year"].max() < target_year:
-            raise ValueError(
-                f"CPI data are only available through {cpi_data['year'].max()}. Your target year is "
-                f"{target_year}"
-            )
-    if cpi_data["year"].min() > base_year:
-        logger.info("Updating CPI data")
-        kwargs.update({"start_year": base_year})
-        cpi_data = load_cpi_data(reload_data=True, data_path=data_path, **kwargs)
-        if cpi_data["year"].min() > base_year:
-            raise ValueError(
-                f"CPI data only start in year {cpi_data['year'].min()}. Your base year is "
-                f"{base_year}"
-            )
-    cpi_data = cpi_data.set_index("year")
+
+    dollar_year_df = load_dollar_year_data()
+
+    min_year = dollar_year_df["year"].min()
+    max_year = dollar_year_df["year"].max()
+    if any(y < min_year or y > max_year for y in [base_year, target_year]):
+        raise ValueError(
+            f"Dollar-year data are only available from {min_year} to {max_year}. "
+            f"Your base year is {base_year} and target year is {target_year}."
+        )
+
+    dollar_year_df = interpolate_values(
+        dollar_year_df, base_year, target_year
+    ).set_index("year")
+
     price = price * (
-        cpi_data.loc[target_year, "value"] / cpi_data.loc[base_year, "value"]
+        dollar_year_df.loc[target_year, "value"]
+        / dollar_year_df.loc[base_year, "value"]
     )
 
     return price
+
+
+def interpolate_values(df: pd.DataFrame, *target_years: Any) -> pd.DataFrame:
+    """
+    Interpolates 'value' at one or more target_years using linear interpolation.
+    Adds any missing year(s) into the DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Must have columns 'year' (numeric) and 'value'.
+    *target_years : int, float, or list/tuple of them
+        One or more years at which to interpolate the value.
+
+    Returns
+    -------
+    pd.DataFrame
+        Original rows plus any new interpolated rows, sorted by 'year'.
+    """
+    # 1) sort
+    df = df.sort_values("year").reset_index(drop=True)
+    min_year, max_year = df["year"].min(), df["year"].max()
+
+    # 2) flatten args into a single list of years
+    if not target_years:
+        raise ValueError("At least one target year must be provided")
+    years = []
+    for y in target_years:
+        if isinstance(y, (list, tuple)):
+            years.extend(y)
+        else:
+            years.append(y)
+
+    # 3) build rows for any missing years
+    new_rows = []
+    for year in years:
+        if year in df["year"].values:
+            continue
+        if year < min_year or year > max_year:
+            raise ValueError(f"Year {year} is outside range {min_year}–{max_year}")
+        val = float(np.interp(year, df["year"], df["value"]))
+        new_rows.append({"year": year, "value": val})
+
+    # 4) append + re-sort
+    if new_rows:
+        df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
+        df = df.sort_values("year").reset_index(drop=True)
+
+    return df

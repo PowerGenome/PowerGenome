@@ -1,0 +1,5 @@
+case_id,year,weather_year
+base,2040,no_param
+single_year_list,2040,2012_only
+multiple_year,2040,both_years
+single_year_integer,2040,2012_only_integer

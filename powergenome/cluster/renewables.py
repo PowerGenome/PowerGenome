@@ -6,7 +6,7 @@ import logging
 import operator
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -15,19 +15,214 @@ from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.preprocessing import StandardScaler
 
 from powergenome.resource_clusters import MERGE
-from powergenome.util import deep_freeze_args, snake_case_str
+from powergenome.util import load_data, snake_case_str
 
 logger = logging.getLogger(__name__)
 
 
-def load_site_profiles(path: Path, site_ids: List[str]) -> pd.DataFrame:
+def _load_wide_or_raise(
+    path: Path,
+    site_ids: List[str],
+    weather_year: Optional[Union[int, List[int]]],
+    columns: List[str],
+    required_cols: set,
+) -> pd.DataFrame:
+    """Handle wide-format or unrecognized profile files.
+
+    If ``weather_year`` is specified but the file is wide format, raise ValueError.
+    If ``weather_year`` is None and the file is wide format (columns match site_ids),
+    warn and load matching columns. Otherwise raise ValueError for unrecognized format.
+
+    Parameters
+    ----------
+    path : Path
+        Path to profiles file.
+    site_ids : List[str]
+        Requested site identifiers.
+    weather_year : Optional[Union[int, List[int]]]
+        Weather year filter.
+    columns : List[str]
+        Column names from the file.
+    required_cols : set
+        Set of required tidy column names.
+
+    Returns
+    -------
+    pd.DataFrame
+        Wide DataFrame with requested site_ids as columns.
+
+    Raises
+    ------
+    ValueError
+        If format is unrecognized or weather_year is specified on wide format.
+    """
+    cols_set = set(columns)
+    site_ids_str = [str(s) for s in site_ids]
+    found = set(site_ids_str) & cols_set
+
+    if not found:
+        raise ValueError(
+            "Profiles file has an unrecognized format. It is neither tidy "
+            f"(missing columns {required_cols}) nor wide "
+            "(no column names match the requested site IDs). "
+            f"Found columns: {columns}, "
+            f"requested site IDs: {site_ids}"
+        )
+
+    if weather_year is not None:
+        raise ValueError(
+            "weather_year filtering requires tidy-format profiles with a "
+            "'weather_year' column. The profiles file appears to be in wide "
+            f"format (columns are site IDs, not {required_cols}). "
+            f"Found columns: {columns}"
+        )
+
+    logger.warning(
+        "Profiles file is in wide format (columns are site IDs) rather than "
+        f"tidy format with columns {required_cols}. "
+        "Wide-format loading is deprecated; please convert to tidy format. "
+        "Loading the full timeseries data into memory."
+    )
+
+    # Read only the requested site columns that exist
+    cols_to_read = [s for s in site_ids_str if s in cols_set]
     suffix = path.suffix
-    site_ids = [s.replace(".0", "") for s in site_ids]
     if suffix == ".parquet":
-        df = pq.read_table(path, columns=site_ids).to_pandas()
+        df = pq.read_table(path, columns=cols_to_read).to_pandas()
     elif suffix == ".csv":
-        df = pd.read_csv(path, usecols=site_ids)
-    return df
+        df = pd.read_csv(path, usecols=cols_to_read)
+    else:
+        raise ValueError(f"Unsupported profile file format: {suffix}")
+
+    # Rename string column names back to original site_id types
+    rename_map = {}
+    for s in site_ids:
+        if str(s) in cols_to_read:
+            rename_map[str(s)] = s
+    df = df.rename(columns=rename_map)
+
+    # Fill missing site_ids with 1.0
+    for m in set(site_ids) - set(df.columns):
+        df[m] = 1.0
+    return df[list(site_ids)]
+
+
+def load_site_profiles(
+    path: Path,
+    site_ids: List[str],
+    weather_year: Optional[Union[int, List[int]]] = None,
+) -> pd.DataFrame:
+    """Load site generation profiles for the requested site IDs.
+
+    All profiles must be in tidy format with columns: site_id, time_index, value,
+    and optionally weather_year. Multiple weather years can be provided to concatenate
+    profiles across years (e.g., 2 years = 17,520 hours).
+
+    Parameters
+    ----------
+    path : Path
+        File path to profiles in csv or parquet format.
+    site_ids : List[str]
+        Site identifiers to load.
+    weather_year : Optional[Union[int, List[int]]]
+        Weather year(s) to filter tidy profiles. Can be a single int or list of ints.
+        Multiple years will be concatenated into a continuous time series.
+
+    Returns
+    -------
+    pd.DataFrame
+        Wide dataframe with one column per site_id and rows indexed by time_index.
+        If multiple weather years are loaded, time_index will span all years.
+    """
+    suffix = path.suffix
+
+    # Helper to pivot tidy df to wide with requested site_ids
+    def _pivot_tidy(df: pd.DataFrame) -> pd.DataFrame:
+        # Convert site_id to categorical for fast filtering
+        if df["site_id"].dtype == object:
+            df["site_id"] = df["site_id"].astype("category")
+
+        # Filter to requested site_ids
+        df = df[df["site_id"].isin(site_ids)].copy()
+        if "weather_year" in df.columns:
+            if weather_year is not None:
+                years = (
+                    weather_year if isinstance(weather_year, list) else [weather_year]
+                )
+                df = df[df["weather_year"].isin(years)]
+
+            if df.weather_year.nunique() > 1:
+                # Sort and create continuous time_index across years per site if weather_year exists
+                df = df.sort_values(by=["weather_year", "time_index"])
+                df["time_index"] = df.groupby("site_id", observed=True).cumcount() + 1
+
+        wide = df.pivot(
+            index="time_index", columns="site_id", values="value"
+        ).sort_index()
+        # Ensure columns are in requested order when present
+        present = [c for c in site_ids if c in wide.columns]
+        missing = [c for c in site_ids if c not in wide.columns]
+        if missing:
+            logger.warning(
+                f"The profiles for sites {set(missing)} were not found in {path}. The value of '1' will be used in all hours."
+            )
+        wide = wide.reindex(columns=present)
+        # For any missing, create a '1' series matching index length and append
+        for m in missing:
+            wide[m] = 1.0
+        # Return with columns in the requested order
+        return wide[site_ids]
+
+    if suffix == ".parquet":
+        # Read schema to determine format
+        try:
+            schema_names = pq.read_schema(path).names
+        except Exception:
+            schema_names = []
+        required_cols = {"site_id", "time_index", "value"}
+        is_tidy = required_cols.issubset(set(schema_names))
+
+        if not is_tidy:
+            return _load_wide_or_raise(
+                path, site_ids, weather_year, schema_names, required_cols
+            )
+
+        # Read minimal columns via duckdb with DNF filters
+        cols = ["site_id", "time_index", "value"]
+        if "weather_year" in schema_names:
+            cols.append("weather_year")
+        years = None
+        if weather_year is not None and "weather_year" in schema_names:
+            years = weather_year if isinstance(weather_year, list) else [weather_year]
+        filters = [
+            [("site_id", "in", site_ids)]
+            + ([("weather_year", "in", years)] if years is not None else [])
+        ]
+        df = load_data(path.parent, path.name, filters=filters, columns=cols)
+        return _pivot_tidy(df)
+    elif suffix == ".csv":
+        header = pd.read_csv(path, nrows=0).columns.tolist()
+        required_cols = {"site_id", "time_index", "value"}
+        is_tidy = required_cols.issubset(set(header))
+
+        if not is_tidy:
+            return _load_wide_or_raise(
+                path, site_ids, weather_year, header, required_cols
+            )
+        usecols = [
+            c for c in ["site_id", "time_index", "value", "weather_year"] if c in header
+        ]
+        years = None
+        if weather_year is not None and "weather_year" in usecols:
+            years = weather_year if isinstance(weather_year, list) else [weather_year]
+        filters = [
+            [("site_id", "in", site_ids)]
+            + ([("weather_year", "in", years)] if years is not None else [])
+        ]
+        df = load_data(path.parent, path.name, filters=filters, columns=usecols)
+        return _pivot_tidy(df)
+    else:
+        raise ValueError(f"Unsupported profile file format: {suffix}")
 
 
 def value_bin(
@@ -124,8 +319,6 @@ def value_bin(
     return labels
 
 
-# @deep_freeze_args
-# @lru_cache()
 def agg_cluster_profile(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
     if len(s) == 0:
         return []
@@ -153,8 +346,6 @@ def agg_cluster_profile(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
     return labels
 
 
-# @deep_freeze_args
-# @lru_cache()
 def agg_cluster_other(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
     if len(s) == 0:
         return []
@@ -314,7 +505,7 @@ def value_filter(
 def min_capacity_mw(
     data: pd.DataFrame,
     min_cap: int = None,
-    cap_col: str = "mw",
+    cap_col: str = "capacity_mw",
 ) -> pd.DataFrame:
     if "lcoe" not in data.columns:
         logger.warning(
@@ -339,6 +530,7 @@ def min_capacity_mw(
 def calc_cluster_values(
     df: pd.DataFrame,
     group: List[str] = None,
+    cluster_label=None,
     sums: List[str] = MERGE["sums"],
     means: List[str] = MERGE["means"],
     weight: str = MERGE["weight"],
@@ -363,7 +555,10 @@ def calc_cluster_values(
     profile /= df["weight"].sum()
 
     _df["profile"] = [profile]
-    _df["cluster"] = df["cluster"].values[0]
+    base_cluster = cluster_label
+    if base_cluster is None and "cluster" in df.columns and not df.empty:
+        base_cluster = df["cluster"].iloc[0]
+    _df["cluster"] = base_cluster
     for g in group or []:
         _df["cluster"] = (
             str(_df["cluster"][0]) + f"_{g}_" + str(df[snake_case_str(g)].iloc[0])
@@ -390,6 +585,7 @@ def assign_site_cluster(
     group: List[str] = None,
     cluster: List[dict] = None,
     utc_offset: int = 0,
+    weather_year: Optional[Union[int, List[int]]] = None,
     **kwargs: Any,
 ) -> pd.DataFrame:
     """Use settings options to group individual renewable sites.
@@ -502,11 +698,15 @@ def assign_site_cluster(
             data = data.loc[~data["cpa_id"].isin(missing_site_ids), :]
         site_ids = data["cpa_id"].map(site_map).to_list()
     else:
-        site_ids = [str(int(i)) for i in data["cpa_id"]]
+        site_ids = data["cpa_id"].to_list()
     if profile_path is not None:
-        cpa_profiles = load_site_profiles(profile_path, site_ids=list(set(site_ids)))
+        cpa_profiles = load_site_profiles(
+            profile_path, site_ids=list(set(site_ids)), weather_year=weather_year
+        )
         profiles = [np.roll(cpa_profiles[site].values, utc_offset) for site in site_ids]
         data["profile"] = profiles
+    else:
+        data["profile"] = 1.0
 
     # Split sites into bins using numeric features
     bin_features = []
@@ -536,7 +736,7 @@ def assign_site_cluster(
                 "One of your renewables_clusters uses the 'bin' option and includes the "
                 f"'weights' argument '{weights_col}', which is not in the renewable site data. The "
                 "weights must be one of the columns in your renewable site data file.\n\n"
-                "NOTE: Use the parameter 'mw' to weight by capacity."
+                "NOTE: Use the parameter 'capacity_mw' to weight by capacity."
             )
         elif weights_col:
             weights = data[weights_col]
@@ -577,11 +777,12 @@ def assign_site_cluster(
                 logger.warning("Overwriting 'n_clusters' based on mw_cluster_size")
             if not group_by:
                 clust["n_clusters"] = max(
-                    int(data["mw"].sum() / clust["mw_per_cluster"]), 1
+                    int(data["capacity_mw"].sum() / clust["mw_per_cluster"]), 1
                 )
             else:
                 n_clusters = (
-                    data.groupby(group_by)["mw"].sum() / clust["mw_per_cluster"]
+                    data.groupby(group_by)["capacity_mw"].sum()
+                    / clust["mw_per_cluster"]
                 ).astype(int)
                 clust["n_clusters"] = n_clusters.where(n_clusters > 0, 1)
             del clust["mw_per_cluster"]
@@ -623,7 +824,7 @@ def num_bins_from_capacity(data: pd.DataFrame, b: Dict[str, int]) -> Dict[str, i
     Parameters
     ----------
     data : pd.DataFrame
-        Must have column "mw"
+        Must have column "capacity_mw"
     b : Dict[str, int]
         Must have either "mw_per_bin" or "mw_per_q" if the number of bins/quantiles
         should be decided based on available capacity.
@@ -637,12 +838,12 @@ def num_bins_from_capacity(data: pd.DataFrame, b: Dict[str, int]) -> Dict[str, i
     if "mw_per_bin" in b:
         if b.get("bins") is not None:
             logger.warning("Overwriting 'bins' based on mw_per_bin")
-        b["bins"] = max(int(data["mw"].sum() / b["mw_per_bin"]), 1)
+        b["bins"] = max(int(data["capacity_mw"].sum() / b["mw_per_bin"]), 1)
         del b["mw_per_bin"]
     elif "mw_per_q" in b:
         if b.get("q") is not None:
             logger.warning("Overwriting 'q' based on mw_per_q")
-        b["q"] = max(int(data["mw"].sum() / b["mw_per_q"]), 1)
+        b["q"] = max(int(data["capacity_mw"].sum() / b["mw_per_q"]), 1)
         del b["mw_per_q"]
 
     return b

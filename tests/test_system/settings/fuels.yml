@@ -1,0 +1,108 @@
+# EIA AEO FUEL PRICE VARIABLES
+
+# Which year of AEO to use. Note that different years have different scenario names
+# so those may need to be modified accordingly.
+fuel_data_year: 2025
+
+# ============================================================================
+# SIMPLIFIED APPROACH (RECOMMENDED)
+# ============================================================================
+# This test system uses the simplified fuel price workflow where the fuel price
+# table already contains:
+# - region: Model region names (p1, p2, p3, p4)
+# - scenario: Scenario names matching fuel_scenarios below (reference)
+# - fuel: Fuel names matching tech_fuel_map below (coal, naturalgas, distillate, uranium)
+#
+# With this approach, you don't need fuel_series_* or fuel_region_map parameters.
+# PowerGenome will automatically:
+# 1. Construct full_fuel_name as region_scenario_fuel (e.g., p1_reference_coal)
+# 2. Average base region prices for aggregated regions (e.g., p1_2 from p1 and p2)
+
+# ============================================================================
+# FUEL ASSIGNMENTS (REQUIRED)
+# ============================================================================
+# Assign scenario names to base fuels. These names should match the 'scenario'
+# column values in your fuel price table.
+fuel_scenarios:
+  coal: reference
+  naturalgas: reference
+  distillate: reference
+  uranium: reference
+
+# Map technology names to fuel names. The fuel names should match the 'fuel'
+# column values in your fuel price table.
+tech_fuel_map:
+  Conventional Steam Coal: coal
+  Natural Gas Fired Combined Cycle: naturalgas
+  Natural Gas Fired Combustion Turbine: naturalgas
+  Natural Gas Steam Turbine: naturalgas
+  NaturalGas: naturalgas
+  Nuclear: uranium
+  Petroleum Liquids: distillate
+  Other_peaker: naturalgas
+  hydrogen: hydrogen
+
+# The CCS fuel names (key values on right have to be in the format <fuel>_<ccslevel>,
+# where the fuel matches something from "fuel_scenarios" above)
+ccs_fuel_map:
+  #NETL_NGCC_CCS: naturalgas_ccs90
+  NaturalGas_CCS100: naturalgas_ccs100
+  NaturalGas_CCCCS: naturalgas_ccs90
+  Coal_CCS30: coal_ccs30
+  Coal_CCS90: coal_ccs90
+
+ccs_capture_rate:
+  naturalgas_ccs100: 1.0
+  naturalgas_ccs90: 0.9
+  coal_ccs30: 0.3
+  coal_ccs90: 0.9
+
+# Pipeline and other costs, $/tonne
+ccs_disposal_cost: 10
+
+# Carbon tax, USD/tonne
+carbon_tax: 0
+
+# tonne/MMBtu
+fuel_emission_factors:
+  naturalgas: 0.05306
+  coal: 0.09552 # EIA value for electric power sector
+  distillate: 0.07315
+  hydrogen: 0.0
+
+# User-defined fuel prices for fuels not in the fuel price table
+user_fuel_price:
+  hydrogen: 16.0  # $/MMBtu
+
+# ============================================================================
+# LEGACY MAPPING PARAMETERS (OPTIONAL - NOT USED IN THIS TEST SYSTEM)
+# ============================================================================
+# The parameters below are only needed if you're using fuel price data directly
+# from EIA AEO with region/fuel/scenario codes that need to be mapped to your
+# preferred names. If your fuel price table already uses the region, scenario,
+# and fuel names you want, you can omit these entirely.
+#
+# When to use these legacy parameters:
+# - Working with raw AEO data files with codes like "PCF", "STC", "REF2025"
+# - Need to map AEO census divisions to multiple model regions
+# - Using regional_fuel_adjustments to modify prices by region
+#
+# Example legacy parameters (commented out since not needed for simplified approach):
+#
+# fuel_series_scenario_names:
+#   reference: REF2025
+#   no_111d: NOCAA111
+#
+# fuel_series_names:
+#   coal: STC
+#   naturalgas: NG
+#   distillate: DFO
+#   uranium: U
+#
+# fuel_series_region_names:
+#   pacific: PCF
+#   mountain: MTN
+#
+# fuel_region_map:
+#   pacific: [p1, p2, p3, p4]
+#   # ... map AEO regions to model regions

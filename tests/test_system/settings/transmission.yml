@@ -1,0 +1,3 @@
+# Percent expansion in planning period above and beyond existing transmission
+tx_expansion_per_period: 1.0
+tx_expansion_mw_per_period: 400

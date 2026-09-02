@@ -2,18 +2,23 @@
 Load fuel prices needed for the model
 """
 
+import operator
 from asyncio.log import logger
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import pandas as pd
 
-from powergenome.eia_opendata import add_user_fuel_prices
+from powergenome.database import get_data
+from powergenome.financials import inflation_price_adjustment
+from powergenome.settings import auto_fill_settings
+from powergenome.util import reverse_dict_of_lists
 
 
+@auto_fill_settings()
 def fuel_cost_table(
     fuel_costs: pd.DataFrame,
     generators: pd.DataFrame,
-    settings: dict,
+    settings: dict = None,
     num_hours: int = None,
 ) -> pd.DataFrame:
     """Create a table of fuel costs formatted for the GenX model.
@@ -91,7 +96,7 @@ def fuel_cost_table(
     for full_fuel_name in fuel_price_map:
         if (
             full_fuel_name.split("_")[-1]
-            in (settings.get("aeo_fuel_scenarios", {}) or {}).keys()
+            in (settings.get("fuel_scenarios", {}) or {}).keys()
         ):
             base_fuel_name = full_fuel_name.split("_")[-1]
         elif (
@@ -270,3 +275,483 @@ def add_carbon_tax(
     )
 
     return fuel_df
+
+
+def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFrame:
+    """
+    Get fuel prices for all regions, fuel types, and scenarios (series IDs)
+    included in the settings from the DataManager's standardized "fuel_price" table.
+    Combine the region, scenario, and fuel name into a full
+    fuel name column. Optionally, adjust the prices to the target dollar year.
+
+    Parameters
+    ----------
+    settings : dict
+        Should include the key 'fuel_data_year' (int) if the data table contains multiple
+        data years.
+
+        **Legacy mapping parameters (optional)**: These parameters were used when fetching
+        data directly from AEO. They are now optional - if your fuel price table already
+        uses the region, scenario, and fuel names you want, you don't need them:
+            fuel_series_region_names (dict): Map AEO region codes to user region names
+            fuel_series_names (dict): Map AEO fuel codes to user fuel names
+            fuel_series_scenario_names (dict): Map AEO scenario codes to user scenario names
+    inflate_price : bool, optional
+        If True, adjust the fuel prices to the year "target_usd_year" from the settings.
+        If False, do not adjust the prices. Requires the column "dollar_year" in the
+        fuel price data table.
+
+    Returns
+    -------
+    pd.DataFrame
+        All fuel price data for the specified data year, with columns:
+        ['year', 'price', 'fuel', 'region', 'scenario', 'full_fuel_name'].
+        The 'full_fuel_name' column is constructed as 'region_scenario_fuel' if scenario
+        is present, or 'region_fuel' if scenario is not present/empty.
+
+    Raises
+    ------
+    KeyError
+        If 'fuel_data_year' is missing from settings and the data file contains multiple data years.
+        If the specified 'fuel_data_year' is not found in the 'data_year' column of the data file.
+    FileNotFoundError
+        If the specified data file is empty.
+    """
+
+    data_year = settings.get("fuel_data_year")
+
+    all_fuel_data = get_data("fuel_price")
+    if all_fuel_data.empty:
+        raise FileNotFoundError(
+            f"The fuel price table is empty. "
+            "Please check the data location and table name."
+        )
+    if data_year is not None and "data_year" in all_fuel_data.columns:
+        if data_year not in all_fuel_data["data_year"].unique():
+            raise KeyError(
+                f"The data year specified in parameter 'fuel_data_year' ({data_year}) is "
+                "not in the 'data_year' column of your fuel price data table. "
+                "Please check the data file and the settings parameter."
+            )
+        fuel_data = all_fuel_data.query("data_year == @data_year")
+    elif (
+        data_year is None
+        and "year" in all_fuel_data.columns
+        and all_fuel_data["data_year"].nunique() > 1
+    ):
+        raise KeyError(
+            "The parameter 'fuel_data_year' is not in your settings files and the fuel price "
+            "data table contains multiple data years."
+        )
+    else:
+        fuel_data = all_fuel_data.copy()
+
+    # Legacy mapping parameters - only apply if they exist in settings
+    # Users can now provide fuel data with region, scenario, and fuel names that match
+    # their settings directly without needing these mappings
+    if settings.get("fuel_series_names"):
+        for k, v in settings["fuel_series_names"].items():
+            fuel_data.loc[fuel_data["fuel"].str.lower() == v.lower(), "fuel"] = k
+    if settings.get("fuel_series_scenario_names"):
+        for k, v in settings["fuel_series_scenario_names"].items():
+            fuel_data.loc[
+                fuel_data["scenario"].str.lower() == v.lower(), "scenario"
+            ] = k
+    if settings.get("fuel_series_region_names"):
+        for k, v in settings["fuel_series_region_names"].items():
+            fuel_data.loc[fuel_data["region"].str.lower() == v.lower(), "region"] = k
+
+    # Construct full_fuel_name from region, scenario, and fuel columns
+    # If scenario column doesn't exist or is empty, construct without it
+    if (
+        "scenario" in fuel_data.columns
+        and fuel_data["scenario"].fillna("").str.strip().ne("").any()
+    ):
+        fuel_data["full_fuel_name"] = (
+            fuel_data["region"] + "_" + fuel_data["scenario"] + "_" + fuel_data["fuel"]
+        )
+    else:
+        # For simplified tables without scenario column, use region_fuel format
+        fuel_data["full_fuel_name"] = fuel_data["region"] + "_" + fuel_data["fuel"]
+
+    # If region aggregations are present (simplified workflow without fuel_region_map),
+    # create averaged fuel prices for aggregated regions from their constituent base regions.
+    if settings.get("region_aggregations") and not settings.get("fuel_region_map"):
+        region_aggs = settings["region_aggregations"]
+        existing_regions = set(fuel_data["region"].unique())
+        agg_dfs = []
+        for agg_region, base_regions in region_aggs.items():
+            missing = [r for r in base_regions if r not in existing_regions]
+            if missing:
+                logger.warning(
+                    f"Skipping aggregated region '{agg_region}' because base regions {missing} are missing in fuel price data."
+                )
+                continue
+            subset = fuel_data[fuel_data["region"].isin(base_regions)].copy()
+            # Group columns that should be preserved (those that exist in the file)
+            group_cols = [
+                c
+                for c in ["year", "scenario", "fuel", "dollar_year", "data_year"]
+                if c in subset.columns
+            ]
+            avg_prices = (
+                subset.groupby(group_cols, dropna=False)["price"].mean().reset_index()
+            )
+            avg_prices["region"] = agg_region
+            if (
+                "scenario" in avg_prices.columns
+                and avg_prices["scenario"].fillna("").str.strip().ne("").any()
+            ):
+                avg_prices["full_fuel_name"] = (
+                    avg_prices["region"]
+                    + "_"
+                    + avg_prices["scenario"]
+                    + "_"
+                    + avg_prices["fuel"]
+                )
+            else:
+                avg_prices["full_fuel_name"] = (
+                    avg_prices["region"] + "_" + avg_prices["fuel"]
+                )
+            agg_dfs.append(avg_prices)
+        if agg_dfs:
+            fuel_data = pd.concat([fuel_data] + agg_dfs, ignore_index=True)
+
+    fuel_data = fuel_data.dropna(subset=["full_fuel_name"])
+
+    if inflate_price:
+        try:
+            df_list = []
+            for year, _df in fuel_data.groupby("dollar_year"):
+                _df.loc[:, "price"] = inflation_price_adjustment(
+                    price=_df.loc[:, "price"],
+                    base_year=year,
+                    target_year=settings["target_usd_year"],
+                    data_location=settings["data_location"],
+                    table_name=settings["dollar_year_table"],
+                )
+                df_list.append(_df)
+            fuel_data = pd.concat(df_list, ignore_index=True, sort=False)
+        except (KeyError, TypeError):
+            logger.warning(
+                """
+    ************
+    Unable to inflate fuel prices. Check your settings file to ensure the key
+    "target_usd_year" is a valid integer and that the fuel price data table includes a
+    "dollar_year" column with valid integer years.
+    ************
+                """
+            )
+
+    return fuel_data
+
+
+def modify_fuel_prices(
+    prices: pd.DataFrame,
+    fuel_region_map: dict = None,
+    regional_fuel_adjustments: dict = None,
+) -> pd.DataFrame:
+    """Modify fuel prices by region or fuel within a region.
+
+    This function supports two modes:
+
+    1. **With fuel_region_map (legacy)**: Creates modified copies of fuel prices from base
+       regions (e.g., AEO census divisions) for specific model regions.
+
+    2. **Without fuel_region_map (simplified)**: Modifies existing regional fuel prices
+       in-place. The regions in regional_fuel_adjustments must already exist in the
+       prices dataframe.
+
+    Parameters
+    ----------
+    prices : pd.DataFrame
+        Fuel prices with columns ['year', 'price', 'fuel', 'region', 'scenario',
+        'full_fuel_name']
+    fuel_region_map : dict, optional
+        Mapping of base region names to lists of model regions. Only needed if you want
+        to create modified copies from base regions (legacy AEO workflow). If None,
+        the function will modify existing regions in the prices dataframe directly.
+    regional_fuel_adjustments : dict, optional
+        Modifications of fuel prices by region or fuel within region, by default None.
+        Format: {region: [operator, value]} or {region: {fuel: [operator, value]}}
+        where operator is one of 'add', 'mul', 'truediv', 'sub'
+
+    Returns
+    -------
+    pd.DataFrame
+        Modified fuel prices. With fuel_region_map, returns the input dataframe plus
+        new rows for modified regions. Without fuel_region_map, returns a copy with
+        modified prices for existing regions.
+
+    Raises
+    ------
+    KeyError
+        Invalid operator type
+    KeyError
+        Invalid fuel name
+    KeyError
+        Region not found in prices dataframe (when fuel_region_map is None)
+    KeyError
+        Region not found in fuel_region_map (when fuel_region_map is provided)
+    TypeError
+        Fuel price modifiers are not a list or a dictionary of lists
+
+    Examples
+    --------
+    # Modify existing regions in-place (simplified approach)
+    >>> regional_fuel_adjustments = {
+    ...     'CA_N': ['mul', 1.1],  # Increase all CA_N fuel prices by 10%
+    ...     'CA_S': {'naturalgas': ['add', 2.0]}  # Add $2/MMBtu to CA_S natural gas
+    ... }
+    >>> modified_prices = modify_fuel_prices(prices, None, regional_fuel_adjustments)
+
+    # Create modified copies from base regions (legacy approach)
+    >>> fuel_region_map = {'pacific': ['CA_N', 'CA_S']}
+    >>> regional_fuel_adjustments = {'CA_N': ['mul', 1.1]}
+    >>> modified_prices = modify_fuel_prices(prices, fuel_region_map, regional_fuel_adjustments)
+    """
+
+    if not regional_fuel_adjustments:
+        return prices
+
+    allowed_operators = ["add", "mul", "truediv", "sub"]
+    model_regions = list(regional_fuel_adjustments)
+
+    # Two modes: with or without fuel_region_map
+    if fuel_region_map:
+        # Legacy mode: create modified copies from base regions
+        model_fuel_region_map = reverse_dict_of_lists(fuel_region_map)
+        if not all(r in model_fuel_region_map for r in model_regions):
+            raise KeyError(
+                "All model regions listed in the settings parameter 'regional_fuel_adjustments' "
+                "should also be included in `fuel_region_map`. One or more regions was "
+                "not found."
+            )
+
+        df_list = []
+        for region, adj in regional_fuel_adjustments.items():
+            base_region = model_fuel_region_map[region]
+            df_list.extend(
+                _apply_regional_adjustment(
+                    prices,
+                    region,
+                    base_region,
+                    adj,
+                    allowed_operators,
+                    create_copy=True,
+                )
+            )
+
+        mod_prices = pd.concat([prices] + df_list, ignore_index=True, sort=False)
+    else:
+        # Simplified mode: modify existing regions in-place
+        available_regions = prices["region"].unique()
+        missing_regions = [r for r in model_regions if r not in available_regions]
+        if missing_regions:
+            raise KeyError(
+                f"The following regions in 'regional_fuel_adjustments' were not found "
+                f"in the fuel price table: {missing_regions}. Available regions are: "
+                f"{list(available_regions)}. Either add these regions to your fuel price "
+                f"table or provide 'fuel_region_map' to create them from base regions."
+            )
+
+        # Create a copy to avoid modifying the input dataframe
+        mod_prices = prices.copy()
+
+        for region, adj in regional_fuel_adjustments.items():
+            modifications = _apply_regional_adjustment(
+                mod_prices, region, region, adj, allowed_operators, create_copy=False
+            )
+            # Apply modifications in-place
+            for mod_df in modifications:
+                idx = mod_df.index
+                mod_prices.loc[idx, "price"] = mod_df["price"]
+
+    return mod_prices
+
+
+def _apply_regional_adjustment(
+    prices: pd.DataFrame,
+    target_region: str,
+    source_region: str,
+    adjustment: Union[list, dict],
+    allowed_operators: List[str],
+    create_copy: bool = True,
+) -> List[pd.DataFrame]:
+    """Apply price adjustments for a region.
+
+    Parameters
+    ----------
+    prices : pd.DataFrame
+        Fuel prices dataframe
+    target_region : str
+        Region name for the modified prices
+    source_region : str
+        Region name to copy prices from (same as target_region for in-place modification)
+    adjustment : Union[list, dict]
+        Price adjustment specification
+    allowed_operators : List[str]
+        Valid operator names
+    create_copy : bool
+        If True, create new rows with modified region name. If False, modify in-place.
+
+    Returns
+    -------
+    List[pd.DataFrame]
+        List of dataframes with adjusted prices
+    """
+    df_list = []
+
+    if isinstance(adjustment, list):
+        op, op_value = adjustment
+        if op not in allowed_operators:
+            raise KeyError(
+                f"The regional fuel price adjustment for {target_region} needs a valid "
+                f"operator from the list\n{allowed_operators}\n"
+                "in the format [<operator>, <value>].\n"
+            )
+        f = operator.attrgetter(op)
+        df = prices.loc[prices["region"] == source_region, :].copy()
+        df["price"] = f(operator)(df["price"], op_value)
+
+        if create_copy:
+            df["region"] = target_region
+            df["full_fuel_name"] = df["full_fuel_name"].str.replace(
+                source_region, target_region
+            )
+
+        df_list.append(df)
+
+    elif isinstance(adjustment, dict):
+        # For each fuel within a region, apply specific adjustments
+        for fuel, val in adjustment.items():
+            if fuel not in prices["fuel"].unique():
+                raise KeyError(
+                    f"The fuel '{fuel}' is listed under the region {target_region} in your settings "
+                    "parameter 'regional_fuel_adjustments'. There was no fuel "
+                    "price fetched for this fuel so it cannot be modified."
+                )
+            # Set specific fuel price (numeric value)
+            if isinstance(val, (int, float)):
+                df = prices.loc[
+                    (prices["region"] == source_region)
+                    & (prices["fuel"] == fuel.lower()),
+                    :,
+                ].copy()
+                df["price"] = val
+            # Set fuel price using operator and value
+            elif isinstance(val, list) and len(val) == 2:
+                op, op_value = val
+                if op not in allowed_operators:
+                    raise KeyError(
+                        f"The regional fuel price adjustment for '{fuel}' in {target_region} "
+                        f"needs to be an operator from the list {allowed_operators}. "
+                        f"You supplied '{op}', which is not a valid operator."
+                    )
+                f = operator.attrgetter(op)
+                df = prices.loc[
+                    (prices["region"] == source_region)
+                    & (prices["fuel"] == fuel.lower()),
+                    :,
+                ].copy()
+                df["price"] = f(operator)(df["price"], op_value)
+            else:
+                raise TypeError(
+                    "Fuel price modifiers in the settings parameter 'regional_fuel_adjustments' "
+                    "must be a list of the form '[<op>, <value>]', or a dict with fuel-specific "
+                    "adjustments. "
+                    f"Your value looks like '{val}' for fuel '{fuel}' in region '{target_region}'."
+                )
+
+            if create_copy:
+                df["region"] = target_region
+                df["full_fuel_name"] = df["full_fuel_name"].str.replace(
+                    source_region, target_region
+                )
+
+            df_list.append(df)
+    else:
+        raise TypeError(
+            "Fuel price modifiers in the settings parameter 'regional_fuel_adjustments' "
+            "must be a list of the form '[<op>, <value>]', or a dict with fuel-specific "
+            "adjustments. "
+            f"Your value looks like '{adjustment}' for region '{target_region}'."
+        )
+
+    return df_list
+
+
+def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFrame:
+    """Add user fuel prices to a dataframe of user prices from AEO (or elsewhere)
+
+    Parameters
+    ----------
+    settings : dict
+        If adding user prices, should have the key "user_fuel_price" with value of a
+        dictionary matching user fuel names and prices. Prices can either be a single
+        price for all regions or a price per region. For example this shows biomass with
+        different prices in two regions and ZCF with the same price in all regions:
+
+        settings["user_fuel_price"] = {
+            "biomass": {"SC_VACA": 10, "PJM_DOM": 5},
+            "ZCF": 15
+        }
+
+        If the keys "target_usd_year" and "user_fuel_usd_year" are also included, fuel
+        prices will be corrected to the correct USD year. "user_fuel_usd_year" should
+        be a dictionary with fuel name: USD year pairings. Only fuels included in this
+        dictionary will have their prices changed to the target USD year.
+    df : pd.DataFrame, optional
+        A dataframe with fuel prices from AEO (or elsewhere), by default None. Should
+        have columns ["year", "price", "fuel", "region", "scenario", "full_fuel_name"]
+
+    Returns
+    -------
+    pd.DataFrame
+        The combined dataframes of user prices and the other price dataframe provided
+        as input. Columns are ["year", "price", "fuel", "region", "scenario", "full_fuel_name"].
+    """
+
+    if not settings.get("user_fuel_price"):
+        if df is not None:
+            return df
+    cols = ["year", "price", "fuel", "region", "scenario", "full_fuel_name"]
+    if df is not None and not df.empty:
+        years = df["year"].unique()
+    else:
+        years = range(2020, 2051)
+    fuel_data = {c: [] for c in cols}
+
+    for fuel, val in settings["user_fuel_price"].items():
+        if isinstance(val, dict):
+            for region, price in val.items():
+                fuel_name = f"{region}_{fuel}"
+                fuel_data["year"].extend(years)
+                fuel_data["price"].extend([price] * len(years))
+                fuel_data["fuel"].extend([fuel] * len(years))
+                fuel_data["region"].extend([region] * len(years))
+                fuel_data["scenario"].extend(["user"] * len(years))
+                fuel_data["full_fuel_name"].extend([fuel_name] * len(years))
+        else:
+            fuel_data["year"].extend(years)
+            fuel_data["price"].extend([val] * len(years))
+            fuel_data["fuel"].extend([fuel] * len(years))
+            fuel_data["region"].extend([""] * len(years))
+            fuel_data["scenario"].extend(["user"] * len(years))
+            fuel_data["full_fuel_name"].extend([fuel] * len(years))
+
+    user_fuel_price = pd.DataFrame(fuel_data)
+    if settings.get("target_usd_year"):
+        for fuel, year in (settings.get("user_fuel_usd_year", {}) or {}).items():
+            user_fuel_price.loc[user_fuel_price["fuel"] == fuel, "price"] = (
+                inflation_price_adjustment(
+                    user_fuel_price.loc[user_fuel_price["fuel"] == fuel, "price"],
+                    year,
+                    settings["target_usd_year"],
+                    data_location=settings["data_location"],
+                    table_name=settings["dollar_year_table"],
+                )
+            )
+    if df is not None:
+        user_fuel_price = pd.concat([df, user_fuel_price])
+    return user_fuel_price

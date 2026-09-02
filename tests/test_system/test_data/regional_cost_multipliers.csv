@@ -1,0 +1,49 @@
+technology,region,value
+NaturalGas_1-on-1 Combined Cycle (H-Frame),p1,1.140882
+NaturalGas_1-on-1 Combined Cycle (H-Frame),p2,1.103335
+NaturalGas_1-on-1 Combined Cycle (H-Frame),p3,1.055144
+NaturalGas_1-on-1 Combined Cycle (H-Frame),p4,1.0814
+NaturalGas_2-on-1 Combined Cycle (F-Frame),p1,1.140882
+NaturalGas_2-on-1 Combined Cycle (F-Frame),p2,1.103335
+NaturalGas_2-on-1 Combined Cycle (F-Frame),p3,1.055144
+NaturalGas_2-on-1 Combined Cycle (F-Frame),p4,1.0814
+NaturalGas_Combustion Turbine (F-Frame),p1,1.132064
+NaturalGas_Combustion Turbine (F-Frame),p2,1.097588
+NaturalGas_Combustion Turbine (F-Frame),p3,1.046444
+NaturalGas_Combustion Turbine (F-Frame),p4,1.0735
+NaturalGas_2-on-1 Combined Cycle (F-Frame) 95% CCS,p1,1.140882
+NaturalGas_2-on-1 Combined Cycle (F-Frame) 95% CCS,p2,1.103335
+NaturalGas_2-on-1 Combined Cycle (F-Frame) 95% CCS,p3,1.055144
+NaturalGas_2-on-1 Combined Cycle (F-Frame) 95% CCS,p4,1.0814
+Utility-Scale Battery Storage_Lithium Ion,p1,1.072245
+Utility-Scale Battery Storage_Lithium Ion,p2,1.057741
+Utility-Scale Battery Storage_Lithium Ion,p3,1.036222
+Utility-Scale Battery Storage_Lithium Ion,p4,1.0475
+LandbasedWind,p1,1
+LandbasedWind,p2,1
+LandbasedWind,p3,1
+LandbasedWind,p4,1
+OffShoreWind,p1,1
+OffShoreWind,p2,1
+OffShoreWind,p3,1
+OffShoreWind,p4,1
+Pumped Storage Hydropower,p1,1
+Pumped Storage Hydropower,p2,1
+Pumped Storage Hydropower,p3,1
+Pumped Storage Hydropower,p4,1
+psh,p1,1
+psh,p2,1
+psh,p3,1
+psh,p4,1
+UtilityPV,p1,1
+UtilityPV,p2,1
+UtilityPV,p3,1
+UtilityPV,p4,1
+Nuclear,p1,1.108336
+Nuclear,p2,1.086141
+Nuclear,p3,1.050778
+Nuclear,p4,1.06925
+Geothermal,p1,1
+Geothermal,p2,1
+Geothermal,p3,1
+Geothermal,p4,1

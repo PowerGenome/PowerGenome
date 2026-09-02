@@ -1,0 +1,143 @@
+site_name: PowerGenome Documentation
+site_description: Data pipeline for capacity expansion modeling
+site_author: PowerGenome Team
+site_url: https://powergenome.github.io/PowerGenome/
+
+repo_name: PowerGenome/PowerGenome
+repo_url: https://github.com/PowerGenome/PowerGenome
+edit_uri: edit/master/docs/
+
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+
+plugins:
+  - search
+  - mike:
+      alias_type: symlink
+      canonical_version: latest
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - attr_list
+  - md_in_html
+  - tables
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/PowerGenome/PowerGenome
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/powergenome/
+
+nav:
+  - Home: index.md
+
+  - Tutorials:
+    - tutorials/index.md
+    - Getting Started: tutorials/getting-started.md
+    - Multi-Region Model: tutorials/multi-region-model.md
+    - Renewable Resources: tutorials/renewable-resources.md
+
+  - How-To Guides:
+    - how-to/index.md
+    - Configure Settings: how-to/configure-settings.md
+    - Use Year-Keyed Settings Values: how-to/use-year-keyed-settings.md
+    - Configure Data Tables: how-to/configure-data-tables.md
+    - Add Custom Technologies: how-to/add-technologies.md
+    - Modify Generator Attributes: how-to/modify-generator-attributes.md
+    - Configure Renewable Clusters: how-to/configure-renewable-clusters.md
+    - Configure Capacity Reserve Requirements: how-to/configure-capacity-reserves.md
+    - Run Multi-Scenario Studies: how-to/run-scenarios.md
+    - Configure Energy Share Requirements: how-to/energy-share-requirements.md
+    - Add Supplemental Hourly Demand: how-to/add-supplemental-demand.md
+    - Validate Settings: how-to/validate-settings.md
+    - Debugging: how-to/debugging.md
+
+  - Reference:
+    - reference/index.md
+    - Settings Parameters:
+      - reference/settings/index.md
+      - Model Definition: reference/settings/model-definition.md
+      - Year-Keyed Values: reference/settings/year-keyed-values.md
+      - Regions and Geography: reference/settings/regions.md
+      - Existing Generators: reference/settings/existing-generators.md
+      - New Build Resources: reference/settings/new-build.md
+      - Fuels: reference/settings/fuels.md
+      - Demand and Load: reference/settings/demand.md
+      - Transmission: reference/settings/transmission.md
+      - Resource Tags: reference/settings/resource-tags.md
+      - Data Tables: reference/settings/data-tables.md
+      - Multi-Scenario Management: reference/settings/scenario-management.md
+      - Time Reduction: reference/settings/time-reduction.md
+    - ATB Technology Names: reference/atb-technologies.md
+    - Data Schemas:
+      - Input Tables: reference/schemas/input-tables.md
+      - Output Files: reference/schemas/output-files.md
+    - CLI Reference: reference/cli.md
+
+  - Explanation:
+    - explanation/index.md
+    - Architecture Overview: explanation/architecture.md
+    - Data Pipeline Flow: explanation/pipeline.md
+    - Generator Clustering: explanation/clustering.md
+    - Multi-Scenario Architecture: explanation/scenarios.md
+    - Output File Format: explanation/output-format.md
+    - Distributed Generation: explanation/distributed-generation.md
+
+  - About:
+    - Contributing: about/contributing.md
+    - Changelog: about/changelog.md
+    - License: about/license.md

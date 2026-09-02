@@ -1,0 +1,7 @@
+{
+    "technology": "hydro",
+    "existing": true,
+    "metadata": "existing_hydro_reeds_ba_metadata.csv",
+    "profiles": "existing_hydro_reeds_ba_profiles_tidy.csv",
+    "small": false
+}

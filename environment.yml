@@ -3,18 +3,18 @@ channels:
   - conda-forge
   # - defaults
 dependencies:
-  - python=3.10 # Remove for tox.ini & setup.py
+  - python>=3.10 # Remove for tox.ini & setup.py
   - pip
-  - conda-forge::catalystcoop.pudl=2022.11.30
   - jupyterlab
   - black
   - pytest
-  - beautifulsoup4
+  - pytest-cov
+  - beautifulsoup4>=4.8.13
   - pyyaml
   - isort
   - pre-commit
   - conda-forge::nb_conda_kernels
-  - statsmodels>=0.13
+  - statsmodels>=0.12.2
   - conda-forge::python-dotenv
   - conda-forge::flatten-dict
   - conda-forge::ruamel.yaml
@@ -22,7 +22,12 @@ dependencies:
   - conda-forge::hypothesis[pandas]
   - numpy
   - openpyxl>=3.0
-  - duckdb
+  - pandas>=2.2.0
+  - duckdb>=1.3.0
+  - pyarrow
+  - scikit-learn
+  - requests
+  - xlrd
 
   # GIS dependencies from conda-forge
   - conda-forge::fiona
