@@ -42,6 +42,7 @@ dependencies = [
     "xlrd",
     "scikit-learn",
     "requests",
+    "networkx",
 ]
 
 [tool.hatch.version]

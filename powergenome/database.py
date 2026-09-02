@@ -476,6 +476,7 @@ class DataManager:
         filters: List[List[Tuple[str, str, Any]]] = None,
         columns: List[str] = None,
         query: str = None,
+        params: List[Any] = None,
     ) -> pd.DataFrame:
         """
         Get data from a standardized table.
@@ -490,6 +491,11 @@ class DataManager:
             Columns to select
         query : str, optional
             Custom SQL query (overrides other parameters)
+        params : List[Any], optional
+            Positional parameters bound to ``?`` placeholders in *query*.
+            Use a nested list as a single parameter for ``= ANY(?)`` style
+            IN-list queries, e.g. ``params=[["a", "b", "c"]]``.
+            Ignored when *query* is None.
 
         Returns
         -------
@@ -508,6 +514,8 @@ class DataManager:
 
         if query:
             try:
+                if params is not None:
+                    return self.connection.execute(query, params).fetchdf()
                 return self.connection.execute(query).fetchdf()
             except Exception as e:
                 raise RuntimeError(f"Query execution failed: {e}")
@@ -868,6 +876,31 @@ class DataManager:
         except Exception as e:
             logger.warning(f"Error removing table {table_name}: {e}")
 
+    def register_table(self, name: str, df: pd.DataFrame) -> None:
+        """Register a computed DataFrame as a named table in the DataManager.
+
+        Parameters
+        ----------
+        name : str
+            Name to give the table in the in-memory database
+        df : pd.DataFrame
+            DataFrame to register as a table
+        """
+        if self.connection is None:
+            raise ValueError("DataManager not initialized. Call initialize() first.")
+
+        # Remove any existing table/view with the same name
+        self._remove_table(name)
+
+        # Register the DataFrame and create a permanent table from it
+        temp_name = f"{name}_reg_temp"
+        self.connection.register(temp_name, df)
+        self.connection.execute(f"CREATE TABLE {name} AS SELECT * FROM {temp_name}")
+        self.connection.unregister(temp_name)
+
+        self.available_tables.add(name)
+        logger.debug(f"Registered DataFrame as table: {name}")
+
     def close(self):
         """Close the database connection."""
         if self.connection:
@@ -945,6 +978,7 @@ def get_data(
     filters: List[List[Tuple[str, str, Any]]] = None,
     columns: List[str] = None,
     query: str = None,
+    params: List[Any] = None,
 ) -> pd.DataFrame:
     """
     Get data from a standardized table using the global DataManager.
@@ -959,13 +993,18 @@ def get_data(
         Columns to select
     query : str, optional
         Custom SQL query (overrides other parameters)
+    params : List[Any], optional
+        Positional parameters bound to ``?`` placeholders in *query*.
+        Use a nested list as a single parameter for ``= ANY(?)`` style
+        IN-list queries, e.g. ``params=[["a", "b", "c"]]``.
+        Ignored when *query* is None.
 
     Returns
     -------
     pd.DataFrame
         Requested data
     """
-    return _data_manager.get_data(table_name, filters, columns, query)
+    return _data_manager.get_data(table_name, filters, columns, query, params)
 
 
 def get_unique_values(table_name: str, column_name: str) -> List[Any]:
@@ -1013,6 +1052,19 @@ def update_data_manager(updated_settings: Dict[str, Any] = None):
         If None, uses current settings to refresh all tables.
     """
     _data_manager.update(updated_settings)
+
+
+def register_dataframe_as_table(name: str, df: pd.DataFrame) -> None:
+    """Register a computed DataFrame as a named table in the global DataManager.
+
+    Parameters
+    ----------
+    name : str
+        Name to give the table in the in-memory database
+    df : pd.DataFrame
+        DataFrame to register as a table
+    """
+    _data_manager.register_table(name, df)
 
 
 def get_timeseries_data(
