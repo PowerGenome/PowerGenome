@@ -4,9 +4,16 @@ name: Publish Python Package
 # PyPI publisher config: Repository PowerGenome/PowerGenome, workflow
 # release.yml, environment name "release".
 #
-# To cut a release: bump the version in powergenome/version.py on main,
-# then run:
+# Automatic: push a new version tag, e.g.
 #   git tag v0.8.1 && git push origin v0.8.1
+# (after bumping the version in powergenome/version.py on main).
+#
+# Manual (e.g. to (re-)publish a previous release): run this workflow from
+# the Actions tab with a "Publish" event and a ref/tag to publish. The
+# sdist and wheel are built from that ref, so the version comes from its
+# powergenome/version.py. A GitHub release is created for the tag if one
+# does not exist yet; if it exists, the dist files are added to it.
+#
 # Tests already run on every push via pytest.yml, so this workflow only
 # builds and publishes.
 
@@ -14,17 +21,61 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      event:
+        description: What to do
+        type: choice
+        options:
+          - Publish
+          - Publish to TestPyPI
+        default: Publish
+      ref:
+        description: Tag or ref to publish (e.g. v0.8.0). Empty = latest version tag
+        type: string
+        default: ''
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    environment: release
+    environment: ${{ inputs.event == 'Publish to TestPyPI' && 'test-pypi' || 'release' }}
     permissions:
       id-token: write # trusted publishing (and build attestations)
       attestations: write
-      contents: write # create the GitHub release for the tag
+      contents: write # create/update the GitHub release for the tag
     steps:
+      # First checkout the default branch so tag listing works; the real
+      # checkout of the target ref happens in the next step.
       - uses: actions/checkout@v6
+
+      - name: Resolve ref to publish
+        id: target
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_REF}" ]; then
+            ref="${INPUT_REF}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            ref="${{ github.ref_name }}"
+          else
+            ref=$(git ls-remote --tags --refs origin 'v*' \
+              | awk '{print $2}' | sed 's|refs/tags/||' \
+              | grep -E '^v[0-9]+(\.[0-9]+)*$' \
+              | sort -V | tail -1)
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          # only plain numeric tags (v1.2.3) are stable; rc/a/b/dev are prereleases
+          name_no_v="${ref#v}"
+          case "$name_no_v" in
+            ''|*[!0-9.]*) prerelease=true ;;
+            *) prerelease=false ;;
+          esac
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.target.outputs.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -42,12 +93,40 @@ jobs:
         with:
           subject-path: dist/*
 
+      - name: Publish to TestPyPI
+        if: inputs.event == 'Publish to TestPyPI'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
       - name: Publish to PyPI
+        if: inputs.event != 'Publish to TestPyPI'
         uses: pypa/gh-action-pypi-publish@release/v1
 
+      - name: Check for existing GitHub release
+        id: ghrelease
+        run: |
+          if gh release view "${REF}" --json tagName > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          REF: ${{ steps.target.outputs.ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create GitHub release
+        if: steps.ghrelease.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.ref_name }}
+          tag_name: ${{ steps.target.outputs.ref }}
           generate_release_notes: true
+          prerelease: ${{ steps.target.outputs.prerelease }}
           files: dist/*
+
+      - name: Add dist files to existing GitHub release
+        if: steps.ghrelease.outputs.exists == 'true'
+        run: gh release upload "${REF}" dist/* --clobber
+        env:
+          REF: ${{ steps.target.outputs.ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
