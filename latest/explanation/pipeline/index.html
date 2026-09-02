@@ -1518,6 +1518,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/settings/macro-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2607,7 +2635,7 @@
 <li>Adds line loss percentages and expansion cost parameters</li>
 <li>Builds the <code>Network.csv</code> content</li>
 </ul>
-<p>Policy files (RPS, CO₂ caps, minimum/maximum capacity constraints) are also assembled in this stage from files referenced by <code>emission_policies_fn</code>, <code>energy_share_req_fn</code>, etc.</p>
+<p>Policy files (RPS, CO₂ caps, minimum/maximum capacity constraints) are also assembled in this stage from files referenced by <code>emission_policies_table</code> (legacy alias: <code>emission_policies_fn</code>), <code>energy_share_req_fn</code>, etc.</p>
 <p><strong>Key outputs</strong>: <code>network</code>, <code>esr</code>, <code>co2_cap</code>, <code>min_cap</code>, <code>max_cap</code>, <code>cap_reserves</code> DataFrames.</p>
 <hr />
 <h2 id="stage-6-output-formatting-and-writing">Stage 6: Output formatting and writing<a class="headerlink" href="#stage-6-output-formatting-and-writing" title="Permanent link">&para;</a></h2>

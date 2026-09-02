@@ -1524,6 +1524,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../settings/macro-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2855,6 +2883,12 @@
 
 <h1 id="output-file-schemas">Output File Schemas<a class="headerlink" href="#output-file-schemas" title="Permanent link">&para;</a></h1>
 <p>PowerGenome generates a folder of CSV files for each scenario/year case. These files conform to the <a href="https://genxproject.github.io/GenX.jl/">GenX</a> input format.</p>
+<div class="admonition note">
+<p class="admonition-title">Macro output</p>
+<p>When Macro output is enabled (see <a href="../../settings/macro-output/">Output Formats</a>), PowerGenome also writes a
+MacroEnergy.jl <code>simpleCSVinputs</code> case alongside the GenX files. This page documents the GenX layout; the
+Macro layout and its GenX-to-Macro mapping are described in the <a href="../../../explanation/output-format/">Output File Format explanation</a>.</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title">v6 vs legacy format</p>
 <p>The output structure differs between GenX v6+ and the legacy format. Set <code>genx_v6: true</code> in your settings to use the v6 layout (default). The legacy format uses <code>Generators_data.csv</code> and <code>Load_data.csv</code> instead of separate resource-type files.</p>
