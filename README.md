@@ -6,6 +6,9 @@
 [![pytest](https://github.com/PowerGenome/PowerGenome/actions/workflows/pytest.yml/badge.svg)](https://github.com/PowerGenome/PowerGenome/actions/workflows/pytest.yml)
 [![codecov](https://codecov.io/gh/PowerGenome/PowerGenome/branch/main/graph/badge.svg?token=7KJYLE3jOW)](https://codecov.io/gh/PowerGenome/PowerGenome)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/PowerGenome/PowerGenome/main.svg)](https://results.pre-commit.ci/latest/github/PowerGenome/PowerGenome/main)
+[![Documentation](https://img.shields.io/badge/docs-powergenome.github.io-blue)](https://powergenome.github.io/PowerGenome)
+
+Full documentation is available at [https://powergenome.github.io/PowerGenome](https://powergenome.github.io/PowerGenome).
 
 Power system optimization models can be used to explore the cost and emission implications of different regulations in future energy systems. One of the most difficult parts of running these models is assembling all the data. A typical model will define several regions, each of which need data such as:
 
