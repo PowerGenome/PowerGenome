@@ -16,6 +16,7 @@ Comprehensive documentation of all settings parameters organized by functional a
 - **[Time Reduction](settings/time-reduction.md)**: Representative period selection and weighting
 - **[Resource Tags](settings/resource-tags.md)**: Technology categorization for model behavior
 - **[Multi-Scenario Management](settings/scenario-management.md)**: Parameter variation across cases
+- **[Output Formats](settings/macro-output.md)**: GenX and Macro output selection, Macro model-run settings
 
 ## Data Schemas
 
@@ -23,6 +24,8 @@ Documentation of input and output file formats:
 
 - **[Input Tables](schemas/input-tables.md)**: Required columns and data types for source data
 - **[Output Files](schemas/output-files.md)**: GenX CSV file formats and specifications
+  (a Macro `simpleCSVinputs` case is also written when Macro output is enabled — see
+  [Output Formats](settings/macro-output.md))
 
 ## Command-Line Interface
 

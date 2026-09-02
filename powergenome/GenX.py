@@ -401,7 +401,8 @@ def add_emission_policies(transmission_df, settings=None):
     settings : dict
         User-defined parameters from a settings file. Should have keys of `input_folder`
         (a Path object of where to find user-supplied data) and
-        `emission_policies_fn` (the file to load).
+        `emission_policies_table` (the file to load; the legacy
+        `emission_policies_fn` key is also accepted as an alias).
     DistrZones : [type], optional
         Placeholder setting, by default None
 

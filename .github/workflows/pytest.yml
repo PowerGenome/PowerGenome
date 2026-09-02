@@ -30,7 +30,6 @@ jobs:
         uv run flake8 . --exclude=.venv --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       env:
-        RESOURCE_GROUPS: ${{ secrets.RESOURCE_GROUPS }}
         PUDL_DB: ${{ secrets.PUDL_DB }}
         PG_DB: ${{ secrets.PG_DB }}
       run: |

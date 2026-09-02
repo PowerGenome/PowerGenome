@@ -4,7 +4,7 @@ PowerGenome provides two commands:
 
 | Command | Purpose |
 |---------|---------|
-| [`run_powergenome`](#run_powergenome) | Execute the full data pipeline and write GenX input files |
+| [`run_powergenome`](#run_powergenome) | Execute the full data pipeline and write model input files (GenX and/or Macro) |
 | [`validate_powergenome`](#validate_powergenome) | Check settings and data for configuration mistakes without running the pipeline |
 
 ---
@@ -91,6 +91,45 @@ Use when:
 - Load profiles are pre-generated
 - Debugging non-demand issues
 
+#### `--macro` {#macro}
+
+Write a MacroEnergy.jl (`Macro`) case in the `simpleCSVinputs` format, in addition to the default GenX output —
+a single run writes both formats. Can also be enabled with the `macro_output: true` setting. Set
+`genx_output: false` (or pass [`--no-genx`](#no-genx)) to write Macro inputs only.
+
+**Type**: Boolean flag
+**Default**: False
+**Example**: `--macro`
+
+!!! note
+    Writing both formats in one run reuses all the intermediate data processing and is faster than running
+    PowerGenome once per model.
+
+#### `--genx` {#genx}
+
+Write GenX `Inputs` files (the default output when no output flag or output setting is set). Can be combined with
+[`--macro`](#macro) to explicitly request both formats in a single run. Can also be controlled with the
+`genx_output: true` setting.
+
+**Type**: Boolean flag
+**Default**: False (GenX is written by default regardless; this flag is explicit)
+**Example**: `--genx`
+
+#### `--no-genx` {#no-genx}
+
+Do not write GenX `Inputs` files. A hard override that wins over both `--genx` and an explicit
+`genx_output: true` setting. Combine with `--macro` (or `macro_output: true`) to write Macro inputs only from the
+command line, without editing a settings file.
+
+**Type**: Boolean flag
+**Default**: False
+**Example**: `--no-genx`
+
+```bash
+# Write Macro inputs only
+run_powergenome -sf settings -rf output --macro --no-genx
+```
+
 #### `--verbose` / `-v`
 
 Increase logging verbosity.
@@ -169,7 +208,9 @@ results_folder/
 
 Each scenario folder contains:
 
-- **Inputs/Inputs_p#/**: GenX input CSV files
+- **Inputs/Inputs_p#/**: GenX input CSV files (written unless `--no-genx`)
+- **Macro `simpleCSVinputs` case**: written alongside GenX when `--macro`/`macro_output: true` is enabled
+  (see [Output File Format](../explanation/output-format.md) for the layout)
 - **log.txt**: Execution log with warnings and info messages
 
 ### Exit codes
@@ -236,6 +277,10 @@ PowerGenome respects these environment variables (legacy, prefer settings YAML):
 - `RESOURCE_GROUPS`: Path to renewable resource group definitions
 - `RESOURCE_GROUP_PROFILES`: Path to generation profiles
 - `EFS_DATA`: Path to NREL EFS electrification data
+
+Environment variables are always single paths. When using settings YAML,
+`RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` may instead be a list of paths
+(split across multiple folders).
 
 !!! warning "Deprecated"
     Using environment variables for paths is deprecated. Use settings YAML parameters instead:

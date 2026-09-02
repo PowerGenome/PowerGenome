@@ -15,7 +15,7 @@ from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.preprocessing import StandardScaler
 
 from powergenome.resource_clusters import MERGE
-from powergenome.util import load_data, snake_case_str
+from powergenome.util import read_tidy_profiles_wide, snake_case_str
 
 logger = logging.getLogger(__name__)
 
@@ -136,43 +136,6 @@ def load_site_profiles(
     """
     suffix = path.suffix
 
-    # Helper to pivot tidy df to wide with requested site_ids
-    def _pivot_tidy(df: pd.DataFrame) -> pd.DataFrame:
-        # Convert site_id to categorical for fast filtering
-        if df["site_id"].dtype == object:
-            df["site_id"] = df["site_id"].astype("category")
-
-        # Filter to requested site_ids
-        df = df[df["site_id"].isin(site_ids)].copy()
-        if "weather_year" in df.columns:
-            if weather_year is not None:
-                years = (
-                    weather_year if isinstance(weather_year, list) else [weather_year]
-                )
-                df = df[df["weather_year"].isin(years)]
-
-            if df.weather_year.nunique() > 1:
-                # Sort and create continuous time_index across years per site if weather_year exists
-                df = df.sort_values(by=["weather_year", "time_index"])
-                df["time_index"] = df.groupby("site_id", observed=True).cumcount() + 1
-
-        wide = df.pivot(
-            index="time_index", columns="site_id", values="value"
-        ).sort_index()
-        # Ensure columns are in requested order when present
-        present = [c for c in site_ids if c in wide.columns]
-        missing = [c for c in site_ids if c not in wide.columns]
-        if missing:
-            logger.warning(
-                f"The profiles for sites {set(missing)} were not found in {path}. The value of '1' will be used in all hours."
-            )
-        wide = wide.reindex(columns=present)
-        # For any missing, create a '1' series matching index length and append
-        for m in missing:
-            wide[m] = 1.0
-        # Return with columns in the requested order
-        return wide[site_ids]
-
     if suffix == ".parquet":
         # Read schema to determine format
         try:
@@ -187,19 +150,9 @@ def load_site_profiles(
                 path, site_ids, weather_year, schema_names, required_cols
             )
 
-        # Read minimal columns via duckdb with DNF filters
-        cols = ["site_id", "time_index", "value"]
-        if "weather_year" in schema_names:
-            cols.append("weather_year")
-        years = None
-        if weather_year is not None and "weather_year" in schema_names:
-            years = weather_year if isinstance(weather_year, list) else [weather_year]
-        filters = [
-            [("site_id", "in", site_ids)]
-            + ([("weather_year", "in", years)] if years is not None else [])
-        ]
-        df = load_data(path.parent, path.name, filters=filters, columns=cols)
-        return _pivot_tidy(df)
+        # Single DuckDB query: filter + pivot to wide in the engine, so only the
+        # wide result is materialized in pandas (avoids superlinear DataFrame.pivot).
+        return read_tidy_profiles_wide(path, site_ids, weather_year)
     elif suffix == ".csv":
         header = pd.read_csv(path, nrows=0).columns.tolist()
         required_cols = {"site_id", "time_index", "value"}
@@ -209,18 +162,7 @@ def load_site_profiles(
             return _load_wide_or_raise(
                 path, site_ids, weather_year, header, required_cols
             )
-        usecols = [
-            c for c in ["site_id", "time_index", "value", "weather_year"] if c in header
-        ]
-        years = None
-        if weather_year is not None and "weather_year" in usecols:
-            years = weather_year if isinstance(weather_year, list) else [weather_year]
-        filters = [
-            [("site_id", "in", site_ids)]
-            + ([("weather_year", "in", years)] if years is not None else [])
-        ]
-        df = load_data(path.parent, path.name, filters=filters, columns=usecols)
-        return _pivot_tidy(df)
+        return read_tidy_profiles_wide(path, site_ids, weather_year)
     else:
         raise ValueError(f"Unsupported profile file format: {suffix}")
 

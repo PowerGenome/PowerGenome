@@ -29,3 +29,4 @@ naturalgas_f-frame ct_moderate,all,0.3,0,1,1,0,0,3.78,3.78,1,1,0,-1,-1,0,0,0,0.6
 naturalgas_h-frame ct_moderate,all,0.3,0,1,1,0,0,3.78,3.78,1,1,0,-1,-1,0,0,0,0.63,1.26
 naturalgas_combustion_turbine,all,0.3,0,1,1,0,0,3.78,3.78,1,1,0,-1,-1,0,0,0,0.63,1.26
 naturalgas_1on1_combined_cycle_hframe,all,0.3,0,1,1,0,0,0.64,0.64,6,6,0,-1,-1,0,0,0,0.106666667,0.213333333
+hydrogen_1on1_combined_cycle_hframe,all,0.3,0,1,1,0,0,0.64,0.64,6,6,0,-1,-1,0,0,0,0.106666667,0.213333333

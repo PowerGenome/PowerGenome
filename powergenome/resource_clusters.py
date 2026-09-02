@@ -12,7 +12,7 @@ import pyarrow
 import pyarrow.parquet as pq
 import scipy.cluster.hierarchy
 
-from powergenome.util import find_region_col, load_data
+from powergenome.util import find_region_col, read_tidy_profiles_wide
 
 logger = logging.getLogger(__name__)
 
@@ -478,33 +478,41 @@ class ResourceGroup:
         metadata: pd.DataFrame = None,
         profiles: pd.DataFrame = None,
         path: str = ".",
-        profile_path: str = None,
+        profile_path: Union[str, os.PathLike, List[Union[str, os.PathLike]]] = None,
     ) -> None:
         from powergenome.params import SETTINGS
 
         self.group = {"existing": False, "tree": None, **group.copy()}
 
         # Convert relative paths (relative to group file) to absolute paths
-        # Profiles may be stored in a single location and reused across resource groups
+        # Profiles may be stored in one or more locations (a single path or a list)
+        # and reused across resource groups. Candidate roots are checked in order:
+        # the location passed as an arg (probably from settings), then SETTINGS
+        # (from the .env file), then assumed to be in the same folder as the JSON file.
         if self.group.get("metadata"):
             self.group["metadata"] = Path(path) / self.group["metadata"]
         if self.group.get("profiles"):
-            # Check for location passed as an arg (probably from settings file),
-            # then the SETTINGS (from .env file), then assume they are in the same folder
-            # as the JSON file
-            if profile_path and (profile_path / self.group["profiles"]).exists():
-                self.group["profiles"] = Path(profile_path) / self.group["profiles"]
-            elif (
-                SETTINGS.get("RESOURCE_GROUP_PROFILES")
-                and (
-                    Path(SETTINGS["RESOURCE_GROUP_PROFILES"]) / self.group["profiles"]
-                ).exists()
-            ):
-                self.group["profiles"] = (
-                    Path(SETTINGS["RESOURCE_GROUP_PROFILES"]) / self.group["profiles"]
+            profile_roots = []
+            if profile_path:
+                profile_roots.extend(
+                    profile_path if isinstance(profile_path, list) else [profile_path]
                 )
-            else:
-                self.group["profiles"] = Path(path) / self.group["profiles"]
+            settings_profiles = SETTINGS.get("RESOURCE_GROUP_PROFILES")
+            if settings_profiles:
+                profile_roots.extend(
+                    settings_profiles
+                    if isinstance(settings_profiles, list)
+                    else [settings_profiles]
+                )
+            resolved_profiles = None
+            for root in profile_roots:
+                candidate = Path(root) / self.group["profiles"]
+                if candidate.exists():
+                    resolved_profiles = candidate
+                    break
+            if resolved_profiles is None:
+                resolved_profiles = Path(path) / self.group["profiles"]
+            self.group["profiles"] = resolved_profiles
         required = ["technology"]
         if metadata is None:
             required.append("metadata")
@@ -520,7 +528,9 @@ class ResourceGroup:
 
     @classmethod
     def from_json(
-        cls, path: Union[str, os.PathLike], profile_path: Union[str, os.PathLike] = None
+        cls,
+        path: Union[str, os.PathLike],
+        profile_path: Union[str, os.PathLike, List[Union[str, os.PathLike]]] = None,
     ) -> "ResourceGroup":
         """
         Build from JSON file.
@@ -824,23 +834,17 @@ class ResourceGroup:
             df = self.profiles.read(columns=read_cols)
             df = df[df["site_id"].isin(site_ids)]
         else:
-            # On-disk: use centralized DuckDB-based loader
+            # On-disk: pivot in DuckDB (single query), keeping only the wide result
+            # in pandas memory. Much faster than scanning the full tidy parquet into
+            # pandas and reshaping with DataFrame.pivot, which scales superlinearly.
             p = Path(self.profiles.path)
-            read_cols = [
-                c
-                for c in ["site_id", "time_index", "value", "weather_year"]
-                if c in cols
-            ]
-            if weather_year is not None and "weather_year" in cols:
-                years = (
-                    weather_year if isinstance(weather_year, list) else [weather_year]
+            wide = read_tidy_profiles_wide(p, site_ids, weather_year)
+            if weather_year is not None and wide.empty:
+                raise ValueError(
+                    f"None of the requested weather years {weather_year} are available "
+                    "in the profile data."
                 )
-            # Build DNF filters: always filter by site_id
-            filters = [
-                [("site_id", "in", site_ids)]
-                + ([("weather_year", "in", years)] if years is not None else [])
-            ]
-            df = load_data(p.parent, p.name, filters=filters, columns=read_cols)
+            return wide
 
         # Handle weather_year selection and optional concatenation
         if "weather_year" in df.columns:
@@ -950,7 +954,7 @@ class ClusterBuilder:
     def from_json(
         cls,
         paths: Iterable[Union[str, os.PathLike]],
-        profile_path: Union[str, os.PathLike] = None,
+        profile_path: Union[str, os.PathLike, List[Union[str, os.PathLike]]] = None,
     ) -> "ClusterBuilder":
         """
         Load resources from resource group JSON files.

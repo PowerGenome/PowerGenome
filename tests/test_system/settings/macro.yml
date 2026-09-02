@@ -1,0 +1,72 @@
+##############################################################
+# MacroEnergy (Macro) output settings
+#
+# PowerGenome can write case inputs for the MacroEnergy.jl capacity
+# expansion model (https://github.com/macroenergy/MacroEnergy.jl) in the
+# "simpleCSVinputs" format instead of GenX. All values below are the
+# defaults used when this file (or the corresponding keys) is absent, so
+# this file is safe to include in any study. Uncomment / change only the
+# keys you need.
+#
+# See example_systems/settings_documentation.md -> "MacroEnergy (Macro)
+# output" for the full reference.
+##############################################################
+
+# Set to true to write Macro simpleCSVinputs-format case inputs. The same
+# option can be enabled from the command line with the --macro flag to
+# run_powergenome. Macro output is written in addition to (not instead of)
+# the default GenX output, so a single run can produce both formats at once —
+# this is faster than running PowerGenome once per model. To write Macro
+# inputs only, also set genx_output: false. Keeping macro_output false leaves
+# the default GenX output untouched.
+# macro_output: false
+
+# Set to false to skip writing GenX Inputs files. GenX is the default output
+# format, so this key is only needed to turn GenX off (e.g. to write Macro
+# inputs only) or to state it explicitly. The --genx flag to run_powergenome
+# forces GenX output on, and the --no-genx flag forces it off (e.g.
+# `run_powergenome --macro --no-genx` writes Macro inputs only without
+# editing this file), even when the corresponding setting says otherwise.
+# genx_output: true
+
+# ---- model-run settings (settings/case_settings.json) ----
+
+# One entry per planning period (stage). By default each period's length is
+# derived from the model_periods / model_first_planning_year / model_year
+# settings that PowerGenome already requires (the inclusive span of each
+# period's start and end years), so you do not normally need to set this.
+# Set it explicitly only to override the derived lengths.
+# macro_period_lengths: [6, 10]
+
+# Annual discount rate applied to future costs.
+# macro_discount_rate: 0.045
+
+# How Macro solves the multi-period case: "Monolithic" or "Nested".
+# macro_solution_algorithm: Monolithic
+
+# ---- macro_settings.json flags ----
+
+# Scale constraint coefficients to help solver numerics.
+# macro_constraint_scaling: true
+
+# Write per-commodity sub-commodity timeseries to disk.
+# macro_write_subcommodities: true
+
+# Let Macro auto-create nodes not referenced by any asset (false keeps the
+# node set exactly as written in nodes.json).
+# macro_auto_create_nodes: false
+
+# Let Macro auto-create locations from the regions referenced by assets.
+# macro_auto_create_locations: true
+
+# ---- fallback values used when source data is missing ----
+
+# Single-segment non-served-demand fallback when no demand-segments CSV
+# (demand_segments_table; legacy alias demand_segments_fn) is configured:
+# maximum curtailment fraction and value of lost service in $/MWh.
+# macro_default_max_nsd: 1
+# macro_default_voll: 10000.0
+
+# Constant fuel price ($/MWh) used when a fuel is not present in the fuels
+# table (defaults to a free fuel).
+# macro_default_fuel_price: 0.0
