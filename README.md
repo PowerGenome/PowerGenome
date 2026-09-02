@@ -4,8 +4,8 @@
 [![code style black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4426097.svg)](https://doi.org/10.5281/zenodo.4426096)
 [![pytest](https://github.com/PowerGenome/PowerGenome/actions/workflows/pytest.yml/badge.svg)](https://github.com/PowerGenome/PowerGenome/actions/workflows/pytest.yml)
-[![codecov](https://codecov.io/gh/PowerGenome/PowerGenome/branch/master/graph/badge.svg?token=7KJYLE3jOW)](https://codecov.io/gh/PowerGenome/PowerGenome)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/PowerGenome/PowerGenome/master.svg)](https://results.pre-commit.ci/latest/github/PowerGenome/PowerGenome/master)
+[![codecov](https://codecov.io/gh/PowerGenome/PowerGenome/branch/main/graph/badge.svg?token=7KJYLE3jOW)](https://codecov.io/gh/PowerGenome/PowerGenome)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/PowerGenome/PowerGenome/main.svg)](https://results.pre-commit.ci/latest/github/PowerGenome/PowerGenome/main)
 
 Power system optimization models can be used to explore the cost and emission implications of different regulations in future energy systems. One of the most difficult parts of running these models is assembling all the data. A typical model will define several regions, each of which need data such as:
 

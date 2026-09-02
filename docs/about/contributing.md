@@ -61,7 +61,7 @@ pytest --cov=powergenome tests/
 ### 5. Submit a Pull Request
 
 1. Push your branch to GitHub
-2. Open a pull request against the `master` branch
+2. Open a pull request against the `main` branch
 3. Fill out the PR template with:
    - Description of changes
    - Related issues

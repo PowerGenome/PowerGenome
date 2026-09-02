@@ -5,7 +5,7 @@ site_url: https://powergenome.github.io/PowerGenome/
 
 repo_name: PowerGenome/PowerGenome
 repo_url: https://github.com/PowerGenome/PowerGenome
-edit_uri: edit/master/docs/
+edit_uri: edit/main/docs/
 
 theme:
   name: material

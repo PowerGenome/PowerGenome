@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to Semantic Versioning.
 
-For the complete, detailed changelog, see the [CHANGELOG.md](https://github.com/PowerGenome/PowerGenome/blob/master/CHANGELOG.md) file in the repository.
+For the complete, detailed changelog, see the [CHANGELOG.md](https://github.com/PowerGenome/PowerGenome/blob/main/CHANGELOG.md) file in the repository.
 
 ## [Unreleased]
 
@@ -52,7 +52,7 @@ For the complete, detailed changelog, see the [CHANGELOG.md](https://github.com/
 For detailed version history, including patch releases and full changelogs, visit:
 
 - [GitHub Releases](https://github.com/PowerGenome/PowerGenome/releases)
-- [Full CHANGELOG](https://github.com/PowerGenome/PowerGenome/blob/master/CHANGELOG.md)
+- [Full CHANGELOG](https://github.com/PowerGenome/PowerGenome/blob/main/CHANGELOG.md)
 
 ## Migration Guides
 

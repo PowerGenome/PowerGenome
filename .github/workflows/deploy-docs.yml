@@ -3,7 +3,7 @@ name: Deploy Documentation
 on:
   push:
     branches:
-      - master
+      - main
       - v0.8.0-beta
       - gs/docs-0.8
     tags:
@@ -33,8 +33,8 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
 
-      - name: Deploy latest (from master)
-        if: github.ref == 'refs/heads/master'
+      - name: Deploy latest (from main)
+        if: github.ref == 'refs/heads/main'
         run: |
           mike deploy --push --update-aliases latest
 
@@ -55,6 +55,6 @@ jobs:
           mike deploy --push v0.8-beta beta
 
       - name: Set default version
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/main'
         run: |
           mike set-default --push latest

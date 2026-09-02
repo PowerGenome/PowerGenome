@@ -21,7 +21,7 @@ Want to understand PowerGenome internals?
 1. Start with [Architecture Overview](architecture.md) for the big picture
 2. Read [Data Pipeline Flow](pipeline.md) to understand execution
 3. Dive into specific methodology articles based on your interests
-4. Review the [source code](https://github.com/PowerGenome/PowerGenome/tree/master/powergenome) for implementation details
+4. Review the [source code](https://github.com/PowerGenome/PowerGenome/tree/main/powergenome) for implementation details
 
 ## Contributing Explanations
 

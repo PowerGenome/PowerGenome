@@ -32,13 +32,13 @@ Documentation of input and output file formats:
 
 - [System Design Tool](https://gschivley.github.io/PowerGenome-tools/web/): Interactive tool for generating settings files for your study area
 - [System Design Tool Documentation](https://gschivley.github.io/PowerGenome-tools/): Walkthrough of each configuration step
-- [Test System](https://github.com/PowerGenome/PowerGenome/tree/master/tests/test_system): Minimal test configuration
+- [Test System](https://github.com/PowerGenome/PowerGenome/tree/main/tests/test_system): Minimal test configuration
 
 ## API Reference
 
 !!! note "API Documentation Pending"
     Comprehensive Python API documentation will be added once module docstrings are enhanced.
-    In the meantime, refer to the source code on [GitHub](https://github.com/PowerGenome/PowerGenome/tree/master/powergenome).
+    In the meantime, refer to the source code on [GitHub](https://github.com/PowerGenome/PowerGenome/tree/main/powergenome).
 
 ## Using This Reference
 

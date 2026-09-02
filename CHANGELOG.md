@@ -7,6 +7,8 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-01
+
 ### Added
 
 - Simplified capacity reserve credit specification with `capacity_reserve_values` and auto-expansion. Users can now specify technology credits in a flat format (single constraint) or nested format (multiple constraints) that automatically populate `regional_tag_values`, reducing configuration boilerplate for complex multi-constraint systems. Explicit `regional_tag_values` entries take precedence, allowing mixed automatic and manual specification.
