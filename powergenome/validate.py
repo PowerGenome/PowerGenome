@@ -13,6 +13,12 @@ Provides two-phase validation:
     overlap, and transmission region consistency.
     Requires a fully initialized ``DataManager``.
 
+  Each phase also has a ``*_cached`` wrapper that fingerprints the settings and
+  (for Phase 2) the underlying data files, and replays a previous run's results
+  when nothing changed — see ``powergenome.validation_cache``.  Caching is on by
+  default and can be disabled with ``use_validation_cache: false`` in settings or
+  ``--no-validation-cache`` on the CLI.
+
 Severity levels
 ---------------
 ERROR
@@ -58,6 +64,11 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+
+from powergenome.validation_cache import (
+    _as_bool,
+    run_cached_validation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1056,6 +1067,60 @@ def validate_settings_with_data(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Cached entry points (skip re-validation when inputs are unchanged)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _resolve_use_cache(settings_dict: dict, use_cache: Optional[bool]) -> bool:
+    """Explicit argument → ``use_validation_cache`` setting → default True."""
+    if use_cache is None:
+        return _as_bool(settings_dict.get("use_validation_cache"), default=True)
+    return _as_bool(use_cache, default=True)
+
+
+def validate_settings_cached(
+    settings: Any, use_cache: Optional[bool] = None
+) -> Tuple[List[ValidationResult], bool]:
+    """Phase 1 with input-hash caching.
+
+    Returns ``(results, from_cache)``.  On a cache hit the stored results are
+    replayed — warnings are still reported and cached ERRORs still fail the run
+    via :func:`report_validation_results` — but the checks are not recomputed.
+    """
+    d = _settings_as_dict(settings)
+    enabled = _resolve_use_cache(d, use_cache)
+    return run_cached_validation(
+        "phase1", d, lambda: validate_settings(d), use_cache=enabled
+    )
+
+
+def validate_settings_with_data_cached(
+    settings: Any,
+    data_manager: Any = None,
+    use_cache: Optional[bool] = None,
+) -> Tuple[List[ValidationResult], bool]:
+    """Phase 2 with input-hash caching.
+
+    Returns ``(results, from_cache)``.  If *data_manager* is ``None`` the
+    DataManager is initialized inside the compute step, so a cache hit skips
+    ``initialize_data_manager()`` entirely.
+    """
+    d = _settings_as_dict(settings)
+    enabled = _resolve_use_cache(d, use_cache)
+
+    def _compute() -> List[ValidationResult]:
+        if data_manager is not None:
+            return validate_settings_with_data(settings, data_manager)
+        from powergenome.database import _data_manager, initialize_data_manager
+
+        logger.info("Loading data tables for Phase 2 validation …")
+        initialize_data_manager(settings, d.get("data_location"))
+        return validate_settings_with_data(settings, _data_manager)
+
+    return run_cached_validation("phase2", d, _compute, use_cache=enabled)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Reporting
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -1187,6 +1252,19 @@ def _parse_validate_args(argv: Optional[List[str]] = None) -> argparse.Namespace
             "Errors are still logged at ERROR level."
         ),
     )
+    parser.add_argument(
+        "--no-validation-cache",
+        "--force-validation",
+        dest="use_validation_cache",
+        action="store_false",
+        default=None,
+        help=(
+            "Always run the validation checks, ignoring any cached results. "
+            "By default, results are replayed from a fingerprint of the settings "
+            "and data files when they are unchanged since the previous run "
+            "(same as 'use_validation_cache: false' in settings)."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -1209,8 +1287,19 @@ def validate_powergenome() -> None:
     logger.info("Loading settings from: %s", args.settings_file)
     settings = Settings(config_path=args.settings_file)
 
-    logger.info("Running Phase 1 validation (settings-only checks) …")
-    p1_results = validate_settings(settings)
+    # getattr keeps manually constructed argparse Namespaces (e.g. in tests)
+    # working when the flag is absent.
+    use_cache = getattr(args, "use_validation_cache", None)
+
+    # ── Phase 1 ────────────────────────────────────────────────────────────────
+    p1_results, p1_cached = validate_settings_cached(settings, use_cache=use_cache)
+    if p1_cached:
+        logger.info(
+            "Phase 1 settings checks skipped: inputs unchanged (cached results "
+            "replayed)."
+        )
+    else:
+        logger.info("Phase 1 settings checks completed.")
     p1_errs, _ = _print_phase_results(p1_results, "Phase 1: Settings checks")
     has_errors = p1_errs > 0
 
@@ -1222,12 +1311,19 @@ def validate_powergenome() -> None:
                 "Skipping Phase 2 data checks: 'data_location' is not configured."
             )
         else:
-            from powergenome.database import _data_manager, initialize_data_manager
-
-            logger.info("Running Phase 2 validation (data checks) …")
             try:
-                initialize_data_manager(settings, data_location)
-                p2_results = validate_settings_with_data(settings, _data_manager)
+                # On a cache hit the compute step never runs, so the
+                # DataManager (and its table loading) is skipped entirely.
+                p2_results, p2_cached = validate_settings_with_data_cached(
+                    settings, use_cache=use_cache
+                )
+                if p2_cached:
+                    logger.info(
+                        "Phase 2 data checks skipped: inputs unchanged (cached "
+                        "results replayed, DataManager not loaded)."
+                    )
+                else:
+                    logger.info("Phase 2 data checks completed.")
                 p2_errs, _ = _print_phase_results(p2_results, "Phase 2: Data checks")
                 has_errors = has_errors or p2_errs > 0
             except Exception as exc:

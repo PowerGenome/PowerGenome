@@ -56,8 +56,8 @@ from powergenome.util import (  # init_pudl_connection,; check_settings,; load_i
 from powergenome.validate import (
     _extract_planning_periods,
     report_validation_results,
-    validate_settings,
-    validate_settings_with_data,
+    validate_settings_cached,
+    validate_settings_with_data_cached,
 )
 
 if not sys.warnoptions:
@@ -221,6 +221,20 @@ def parse_command_line(argv):
             "to write Macro inputs only without editing the settings file."
         ),
     )
+    parser.add_argument(
+        "--no-validation-cache",
+        "--force-validation",
+        dest="use_validation_cache",
+        action="store_false",
+        default=None,
+        help=(
+            "Always run the Phase 1/2 validation checks, ignoring any cached "
+            "results. By default, validation results are replayed from a cache "
+            "keyed on the settings and a fingerprint of the data files when "
+            "nothing changed since the previous run (same as "
+            "'use_validation_cache: false' in settings)."
+        ),
+    )
     arguments = parser.parse_args(argv[1:])
     return arguments
 
@@ -272,15 +286,28 @@ def main(**kwargs):
     logger.info("Reading settings file")
     settings = Settings(config_path=args.settings_file)
 
+    # A None flag defers to the 'use_validation_cache' setting (default True).
+    use_validation_cache = getattr(args, "use_validation_cache", None)
+
     logger.info("Running Phase 1 settings validation")
-    report_validation_results(validate_settings(settings))
+    p1_results, p1_cached = validate_settings_cached(
+        settings, use_cache=use_validation_cache
+    )
+    if p1_cached:
+        logger.info("Phase 1 checks skipped: inputs unchanged (cached results).")
+    report_validation_results(p1_results)
 
     initialize_data_manager(settings, settings["data_location"])
 
     logger.info("Running Phase 2 data validation")
     from powergenome.database import _data_manager
 
-    report_validation_results(validate_settings_with_data(settings, _data_manager))
+    p2_results, p2_cached = validate_settings_with_data_cached(
+        settings, _data_manager, use_cache=use_validation_cache
+    )
+    if p2_cached:
+        logger.info("Phase 2 checks skipped: inputs unchanged (cached results).")
+    report_validation_results(p2_results)
 
     # Copy the settings file to results folder
     if Path(args.settings_file).is_file():
