@@ -7,6 +7,14 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Validation result cache so the Phase 1 (settings) and Phase 2 (data) validation checks can be skipped when nothing changed. Each run fingerprints the resolved settings, the validation code version, and — for Phase 2 — the size plus the first and last 1 MB of content of every data file backing a configured DataManager table (whole files are never hashed; profile sources can be multi-GB). When the fingerprint is unchanged, the previously stored results are replayed: warnings still print and cached errors still stop the run, but the checks are not recomputed, and the standalone `validate_powergenome` CLI additionally skips `initialize_data_manager()` (the pipeline still loads DataManager because it needs the tables). Cached results live in `<input_folder>/validation_cache/`; delete that folder to force re-validation. Enabled by default — disable with `use_validation_cache: false` in settings or the `--no-validation-cache` (`--force-validation`) flag on `run_powergenome` and `validate_powergenome`.
+
+### Changed
+
+- Settings fingerprints canonicalize set-valued and set-derived list settings (e.g. `generator_columns`) so validation cache keys are stable across Python processes (string hash randomization previously reordered them on every run).
+
 ## [0.8.0] - 2026-09-01
 
 ### Added

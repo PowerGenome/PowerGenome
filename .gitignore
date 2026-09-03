@@ -139,6 +139,7 @@ data/transformed_data/*
 /data/resource_groups/*
 /data/cache/*
 cluster_assignments*
+validation_cache/
 
 # debug file
 */debug.py

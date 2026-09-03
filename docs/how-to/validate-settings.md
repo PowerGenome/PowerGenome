@@ -31,6 +31,23 @@ produce **warnings** or **errors**: warnings allow the pipeline to continue (tho
 results may be wrong), while errors will stop execution when validation is run as part
 of `run_powergenome`.
 
+### Skipping validation when nothing changed
+
+Re-running a study with identical inputs would repeat the same validation work every
+time, so results are cached. PowerGenome fingerprints the inputs — the resolved settings,
+the validation code version, and (for Phase 2) the size plus the first and last 1 MB of
+each data file backing a configured table — and stores the checks' results under that
+fingerprint in `<input_folder>/validation_cache/`. When the fingerprint is unchanged, the
+cached results are replayed instead of recomputed: warnings still print and errors still
+stop the run, but the checks are skipped (and `validate_powergenome` also skips loading
+the DataManager entirely).
+
+- Turn the cache off with `use_validation_cache: false` in your settings, or
+  `--no-validation-cache` (alias `--force-validation`) on either CLI.
+- Because only the head and tail of each data file are hashed, a same-size edit confined
+  to the middle of a file larger than 2 MB won't invalidate the cache. Delete the
+  `validation_cache` folder to force full re-validation after such an edit.
+
 ---
 
 ## Running validation on its own
@@ -55,6 +72,7 @@ This is useful when:
 | `--settings_file SETTINGS_PATH` | Path to your settings folder (required) |
 | `--skip-data-checks` | Only run Phase 1 (no DataManager needed) |
 | `--no-fail` | Log errors but exit with code 0 (useful in CI pipelines) |
+| `--no-validation-cache` | Always run the checks, ignoring cached results (alias `--force-validation`) |
 
 ```bash
 # Check settings structure only, without loading data files

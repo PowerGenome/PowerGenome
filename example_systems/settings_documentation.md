@@ -1094,3 +1094,21 @@ type: float
 description: Constant fuel price in $/MWh used when a fuel consumed by a thermal resource is not present in the
 fuels table (fuel supply nodes still get a constant price series instead of being dropped). Defaults to `0.0`.
 Not used outside Macro output mode.
+
+## Settings and data validation
+
+### use_validation_cache
+
+type: bool
+
+description: Whether to cache the results of the Phase 1 (settings) and Phase 2 (data)
+validation checks and replay them when the inputs are unchanged. The cache key combines a
+fingerprint of the resolved settings, the validation code version, and — for Phase 2 — the
+size plus the first and last 1 MB of content of every data file backing a configured table.
+On a cache hit the stored results are still printed (warnings) and still stop the run
+(errors); only the check computation is skipped, and the standalone `validate_powergenome`
+CLI additionally skips loading the DataManager. Cache files live in
+`<input_folder>/validation_cache/`; delete that folder to force re-validation. Because only
+the head and tail of large files are hashed, a same-size edit confined to the middle of a
+file larger than 2 MB will not invalidate the cache. Defaults to `true`. Can also be
+overridden per-run with the `--no-validation-cache` (`--force-validation`) CLI flag.

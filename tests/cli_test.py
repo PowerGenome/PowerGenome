@@ -38,12 +38,12 @@ def _patch_validation(monkeypatch):
     The validation module is tested separately in validate_test.py.
     """
     monkeypatch.setattr(
-        "powergenome.run_powergenome.validate_settings",
-        lambda s: [],
+        "powergenome.run_powergenome.validate_settings_cached",
+        lambda s, use_cache=None: ([], False),
     )
     monkeypatch.setattr(
-        "powergenome.run_powergenome.validate_settings_with_data",
-        lambda s, dm: [],
+        "powergenome.run_powergenome.validate_settings_with_data_cached",
+        lambda s, dm=None, use_cache=None: ([], False),
     )
     monkeypatch.setattr(
         "powergenome.run_powergenome.report_validation_results",
