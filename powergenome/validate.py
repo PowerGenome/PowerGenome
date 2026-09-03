@@ -65,10 +65,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
-from powergenome.validation_cache import (
-    _as_bool,
-    run_cached_validation,
-)
+from powergenome.validation_cache import _as_bool, run_cached_validation
 
 logger = logging.getLogger(__name__)
 
