@@ -131,9 +131,10 @@ def _canonicalize(value: Any) -> Any:
             for k, v in sorted(value.items(), key=lambda kv: str(kv[0]))
         }
     if isinstance(value, (set, frozenset)):
+        items = [_canonicalize(item) for item in value]
         return sorted(
-            json.dumps(_canonicalize(item), sort_keys=True, default=_json_default)
-            for item in value
+            items,
+            key=lambda item: json.dumps(item, sort_keys=True, default=_json_default),
         )
     if isinstance(value, (list, tuple)):
         items = [_canonicalize(item) for item in value]
@@ -146,10 +147,7 @@ def _canonicalize(value: Any) -> Any:
 def _json_default(obj: Any) -> Any:
     """Serialize set-like and arbitrary objects deterministically."""
     if isinstance(obj, (set, frozenset)):
-        return sorted(
-            json.dumps(_canonicalize(item), sort_keys=True, default=_json_default)
-            for item in obj
-        )
+        return _canonicalize(obj)
     return str(obj)
 
 

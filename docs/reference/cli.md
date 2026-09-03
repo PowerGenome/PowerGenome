@@ -134,12 +134,12 @@ run_powergenome -sf settings -rf output --macro --no-genx
 
 Always run the Phase 1/2 validation checks, ignoring any cached results. By default,
 validation results are replayed from a cache keyed on the settings and a fingerprint
-(size + first/last 1 MB) of the data files backing the configured tables, so a re-run
+(size, modification time, and deterministic content samples) of the data files backing the configured tables, so a re-run
 with unchanged inputs skips the check computation. Equivalent to
 `use_validation_cache: false` in settings.
 
 **Type**: Boolean flag
-**Default**: False (cache enabled)
+**Default**: Not set (follows `use_validation_cache`; caching is enabled by default)
 **Example**: `--force-validation`
 
 ```bash
@@ -279,7 +279,7 @@ validate_powergenome -sf settings --no-fail
 #### `--no-validation-cache` / `--force-validation`
 
 Always run the checks, ignoring any cached validation results. By default, results are
-replayed from a cache keyed on the settings and a fingerprint (size + first/last 1 MB) of
+replayed from a cache keyed on the settings and a fingerprint (size, modification time, and deterministic content samples) of
 the data files, so unchanged inputs skip the checks — and Phase 2 skips loading the
 DataManager entirely. See
 [Skipping validation when nothing changed](../how-to/validate-settings.md#skipping-validation-when-nothing-changed).
