@@ -1033,6 +1033,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="How validation works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#skipping-validation-when-nothing-changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skipping validation when nothing changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2361,6 +2378,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="How validation works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#skipping-validation-when-nothing-changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skipping validation when nothing changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2585,6 +2619,22 @@ with a new configuration.</p>
 produce <strong>warnings</strong> or <strong>errors</strong>: warnings allow the pipeline to continue (though
 results may be wrong), while errors will stop execution when validation is run as part
 of <code>run_powergenome</code>.</p>
+<h3 id="skipping-validation-when-nothing-changed">Skipping validation when nothing changed<a class="headerlink" href="#skipping-validation-when-nothing-changed" title="Permanent link">&para;</a></h3>
+<p>Re-running a study with identical inputs would repeat the same validation work every
+time, so results are cached. PowerGenome fingerprints the inputs — the resolved settings,
+the validation code version, and (for Phase 2) the size plus the first and last 1 MB of
+each data file backing a configured table — and stores the checks' results under that
+fingerprint in <code>&lt;input_folder&gt;/validation_cache/</code>. When the fingerprint is unchanged, the
+cached results are replayed instead of recomputed: warnings still print and errors still
+stop the run, but the checks are skipped (and <code>validate_powergenome</code> also skips loading
+the DataManager entirely).</p>
+<ul>
+<li>Turn the cache off with <code>use_validation_cache: false</code> in your settings, or
+  <code>--no-validation-cache</code> (alias <code>--force-validation</code>) on either CLI.</li>
+<li>Because only the head and tail of each data file are hashed, a same-size edit confined
+  to the middle of a file larger than 2 MB won't invalidate the cache. Delete the
+  <code>validation_cache</code> folder to force full re-validation after such an edit.</li>
+</ul>
 <hr />
 <h2 id="running-validation-on-its-own">Running validation on its own<a class="headerlink" href="#running-validation-on-its-own" title="Permanent link">&para;</a></h2>
 <p>To validate your settings without running the full pipeline, use the <code>validate_powergenome</code>
@@ -2617,6 +2667,10 @@ command:</p>
 <tr>
 <td><code>--no-fail</code></td>
 <td>Log errors but exit with code 0 (useful in CI pipelines)</td>
+</tr>
+<tr>
+<td><code>--no-validation-cache</code></td>
+<td>Always run the checks, ignoring cached results (alias <code>--force-validation</code>)</td>
 </tr>
 </tbody>
 </table>
