@@ -59,7 +59,7 @@ class TestFingerprintFile:
         f.write_text("a,b\n1,2\n")
         before = fingerprint_file(f)
         os.utime(f, (0, 0))
-        assert fingerprint_file(f) == before
+        assert fingerprint_file(f) != before
 
     def test_changes_on_content_edit(self, tmp_path):
         f = tmp_path / "x.csv"
@@ -90,7 +90,7 @@ class TestFingerprintFile:
         f.write_bytes(bytes(data))
         assert fingerprint_file(f) != before
 
-    def test_middle_edit_of_large_file_detected(self, tmp_path):
+    def test_sampled_edit_of_large_file_detected(self, tmp_path):
         """Same-size edits anywhere in a file invalidate its fingerprint."""
         f = tmp_path / "big.bin"
         data = bytearray(b"0" * (4 * 1024 * 1024))

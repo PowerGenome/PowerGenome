@@ -71,35 +71,36 @@ def _as_bool(value: Any, default: bool = True) -> bool:
 
 
 def fingerprint_file(file_path: Union[Path, str, None]) -> str:
-    """Fingerprint the complete contents of a file.
+    """Fingerprint a file using metadata and deterministic content samples.
 
-    The digest covers the file size and every byte of content. Touching a file
-    (mtime-only change) does not alter the fingerprint.
-
-    Returns
-    -------
-    str
-        ``"<size>_<sha256[:16]>"``, or ``"missing"``/``"unreadable"`` when the
-        file cannot be read.
+    Sampling avoids reading multi-GB binary/profile files while combining
+    metadata, evenly spaced interior blocks, and head/tail blocks to make
+    unchanged files very likely to retain the same fingerprint.
     """
     if not file_path:
         return _MISSING
     path = Path(file_path)
     try:
-        size = path.stat().st_size
+        stat = path.stat()
+        size = stat.st_size
+        mtime_ns = stat.st_mtime_ns
     except OSError:
         return _MISSING
 
-    sha256_hash = hashlib.sha256()
-    sha256_hash.update(str(size).encode())
+    sha256_hash = hashlib.sha256(f"{size}:{mtime_ns}".encode())
     try:
         with open(path, "rb") as f:
-            for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                sha256_hash.update(chunk)
+            offsets = {0, max(0, size - SAMPLE_BYTES)}
+            if size > 2 * SAMPLE_BYTES:
+                offsets.update(int(size * fraction) for fraction in (0.25, 0.5, 0.75))
+            for offset in sorted(offsets):
+                f.seek(offset)
+                sha256_hash.update(offset.to_bytes(8, "big"))
+                sha256_hash.update(f.read(min(SAMPLE_BYTES, size - offset)))
     except OSError:
         return _UNREADABLE
 
-    return f"{size}_{sha256_hash.hexdigest()[:16]}"
+    return f"{size}_{mtime_ns}_{sha256_hash.hexdigest()[:16]}"
 
 
 def _path_marker(path: Union[Path, str]) -> str:
