@@ -180,6 +180,23 @@ class TestFingerprints:
         assert resolved["demand"] == str(data / "demand_timeseries.parquet")
         assert resolved["fuel_price"] == "unresolved"
 
+    def test_resolve_data_files_includes_duplicate_sources(self, tmp_path):
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        first.mkdir()
+        second.mkdir()
+        (first / "generation.csv").write_text("a\n1\n")
+        (second / "generation.csv").write_text("a\n2\n")
+        settings = {
+            "data_location": [str(first), str(second)],
+            "generation_table": "generation.csv",
+        }
+
+        assert resolve_data_files(settings) == [
+            ("generation", str(first / "generation.csv")),
+            ("generation", str(second / "generation.csv")),
+        ]
+
     def test_data_fingerprint_changes_on_file_edit(self, tmp_path):
         data = tmp_path / "data"
         data.mkdir()

@@ -230,7 +230,7 @@ def _table_source_locations(settings: Dict[str, Any]) -> List[Path]:
     return locations
 
 
-def _resolve_table_source(locations: Sequence[Path], source: str) -> str:
+def _resolve_table_sources(locations: Sequence[Path], source: str) -> List[str]:
     """Resolve a configured table source to the backing file path.
 
     Mirrors ``DataManager._validate_table_config``/``_resolve_table_source``
@@ -239,25 +239,27 @@ def _resolve_table_source(locations: Sequence[Path], source: str) -> str:
     extension), while a database-file location contributes the database file
     itself (or a tabular file located next to it).
     """
+    matches: List[str] = []
     for location in locations:
         if location.is_dir():
             candidate = location / source
             if candidate.is_file():
-                return str(candidate)
-            if Path(source).suffix == "":
+                matches.append(str(candidate))
+            elif Path(source).suffix == "":
                 for extension in _TABULAR_SUFFIXES:
                     with_ext = location / f"{source}{extension}"
                     if with_ext.is_file():
-                        return str(with_ext)
+                        matches.append(str(with_ext))
+                        break
         elif location.is_file() and location.suffix.lower() in _DB_SUFFIXES:
             if source.lower().endswith(_TABULAR_SUFFIXES):
                 neighbor = location.parent / source
                 if neighbor.is_file():
-                    return str(neighbor)
+                    matches.append(str(neighbor))
             elif Path(source).suffix == "":
                 # Table inside the database file — the DB file is the input.
-                return str(location)
-    return "unresolved"
+                matches.append(str(location))
+    return matches
 
 
 def resolve_data_files(settings: Dict[str, Any]) -> List[Tuple[str, str]]:
@@ -283,8 +285,11 @@ def resolve_data_files(settings: Dict[str, Any]) -> List[Tuple[str, str]]:
             source = table_config
         if not source:
             continue
-        resolved = _resolve_table_source(locations, str(source))
-        entries.append((standard_name, resolved))
+        matches = _resolve_table_sources(locations, str(source))
+        if not matches:
+            entries.append((standard_name, "unresolved"))
+        else:
+            entries.extend((standard_name, match) for match in matches)
     return sorted(entries)
 
 
