@@ -90,8 +90,8 @@ class TestFingerprintFile:
         f.write_bytes(bytes(data))
         assert fingerprint_file(f) != before
 
-    def test_middle_edit_of_large_file_not_detected(self, tmp_path):
-        """Documented limitation: same-size edits outside head/tail are invisible."""
+    def test_middle_edit_of_large_file_detected(self, tmp_path):
+        """Same-size edits anywhere in a file invalidate its fingerprint."""
         f = tmp_path / "big.bin"
         data = bytearray(b"0" * (4 * 1024 * 1024))
         f.write_bytes(bytes(data))
@@ -99,7 +99,7 @@ class TestFingerprintFile:
         mid = 2 * 1024 * 1024
         data[mid] = 49
         f.write_bytes(bytes(data))
-        assert fingerprint_file(f) == before
+        assert fingerprint_file(f) != before
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -71,12 +71,10 @@ def _as_bool(value: Any, default: bool = True) -> bool:
 
 
 def fingerprint_file(file_path: Union[Path, str, None]) -> str:
-    """Fingerprint a possibly very large file without hashing the whole thing.
+    """Fingerprint the complete contents of a file.
 
-    The digest covers the file size and the first and last 1 MB of content
-    (the entire body for files of 2 MB or less).  Touching a file (mtime-only
-    change) does not alter the fingerprint; content edits within the sampled
-    regions or a size change do.
+    The digest covers the file size and every byte of content. Touching a file
+    (mtime-only change) does not alter the fingerprint.
 
     Returns
     -------
@@ -96,12 +94,8 @@ def fingerprint_file(file_path: Union[Path, str, None]) -> str:
     sha256_hash.update(str(size).encode())
     try:
         with open(path, "rb") as f:
-            if size <= 2 * SAMPLE_BYTES:
-                sha256_hash.update(f.read())
-            else:
-                sha256_hash.update(f.read(SAMPLE_BYTES))
-                f.seek(-SAMPLE_BYTES, 2)
-                sha256_hash.update(f.read(SAMPLE_BYTES))
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                sha256_hash.update(chunk)
     except OSError:
         return _UNREADABLE
 
