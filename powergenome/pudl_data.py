@@ -29,12 +29,10 @@ def download_pudl_generator_data(report_years: List[int], save_path: str) -> Non
     con = duckdb.connect()
 
     # Check if all report_years exist in the data files
-    available_years = con.execute(
-        """
+    available_years = con.execute("""
         SELECT DISTINCT EXTRACT(YEAR from report_date) as report_year
         FROM read_parquet('https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/out_eia__yearly_generators.parquet')
-        """
-    ).fetchall()
+        """).fetchall()
     available_years = {row[0] for row in available_years}
 
     missing_years = [year for year in report_years if year not in available_years]
@@ -51,8 +49,7 @@ def download_pudl_generator_data(report_years: List[int], save_path: str) -> Non
 
     # Download pre-processed annual data. Does not include heat rates for units without boilers.
     report_years_str = ", ".join(str(year) for year in report_years)
-    con.execute(
-        f"""
+    con.execute(f"""
         CREATE OR REPLACE TABLE out_eia__yearly_generators AS
     SELECT
         plant_id_eia AS plant_id,
@@ -79,8 +76,7 @@ def download_pudl_generator_data(report_years: List[int], save_path: str) -> Non
     FROM read_parquet('https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/out_eia__yearly_generators.parquet')
     WHERE report_year in ({report_years_str})
     AND data_maturity = 'final'
-    """
-    )
+    """)
 
     # Download fuel consumption and generation data to calculate heat rates.
     con.execute(
@@ -102,8 +98,7 @@ def download_pudl_generator_data(report_years: List[int], save_path: str) -> Non
     )
 
     # Join the two tables to get heat rates for all generators.
-    con.execute(
-        """
+    con.execute("""
         CREATE OR REPLACE TABLE filled_generators AS
         SELECT
             g.plant_id,
@@ -132,12 +127,9 @@ def download_pudl_generator_data(report_years: List[int], save_path: str) -> Non
         AND g.generator_id = f.generator_id
         AND g.unit_id = f.unit_id
         AND g.report_year = f.report_year;
-        """
-    )
+        """)
 
     # Save the filled generators table to a parquet file.
-    con.execute(
-        f"""
+    con.execute(f"""
         COPY (SELECT * FROM filled_generators LIMIT 100) TO '{Path(save_path) / "generator_data.parquet"}' (FORMAT PARQUET);
-        """
-    )
+        """)
