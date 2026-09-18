@@ -19,7 +19,7 @@ Clustering reduces these to a manageable number of representative resources whil
 Generators are first filtered to those that:
 
 - Operate in one of the model regions (after region aggregation)
-- Are not yet retired based on their operating year and `retirement_ages` setting
+- Are not yet retired based on their `operating_year` and `retirement_year` (from input data)
 
 They are then grouped by **(model region, technology)** pairs. Each group is clustered independently.
 
@@ -113,19 +113,26 @@ This is useful for small fuel types where separating them would create many tiny
 
 ---
 
-## Retirement age filtering
+## Retirement filtering
 
-Generators are excluded from clustering if their age (current model year minus operating year) exceeds the value in `retirement_ages`:
+Generators are excluded from clustering if they are not operating in the period. A unit
+is operating when `operating_year <= end_year` and (`retirement_year` is missing or
+`retirement_year > end_year`). Both columns come from the generation input data — there
+is no `retirement_ages` setting (that code path has been removed).
+
+To control retirements, set the `retirement_year` column in your generation input data:
 
 ```yaml
-retirement_ages:
-  Conventional Steam Coal: 60
-  Natural Gas Fired Combined Cycle: 55
-  Nuclear: 60
+generation_table:
+  table_name: generation.parquet
 ```
 
 !!! note "Myopic multi-period models"
-    In myopic models, retirement ages are evaluated independently for each planning period. If a generator retires between periods, its cluster membership changes, which can cause inconsistencies. Set retirement ages to `500` (or another high value) and handle retirements through exogenous capacity reduction files instead.
+    In myopic models, retirement is evaluated independently for each planning period. If
+    a generator retires between periods, its cluster membership changes, which can cause
+    inconsistencies. Keep units operating across all periods by setting a later
+    `retirement_year` (or leaving it blank) and handle retirements through exogenous
+    capacity reduction files instead.
 
 ---
 
@@ -137,7 +144,7 @@ When `extra_outputs_path` is configured (or by default in the `extra_outputs` su
 
 ## Related documentation
 
-- [Existing Generators Settings](../reference/settings/existing-generators.md): `num_clusters`, `alt_num_clusters`, `retirement_ages`, `tech_groups`
+- [Existing Generators Settings](../reference/settings/existing-generators.md): `num_clusters`, `alt_num_clusters`, `tech_groups`
 - [Add Custom Technologies](../how-to/add-technologies.md): Adding new-build resources
 - [Modify Generator Attributes](../how-to/modify-generator-attributes.md): Applying custom formulas to cluster attributes
 - [Architecture Overview](architecture.md): How clustering fits in the full pipeline

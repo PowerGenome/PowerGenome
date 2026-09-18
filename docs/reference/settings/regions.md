@@ -98,9 +98,11 @@ cap_res_network_derate_default: 0.95
 
 **Type**: Dictionary (region → list of new-build technologies)
 **Required**: No
-**Example**: See below
 
-Specifies new-build resources that should NOT be available in certain regions. Useful for policy/physical constraints.
+!!! warning "Legacy setting"
+    This key is only checked for region-name consistency during validation and is
+    **not** applied to exclude technologies from the model. Omit a technology from
+    `new_resources` (or `renewables_clusters`) to keep it out of a region.
 
 ```yaml
 new_gen_not_available:
@@ -233,6 +235,7 @@ regional_capacity_reserves:
 
 cap_res_network_derate_default: 0.95
 
+# Legacy — only validated, not applied
 new_gen_not_available:
   CA_N: [Coal_new, OffshoreWind]
   CA_S: [Coal_new]

@@ -131,10 +131,13 @@ tx_expansion_mw_per_period: 500  # Minimum expansion increment (MW)
 
 ## Step 3: Regional Technology Availability
 
-Some technologies may not be available in all regions. Add to `settings/resources.yml`:
+Some technologies may not be available in all regions. Omit them from `new_resources`
+for the regions where they should not be built. The legacy `new_gen_not_available` key
+is only validated, not applied.
 
 ```yaml
 # Technologies NOT available in each region
+# (legacy — only validated, not applied)
 new_gen_not_available:
   northeast:
     - Coal_*  # No new coal
@@ -311,7 +314,7 @@ Parameters that accept model region names:
 
 - `model_regions` - List of regions in study
 - `region_aggregations` - How to combine base regions
-- `new_gen_not_available` - Technology restrictions by region
+- `new_gen_not_available` - Legacy; only validated, does not restrict availability
 - `cost_multiplier_region_map` - Regional cost adjustments
 - `regional_capacity_reserves` - Reserve requirements by region
 - `regional_tag_values` - Custom tag values by region (see [Resource Tags](../reference/settings/resource-tags.md))

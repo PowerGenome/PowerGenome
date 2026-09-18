@@ -101,11 +101,18 @@ settings_management:
   2030:
     solar_cost:
       low:
-        atb_cost_case: Advanced
-      mid:
-        atb_cost_case: Moderate
+        resource_modifiers:
+          utilitypv:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 0.85]
+      mid: {}  # No changes from baseline
       high:
-        atb_cost_case: Conservative
+        resource_modifiers:
+          utilitypv:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 1.15]
 
     wind_cost:
       low:
@@ -188,14 +195,12 @@ settings_management:
           - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 100]
           - [Nuclear, Nuclear - Large, Moderate, 1000]
       prohibited:
+        # Omit Nuclear from the resource list so it is not available as a candidate
         new_resources:
           - [NaturalGas, 2-on-1 Combined Cycle (F-Frame), Moderate, 500]
           - [UtilityPV, Class1, Moderate, 100]
           - [LandbasedWind, Class3, Moderate, 100]
           - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 100]
-        new_gen_not_available:
-          ALL_REGIONS:
-            - Nuclear
 ```
 
 <!-- Retirement age and demand growth scenario swapping removed. These concepts are now handled directly by input data and not via settings_management parameters. -->
@@ -207,13 +212,14 @@ settings_management:
   2030:
     tx_expansion:
       limited:
-        max_network_reinforcement_mw: 500
-        tx_expansion_per_mw: 1500
+        tx_expansion_per_period: 0.0
+        tx_expansion_mw_per_period: 500
       baseline:
-        max_network_reinforcement_mw: 1000
-        tx_expansion_per_mw: 1000
+        tx_expansion_per_period: 1.0
+        tx_expansion_mw_per_period: 1000
       unlimited:
-        enforce_constraints: false  # Copper plate
+        tx_expansion_per_period: 10.0
+        tx_expansion_mw_per_period: 10000
 ```
 
 <!-- case_id_description_fn removed. If descriptive labels are desired, manage externally; not a supported setting. -->

@@ -324,9 +324,11 @@ resource_modifiers:
 
 ### Regional Technology Restrictions
 
-Exclude renewables from specific regions:
+To exclude renewables from specific regions, leave them out of `renewables_clusters` for
+those regions. The legacy `new_gen_not_available` key is only validated, not applied.
 
 ```yaml
+# Legacy — not applied in this version
 new_gen_not_available:
   desert_region:
     - LandbasedWind_*  # No wind (low capacity factors)

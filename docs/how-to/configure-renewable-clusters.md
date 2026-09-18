@@ -38,10 +38,10 @@ Wind/solar “resource group” files generated for projects come with exactly t
 
 ## Basic Configuration Pattern
 
-Renewable clusters are defined in the `renewable_clusters` section:
+Renewable clusters are defined in the `renewables_clusters` section:
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all             # Required: region(s) to include
     technology: landbasedwind  # Required: technology name
     filter: [...]          # Optional: exclude sites
@@ -60,7 +60,7 @@ renewable_clusters:
 LCOE (Levelized Cost of Energy) combines capacity factor and capital costs. Filtering on LCOE ensures you only consider economically viable sites, reducing computational complexity.
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: landbasedwind
     filter:
@@ -93,7 +93,7 @@ After filtering, **bin on LCOE** to divide resources into cost tiers. This allow
 ### LCOE Binning Example
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: landbasedwind
     filter:
@@ -199,7 +199,7 @@ bin:
 Most common use case - divide by resource quality:
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: landbasedwind
     group:
@@ -217,7 +217,7 @@ renewable_clusters:
 Divide by county or zone to respect land availability:
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: utilitypv
     group:
@@ -233,7 +233,7 @@ renewable_clusters:
 Combine categorical features (multiplies cluster count):
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: landbasedwind
     group:
@@ -254,7 +254,7 @@ After grouping/binning, **k-means clusters aggregate similar sites** within each
 ### Basic Clustering
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: landbasedwind
     cluster:
@@ -326,7 +326,7 @@ cluster:
 4. Be selective about which regions/technologies to cluster
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: landbasedwind
     group: [class, ipm_region]  # Could create 3 × 5 = 15 combinations
@@ -346,7 +346,7 @@ Reducing bins/clusters can simplify the model while preserving geographic and co
 **Group modifiers adjust costs for specific groups** after clustering (e.g., higher interconnection costs in certain regions).
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: landbasedwind
     group: [class]
@@ -460,7 +460,7 @@ bin:
 ### Example 1: Simple Wind Clustering (Recommended Starting Point)
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: landbasedwind
     # Filter to economically viable sites
@@ -488,7 +488,7 @@ renewable_clusters:
 ### Example 2: Wind with Class Groups
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: landbasedwind
     filter:
@@ -522,7 +522,7 @@ renewable_clusters:
 ### Example 3: Solar with Geographic Groups
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: utilitypv
     filter:
@@ -557,7 +557,7 @@ renewable_clusters:
 ### Example 4: Offshore Wind (Performance-Based)
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: all
     technology: offshorewind
     filter:
@@ -583,7 +583,7 @@ renewable_clusters:
 ### Example 5: Complex Multi-Region System
 
 ```yaml
-renewable_clusters:
+renewables_clusters:
   - region: [TX, OK, KS, NM]  # Great Plains only
     technology: landbasedwind
     filter:

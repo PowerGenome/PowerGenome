@@ -67,7 +67,7 @@ Settings are grouped by functional area:
 
     Network topology, line limits, expansion costs, loss percentages.
 
-    Parameters: `transmission_constraints`, `tx_line_loss_pct`, `tx_expansion_per_mw`, etc.
+    Parameters: `transmission_constraints`, `tx_line_loss_pct`, `tx_expansion_per_period`, `tx_expansion_mw_per_period`, etc.
 
 - :material-power-plug-outline: **[Demand](demand.md)**
 
@@ -208,6 +208,7 @@ regional_tag_values:
     THERM: 2
     VRE: 1
 
+# Legacy — only validated, not applied
 new_gen_not_available:
   CA_N: [Coal_new]
   AZ: [OffshoreWind]
