@@ -99,10 +99,12 @@ cap_res_network_derate_default: 0.95
 **Type**: Dictionary (region → list of new-build technologies)
 **Required**: No
 
-!!! warning "Legacy setting"
+!!! warning "Legacy setting — not applied"
     This key is only checked for region-name consistency during validation and is
-    **not** applied to exclude technologies from the model. Omit a technology from
-    `new_resources` (or `renewables_clusters`) to keep it out of a region.
+    **not** applied to exclude technologies from the model. `new_resources` is not
+    region-scoped, so there is currently no supported way to exclude a new-build
+    technology from a subset of regions. Renewable resource clusters are scoped by region
+    through `renewables_clusters`.
 
 ```yaml
 new_gen_not_available:

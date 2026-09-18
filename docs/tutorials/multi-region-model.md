@@ -131,9 +131,11 @@ tx_expansion_mw_per_period: 500  # Minimum expansion increment (MW)
 
 ## Step 3: Regional Technology Availability
 
-Some technologies may not be available in all regions. Omit them from `new_resources`
-for the regions where they should not be built. The legacy `new_gen_not_available` key
-is only validated, not applied.
+!!! note "Per-region new-build availability"
+    There is currently no supported way to exclude a new-build technology from a subset
+    of regions: every technology in `new_resources` is built in **all** model regions, and
+    the legacy `new_gen_not_available` key is only validated, not applied. Renewable
+    resource clusters are scoped per region through `renewables_clusters`.
 
 ```yaml
 # Technologies NOT available in each region

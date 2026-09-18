@@ -324,8 +324,10 @@ resource_modifiers:
 
 ### Regional Technology Restrictions
 
-To exclude renewables from specific regions, leave them out of `renewables_clusters` for
-those regions. The legacy `new_gen_not_available` key is only validated, not applied.
+`renewables_clusters` controls which regions receive *clustered* renewable resources
+(each entry has a `region` key). There is currently no supported way to fully exclude a
+renewable from a subset of regions: a technology listed in `new_resources` is built in
+every region, and the legacy `new_gen_not_available` key is only validated, not applied.
 
 ```yaml
 # Legacy — not applied in this version

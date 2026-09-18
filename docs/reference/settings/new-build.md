@@ -221,11 +221,13 @@ carbon_tax:
 **Type**: Dictionary (region → list of technologies)
 **Required**: No
 
-!!! warning "Legacy setting"
+!!! warning "Legacy setting — not applied"
     This key is only checked for region-name consistency during validation and is
-    **not** applied to exclude technologies from the model. To restrict a technology's
-    availability, omit it from `new_resources` (or from `renewables_clusters` for
-    renewables) for the regions where it should not be built.
+    **not** applied to exclude technologies from the model. `new_resources` is not
+    region-scoped: every technology in it is built in **all** model regions, so there is
+    currently no supported way to exclude a new-build technology from a subset of regions.
+    To remove a technology entirely, omit it from `new_resources`. Renewable resource
+    clusters are scoped by region through `renewables_clusters`.
 
 ```yaml
 new_gen_not_available:

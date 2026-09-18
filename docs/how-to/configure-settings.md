@@ -436,10 +436,12 @@ PCA_WECC,NaturalGas_CC,1.1
 
 Prohibit technologies in specific regions:
 
-!!! warning "Legacy setting"
+!!! warning "Legacy setting — not applied"
     `new_gen_not_available` is only validated for region-name consistency; it is **not**
-    applied to exclude technologies. Omit a technology from `new_resources` for the
-    regions where it should not be built.
+    applied to exclude technologies. `new_resources` is not region-scoped — each listed
+    technology is built in every region — so there is currently no supported way to
+    exclude a new-build technology from a subset of regions. Renewable clusters are
+    scoped per region through `renewables_clusters`.
 
 **settings/tech_availability.yml**:
 

@@ -307,10 +307,12 @@ renewables_clusters:
 
 ### Regional Restrictions
 
-!!! warning "Legacy setting"
+!!! warning "Legacy setting — not applied"
     `new_gen_not_available` is only validated for region-name consistency; it is **not**
-    applied to exclude technologies. Omit the technology from `new_resources` (or
-    `renewables_clusters`) for the regions where it should not be built.
+    applied to exclude technologies. `new_resources` entries are built in **every** model
+    region, so a new-build resource cannot be restricted to a subset of regions. Renewable
+    resource clusters are scoped per region through `renewables_clusters` (each entry has
+    a `region` key).
 
 ```yaml
 # Legacy — not applied in this version
@@ -423,16 +425,25 @@ user_fuel_price:
 
 ### 4. Set Regional Availability
 
-To keep a technology out of a region, simply omit it from `new_resources` for that
-scenario (or from `renewables_clusters` for renewables). The legacy
+`new_resources` builds each listed technology in **every** model region, so it cannot be
+used to keep a technology out of a single region. Renewable clusters are scoped per region
+through `renewables_clusters` (each entry specifies a `region`). The legacy
 `new_gen_not_available` key is only validated, not applied.
 
-**settings/tech_availability.yml**:
+**settings/tech_availability.yml** (renewables scoped per region):
 
 ```yaml
 new_resources:
   - [LandbasedWind, Class3, Moderate, 100]
-  # Hydrogen intentionally not listed for Arizona
+
+renewables_clusters:
+  - region: CA_N
+    technology: landbasedwind
+    min_capacity: 25000
+    cluster:
+      - feature: cf
+        n_clusters: 2
+        method: agg
 ```
 
 ## Troubleshooting

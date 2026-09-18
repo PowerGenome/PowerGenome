@@ -282,10 +282,11 @@ settings_management:
 !!! note "How resource availability is controlled"
     A new-build resource is only included if it appears in `new_resources` (or is
     produced by `renewables_clusters`). To disable a technology for a scenario, leave
-    it out of `new_resources` — there is no separate "exclude" list. The legacy
-    `new_gen_not_available` key is no longer applied to exclude resources (it is only
-    checked for region-name consistency during validation), and `ALL_REGIONS` is not a
-    recognized region key.
+    it out of `new_resources` — there is no separate "exclude" list. Note that
+    `new_resources` is not region-scoped: omitting a technology removes it from **every**
+    region. The legacy `new_gen_not_available` key is not applied to exclude resources
+    (it is only checked for region-name consistency during validation), and `ALL_REGIONS`
+    is not a recognized region key.
 
 ### Retirement Assumptions
 
@@ -568,10 +569,10 @@ settings_management:
 !!! note "Region-keyed settings"
     `regional_capacity_reserves` is nested as
     `constraint → region → value`, where each `CapRes_<num>` creates a reserve
-    zone. A flat region→value mapping is not valid. For per-region resource
-    availability, list the allowed resources in `new_resources` (or
-    `renewables_clusters`) for each scenario rather than using a region-keyed
-    exclude list.
+    zone. A flat region→value mapping is not valid. Note that `new_resources` is **not**
+    region-scoped — it builds each listed technology in every model region — so per-region
+    new-build availability is not currently supported. Renewable resource clusters are
+    scoped per region through `renewables_clusters`.
 
 ### Copy Case Policies
 
