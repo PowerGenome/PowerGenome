@@ -115,24 +115,20 @@ This is useful for small fuel types where separating them would create many tiny
 
 ## Retirement filtering
 
-Generators are excluded from clustering if they are not operating in the period. A unit
-is operating when `operating_year <= end_year` and (`retirement_year` is missing or
-`retirement_year > end_year`). Both columns come from the generation input data — there
-is no `retirement_ages` setting (that code path has been removed).
-
-To control retirements, set the `retirement_year` column in your generation input data:
-
-```yaml
-generation_table:
-  table_name: generation.parquet
-```
+Existing generators are clustered using every unit operating in the first planning
+period. A unit counts as operating when its `operating_year` is on or before the period and
+its `retirement_year` is missing or later than the period's end. Both columns come from the
+generation input data; there is no `retirement_ages` setting (that code path has been
+removed).
 
 !!! note "Myopic multi-period models"
-    In myopic models, retirement is evaluated independently for each planning period. If
-    a generator retires between periods, its cluster membership changes, which can cause
-    inconsistencies. Keep units operating across all periods by setting a later
-    `retirement_year` (or leaving it blank) and handle retirements through exogenous
-    capacity reduction files instead.
+    Existing generators are clustered **once**, with all units operating in the first
+    planning period, so group membership is stable across every period. Retirements
+    between periods do not change the clusters; instead, capacity that retires within a
+    period is removed from the cluster at that period via `Min_Retired_Cap_MW` /
+    `Min_Retired_Energy_Cap_MW` (see `cap_retire_within_period`). Set each unit's
+    `retirement_year` in the generation input data to control when its capacity drops
+    out.
 
 ---
 
