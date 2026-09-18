@@ -47,11 +47,20 @@ settings_management:
   2030:
     cost_scenario:
       low:
-        atb_cost_case: Advanced
+        new_resources:
+          - [NaturalGas, CCAvgCF, Advanced, 500]
+          - [UtilityPV, Class1, Advanced, 100]
+          - [LandbasedWind, Class3, Advanced, 100]
       mid:
-        atb_cost_case: Moderate
+        new_resources:
+          - [NaturalGas, CCAvgCF, Moderate, 500]
+          - [UtilityPV, Class1, Moderate, 100]
+          - [LandbasedWind, Class3, Moderate, 100]
       high:
-        atb_cost_case: Conservative
+        new_resources:
+          - [NaturalGas, CCAvgCF, Conservative, 500]
+          - [UtilityPV, Class1, Conservative, 100]
+          - [LandbasedWind, Class3, Conservative, 100]
 
     carbon_policy:
       none:
@@ -64,11 +73,20 @@ settings_management:
   2040:
     cost_scenario:
       low:
-        atb_cost_case: Advanced
+        new_resources:
+          - [NaturalGas, CCAvgCF, Advanced, 500]
+          - [UtilityPV, Class1, Advanced, 100]
+          - [LandbasedWind, Class3, Advanced, 100]
       mid:
-        atb_cost_case: Moderate
+        new_resources:
+          - [NaturalGas, CCAvgCF, Moderate, 500]
+          - [UtilityPV, Class1, Moderate, 100]
+          - [LandbasedWind, Class3, Moderate, 100]
       high:
-        atb_cost_case: Conservative
+        new_resources:
+          - [NaturalGas, CCAvgCF, Conservative, 500]
+          - [UtilityPV, Class1, Conservative, 100]
+          - [LandbasedWind, Class3, Conservative, 100]
 
     carbon_policy:
       none:
@@ -78,6 +96,14 @@ settings_management:
       aggressive:
         carbon_tax: 150
 ```
+
+!!! note "Selecting the ATB cost case"
+    The ATB cost trajectory (`Advanced`, `Moderate`, `Conservative`) is not a
+    standalone setting. It is embedded in the `cost_case` element of each
+    `new_resources` entry (`[technology, tech_detail, cost_case, size_mw]`), so a
+    `settings_management` swap must provide the full `new_resources` list for the
+    desired cost case. For percentage-based cost changes, use `resource_modifiers`
+    with `[mul, value]` instead (see [Technology Costs](#technology-costs)).
 
 ### 3. Run Multi-Scenario Execution
 
@@ -128,33 +154,43 @@ settings_management:
     solar_cost:
       low:
         resource_modifiers:
-          UtilityPV_*:
-            capex_mw:
-              2030: 0.8
+          solar:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 0.8]
       mid: {}  # No change from baseline
       high:
         resource_modifiers:
-          UtilityPV_*:
-            capex_mw:
-              2030: 1.3
+          solar:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 1.3]
 
     battery_cost:
       low:
         resource_modifiers:
-          Battery_*:
-            capex_mw:
-              2030: 0.7
-            capex_mwh:
-              2030: 0.7
+          batteries:
+            technology: Battery
+            tech_detail: "*"
+            capex_mw: [mul, 0.7]
+            capex_mwh: [mul, 0.7]
       mid: {}
       high:
         resource_modifiers:
-          Battery_*:
-            capex_mw:
-              2030: 1.4
-            capex_mwh:
-              2030: 1.4
+          batteries:
+            technology: Battery
+            tech_detail: "*"
+            capex_mw: [mul, 1.4]
+            capex_mwh: [mul, 1.4]
 ```
+
+!!! info "`resource_modifiers` format"
+    Each top-level key is a short name you choose; the nested dict **must** contain
+    `technology` and `tech_detail` keys that match a resource in `new_resources`.
+    Parameter values use `[operator, value]` (operators: `add`, `mul`, `sub`,
+    `truediv`) or a plain number to set an absolute value. Values can be
+    year-keyed (e.g. `capex_mw: {2030: [mul, 0.8], 2040: [mul, 0.9]}`) to vary
+    across planning years.
 
 ### Fuel Prices
 
@@ -184,19 +220,29 @@ settings_management:
   2030:
     demand:
       low:
-        growth_scenario: reference
-        default_growth_rate: 0.005
+        growth_scenario: REF2020
+        alt_growth_rate:
+          CA_N: 0.005
+          CA_S: 0.005
       mid:
-        growth_scenario: moderate
-        default_growth_rate: 0.015
+        growth_scenario: REF2020
+        alt_growth_rate:
+          CA_N: 0.015
+          CA_S: 0.015
       high:
-        growth_scenario: high_electrification
-        default_growth_rate: 0.03
-        distributed_gen_values:
-          2030:
-            CA_N: 2500
-            CA_S: 3000
+        growth_scenario: REF2020
+        alt_growth_rate:
+          CA_N: 0.03
+          CA_S: 0.03
 ```
+
+!!! note "Demand growth and distributed generation"
+    Load growth is set with `growth_scenario` (an EIA AEO scenario code, e.g. `REF2020`)
+    plus the optional `alt_growth_rate` override (a per-region rate or a per-region/sector
+    dict). There is no `default_growth_rate` setting. Distributed generation capacity is
+    no longer set through a settings value — it comes from the DataManager
+    (`distributed_capacity_table` / `distributed_profiles_table`). See
+    [Distributed Generation](../explanation/distributed-generation.md).
 
 ### Technology Availability
 
@@ -214,52 +260,50 @@ settings_management:
           - [Battery, "*", Moderate, 100]
           - [Nuclear, Nuclear - Large, Moderate, 1000]
       prohibited:
+        # Omit Nuclear from the resource list so it is not available as a candidate
         new_resources:
           - [NaturalGas, CCAvgCF, Moderate, 500]
           - [UtilityPV, Class1, Moderate, 100]
           - [LandbasedWind, Class3, Moderate, 100]
           - [Battery, "*", Moderate, 100]
-        new_gen_not_available:
-          ALL_REGIONS:
-            - Nuclear_Nuclear - Large_Moderate
 
     ccs:
-      allowed:
+      available:
         new_resources:
+          - [NaturalGas, CCAvgCF, Moderate, 500]
           - [NaturalGas, CCCCSAvgCF, Conservative, 500]
           - [Coal, CCS90AvgCF, Moderate, 500]
-      not_allowed:
-        new_gen_not_available:
-          ALL_REGIONS:
-            - NaturalGas_CCCCSAvgCF_Conservative
-            - Coal_CCS90AvgCF_Moderate
+      unavailable:
+        new_resources:
+          - [NaturalGas, CCAvgCF, Moderate, 500]
+          - [Coal, CCS90AvgCF, Moderate, 500]
 ```
+
+!!! note "How resource availability is controlled"
+    A new-build resource is only included if it appears in `new_resources` (or is
+    produced by `renewables_clusters`). To disable a technology for a scenario, leave
+    it out of `new_resources` — there is no separate "exclude" list. Note that
+    `new_resources` is not region-scoped: omitting a technology removes it from **every**
+    region. The legacy `new_gen_not_available` key is not applied to exclude resources
+    (it is only checked for region-name consistency during validation), and `ALL_REGIONS`
+    is not a recognized region key.
 
 ### Retirement Assumptions
 
-Vary existing generator retirements:
+Existing-generator retirements are driven by the `retirement_year` column in the
+generation input data (see
+[Existing Generators](../reference/settings/existing-generators.md)) — there is no
+`retirement_ages` setting, that code path is no longer used. To vary retirements
+across scenarios, point each scenario at its own generation data (per-scenario input
+tables or filters) rather than swapping a settings value, e.g.:
 
 ```yaml
 settings_management:
   2030:
     coal_retirement:
       early:
-        retirement_ages:
-          Conventional Steam Coal: 45
-      baseline:
-        retirement_ages:
-          Conventional Steam Coal: 60
-      extended:
-        retirement_ages:
-          Conventional Steam Coal: 75
-
-    gas_retirement:
-      early:
-        retirement_ages:
-          Natural Gas Fired Combined Cycle: 35
-      baseline:
-        retirement_ages:
-          Natural Gas Fired Combined Cycle: 50
+        generation_table:
+          table_name: generation_early_retirement.parquet
 ```
 
 ### Transmission Expansion
@@ -271,14 +315,22 @@ settings_management:
   2030:
     transmission:
       limited:
-        max_network_reinforcement_mw: 500
-        tx_expansion_per_mw: 2000
+        tx_expansion_per_period: 0.0
+        tx_expansion_mw_per_period: 500
       baseline:
-        max_network_reinforcement_mw: 1500
-        tx_expansion_per_mw: 1200
+        tx_expansion_per_period: 1.0
+        tx_expansion_mw_per_period: 1000
       unlimited:
-        enforce_constraints: false
+        tx_expansion_per_period: 10.0
+        tx_expansion_mw_per_period: 10000
 ```
+
+!!! note "Transmission expansion settings"
+    Intertie expansion is set with `tx_expansion_per_period` (fraction of existing
+    capacity that may be added, e.g. `1.0` doubles it) and `tx_expansion_mw_per_period`
+    (fixed MW cap); the larger of the two governs each line. There is no
+    `max_network_reinforcement_mw`, `tx_expansion_per_mw`, or `enforce_constraints`
+    transmission setting. See [Transmission Settings](../reference/settings/transmission.md).
 
 ## Multi-Dimensional Scenarios
 
@@ -335,24 +387,26 @@ df.to_csv('scenario_definitions.csv', index=False)
 
 This generates 54 scenarios (2 years × 3 tech costs × 3 fuel prices × 3 carbon policies).
 
-## Parallel Execution
+## Running Scenarios Sequentially
 
-### Run Scenarios in Parallel
-
-Use multiple workers to speed up execution:
+PowerGenome runs the cases in `scenario_definitions.csv` in the order they appear,
+one after another (there is no `--num_workers`/parallel option — renewable
+*clustering* has an internal `clustering_n_jobs` setting, but scenario
+execution is sequential). To run only a subset, use `--case-id`:
 
 ```bash
 run_powergenome \
   --settings_file settings \
   --results_folder results \
-  --num_workers 8
+  --case-id baseline low_cost
 ```
 
 **Performance**:
 
-- Each worker runs one scenario at a time
-- Optimal `num_workers` ≈ number of CPU cores
-- Memory usage scales with workers (monitor for large models)
+- Each case is run in the order listed in the scenario file
+- To parallelize, launch separate PowerGenome processes (one per group of cases) or
+  use `--case-id` to distribute cases across machines
+- Monitor memory/disk usage; large models take significant disk per case
 
 ### Check Progress
 
@@ -402,9 +456,17 @@ settings_management:
   2030:
     tech_cost:
       low:
-        atb_cost_case: Advanced
+        resource_modifiers:
+          solar:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 0.9]
       mid:
-        atb_cost_case: Moderate
+        resource_modifiers:
+          solar:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 1.0]
     carbon:
       50:
         carbon_tax: 50
@@ -412,9 +474,17 @@ settings_management:
   2040:
     tech_cost:
       low:
-        atb_cost_case: Advanced
+        resource_modifiers:
+          solar:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 0.9]
       mid:
-        atb_cost_case: Moderate
+        resource_modifiers:
+          solar:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 1.0]
     carbon:
       75:
         carbon_tax: 75
@@ -422,9 +492,17 @@ settings_management:
   2050:
     tech_cost:
       low:
-        atb_cost_case: Advanced
+        resource_modifiers:
+          solar:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 0.9]
       mid:
-        atb_cost_case: Moderate
+        resource_modifiers:
+          solar:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 1.0]
     carbon:
       100:
         carbon_tax: 100
@@ -442,24 +520,28 @@ settings_management:
     renewable_scenario:
       high:
         # Multiple changes for high renewable scenario
-        atb_cost_case: Advanced
         resource_modifiers:
-          UtilityPV_*:
-            capex_mw:
-              2030: 0.8
-          LandbasedWind_*:
-            capex_mw:
-              2030: 0.85
-        renewable_clusters:
-          UtilityPV_Class1_Moderate:
-            - region: CA_N
-              cluster: 1
-              capacity_mw: 5000  # Higher capacity
-          LandbasedWind_Class3_Moderate:
-            - region: CA_N
-              cluster: 1
-              capacity_mw: 3000
-        default_growth_rate: 0.02
+          solar:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 0.8]
+          wind:
+            technology: LandbasedWind
+            tech_detail: Class3
+            capex_mw: [mul, 0.85]
+        renewables_clusters:
+          - region: CA_N
+            technology: utilitypv
+            filter:
+              - feature: lcoe
+                max: 50
+            cluster:
+              - feature: [longitude, latitude]
+                n_clusters: 6
+                method: kmeans
+        alt_growth_rate:
+          CA_N: 0.02
+          CA_S: 0.02
 ```
 
 ### Conditional Parameter Swaps
@@ -472,25 +554,25 @@ settings_management:
     policy_region:
       california:
         carbon_tax: 100
-        new_gen_not_available:
-          CA_N:
-            - Coal_*
-            - NaturalGas_CT*
-          CA_S:
-            - Coal_*
-            - NaturalGas_CT*
         regional_capacity_reserves:
-          CA_N: 1.15
-          CA_S: 1.15
+          CapRes_1:
+            CA_N: 1.15
+            CA_S: 1.15
 
       arizona:
         carbon_tax: 0
-        new_gen_not_available:
-          AZ:
-            - OffshoreWind_*
         regional_capacity_reserves:
-          AZ: 1.10
+          CapRes_1:
+            AZ: 1.10
 ```
+
+!!! note "Region-keyed settings"
+    `regional_capacity_reserves` is nested as
+    `constraint → region → value`, where each `CapRes_<num>` creates a reserve
+    zone. A flat region→value mapping is not valid. Note that `new_resources` is **not**
+    region-scoped — it builds each listed technology in every model region — so per-region
+    new-build availability is not currently supported. Renewable resource clusters are
+    scoped per region through `renewables_clusters`.
 
 ### Copy Case Policies
 
@@ -572,7 +654,7 @@ from pathlib import Path
 settings = load_settings(Path("settings"))
 
 # Check base settings
-print("Base atb_cost_case:", settings.get('atb_cost_case'))
+print("Base new_resources:", settings.get('new_resources'))
 print("Base carbon_tax:", settings.get('carbon_tax'))
 
 # Manually apply parameter swap (for testing)
@@ -603,13 +685,13 @@ run_powergenome \
 Run specific scenarios only:
 
 ```bash
-# Option 1: Edit scenario_definitions.csv to include only desired cases
+# Option 1: Edit scenario_definitions.csv to include only the desired cases
 
-# Option 2: Use --filter flag (if available in your version)
+# Option 2: Select cases with --case-id
 run_powergenome \
   --settings_file settings \
   --results_folder results \
-  --filter "case_id.startswith('baseline')"
+  --case-id baseline low_cost
 ```
 
 ### Resume Failed Runs

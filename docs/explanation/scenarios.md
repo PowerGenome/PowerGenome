@@ -19,9 +19,13 @@ PowerGenome distinguishes between two kinds of parameter variation:
 When a parameter naturally varies over time — e.g., capital costs fall as technology matures — you encode this directly in the settings using a year-keyed dictionary:
 
 ```yaml
-atb_cost_case:
-  2030: Moderate
-  2040: Advanced
+resource_modifiers:
+  utilitypv:
+    technology: UtilityPV
+    tech_detail: Class1
+    capex_mw:
+      2030: [mul, 0.9]
+      2040: [mul, 0.8]
 ```
 
 No scenario definitions CSV is needed. PowerGenome resolves these automatically for each planning year. See [Year-Keyed Values](../reference/settings/year-keyed-values.md) for details.
@@ -80,18 +84,21 @@ The result is an independent, fully resolved settings dictionary for that specif
 
 ### Deep merge behavior
 
-Parameter swap dictionaries are deep-merged. This means nested structures like `resource_modifiers` or `new_gen_not_available` are updated key-by-key rather than replaced wholesale:
+Parameter swap dictionaries are deep-merged. This means nested structures like `resource_modifiers` or `regional_capacity_reserves` are updated key-by-key rather than replaced wholesale:
 
 ```yaml
 # Base settings
 resource_modifiers:
-  UtilityPV_Class1_Moderate:
-    capex_mw: 1.0
+  utilitypv:
+    technology: UtilityPV
+    tech_detail: Class1
+    capex_mw: [mul, 1.0]
+    fixed_o_m_mw: [add, 500]
 
 # Scenario swap: solar_cost = low
 resource_modifiers:
-  UtilityPV_Class1_Moderate:
-    capex_mw: 0.8   # overrides only capex_mw; other keys are preserved
+  utilitypv:          # same short-name key, so it merges with the base entry
+    capex_mw: [mul, 0.8]   # overrides only capex_mw; fixed_o_m_mw is preserved
 ```
 
 However, **lists are replaced entirely** — not merged. If a swap sets `new_resources` to a new list, the base `new_resources` list is discarded.
@@ -109,7 +116,11 @@ settings_management:
       carbon_tax: 75  # Applied to every 2040 run
     tech_cost:
       low:
-        atb_cost_case: Advanced
+        resource_modifiers:
+          utilitypv:
+            technology: UtilityPV
+            tech_detail: Class1
+            capex_mw: [mul, 0.9]
 ```
 
 This is useful for policy parameters that change year-over-year but don't vary across scenarios.
