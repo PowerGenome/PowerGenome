@@ -554,6 +554,89 @@ class TestMainFunction:
                             assert len(info_calls) == 1
 
     @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.fuel_cost_table", return_value=pd.DataFrame())
+    @patch(
+        "powergenome.run_powergenome.make_generator_variability",
+        return_value=pd.DataFrame(),
+    )
+    @patch("powergenome.run_powergenome.check_vre_profiles")
+    @patch("powergenome.run_powergenome.check_retirement_budget")
+    @patch("powergenome.run_powergenome.GeneratorClusters")
+    @patch("powergenome.run_powergenome.write_case_settings_file")
+    @patch("powergenome.run_powergenome.process_genx_data", return_value=[])
+    @patch("powergenome.run_powergenome.update_data_manager")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.Settings")
+    def test_main_uses_period_flag_for_each_case(
+        self,
+        mock_settings_class,
+        _mock_init_dm,
+        mock_build_scenario,
+        _mock_update_dm,
+        _mock_genx,
+        _mock_write_settings,
+        mock_generator_clusters,
+        _mock_retirement_budget,
+        _mock_check_profiles,
+        _mock_variability,
+        _mock_fuels,
+        tmp_path,
+    ):
+        """Every case enables retired capacity only after its first period."""
+        settings_data = {
+            "data_location": "test_data.db",
+            "input_folder": "inputs",
+            "scenario_definitions_fn": "scenario_definitions.csv",
+            "model_year": [2030, 2040],
+            "model_first_planning_year": [2025, 2031],
+        }
+        settings = MagicMock()
+        settings.__getitem__.side_effect = lambda key: settings_data[key]
+        settings.get.side_effect = lambda key, default=None: settings_data.get(
+            key, default
+        )
+        mock_settings_class.return_value = settings
+        mock_build_scenario.return_value = {
+            2030: {"case_a": {}, "case_b": {}},
+            2040: {"case_a": {}, "case_b": {}},
+        }
+
+        scenario_objects = []
+        for period in (1, 1, 2, 2):
+            scenario = MagicMock()
+            scenario_data = {"case_period": period, "zone_num_map": {}}
+            scenario.__getitem__.side_effect = scenario_data.__getitem__
+            scenario.__setitem__.side_effect = scenario_data.__setitem__
+            scenario.get.side_effect = scenario_data.get
+            scenario_objects.append(scenario)
+        mock_settings_class.for_scenario.side_effect = [
+            MagicMock(__enter__=Mock(return_value=scenario))
+            for scenario in scenario_objects
+        ]
+        mock_generator_clusters.return_value.create_all_generators.return_value = (
+            pd.DataFrame(columns=["Resource", "region"])
+        )
+
+        with patch("pandas.read_csv") as mock_read_csv:
+            mock_read_csv.return_value = pd.DataFrame(
+                {"case_id": ["case_a", "case_b"], "year": [2030, 2030]}
+            )
+            with patch("pathlib.Path.cwd", return_value=tmp_path):
+                with patch("shutil.copytree"), patch("shutil.copy"):
+                    main(
+                        settings_file="some_settings_folder",
+                        gens=True,
+                        load=False,
+                        transmission=False,
+                    )
+
+        assert [
+            call.kwargs["include_retired_cap"]
+            for call in mock_generator_clusters.call_args_list
+        ] == [False, False, True, True]
+
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
     @patch("powergenome.run_powergenome.write_case_settings_file")
     @patch("powergenome.run_powergenome.process_genx_data", return_value=[])
     @patch("powergenome.run_powergenome.update_data_manager")
