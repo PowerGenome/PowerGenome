@@ -1074,10 +1074,12 @@ def check_retirement_budget(
             "periods is larger than the capacity available in the first period, which "
             f"makes the multi-period model infeasible:\n{detail}\n"
             "This usually means existing generator clusters changed between planning "
-            "periods. Setting very high 'retirement_ages' keeps cluster membership "
-            "stable across periods, and existing capacity replaced with "
-            "'region_wind_pv_cap_fn' should match the capacity used in the first "
-            "period. If you believe this check is incorrect, please file an issue at "
+            "periods. GenX decides when existing capacity retires, so the "
+            "'retirement_year' column in the generation input data should not drop "
+            "units out of a cluster before a case's last planning period, and "
+            "existing capacity replaced with 'region_wind_pv_cap_fn' should match the "
+            "capacity used in the first period. If you believe this check is "
+            "incorrect, please file an issue at "
             "https://github.com/PowerGenome/PowerGenome/issues."
         )
 

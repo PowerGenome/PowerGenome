@@ -1689,7 +1689,7 @@ def test_check_retirement_budget_raises_on_overshoot():
     message = str(excinfo.value)
     assert "'A' must retire 1.0 of Min_Retired_Cap_MW in period 3" in message
     assert "only 0.0 remains of the 1000.0 Existing_Cap_MW" in message
-    assert "retirement_ages" in message
+    assert "retirement_year" in message
 
 
 def test_check_retirement_budget_reports_every_problem_once():

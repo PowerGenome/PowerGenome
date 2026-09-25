@@ -536,10 +536,10 @@ description: Energy storge duration for existing technologies (e.g. pumped hydro
 
 type: dict
 
-description: Keys are EIA technology names, values are the maximum age of a generator that will be included in PowerGenome outputs. Generator age is calculated as the difference between `model_year` and the "operating date" year specified in EIA 860. If you want a capacity expansion model to control all retirements for a technology, set the retirement age to some very high value like 500.
+description: No longer applied. Age-based filtering of existing generators has been removed from PowerGenome; retirements are set by the `retirement_year` column of the generation input data. The setting is accepted but has no effect, and it can be removed from settings files.
 
 **IMPORTANT**
-If you are running a myopic model with multiple planning periods, age-based retirements between planning periods can change the units assigned to each cluster. In this situation the heat rates and O&M of a cluster will change because of the units it contains. Economic retirements of capacity from a cluster may not accurately represent the units that should be retired. To avoid this, set all retirement ages to a large value (e.g. 500).
+If you are running a myopic model with multiple planning periods, retirements that change the units assigned to a cluster between planning periods will change the cluster's heat rates and O&M, and economic retirements of capacity from the cluster may not represent the units that should be retired. Keep the generation data (and any per-period overrides of it) the same across the periods of a case so cluster membership is stable.
 
 PowerGenome writes the capacity expected to retire in each later planning period to the `Min_Retired_Cap_MW`, `Min_Retired_Energy_Cap_MW`, and `Min_Retired_Charge_Cap_MW` columns for each resource, and GenX requires that the retirements summed over the later periods of a case do not exceed `Existing_Cap_MW` in the case's first period. Those values are floored to the precision of the matching capacity column so that rounding cannot push them over that limit, and the run stops with an error naming the resources that still overshoot (or that are missing from the first period) — the cluster membership changes described above are the usual cause.
 
