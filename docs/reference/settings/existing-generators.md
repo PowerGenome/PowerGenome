@@ -318,6 +318,10 @@ generation_table:
     - - [operating_year, '<=', 2030]
 ```
 
+## Retirement in multi-period models
+
+GenX decides when existing capacity retires, so a myopic multi-period model keeps every unit that could still be operating in the last planning period available in its inputs by setting very high [retirement ages](../../explanation/clustering.md#retirement-age-filtering) (e.g. 500). If age-based retirements remove units from a cluster between planning periods, the capacity required to retire in the later periods (`Min_Retired_Cap_MW`) can exceed what the cluster has available in the first period (`Existing_Cap_MW`), and the model is infeasible. PowerGenome floors the retirement requirements to the precision of the matching capacity column and raises an error listing the affected resources if they still overshoot — see [Debugging](../../how-to/debugging.md).
+
 ## Related Settings
 
 - [Model Definition](model-definition.md): Planning years affect retirement calculations

@@ -37,6 +37,7 @@ from powergenome.GenX import (
     add_misc_gen_values,
     cap_retire_within_period,
     check_resource_tags,
+    floor_retirement_requirements,
     hydro_energy_to_power,
     rename_gen_cols,
     round_col_values,
@@ -3996,7 +3997,9 @@ class GeneratorClusters:
                 self.results = pd.merge(
                     self.results, cap_retired, on="Resource", how="left", validate="1:1"
                 )
-                self.results[retire_cols].fillna(0, inplace=True)
+                # Assigning back (rather than ``inplace`` on the column slice) keeps
+                # the zero-fill: the slice is a copy and the fill can be lost there.
+                self.results[retire_cols] = self.results[retire_cols].fillna(0)
             else:
                 self.results[retire_cols] = 0
 
@@ -4198,6 +4201,7 @@ class GeneratorClusters:
                 remove_fuel_gen_scenario_name(self.all_resources, self.settings)
                 .pipe(set_int_cols)
                 .pipe(round_col_values)
+                .pipe(floor_retirement_requirements)
                 .pipe(check_resource_tags)
             )
 

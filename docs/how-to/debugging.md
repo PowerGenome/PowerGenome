@@ -165,6 +165,39 @@ baseline,2040,...
 
 ---
 
+### `ValueError: The minimum retired capacity required in one or more later planning periods is larger than the capacity available in the first period`
+
+**Cause**: A multi-period (multistage) model is asking GenX to retire more of a resource across its later planning periods than the resource has available in the case's first period. GenX compares the `Min_Retired_Cap_MW` columns of `Resource_multistage_data.csv` with `Existing_Cap_MW` from `Generators_data_p1.csv`, and the first period of a case no longer reports capacity that is expected to retire. Usually the clusters themselves changed between planning periods:
+
+- Age-based `retirement_ages` removed some units from a cluster in a later period, so the later period's cluster is no longer a subset of the first period's cluster.
+- `region_wind_pv_cap_fn` (or another table of existing renewable capacity) replaced capacity with values that do not match the first period.
+
+**Fix**: Let the model decide when existing capacity retires, rather than filtering units out of the clusters:
+
+```yaml
+# Set retirement ages high enough that no unit disappears between periods.
+retirement_ages:
+  Conventional Steam Coal: 500
+  Natural Gas Steam Turbine: 500
+  Thermal Solar: 500
+  Natural Gas Reciprocating Internal Combustion Engine: 500
+  Natural Gas Combustion Turbine: 500
+  Fuel Cells: 500
+  Hydroelectric Source: 500
+  Hydroelectric Pumped Storage: 500
+  Nuclear: 500
+  Petroleum: 500
+  Sugar/Wood Waste Biomass: 500
+  Geothermal: 500
+  Municipal Solid Waste: 500
+  Wind: 500
+  Photovoltaic: 500
+```
+
+The error message names each resource that overshoots, how much it must retire, and how much of its first-period capacity is left, so you can compare the two periods' `Generators_data.csv` rows for those resources. If you believe the check itself is wrong, please file an issue at <https://github.com/PowerGenome/PowerGenome/issues>.
+
+---
+
 ### Generator clustering produces unexpected groups
 
 **Cause**: Multiple possible causes — technology name mismatches, incorrect cluster counts, or plants being filtered out.

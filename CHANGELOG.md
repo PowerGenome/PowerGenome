@@ -15,6 +15,12 @@ and this project adheres to Semantic Versioning.
 
 - Settings fingerprints canonicalize set-valued and set-derived list settings (e.g. `generator_columns`) so validation cache keys are stable across Python processes (string hash randomization previously reordered them on every run).
 
+### Fixed
+
+- Multi-period (multistage) runs no longer write retirement requirements that GenX cannot satisfy, which made the model infeasible (`Status: INFEASIBLE` with `MinRetiredCapRequirement` violated by a tiny amount). `Existing_Cap_MW`/`Existing_Cap_MWh` are rounded to one decimal place while `Min_Retired_Cap_MW`/`Min_Retired_Energy_Cap_MW` were rounded to three, so the retirements required across the later periods of a case could add up to slightly more than the capacity available in the first period (e.g. 1000.04 rounding to 1000.0 available against 600.02 + 400.02 = 1000.04 required). Retirement requirements are now floored — never rounded — to the precision GenX uses for the matching capacity column, so the parts can no longer exceed the whole (`powergenome.GenX.floor_retirement_requirements`, applied with the other multi-period transformations).
+- The first planning period of every case now writes zeros for the `Min_Retired_*` columns. It previously tracked the first *iteration* of the year/case loop instead of each case's first period, so with more than one case in a run every case except the first asked GenX to retire capacity that its own first period still needed.
+- Multi-period runs now stop with a descriptive error when a planning period requires retiring more capacity than a resource had available in the case's first period, or requires retiring a resource that is not in the first period at all, instead of leaving the user to debug an infeasible GenX model. `powergenome.GenX.check_retirement_budget` tracks each case's remaining capacity across periods; the message names the offending resources and points at `retirement_ages` and `region_wind_pv_cap_fn`, the usual causes.
+
 ## [0.8.0] - 2026-09-01
 
 ### Added

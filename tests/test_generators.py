@@ -24,7 +24,8 @@ from powergenome.generators import (
     startup_fuel,
     startup_nonfuel_costs,
 )
-from powergenome.settings import Settings
+from powergenome.GenX import check_retirement_budget
+from powergenome.settings import Settings, resolve_settings_to_year
 
 
 def test_startup_fuel():
@@ -734,3 +735,78 @@ class TestGeneratorCluster:
         assert "Max_Cap_MW" in all_gen.columns
         assert "Fuel" in all_gen.columns
         assert "Existing_Cap_MW" in all_gen.columns
+
+
+RETIRED_CAP_COLUMNS = [
+    "Min_Retired_Cap_MW",
+    "Min_Retired_Energy_Cap_MW",
+    "Min_Retired_Charge_Cap_MW",
+]
+
+
+class TestMultiPeriodRetirement:
+    """Retirement requirements written for later planning periods must never
+    outweigh the capacity that GenX sees as available in the first period."""
+
+    SETTINGS_PATH = "tests/test_system/settings"
+
+    def load_settings(self):
+        settings = Settings(config_path=self.SETTINGS_PATH)
+        settings["RESOURCE_GROUPS"] = "tests/test_system/test_data/resource_groups"
+        settings["data_location"] = "tests/test_system/test_data"
+        settings["cache_resource_clusters"] = False
+        settings["use_resource_clusters_cache"] = False
+        initialize_data_manager(settings, settings["data_location"])
+        return settings
+
+    def _gen_data(self, settings, year, include_retired_cap, extra_outputs_path):
+        """Build the generator dataframe for one planning period, the way the
+        multi-period pipeline does."""
+        year_settings = resolve_settings_to_year(settings, year)
+        year_settings["extra_outputs_path"] = extra_outputs_path
+        gc = GeneratorClusters(
+            settings=year_settings,
+            multi_period=True,
+            include_retired_cap=include_retired_cap,
+        )
+        return gc.create_all_generators()
+
+    def test_first_period_writes_no_retirement_requirements(self, tmp_path):
+        settings = self.load_settings()
+        # GenX compares retirement requirements with the capacity available in the
+        # first period, so every case's first period must require nothing to retire
+        # even when another case has already written requirements for later periods.
+        gen_data = self._gen_data(settings, 2030, False, tmp_path)
+        for col in RETIRED_CAP_COLUMNS:
+            assert col in gen_data.columns
+            assert (gen_data[col] == 0).all(), f"{col} is not zero in the first period"
+
+    def test_later_periods_require_retiring_capacity(self, tmp_path):
+        settings = self.load_settings()
+        gen_data = self._gen_data(settings, 2040, True, tmp_path)
+        assert (gen_data["Min_Retired_Cap_MW"] > 0).any()
+
+    def test_requirements_are_floored_to_capacity_precision(self, tmp_path):
+        settings = self.load_settings()
+        gen_data = self._gen_data(settings, 2040, True, tmp_path)
+        for col in RETIRED_CAP_COLUMNS:
+            values = gen_data[col].astype(float)
+            floored = np.floor(np.round(values, 7) * 10) / 10
+            assert np.allclose(values, floored), f"{col} is finer than Existing_Cap_MW"
+
+    def test_requirements_do_not_exceed_first_period_capacity(self, tmp_path):
+        settings = self.load_settings()
+        budget = {}
+        period_1 = self._gen_data(settings, 2030, False, tmp_path)
+        check_retirement_budget(period_1, "test_case", 1, budget)
+
+        later = self._gen_data(settings, 2040, True, tmp_path)
+        # Raises if the later period asks GenX to retire more capacity than the
+        # first period makes available.
+        check_retirement_budget(later, "test_case", 2, budget)
+
+        available = dict(zip(period_1["Resource"], period_1["Existing_Cap_MW"]))
+        required = later.groupby("Resource")["Min_Retired_Cap_MW"].sum()
+        assert (required > 0).any()
+        for resource, total in required.items():
+            assert total <= available[resource] + 1e-6

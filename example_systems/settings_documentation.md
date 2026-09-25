@@ -541,6 +541,8 @@ description: Keys are EIA technology names, values are the maximum age of a gene
 **IMPORTANT**
 If you are running a myopic model with multiple planning periods, age-based retirements between planning periods can change the units assigned to each cluster. In this situation the heat rates and O&M of a cluster will change because of the units it contains. Economic retirements of capacity from a cluster may not accurately represent the units that should be retired. To avoid this, set all retirement ages to a large value (e.g. 500).
 
+PowerGenome writes the capacity expected to retire in each later planning period to the `Min_Retired_Cap_MW`, `Min_Retired_Energy_Cap_MW`, and `Min_Retired_Charge_Cap_MW` columns for each resource, and GenX requires that the retirements summed over the later periods of a case do not exceed `Existing_Cap_MW` in the case's first period. Those values are floored to the precision of the matching capacity column so that rounding cannot push them over that limit, and the run stops with an error naming the resources that still overshoot (or that are missing from the first period) — the cluster membership changes described above are the usual cause.
+
 ## Model tags
 
 ### model_tag_names

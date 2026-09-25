@@ -127,6 +127,8 @@ retirement_ages:
 !!! note "Myopic multi-period models"
     In myopic models, retirement ages are evaluated independently for each planning period. If a generator retires between periods, its cluster membership changes, which can cause inconsistencies. Set retirement ages to `500` (or another high value) and handle retirements through exogenous capacity reduction files instead.
 
+    One inconsistency is fatal: the capacity that a cluster is required to retire in each later period (`Min_Retired_Cap_MW`) is written from the units that a *later* period expects to retire, but GenX compares the total with the capacity the cluster has available in the *first* period (`Existing_Cap_MW`). When units drop out of the cluster between periods those requirements can add up to more than the first period has, and the model is infeasible. PowerGenome floors the requirements to the precision of the matching capacity column and stops with an error naming the resources that still overshoot — see [Debugging](../how-to/debugging.md).
+
 ---
 
 ## Viewing cluster assignments

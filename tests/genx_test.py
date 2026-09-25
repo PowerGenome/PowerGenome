@@ -10,7 +10,11 @@ from powergenome.GenX import (
     RESOURCE_COLUMNS,
     FolderStructure,
     GenXInputData,
+    cap_retire_within_period,
+    check_retirement_budget,
     check_vre_profiles,
+    floor_retirement_requirements,
+    round_col_values,
     create_multistage_df,
     create_policy_df,
     create_resource_df,
@@ -1523,3 +1527,353 @@ def test_process_genx_data_old_format():
 
     assert "None" in genx_data_dict["fuels"].columns
     assert all(genx_data_dict["demand_data"].columns.str.startswith("Load_"))
+
+
+def test_floor_retirement_requirements_floors_to_capacity_precision():
+    """Rounding both sides of the retirement constraint independently can let the
+    parts exceed the whole (issue #491), so requirements are floored."""
+    df = pd.DataFrame(
+        {
+            "Resource": ["Wind_1"] * 3,
+            "Existing_Cap_MW": [1000.04] * 3,
+            "Min_Retired_Cap_MW": [600.02, 400.02, 0.02],
+        }
+    )
+    rounded = round_col_values(df)
+    assert rounded["Existing_Cap_MW"].unique().tolist() == [1000.0]
+    # Rounding each side to its own nearest tenth leaves the requirements totaling
+    # 1000.1 MW against 1000.0 MW available, so GenX has no feasible solution.
+    assert rounded["Min_Retired_Cap_MW"].sum() > rounded["Existing_Cap_MW"].max()
+    floored = floor_retirement_requirements(rounded)
+    assert floored["Min_Retired_Cap_MW"].tolist() == [600.0, 400.0, 0.0]
+    assert floored["Min_Retired_Cap_MW"].sum() <= floored["Existing_Cap_MW"].max()
+
+
+def test_floor_retirement_requirements_preserves_exact_values():
+    df = pd.DataFrame(
+        {
+            "Resource": ["A", "B", "C"],
+            "Min_Retired_Cap_MW": [100.0, 0.0, 5.0],
+        }
+    )
+    out = floor_retirement_requirements(df)
+    assert out["Min_Retired_Cap_MW"].tolist() == [100.0, 0.0, 5.0]
+
+    # Values stored just below an exact multiple only because of float noise keep
+    # the exact value instead of dropping a whole precision step.
+    noisy = pd.DataFrame({"Resource": ["A"], "Min_Retired_Cap_MW": [99.999999999999]})
+    assert floor_retirement_requirements(noisy)["Min_Retired_Cap_MW"][0] == 100.0
+
+
+def test_floor_retirement_requirements_pairs_each_energy_column():
+    df = pd.DataFrame(
+        {
+            "Resource": ["Storage_1", "Storage_1"],
+            "Existing_Cap_MWh": [500.09, 500.09],
+            "Min_Retired_Energy_Cap_MW": [250.09, 250.09],
+        }
+    )
+    out = floor_retirement_requirements(df)
+    assert out["Min_Retired_Energy_Cap_MW"].tolist() == [250.0, 250.0]
+
+
+def test_floor_retirement_requirements_honors_custom_precision():
+    df = pd.DataFrame({"Resource": ["A"], "Min_Retired_Cap_MW": [600.02]})
+    out = floor_retirement_requirements(df, col_round_val={"Existing_Cap_MW": 3})
+    assert out["Min_Retired_Cap_MW"][0] == 600.02
+
+    out = floor_retirement_requirements(
+        pd.DataFrame({"Resource": ["A"], "Min_Retired_Cap_MW": [600.02]}),
+        col_round_val={"Existing_Cap_MW": 0},
+    )
+    assert out["Min_Retired_Cap_MW"][0] == 600.0
+
+
+def test_floor_retirement_requirements_ignores_absent_columns_and_fills_nan():
+    plain = pd.DataFrame({"Resource": ["A"], "Existing_Cap_MW": [1.2345]})
+    assert floor_retirement_requirements(plain).equals(plain)
+
+    with_nan = pd.DataFrame(
+        {"Resource": ["A", "B"], "Min_Retired_Cap_MW": [np.nan, 12.39]}
+    )
+    out = floor_retirement_requirements(with_nan)
+    assert out["Min_Retired_Cap_MW"].tolist() == [0.0, 12.3]
+
+
+def _retire_frame(requirements, capacity=1000.0, cap_col="Existing_Cap_MW"):
+    return pd.DataFrame(
+        {"Resource": list(requirements), cap_col: [capacity] * len(requirements)}
+    )
+
+
+def test_check_retirement_budget_draws_down_across_periods():
+    budget = {}
+    check_retirement_budget(_retire_frame(["A", "B"]), "Inputs", 1, budget)
+    check_retirement_budget(
+        pd.DataFrame(
+            {
+                "Resource": ["A", "B"],
+                "Existing_Cap_MW": [600.0, 400.0],
+                "Min_Retired_Cap_MW": [600.0, 0.0],
+            }
+        ),
+        "Inputs",
+        2,
+        budget,
+    )
+    check_retirement_budget(
+        pd.DataFrame(
+            {
+                "Resource": ["A", "B"],
+                "Existing_Cap_MW": [0.0, 400.0],
+                "Min_Retired_Cap_MW": [400.0, 200.0],
+            }
+        ),
+        "Inputs",
+        3,
+        budget,
+    )
+    assert budget["Inputs"]["A"]["start"]["mw"] == 1000.0
+    assert budget["Inputs"]["A"]["remaining"]["mw"] == 0.0
+    # B is only measured against the period 1 snapshot, so retiring 200 of its
+    # 1000 MW leaves 800 available for later periods.
+    assert budget["Inputs"]["B"]["remaining"]["mw"] == 800.0
+
+
+def test_check_retirement_budget_allows_retiring_the_entire_budget():
+    budget = {}
+    check_retirement_budget(_retire_frame(["A"]), "Inputs", 1, budget)
+    check_retirement_budget(
+        pd.DataFrame(
+            {
+                "Resource": ["A"],
+                "Existing_Cap_MW": [0.0],
+                "Min_Retired_Cap_MW": [1000.0],
+            }
+        ),
+        "Inputs",
+        2,
+        budget,
+    )
+    assert budget["Inputs"]["A"]["remaining"]["mw"] == 0.0
+
+
+def test_check_retirement_budget_raises_on_overshoot():
+    budget = {}
+    check_retirement_budget(_retire_frame(["A"]), "Inputs", 1, budget)
+    check_retirement_budget(
+        pd.DataFrame(
+            {
+                "Resource": ["A"],
+                "Existing_Cap_MW": [0.0],
+                "Min_Retired_Cap_MW": [1000.0],
+            }
+        ),
+        "Inputs",
+        2,
+        budget,
+    )
+    with pytest.raises(ValueError) as excinfo:
+        check_retirement_budget(
+            pd.DataFrame(
+                {
+                    "Resource": ["A"],
+                    "Existing_Cap_MW": [0.0],
+                    "Min_Retired_Cap_MW": [1.0],
+                }
+            ),
+            "Inputs",
+            3,
+            budget,
+        )
+    message = str(excinfo.value)
+    assert "'A' must retire 1.0 of Min_Retired_Cap_MW in period 3" in message
+    assert "only 0.0 remains of the 1000.0 Existing_Cap_MW" in message
+    assert "retirement_ages" in message
+
+
+def test_check_retirement_budget_reports_every_problem_once():
+    budget = {}
+    check_retirement_budget(_retire_frame(["A", "B"]), "Inputs", 1, budget)
+    with pytest.raises(ValueError) as excinfo:
+        check_retirement_budget(
+            pd.DataFrame(
+                {
+                    "Resource": ["A", "B"],
+                    "Existing_Cap_MW": [0.0, 0.0],
+                    "Min_Retired_Cap_MW": [1001.0, 1000.5],
+                }
+            ),
+            "Inputs",
+            2,
+            budget,
+        )
+    message = str(excinfo.value)
+    assert "'A' must retire" in message
+    assert "'B' must retire" in message
+
+
+def test_check_retirement_budget_requires_resources_in_first_period():
+    budget = {}
+    check_retirement_budget(_retire_frame(["A"]), "case1", 1, budget)
+    with pytest.raises(ValueError) as excinfo:
+        check_retirement_budget(
+            pd.DataFrame(
+                {
+                    "Resource": ["NEW_CLUSTER"],
+                    "Existing_Cap_MW": [10.0],
+                    "Min_Retired_Cap_MW": [10.0],
+                }
+            ),
+            "case1",
+            2,
+            budget,
+        )
+    assert "is not one of the resources in period 1 of case case1" in str(excinfo.value)
+
+
+def test_check_retirement_budget_clamps_float_noise():
+    budget = {}
+    check_retirement_budget(_retire_frame(["A"]), "Inputs", 1, budget)
+    check_retirement_budget(
+        pd.DataFrame(
+            {
+                "Resource": ["A"],
+                "Existing_Cap_MW": [0.0],
+                # 600.0000000000001 is what a long sum of capacities can leave behind.
+                "Min_Retired_Cap_MW": [600.0 + 4e-13],
+            }
+        ),
+        "Inputs",
+        2,
+        budget,
+    )
+    check_retirement_budget(
+        pd.DataFrame(
+            {
+                "Resource": ["A"],
+                "Existing_Cap_MW": [0.0],
+                "Min_Retired_Cap_MW": [400.0 - 4e-13],
+            }
+        ),
+        "Inputs",
+        3,
+        budget,
+    )
+    assert budget["Inputs"]["A"]["remaining"]["mw"] == 0.0
+
+
+def test_check_retirement_budget_tracks_cases_separately():
+    budget = {}
+    check_retirement_budget(_retire_frame(["A"]), "case1", 1, budget)
+    check_retirement_budget(_retire_frame(["A"]), "case2", 1, budget)
+    requirement = pd.DataFrame(
+        {"Resource": ["A"], "Existing_Cap_MW": [0.0], "Min_Retired_Cap_MW": [1000.0]}
+    )
+    check_retirement_budget(requirement, "case1", 2, budget)
+    # case2 still has its full budget even though case1 spent all of its own.
+    assert budget["case1"]["A"]["remaining"]["mw"] == 0.0
+    assert budget["case2"]["A"]["remaining"]["mw"] == 1000.0
+
+
+def test_check_retirement_budget_allows_a_frame_without_retirement_columns():
+    """Single-period cases write no Min_Retired columns and must stay untouched."""
+    budget = {}
+    no_retirements = pd.DataFrame({"Resource": ["A"], "Existing_Cap_MW": [100.0]})
+    check_retirement_budget(no_retirements, "Inputs", 1, budget)
+    check_retirement_budget(no_retirements, "Inputs", 2, budget)
+    assert budget["Inputs"]["A"]["remaining"] == budget["Inputs"]["A"]["start"]
+
+
+def test_check_retirement_budget_skips_untraceable_capacity_columns():
+    """Min_Retired_Charge_Cap_MW has no capacity column in PowerGenome output, so a
+    requirement for it cannot be checked and must not raise."""
+    budget = {}
+    charge_only = pd.DataFrame(
+        {
+            "Resource": ["A"],
+            "Min_Retired_Charge_Cap_MW": [50.0],
+        }
+    )
+    check_retirement_budget(charge_only, "Inputs", 1, budget)
+    check_retirement_budget(charge_only, "Inputs", 2, budget)
+    assert np.isinf(budget["Inputs"]["A"]["remaining"]["charge_mw"])
+
+
+def test_check_retirement_budget_warns_when_first_period_is_missing(caplog):
+    budget = {}
+    with caplog.at_level(logging.WARNING):
+        check_retirement_budget(
+            pd.DataFrame(
+                {
+                    "Resource": ["A"],
+                    "Existing_Cap_MW": [100.0],
+                    "Min_Retired_Cap_MW": [10.0],
+                }
+            ),
+            "late_case",
+            3,
+            budget,
+        )
+    assert "late_case is being checked for retirement budgets starting in period 3" in (
+        caplog.text
+    )
+    assert budget["late_case"]["A"]["remaining"]["mw"] == 90.0
+
+
+def test_cap_retire_within_period_sums_units_retiring_in_the_window():
+    gens = pd.DataFrame(
+        {
+            "Resource": ["A", "A", "A", "B"],
+            "retirement_year": [2032, 2035, 2045, 2029],
+            "capacity_mw": [600.02, 400.02, 100.0, 50.0],
+            "capacity_mwh": [0.0, 1200.07, 50.0, 10.0],
+        }
+    )
+    retired = cap_retire_within_period(gens, 2031, 2040, "capacity_mw")
+    assert retired["Resource"].tolist() == ["A"]
+    assert retired["Min_Retired_Cap_MW"].tolist() == [1000.04]
+    assert retired["Min_Retired_Energy_Cap_MW"].tolist() == [1200.07]
+    assert retired["Min_Retired_Charge_Cap_MW"].tolist() == [0]
+
+
+def test_floored_requirements_never_exceed_rounded_capacity():
+    """The invariant GenX needs: the retirement requirements written for later
+    periods can never outweigh the capacity available in the first period."""
+    gens = pd.DataFrame(
+        {
+            "Resource": ["A", "A"],
+            "retirement_year": [2035, 2045],
+            "capacity_mw": [600.02, 400.02],
+            "capacity_mwh": [0.0, 0.0],
+        }
+    )
+    # Both units are still operating in the first planning period.
+    period_1 = round_col_values(
+        pd.DataFrame({"Resource": ["A"], "Existing_Cap_MW": [1000.04]})
+    )
+    assert period_1["Existing_Cap_MW"][0] == 1000.0
+
+    requirements = [
+        cap_retire_within_period(gens, first, last, "capacity_mw")
+        for first, last in ((2031, 2040), (2041, 2050))
+    ]
+    assert sum(r["Min_Retired_Cap_MW"].sum() for r in requirements) == pytest.approx(
+        1000.04
+    )
+
+    # Rounded to the nearest tenth on both sides, the requirements would outweigh
+    # the available capacity and the GenX model would be infeasible.
+    budget = {}
+    check_retirement_budget(period_1, "Inputs", 1, budget)
+    with pytest.raises(ValueError):
+        for period, required in zip((2, 3), requirements):
+            check_retirement_budget(required, "Inputs", period, budget)
+
+    budget = {}
+    check_retirement_budget(period_1, "Inputs", 1, budget)
+    for period, required in zip((2, 3), requirements):
+        check_retirement_budget(
+            floor_retirement_requirements(required), "Inputs", period, budget
+        )
+    assert budget["Inputs"]["A"]["remaining"]["mw"] == 0.0
