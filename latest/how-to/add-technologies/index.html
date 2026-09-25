@@ -3256,15 +3256,23 @@
 <p><strong>Note</strong>: Renewable resource profiles and capacity data come from external datasets (NREL reV, ReEDS). PowerGenome does not generate these profiles—it clusters pre-existing resource sites based on cost and performance characteristics.</p>
 <h2 id="restrict-technology-availability">Restrict Technology Availability<a class="headerlink" href="#restrict-technology-availability" title="Permanent link">&para;</a></h2>
 <h3 id="regional-restrictions">Regional Restrictions<a class="headerlink" href="#regional-restrictions" title="Permanent link">&para;</a></h3>
-<p>Prohibit technologies in specific regions:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">OffShoreWind</span><span class="w">  </span><span class="c1"># No offshore wind in Arizona</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Nuclear</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Coal</span><span class="w">  </span><span class="c1"># No new coal anywhere in California</span>
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Coal</span>
+<div class="admonition warning">
+<p class="admonition-title">Legacy setting — not applied</p>
+<p><code>new_gen_not_available</code> is only validated for region-name consistency; it is <strong>not</strong>
+applied to exclude technologies. <code>new_resources</code> entries are built in <strong>every</strong> model
+region, so a new-build resource cannot be restricted to a subset of regions. Renewable
+resource clusters are scoped per region through <code>renewables_clusters</code> (each entry has
+a <code>region</code> key).</p>
+</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Legacy — not applied in this version</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">OffShoreWind</span><span class="w">  </span><span class="c1"># No offshore wind in Arizona</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Nuclear</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Coal</span><span class="w">  </span><span class="c1"># No new coal anywhere in California</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Coal</span>
 </code></pre></div>
 <h3 id="technology-minimum-load">Technology Minimum Load<a class="headerlink" href="#technology-minimum-load" title="Permanent link">&para;</a></h3>
 <p>Set minimum stable generation level:</p>
@@ -3342,10 +3350,22 @@
 <a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a><span class="w">      </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">14</span>
 </code></pre></div>
 <h3 id="4-set-regional-availability">4. Set Regional Availability<a class="headerlink" href="#4-set-regional-availability" title="Permanent link">&para;</a></h3>
-<p><strong>settings/tech_availability.yml</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Hydrogen</span><span class="w">  </span><span class="c1"># Not available in Arizona (no infrastructure)</span>
+<p><code>new_resources</code> builds each listed technology in <strong>every</strong> model region, so it cannot be
+used to keep a technology out of a single region. Renewable clusters are scoped per region
+through <code>renewables_clusters</code> (each entry specifies a <code>region</code>). The legacy
+<code>new_gen_not_available</code> key is only validated, not applied.</p>
+<p><strong>settings/tech_availability.yml</strong> (renewables scoped per region):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">new_resources</span><span class="p">:</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LandbasedWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CA_N</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">    </span><span class="nt">min_capacity</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25000</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
 </code></pre></div>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="technology-not-appearing">Technology Not Appearing<a class="headerlink" href="#technology-not-appearing" title="Permanent link">&para;</a></h3>
@@ -3355,7 +3375,7 @@
 <li>Technology in <code>new_resources</code>?</li>
 <li>Technology size specified (fourth element in list)?</li>
 <li>Tags defined in <code>model_tag_values</code>?</li>
-<li>Technology restricted in <code>new_gen_not_available</code>?</li>
+<li>Technology omitted from <code>new_resources</code> for the target region?</li>
 </ol>
 <h3 id="renewable-clustering-issues">Renewable Clustering Issues<a class="headerlink" href="#renewable-clustering-issues" title="Permanent link">&para;</a></h3>
 <p><strong>Problem</strong>: No renewable resources in output</p>

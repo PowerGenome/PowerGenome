@@ -2823,9 +2823,15 @@
 <h2 id="technology-specific-regional-settings">Technology-Specific Regional Settings<a class="headerlink" href="#technology-specific-regional-settings" title="Permanent link">&para;</a></h2>
 <h3 id="new_gen_not_available"><code>new_gen_not_available</code><a class="headerlink" href="#new_gen_not_available" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Dictionary (region → list of new-build technologies)
-<strong>Required</strong>: No
-<strong>Example</strong>: See below</p>
-<p>Specifies new-build resources that should NOT be available in certain regions. Useful for policy/physical constraints.</p>
+<strong>Required</strong>: No</p>
+<div class="admonition warning">
+<p class="admonition-title">Legacy setting — not applied</p>
+<p>This key is only checked for region-name consistency during validation and is
+<strong>not</strong> applied to exclude technologies from the model. <code>new_resources</code> is not
+region-scoped, so there is currently no supported way to exclude a new-build
+technology from a subset of regions. Renewable resource clusters are scoped by region
+through <code>renewables_clusters</code>.</p>
+</div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">OffshoreWind_Class1</span><span class="w">  </span><span class="c1"># No offshore wind in AZ</span>
@@ -2927,14 +2933,15 @@
 <a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>
 <a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="nt">cap_res_network_derate_default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.95</span>
 <a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>
-<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
-<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Coal_new</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">OffshoreWind</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Coal_new</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">OffshoreWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Geothermal</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a><span class="w">  </span><span class="nt">NM</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">OffshoreWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Geothermal</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a>
-<a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a><span class="c1"># Timezone</span>
-<a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a><span class="nt">utc_offset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-8</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="c1"># Legacy — only validated, not applied</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Coal_new</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">OffshoreWind</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Coal_new</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">OffshoreWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Geothermal</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a><span class="w">  </span><span class="nt">NM</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">OffshoreWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Geothermal</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-9-25" name="__codelineno-9-25" href="#__codelineno-9-25"></a>
+<a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a><span class="c1"># Timezone</span>
+<a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a><span class="nt">utc_offset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-8</span>
 </code></pre></div>
 <h2 id="related-settings">Related Settings<a class="headerlink" href="#related-settings" title="Permanent link">&para;</a></h2>
 <ul>

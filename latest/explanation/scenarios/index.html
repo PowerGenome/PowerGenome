@@ -2557,9 +2557,13 @@
 <p>PowerGenome distinguishes between two kinds of parameter variation:</p>
 <h3 id="1-planning-year-variation-year-keyed-values">1. Planning-year variation (year-keyed values)<a class="headerlink" href="#1-planning-year-variation-year-keyed-values" title="Permanent link">&para;</a></h3>
 <p>When a parameter naturally varies over time — e.g., capital costs fall as technology matures — you encode this directly in the settings using a year-keyed dictionary:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">atb_cost_case</span><span class="p">:</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">2030</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Moderate</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">2040</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Advanced</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">resource_modifiers</span><span class="p">:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">utilitypv</span><span class="p">:</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">UtilityPV</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Class1</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">      </span><span class="nt">2030</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.9</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">      </span><span class="nt">2040</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.8</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p>No scenario definitions CSV is needed. PowerGenome resolves these automatically for each planning year. See <a href="../../reference/settings/year-keyed-values/">Year-Keyed Values</a> for details.</p>
 <h3 id="2-case-variation-scenario-management">2. Case variation (scenario management)<a class="headerlink" href="#2-case-variation-scenario-management" title="Permanent link">&para;</a></h3>
@@ -2618,16 +2622,19 @@
 </ol>
 <p>The result is an independent, fully resolved settings dictionary for that specific run. Each case's settings do not affect any other case.</p>
 <h3 id="deep-merge-behavior">Deep merge behavior<a class="headerlink" href="#deep-merge-behavior" title="Permanent link">&para;</a></h3>
-<p>Parameter swap dictionaries are deep-merged. This means nested structures like <code>resource_modifiers</code> or <code>new_gen_not_available</code> are updated key-by-key rather than replaced wholesale:</p>
+<p>Parameter swap dictionaries are deep-merged. This means nested structures like <code>resource_modifiers</code> or <code>regional_capacity_reserves</code> are updated key-by-key rather than replaced wholesale:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Base settings</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">resource_modifiers</span><span class="p">:</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">UtilityPV_Class1_Moderate</span><span class="p">:</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1"># Scenario swap: solar_cost = low</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="nt">resource_modifiers</span><span class="p">:</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="nt">UtilityPV_Class1_Moderate</span><span class="p">:</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.8</span><span class="w">   </span><span class="c1"># overrides only capex_mw; other keys are preserved</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">utilitypv</span><span class="p">:</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">UtilityPV</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Class1</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="nt">fixed_o_m_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">500</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># Scenario swap: solar_cost = low</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="nt">resource_modifiers</span><span class="p">:</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span><span class="nt">utilitypv</span><span class="p">:</span><span class="w">          </span><span class="c1"># same short-name key, so it merges with the base entry</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.8</span><span class="p p-Indicator">]</span><span class="w">   </span><span class="c1"># overrides only capex_mw; fixed_o_m_mw is preserved</span>
 </code></pre></div>
 <p>However, <strong>lists are replaced entirely</strong> — not merged. If a swap sets <code>new_resources</code> to a new list, the base <code>new_resources</code> list is discarded.</p>
 <hr />
@@ -2639,7 +2646,11 @@
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">      </span><span class="nt">carbon_tax</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">75</span><span class="w">  </span><span class="c1"># Applied to every 2040 run</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="nt">tech_cost</span><span class="p">:</span>
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="nt">low</span><span class="p">:</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="nt">atb_cost_case</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Advanced</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="nt">resource_modifiers</span><span class="p">:</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">          </span><span class="nt">utilitypv</span><span class="p">:</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">            </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">UtilityPV</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">            </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Class1</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">            </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.9</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <p>This is useful for policy parameters that change year-over-year but don't vary across scenarios.</p>
 <hr />

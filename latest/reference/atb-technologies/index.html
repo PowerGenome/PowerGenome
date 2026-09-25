@@ -3646,7 +3646,10 @@
 <li><strong>Moderate</strong>: Mid-range cost projection (default)</li>
 <li><strong>Advanced</strong>: Low-cost projection with optimistic technology improvements</li>
 </ul>
-<p>These are specified separately in settings (e.g., <code>atb_cost_case: Moderate</code>).</p>
+<p>The cost scenario is selected per resource in the <code>new_resources</code> list, where the third
+element of each entry is the cost case (e.g., <code>Moderate</code>, <code>Advanced</code>, or <code>Conservative</code>).
+It can also be adjusted across all resources with <code>resource_modifiers</code>. There is no
+standalone <code>atb_cost_case</code> setting.</p>
 <hr />
 <h2 id="atb-2024">ATB 2024<a class="headerlink" href="#atb-2024" title="Permanent link">&para;</a></h2>
 <p>NREL's <a href="https://atb.nrel.gov/electricity/2024/technologies">2024 Annual Technology Baseline</a> provides cost and performance data for the following technologies:</p>
@@ -3997,16 +4000,15 @@
 <hr />
 <h2 id="usage-in-settings">Usage in Settings<a class="headerlink" href="#usage-in-settings" title="Permanent link">&para;</a></h2>
 <p>To use ATB technologies in your PowerGenome configuration:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Specify ATB version and cost scenario</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Specify ATB data year</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">atb_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2024</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">atb_cost_case</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Moderate</span><span class="w">  </span><span class="c1"># Conservative, Moderate, or Advanced</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># List available new-build technologies</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nt">atb_new_gen</span><span class="p">:</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">LandbasedWind_Class3_Moderate</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">UtilityPV_Class1_Moderate</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NaturalGas_CCAvgCF_Moderate</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Battery_*_Moderate</span><span class="w">  </span><span class="c1"># Wildcard for all battery durations</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># List available new-build technologies (cost case is the 3rd element)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">new_resources</span><span class="p">:</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LandbasedWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">UtilityPV</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Advanced</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NaturalGas_CCAvgCF_Moderate</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Battery_*_Moderate</span><span class="w">  </span><span class="c1"># Wildcard for all battery durations</span>
 </code></pre></div>
 <p>The format is <code>&lt;technology&gt;_&lt;tech_detail&gt;_&lt;cost_case&gt;</code>.</p>
 <p>See <a href="../../how-to/add-technologies/">Adding Technologies</a> for complete configuration details.</p>

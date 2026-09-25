@@ -2592,21 +2592,21 @@
 <h3 id="3a-existing-generators">3a. Existing generators<a class="headerlink" href="#3a-existing-generators" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Loads the <code>generation</code> table from DataManager</li>
-<li>Filters by model regions, operating year, and retirement age</li>
+<li>Filters by model regions, operating year, and the <code>retirement_year</code> column</li>
 <li>Groups plants by region and technology</li>
 <li>Applies k-means clustering (default: 1 cluster per region/tech group)</li>
 <li>Computes cluster-average heat rates, capacity, and costs</li>
 <li>Appends startup costs from EIA–ATB crosswalk</li>
 </ul>
-<p><strong>Settings that control this step</strong>: <code>num_clusters</code>, <code>alt_num_clusters</code>, <code>retirement_ages</code>, <code>tech_groups</code>, <code>generator_attributes_fn</code></p>
+<p><strong>Settings that control this step</strong>: <code>num_clusters</code>, <code>alt_num_clusters</code>, <code>tech_groups</code>, <code>generator_attributes_fn</code></p>
 <h3 id="3b-new-build-resources">3b. New-build resources<a class="headerlink" href="#3b-new-build-resources" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Reads ATB cost data for each technology listed in <code>new_resources</code></li>
-<li>Applies <code>atb_modifiers</code> and <code>resource_modifiers</code> cost adjustments</li>
+<li>Applies <code>resource_modifiers</code> cost adjustments (and <code>modified_new_resources</code> for renamed variants)</li>
 <li>Adds <code>modified_new_resources</code> (user-defined variants)</li>
-<li>Builds renewable resource clusters from profile data (see <a href="../../how-to/configure-renewable-clusters/">Configure Renewable Clusters</a>)</li>
+<li>Builds renewable resource clusters from <code>renewables_clusters</code> profile data (see <a href="../../how-to/configure-renewable-clusters/">Configure Renewable Clusters</a>)</li>
 </ul>
-<p><strong>Settings that control this step</strong>: <code>new_resources</code>, <code>atb_modifiers</code>, <code>resource_modifiers</code>, <code>renewable_clusters</code></p>
+<p><strong>Settings that control this step</strong>: <code>new_resources</code>, <code>resource_modifiers</code>, <code>modified_new_resources</code>, <code>renewables_clusters</code></p>
 <p><strong>Key outputs</strong>: <code>gen_data</code> DataFrame and <code>gen_variability</code> hourly profiles (one column per resource).</p>
 <hr />
 <h2 id="stage-4-load-profile-construction">Stage 4: Load profile construction<a class="headerlink" href="#stage-4-load-profile-construction" title="Permanent link">&para;</a></h2>

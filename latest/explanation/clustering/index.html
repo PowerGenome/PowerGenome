@@ -2076,10 +2076,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#retirement-age-filtering" class="md-nav__link">
+  <a href="#retirement-filtering" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Retirement age filtering
+        Retirement filtering
       
     </span>
   </a>
@@ -2513,10 +2513,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#retirement-age-filtering" class="md-nav__link">
+  <a href="#retirement-filtering" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Retirement age filtering
+        Retirement filtering
       
     </span>
   </a>
@@ -2625,7 +2625,7 @@
 <p>Generators are first filtered to those that:</p>
 <ul>
 <li>Operate in one of the model regions (after region aggregation)</li>
-<li>Are not yet retired based on their operating year and <code>retirement_ages</code> setting</li>
+<li>Are not yet retired based on their <code>operating_year</code> and <code>retirement_year</code> (from input data)</li>
 </ul>
 <p>They are then grouped by <strong>(model region, technology)</strong> pairs. Each group is clustered independently.</p>
 <h3 id="step-2-k-means-clustering">Step 2: K-means clustering<a class="headerlink" href="#step-2-k-means-clustering" title="Permanent link">&para;</a></h3>
@@ -2706,16 +2706,21 @@
 </code></pre></div>
 <p>This is useful for small fuel types where separating them would create many tiny resources.</p>
 <hr />
-<h2 id="retirement-age-filtering">Retirement age filtering<a class="headerlink" href="#retirement-age-filtering" title="Permanent link">&para;</a></h2>
-<p>Generators are excluded from clustering if their age (current model year minus operating year) exceeds the value in <code>retirement_ages</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">retirement_ages</span><span class="p">:</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">Conventional Steam Coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">Natural Gas Fired Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">55</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">Nuclear</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
-</code></pre></div>
+<h2 id="retirement-filtering">Retirement filtering<a class="headerlink" href="#retirement-filtering" title="Permanent link">&para;</a></h2>
+<p>Existing generators are clustered using every unit operating in the first planning
+period. A unit counts as operating when its <code>operating_year</code> is on or before the period and
+its <code>retirement_year</code> is missing or later than the period's end. Both columns come from the
+generation input data; there is no <code>retirement_ages</code> setting (that code path has been
+removed).</p>
 <div class="admonition note">
 <p class="admonition-title">Myopic multi-period models</p>
-<p>In myopic models, retirement ages are evaluated independently for each planning period. If a generator retires between periods, its cluster membership changes, which can cause inconsistencies. Set retirement ages to <code>500</code> (or another high value) and handle retirements through exogenous capacity reduction files instead.</p>
+<p>Existing generators are clustered <strong>once</strong>, with all units operating in the first
+planning period, so group membership is stable across every period. Retirements
+between periods do not change the clusters; instead, capacity that retires within a
+period is removed from the cluster at that period via <code>Min_Retired_Cap_MW</code> /
+<code>Min_Retired_Energy_Cap_MW</code> (see <code>cap_retire_within_period</code>). Set each unit's
+<code>retirement_year</code> in the generation input data to control when its capacity drops
+out.</p>
 </div>
 <hr />
 <h2 id="viewing-cluster-assignments">Viewing cluster assignments<a class="headerlink" href="#viewing-cluster-assignments" title="Permanent link">&para;</a></h2>
@@ -2723,7 +2728,7 @@
 <hr />
 <h2 id="related-documentation">Related documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../../reference/settings/existing-generators/">Existing Generators Settings</a>: <code>num_clusters</code>, <code>alt_num_clusters</code>, <code>retirement_ages</code>, <code>tech_groups</code></li>
+<li><a href="../../reference/settings/existing-generators/">Existing Generators Settings</a>: <code>num_clusters</code>, <code>alt_num_clusters</code>, <code>tech_groups</code></li>
 <li><a href="../../how-to/add-technologies/">Add Custom Technologies</a>: Adding new-build resources</li>
 <li><a href="../../how-to/modify-generator-attributes/">Modify Generator Attributes</a>: Applying custom formulas to cluster attributes</li>
 <li><a href="../architecture/">Architecture Overview</a>: How clustering fits in the full pipeline</li>

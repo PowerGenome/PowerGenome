@@ -3214,12 +3214,16 @@
 <a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="nt">Inv_Cost_per_MWyr</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.9</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># 10% investment tax credit equivalent</span>
 </code></pre></div>
 <h3 id="regional-technology-restrictions">Regional Technology Restrictions<a class="headerlink" href="#regional-technology-restrictions" title="Permanent link">&para;</a></h3>
-<p>Exclude renewables from specific regions:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">desert_region</span><span class="p">:</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">LandbasedWind_*</span><span class="w">  </span><span class="c1"># No wind (low capacity factors)</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span><span class="nt">mountain_region</span><span class="p">:</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">OffShoreWind_*</span><span class="w">  </span><span class="c1"># No offshore wind (landlocked)</span>
+<p><code>renewables_clusters</code> controls which regions receive <em>clustered</em> renewable resources
+(each entry has a <code>region</code> key). There is currently no supported way to fully exclude a
+renewable from a subset of regions: a technology listed in <code>new_resources</code> is built in
+every region, and the legacy <code>new_gen_not_available</code> key is only validated, not applied.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Legacy — not applied in this version</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span><span class="nt">desert_region</span><span class="p">:</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">LandbasedWind_*</span><span class="w">  </span><span class="c1"># No wind (low capacity factors)</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">  </span><span class="nt">mountain_region</span><span class="p">:</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">OffShoreWind_*</span><span class="w">  </span><span class="c1"># No offshore wind (landlocked)</span>
 </code></pre></div>
 <h2 id="common-issues">Common Issues<a class="headerlink" href="#common-issues" title="Permanent link">&para;</a></h2>
 <h3 id="no-renewable-resources-generated">No Renewable Resources Generated<a class="headerlink" href="#no-renewable-resources-generated" title="Permanent link">&para;</a></h3>

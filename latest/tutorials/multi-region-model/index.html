@@ -3025,15 +3025,22 @@
 <p>Unlike generator and demand configuration, transmission network structure is <strong>not</strong> defined in YAML settings values. The <code>transmission_constraints_table</code> determines which regions are connected.</p>
 </div>
 <h2 id="step-3-regional-technology-availability">Step 3: Regional Technology Availability<a class="headerlink" href="#step-3-regional-technology-availability" title="Permanent link">&para;</a></h2>
-<p>Some technologies may not be available in all regions. Add to <code>settings/resources.yml</code>:</p>
+<div class="admonition note">
+<p class="admonition-title">Per-region new-build availability</p>
+<p>There is currently no supported way to exclude a new-build technology from a subset
+of regions: every technology in <code>new_resources</code> is built in <strong>all</strong> model regions, and
+the legacy <code>new_gen_not_available</code> key is only validated, not applied. Renewable
+resource clusters are scoped per region through <code>renewables_clusters</code>.</p>
+</div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Technologies NOT available in each region</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">northeast</span><span class="p">:</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Coal_*</span><span class="w">  </span><span class="c1"># No new coal</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">south</span><span class="p">:</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">OffShoreWind_*</span><span class="w">  </span><span class="c1"># No offshore wind (not coastal in this aggregation)</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="nt">midwest</span><span class="p">:</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">OffShoreWind_*</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># (legacy — only validated, not applied)</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">northeast</span><span class="p">:</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Coal_*</span><span class="w">  </span><span class="c1"># No new coal</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">south</span><span class="p">:</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">OffShoreWind_*</span><span class="w">  </span><span class="c1"># No offshore wind (not coastal in this aggregation)</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="nt">midwest</span><span class="p">:</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">OffShoreWind_*</span>
 </code></pre></div>
 <p>The <code>*</code> wildcard matches any tech_detail/cost_case combination.</p>
 <h2 id="step-4-regional-cost-adjustments">Step 4: Regional Cost Adjustments<a class="headerlink" href="#step-4-regional-cost-adjustments" title="Permanent link">&para;</a></h2>
@@ -3156,7 +3163,7 @@
 <ul>
 <li><code>model_regions</code> - List of regions in study</li>
 <li><code>region_aggregations</code> - How to combine base regions</li>
-<li><code>new_gen_not_available</code> - Technology restrictions by region</li>
+<li><code>new_gen_not_available</code> - Legacy; only validated, does not restrict availability</li>
 <li><code>cost_multiplier_region_map</code> - Regional cost adjustments</li>
 <li><code>regional_capacity_reserves</code> - Reserve requirements by region</li>
 <li><code>regional_tag_values</code> - Custom tag values by region (see <a href="../../reference/settings/resource-tags/">Resource Tags</a>)</li>

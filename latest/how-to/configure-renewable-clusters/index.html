@@ -3553,8 +3553,8 @@
 </ul>
 <p>Wind/solar “resource group” files generated for projects come with exactly these fields. If you add or reaggregate regions, interconnection costs will need to be recalculated for the new region layout.</p>
 <h2 id="basic-configuration-pattern">Basic Configuration Pattern<a class="headerlink" href="#basic-configuration-pattern" title="Permanent link">&para;</a></h2>
-<p>Renewable clusters are defined in the <code>renewable_clusters</code> section:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<p>Renewable clusters are defined in the <code>renewables_clusters</code> section:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span><span class="w">             </span><span class="c1"># Required: region(s) to include</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span><span class="w">  </span><span class="c1"># Required: technology name</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">...</span><span class="p p-Indicator">]</span><span class="w">          </span><span class="c1"># Optional: exclude sites</span>
@@ -3567,7 +3567,7 @@
 <p><strong>Filters remove sites</strong> that don't meet quality thresholds. If your resource data includes a cost metric like <code>lcoe</code>, <strong>start by filtering on it</strong>.</p>
 <h3 id="why-filter-on-lcoe">Why Filter on LCOE?<a class="headerlink" href="#why-filter-on-lcoe" title="Permanent link">&para;</a></h3>
 <p>LCOE (Levelized Cost of Energy) combines capacity factor and capital costs. Filtering on LCOE ensures you only consider economically viable sites, reducing computational complexity.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
@@ -3592,7 +3592,7 @@
 <h2 id="step-2-add-bins-for-cost-stratification-recommended">Step 2: Add Bins for Cost Stratification (Recommended)<a class="headerlink" href="#step-2-add-bins-for-cost-stratification-recommended" title="Permanent link">&para;</a></h2>
 <p>After filtering, <strong>bin on LCOE</strong> to divide resources into cost tiers. This allows the model to build the cheapest sites first.</p>
 <h3 id="lcoe-binning-example">LCOE Binning Example<a class="headerlink" href="#lcoe-binning-example" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
@@ -3671,7 +3671,7 @@
 <p><strong>Groups divide sites by categorical features</strong> like wind class, county, or interconnection zone.</p>
 <h3 id="wind-class-grouping">Wind Class Grouping<a class="headerlink" href="#wind-class-grouping" title="Permanent link">&para;</a></h3>
 <p>Most common use case - divide by resource quality:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span>
@@ -3684,7 +3684,7 @@
 <p><strong>Result</strong>: Each class gets 2 k-means clusters (e.g., Class 3 → 2 clusters, Class 4 → 2 clusters)</p>
 <h3 id="geographic-grouping">Geographic Grouping<a class="headerlink" href="#geographic-grouping" title="Permanent link">&para;</a></h3>
 <p>Divide by county or zone to respect land availability:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">utilitypv</span>
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span>
@@ -3696,7 +3696,7 @@
 </code></pre></div>
 <h3 id="multiple-groups">Multiple Groups<a class="headerlink" href="#multiple-groups" title="Permanent link">&para;</a></h3>
 <p>Combine categorical features (multiplies cluster count):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
 <a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span>
@@ -3711,7 +3711,7 @@
 <h2 id="step-4-configure-k-means-clustering">Step 4: Configure K-Means Clustering<a class="headerlink" href="#step-4-configure-k-means-clustering" title="Permanent link">&para;</a></h2>
 <p>After grouping/binning, <strong>k-means clusters aggregate similar sites</strong> within each combination.</p>
 <h3 id="basic-clustering">Basic Clustering<a class="headerlink" href="#basic-clustering" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
 <a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
@@ -3769,7 +3769,7 @@
 <li>Reduce <code>n_clusters</code></li>
 <li>Be selective about which regions/technologies to cluster</li>
 </ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
 <a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">class</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">ipm_region</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Could create 3 × 5 = 15 combinations</span>
@@ -3784,7 +3784,7 @@
 <p>Reducing bins/clusters can simplify the model while preserving geographic and cost diversity.</p>
 <h2 id="step-5-modify-costs-by-group">Step 5: Modify Costs by Group<a class="headerlink" href="#step-5-modify-costs-by-group" title="Permanent link">&para;</a></h2>
 <p><strong>Group modifiers adjust costs for specific groups</strong> after clustering (e.g., higher interconnection costs in certain regions).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
 <a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">class</span><span class="p p-Indicator">]</span>
@@ -3868,7 +3868,7 @@
 <p>→ 3 × 20 × 4 × 1 = <strong>240 total clusters</strong> (potentially too many!)</p>
 <h2 id="complete-examples">Complete Examples<a class="headerlink" href="#complete-examples" title="Permanent link">&para;</a></h2>
 <h3 id="example-1-simple-wind-clustering-recommended-starting-point">Example 1: Simple Wind Clustering (Recommended Starting Point)<a class="headerlink" href="#example-1-simple-wind-clustering-recommended-starting-point" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
 <a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">    </span><span class="c1"># Filter to economically viable sites</span>
@@ -3892,7 +3892,7 @@
 </code></pre></div>
 <p><strong>Result</strong>: 4 bins × 2 clusters = <strong>8 wind resource clusters</strong></p>
 <h3 id="example-2-wind-with-class-groups">Example 2: Wind with Class Groups<a class="headerlink" href="#example-2-wind-with-class-groups" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
 <a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
@@ -3922,7 +3922,7 @@
 </code></pre></div>
 <p><strong>Result</strong>: 3 classes × 3 bins × 1 cluster = <strong>9 wind clusters</strong></p>
 <h3 id="example-3-solar-with-geographic-groups">Example 3: Solar with Geographic Groups<a class="headerlink" href="#example-3-solar-with-geographic-groups" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">utilitypv</span>
 <a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
@@ -3953,7 +3953,7 @@
 </code></pre></div>
 <p><strong>Result</strong>: 1 cluster per county (e.g., 25 counties = <strong>25 solar clusters</strong>)</p>
 <h3 id="example-4-offshore-wind-performance-based">Example 4: Offshore Wind (Performance-Based)<a class="headerlink" href="#example-4-offshore-wind-performance-based" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">offshorewind</span>
 <a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
@@ -3975,7 +3975,7 @@
 </code></pre></div>
 <p><strong>Result</strong>: 3 CF bins × 2 clusters = <strong>6 offshore wind clusters</strong></p>
 <h3 id="example-5-complex-multi-region-system">Example 5: Complex Multi-Region System<a class="headerlink" href="#example-5-complex-multi-region-system" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="nt">renewable_clusters</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
 <a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">TX</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">OK</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">KS</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">NM</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Great Plains only</span>
 <a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
 <a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
