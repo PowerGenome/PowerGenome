@@ -82,7 +82,7 @@ Transmission network topology. One row per network line (inter-regional connecti
 | `z<N>` | Zone membership (+1 sending, −1 receiving, 0 not in line) |
 | `Line_Max_Flow_MW` | Maximum power flow in MW |
 | `Line_Loss_Percentage` | Fraction of power lost in transmission |
-| `Line_Max_Reinforcement_MW` | Maximum expansion allowed (if `tx_expansion_per_mw` is set) |
+| `Line_Max_Reinforcement_MW` | Maximum expansion allowed (if `tx_expansion_per_period` or `tx_expansion_mw_per_period` is set) |
 | `Line_Reinforcement_Cost_per_MWyr` | Annualized cost to expand line by 1 MW |
 
 ### `Period_map.csv` and `Representative_Period.csv`

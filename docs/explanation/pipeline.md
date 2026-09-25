@@ -63,22 +63,22 @@ It has two parts that run in sequence:
 ### 3a. Existing generators
 
 - Loads the `generation` table from DataManager
-- Filters by model regions, operating year, and retirement age
+- Filters by model regions, operating year, and the `retirement_year` column
 - Groups plants by region and technology
 - Applies k-means clustering (default: 1 cluster per region/tech group)
 - Computes cluster-average heat rates, capacity, and costs
 - Appends startup costs from EIA–ATB crosswalk
 
-**Settings that control this step**: `num_clusters`, `alt_num_clusters`, `retirement_ages`, `tech_groups`, `generator_attributes_fn`
+**Settings that control this step**: `num_clusters`, `alt_num_clusters`, `tech_groups`, `generator_attributes_fn`
 
 ### 3b. New-build resources
 
 - Reads ATB cost data for each technology listed in `new_resources`
-- Applies `atb_modifiers` and `resource_modifiers` cost adjustments
+- Applies `resource_modifiers` cost adjustments (and `modified_new_resources` for renamed variants)
 - Adds `modified_new_resources` (user-defined variants)
-- Builds renewable resource clusters from profile data (see [Configure Renewable Clusters](../how-to/configure-renewable-clusters.md))
+- Builds renewable resource clusters from `renewables_clusters` profile data (see [Configure Renewable Clusters](../how-to/configure-renewable-clusters.md))
 
-**Settings that control this step**: `new_resources`, `atb_modifiers`, `resource_modifiers`, `renewable_clusters`
+**Settings that control this step**: `new_resources`, `resource_modifiers`, `modified_new_resources`, `renewables_clusters`
 
 **Key outputs**: `gen_data` DataFrame and `gen_variability` hourly profiles (one column per resource).
 

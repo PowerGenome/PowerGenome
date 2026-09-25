@@ -278,15 +278,22 @@ Later files override earlier values:
 **settings/01_base.yml**:
 
 ```yaml
-atb_cost_case: Moderate
-default_growth_rate: 0.01
+resource_modifiers:
+  utilitypv:
+    technology: UtilityPV
+    tech_detail: Class1
+    capex_mw: [mul, 1.0]
+alt_growth_rate:
+  CA_N: 0.01
 ```
 
 **settings/02_overrides.yml**:
 
 ```yaml
-atb_cost_case: Advanced  # Overrides Moderate
-# default_growth_rate: 0.01 remains unchanged
+resource_modifiers:
+  utilitypv:
+    capex_mw: [mul, 0.9]  # Overrides only capex_mw under the utilitypv key
+# alt_growth_rate: 0.01 remains unchanged
 ```
 
 ### List Merging
@@ -429,9 +436,17 @@ PCA_WECC,NaturalGas_CC,1.1
 
 Prohibit technologies in specific regions:
 
+!!! warning "Legacy setting — not applied"
+    `new_gen_not_available` is only validated for region-name consistency; it is **not**
+    applied to exclude technologies. `new_resources` is not region-scoped — each listed
+    technology is built in every region — so there is currently no supported way to
+    exclude a new-build technology from a subset of regions. Renewable clusters are
+    scoped per region through `renewables_clusters`.
+
 **settings/tech_availability.yml**:
 
 ```yaml
+# Legacy — not applied in this version
 new_gen_not_available:
   AZ:
     - OffshoreWind_*  # No offshore wind in Arizona
