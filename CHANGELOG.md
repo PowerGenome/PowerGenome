@@ -15,6 +15,10 @@ and this project adheres to Semantic Versioning.
 
 - Settings fingerprints canonicalize set-valued and set-derived list settings (e.g. `generator_columns`) so validation cache keys are stable across Python processes (string hash randomization previously reordered them on every run).
 
+### Fixed
+
+- Documentation examples corrected to match the actual settings schema. Removed the nonexistent `atb_cost_case`, `default_growth_rate`, `distributed_gen_values`, `max_network_reinforcement_mw`, `tx_expansion_per_mw`, `enforce_constraints`, `retirement_ages`, and `atb_modifiers` settings from the docs, and the nonexistent `--num_workers` and `--filter` CLI flags. Corrected `renewable_clusters` to `renewables_clusters`, documented the `resource_modifiers` short-name + `technology`/`tech_detail` format, the `tx_expansion_per_period`/`tx_expansion_mw_per_period` transmission expansion settings, and the `growth_scenario`/`alt_growth_rate` demand-growth settings. Marked the legacy `new_gen_not_available` setting as validated-only (not applied) and the `new_gen_not_available` region-restriction guidance as ineffective.
+
 ## [0.8.0] - 2026-09-01
 
 ### Added

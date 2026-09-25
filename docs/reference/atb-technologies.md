@@ -13,7 +13,10 @@ Most ATB technologies support three cost scenarios:
 - **Moderate**: Mid-range cost projection (default)
 - **Advanced**: Low-cost projection with optimistic technology improvements
 
-These are specified separately in settings (e.g., `atb_cost_case: Moderate`).
+The cost scenario is selected per resource in the `new_resources` list, where the third
+element of each entry is the cost case (e.g., `Moderate`, `Advanced`, or `Conservative`).
+It can also be adjusted across all resources with `resource_modifiers`. There is no
+standalone `atb_cost_case` setting.
 
 ---
 
@@ -470,14 +473,13 @@ Reported in 2 and 4-hour configurations with separate energy/power costs. Fixed 
 To use ATB technologies in your PowerGenome configuration:
 
 ```yaml
-# Specify ATB version and cost scenario
+# Specify ATB data year
 atb_data_year: 2024
-atb_cost_case: Moderate  # Conservative, Moderate, or Advanced
 
-# List available new-build technologies
-atb_new_gen:
-  - LandbasedWind_Class3_Moderate
-  - UtilityPV_Class1_Moderate
+# List available new-build technologies (cost case is the 3rd element)
+new_resources:
+  - [LandbasedWind, Class3, Moderate, 100]
+  - [UtilityPV, Class1, Advanced, 100]
   - NaturalGas_CCAvgCF_Moderate
   - Battery_*_Moderate  # Wildcard for all battery durations
 ```

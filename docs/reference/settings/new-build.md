@@ -220,9 +220,14 @@ carbon_tax:
 
 **Type**: Dictionary (region → list of technologies)
 **Required**: No
-**Example**: See below
 
-Exclude specific new-build technologies from certain regions.
+!!! warning "Legacy setting — not applied"
+    This key is only checked for region-name consistency during validation and is
+    **not** applied to exclude technologies from the model. `new_resources` is not
+    region-scoped: every technology in it is built in **all** model regions, so there is
+    currently no supported way to exclude a new-build technology from a subset of regions.
+    To remove a technology entirely, omit it from `new_resources`. Renewable resource
+    clusters are scoped by region through `renewables_clusters`.
 
 ```yaml
 new_gen_not_available:
@@ -566,7 +571,7 @@ resource_modifiers:
     tech_detail: "*"
     Var_OM_Cost_per_MWh: [add, 0.15]
 
-# Regional restrictions
+# Regional restrictions (legacy — only validated, not applied)
 new_gen_not_available:
   AZ:
     - OffshoreWind_Class1_Moderate
@@ -580,12 +585,20 @@ new_build_max_capacity:
     UtilityPV_Class1_Moderate: 10000
 
 # Renewable sites
-renewable_clusters:
+renewables_clusters:
   - region: CA_N
-    technology: LandbasedWind
-    cluster: 1
-    max_capacity: 2000
-    profile_id: CA_N_wind_class3
+    technology: landbasedwind
+    filter:
+      - feature: lcoe_interconnect_adj
+        max: 60
+    bin:
+      - feature: lcoe_interconnect_adj
+        weights: capacity_mw
+        mw_per_bin: 10000
+    cluster:
+      - feature: cf
+        n_clusters: 2
+        method: agg
 
 RESOURCE_GROUP_PROFILES: /data/nrel_profiles
 ```
