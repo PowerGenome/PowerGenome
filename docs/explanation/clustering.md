@@ -116,11 +116,12 @@ This is useful for small fuel types where separating them would create many tiny
 ## Retirement filtering
 
 Existing generators are clustered using every unit operating in the first planning
-period. A unit counts as operating when its `operating_year` is on or before the period and
-it has no planned retirement — either `retirement_year` is blank or the column is
-missing entirely — or its `retirement_year` is later than the period's end. Both
-columns come from the generation input data; there is no `retirement_ages` setting
-(that code path has been removed).
+period. A unit counts as operating when its `operating_year` is on or before the
+period **and** it is still in service at the end of the period — either its
+`retirement_year` is later than the period's end, or it has no planned retirement (a
+blank value, or no `retirement_year` column at all). Both columns come from the
+generation input data; there is no `retirement_ages` setting (that code path has been
+removed).
 
 A blank `retirement_year` means "no retirement on file", which is how EIA-860 and
 PUDL report the majority of units, so those units stay in the model for every period
