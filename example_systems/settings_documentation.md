@@ -451,6 +451,12 @@ PowerGenome is set up to cluster existing generating units within regions. These
 
 In addition to clustering units within a technology, users can group several technologies together. This is most useful to combine several technologies with only a few units and little capacity.
 
+**IMPORTANT: retirements and multi-period runs.** Retirement timing comes from the `retirement_year` column of the generation input data; age-based retirement settings are no longer part of PowerGenome. Every unit needs a `retirement_year`, using a far-future value for units expected to keep operating — a blank value leaves the unit neither operating nor retired, so it is excluded from the clusters.
+
+If you are running a myopic model with multiple planning periods, retirements that change the units assigned to a cluster between planning periods will change the cluster's heat rates and O&M, and economic retirements of capacity from the cluster may not represent the units that should be retired. Keep the generation data (and any per-period overrides of it) the same across the periods of a case so cluster membership is stable.
+
+PowerGenome writes the capacity expected to retire in each later planning period to the `Min_Retired_Cap_MW`, `Min_Retired_Energy_Cap_MW`, and `Min_Retired_Charge_Cap_MW` columns for each resource, and GenX requires that the retirements summed over the later periods of a case do not exceed `Existing_Cap_MW` in the case's first period. Those values are floored to the precision of the matching capacity column so that rounding cannot push them over that limit, and the run stops with an error naming the resources that still overshoot (or that are missing from the first period) — the cluster membership changes described above are the usual cause.
+
 ### cluster_method
 
 type: str
@@ -531,17 +537,6 @@ description: If calculated capacity factors should be used to derate the total c
 type: Dict[str, float]
 
 description: Energy storge duration for existing technologies (e.g. pumped hydro). Keys are the technology name, values are the length of storage duration in hours.
-
-### retirement_ages
-
-type: dict
-
-description: No longer applied. Age-based filtering of existing generators has been removed from PowerGenome; retirements are set by the `retirement_year` column of the generation input data. The setting is accepted but has no effect, and it can be removed from settings files.
-
-**IMPORTANT**
-If you are running a myopic model with multiple planning periods, retirements that change the units assigned to a cluster between planning periods will change the cluster's heat rates and O&M, and economic retirements of capacity from the cluster may not represent the units that should be retired. Keep the generation data (and any per-period overrides of it) the same across the periods of a case so cluster membership is stable.
-
-PowerGenome writes the capacity expected to retire in each later planning period to the `Min_Retired_Cap_MW`, `Min_Retired_Energy_Cap_MW`, and `Min_Retired_Charge_Cap_MW` columns for each resource, and GenX requires that the retirements summed over the later periods of a case do not exceed `Existing_Cap_MW` in the case's first period. Those values are floored to the precision of the matching capacity column so that rounding cannot push them over that limit, and the run stops with an error naming the resources that still overshoot (or that are missing from the first period) — the cluster membership changes described above are the usual cause.
 
 ## Model tags
 

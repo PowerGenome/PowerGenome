@@ -13,7 +13,7 @@ and this project adheres to Semantic Versioning.
 
 ### Changed
 
-- Retirement guidance in the docs and in the multi-period retirement error now points at the `retirement_year` column of the generation input data, which is what controls existing-generator retirements. The `retirement_ages` setting has no live code path (the age filtering it drove was removed), so its entry in `example_systems/settings_documentation.md` is marked as accepted but not applied.
+- Retirement guidance in the docs and in the multi-period retirement error now points at the `retirement_year` column of the generation input data, which is what controls existing-generator retirements. The age-based retirement settings `retirement_ages`, `additional_retirements`, and `cluster_with_retired_gens` have no live code path — the `label_retirement_year` function that read them was removed some time ago — so they are dropped from the example systems, the test settings, and `example_systems/settings_documentation.md`, together with the commented-out remains of that function. Set `retirement_year` in the generation input data instead; a blank value counts as neither operating nor retired (so the unit is excluded), meaning every unit needs a retirement year, with a far-future value for units expected to keep operating.
 - Settings fingerprints canonicalize set-valued and set-derived list settings (e.g. `generator_columns`) so validation cache keys are stable across Python processes (string hash randomization previously reordered them on every run).
 
 ### Fixed

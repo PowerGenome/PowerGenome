@@ -117,9 +117,11 @@ This is useful for small fuel types where separating them would create many tiny
 
 Existing generators are clustered using every unit operating in the first planning
 period. A unit counts as operating when its `operating_year` is on or before the period and
-its `retirement_year` is missing or later than the period's end. Both columns come from the
+its `retirement_year` is later than the period's end. Both columns come from the
 generation input data; there is no `retirement_ages` setting (that code path has been
-removed).
+removed). A blank `retirement_year` satisfies neither test, so the unit is counted as
+neither operating nor retired and drops out of the clusters — give every unit a
+retirement year and use a far-future value for units expected to keep operating.
 
 !!! note "Myopic multi-period models"
     Existing generators are clustered **once**, with all units operating in the first
