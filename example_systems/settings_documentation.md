@@ -451,7 +451,7 @@ PowerGenome is set up to cluster existing generating units within regions. These
 
 In addition to clustering units within a technology, users can group several technologies together. This is most useful to combine several technologies with only a few units and little capacity.
 
-**IMPORTANT: retirements and multi-period runs.** Retirement timing comes from the `retirement_year` column of the generation input data; age-based retirement settings are no longer part of PowerGenome. Every unit needs a `retirement_year`, using a far-future value for units expected to keep operating — a blank value leaves the unit neither operating nor retired, so it is excluded from the clusters.
+**IMPORTANT: retirements and multi-period runs.** Retirement timing comes from the `retirement_year` column of the generation input data; age-based retirement settings are no longer part of PowerGenome. A blank `retirement_year` (or a missing column) means the unit has no planned retirement, so it operates through every period of the model and its capacity is never required to retire — which matches how EIA-860 and PUDL report most units. Set a real year on each unit whose capacity should leave service.
 
 If you are running a myopic model with multiple planning periods, retirements that change the units assigned to a cluster between planning periods will change the cluster's heat rates and O&M, and economic retirements of capacity from the cluster may not represent the units that should be retired. Keep the generation data (and any per-period overrides of it) the same across the periods of a case so cluster membership is stable.
 
