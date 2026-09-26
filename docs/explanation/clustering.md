@@ -116,10 +116,17 @@ This is useful for small fuel types where separating them would create many tiny
 ## Retirement filtering
 
 Existing generators are clustered using every unit operating in the first planning
-period. A unit counts as operating when its `operating_year` is on or before the period and
-its `retirement_year` is missing or later than the period's end. Both columns come from the
+period. A unit counts as operating when its `operating_year` is on or before the
+period **and** it is still in service at the end of the period — either its
+`retirement_year` is later than the period's end, or it has no planned retirement (a
+blank value, or no `retirement_year` column at all). Both columns come from the
 generation input data; there is no `retirement_ages` setting (that code path has been
 removed).
+
+A blank `retirement_year` means "no retirement on file", which is how EIA-860 and
+PUDL report the majority of units, so those units stay in the model for every period
+and are never written to `Min_Retired_Cap_MW`. Set a real year on any unit whose
+capacity should leave service.
 
 !!! note "Myopic multi-period models"
     Existing generators are clustered **once**, with all units operating in the first
@@ -129,6 +136,8 @@ removed).
     `Min_Retired_Energy_Cap_MW` (see `cap_retire_within_period`). Set each unit's
     `retirement_year` in the generation input data to control when its capacity drops
     out.
+
+    One inconsistency is fatal: the capacity that a cluster is required to retire in each later period (`Min_Retired_Cap_MW`) is written from the units that a *later* period expects to retire, but GenX compares the total with the capacity the cluster has available in the *first* period (`Existing_Cap_MW`). When units drop out of the cluster between periods those requirements can add up to more than the first period has, and the model is infeasible. PowerGenome floors the requirements to the precision of the matching capacity column and stops with an error naming the resources that still overshoot — see [Debugging](../how-to/debugging.md).
 
 ---
 

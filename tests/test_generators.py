@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -24,7 +26,8 @@ from powergenome.generators import (
     startup_fuel,
     startup_nonfuel_costs,
 )
-from powergenome.settings import Settings
+from powergenome.GenX import check_retirement_budget
+from powergenome.settings import Settings, resolve_settings_to_year
 
 
 def test_startup_fuel():
@@ -501,10 +504,76 @@ def test_fill_num_regional_clusters():
     assert out["R1"]["b"] == 3 and out["R2"]["b"] == 5
 
 
+def _retirement_year_fixture():
+    """Five units covering every retirement_year case: retiring after the period,
+    no planned retirement (blank), retired before the period, retired within the
+    period, and a blank retirement year with no operating year."""
+    return pd.DataFrame(
+        {
+            "plant_id": [1, 2, 3, 4, 5],
+            "generator_id": ["A", "B", "C", "D", "E"],
+            "capacity_mw": [100.0, 200.0, 300.0, 400.0, 500.0],
+            "capacity_mwh": [0.0] * 5,
+            "operating_year": [2000, 2001, 2002, np.nan, 2010],
+            "retirement_year": [2050, np.nan, 2020, np.nan, 2028],
+            "heat_rate_mmbtu_mwh": [8.0, 9.0, 10.0, 11.0, 12.0],
+            "fom_per_mwyr": [50, 60, 70, 80, 90],
+            "vom_per_mwh": [0.0] * 5,
+            "cluster": [1] * 5,
+            "Resource": ["region_tech_1"] * 5,
+        }
+    )
+
+
 def test_label_retired_gens():
     df = pd.DataFrame({"operating_year": [2000, 2010], "retirement_year": [2025, 2015]})
     out = label_retired_gens(df.copy(), 2010, 2020)
     assert "operating" in out.columns and "period_retired" in out.columns
+    # retiring after the period end keeps the unit operating; retiring inside the
+    # period marks it retired and drops it from the operating set
+    assert list(out["operating"]) == [True, False]
+    assert list(out["period_retired"]) == [False, True]
+
+
+def test_label_retired_gens_blank_retirement_year_stays_operating():
+    """A blank ``retirement_year`` means no planned retirement, not "drop the unit"."""
+    out = label_retired_gens(_retirement_year_fixture(), start_year=2025, end_year=2030)
+
+    # plant 3 retired in 2020, before the period; plant 5 retires within it
+    assert list(out["operating"]) == [True, True, False, True, False]
+    assert list(out["period_retired"]) == [False, False, False, False, True]
+    # the blank values are left alone rather than filled with a sentinel year
+    assert out.loc[out["plant_id"].isin([2, 4]), "retirement_year"].isna().all()
+
+
+def test_blank_retirement_year_capacity_is_not_lost():
+    """Regression test for units silently disappearing from ``Existing_Cap_MW``."""
+    out = label_retired_gens(_retirement_year_fixture(), start_year=2025, end_year=2030)
+    rollup = calc_unit_cluster_values(out, "capacity_mw")
+
+    # 1,500 MW across the five units, minus the 300 MW retired before the period
+    # and the 500 MW retired within it
+    assert rollup["capacity_mw"].sum() == 700
+    assert rollup["num_units"].sum() == 3
+
+
+def test_label_retired_gens_without_retirement_year_column(caplog):
+    caplog.set_level(logging.INFO)
+    df = _retirement_year_fixture().drop(columns=["retirement_year"])
+    out = label_retired_gens(df, start_year=2025, end_year=2030)
+
+    assert out["operating"].all()
+    assert not out["period_retired"].any()
+    # the column is added as blanks so downstream retirement queries still work
+    assert out["retirement_year"].isna().all()
+    assert "no 'retirement_year' column" in caplog.text
+
+
+def test_label_retired_gens_reports_blanks(caplog):
+    caplog.set_level(logging.INFO)
+    label_retired_gens(_retirement_year_fixture(), start_year=2025, end_year=2030)
+
+    assert "have no 'retirement_year'" in caplog.text
 
 
 def test_create_resource_label():
@@ -734,3 +803,78 @@ class TestGeneratorCluster:
         assert "Max_Cap_MW" in all_gen.columns
         assert "Fuel" in all_gen.columns
         assert "Existing_Cap_MW" in all_gen.columns
+
+
+RETIRED_CAP_COLUMNS = [
+    "Min_Retired_Cap_MW",
+    "Min_Retired_Energy_Cap_MW",
+    "Min_Retired_Charge_Cap_MW",
+]
+
+
+class TestMultiPeriodRetirement:
+    """Retirement requirements written for later planning periods must never
+    outweigh the capacity that GenX sees as available in the first period."""
+
+    SETTINGS_PATH = "tests/test_system/settings"
+
+    def load_settings(self):
+        settings = Settings(config_path=self.SETTINGS_PATH)
+        settings["RESOURCE_GROUPS"] = "tests/test_system/test_data/resource_groups"
+        settings["data_location"] = "tests/test_system/test_data"
+        settings["cache_resource_clusters"] = False
+        settings["use_resource_clusters_cache"] = False
+        initialize_data_manager(settings, settings["data_location"])
+        return settings
+
+    def _gen_data(self, settings, year, include_retired_cap, extra_outputs_path):
+        """Build the generator dataframe for one planning period, the way the
+        multi-period pipeline does."""
+        year_settings = resolve_settings_to_year(settings, year)
+        year_settings["extra_outputs_path"] = extra_outputs_path
+        gc = GeneratorClusters(
+            settings=year_settings,
+            multi_period=True,
+            include_retired_cap=include_retired_cap,
+        )
+        return gc.create_all_generators()
+
+    def test_first_period_writes_no_retirement_requirements(self, tmp_path):
+        settings = self.load_settings()
+        # GenX compares retirement requirements with the capacity available in the
+        # first period, so every case's first period must require nothing to retire
+        # even when another case has already written requirements for later periods.
+        gen_data = self._gen_data(settings, 2030, False, tmp_path)
+        for col in RETIRED_CAP_COLUMNS:
+            assert col in gen_data.columns
+            assert (gen_data[col] == 0).all(), f"{col} is not zero in the first period"
+
+    def test_later_periods_require_retiring_capacity(self, tmp_path):
+        settings = self.load_settings()
+        gen_data = self._gen_data(settings, 2040, True, tmp_path)
+        assert (gen_data["Min_Retired_Cap_MW"] > 0).any()
+
+    def test_requirements_are_floored_to_capacity_precision(self, tmp_path):
+        settings = self.load_settings()
+        gen_data = self._gen_data(settings, 2040, True, tmp_path)
+        for col in RETIRED_CAP_COLUMNS:
+            values = gen_data[col].astype(float)
+            floored = np.floor(np.round(values, 7) * 10) / 10
+            assert np.allclose(values, floored), f"{col} is finer than Existing_Cap_MW"
+
+    def test_requirements_do_not_exceed_first_period_capacity(self, tmp_path):
+        settings = self.load_settings()
+        budget = {}
+        period_1 = self._gen_data(settings, 2030, False, tmp_path)
+        check_retirement_budget(period_1, "test_case", 1, budget)
+
+        later = self._gen_data(settings, 2040, True, tmp_path)
+        # Raises if the later period asks GenX to retire more capacity than the
+        # first period makes available.
+        check_retirement_budget(later, "test_case", 2, budget)
+
+        available = dict(zip(period_1["Resource"], period_1["Existing_Cap_MW"]))
+        required = later.groupby("Resource")["Min_Retired_Cap_MW"].sum()
+        assert (required > 0).any()
+        for resource, total in required.items():
+            assert total <= available[resource] + 1e-6

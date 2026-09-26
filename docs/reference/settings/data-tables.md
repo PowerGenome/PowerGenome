@@ -153,7 +153,7 @@ PowerGenome expects certain table names for core data:
 
 - `heat_rate_mmbtu_mwh`: Thermal efficiency
 - `operating_year`: Year plant started
-- `retirement_year`: Planned retirement
+- `retirement_year`: Year the unit leaves service; blank means no planned retirement, so the unit operates through the whole model horizon
 - `fixed_o_m_mw`: Fixed O&M costs
 - `variable_o_m_mwh`: Variable O&M costs
 - `minimum_load_mw`: Minimum stable operation

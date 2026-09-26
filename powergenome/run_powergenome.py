@@ -20,6 +20,7 @@ from powergenome.fuels import fuel_cost_table
 from powergenome.generators import GeneratorClusters
 from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; check_resource_tags,; fix_min_power_values,; hydro_energy_to_power,; set_must_run_generation,
     add_cap_res_network,
+    check_retirement_budget,
     check_vre_profiles,
     create_policy_req,
     create_regional_cap_res,
@@ -417,7 +418,10 @@ def main(**kwargs):
         scenario_settings = build_scenario_settings(settings, scenario_definitions)
 
     model_regions_gdf = None
-    first_year = True
+    # Retirement budgets are tracked per case across planning periods so that the
+    # cumulative Min_Retired_* requirements can be checked against the capacity
+    # available in each case's first period.
+    retirement_budgets: dict = {}
     # Macro cases are written one per case (not per period), with each planning
     # period becoming a stage. Because the loop below iterates years first, the
     # stages of a given case are not contiguous, so buffer them here and
@@ -457,14 +461,22 @@ def main(**kwargs):
                     logger.info(f"\n\nStarting year {year}\n\n")
 
                 case_year_data = {}
+                case_period = scenario_settings_obj["case_period"]
                 if args.gens:
                     gc = GeneratorClusters(
                         current_gens=args.current_gens,
                         sort_gens=args.sort_gens,
                         multi_period=args.multi_period,
-                        include_retired_cap=first_year is False,
+                        # Only periods after the first one retire capacity that a
+                        # previous period made available. The flag used to track the
+                        # first *iteration* of this loop, which is not the first
+                        # period of each case when scenario definitions are used.
+                        include_retired_cap=case_period > 1,
                     )
                     gen_data = gc.create_all_generators()
+                    check_retirement_budget(
+                        gen_data, case_id, case_period, retirement_budgets
+                    )
                     gen_data["Zone"] = gen_data["region"].map(
                         scenario_settings_obj["zone_num_map"]
                     )
@@ -622,7 +634,6 @@ def main(**kwargs):
                     folder=case_folder,
                     file_name="powergenome_case_settings.yml",
                 )
-                first_year = False
 
     # Finalize buffered Macro cases (writes per-stage files and the shared
     # case-level system_data.json / case_settings.json).

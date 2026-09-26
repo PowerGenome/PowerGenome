@@ -39,7 +39,7 @@ Contains one row per generator unit. Matched to model regions via the `plant_reg
 | `capacity_mw` | float | Yes | Nameplate capacity in MW |
 | `capacity_mwh` | float | No | Storage energy capacity in MWh; leave blank for non-storage |
 | `operating_year` | integer | Yes | Year plant came online; used to calculate age |
-| `retirement_year` | integer | No | Scheduled retirement year; takes precedence over age-based retirement |
+| `retirement_year` | integer | No | Year the unit leaves service; controls retirement in `Min_Retired_*_Cap_MW`. A blank value (or a missing column) means the unit has no planned retirement, so it operates through the whole horizon — most EIA-860/PUDL units are blank |
 | `historical_capacity_factor` | float | No | Used to impute missing heat-rate data |
 | `heat_rate_mmbtu_mwh` | float | No | Average heat rate; required for thermal generators |
 | `vom_per_mwh` | float | No | Variable O&M cost ($/MWh) |

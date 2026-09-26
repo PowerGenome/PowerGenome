@@ -71,7 +71,7 @@ The storage duration for hydroelectric pumped storage is entered in the more gen
 
 PowerGenome uses annual EIA data for information on existing generators, which can be out of date in some cases. EIA 860m (monthly) data can be used to identify recently announced retirements and newly proposed generators. The version of 860m is specified using `eia_860m_fn`. Only proposed plants with status codes listed under `proposed_status_included` with be added to existing generators. The heat rate and minimum load for proposed technologies can be listed under `proposed_gen_heat_rates` and `proposed_min_load`.
 
-If a user knows of unit retirements that are not listed in EIA 860 or 860m they can be listed under `additional_retirements`.
+Retirement timing comes from the `retirement_year` column of the generation input data, so to retire a unit that EIA 860/860m does not list as retiring, set that column in the data used for `generation`. Age-based retirement settings such as `retirement_ages` and `additional_retirements` are no longer part of PowerGenome.
 
 
 #### Mapping existing and new technologies

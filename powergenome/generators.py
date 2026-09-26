@@ -37,6 +37,7 @@ from powergenome.GenX import (
     add_misc_gen_values,
     cap_retire_within_period,
     check_resource_tags,
+    floor_retirement_requirements,
     hydro_energy_to_power,
     rename_gen_cols,
     round_col_values,
@@ -483,113 +484,6 @@ def group_technologies(
 #     )
 
 #     return model_region_map_df
-
-
-# def label_retirement_year(
-#     df: pd.DataFrame,
-#     model_year: int,
-#     capacity_col: str = "capacity_mw",
-#     retirement_ages: Dict[str, int] = None,
-#     additional_retirements: List[Tuple[str, str, int]] = None,
-#     age_col: str = "operating_date",
-# ):
-#     """
-#     Add a retirement year column to the dataframe based on the year each generator
-#     started operating.
-
-#     Parameters
-#     ----------
-#     df : dataframe
-#         Dataframe of generators
-#     model_year : int
-#         The model year, used to check how much capacity will have retired
-#     capacity_col : str, optional
-#         The dataframe column to use when calculating unit capacity, by default
-#         "capacity_mw"
-#     age_col : str, optional
-#         The dataframe column to use when calculating the retirement year, by default
-#         "operating_date"
-#     retirement_ages : Dict[str, int], optional
-#         The age at which different technologies will retire, by default None. If no
-#         values are given, technology retirement ages are set to 500 years.
-#     additional_retirements : List[Tuple[str, str, int]], optional
-#         A list of tuples with plant, generator, and a new retirement year to use, by
-#         default None.
-#     """
-#     if age_col not in df.columns:
-#         age_col = age_col.replace("operating_date", "generator_operating_date")
-#     if age_col not in df.columns:
-#         return df
-#     start_len = len(df)
-#     retirement_ages = retirement_ages or {}
-#     if "retirement_year" not in df.columns:
-#         df["retirement_year"] = np.nan
-
-#     df["retirement_age"] = df["technology_description"].map(retirement_ages).fillna(500)
-#     try:
-#         df.loc[df["retirement_year"].isna(), "retirement_year"] = (
-#             df.loc[df["retirement_year"].isna(), age_col].dt.year
-#             + df.loc[df["retirement_year"].isna(), "retirement_age"]
-#         )
-#     except AttributeError:
-#         df.loc[df["retirement_year"].isna(), "retirement_year"] = (
-#             df.loc[df["retirement_year"].isna(), age_col]
-#             + df.loc[df["retirement_year"].isna(), "retirement_age"]
-#         )
-
-#     try:
-#         df.loc[~df["planned_retirement_date"].isnull(), "retirement_year"] = df.loc[
-#             ~df["planned_retirement_date"].isnull(), "planned_retirement_date"
-#         ].dt.year
-#     except KeyError:
-#         pass
-
-#     # Add additonal retirements from settings file
-#     if additional_retirements:
-#         logger.debug("Changing retirement dates based on settings file")
-#         start_ret_cap = df.loc[df["retirement_year"] <= model_year, capacity_col].sum()
-#         logger.debug(f"Starting retirement capacity is {start_ret_cap} MW")
-#         i = 0
-#         ret_cap = 0
-#         for record in additional_retirements:
-#             plant_id, gen_id, ret_year = record
-#             # gen ids are strings, not integers
-#             gen_id = str(gen_id)
-
-#             df.loc[
-#                 (df["plant_id_eia"] == plant_id) & (df["generator_id"] == gen_id),
-#                 "retirement_year",
-#             ] = ret_year
-
-#             i += 1
-#             ret_cap += df.loc[
-#                 (df["plant_id_eia"] == plant_id) & (df["generator_id"] == gen_id),
-#                 capacity_col,
-#             ].sum()
-
-#         end_ret_cap = df.loc[df["retirement_year"] <= model_year, capacity_col].sum()
-#         logger.debug(f"Ending retirement capacity is {end_ret_cap} MW")
-#         if not end_ret_cap > start_ret_cap:
-#             logger.debug(
-#                 "Adding retirements from settings didn't change the retiring capacity."
-#             )
-#         if end_ret_cap - start_ret_cap != ret_cap:
-#             logger.debug(
-#                 f"Retirement diff is {end_ret_cap - start_ret_cap}, adding retirements "
-#                 f"yields {ret_cap} MW"
-#             )
-#         logger.debug(
-#             f"The retirement year for {i} plants, totaling {ret_cap} MW, was changed "
-#             "based on settings file parameters"
-#         )
-#     else:
-#         logger.debug("No retirement dates changed based on the settings file")
-
-#     end_len = len(df)
-
-#     assert start_len == end_len
-
-#     return df
 
 
 def label_small_hydro(df, settings, by=["plant_id_eia"]):
@@ -3319,11 +3213,17 @@ def label_retired_gens(
     Flag generators as operating or retired within a specified period. Missing
     "operating_year" values will be filled with 1900.
 
+    A missing "retirement_year" means the unit has no planned retirement (which is
+    the case for most units in EIA-860 and PUDL extracts), so it is treated as
+    operating past the end of the period. The value is left as-is rather than filled
+    with a sentinel so that downstream retirement queries keep reporting "never".
+
     Parameters
     ----------
     gen_df : pandas.DataFrame
-        DataFrame of generator data. Must contain columns
-        'operating_year' and 'retirement_year'.
+        DataFrame of generator data. Must contain an 'operating_year' column and
+        should contain 'retirement_year'; a missing or blank 'retirement_year' is
+        read as "no planned retirement".
     start_year : int
         Start of the retirement period (inclusive).
     end_year : int
@@ -3336,8 +3236,8 @@ def label_retired_gens(
         The same DataFrame, augmented with two boolean columns:
 
         - operating
-            True for generators operating at end_year, i.e.
-            retirement_year > end_year and operating_year ≤ end_year.
+            True for generators operating at end_year, i.e. they have no planned
+            retirement or retirement_year > end_year, and operating_year ≤ end_year.
         - period_retired
             True for generators that retired during the period
             [start_year, end_year], i.e. retirement_year ≥ start_year
@@ -3349,13 +3249,44 @@ def label_retired_gens(
     # Fill missing operating year with 1900
     gen_df["operating_year"] = gen_df["operating_year"].fillna(1900)
 
+    if "retirement_year" not in gen_df.columns:
+        logger.warning(
+            "The existing generators table has no 'retirement_year' column. Every "
+            "unit will be treated as having no planned retirement, so no capacity "
+            "will be retired through Min_Retired_Cap_MW."
+        )
+        # Downstream retirement queries read this column, so keep it present.
+        gen_df["retirement_year"] = np.nan
+        gen_df.loc[gen_df["operating_year"] <= end_year, "operating"] = True
+        return gen_df
+
+    # Null comparisons are always False, so a blank retirement year has to be
+    # handled explicitly. Without this a unit with no planned retirement is
+    # counted as neither operating nor retired and silently disappears from the
+    # model instead of operating through the whole horizon.
+    no_planned_retirement = gen_df["retirement_year"].isna()
+    operates_past_end = (gen_df["retirement_year"] > end_year) | no_planned_retirement
+
+    if no_planned_retirement.any():
+        cap_col = "capacity_mw" if "capacity_mw" in gen_df.columns else None
+        cap_txt = (
+            f" ({gen_df.loc[no_planned_retirement, cap_col].sum():,.1f} MW)"
+            if cap_col
+            else ""
+        )
+        logger.info(
+            f"{no_planned_retirement.sum()} existing generator(s){cap_txt} have no "
+            "'retirement_year'. They are treated as having no planned retirement, so "
+            "their capacity stays in service through every period. Set a retirement "
+            "year on the units whose capacity should leave service."
+        )
+
     gen_df.loc[
-        (gen_df["retirement_year"] > end_year) & (gen_df["operating_year"] <= end_year),
+        operates_past_end & (gen_df["operating_year"] <= end_year),
         "operating",
     ] = True
     gen_df.loc[
-        ~(gen_df["retirement_year"] > end_year)
-        & (gen_df["retirement_year"] >= start_year),
+        ~operates_past_end & (gen_df["retirement_year"] >= start_year),
         "period_retired",
     ] = True
 
@@ -3996,7 +3927,9 @@ class GeneratorClusters:
                 self.results = pd.merge(
                     self.results, cap_retired, on="Resource", how="left", validate="1:1"
                 )
-                self.results[retire_cols].fillna(0, inplace=True)
+                # Assigning back (rather than ``inplace`` on the column slice) keeps
+                # the zero-fill: the slice is a copy and the fill can be lost there.
+                self.results[retire_cols] = self.results[retire_cols].fillna(0)
             else:
                 self.results[retire_cols] = 0
 
@@ -4198,6 +4131,7 @@ class GeneratorClusters:
                 remove_fuel_gen_scenario_name(self.all_resources, self.settings)
                 .pipe(set_int_cols)
                 .pipe(round_col_values)
+                .pipe(floor_retirement_requirements)
                 .pipe(check_resource_tags)
             )
 
