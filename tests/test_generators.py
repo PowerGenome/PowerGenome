@@ -535,6 +535,22 @@ def test_label_retired_gens():
     assert list(out["period_retired"]) == [False, True]
 
 
+def test_label_retired_gens_compares_operating_year_with_period_end():
+    """A unit that comes online during the period counts as operating; one planned
+    for after the period end does not. Capacity is not pro-rated for a partial year."""
+    df = pd.DataFrame(
+        {
+            "operating_year": [2029, 2030, 2031, 2040],
+            "retirement_year": [2060] * 4,
+            "capacity_mw": [100.0, 200.0, 300.0, 400.0],
+        }
+    )
+    out = label_retired_gens(df, start_year=2030, end_year=2035)
+
+    assert list(out["operating"]) == [True, True, True, False]
+    assert out.loc[out["operating"], "capacity_mw"].sum() == 600.0
+
+
 def test_label_retired_gens_blank_retirement_year_stays_operating():
     """A blank ``retirement_year`` means no planned retirement, not "drop the unit"."""
     out = label_retired_gens(_retirement_year_fixture(), start_year=2025, end_year=2030)
