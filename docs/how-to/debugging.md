@@ -165,18 +165,11 @@ baseline,2040,...
 
 ---
 
-### `ValueError: The minimum retired capacity required in one or more later planning periods is larger than the capacity available in the first period`
+### Retirement capacity validation fails
 
-**Cause**: A multi-period (multistage) model is asking GenX to retire more of a resource across its later planning periods than the resource has available in the case's first period. GenX compares the `Min_Retired_Cap_MW` columns of `Resource_multistage_data.csv` with `Existing_Cap_MW` from `Generators_data_p1.csv`: the first period's capacity is the entire budget for retirements in every later period, since period 1 itself always writes zero. Usually the clusters themselves changed between planning periods:
-
-- The periods of a case read different generation data or apply different year filters, so a later period has units behind the resource name that the first period never reported. Retirements are driven by the `retirement_year` column of the generation input data — there is no `retirement_ages` setting — so those extra units contribute to the later period's `Min_Retired_Cap_MW` with nothing to retire them against.
-- `region_wind_pv_cap_fn` (or another table of existing renewable capacity) replaced capacity with values that do not match the first period.
-
-**Fix**: Keep cluster membership stable across the periods of a case. Every unit a later period expects to retire must already be part of the resource's first-period cluster, so avoid per-period settings — or `settings_management` overrides — that point at different generation tables or apply different `retirement_year` filters. Those shrink or grow a cluster between periods and leave GenX with retirements it cannot satisfy.
-
-Let the model decide when capacity retires instead: point all periods at one generation table whose `retirement_year` values describe when each unit leaves service, and PowerGenome writes the per-period totals to `Min_Retired_Cap_MW` / `Min_Retired_Energy_Cap_MW` (see [Generator clustering](../explanation/clustering.md#retirement-filtering)). The `existing_gen_units.csv` file in each run's `extra_outputs` folder lists every unit with the `Resource` cluster it was assigned to, so comparing it between periods shows which units moved.
-
-The error message names each resource that overshoots, how much it must retire, and how much of its first-period capacity is left, so you can compare the two periods' `Generators_data.csv` rows for those resources. If you believe the check itself is wrong, please file an issue at <https://github.com/PowerGenome/PowerGenome/issues>.
+PowerGenome found retirement requirements exceeding a resource's initial capacity.
+Check that generation data and capacity overrides are consistent across planning
+periods. The error message identifies the affected resources and capacity totals.
 
 ---
 

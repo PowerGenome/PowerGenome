@@ -16,12 +16,10 @@ Clustering reduces these to a manageable number of representative resources whil
 
 ### Step 1: Filter and group
 
-Generators are first filtered to those that:
-
-- Operate in one of the model regions (after region aggregation)
-- Are not yet retired based on their `operating_year` and `retirement_year` (from input data)
-
-They are then grouped by **(model region, technology)** pairs. Each group is clustered independently.
+Generators in the model regions (after region aggregation) are grouped by
+**(model region, technology)** pairs. Each group is clustered independently.
+[Retirement status](#retirement-filtering) determines which units contribute capacity,
+not cluster membership.
 
 ### Step 2: K-means clustering
 
@@ -42,7 +40,7 @@ For each cluster, representative values are computed:
 
 | Attribute | Aggregation method |
 |---|---|
-| `capacity_mw` | Sum of all plants in cluster |
+| `capacity_mw` | Sum of operating units in cluster |
 | `heat_rate_mmbtu_mwh` | Capacity-weighted average |
 | `fom_per_mwyr` | Capacity-weighted average |
 | `vom_per_mwh` | Capacity-weighted average |
@@ -115,51 +113,19 @@ This is useful for small fuel types where separating them would create many tiny
 
 ## Retirement filtering
 
-Whether each unit in the generation table still counts as operating is decided per
-planning period. Both tests compare against the period's **end** year: a unit counts
-as operating when its `operating_year` is on or before that end year **and** it is still
-in service then — either its `retirement_year` is later than the end year, or it has
-no planned retirement (a blank value, or no `retirement_year` column at all). A unit
-that comes online partway through a period is therefore included, and its full rated
-capacity is counted — PowerGenome does not pro-rate for a partial year. Both columns
-come from the generation input data; there is no `retirement_ages` setting (that code
-path has been removed).
+Set scheduled retirements in the generation table's `retirement_year` column. A
+blank value or missing column means no planned retirement.
 
-A blank `retirement_year` means "no retirement on file", which is how EIA-860 and
-PUDL report the majority of units, so those units stay in the model for every period
-and are never written to `Min_Retired_Cap_MW`. Set a real year on any unit whose
-capacity should leave service.
+A unit contributes its full capacity if it is operating at the planning period's
+**end** (`model_year`): `operating_year` must be on or before that year, and
+`retirement_year` must be later or unspecified. Units that come online during a
+period are included without prorating their capacity.
 
 !!! note "Myopic multi-period models"
-    Within a planning-period run, existing generators are clustered **once**: every unit
-    in the generation table gets a `Resource` label, whether or not it is still
-    operating, so retirement status changes how much capacity a cluster reports, not
-    which units are in it. Set each unit's `retirement_year` in the generation input
-    data to control when its capacity drops out of `Existing_Cap_MW` and shows up as a
-    requirement to retire (`Min_Retired_Cap_MW` / `Min_Retired_Energy_Cap_MW`, written by
-    `cap_retire_within_period`).
-
-    That stability only holds if every period of a case reads the same generation data,
-    and GenX ties the periods together by resource name: the capacity required to retire
-    in all periods after the first cannot exceed what the resource has available in
-    period 1, i.e. `sum(Min_Retired_Cap_MW[p>1]) <= Existing_Cap_MW[p1]`. Two things
-    break that inequality.
-
-    **Rounding**, by a hair. `Existing_Cap_MW` is rounded to one decimal place while the
-    retirement columns were rounded to three, so `600.02 + 400.02` MW of requirements
-    could face `1000.04` MW rounded to `1000.0` MW available.
-    `floor_retirement_requirements` floors each retirement column to the precision
-    of its matching capacity column; flooring only ever relaxes a minimum requirement,
-    so the result stays feasible.
-
-    **Cluster membership**, by however much the clusters differ. PowerGenome builds each
-    planning period from that period's own resolved settings, so periods that read
-    different generation tables, apply different year or `retirement_year` filters, or
-    replace capacity with `region_wind_pv_cap_fn` can put different physical units
-    behind the same resource name. A unit that only a later period knows about still
-    contributes to that period's `Min_Retired_Cap_MW`, but there is no period-1 capacity
-    behind it to retire. Rounding cannot fix that, so the run stops with an error naming
-    the resources that overshoot — see [Debugging](../how-to/debugging.md).
+    Use the same generation data across the periods of a case to keep cluster
+    membership consistent. PowerGenome records scheduled retirements in later
+    periods as minimum retirement requirements for each resource (`Min_Retired_*`
+    columns).
 
 ---
 

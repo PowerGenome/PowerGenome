@@ -451,11 +451,9 @@ PowerGenome is set up to cluster existing generating units within regions. These
 
 In addition to clustering units within a technology, users can group several technologies together. This is most useful to combine several technologies with only a few units and little capacity.
 
-**IMPORTANT: retirements and multi-period runs.** Retirement timing comes from the `retirement_year` column of the generation input data; age-based retirement settings are no longer part of PowerGenome. A blank `retirement_year` (or a missing column) means the unit has no planned retirement, so it operates through every period of the model and its capacity is never required to retire — which matches how EIA-860 and PUDL report most units. Set a real year on each unit whose capacity should leave service.
-
-If you are running a myopic model with multiple planning periods, retirements that change the units assigned to a cluster between planning periods will change the cluster's heat rates and O&M, and economic retirements of capacity from the cluster may not represent the units that should be retired. Keep the generation data (and any per-period overrides of it) the same across the periods of a case so cluster membership is stable.
-
-PowerGenome writes the capacity expected to retire in each later planning period to the `Min_Retired_Cap_MW`, `Min_Retired_Energy_Cap_MW`, and `Min_Retired_Charge_Cap_MW` columns for each resource, and GenX requires that the retirements summed over the later periods of a case do not exceed `Existing_Cap_MW` in the case's first period. Those values are floored to the precision of the matching capacity column so that rounding cannot push them over that limit, and the run stops with an error naming the resources that still overshoot (or that are missing from the first period) — the cluster membership changes described above are the usual cause.
+**Retirements:** Set `retirement_year` in the generation input data. See
+[Retirement filtering](../docs/explanation/clustering.md#retirement-filtering) for
+period-end capacity rules and multi-period guidance.
 
 ### cluster_method
 

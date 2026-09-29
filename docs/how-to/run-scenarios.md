@@ -290,12 +290,10 @@ settings_management:
 
 ### Retirement Assumptions
 
-Existing-generator retirements are driven by the `retirement_year` column in the
-generation input data (see
-[Existing Generators](../reference/settings/existing-generators.md)) — there is no
-`retirement_ages` setting, that code path is no longer used. To vary retirements
-across scenarios, point each scenario at its own generation data (per-scenario input
-tables or filters) rather than swapping a settings value, e.g.:
+To vary `retirement_year` assumptions across scenarios, point each scenario at its
+own generation table. Keep that data consistent across all planning periods within
+a case (see [Retirement filtering](../explanation/clustering.md#retirement-filtering)),
+for example:
 
 ```yaml
 settings_management:

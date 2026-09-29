@@ -320,7 +320,9 @@ generation_table:
 
 ## Retirement in multi-period models
 
-GenX decides when existing capacity retires. Retirements are driven by the `retirement_year` column of the [generation input data](data-tables.md) — there is no `retirement_ages` setting — so a myopic multi-period model should point every planning period of a case at the same generation data and let the model retire units through [`Min_Retired_Cap_MW`](../../explanation/clustering.md#retirement-filtering). GenX requires that the retirements in all periods after the first fit within the resource's first-period `Existing_Cap_MW`. Two things can violate that: a difference in rounding precision, which PowerGenome removes by flooring each retirement column to the precision of its matching capacity column, and a cluster that genuinely changed size between periods, which no amount of rounding can fix — that is the infeasible case, and the run stops with an error listing the affected resources. See [Debugging](../../how-to/debugging.md) and [Generator clustering](../../explanation/clustering.md#retirement-filtering) for how to keep membership stable.
+Specify `retirement_year` in the [generation input data](data-tables.md). For
+period-end capacity rules and multi-period guidance, see
+[Retirement filtering](../../explanation/clustering.md#retirement-filtering).
 
 ## Related Settings
 
