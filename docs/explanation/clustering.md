@@ -115,9 +115,9 @@ This is useful for small fuel types where separating them would create many tiny
 
 ## Retirement filtering
 
-Existing generators are clustered using every unit operating in the first planning
-period. Both tests compare against the period's **end** year: a unit counts as
-operating when its `operating_year` is on or before that end year **and** it is still
+Whether each unit in the generation table still counts as operating is decided per
+planning period. Both tests compare against the period's **end** year: a unit counts
+as operating when its `operating_year` is on or before that end year **and** it is still
 in service then — either its `retirement_year` is later than the end year, or it has
 no planned retirement (a blank value, or no `retirement_year` column at all). A unit
 that comes online partway through a period is therefore included, and its full rated
@@ -131,15 +131,35 @@ and are never written to `Min_Retired_Cap_MW`. Set a real year on any unit whose
 capacity should leave service.
 
 !!! note "Myopic multi-period models"
-    Existing generators are clustered **once**, with all units operating in the first
-    planning period, so group membership is stable across every period. Retirements
-    between periods do not change the clusters; instead, capacity that retires within a
-    period is removed from the cluster at that period via `Min_Retired_Cap_MW` /
-    `Min_Retired_Energy_Cap_MW` (see `cap_retire_within_period`). Set each unit's
-    `retirement_year` in the generation input data to control when its capacity drops
-    out.
+    Within a planning-period run, existing generators are clustered **once**: every unit
+    in the generation table gets a `Resource` label, whether or not it is still
+    operating, so retirement status changes how much capacity a cluster reports, not
+    which units are in it. Set each unit's `retirement_year` in the generation input
+    data to control when its capacity drops out of `Existing_Cap_MW` and shows up as a
+    requirement to retire (`Min_Retired_Cap_MW` / `Min_Retired_Energy_Cap_MW`, written by
+    `cap_retire_within_period`).
 
-    One inconsistency is fatal: the capacity that a cluster is required to retire in each later period (`Min_Retired_Cap_MW`) is written from the units that a *later* period expects to retire, but GenX compares the total with the capacity the cluster has available in the *first* period (`Existing_Cap_MW`). When units drop out of the cluster between periods those requirements can add up to more than the first period has, and the model is infeasible. PowerGenome floors the requirements to the precision of the matching capacity column and stops with an error naming the resources that still overshoot — see [Debugging](../how-to/debugging.md).
+    That stability only holds if every period of a case reads the same generation data,
+    and GenX ties the periods together by resource name: the capacity required to retire
+    in all periods after the first cannot exceed what the resource has available in
+    period 1, i.e. `sum(Min_Retired_Cap_MW[p>1]) <= Existing_Cap_MW[p1]`. Two things
+    break that inequality.
+
+    **Rounding**, by a hair. `Existing_Cap_MW` is rounded to one decimal place while the
+    retirement columns were rounded to three, so `600.02 + 400.02` MW of requirements
+    could face `1000.04` MW rounded to `1000.0` MW available.
+    `floor_retirement_requirements` floors each retirement column to the precision
+    of its matching capacity column; flooring only ever relaxes a minimum requirement,
+    so the result stays feasible.
+
+    **Cluster membership**, by however much the clusters differ. PowerGenome builds each
+    planning period from that period's own resolved settings, so periods that read
+    different generation tables, apply different year or `retirement_year` filters, or
+    replace capacity with `region_wind_pv_cap_fn` can put different physical units
+    behind the same resource name. A unit that only a later period knows about still
+    contributes to that period's `Min_Retired_Cap_MW`, but there is no period-1 capacity
+    behind it to retire. Rounding cannot fix that, so the run stops with an error naming
+    the resources that overshoot — see [Debugging](../how-to/debugging.md).
 
 ---
 
