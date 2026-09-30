@@ -2622,12 +2622,10 @@
 <hr />
 <h2 id="how-existing-generators-are-clustered">How existing generators are clustered<a class="headerlink" href="#how-existing-generators-are-clustered" title="Permanent link">&para;</a></h2>
 <h3 id="step-1-filter-and-group">Step 1: Filter and group<a class="headerlink" href="#step-1-filter-and-group" title="Permanent link">&para;</a></h3>
-<p>Generators are first filtered to those that:</p>
-<ul>
-<li>Operate in one of the model regions (after region aggregation)</li>
-<li>Are not yet retired based on their <code>operating_year</code> and <code>retirement_year</code> (from input data)</li>
-</ul>
-<p>They are then grouped by <strong>(model region, technology)</strong> pairs. Each group is clustered independently.</p>
+<p>Generators in the model regions (after region aggregation) are grouped by
+<strong>(model region, technology)</strong> pairs. Each group is clustered independently.
+<a href="#retirement-filtering">Retirement status</a> determines which units contribute capacity,
+not cluster membership.</p>
 <h3 id="step-2-k-means-clustering">Step 2: K-means clustering<a class="headerlink" href="#step-2-k-means-clustering" title="Permanent link">&para;</a></h3>
 <p>Within each region–technology group, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html">k-means clustering</a> partitions units into <code>k</code> clusters where <code>k</code> is set by <code>num_clusters</code> (or <code>alt_num_clusters</code> for per-region overrides).</p>
 <p><strong>Clustering features</strong> (by default):</p>
@@ -2649,7 +2647,7 @@
 <tbody>
 <tr>
 <td><code>capacity_mw</code></td>
-<td>Sum of all plants in cluster</td>
+<td>Sum of operating units in cluster</td>
 </tr>
 <tr>
 <td><code>heat_rate_mmbtu_mwh</code></td>
@@ -2707,20 +2705,18 @@
 <p>This is useful for small fuel types where separating them would create many tiny resources.</p>
 <hr />
 <h2 id="retirement-filtering">Retirement filtering<a class="headerlink" href="#retirement-filtering" title="Permanent link">&para;</a></h2>
-<p>Existing generators are clustered using every unit operating in the first planning
-period. A unit counts as operating when its <code>operating_year</code> is on or before the period and
-its <code>retirement_year</code> is missing or later than the period's end. Both columns come from the
-generation input data; there is no <code>retirement_ages</code> setting (that code path has been
-removed).</p>
+<p>Set scheduled retirements in the generation table's <code>retirement_year</code> column. A
+blank value or missing column means no planned retirement.</p>
+<p>A unit contributes its full capacity if it is operating at the planning period's
+<strong>end</strong> (<code>model_year</code>): <code>operating_year</code> must be on or before that year, and
+<code>retirement_year</code> must be later or unspecified. Units that come online during a
+period are included without prorating their capacity.</p>
 <div class="admonition note">
 <p class="admonition-title">Myopic multi-period models</p>
-<p>Existing generators are clustered <strong>once</strong>, with all units operating in the first
-planning period, so group membership is stable across every period. Retirements
-between periods do not change the clusters; instead, capacity that retires within a
-period is removed from the cluster at that period via <code>Min_Retired_Cap_MW</code> /
-<code>Min_Retired_Energy_Cap_MW</code> (see <code>cap_retire_within_period</code>). Set each unit's
-<code>retirement_year</code> in the generation input data to control when its capacity drops
-out.</p>
+<p>Use the same generation data across the periods of a case to keep cluster
+membership consistent. PowerGenome records scheduled retirements in later
+periods as minimum retirement requirements for each resource (<code>Min_Retired_*</code>
+columns).</p>
 </div>
 <hr />
 <h2 id="viewing-cluster-assignments">Viewing cluster assignments<a class="headerlink" href="#viewing-cluster-assignments" title="Permanent link">&para;</a></h2>

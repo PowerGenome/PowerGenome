@@ -3435,12 +3435,10 @@ region. The legacy <code>new_gen_not_available</code> key is not applied to excl
 is not a recognized region key.</p>
 </div>
 <h3 id="retirement-assumptions">Retirement Assumptions<a class="headerlink" href="#retirement-assumptions" title="Permanent link">&para;</a></h3>
-<p>Existing-generator retirements are driven by the <code>retirement_year</code> column in the
-generation input data (see
-<a href="../../reference/settings/existing-generators/">Existing Generators</a>) — there is no
-<code>retirement_ages</code> setting, that code path is no longer used. To vary retirements
-across scenarios, point each scenario at its own generation data (per-scenario input
-tables or filters) rather than swapping a settings value, e.g.:</p>
+<p>To vary <code>retirement_year</code> assumptions across scenarios, point each scenario at its
+own generation table. Keep that data consistent across all planning periods within
+a case (see <a href="../../explanation/clustering/#retirement-filtering">Retirement filtering</a>),
+for example:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">settings_management</span><span class="p">:</span>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">2030</span><span class="p">:</span>
 <a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="nt">coal_retirement</span><span class="p">:</span>
