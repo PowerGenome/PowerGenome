@@ -24,9 +24,6 @@ capacity_col: winter_capacity_mw
 # of thermal plant as a default and then specify specific values for any regions
 # that are different.
 
-# Include units with planned/age-based retirements when determining clusters across periods
-cluster_with_retired_gens: true
-
 # ** Any technologies not included in num_clusters will be omitted **
 num_clusters:
   Conventional Steam Coal: 3
@@ -53,64 +50,6 @@ num_clusters:
   Other_peaker: 1
   Batteries: 1
 
-retirement_ages: # TAYLOR - https://www.nrel.gov/docs/fy22osti/80641.pdf (pdf page 42)
-  Conventional Hydroelectric: 100 # TD update
-  Small Hydroelectric: 100 # TD update
-  Conventional Steam Coal: 65 # TD update
-  Natural Gas Fired Combined Cycle: 60 # TD update
-  Natural Gas Fired Combustion Turbine: 50 # TD update
-  Petroleum Liquids: 40
-  Natural Gas Internal Combustion Engine: 60 # TD update
-  Nuclear: 80 # TD update
-  Onshore Wind Turbine: 30 # TD checked/no change
-  Hydroelectric Pumped Storage: 100 # TD update
-  Natural Gas Steam Turbine: 50 # oil-gas-steam, nat gas combustion turbine is also 50
-  Solar Photovoltaic: 30 # TD update
-  Solar Thermal without Energy Storage: 30 # CSP in SWITCH
-  Geothermal: 30 # TD update
-  Municipal Solid Waste: 40
-  Landfill Gas: 40
-  Batteries: 15 # TD update
-  Wood/Wood Waste Biomass: 50 # TD update
-  Petroleum Coke: 40
-  All Other: 40
-  Natural Gas with Compressed Air Storage: 60 # assuming nat gas cs&ccs
-  Coal Integrated Gasification Combined Cycle: 65 # TD update
-  Other Waste Biomass: 50 # assuming biopower
-  Other Gases: 50 # asuming oil-gas-steam
-  Other Natural Gas: 50 # assuming oil-gas-steam
-  Solar Thermal with Energy Storage: 30 # solar items in table are 30
-  Flywheels: 40
-  Offshore Wind Turbine: 30 # TD checked/no change
-  Biomass: 50
-  NaturalGas_CCCCSAvgCF_Conservative: 30 # combined cycle and carbon capture sequestration
-  NaturalGas_CCAvgCF_Moderate: 30 # carbon capture
-  NaturalGas_CTAvgCF_Moderate: 30 # combustion turbine
-  Battery_*_Moderate: 15
-  NaturalGas_CCS100_Moderate: 30
-  UtilityPV_Class1_Moderate_100: 30
-  UtilityPV_Class1_Moderate: 30
-  LandbasedWind_Class1_Moderate: 30
-  LandbasedWind_Class1_Moderate_100: 30
-  UtilityPV_Class1_Moderate_50: 30
-  OffShoreWind_Class1_Moderate: 30
-  OffShoreWind_Class3_Moderate_fixed_1: 30
-  OffShoreWind_Class3_Moderate_fixed_0: 30
-  OffShoreWind_Class12_Moderate_floating_1: 30
-  OffShoreWind_Class12_Moderate_floating_0: 30
-  Coal_CCS90AvgCF_Moderate: 40
-  Nuclear_Nuclear_Moderate: 40
-  LandbasedWind_Class3_Moderate: 30
-  OffShoreWind_Class12_Moderate: 30
-  OffShoreWind_Class3_Moderate: 30
-  Hydrogen_CTAvgCF_Moderate: 30
-  Hydrogen_CCAvgCF_Moderate: 30
-  NaturalGas_H-Frame CC_Moderate: 30
-  Hydrogen_H-Frame CC_Moderate: 30
-  NaturalGas_F-Frame CT: 30
-  Hydrogen_F-Frame CT: 30
-  NaturalGas_H-Frame CC 95% CCS_Moderate: 30
-  distributed_generation: 100
 # Group these technologies
 group_technologies: True
 tech_groups:
@@ -456,20 +395,3 @@ proposed_min_load:
   Natural Gas Fired Combined Cycle: 0.3 # From GE
   Natural Gas Fired Combustion Turbine: 0.3 # GE aero range is .15-.5, E3 has 0.3
   Natural Gas Internal Combustion Engine: 0.18 # From E3 assumptions
-
-# EXTRA ADDITIONS AND RETIREMENTS
-
-# Use this section to hard-code retirements that are not included in the most recent
-# annual verion of EIA 860. The format is
-# [plant_id_eia, generator_id, planned_retirement_date]
-additional_retirements: ~
-  # - [55853, 1, 2020]
-  # - [55853, 2, 2020]
-  # - [2442, 1, 2029] # Retire Four Corners before 2030
-  # - [2442, 2, 2029]
-  # - [2442, 3, 2029]
-  # - [2442, 4, 2029]
-  # - [2442, 5, 2029]
-  # - [55177, A, 2031]
-  # - [55177, B, 2031]
-  # - [55177, ST1, 2031]

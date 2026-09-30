@@ -16,12 +16,10 @@ Clustering reduces these to a manageable number of representative resources whil
 
 ### Step 1: Filter and group
 
-Generators are first filtered to those that:
-
-- Operate in one of the model regions (after region aggregation)
-- Are not yet retired based on their `operating_year` and `retirement_year` (from input data)
-
-They are then grouped by **(model region, technology)** pairs. Each group is clustered independently.
+Generators in the model regions (after region aggregation) are grouped by
+**(model region, technology)** pairs. Each group is clustered independently.
+[Retirement status](#retirement-filtering) determines which units contribute capacity,
+not cluster membership.
 
 ### Step 2: K-means clustering
 
@@ -42,7 +40,7 @@ For each cluster, representative values are computed:
 
 | Attribute | Aggregation method |
 |---|---|
-| `capacity_mw` | Sum of all plants in cluster |
+| `capacity_mw` | Sum of operating units in cluster |
 | `heat_rate_mmbtu_mwh` | Capacity-weighted average |
 | `fom_per_mwyr` | Capacity-weighted average |
 | `vom_per_mwh` | Capacity-weighted average |
@@ -115,20 +113,19 @@ This is useful for small fuel types where separating them would create many tiny
 
 ## Retirement filtering
 
-Existing generators are clustered using every unit operating in the first planning
-period. A unit counts as operating when its `operating_year` is on or before the period and
-its `retirement_year` is missing or later than the period's end. Both columns come from the
-generation input data; there is no `retirement_ages` setting (that code path has been
-removed).
+Set scheduled retirements in the generation table's `retirement_year` column. A
+blank value or missing column means no planned retirement.
+
+A unit contributes its full capacity if it is operating at the planning period's
+**end** (`model_year`): `operating_year` must be on or before that year, and
+`retirement_year` must be later or unspecified. Units that come online during a
+period are included without prorating their capacity.
 
 !!! note "Myopic multi-period models"
-    Existing generators are clustered **once**, with all units operating in the first
-    planning period, so group membership is stable across every period. Retirements
-    between periods do not change the clusters; instead, capacity that retires within a
-    period is removed from the cluster at that period via `Min_Retired_Cap_MW` /
-    `Min_Retired_Energy_Cap_MW` (see `cap_retire_within_period`). Set each unit's
-    `retirement_year` in the generation input data to control when its capacity drops
-    out.
+    Use the same generation data across the periods of a case to keep cluster
+    membership consistent. PowerGenome records scheduled retirements in later
+    periods as minimum retirement requirements for each resource (`Min_Retired_*`
+    columns).
 
 ---
 

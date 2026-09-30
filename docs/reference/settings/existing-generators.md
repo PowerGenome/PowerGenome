@@ -318,6 +318,12 @@ generation_table:
     - - [operating_year, '<=', 2030]
 ```
 
+## Retirement in multi-period models
+
+Specify `retirement_year` in the [generation input data](data-tables.md). For
+period-end capacity rules and multi-period guidance, see
+[Retirement filtering](../../explanation/clustering.md#retirement-filtering).
+
 ## Related Settings
 
 - [Model Definition](model-definition.md): Planning years affect retirement calculations

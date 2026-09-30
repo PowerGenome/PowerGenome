@@ -10,7 +10,7 @@ PowerGenome reads source data from files (CSV or Parquet) or a database. The Dat
 ## Table reference
 
 | Settings key | Internal name | Typical file |
-|---|---|---|
+| --- | --- | --- |
 | `generation_table` | `generation` | `generators.csv` |
 | `plant_region_table` | `plant_region` | `plant_region_map.csv` |
 | `resource_cost_table` | `resource_cost` | `technology_costs.csv` |
@@ -32,14 +32,14 @@ PowerGenome reads source data from files (CSV or Parquet) or a database. The Dat
 Contains one row per generator unit. Matched to model regions via the `plant_region` table.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `technology` | string | Yes | EIA technology name (e.g. `Natural Gas Fired Combustion Turbine`) |
 | `plant_id` | integer | Yes | EIA plant ID |
 | `generator_id` | string | Yes | EIA generator ID |
 | `capacity_mw` | float | Yes | Nameplate capacity in MW |
 | `capacity_mwh` | float | No | Storage energy capacity in MWh; leave blank for non-storage |
 | `operating_year` | integer | Yes | Year plant came online; used to calculate age |
-| `retirement_year` | integer | No | Scheduled retirement year; takes precedence over age-based retirement |
+| `retirement_year` | integer | No | Year the unit leaves service; controls capacity listed in `Min_Retired_*_Cap_MW` and if a unit contributes to the characteristics (heat rate, unit size, etc.) of a resource. A blank value (or a missing column) means the unit has no planned retirement, so it operates through the whole horizon |
 | `historical_capacity_factor` | float | No | Used to impute missing heat-rate data |
 | `heat_rate_mmbtu_mwh` | float | No | Average heat rate; required for thermal generators |
 | `vom_per_mwh` | float | No | Variable O&M cost ($/MWh) |
@@ -54,7 +54,7 @@ Contains one row per generator unit. Matched to model regions via the `plant_reg
 Maps EIA plant IDs to model regions. Only plants listed here will be included in the model.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `plant_id` | integer | Yes | EIA plant ID; must match `generation` table |
 | `region` | string | Yes | Model region name |
 
@@ -65,7 +65,7 @@ Maps EIA plant IDs to model regions. Only plants listed here will be included in
 Long-format table of cost and financial parameters for new-build resources. Each parameter is its own row.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `technology` | string | Yes | ATB technology name |
 | `tech_detail` | string | Yes | ATB detail variant (e.g. `Moderate`, `Conservative`) |
 | `cost_case` | string | Yes | ATB cost case (e.g. `R&D`, `Market`) |
@@ -85,7 +85,7 @@ Long-format table of cost and financial parameters for new-build resources. Each
 Heat rate by technology used for new-build thermal resources.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `technology` | string | Yes | ATB technology name |
 | `tech_detail` | string | Yes | ATB detail variant |
 | `cost_case` | string | Yes | ATB cost case |
@@ -100,7 +100,7 @@ Heat rate by technology used for new-build thermal resources.
 Per-technology or per-resource overrides for GenX operational parameters. Values here are written directly to `Generators_data.csv`.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `Resource` | string | Yes | Resource name or technology name pattern; `all` matches any resource |
 | `region` | string | Yes | Model region or `all` for all regions |
 | `Min_Power` | float | No | Minimum power output fraction |
@@ -123,7 +123,7 @@ Any column that matches a `Generators_data.csv` column name is forwarded to that
 Existing inter-regional transfer capacities. Used to build `Network.csv`.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `region_from` | string | Yes | Source IPM or base region |
 | `region_to` | string | Yes | Destination IPM or base region |
 | `firm_ttc_mw` | float | Yes | Firm total transfer capacity in MW |
@@ -136,7 +136,7 @@ Existing inter-regional transfer capacities. Used to build `Network.csv`.
 Capital costs for new inter-regional transmission lines.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `start_region` | string | Yes | Model region at one end of the line |
 | `dest_region` | string | Yes | Model region at the other end |
 | `interconnect_cost_mw` | float | Yes | Total build cost ($/MW) |
@@ -155,7 +155,7 @@ Capital costs for new inter-regional transmission lines.
 Time series of fuel prices by fuel type and region.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `year` | integer | Yes | Planning year |
 | `fuel` | string | Yes | Fuel name; must match `tech_fuel_map` values in settings |
 | `region` | string | Yes | Model region |
@@ -171,7 +171,7 @@ Time series of fuel prices by fuel type and region.
 Conversion factors for adjusting costs between dollar years.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `year` | integer | Yes | Calendar year |
 | `period` | string | No | Period label (legacy column, may be omitted) |
 | `value` | float | Yes | CPI index value |
@@ -183,7 +183,7 @@ Conversion factors for adjusting costs between dollar years.
 Adjustments to capital costs by technology and region.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `technology` | string | Yes | ATB technology name |
 | `region` | string | Yes | Model region |
 | `value` | float | Yes | Multiplier (1.0 = no adjustment) |
@@ -195,7 +195,7 @@ Adjustments to capital costs by technology and region.
 Hourly load time series. One row per hour per region.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `time_index` | integer | Yes | Hour index within the year (0–8759) |
 | `region` | string | Yes | Model region |
 | `load_mw` | float | Yes | Load in MW |
@@ -209,7 +209,7 @@ Hourly load time series. One row per hour per region.
 Installed distributed generation capacity by region and year.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `region` | string | Yes | Model region |
 | `year` | integer | Yes | Planning year |
 | `capacity_mw` | float | Yes | Total installed DG capacity in MW |
@@ -221,7 +221,7 @@ Installed distributed generation capacity by region and year.
 Normalized capacity factor profiles for distributed generation.
 
 | Column | Type | Required | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `time_index` | integer | Yes | Hour index within the year (0–8759) |
 | `region` | string | Yes | Model region |
 | `weather_year` | integer | No | Meteorological year for the profile |

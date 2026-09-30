@@ -146,42 +146,6 @@ derate_techs:
   - Biomass
   - Steam_Turbine
 
-# RETIREMENT AGES
-# The age at which each technolgy type is expected to retire. Planned retirements
-# included in EIA860 will be used if they are before the expected end of life.
-
-retirement_ages:
-  Conventional Hydroelectric: 100
-  Small Hydroelectric: 100
-  Conventional Steam Coal: 60
-  Natural Gas Fired Combined Cycle: 100
-  Natural Gas Fired Combustion Turbine: 100
-  Petroleum Liquids: 40
-  Natural Gas Internal Combustion Engine: 40
-  Nuclear: 60
-  Onshore Wind Turbine: 30
-  Hydroelectric Pumped Storage: 40
-  Natural Gas Steam Turbine: 40
-  Solar Photovoltaic: 40
-  Solar Thermal without Energy Storage: 40
-  Geothermal: 100
-  Municipal Solid Waste: 40
-  Landfill Gas: 40
-  Batteries: 40
-  Wood/Wood Waste Biomass: 40
-  Petroleum Coke: 40
-  All Other: 40
-  Natural Gas with Compressed Air Storage: 40
-  Coal Integrated Gasification Combined Cycle: 40
-  Other Waste Biomass: 40
-  Other Gases: 40
-  Other Natural Gas: 40
-  Solar Thermal with Energy Storage: 40
-  Flywheels: 40
-  Offshore Wind Turbine: 30
-  Hydrokinetic: 40
-
-
 # CLUSTER TAGS
 # All of the values will be 0 by default. If non-zero, add here.
 
@@ -268,13 +232,6 @@ proposed_min_load:
 
 
 # EXTRA ADDITIONS AND RETIREMENTS
-
-# Use this section to hard-code retirements that are not included in the most recent
-# annual verion of EIA 860. The format is
-# [plant_id_eia, generator_id, planned_retirement_date]
-additional_retirements:
-  - [55853, 1, 2020]
-  - [55853, 2, 2020]
 
 # Additions that are included in 860m but don't get caught with a spatial join.
 additional_planned:

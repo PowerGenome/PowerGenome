@@ -6,6 +6,7 @@ from itertools import product
 from pathlib import Path
 from typing import Dict, List
 
+import numpy as np
 import pandas as pd
 
 from powergenome.database import get_data
@@ -80,6 +81,19 @@ COL_ROUND_VALUES = {
     "Min_Cap_MW": 1,
     "Min_Cap_MWh": 1,
     "Line_Loss_Percentage": 4,
+}
+
+# Number of decimal places used when a capacity column has no explicit entry in
+# ``COL_ROUND_VALUES``.
+DEFAULT_CAP_PRECISION = 1
+
+# Multi-period columns that report the capacity a resource *must* retire by the end of
+# a planning period, mapped to the existing-capacity column that bounds them and the
+# key used to track the resource's remaining retirement budget.
+RETIRED_CAP_COLS = {
+    "Min_Retired_Cap_MW": ("Existing_Cap_MW", "mw"),
+    "Min_Retired_Energy_Cap_MW": ("Existing_Cap_MWh", "mwh"),
+    "Min_Retired_Charge_Cap_MW": ("Existing_Charge_Cap_MW", "charge_mw"),
 }
 
 # RESOURCE_TAGS = ["THERM", "VRE", "MUST_RUN", "STOR", "FLEX", "HYDRO", "LDS"]
@@ -903,6 +917,204 @@ def round_col_values(
     for col, value in col_round_val.items():
         df[col] = df[col].fillna(0).round(value)
     return df
+
+
+def floor_retirement_requirements(
+    df: pd.DataFrame, col_round_val: Dict[str, int] = None
+) -> pd.DataFrame:
+    """Floor multi-period minimum-retirement values to existing-capacity precision.
+
+    GenX requires that the ``Min_Retired_*`` capacity reported for a resource across
+    all planning periods never exceeds the capacity available to retire
+    (``Existing_Cap_MW``/``Existing_Cap_MWh`` in the first period). The per-period
+    requirements are sums of individual unit capacities while the available capacity
+    is the sum of the units that remain, so rounding both independently can push the
+    parts above the whole: 1000.04 MW available rounds to 1000.0 while requirements of
+    600.02 + 400.02 MW still total 1000.04 MW. Flooring each requirement to the
+    precision used for its paired capacity column guarantees
+    ``sum(floor(x)) <= floor(sum(x)) <= round(sum(x))``.
+
+    Only *minimum* constraints are relaxed, so requirements smaller than one
+    precision step are written as 0.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Generator data. Modified in place.
+    col_round_val : Dict[str, int], optional
+        Mapping of capacity column name to the number of decimal places those columns
+        are rounded to, by default ``COL_ROUND_VALUES``.
+
+    Returns
+    -------
+    pd.DataFrame
+        The input dataframe with any ``Min_Retired_*`` columns floored.
+    """
+    if not col_round_val:
+        col_round_val = COL_ROUND_VALUES
+
+    for retired_col, (cap_col, _) in RETIRED_CAP_COLS.items():
+        if retired_col not in df.columns:
+            continue
+        decimals = col_round_val.get(cap_col, DEFAULT_CAP_PRECISION)
+        scale = 10**decimals
+        values = df[retired_col].fillna(0).astype(float)
+        # Round a few extra decimals first so a value that should be exact but is
+        # stored just below it (100.0 as 99.999999999) is not floored a whole step.
+        df[retired_col] = np.floor(np.round(values, decimals + 6) * scale) / scale
+
+    return df
+
+
+def check_retirement_budget(
+    gen_data: pd.DataFrame,
+    case_id: str,
+    period: int,
+    budget: Dict,
+    tolerance: float = 1e-6,
+) -> None:
+    """Validate multi-period retirement requirements against available capacity.
+
+    For each case, the cumulative ``Min_Retired_*`` values across planning periods
+    cannot exceed the capacity the resource has in the first period, otherwise the
+    multi-stage GenX model is infeasible. PowerGenome normally satisfies this by
+    construction, but the relationship can still break when existing-generator cluster
+    membership changes between periods or when existing capacity is replaced from an
+    external file (e.g. ``region_wind_pv_cap_fn``).
+
+    The first time a case is seen, every resource's retirement budget is seeded from
+    the capacity available in that period, since that is the capacity GenX allows the
+    resource to retire over the whole model horizon. Each later period draws down the
+    budget, and drawing more than remains raises an error. Values within
+    ``tolerance`` of the remaining budget are clamped to absorb floating point noise.
+
+    Single-period runs are unaffected because they never write ``Min_Retired_*``
+    columns.
+
+    Parameters
+    ----------
+    gen_data : pd.DataFrame
+        Generator data for a single planning period. Must include a "Resource" column.
+    case_id : str
+        Name of the case these data belong to. Each case tracks independent budgets.
+    period : int
+        Planning-period number of these data, starting at 1.
+    budget : Dict
+        Mutable, caller-owned mapping of case id to per-resource retirement budgets.
+        Updated in place and must be shared across all periods of a run.
+    tolerance : float
+        Amount of slack allowed when comparing requirements to the remaining budget.
+
+    Raises
+    ------
+    ValueError
+        If a period's retirement requirement exceeds the remaining budget for a
+        resource, or requires retiring a resource that was not present in the case's
+        first period.
+    """
+    if "Resource" not in gen_data.columns:
+        return
+
+    # The first period establishes the ground truth that GenX enforces, so it is
+    # recorded whether or not this frame includes the zero-filled retirement columns.
+    if case_id not in budget:
+        if period > 1:
+            logger.warning(
+                f"Case {case_id} is being checked for retirement budgets starting in "
+                f"period {period}; the first period's available capacity is unknown so "
+                "this check is incomplete."
+            )
+        budget[case_id] = _seed_retirement_budget(gen_data)
+    case_budget = budget[case_id]
+
+    retired_cols = [col for col in RETIRED_CAP_COLS if col in gen_data.columns]
+    if not retired_cols:
+        return
+
+    problems = []
+    for retired_col in retired_cols:
+        cap_col, key = RETIRED_CAP_COLS[retired_col]
+        required = gen_data[retired_col].fillna(0).astype(float)
+        for resource, want in zip(gen_data["Resource"], required):
+            if want <= tolerance:
+                continue
+            resource_budget = case_budget.get(resource)
+            if resource_budget is None:
+                # Only report the problem when this run provides the capacity column,
+                # i.e. the requirement is not simply untraceable.
+                if cap_col in gen_data.columns:
+                    problems.append(
+                        f"'{resource}' must retire {want} of {retired_col} in period "
+                        f"{period}, but '{resource}' is not one of the resources in "
+                        f"period 1 of case {case_id}."
+                    )
+                continue
+            # A budget that a caller built by hand may not track every capacity
+            # type; an untracked type places no limit on retirements.
+            resource_budget["start"].setdefault(key, float("inf"))
+            resource_budget["remaining"].setdefault(key, float("inf"))
+            remaining = resource_budget["remaining"][key]
+            if want > remaining + tolerance:
+                problems.append(
+                    f"'{resource}' must retire {want} of {retired_col} in period "
+                    f"{period}, but only {remaining} remains of the "
+                    f"{resource_budget['start'].get(key)} {cap_col} available in "
+                    f"period 1 of case {case_id}."
+                )
+            else:
+                # min() keeps the budget from going negative within the tolerance.
+                resource_budget["remaining"][key] = max(remaining - want, 0.0)
+
+    if problems:
+        detail = "\n".join(f"  - {problem}" for problem in problems[:20])
+        if len(problems) > 20:
+            detail += f"\n  - ... and {len(problems) - 20} more resources."
+        raise ValueError(
+            "The minimum retired capacity required in one or more later planning "
+            "periods is larger than the capacity available in the first period, which "
+            f"makes the multi-period model infeasible:\n{detail}\n"
+            "This usually means existing generator clusters changed between planning "
+            "periods. GenX decides when existing capacity retires, so the "
+            "'retirement_year' column in the generation input data should not drop "
+            "units out of a cluster before a case's last planning period, and "
+            "existing capacity replaced with 'region_wind_pv_cap_fn' should match the "
+            "capacity used in the first period. If you believe this check is "
+            "incorrect, please file an issue at "
+            "https://github.com/PowerGenome/PowerGenome/issues."
+        )
+
+
+def _seed_retirement_budget(gen_data: pd.DataFrame) -> Dict[str, Dict]:
+    """Record the capacity each resource can retire across the periods of one case.
+
+    Parameters
+    ----------
+    gen_data : pd.DataFrame
+        Generator data for the case's first planning period. Only the capacity columns
+        paired with ``RETIRED_CAP_COLS`` are read.
+
+    Returns
+    -------
+    Dict[str, Dict]
+        Mapping of resource name to ``{"start": ..., "remaining": ...}`` dicts keyed
+        by budget name. A budget is infinite when the paired capacity column is not
+        available, since such a requirement cannot be validated.
+    """
+    caps = {}
+    for retired_col, (cap_col, key) in RETIRED_CAP_COLS.items():
+        if cap_col in gen_data.columns:
+            values = gen_data[cap_col].fillna(0).astype(float)
+            caps[key] = dict(zip(gen_data["Resource"], values))
+        else:
+            caps[key] = {}
+
+    return {
+        resource: {
+            attr: {key: caps[key].get(resource, float("inf")) for key in caps}
+            for attr in ("start", "remaining")
+        }
+        for resource in gen_data["Resource"]
+    }
 
 
 def calculate_partial_CES_values(gen_clusters, fuels, settings):

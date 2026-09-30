@@ -24,9 +24,6 @@
 # of thermal plant as a default and then specify specific values for any regions
 # that are different.
 
-# Include units with planned/age-based retirements when determining clusters across periods
-cluster_with_retired_gens: true
-
 # ** Any technologies not included in num_clusters will be omitted **
 num_clusters:
   Conventional Steam Coal: 1
@@ -393,20 +390,3 @@ new_gen_not_available: ~
 #   Battery storage: [Utility-Scale Battery Storage_Lithium Ion, Storage_LongDuration]
 #   Geothermal: [Geothermal_HydroBinary, Geothermal_HydroFlash, Geothermal_NFEGSBinary, Geothermal_DeepEGSBinary, Geothermal_NFEGSFlash, Geothermal_DeepEGSFlash]
 #   Conventional hydropower: [Hydropower]
-
-# EXTRA ADDITIONS AND RETIREMENTS
-
-# Use this section to hard-code retirements that are not included in the most recent
-# annual verion of EIA 860. The format is
-# [plant_id_eia, generator_id, planned_retirement_date]
-additional_retirements: ~
-  # - [55853, 1, 2020]
-  # - [55853, 2, 2020]
-  # - [2442, 1, 2029] # Retire Four Corners before 2030
-  # - [2442, 2, 2029]
-  # - [2442, 3, 2029]
-  # - [2442, 4, 2029]
-  # - [2442, 5, 2029]
-  # - [55177, A, 2031]
-  # - [55177, B, 2031]
-  # - [55177, ST1, 2031]

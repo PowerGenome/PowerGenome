@@ -24,9 +24,6 @@ capacity_col: winter_capacity_mw
 # of thermal plant as a default and then specify specific values for any regions
 # that are different.
 
-# Include units with planned/age-based retirements when determining clusters across periods
-cluster_with_retired_gens: true
-
 # ** Any technologies not included in num_clusters will be omitted **
 num_clusters:
   Conventional Steam Coal: 2
@@ -416,20 +413,3 @@ proposed_min_load:
   Natural Gas Fired Combined Cycle: 0.3 # From GE
   Natural Gas Fired Combustion Turbine: 0.3 # GE aero range is .15-.5, E3 has 0.3
   Natural Gas Internal Combustion Engine: 0.18 # From E3 assumptions
-
-# EXTRA ADDITIONS AND RETIREMENTS
-
-# Use this section to hard-code retirements that are not included in the most recent
-# annual verion of EIA 860. The format is
-# [plant_id_eia, generator_id, planned_retirement_date]
-additional_retirements: ~
-  # - [55853, 1, 2020]
-  # - [55853, 2, 2020]
-  # - [2442, 1, 2029] # Retire Four Corners before 2030
-  # - [2442, 2, 2029]
-  # - [2442, 3, 2029]
-  # - [2442, 4, 2029]
-  # - [2442, 5, 2029]
-  # - [55177, A, 2031]
-  # - [55177, B, 2031]
-  # - [55177, ST1, 2031]

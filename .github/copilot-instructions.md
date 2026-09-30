@@ -69,8 +69,8 @@ The DataManager normalizes these to standardized names (`generation`, `demand`, 
 - Clustered by region + technology using k-means (heat rate, capacity as features)
 - `num_clusters` sets default, `alt_num_clusters` overrides per region/tech
 - `tech_groups` merges similar technologies (e.g., landfill gas + municipal waste)
-- `retirement_ages` filters by plant age calculated from operating year
-- **Critical**: In myopic models, set retirement ages high (500+) to avoid cluster membership changes between periods
+- Retirements come from the `retirement_year` column of the generation input data (`label_retired_gens`); there is no `retirement_ages` setting. A blank (or missing) `retirement_year` means no planned retirement, so the unit operates through all periods
+- **Critical**: In myopic multi-period models, point every planning period of a case at the same generation data so cluster membership does not change between periods
 
 **New generators**:
 - Identified by `<technology>_<tech_detail>_<cost_case>` strings
