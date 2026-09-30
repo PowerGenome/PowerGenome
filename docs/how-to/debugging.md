@@ -165,14 +165,6 @@ baseline,2040,...
 
 ---
 
-### Retirement capacity validation fails
-
-PowerGenome found retirement requirements exceeding a resource's initial capacity.
-Check that generation data and capacity overrides are consistent across planning
-periods. The error message identifies the affected resources and capacity totals.
-
----
-
 ### Generator clustering produces unexpected groups
 
 **Cause**: Multiple possible causes — technology name mismatches, incorrect cluster counts, or plants being filtered out.
