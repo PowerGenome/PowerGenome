@@ -733,15 +733,8 @@ class ResourceGroup:
             p = self._read_profiles(
                 site_ids=df.index.tolist(), weather_year=weather_year
             )
-            df["profile"] = (
-                list(
-                    np.roll(
-                        p.values.T,
-                        utc_offset,
-                    )
-                )
-                or None
-            )
+            # Roll along the time axis so each site's profile wraps within itself.
+            df["profile"] = list(np.roll(p.values.T, utc_offset, axis=1)) or None
             merge["means"].append("profile")
         # Compute clusters
         if tree:
