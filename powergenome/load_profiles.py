@@ -632,7 +632,6 @@ def add_demand_response_resource_load(load_curves, settings):
             pass
 
     load_curves.index.name = "time_index"
-    load_curves.index = load_curves.index + 1
 
     return load_curves
 

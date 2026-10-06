@@ -302,6 +302,67 @@ class TestTestProfiles:
             rg.test_profiles()
 
 
+# ── get_clusters UTC-offset shifting ──────────────────────────────────
+
+
+def _two_site_group(site_values):
+    """ResourceGroup with sites 0 (1 MW) and 1 (2 MW) and 8760-hour profiles."""
+    metadata = pd.DataFrame(
+        {"id": [0, 1], "region": ["A", "A"], "capacity_mw": [1.0, 2.0]}
+    )
+    profiles = pd.concat(
+        [
+            pd.DataFrame(
+                {"site_id": sid, "time_index": range(1, 8761), "value": values}
+            )
+            for sid, values in site_values.items()
+        ],
+        ignore_index=True,
+    )
+    return ResourceGroup(
+        {"technology": "utilitypv"}, metadata=metadata, profiles=profiles
+    )
+
+
+class TestGetClustersUtcOffset:
+    """The UTC offset must roll each site's profile within that site only."""
+
+    @pytest.mark.parametrize("utc_offset", [0, 1, -5])
+    def test_constant_sites_stay_constant_unclustered(self, utc_offset):
+        rg = _two_site_group({0: np.full(8760, 1.0), 1: np.full(8760, 2.0)})
+
+        clusters = rg.get_clusters(max_clusters=2, utc_offset=utc_offset)
+
+        profiles = {idx[0]: row["profile"] for idx, row in clusters.iterrows()}
+        np.testing.assert_array_equal(profiles[0], np.full(8760, 1.0))
+        np.testing.assert_array_equal(profiles[1], np.full(8760, 2.0))
+
+    @pytest.mark.parametrize("utc_offset", [0, 1, -5])
+    def test_constant_sites_stay_constant_weighted(self, utc_offset):
+        rg = _two_site_group({0: np.full(8760, 1.0), 1: np.full(8760, 2.0)})
+
+        clusters = rg.get_clusters(max_clusters=1, utc_offset=utc_offset)
+
+        assert len(clusters) == 1
+        # Capacity-weighted mean of 1.0 (1 MW) and 2.0 (2 MW).
+        np.testing.assert_allclose(
+            clusters["profile"].iloc[0], np.full(8760, 5.0 / 3.0)
+        )
+
+    @pytest.mark.parametrize("utc_offset", [1, -5])
+    def test_each_site_rolls_within_itself(self, utc_offset):
+        site_values = {0: np.arange(8760.0), 1: np.arange(8760.0) + 10000.0}
+        rg = _two_site_group(site_values)
+
+        clusters = rg.get_clusters(max_clusters=2, utc_offset=utc_offset)
+
+        for idx, row in clusters.iterrows():
+            site = idx[0]
+            np.testing.assert_array_equal(
+                row["profile"], np.roll(site_values[site], utc_offset)
+            )
+
+
 # ── Profile path resolution (single path or list) ─────────────────────
 
 

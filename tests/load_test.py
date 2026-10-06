@@ -974,3 +974,58 @@ def test_supp_wide_path_specific_wy_raises(monkeypatch):
     lc = _base_load_curves(n_hours=4)
     with pytest.raises(ValueError, match="does not support weather-year"):
         add_supplemental_demand(lc, model_year=2030, model_regions=["R1"])
+
+
+# ── Demand response time index ──────────────────────────────────────────────
+
+
+def _dr_settings():
+    return {
+        "input_folder": ".",
+        "demand_response_fn": "dr.csv",
+        "model_year": 2030,
+        "flexible_demand_resources": {2030: {"ev": {}}},
+        "demand_response": "s",
+    }
+
+
+def test_add_demand_response_keeps_time_index(monkeypatch):
+    """Adding DR load must not renumber the 1-based time index."""
+    dr = pd.DataFrame({"R1": [10.0, 0.0, 0.0, 0.0, 0.0, 0.0]})
+    monkeypatch.setattr(lp_mod, "make_demand_response_profiles", lambda *a: dr)
+    lc = _base_load_curves(n_hours=6, regions=("R1",))
+
+    out = lp_mod.add_demand_response_resource_load(lc, _dr_settings())
+
+    assert list(out.index) == [1, 2, 3, 4, 5, 6]
+    assert out.index.name == "time_index"
+    assert list(out["R1"]) == [110.0, 100.0, 100.0, 100.0, 100.0, 100.0]
+
+
+def test_demand_response_then_supplemental_demand_alignment(monkeypatch):
+    """Time-specific supplemental demand lands on the right hours after DR."""
+    dr = pd.DataFrame({"R1": [10.0, 0.0, 0.0, 0.0, 0.0, 0.0]})
+    supp = pd.DataFrame(
+        {
+            "region": ["R1", "R1", "R1"],
+            "time_index": [1, 3, 6],
+            "load_mw": [0.0, 30.0, 60.0],
+        }
+    )
+    monkeypatch.setattr(lp_mod, "make_demand_response_profiles", lambda *a: dr)
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        lambda table_name, columns=None, filters=None, query=None: (
+            pd.DataFrame({"name": ["region", "time_index", "load_mw"]})
+            if query is not None
+            else supp
+        ),
+    )
+    lc = _base_load_curves(n_hours=6, regions=("R1",))
+
+    lc = lp_mod.add_demand_response_resource_load(lc, _dr_settings())
+    out = add_supplemental_demand(lc, model_year=2030, model_regions=["R1"])
+
+    assert list(out["R1"].values) == [110.0, 100.0, 130.0, 100.0, 100.0, 160.0]

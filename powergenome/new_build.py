@@ -39,6 +39,10 @@ from powergenome.util import (
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
+# Increment when the transforms applied to cached renewable cluster profiles
+# change (e.g. UTC shifting), so stale caches are not reused.
+PROFILE_TRANSFORM_VERSION = 2
+
 
 def fetch_resource_costs(
     settings: dict,
@@ -1151,6 +1155,48 @@ def flatten_cluster_def(
     return detail_suffix
 
 
+def _renewable_cache_key(
+    region: str,
+    technology: str,
+    detail_suffix: str,
+    utc_offset: int,
+    weather_year,
+    data_file_hash: str,
+    precluster: bool,
+) -> Tuple[str, str]:
+    """Build the human-readable name and hash that identify a renewable cluster cache.
+
+    Parameters
+    ----------
+    region : str
+        Model region name.
+    technology : str
+        Renewable technology name.
+    detail_suffix : str
+        Flattened cluster definition from `flatten_cluster_def`.
+    utc_offset : int
+        Hours applied to shift profiles from UTC.
+    weather_year : int, list, or str
+        Weather year(s) used to select profiles ("all" when not specified).
+    data_file_hash : str
+        Combined hash of the metadata and profile files.
+    precluster : bool
+        Whether clusters were built with `ClusterBuilder.get_clusters`, which caches
+        cluster profiles rather than cluster values plus site assignments.
+
+    Returns
+    -------
+    Tuple[str, str]
+        The cache name and its SHA-256 hash.
+    """
+    name = (
+        f"{region}_{technology}_{detail_suffix}_UTC{utc_offset}"
+        f"_weather_year{weather_year}_precluster{precluster}"
+        f"_v{PROFILE_TRANSFORM_VERSION}_file_{data_file_hash}"
+    )
+    return name, hash_string_sha256(name)
+
+
 def add_renewables_clusters(
     df: pd.DataFrame,
     region: str,
@@ -1308,8 +1354,14 @@ def add_renewables_clusters(
         else:
             data_file_hash = "no_data"
 
-        unique_hash = hash_string_sha256(
-            f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_weather_year{settings.get('weather_year','all')}_file_{data_file_hash}"
+        cache_name, unique_hash = _renewable_cache_key(
+            region=region,
+            technology=technology,
+            detail_suffix=detail_suffix,
+            utc_offset=settings.get("utc_offset", 0),
+            weather_year=settings.get("weather_year", "all"),
+            data_file_hash=data_file_hash,
+            precluster=precluster,
         )
         cache_cluster_fn = unique_hash + "_cluster_data.parquet"
         cache_site_assn_fn = unique_hash + "_site_assn.parquet"
@@ -1337,7 +1389,7 @@ def add_renewables_clusters(
                     "profiles_sha256",
                 ],
                 new_row=[
-                    f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_file_{data_file_hash}",
+                    cache_name,
                     unique_hash,
                     str(metadata_path),
                     str(profiles_path),
