@@ -220,7 +220,7 @@ Useful for aligning with policy thresholds or known resource quality tiers.
 
 ## Step 6: Caching for Speed
 
-Processing large resource group datasets can be slow. PowerGenome will cache renewable clustering results in the `extra_inputs` folder. The cached results are uniquely identified based on the renewable cluster specifications, the `utc_offset` value, and the hash value of resource group files.
+Processing large resource group datasets can be slow. PowerGenome will cache renewable clustering results in the `extra_inputs` folder. The cached results are uniquely identified based on the renewable cluster specifications, the `utc_offset` and `weather_year` values, whether the clusters were preclustered, a profile-processing version, and the hash value of resource group files. The version changes when PowerGenome changes how cached profiles are processed (for example, how they are shifted from UTC), so upgrading PowerGenome may regenerate caches once. Old cache files are not reused, but they are also not deleted automatically.
 
 Enable caching:
 
