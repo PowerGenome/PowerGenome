@@ -17,6 +17,7 @@ from powergenome.util import (
     add_row_to_csv,
     build_where_clause_from_filters,
     calculate_file_hash,
+    decode_integer_profile_values,
     get_all_table_names,
     get_first_planning_years_from_settings,
     get_model_years_from_settings,
@@ -965,6 +966,7 @@ def test_scale_integer_profiles_leaves_floats_unchanged():
 @pytest.mark.parametrize(
     "max_value, expected",
     [
+        (None, 1000),
         (0, 1000),
         (873, 1000),
         (1000, 1000),
@@ -1016,3 +1018,107 @@ def test_read_tidy_profiles_wide_infers_scale_pivot_path(tmp_path, caplog):
     assert FAST_PATH_LOGGED in caplog.text
     assert out[10].tolist() == pytest.approx([1.0, 0.5])
     assert out[20].tolist() == pytest.approx([0.02, 0.03])
+
+
+def test_read_tidy_profiles_wide_integer_nulls_fast_path(tmp_path, caplog):
+    """NULLs in an integer value column become NaN; remaining values still scale.
+
+    fetchdf() materializes an integer column containing NULLs as float64 with
+    NaN, so detection must key off the source type (DESCRIBE), not the chunk
+    dtype.
+    """
+    path = tmp_path / "profiles.parquet"
+    rows = [
+        (10, 1, 0),
+        (10, 2, None),
+        (10, 3, 1000),
+        (20, 1, 250),
+        (20, 2, 750),
+        (20, 3, 1000),
+    ]
+    _write_tidy_parquet(path, rows, value_dtype="Int16")
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [10, 20])
+
+    assert FAST_PATH_LOGGED not in caplog.text
+    assert out.dtypes.tolist() == [np.float32] * 2
+    assert out[10].iloc[0] == pytest.approx(0.0)
+    assert np.isnan(out[10].iloc[1])
+    assert out[10].iloc[2] == pytest.approx(1.0)
+    assert out[20].tolist() == pytest.approx([0.25, 0.75, 1.0])
+
+
+def test_read_tidy_profiles_wide_integer_ragged_chunks_pivot_path(
+    tmp_path, caplog, monkeypatch
+):
+    """Chunks joined with different time indexes still decode integer values.
+
+    The outer join across chunks promotes integer columns to float, so chunks
+    must be decoded before joining. Includes a within-chunk missing timestep
+    (site 10 has no time_index 2) to cover NULL cells produced by the pivot.
+    """
+    monkeypatch.setattr("powergenome.util._PROFILE_CHUNK_SIZE", 2)
+    path = tmp_path / "profiles.parquet"
+    rows = [
+        (10, 1, 100),
+        (10, 3, 10000),
+        (20, 1, 200),
+        (20, 2, 600),
+        (30, 1, 300),
+        (30, 2, 700),
+    ]
+    _write_tidy_parquet(path, rows, value_dtype=np.int16)
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [10, 20, 30])
+
+    assert FAST_PATH_LOGGED in caplog.text
+    assert "inferred scale of 10000" in caplog.text
+    assert out[10].iloc[0] == pytest.approx(0.01)
+    assert np.isnan(out[10].iloc[1])
+    assert out[10].iloc[2] == pytest.approx(1.0)
+    assert out[20].tolist()[0] == pytest.approx(0.02)
+    assert out[20].iloc[1] == pytest.approx(0.06)
+    assert np.isnan(out[20].iloc[2])
+    assert out[30].iloc[0] == pytest.approx(0.03)
+    assert out[30].iloc[1] == pytest.approx(0.07)
+    assert np.isnan(out[30].iloc[2])
+
+
+def test_scale_integer_profiles_nullable_int():
+    """Nullable (pd.NA) integer columns decode with NaN for missing values."""
+    df = pd.DataFrame({"a": pd.array([500, pd.NA], dtype="Int64")})
+    out = scale_integer_profiles(df)
+    assert out["a"].dtype == np.float32
+    assert out["a"].iloc[0] == pytest.approx(0.5)
+    assert pd.isna(out["a"].iloc[1])
+
+
+def test_decode_integer_profile_values_int():
+    s = pd.Series(np.array([0, 500, 1000], dtype="int16"), name="value")
+    out = decode_integer_profile_values(s)
+    assert out.dtype == np.float32
+    assert out.tolist() == pytest.approx([0.0, 0.5, 1.0])
+
+
+def test_decode_integer_profile_values_nullable_and_scale():
+    s = pd.Series(pd.array([250, pd.NA, 10000], dtype="Int16"), name="value")
+    out = decode_integer_profile_values(s)
+    assert out.dtype == np.float32
+    assert out.iloc[0] == pytest.approx(0.025)
+    assert pd.isna(out.iloc[1])
+    assert out.iloc[2] == pytest.approx(1.0)
+    assert decode_integer_profile_values(s, scale=1000).iloc[0] == pytest.approx(0.25)
+
+
+def test_decode_integer_profile_values_float_passthrough():
+    s = pd.Series([0.1, 0.2], name="value")
+    assert decode_integer_profile_values(s) is s
+
+
+def test_decode_integer_profile_values_empty():
+    s = pd.Series(np.array([], dtype="int16"), name="value")
+    out = decode_integer_profile_values(s)
+    assert out.empty
+    assert out.dtype == np.float32

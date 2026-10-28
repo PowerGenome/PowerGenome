@@ -1093,7 +1093,8 @@ def infer_integer_profile_scale(max_value: float) -> int:
     100000
     """
     scale = INTEGER_PROFILE_SCALE
-    if max_value is None or np.isnan(max_value) or max_value <= scale:
+    # pd.isna also covers None (e.g. an empty source) and pandas NA scalars.
+    if pd.isna(max_value) or max_value <= scale:
         return scale
     scale = int(10 ** math.ceil(math.log10(max_value)))
     logger.info(
@@ -1148,15 +1149,69 @@ def scale_integer_profiles(
     if not int_cols:
         return profiles
     if scale is None:
-        scale = infer_integer_profile_scale(profiles[int_cols].to_numpy().max())
+        # max() skips missing values, so nullable (pd.NA) integer columns work.
+        scale = infer_integer_profile_scale(profiles[int_cols].max().max())
     logger.debug(
         "Converting %d integer-encoded profile columns to floats using a scale of %s",
         len(int_cols),
         scale,
     )
     profiles = profiles.copy()
-    profiles[int_cols] = profiles[int_cols].astype("float32") / np.float32(scale)
+    # to_numpy(na_value=nan) handles both numpy and pandas nullable integer dtypes.
+    profiles[int_cols] = profiles[int_cols].to_numpy(
+        dtype="float32", na_value=np.nan
+    ) / np.float32(scale)
     return profiles
+
+
+def decode_integer_profile_values(
+    values: pd.Series, scale: Optional[int] = None
+) -> pd.Series:
+    """Convert an integer-encoded tidy profile ``value`` column to float fractions.
+
+    Unlike :func:`scale_integer_profiles`, which works on wide frames, this
+    decodes a single tidy column. When ``scale`` is not given it is inferred from
+    the full column, so the decoded capacity factors never depend on which rows
+    a caller subsets to afterwards. Missing values become NaN.
+
+    Parameters
+    ----------
+    values : pd.Series
+        Tidy profile ``value`` column.
+    scale : Optional[int]
+        Factor the integer values were multiplied by when stored. When ``None``
+        it is inferred from the largest value in ``values``.
+
+    Returns
+    -------
+    pd.Series
+        Float32 capacity factors, or ``values`` unchanged when the column is
+        not integer-encoded (e.g. already float fractions).
+
+    Examples
+    --------
+    >>> decode_integer_profile_values(pd.Series(np.array([0, 500, 1000], dtype="int16")))
+    0    0.0
+    1    0.5
+    2    1.0
+    dtype: float32
+    >>> s = pd.Series([0.1, 0.2])
+    >>> decode_integer_profile_values(s) is s
+    True
+    """
+    if not pd.api.types.is_integer_dtype(values):
+        return values
+    arr = values.to_numpy(dtype="float64", na_value=np.nan)
+    if scale is None:
+        if arr.size and not np.all(np.isnan(arr)):
+            scale = infer_integer_profile_scale(np.nanmax(arr))
+        else:
+            scale = INTEGER_PROFILE_SCALE
+    return pd.Series(
+        arr.astype("float32") / np.float32(scale),
+        index=values.index,
+        name=values.name,
+    )
 
 
 _DUCKDB_INTEGER_TYPES = {
@@ -1424,6 +1479,15 @@ def _pivot_tidy_profiles_wide(
                 }
             )
             chunk_wide = chunk_wide.set_index("time_index")
+            if int_scale is not None:
+                # Decode each chunk with the scale determined up-front from the
+                # whole file: an outer join across chunks with different time
+                # indexes promotes integer columns to float, which would defeat
+                # dtype-based detection on the assembled frame.
+                cols = list(chunk_wide.columns)
+                chunk_wide[cols] = chunk_wide[cols].to_numpy(
+                    dtype="float32", na_value=np.nan
+                ) / np.float32(int_scale)
             wide = chunk_wide if wide is None else wide.join(chunk_wide, how="outer")
     finally:
         con.close()
@@ -1434,7 +1498,6 @@ def _pivot_tidy_profiles_wide(
             index=pd.Index([], name="time_index"), columns=list(site_ids)
         )
 
-    wide = scale_integer_profiles(wide, scale=int_scale)
     present = [s for s in site_ids if s in wide.columns]
     missing = [s for s in site_ids if s not in present]
     if missing:
@@ -1492,7 +1555,6 @@ def _scan_tidy_profiles_wide_fast(
         plate = None
         N = None
         val_dtype = None
-        is_int = False
         found = set()
         for start in range(0, len(site_id_strs), _PROFILE_CHUNK_SIZE):
             chunk = site_id_strs[start : start + _PROFILE_CHUNK_SIZE]
@@ -1510,13 +1572,15 @@ def _scan_tidy_profiles_wide_fast(
             ti = df["ti"].to_numpy()
             val = df["val"].to_numpy()
             if val_dtype is None:
-                # Integer-encoded profiles are scaled to float fractions; the
-                # plate must be float so the fill value of 1.0 survives.
-                is_int = np.issubdtype(val.dtype, np.integer)
-                val_dtype = np.float32 if is_int else val.dtype
-                if is_int and int_scale is None:
-                    int_scale = INTEGER_PROFILE_SCALE
-            if is_int:
+                # Integer-encoded profiles are decoded with the scale determined
+                # up-front from the file; the plate must be float so the fill
+                # value of 1.0 survives. Key off int_scale (the authoritative
+                # source type), not the chunk dtype: a NULL in an integer value
+                # column makes fetchdf() return float64 with NaN, which would
+                # defeat dtype-based detection.
+                val_dtype = np.float32 if int_scale is not None else val.dtype
+            if int_scale is not None:
+                # NaN (from NULLs) survives the cast and division.
                 val = val.astype(np.float32) / np.float32(int_scale)
             # Boundaries between contiguous per-site blocks (a site id change).
             starts = np.flatnonzero(np.concatenate(([True], sid[1:] != sid[:-1])))

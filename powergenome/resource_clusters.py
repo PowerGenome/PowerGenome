@@ -13,7 +13,9 @@ import pyarrow.parquet as pq
 import scipy.cluster.hierarchy
 
 from powergenome.util import (
+    decode_integer_profile_values,
     find_region_col,
+    infer_integer_profile_scale,
     read_tidy_profiles_wide,
     scale_integer_profiles,
 )
@@ -370,6 +372,92 @@ class Table:
         """
         if self.path is not None:
             self.df = None
+
+
+# Reserved tidy-format column names that are never site profile columns.
+_TIDY_PROFILE_COLUMNS = {"site_id", "time_index", "value", "weather_year"}
+
+
+def _parquet_int_column_maxima(path: Union[Path, str]) -> Optional[Dict[str, int]]:
+    """Maxima of integer value columns from parquet metadata statistics.
+
+    Reads only the file footer (metadata), not the data pages, so a file-wide
+    maximum costs ~nothing even for very large profile files.
+
+    Parameters
+    ----------
+    path : Union[Path, str]
+        Path to a parquet file.
+
+    Returns
+    -------
+    Optional[Dict[str, int]]
+        Mapping of integer column name to its maximum value. ``None`` when any
+        integer column lacks min/max statistics (e.g. written with
+        ``write_statistics=False``) or the file cannot be inspected, so callers
+        can fall back to reading the data.
+    """
+    try:
+        pf = pq.ParquetFile(path)
+        schema = pf.schema_arrow
+        maxima: Dict[str, int] = {}
+        for i, name in enumerate(schema.names):
+            if str(name) in _TIDY_PROFILE_COLUMNS:
+                continue
+            if not pyarrow.types.is_integer(schema.field(i).type):
+                continue
+            col_max = None
+            for rg in range(pf.metadata.num_row_groups):
+                stats = pf.metadata.row_group(rg).column(i).statistics
+                if stats is None or not stats.has_min_max:
+                    return None
+                if col_max is None or stats.max > col_max:
+                    col_max = stats.max
+            if col_max is not None:
+                maxima[str(name)] = col_max
+        return maxima
+    except Exception:
+        # E.g. a directory of partitioned parquet files; the caller falls back
+        # to reading the dataset.
+        return None
+
+
+def _wide_source_int_scale(table: Table) -> Optional[int]:
+    """Determine the integer-encoding scale from all value columns of a wide source.
+
+    The scale must reflect the whole source, not just the site columns a caller
+    happens to request, so that a site's decoded capacity factors never depend
+    on which other sites are requested alongside it. For parquet files the
+    maxima come from metadata statistics (no data read); other sources (or
+    parquet files without statistics) are read once and cached by the table.
+
+    Parameters
+    ----------
+    table : Table
+        Wide-format profile source (in-memory or file-backed).
+
+    Returns
+    -------
+    Optional[int]
+        Scale factor, or ``None`` when no value column is integer-encoded.
+    """
+    if table.df is None and table.format == "parquet":
+        maxima = _parquet_int_column_maxima(table.path)
+        if maxima is not None:
+            if not maxima:
+                return None
+            return infer_integer_profile_scale(max(maxima.values()))
+        # Fall through: statistics unavailable, read the dataset (cached).
+    frame = table.read()
+    int_cols = [
+        c
+        for c in frame.columns
+        if str(c) not in _TIDY_PROFILE_COLUMNS
+        and pd.api.types.is_integer_dtype(frame[c])
+    ]
+    if not int_cols:
+        return None
+    return infer_integer_profile_scale(frame[int_cols].max().max())
 
 
 class ResourceGroup:
@@ -815,12 +903,20 @@ class ResourceGroup:
             available_cols = set(str(c) for c in cols)
             cols_to_read = [s for s in site_ids_str if s in available_cols]
             wide = self.profiles.read(columns=cols_to_read)
+            # Determine the encoding scale up-front from every value column in
+            # the source, not just the requested ones, so a site's decoded
+            # capacity factors don't depend on which other sites are requested.
+            int_scale = None
+            if any(pd.api.types.is_integer_dtype(wide[c]) for c in wide.columns):
+                int_scale = _wide_source_int_scale(self.profiles)
             # Map string column names back to original site_id types
             rename_map = {}
             for s in site_ids:
                 if str(s) in cols_to_read:
                     rename_map[str(s)] = s
-            wide = scale_integer_profiles(wide.rename(columns=rename_map))
+            wide = scale_integer_profiles(
+                wide.rename(columns=rename_map), scale=int_scale
+            )
             # Fill missing site_ids with 1.0
             for m in set(site_ids) - set(wide.columns):
                 wide[m] = 1.0
@@ -836,6 +932,12 @@ class ResourceGroup:
                 if c in cols
             ]
             df = self.profiles.read(columns=read_cols)
+            # Decode integer-encoded values against the full value column before
+            # filtering to the requested sites: the scale must not depend on
+            # which sites are requested, and pandas pivot promotes integer
+            # columns to float when sites have different lengths (which would
+            # defeat dtype-based detection after the pivot).
+            df = df.assign(value=decode_integer_profile_values(df["value"]))
             df = df[df["site_id"].isin(site_ids)]
         else:
             # On-disk: pivot in DuckDB (single query), keeping only the wide result
@@ -889,9 +991,9 @@ class ResourceGroup:
                 df = df.sort_values(by=sort_cols)
             df["time_index"] = df.groupby("site_id").cumcount() + 1
 
-        wide = scale_integer_profiles(
-            df.pivot(index="time_index", columns="site_id", values="value").sort_index()
-        )
+        wide = df.pivot(
+            index="time_index", columns="site_id", values="value"
+        ).sort_index()
         present = [c for c in site_ids if c in wide.columns]
         missing = [c for c in site_ids if c not in wide.columns]
         wide = wide.reindex(columns=present)
