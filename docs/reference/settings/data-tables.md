@@ -367,7 +367,10 @@ profiles in another.
 - `weather_year`: Weather data year
 - `time_index`: Hour index (1 to number of hours)
 - `site_id`: Resource cluster/site identifier
-- `value`: Capacity factor (0.0 to 1.0)
+- `value`: Capacity factor (0.0 to 1.0). To reduce file size, this column may instead
+  be stored as an integer (e.g. `int16`) equal to the capacity factor multiplied by
+  1000 (`873` → `0.873`). Integer columns are detected automatically and converted
+  back to float fractions when loaded; float columns are never rescaled.
 
 **Example**:
 

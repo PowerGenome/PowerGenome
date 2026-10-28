@@ -1055,6 +1055,56 @@ _PROFILE_CHUNK_SIZE = 5000
 # cause of multi-GB memory spikes (measured >50 GB for ~69k sites). Chunking the
 # fallback keeps peak memory under control on the small-memory machines we target.
 
+# Profile values stored as integers are interpreted as capacity factors multiplied
+# by this factor (e.g. 1000 -> a value of 873 means 0.873). Storing profiles as
+# int16 instead of float32 halves file size and compresses far better.
+INTEGER_PROFILE_SCALE = 1000
+
+
+def scale_integer_profiles(
+    profiles: pd.DataFrame, scale: int = INTEGER_PROFILE_SCALE
+) -> pd.DataFrame:
+    """Convert integer-encoded profile columns to float capacity factors in [0, 1].
+
+    Columns with an integer dtype are divided by ``scale`` and cast to ``float32``.
+    Float columns are returned unchanged, so profiles that are already stored as
+    fractions are never rescaled.
+
+    Parameters
+    ----------
+    profiles : pd.DataFrame
+        Wide profile DataFrame (one column per site).
+    scale : int
+        Factor the integer values were multiplied by when stored.
+
+    Returns
+    -------
+    pd.DataFrame
+        Profiles with all integer columns converted to float32 fractions.
+
+    Examples
+    --------
+    >>> df = pd.DataFrame({"a": np.array([0, 500, 1000], dtype="int16"), "b": [0.5, 0.5, 0.5]})
+    >>> scale_integer_profiles(df)
+         a    b
+    0  0.0  0.5
+    1  0.5  0.5
+    2  1.0  0.5
+    """
+    int_cols = [
+        c for c in profiles.columns if pd.api.types.is_integer_dtype(profiles[c])
+    ]
+    if not int_cols:
+        return profiles
+    logger.debug(
+        "Converting %d integer-encoded profile columns to floats using a scale of %s",
+        len(int_cols),
+        scale,
+    )
+    profiles = profiles.copy()
+    profiles[int_cols] = profiles[int_cols].astype("float32") / np.float32(scale)
+    return profiles
+
 
 def read_tidy_profiles_wide(
     path: Union[Path, str],
@@ -1299,6 +1349,7 @@ def _pivot_tidy_profiles_wide(
             index=pd.Index([], name="time_index"), columns=list(site_ids)
         )
 
+    wide = scale_integer_profiles(wide)
     present = [s for s in site_ids if s in wide.columns]
     missing = [s for s in site_ids if s not in present]
     if missing:
@@ -1355,6 +1406,7 @@ def _scan_tidy_profiles_wide_fast(
         plate = None
         N = None
         val_dtype = None
+        is_int = False
         found = set()
         for start in range(0, len(site_id_strs), _PROFILE_CHUNK_SIZE):
             chunk = site_id_strs[start : start + _PROFILE_CHUNK_SIZE]
@@ -1372,7 +1424,12 @@ def _scan_tidy_profiles_wide_fast(
             ti = df["ti"].to_numpy()
             val = df["val"].to_numpy()
             if val_dtype is None:
-                val_dtype = val.dtype
+                # Integer-encoded profiles are scaled to float fractions; the
+                # plate must be float so the fill value of 1.0 survives.
+                is_int = np.issubdtype(val.dtype, np.integer)
+                val_dtype = np.float32 if is_int else val.dtype
+            if is_int:
+                val = val.astype(np.float32) / np.float32(INTEGER_PROFILE_SCALE)
             # Boundaries between contiguous per-site blocks (a site id change).
             starts = np.flatnonzero(np.concatenate(([True], sid[1:] != sid[:-1])))
             starts = np.append(starts, len(sid))

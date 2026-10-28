@@ -27,6 +27,7 @@ from powergenome.util import (
     make_iterable,
     prepend_db_to_tables,
     read_tidy_profiles_wide,
+    scale_integer_profiles,
     sort_nested_dict,
     update_dictionary,
 )
@@ -908,3 +909,53 @@ def test_read_tidy_profiles_wide_many_sites_chunked(tmp_path):
     assert out.iloc[0].tolist() == pytest.approx(
         [0.001 * i for i in range(n - 1, -1, -1)]
     )
+
+
+def test_read_tidy_profiles_wide_integer_values_fast_path(tmp_path, caplog):
+    """int16 values are divided by INTEGER_PROFILE_SCALE; missing sites stay 1.0."""
+    path = tmp_path / "profiles.parquet"
+    rows = [
+        (10, 1, 0),
+        (10, 2, 500),
+        (10, 3, 1000),
+        (20, 1, 250),
+        (20, 2, 750),
+        (20, 3, 1000),
+    ]
+    _write_tidy_parquet(path, rows, value_dtype=np.int16)
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [10, 20, 99])
+
+    assert FAST_PATH_LOGGED not in caplog.text
+    assert out.dtypes.tolist() == [np.float32] * 3
+    assert out[10].tolist() == pytest.approx([0.0, 0.5, 1.0])
+    assert out[20].tolist() == pytest.approx([0.25, 0.75, 1.0])
+    assert out[99].tolist() == pytest.approx([1.0, 1.0, 1.0])
+
+
+def test_read_tidy_profiles_wide_integer_values_pivot_path(tmp_path, caplog):
+    """Integer values are also scaled on the SQL PIVOT fallback path."""
+    path = tmp_path / "profiles.parquet"
+    rows = [(10, 1, 100), (20, 1, 200), (10, 2, 110), (20, 2, 210)]
+    _write_tidy_parquet(path, rows, value_dtype=np.int16)
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [10, 20, 99])
+
+    assert FAST_PATH_LOGGED in caplog.text
+    assert out[10].tolist() == pytest.approx([0.1, 0.11])
+    assert out[20].tolist() == pytest.approx([0.2, 0.21])
+    assert out[99].tolist() == pytest.approx([1.0, 1.0])
+
+
+def test_scale_integer_profiles_leaves_floats_unchanged():
+    df = pd.DataFrame(
+        {"a": np.array([0, 500, 1000], dtype="int16"), "b": [0.5, 0.6, 0.7]}
+    )
+    out = scale_integer_profiles(df)
+    assert out["a"].tolist() == pytest.approx([0.0, 0.5, 1.0])
+    assert out["b"].tolist() == pytest.approx([0.5, 0.6, 0.7])
+    assert out["a"].dtype == np.float32
+    # Input is not mutated
+    assert df["a"].dtype == np.int16

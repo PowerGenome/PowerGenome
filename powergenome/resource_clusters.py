@@ -12,7 +12,11 @@ import pyarrow
 import pyarrow.parquet as pq
 import scipy.cluster.hierarchy
 
-from powergenome.util import find_region_col, read_tidy_profiles_wide
+from powergenome.util import (
+    find_region_col,
+    read_tidy_profiles_wide,
+    scale_integer_profiles,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -816,7 +820,7 @@ class ResourceGroup:
             for s in site_ids:
                 if str(s) in cols_to_read:
                     rename_map[str(s)] = s
-            wide = wide.rename(columns=rename_map)
+            wide = scale_integer_profiles(wide.rename(columns=rename_map))
             # Fill missing site_ids with 1.0
             for m in set(site_ids) - set(wide.columns):
                 wide[m] = 1.0
@@ -885,9 +889,9 @@ class ResourceGroup:
                 df = df.sort_values(by=sort_cols)
             df["time_index"] = df.groupby("site_id").cumcount() + 1
 
-        wide = df.pivot(
-            index="time_index", columns="site_id", values="value"
-        ).sort_index()
+        wide = scale_integer_profiles(
+            df.pivot(index="time_index", columns="site_id", values="value").sort_index()
+        )
         present = [c for c in site_ids if c in wide.columns]
         missing = [c for c in site_ids if c not in wide.columns]
         wide = wide.reindex(columns=present)
