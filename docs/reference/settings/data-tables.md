@@ -367,7 +367,18 @@ profiles in another.
 - `weather_year`: Weather data year
 - `time_index`: Hour index (1 to number of hours)
 - `site_id`: Resource cluster/site identifier
-- `value`: Capacity factor (0.0 to 1.0)
+- `value`: Capacity factor (0.0 to 1.0). To reduce file size, this column may instead
+  be stored as an integer (e.g. `int16`) equal to the capacity factor multiplied by
+  a power of ten. Integer columns are detected automatically (from the source file
+  type, not the loaded values, so NULLs are handled) and converted back to float
+  fractions when loaded; NULLs become NaN. The scale is determined once per source
+  from the file-wide maximum, before any sites are subset, so decoded capacity
+  factors never depend on which sites are requested. The scale defaults to 1000
+  (`873` → `0.873`); if any value in the source exceeds 1000, the smallest power of
+  ten covering that maximum is used instead (e.g. a max of `9987` → scale 10000).
+  Float columns are never rescaled. Wide-format (one column per site) parquet
+  sources use parquet metadata statistics to find the maximum without reading the
+  data.
 
 **Example**:
 

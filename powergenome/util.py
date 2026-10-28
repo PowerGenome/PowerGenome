@@ -3,6 +3,7 @@ import csv
 import hashlib
 import itertools
 import logging
+import math
 import os
 import re
 import subprocess
@@ -1055,6 +1056,177 @@ _PROFILE_CHUNK_SIZE = 5000
 # cause of multi-GB memory spikes (measured >50 GB for ~69k sites). Chunking the
 # fallback keeps peak memory under control on the small-memory machines we target.
 
+# Profile values stored as integers are interpreted as capacity factors multiplied
+# by a power-of-ten scale factor. This is the default (and minimum) scale; a larger
+# one is inferred automatically when the data contain values above it (see
+# `infer_integer_profile_scale`). Storing profiles as int16 instead of float32
+# halves file size and compresses far better.
+INTEGER_PROFILE_SCALE = 1000
+
+
+def infer_integer_profile_scale(max_value: float) -> int:
+    """Pick the power-of-ten scale used to encode integer capacity factors.
+
+    Starts at :data:`INTEGER_PROFILE_SCALE`. If ``max_value`` exceeds it, the
+    values cannot be fractions at that scale, so the smallest power of ten that
+    is >= ``max_value`` is used instead (e.g. a max of 9987 implies 10000).
+
+    Parameters
+    ----------
+    max_value : float
+        Largest integer value present in the profile data.
+
+    Returns
+    -------
+    int
+        Scale factor to divide integer values by.
+
+    Examples
+    --------
+    >>> infer_integer_profile_scale(873)
+    1000
+    >>> infer_integer_profile_scale(1000)
+    1000
+    >>> infer_integer_profile_scale(9987)
+    10000
+    >>> infer_integer_profile_scale(65535)
+    100000
+    """
+    scale = INTEGER_PROFILE_SCALE
+    # pd.isna also covers None (e.g. an empty source) and pandas NA scalars.
+    if pd.isna(max_value) or max_value <= scale:
+        return scale
+    scale = int(10 ** math.ceil(math.log10(max_value)))
+    logger.info(
+        "Integer profile values reach %s, above the default scale of %s. "
+        "Using an inferred scale of %s to convert them to capacity factors.",
+        max_value,
+        INTEGER_PROFILE_SCALE,
+        scale,
+    )
+    return scale
+
+
+def scale_integer_profiles(
+    profiles: pd.DataFrame, scale: Optional[int] = None
+) -> pd.DataFrame:
+    """Convert integer-encoded profile columns to float capacity factors in [0, 1].
+
+    Columns with an integer dtype are divided by ``scale`` and cast to ``float32``.
+    Float columns are returned unchanged, so profiles that are already stored as
+    fractions are never rescaled.
+
+    Parameters
+    ----------
+    profiles : pd.DataFrame
+        Wide profile DataFrame (one column per site).
+    scale : Optional[int]
+        Factor the integer values were multiplied by when stored. When ``None``
+        it is inferred from the largest integer value present with
+        :func:`infer_integer_profile_scale`.
+
+    Returns
+    -------
+    pd.DataFrame
+        Profiles with all integer columns converted to float32 fractions.
+
+    Examples
+    --------
+    >>> df = pd.DataFrame({"a": np.array([0, 500, 1000], dtype="int16"), "b": [0.5, 0.5, 0.5]})
+    >>> scale_integer_profiles(df)
+         a    b
+    0  0.0  0.5
+    1  0.5  0.5
+    2  1.0  0.5
+    >>> scale_integer_profiles(pd.DataFrame({"a": np.array([2500, 10000], dtype="int16")}))
+          a
+    0  0.25
+    1  1.00
+    """
+    int_cols = [
+        c for c in profiles.columns if pd.api.types.is_integer_dtype(profiles[c])
+    ]
+    if not int_cols:
+        return profiles
+    if scale is None:
+        # max() skips missing values, so nullable (pd.NA) integer columns work.
+        scale = infer_integer_profile_scale(profiles[int_cols].max().max())
+    logger.debug(
+        "Converting %d integer-encoded profile columns to floats using a scale of %s",
+        len(int_cols),
+        scale,
+    )
+    profiles = profiles.copy()
+    # to_numpy(na_value=nan) handles both numpy and pandas nullable integer dtypes.
+    profiles[int_cols] = profiles[int_cols].to_numpy(
+        dtype="float32", na_value=np.nan
+    ) / np.float32(scale)
+    return profiles
+
+
+def decode_integer_profile_values(
+    values: pd.Series, scale: Optional[int] = None
+) -> pd.Series:
+    """Convert an integer-encoded tidy profile ``value`` column to float fractions.
+
+    Unlike :func:`scale_integer_profiles`, which works on wide frames, this
+    decodes a single tidy column. When ``scale`` is not given it is inferred from
+    the full column, so the decoded capacity factors never depend on which rows
+    a caller subsets to afterwards. Missing values become NaN.
+
+    Parameters
+    ----------
+    values : pd.Series
+        Tidy profile ``value`` column.
+    scale : Optional[int]
+        Factor the integer values were multiplied by when stored. When ``None``
+        it is inferred from the largest value in ``values``.
+
+    Returns
+    -------
+    pd.Series
+        Float32 capacity factors, or ``values`` unchanged when the column is
+        not integer-encoded (e.g. already float fractions).
+
+    Examples
+    --------
+    >>> decode_integer_profile_values(pd.Series(np.array([0, 500, 1000], dtype="int16")))
+    0    0.0
+    1    0.5
+    2    1.0
+    dtype: float32
+    >>> s = pd.Series([0.1, 0.2])
+    >>> decode_integer_profile_values(s) is s
+    True
+    """
+    if not pd.api.types.is_integer_dtype(values):
+        return values
+    arr = values.to_numpy(dtype="float64", na_value=np.nan)
+    if scale is None:
+        if arr.size and not np.all(np.isnan(arr)):
+            scale = infer_integer_profile_scale(np.nanmax(arr))
+        else:
+            scale = INTEGER_PROFILE_SCALE
+    return pd.Series(
+        arr.astype("float32") / np.float32(scale),
+        index=values.index,
+        name=values.name,
+    )
+
+
+_DUCKDB_INTEGER_TYPES = {
+    "TINYINT",
+    "SMALLINT",
+    "INTEGER",
+    "BIGINT",
+    "HUGEINT",
+    "UTINYINT",
+    "USMALLINT",
+    "UINTEGER",
+    "UBIGINT",
+    "UHUGEINT",
+}
+
 
 def read_tidy_profiles_wide(
     path: Union[Path, str],
@@ -1134,7 +1306,22 @@ def read_tidy_profiles_wide(
     finally:
         con.close()
     col_names = [c[0] for c in cols]
+    col_types = {c[0]: str(c[1]).upper() for c in cols}
     has_wy = "weather_year" in col_names
+
+    # Integer-encoded values: infer the scale from the file's maximum once, so the
+    # chunked readers below can convert values as they stream without buffering.
+    int_scale = None
+    if col_types.get("value") in _DUCKDB_INTEGER_TYPES:
+        con = duckdb.connect(database=":memory:")
+        try:
+            reader = "read_parquet" if extension == ".parquet" else "read_csv_auto"
+            max_val = con.execute(
+                f'SELECT MAX("value") FROM {reader}({path_literal})'
+            ).fetchone()[0]
+        finally:
+            con.close()
+        int_scale = infer_integer_profile_scale(max_val)
 
     # Quote identifiers for safe use in the generated SQL.
     def q(ident: str) -> str:
@@ -1174,6 +1361,7 @@ def read_tidy_profiles_wide(
                 escape=escape,
                 q=q,
                 lit=lit,
+                int_scale=int_scale,
             )
         except _FastScanFallback as exc:
             logger.debug(
@@ -1192,6 +1380,7 @@ def read_tidy_profiles_wide(
         escape=escape,
         q=q,
         lit=lit,
+        int_scale=int_scale,
     )
 
 
@@ -1204,6 +1393,7 @@ def _pivot_tidy_profiles_wide(
     escape: str,
     q,
     lit,
+    int_scale: Optional[int] = None,
 ) -> pd.DataFrame:
     """Reshape tidy profiles to wide with SQL PIVOT, chunked by site.
 
@@ -1289,6 +1479,15 @@ def _pivot_tidy_profiles_wide(
                 }
             )
             chunk_wide = chunk_wide.set_index("time_index")
+            if int_scale is not None:
+                # Decode each chunk with the scale determined up-front from the
+                # whole file: an outer join across chunks with different time
+                # indexes promotes integer columns to float, which would defeat
+                # dtype-based detection on the assembled frame.
+                cols = list(chunk_wide.columns)
+                chunk_wide[cols] = chunk_wide[cols].to_numpy(
+                    dtype="float32", na_value=np.nan
+                ) / np.float32(int_scale)
             wide = chunk_wide if wide is None else wide.join(chunk_wide, how="outer")
     finally:
         con.close()
@@ -1319,6 +1518,7 @@ def _scan_tidy_profiles_wide_fast(
     escape: str,
     q,
     lit,
+    int_scale: Optional[int] = None,
 ) -> pd.DataFrame:
     """Fast-path implementation for :func:`read_tidy_profiles_wide`.
 
@@ -1372,7 +1572,16 @@ def _scan_tidy_profiles_wide_fast(
             ti = df["ti"].to_numpy()
             val = df["val"].to_numpy()
             if val_dtype is None:
-                val_dtype = val.dtype
+                # Integer-encoded profiles are decoded with the scale determined
+                # up-front from the file; the plate must be float so the fill
+                # value of 1.0 survives. Key off int_scale (the authoritative
+                # source type), not the chunk dtype: a NULL in an integer value
+                # column makes fetchdf() return float64 with NaN, which would
+                # defeat dtype-based detection.
+                val_dtype = np.float32 if int_scale is not None else val.dtype
+            if int_scale is not None:
+                # NaN (from NULLs) survives the cast and division.
+                val = val.astype(np.float32) / np.float32(int_scale)
             # Boundaries between contiguous per-site blocks (a site id change).
             starts = np.flatnonzero(np.concatenate(([True], sid[1:] != sid[:-1])))
             starts = np.append(starts, len(sid))

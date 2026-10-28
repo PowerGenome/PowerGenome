@@ -8,7 +8,11 @@ import pandas as pd
 import pytest
 
 from powergenome.params import build_resource_clusters
-from powergenome.resource_clusters import ResourceGroup
+from powergenome.resource_clusters import (
+    ResourceGroup,
+    _parquet_int_column_maxima,
+    _wide_source_int_scale,
+)
 
 
 @pytest.fixture
@@ -418,3 +422,131 @@ class TestBuildResourceClusters:
         monkeypatch.setitem(params.SETTINGS, "RESOURCE_GROUP_PROFILES", None)
         builder = build_resource_clusters(group_path=None)
         assert len(builder.groups) == 0
+
+
+class TestIntegerEncodedProfiles:
+    """Integer-encoded profiles decode with a source-wide scale on every path.
+
+    The scale must be determined from the whole source up-front so a site's
+    decoded capacity factors never depend on which other sites are requested.
+    """
+
+    def _tidy_int_df(self):
+        # Site 0 stays within the default 1000 scale; site 1 forces 10000.
+        return pd.DataFrame(
+            {
+                "site_id": [0, 0, 1, 1],
+                "time_index": [1, 2, 1, 2],
+                "value": np.array([500, 800, 3000, 10000], dtype="int16"),
+            }
+        )
+
+    def _wide_int_df(self):
+        return pd.DataFrame(
+            {
+                "0": np.array([500, 800], dtype="int16"),
+                "1": np.array([3000, 10000], dtype="int16"),
+            }
+        )
+
+    def test_tidy_integer_ragged_decodes_with_nan(self, metadata_df):
+        """Ragged in-memory tidy sites decode; the short site gets a NaN tail."""
+        df = pd.DataFrame(
+            {
+                "site_id": [0, 0, 0, 1, 1],
+                "time_index": [1, 2, 3, 1, 2],
+                "value": np.array([0, 5000, 10000, 100, 500], dtype="int16"),
+            }
+        )
+        rg = ResourceGroup(
+            {"technology": "utilitypv"}, metadata=metadata_df, profiles=df
+        )
+        result = rg._read_profiles(site_ids=[0, 1])
+        assert result[0].tolist() == pytest.approx([0.0, 0.5, 1.0])
+        assert result[1].iloc[0] == pytest.approx(0.01)
+        assert result[1].iloc[1] == pytest.approx(0.05)
+        assert np.isnan(result[1].iloc[2])
+
+    def test_tidy_integer_scale_is_source_wide(self, metadata_df):
+        """Requesting site 0 alone gives the same result as requesting both."""
+        rg = ResourceGroup(
+            {"technology": "utilitypv"},
+            metadata=metadata_df,
+            profiles=self._tidy_int_df(),
+        )
+        alone = rg._read_profiles(site_ids=[0])
+        both = rg._read_profiles(site_ids=[0, 1])
+        assert alone[0].tolist() == pytest.approx([0.05, 0.08])
+        assert both[0].tolist() == pytest.approx([0.05, 0.08])
+        assert both[1].tolist() == pytest.approx([0.3, 1.0])
+
+    def test_wide_integer_scale_is_source_wide(self, metadata_df, caplog):
+        """In-memory wide: site 0 alone decodes with the source-wide scale."""
+        rg = ResourceGroup(
+            {"technology": "utilitypv"},
+            metadata=metadata_df,
+            profiles=self._wide_int_df(),
+        )
+        with caplog.at_level(logging.WARNING):
+            alone = rg._read_profiles(site_ids=[0])
+            both = rg._read_profiles(site_ids=[0, 1])
+        assert alone[0].tolist() == pytest.approx([0.05, 0.08])
+        assert both[0].tolist() == pytest.approx([0.05, 0.08])
+        assert both[1].tolist() == pytest.approx([0.3, 1.0])
+
+    def test_wide_integer_parquet_statistics(self, tmp_path, metadata_df, caplog):
+        """File-backed wide parquet: scale comes from metadata statistics."""
+        path = tmp_path / "wide_profiles.parquet"
+        self._wide_int_df().to_parquet(path, index=False)
+        rg = ResourceGroup(
+            {"technology": "utilitypv", "profiles": str(path)}, metadata=metadata_df
+        )
+        with caplog.at_level(logging.WARNING):
+            alone = rg._read_profiles(site_ids=[0])
+            both = rg._read_profiles(site_ids=[0, 1])
+        assert alone[0].tolist() == pytest.approx([0.05, 0.08])
+        assert both[0].tolist() == pytest.approx([0.05, 0.08])
+        assert both[1].tolist() == pytest.approx([0.3, 1.0])
+        # Statistics answered the scale question without loading the dataset.
+        assert rg.profiles.df is None
+
+    def test_wide_integer_parquet_without_statistics(self, tmp_path, metadata_df):
+        """Parquet without statistics falls back to a (cached) full read."""
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        path = tmp_path / "wide_profiles.parquet"
+        table = pa.table(
+            {
+                "0": pa.array([500, 800], type=pa.int16()),
+                "1": pa.array([3000, 10000], type=pa.int16()),
+            }
+        )
+        pq.write_table(table, path, write_statistics=False)
+        assert _parquet_int_column_maxima(path) is None
+
+        rg = ResourceGroup(
+            {"technology": "utilitypv", "profiles": str(path)}, metadata=metadata_df
+        )
+        alone = rg._read_profiles(site_ids=[0])
+        assert alone[0].tolist() == pytest.approx([0.05, 0.08])
+        # The fallback read cached the full dataset.
+        assert rg.profiles.df is not None
+
+    def test_parquet_int_column_maxima_excludes_reserved(self, tmp_path):
+        """Reserved tidy column names are not treated as profile value columns."""
+        path = tmp_path / "wide_profiles.parquet"
+        self._wide_int_df().assign(time_index=[1, 2]).to_parquet(path, index=False)
+        maxima = _parquet_int_column_maxima(path)
+        assert maxima == {"0": 800, "1": 10000}
+
+    def test_wide_source_int_scale_floats_return_none(self, metadata_df):
+        """Float wide sources need no scale and are never rescaled."""
+        rg = ResourceGroup(
+            {"technology": "utilitypv"},
+            metadata=metadata_df,
+            profiles=pd.DataFrame({"0": [0.5, 0.8], "1": [0.3, 1.0]}),
+        )
+        assert _wide_source_int_scale(rg.profiles) is None
+        result = rg._read_profiles(site_ids=[0])
+        assert result[0].tolist() == pytest.approx([0.5, 0.8])
