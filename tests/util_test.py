@@ -26,6 +26,7 @@ from powergenome.util import (
     load_table_from_db,
     make_iterable,
     prepend_db_to_tables,
+    infer_integer_profile_scale,
     read_tidy_profiles_wide,
     scale_integer_profiles,
     sort_nested_dict,
@@ -959,3 +960,59 @@ def test_scale_integer_profiles_leaves_floats_unchanged():
     assert out["a"].dtype == np.float32
     # Input is not mutated
     assert df["a"].dtype == np.int16
+
+
+@pytest.mark.parametrize(
+    "max_value, expected",
+    [
+        (0, 1000),
+        (873, 1000),
+        (1000, 1000),
+        (1001, 10000),
+        (9987, 10000),
+        (65535, 100000),
+    ],
+)
+def test_infer_integer_profile_scale(max_value, expected):
+    assert infer_integer_profile_scale(max_value) == expected
+
+
+def test_scale_integer_profiles_infers_larger_scale():
+    df = pd.DataFrame({"a": np.array([0, 2500, 10000], dtype="int16")})
+    out = scale_integer_profiles(df)
+    assert out["a"].tolist() == pytest.approx([0.0, 0.25, 1.0])
+
+
+def test_read_tidy_profiles_wide_infers_scale_fast_path(tmp_path, caplog):
+    """Values above 1000 imply a larger scale, applied consistently across chunks."""
+    path = tmp_path / "profiles.parquet"
+    rows = [
+        (10, 1, 0),
+        (10, 2, 5000),
+        (10, 3, 10000),
+        (20, 1, 100),
+        (20, 2, 200),
+        (20, 3, 300),
+    ]
+    _write_tidy_parquet(path, rows, value_dtype=np.int16)
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [10, 20])
+
+    assert FAST_PATH_LOGGED not in caplog.text
+    assert "inferred scale of 10000" in caplog.text
+    assert out[10].tolist() == pytest.approx([0.0, 0.5, 1.0])
+    assert out[20].tolist() == pytest.approx([0.01, 0.02, 0.03])
+
+
+def test_read_tidy_profiles_wide_infers_scale_pivot_path(tmp_path, caplog):
+    path = tmp_path / "profiles.parquet"
+    rows = [(10, 1, 10000), (20, 1, 200), (10, 2, 5000), (20, 2, 300)]
+    _write_tidy_parquet(path, rows, value_dtype=np.int16)
+
+    with caplog.at_level(logging.DEBUG):
+        out = read_tidy_profiles_wide(path, [10, 20])
+
+    assert FAST_PATH_LOGGED in caplog.text
+    assert out[10].tolist() == pytest.approx([1.0, 0.5])
+    assert out[20].tolist() == pytest.approx([0.02, 0.03])
