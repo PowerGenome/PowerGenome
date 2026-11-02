@@ -361,13 +361,11 @@ class TestDataManager:
         assert result.iloc[0]["total"] == 3
 
         # Join query
-        result = dm.execute_query(
-            """
+        result = dm.execute_query("""
             SELECT g.plant_id, g.technology, pr.state
             FROM generation g
             JOIN plant_region pr ON g.plant_id = pr.plant_id
-        """
-        )
+        """)
         assert len(result) == 3
         assert "state" in result.columns
 
