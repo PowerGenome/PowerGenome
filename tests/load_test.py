@@ -7,9 +7,12 @@ import pandas as pd
 import pytest
 
 import powergenome.load_profiles as lp_mod
-from powergenome.load_profiles import add_supplemental_demand, grow_historical_load
+from powergenome.load_profiles import (
+    add_supplemental_demand,
+    grow_historical_load,
+    subtract_distributed_generation,
+)
 from powergenome.load_profiles import make_load_curves as _make_load_curves
-from powergenome.load_profiles import subtract_distributed_generation
 
 
 @pytest.fixture(autouse=True)
