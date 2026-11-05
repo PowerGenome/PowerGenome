@@ -3621,7 +3621,7 @@ def check_profile_fallback_budget(
     potential. Zero-capacity retired clusters need no demand to authorize fallback.
     """
     fraction = validate_profile_fallback_fraction(fraction)
-    for region, rows in affected.groupby("region", sort=False):
+    for region, rows in affected.groupby("region", sort=False, dropna=False):
         capacities = rows["capacity_mw"].to_numpy(dtype=float)
         if not np.isfinite(capacities).all() or (capacities < 0).any():
             raise ValueError(f"Invalid existing-generator capacity for {region}")
@@ -3632,7 +3632,8 @@ def check_profile_fallback_budget(
             for r in rows.itertuples()
         )
         context = (
-            f"Missing existing-resource profiles in model region {region}, "
+            f"Missing existing-resource profiles in model region "
+            f"{'<missing>' if pd.isna(region) else region}, "
             f"model year {model_year}, scenario {scenario}: {details}"
         )
         if capacity == 0:
@@ -3640,6 +3641,11 @@ def check_profile_fallback_budget(
                 f"{context}. No operating capacity; fallback consumes no budget."
             )
             continue
+        if pd.isna(region):
+            raise ValueError(
+                f"{context}. These generators have no model region, so they cannot be "
+                "matched to pre-DG regional demand and their fallback cannot be bounded."
+            )
         if gross_demand is None or region not in gross_demand:
             raise ValueError(
                 f"{context}. Missing pre-DG regional demand; cannot authorize fallback."

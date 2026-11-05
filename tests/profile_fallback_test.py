@@ -98,6 +98,16 @@ def test_strict_budget_and_zero_operating_capacity(caplog):
     assert "No operating capacity" in caplog.text
 
 
+def test_fallback_budget_rejects_rows_without_a_region(caplog):
+    with pytest.raises(ValueError, match="no model region") as excinfo:
+        check_profile_fallback_budget(
+            affected_rows([4], [np.nan]), pd.DataFrame({"SD": [1000]})
+        )
+    assert "model region <missing>" in str(excinfo.value)
+    check_profile_fallback_budget(affected_rows([0], [np.nan]), None)
+    assert "No operating capacity" in caplog.text
+
+
 def make_profile_group(profiles=None, metadata=None, profile_path=None):
     if metadata is None:
         metadata = pd.DataFrame(
@@ -480,6 +490,15 @@ def test_sd_mixed_fleet_preserves_complete_profiles_and_capacity(caplog):
     np.testing.assert_allclose(variability.iloc[:, 1:], 0.4)
     assert "Affected operating capacity 4 MW" in caplog.text
     assert "1644.4 MW" not in caplog.text
+
+
+def test_regionless_missing_profile_row_is_never_given_ones_profile():
+    instance = profile_assigner(gross_demand=pd.DataFrame({"SD": [1584.86] * 24}))
+    instance.results["region"] = np.nan
+    instance.cluster_builder.find_groups.return_value = []
+    with pytest.raises(ValueError, match="no model region"):
+        instance._assign_existing_profiles()
+    assert instance.results["profile"].isna().all()
 
 
 def test_assignment_combines_missing_technologies_before_allowing_fallback():
