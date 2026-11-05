@@ -764,19 +764,7 @@ class ResourceGroup:
         site_ids = list(site_ids)
         cols = self.profiles.columns
         if not {"site_id", "time_index", "value"}.issubset(cols):
-            # Let the reader diagnose unknown schemas and unsupported year filters.
-            if not set(map(str, site_ids)).intersection(cols):
-                self._read_profiles(site_ids, weather_year)
-            if weather_year is not None:
-                self._read_profiles(site_ids, weather_year)
-            missing = [s for s in site_ids if str(s) not in cols]
-            if missing:
-                raise MissingProfileCoverage(f"Missing profile sites: {missing}")
-            values = self.profiles.read(columns=list(map(str, site_ids)))
-            if values.empty:
-                raise MissingProfileCoverage("Empty profile time series")
-            if not np.isfinite(values.to_numpy(dtype=float)).all():
-                raise ValueError("Profile values must be finite")
+            self._check_wide_profile_coverage(site_ids, weather_year)
             return
 
         with duckdb.connect(":memory:") as con:
@@ -817,11 +805,14 @@ class ResourceGroup:
             con.register("requested_sites", pd.DataFrame({"site_id": site_ids}))
             con.register("requested_years", axes[["year"]])
             coverage = con.execute(
-                f"SELECT p.site_id, {('p.weather_year' if has_year else '0')} AS year, "
+                "SELECT s.site_id AS site_id, "
+                f"{('p.weather_year' if has_year else '0')} AS year, "
                 "count(*) AS rows, count(DISTINCT p.time_index) AS hours, "
+                "min(p.time_index) AS first_hour, max(p.time_index) AS last_hour, "
                 "count(*) FILTER (WHERE p.time_index IS NULL OR p.value IS NULL "
                 "OR NOT isfinite(CAST(p.value AS DOUBLE))) AS invalid "
-                f"FROM {source} p JOIN requested_sites s ON p.site_id = s.site_id "
+                f"FROM {source} p JOIN requested_sites s "
+                "ON CAST(p.site_id AS VARCHAR) = CAST(s.site_id AS VARCHAR) "
                 f"JOIN requested_years y ON {('p.weather_year' if has_year else '0')} = y.year "
                 "GROUP BY 1, 2"
             ).df()
@@ -829,6 +820,14 @@ class ResourceGroup:
             raise ValueError("Profile times and values must be non-null and finite")
         if (coverage["rows"] != coverage["hours"]).any():
             raise ValueError("Duplicate profile time indices for a site/weather year")
+        # The expected hour count comes from the source itself, so a gap present in
+        # every site would otherwise look complete. Require a contiguous series.
+        if (
+            coverage["hours"] != coverage["last_hour"] - coverage["first_hour"] + 1
+        ).any():
+            raise MissingProfileCoverage(
+                f"Gaps in hourly profile coverage for sites {site_ids}"
+            )
         expected = pd.MultiIndex.from_product([site_ids, axes["year"]])
         counts = coverage.set_index(["site_id", "year"])["hours"].reindex(expected)
         required = (
@@ -840,6 +839,35 @@ class ResourceGroup:
             raise MissingProfileCoverage(
                 f"Missing sites or incomplete hourly profile coverage for sites {site_ids}"
             )
+
+    def _check_wide_profile_coverage(self, site_ids, weather_year):
+        """Validate legacy wide sources, separating malformed data from missing sites."""
+        cols = set(map(str, self.profiles.columns))
+        present = [s for s in site_ids if str(s) in cols]
+        if present:
+            values = self.profiles.read(columns=[str(s) for s in present])
+            if values.empty:
+                raise MissingProfileCoverage("Empty profile time series")
+            if not np.isfinite(values.to_numpy(dtype=float)).all():
+                raise ValueError("Profile values must be finite")
+        if weather_year is not None:
+            # Wide sources cannot express weather years; let the reader explain why.
+            self._read_profiles(site_ids, weather_year)
+        if not present:
+            # Recognize a wide source covering other regions through the group's
+            # metadata, so it counts as missing coverage rather than a bad schema.
+            metadata_ids = set()
+            try:
+                metadata_ids = set(map(str, self.metadata.read()["id"]))
+            except (KeyError, OSError, ValueError):
+                pass
+            if metadata_ids & cols:
+                raise MissingProfileCoverage(f"Missing profile sites: {site_ids}")
+            # Let the reader diagnose an unknown schema.
+            self._read_profiles(site_ids, weather_year)
+        missing = [s for s in site_ids if str(s) not in cols]
+        if missing:
+            raise MissingProfileCoverage(f"Missing profile sites: {missing}")
 
     def _read_profiles(
         self,

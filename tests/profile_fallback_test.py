@@ -122,7 +122,15 @@ def tidy_profiles():
 
 @pytest.mark.parametrize("storage", ["memory", "csv", "parquet"])
 @pytest.mark.parametrize(
-    "coverage", ["complete", "missing_site", "partial_hours", "absent_sites", "empty"]
+    "coverage",
+    [
+        "complete",
+        "missing_site",
+        "partial_hours",
+        "uniform_gap",
+        "absent_sites",
+        "empty",
+    ],
 )
 def test_strict_profile_source_coverage(tmp_path, storage, coverage):
     profiles = tidy_profiles()
@@ -130,6 +138,8 @@ def test_strict_profile_source_coverage(tmp_path, storage, coverage):
         profiles = profiles.loc[profiles.site_id == 0]
     elif coverage == "partial_hours":
         profiles = profiles.drop(index=47)
+    elif coverage == "uniform_gap":
+        profiles = profiles.loc[profiles.time_index != 12]
     elif coverage == "absent_sites":
         profiles["site_id"] += 10
     elif coverage == "empty":
@@ -186,6 +196,53 @@ def test_malformed_profiles_are_not_missing_coverage(problem, match):
             require_complete_profiles=True,
         )
     assert not isinstance(exc.value, MissingProfileCoverage)
+
+
+def test_integer_site_ids_match_string_profile_ids(tmp_path):
+    """Coverage keys follow the requested IDs, not the source column type."""
+    profiles = tidy_profiles()
+    profiles["site_id"] = profiles["site_id"].astype(str)
+    path = tmp_path / "profiles.parquet"
+    profiles.to_parquet(path, index=False)
+    metadata = pd.DataFrame(
+        {"id": [0, 1], "region": ["p38", "p38"], "capacity_mw": [1644.4, 100]}
+    )
+    group = make_profile_group(profile_path=path, metadata=metadata)
+
+    result = group.get_clusters(
+        max_clusters=1, weather_year=2013, require_complete_profiles=True
+    )
+
+    np.testing.assert_array_equal(result.profile.iloc[0], np.ones(24))
+
+
+def test_wide_malformed_column_is_not_masked_by_missing_site(tmp_path):
+    """A nonfinite value in a present column outranks a missing site."""
+    path = tmp_path / "profiles.csv"
+    values = np.ones(24)
+    values[-1] = np.inf
+    pd.DataFrame({"0": values}).to_csv(path, index=False)
+    group = make_profile_group(profile_path=path)
+
+    with pytest.raises(ValueError, match="finite") as exc:
+        group.get_clusters(max_clusters=1, require_complete_profiles=True)
+
+    assert not isinstance(exc.value, MissingProfileCoverage)
+
+
+def test_wide_source_for_other_region_is_missing_coverage(tmp_path):
+    """A wide source covering another region is missing coverage, not malformed."""
+    path = tmp_path / "profiles.csv"
+    pd.DataFrame({"0": np.ones(24)}).to_csv(path, index=False)
+    metadata = pd.DataFrame(
+        {"id": [0, 1], "region": ["p32", "p38"], "capacity_mw": [1644.4, 100]}
+    )
+    group = make_profile_group(profile_path=path, metadata=metadata)
+
+    with pytest.raises(MissingProfileCoverage, match="Missing profile sites"):
+        group.get_clusters(
+            regions=["p38"], max_clusters=1, require_complete_profiles=True
+        )
 
 
 def test_default_loader_preserves_missing_site_behavior():
