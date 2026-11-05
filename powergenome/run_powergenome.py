@@ -35,7 +35,7 @@ from powergenome.GenX import (  # add_co2_costs_to_o_m,; add_misc_gen_values,; c
     round_col_values,
     set_int_cols,
 )
-from powergenome.load_profiles import make_final_load_curves
+from powergenome.load_profiles import make_final_load_curves, make_pre_dg_load_curves
 from powergenome.macro_inputs import MacroCaseBuilder
 from powergenome.settings import (
     Settings,
@@ -462,11 +462,17 @@ def main(**kwargs):
 
                 case_year_data = {}
                 case_period = scenario_settings_obj["case_period"]
+                gross_demand = (
+                    make_pre_dg_load_curves(settings=scenario_settings_obj)
+                    if args.load
+                    else None
+                )
                 if args.gens:
                     gc = GeneratorClusters(
                         current_gens=args.current_gens,
                         sort_gens=args.sort_gens,
                         multi_period=args.multi_period,
+                        gross_demand=gross_demand,
                         # Only periods after the first one retire capacity that a
                         # previous period made available. The flag used to track the
                         # first *iteration* of this loop, which is not the first
@@ -497,7 +503,10 @@ def main(**kwargs):
                     case_year_data["fuels"] = fuels
 
                 if args.load:
-                    load = make_final_load_curves()
+                    load = make_final_load_curves(
+                        settings=scenario_settings_obj,
+                        load_curves_before_dg=gross_demand,
+                    )
                     load.columns = "Demand_MW_z" + load.columns.map(
                         scenario_settings_obj["zone_num_map"]
                     )

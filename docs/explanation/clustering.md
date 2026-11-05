@@ -60,6 +60,50 @@ This name is used as the resource identifier throughout the output files.
 
 ---
 
+## Missing existing-resource availability profiles
+
+Existing hydro, wind, solar, and other profile-backed resources need usable hourly
+availability data. PowerGenome checks missing resource groups, missing regional
+metadata, missing sites, and incomplete time series against a combined regional
+fallback budget before assigning constant `1.0` availability.
+
+PowerGenome permits a small, **combined regional fallback fleet**: by default,
+`existing_resource_profile_fallback_max_demand_fraction: 0.005` allows affected
+operating capacity up to 0.5% of mean regional demand **before DG subtraction**.
+The denominator includes regional aggregation and supplemental/flexible demand,
+uses unrounded hourly values for the selected scenario and years, and precedes time
+reduction. Means across weather years are weighted by modeled hours.
+
+At or below the limit, a warning identifies the affected resources and PowerGenome
+retains their capacity, tags, and retirement attributes with availability `1.0` in
+all modeled hours. Above it, an actionable error stops generation of model inputs.
+Partial profile coverage charges the entire failing existing-generator cluster;
+resource-group metadata capacity is never used as the affected capacity. All affected
+technologies and clusters share the allowance in their model region. Valid profiles
+remain unchanged, and retired/zero-capacity clusters consume no allowance.
+
+For example, SD (p32 + p38) with 1584.86 MW mean demand has a 7.92 MW allowance:
+4 MW of missing run-of-river profiles warns and falls back. Modeling p32 alone with
+206.28 MW mean demand gives only 1.03 MW, so the same 4 MW errors. If those units
+retire in 2030, they contribute zero operating capacity at model year 2030, even if
+the planning period starts in 2026.
+
+Set the fraction to `0` for strict mode; values must be finite numbers in `[0, 1]`,
+not booleans. Positive-capacity fallback requires valid demand even with `--no-load`;
+complete profiles add no demand requirement. Explicitly profile-free resource groups
+(`group.profiles is None`, such as thermal/storage groups) remain exempt, as do
+unsupported dispatchable technologies. New-build behavior is unchanged. Invalid schemas,
+unreadable files, ambiguous group matches, and invalid weather-year requests remain
+errors rather than fallback conditions.
+
+This tolerance is a modeling choice, **not an industry standard or reliability
+guarantee**. Constant availability can overstate usable generation. Its full-output
+energy is bounded by the chosen fraction of gross demand over the same hours, but
+that bound says nothing about hourly reliability or dispatch. Repair metadata/profile
+coverage before considering a larger tolerance.
+
+---
+
 ## Controlling the number of clusters
 
 ### Default cluster count

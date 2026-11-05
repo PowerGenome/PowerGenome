@@ -473,6 +473,14 @@ type: Dict[str, Dict[str, int]]
 
 description: A nested dictionary with keys from `model_regions`, and values that are a key: value pair of the resource name (from EIA) and the number of clusters to create within that region. This parameter lets you set a different number of clusters for a resource within a specific region. You can specify a value of 0 to drop a resource from within a region, which is useful when only a few generators exist and they have extremely high heat rates according to EIA data.
 
+### existing_resource_profile_fallback_max_demand_fraction
+
+type: float (finite number in [0, 1], not a boolean)
+
+default: 0.005
+
+description: Combined maximum operating capacity of existing resources with missing availability profiles in each model region, as a fraction of mean hourly regional demand **before DG subtraction**, rounding, or time reduction. Uses scenario/year/weather selection, regional aggregation, and supplemental/flexible demand additions; multiple weather years are weighted by modeled hours. At or below the budget, warn and retain affected capacity with availability 1.0 in every modeled hour; above it, error. Set 0 for strict mode. Includes absent resource groups, absent regional metadata, missing sites, and empty/incomplete profiles for hydro, wind, solar, and other profile-backed technologies. Partial coverage charges the whole failing existing cluster, never resource-group metadata capacity. All affected clusters/technologies share one regional budget. Retired/zero operating capacity consumes no budget. Explicitly profile-free groups (`group.profiles is None`) and unsupported dispatchable technologies remain exempt; new-build behavior is unchanged. Positive-capacity fallback requires valid pre-DG demand, loaded lazily even with `--no-load`. Invalid schemas, corrupt files, ambiguous groups, and unavailable weather years remain errors. Constant availability is a modeling approximation, not a reliability guarantee; fix coverage before raising the tolerance. See [Missing existing-resource availability profiles](../docs/explanation/clustering.md#missing-existing-resource-availability-profiles).
+
 ### alt_cluster_method
 
 type: str

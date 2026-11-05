@@ -2,6 +2,8 @@
 Test functions related to load profiles
 """
 
+from unittest.mock import Mock
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -507,6 +509,198 @@ def _run_make_load_curves(
         settings["weather_year"] = weather_year
     settings.update(extra)
     return _make_load_curves(settings)
+
+
+@pytest.mark.parametrize("user_wide", [False, True])
+@pytest.mark.parametrize("dg_as_resource", [False, True])
+def test_pre_dg_load_curves_supplemental_and_net_parity(
+    monkeypatch, user_wide, dg_as_resource
+):
+    """Both demand paths add supplements once and preserve default net output."""
+    demand = _long_load({2012: 2}, 100.75, regions=("b1", "R2"))
+    demand.loc[demand.region == "R2", "load_mw"] = 200.5
+    supp = pd.DataFrame(
+        {
+            "year": [2030, 2030, 2040],
+            "region": ["b1", "R2", "b1"],
+            "time_index": ["all", 2, "all"],
+            "load_mw": [5.25, 3.25, 999.0],
+        }
+    )
+    monkeypatch.setattr(lp_mod, "list_tables", lambda: ["supplemental_demand"])
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        _make_supp_get_data(demand, supp, DEMAND_COLS, list(supp.columns)),
+    )
+    user_demand = pd.DataFrame(
+        {"M1": [100.75, 100.75], "R2": [200.5, 200.5]},
+        index=pd.RangeIndex(1, 3, name="time_index"),
+    )
+    original_user_demand = user_demand.copy(deep=True)
+    monkeypatch.setattr(
+        lp_mod,
+        "load_usr_demand_profiles",
+        lambda settings: user_demand if user_wide else None,
+    )
+    settings = {
+        "model_regions": ["R2", "M1"],
+        "region_aggregations": {"M1": ["b1"]},
+        "model_year": 2030,
+        "weather_year": 2012,
+        "utc_offset": 0,
+        "avg_distribution_loss": 0.1,
+        "dg_as_resource": dg_as_resource,
+    }
+    get_dg = Mock(return_value=pd.DataFrame({"M1": [10.0, 20.0], "R2": [2.0, 4.0]}))
+    monkeypatch.setattr(lp_mod, "get_distributed_gen_hourly_generation", get_dg)
+
+    gross = lp_mod.make_pre_dg_load_curves(settings=settings)
+    assert list(gross.columns) == ["R2", "M1"]
+    np.testing.assert_allclose(gross["M1"], [106.0, 106.0])
+    np.testing.assert_allclose(gross["R2"], [200.5, 203.75])
+    get_dg.assert_not_called()
+    original_gross = gross.copy(deep=True)
+
+    default_net = lp_mod.make_final_load_curves(settings=settings)
+    make_gross = Mock(side_effect=AssertionError("Gross demand was rebuilt"))
+    monkeypatch.setattr(lp_mod, "make_pre_dg_load_curves", make_gross)
+    reused_net = lp_mod.make_final_load_curves(
+        settings=settings, load_curves_before_dg=gross
+    )
+
+    pd.testing.assert_frame_equal(default_net, reused_net)
+    np.testing.assert_array_equal(
+        reused_net.to_numpy(),
+        [[200, 106], [203, 106]] if dg_as_resource else [[198, 95], [199, 84]],
+    )
+    pd.testing.assert_frame_equal(gross, original_gross)
+    pd.testing.assert_frame_equal(user_demand, original_user_demand)
+    make_gross.assert_not_called()
+    if dg_as_resource:
+        get_dg.assert_not_called()
+    else:
+        assert get_dg.call_count == 2
+        assert get_dg.call_args.kwargs == {
+            "year": 2030,
+            "weather_year": 2012,
+            "regions": ["R2", "M1"],
+            "region_aggregations": {"M1": ["b1"]},
+            "tz_offset": 0,
+        }
+
+
+def test_final_load_curves_builds_gross_when_omitted(monkeypatch):
+    """The existing call signature builds gross demand with the explicit settings."""
+    gross = pd.DataFrame({"R1": [100.75, 101.25]})
+    make_gross = Mock(return_value=gross)
+    monkeypatch.setattr(lp_mod, "make_pre_dg_load_curves", make_gross)
+    settings = {"model_regions": ["R1"], "dg_as_resource": True}
+
+    net = lp_mod.make_final_load_curves(data_location="data", settings=settings)
+
+    make_gross.assert_called_once_with(data_location="data", settings=settings)
+    np.testing.assert_array_equal(net["R1"], [100, 101])
+    np.testing.assert_allclose(gross["R1"], [100.75, 101.25])
+
+
+def test_pre_dg_load_curves_model_and_weather_years(monkeypatch):
+    """Gross demand retains planning/weather-year filtering, aggregation, and offset."""
+    demand = _long_load({2012: 2, 2013: 3, 2014: 1}, 10.25, regions=("b1", "b2"))
+    demand.loc[demand.weather_year == 2013, "load_mw"] = 20.75
+    demand = pd.concat(
+        [
+            demand,
+            _long_load({2012: 2}, 999.0, regions=("b1", "b2"), model_year=2040),
+        ],
+        ignore_index=True,
+    )
+    monkeypatch.setattr(
+        lp_mod,
+        "get_data",
+        _make_supp_get_data(demand, pd.DataFrame(), DEMAND_COLS, SUPP_COLS),
+    )
+    monkeypatch.setattr(lp_mod, "load_usr_demand_profiles", lambda settings: None)
+    settings = {
+        "model_regions": ["M1"],
+        "region_aggregations": {"M1": ["b1", "b2"]},
+        "model_year": 2030,
+        "weather_year": [2012, 2013],
+        "utc_offset": 1,
+    }
+
+    gross = lp_mod.make_pre_dg_load_curves(settings=settings)
+
+    assert list(gross.index) == [1, 2, 3, 4, 5]
+    np.testing.assert_allclose(gross["M1"], [41.5, 20.5, 20.5, 41.5, 41.5])
+
+
+@pytest.mark.parametrize("includes_response", [False, True])
+def test_pre_dg_load_curves_demand_response(monkeypatch, includes_response):
+    """Demand response is included in gross demand only when not already present."""
+    user_demand = _base_load_curves(n_hours=2, regions=("R1",), base_load=100.25)
+    original = user_demand.copy(deep=True)
+    monkeypatch.setattr(
+        lp_mod, "load_usr_demand_profiles", lambda settings: user_demand
+    )
+    response = Mock(return_value=pd.DataFrame({"R1": [1.5, 2.5]}))
+    monkeypatch.setattr(lp_mod, "make_demand_response_profiles", response)
+    settings = {
+        "model_regions": ["R1"],
+        "model_year": 2030,
+        "input_folder": ".",
+        "demand_response_fn": "response.csv",
+        "demand_response": {},
+        "flexible_demand_resources": {2030: {"EV": {}}},
+        "regional_load_includes_demand_response": includes_response,
+    }
+
+    gross = lp_mod.make_pre_dg_load_curves(settings=settings)
+
+    np.testing.assert_allclose(
+        gross["R1"], [100.25, 100.25] if includes_response else [101.75, 102.75]
+    )
+    assert response.call_count == (0 if includes_response else 1)
+    pd.testing.assert_frame_equal(user_demand, original)
+
+
+def test_pre_dg_load_curves_electrification(monkeypatch):
+    """Electrification is aggregated to model regions before gross demand is reused."""
+    user_demand = _base_load_curves(n_hours=2, regions=("M1",), base_load=100.25)
+    original = user_demand.copy(deep=True)
+    monkeypatch.setattr(
+        lp_mod, "load_usr_demand_profiles", lambda settings: user_demand
+    )
+    flex = Mock(
+        return_value=pd.DataFrame(
+            {
+                "region": ["b1", "b1", "b2", "b2"],
+                "time_index": [1, 2, 1, 2],
+                "load_mw": [1.5, 2.5, 3.0, 4.0],
+            }
+        )
+    )
+    monkeypatch.setattr(lp_mod, "electrification_profiles", flex)
+    settings = {
+        "model_regions": ["M1"],
+        "region_aggregations": {"M1": ["b1", "b2"]},
+        "model_year": 2030,
+        "electrification_stock_fn": "stock.csv",
+        "electrification_scenario": "high",
+        "utc_offset": -5,
+        "EFS_DATA": "efs_data",
+        "dg_as_resource": True,
+    }
+
+    gross = lp_mod.make_pre_dg_load_curves(settings=settings)
+    net = lp_mod.make_final_load_curves(settings=settings, load_curves_before_dg=gross)
+
+    np.testing.assert_allclose(gross["M1"], [104.75, 106.75])
+    np.testing.assert_array_equal(net["M1"], [104, 106])
+    flex.assert_called_once_with(
+        "stock.csv", 2030, "high", ["b1", "b2"], -5, "efs_data"
+    )
+    pd.testing.assert_frame_equal(user_demand, original)
 
 
 def test_make_load_curves_supp_no_table(monkeypatch):
