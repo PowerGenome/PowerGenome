@@ -553,6 +553,8 @@ class TestMainFunction:
                             ]
                             assert len(info_calls) == 1
 
+    @pytest.mark.parametrize("load", [False, True])
+    @pytest.mark.parametrize("gens", [False, True])
     @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
     @patch("powergenome.run_powergenome.fuel_cost_table", return_value=pd.DataFrame())
     @patch(
@@ -582,8 +584,27 @@ class TestMainFunction:
         _mock_variability,
         _mock_fuels,
         tmp_path,
+        monkeypatch,
+        load,
+        gens,
     ):
-        """Every case enables retired capacity only after its first period."""
+        """Each case/period shares gross demand, or skips demand when not requested."""
+        gross_frames = [
+            pd.DataFrame({"R1": [100.5 + i]}, index=pd.Index([1], name="time_index"))
+            for i in range(4)
+        ]
+        make_gross = Mock(side_effect=gross_frames)
+        make_net = Mock(side_effect=[df.astype(int) for df in gross_frames])
+        reduce_time = Mock(return_value=(pd.DataFrame(), pd.DataFrame(), None, None))
+        monkeypatch.setattr(
+            "powergenome.run_powergenome.make_pre_dg_load_curves", make_gross
+        )
+        monkeypatch.setattr(
+            "powergenome.run_powergenome.make_final_load_curves", make_net
+        )
+        monkeypatch.setattr(
+            "powergenome.run_powergenome.reduce_time_domain", reduce_time
+        )
         settings_data = {
             "data_location": "test_data.db",
             "input_folder": "inputs",
@@ -605,7 +626,7 @@ class TestMainFunction:
         scenario_objects = []
         for period in (1, 1, 2, 2):
             scenario = MagicMock()
-            scenario_data = {"case_period": period, "zone_num_map": {}}
+            scenario_data = {"case_period": period, "zone_num_map": {"R1": "1"}}
             scenario.__getitem__.side_effect = scenario_data.__getitem__
             scenario.__setitem__.side_effect = scenario_data.__setitem__
             scenario.get.side_effect = scenario_data.get
@@ -626,15 +647,38 @@ class TestMainFunction:
                 with patch("shutil.copytree"), patch("shutil.copy"):
                     main(
                         settings_file="some_settings_folder",
-                        gens=True,
-                        load=False,
+                        gens=gens,
+                        load=load,
                         transmission=False,
                     )
 
         assert [
             call.kwargs["include_retired_cap"]
             for call in mock_generator_clusters.call_args_list
-        ] == [False, False, True, True]
+        ] == ([False, False, True, True] if gens else [])
+        if load:
+            assert make_gross.call_count == make_net.call_count == 4
+            assert reduce_time.call_count == 4
+            for i, scenario in enumerate(scenario_objects):
+                assert make_gross.call_args_list[i].kwargs["settings"] is scenario
+                assert make_net.call_args_list[i].kwargs["settings"] is scenario
+                assert (
+                    make_net.call_args_list[i].kwargs["load_curves_before_dg"]
+                    is gross_frames[i]
+                )
+                if gens:
+                    assert (
+                        mock_generator_clusters.call_args_list[i].kwargs["gross_demand"]
+                        is gross_frames[i]
+                    )
+                assert list(gross_frames[i].columns) == ["R1"]
+                assert gross_frames[i].iloc[0, 0] == 100.5 + i
+        else:
+            make_gross.assert_not_called()
+            make_net.assert_not_called()
+            reduce_time.assert_not_called()
+            for generator_call in mock_generator_clusters.call_args_list:
+                assert generator_call.kwargs["gross_demand"] is None
 
     @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
     @patch("powergenome.run_powergenome.write_case_settings_file")

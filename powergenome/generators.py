@@ -4,7 +4,7 @@ import operator
 import os
 import re
 from functools import reduce
-from numbers import Number
+from numbers import Number, Real
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -43,7 +43,10 @@ from powergenome.GenX import (
     round_col_values,
     set_int_cols,
 )
-from powergenome.load_profiles import make_distributed_gen_profiles
+from powergenome.load_profiles import (
+    make_distributed_gen_profiles,
+    make_pre_dg_load_curves,
+)
 from powergenome.new_build import (
     build_new_resources,
     fetch_heat_rates,
@@ -51,7 +54,7 @@ from powergenome.new_build import (
 )
 from powergenome.params import DATA_PATHS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
-from powergenome.resource_clusters import map_eia_technology
+from powergenome.resource_clusters import MissingProfileCoverage, map_eia_technology
 from powergenome.util import (
     find_region_col,
     map_agg_region_names,
@@ -3592,6 +3595,89 @@ def apply_custom_gen_formula(
     return gen_df
 
 
+PROFILE_FALLBACK_FRACTION = "existing_resource_profile_fallback_max_demand_fraction"
+
+
+def validate_profile_fallback_fraction(fraction):
+    """Return a finite fractional missing-profile budget, rejecting booleans."""
+    if (
+        isinstance(fraction, (bool, np.bool_))
+        or not isinstance(fraction, Real)
+        or not np.isfinite(fraction)
+        or not 0 <= fraction <= 1
+    ):
+        raise ValueError(
+            f"{PROFILE_FALLBACK_FRACTION} must be a finite number in [0, 1]"
+        )
+    return float(fraction)
+
+
+def check_profile_fallback_budget(
+    affected, gross_demand, fraction=0.005, model_year=None, scenario=None
+):
+    """Validate one combined missing-profile capacity budget per model region.
+
+    ``affected`` contains existing-generator operating capacity, never resource-site
+    potential. Zero-capacity retired clusters need no demand to authorize fallback.
+    """
+    fraction = validate_profile_fallback_fraction(fraction)
+    for region, rows in affected.groupby("region", sort=False, dropna=False):
+        capacities = rows["capacity_mw"].to_numpy(dtype=float)
+        if not np.isfinite(capacities).all() or (capacities < 0).any():
+            raise ValueError(f"Invalid existing-generator capacity for {region}")
+        capacity = capacities.sum()
+        details = "; ".join(
+            f"{r.Resource} ({r.technology}, {r.capacity_mw:g} MW, "
+            f"base regions {r.base_regions}): {r.reason}"
+            for r in rows.itertuples()
+        )
+        context = (
+            f"Missing existing-resource profiles in model region "
+            f"{'<missing>' if pd.isna(region) else region}, "
+            f"model year {model_year}, scenario {scenario}: {details}"
+        )
+        if capacity == 0:
+            logger.warning(
+                f"{context}. No operating capacity; fallback consumes no budget."
+            )
+            continue
+        if pd.isna(region):
+            raise ValueError(
+                f"{context}. These generators have no model region, so they cannot be "
+                "matched to pre-DG regional demand and their fallback cannot be bounded."
+            )
+        if gross_demand is None or region not in gross_demand:
+            raise ValueError(
+                f"{context}. Missing pre-DG regional demand; cannot authorize fallback."
+            )
+        demand = gross_demand[region].to_numpy(dtype=float)
+        if (
+            demand.size == 0
+            or not np.isfinite(demand).all()
+            or (demand < 0).any()
+            or demand.mean() <= 0
+        ):
+            raise ValueError(
+                f"{context}. Invalid pre-DG regional demand; expected finite, nonnegative hourly demand with a positive mean."
+            )
+        mean_demand = demand.mean()
+        budget = fraction * mean_demand
+        diagnostic = (
+            f"{context}. Affected operating capacity {capacity:g} MW; mean pre-DG "
+            f"demand {mean_demand:.6g} MW; {PROFILE_FALLBACK_FRACTION}={fraction:g}; "
+            f"allowed capacity {budget:.6g} MW."
+        )
+        if capacity > budget:
+            raise ValueError(
+                f"{diagnostic} Missing-profile capacity exceeds the regional budget. "
+                "Fix resource-group/profile coverage before generating variability. "
+                "Increasing the tolerance is an explicit modeling decision."
+            )
+        logger.warning(
+            f"{diagnostic} Using availability 1.0 in every modeled hour; capacity is preserved."
+        )
+
+
 @auto_fill_settings()
 class GeneratorClusters:
     """
@@ -3610,6 +3696,7 @@ class GeneratorClusters:
         sort_gens=False,
         multi_period=False,
         include_retired_cap=False,
+        gross_demand=None,
     ):
         """
 
@@ -3632,6 +3719,10 @@ class GeneratorClusters:
         self.supplement_with_860m = supplement_with_860m
         self.multi_period = multi_period
         self.include_retired_cap = include_retired_cap
+        self.gross_demand = gross_demand
+        self.profile_fallback_fraction = validate_profile_fallback_fraction(
+            settings.get(PROFILE_FALLBACK_FRACTION, 0.005)
+        )
         self.cluster_builder = build_resource_clusters(
             self.settings.get("RESOURCE_GROUPS"),
             self.settings.get("RESOURCE_GROUP_PROFILES"),
@@ -3933,46 +4024,7 @@ class GeneratorClusters:
             else:
                 self.results[retire_cols] = 0
 
-        # Add variable resource profiles
-        self.results = self.results.reset_index(drop=True)
-        for i, row in enumerate(self.results.itertuples()):
-            params = map_eia_technology(row.technology)
-            if not params:
-                # EIA technology not supported
-                continue
-            params.update({"existing": True})
-            groups = self.cluster_builder.find_groups(**params)
-            if not groups:
-                # No matching resource groups
-                continue
-            if len(groups) > 1:
-                # Multiple matching resource groups
-                raise ValueError(
-                    "Multiple existing resource groups match EIA technology"
-                    + row.technology
-                )
-            group = groups[0]
-            if group.profiles is None:
-                # Resource group has no profiles
-                continue
-            if row.region in (self.settings.get("region_aggregations", {}) or {}):
-                regions = self.settings.get("region_aggregations", {})[row.region]
-            else:
-                regions = [row.region]
-            metadata = group.metadata.read().rename(
-                columns={"ipm_region": "region"}, errors="ignore"
-            )
-            if not metadata["region"].isin(regions).any():
-                # Resource group has no resources in selected IPM regions
-                continue
-            clusters = group.get_clusters(
-                regions=regions,
-                max_clusters=1,
-                utc_offset=self.settings.get("utc_offset", 0),
-                weather_year=self.settings.get("weather_year"),
-            )
-            row_index = self.results.index[i]
-            self.results.at[row_index, "profile"] = clusters["profile"].iloc[0]
+        self._assign_existing_profiles()
 
         self.results = rename_gen_cols(self.results)
 
@@ -3982,6 +4034,123 @@ class GeneratorClusters:
         logger.info("Finished creating existing generator clusters")
 
         return self.results
+
+    def _assign_existing_profiles(self):
+        """Assign profiles and bound every explicit missing-coverage fallback."""
+        self.results = self.results.reset_index(drop=True)
+        affected = []
+        aggregations = self.settings.get("region_aggregations", {}) or {}
+        for i, row in enumerate(self.results.itertuples()):
+            params = map_eia_technology(row.technology)
+            if not params:
+                continue
+            params.update({"existing": True})
+            regions = aggregations.get(row.region, [row.region])
+            groups = self.cluster_builder.find_groups(**params)
+            reason = None
+            if not groups:
+                reason = "No matching existing resource group"
+            elif len(groups) > 1:
+                raise ValueError(
+                    "Multiple existing resource groups match EIA technology "
+                    + row.technology
+                )
+            else:
+                group = groups[0]
+                if group.profiles is None:
+                    # Explicitly profile-free groups retain their dispatchable default.
+                    continue
+                metadata = group.metadata.read()
+                region_col = find_region_col(metadata.columns)
+                if not metadata[region_col].isin(regions).any():
+                    reason = "Resource group has no resources in selected base regions"
+                else:
+                    try:
+                        clusters = group.get_clusters(
+                            regions=regions,
+                            max_clusters=1,
+                            utc_offset=self.settings.get("utc_offset", 0),
+                            weather_year=self.settings.get("weather_year"),
+                            require_complete_profiles=True,
+                        )
+                    except MissingProfileCoverage as exc:
+                        reason = str(exc)
+                    else:
+                        if clusters.empty or "profile" not in clusters:
+                            reason = "Empty cluster result or absent profile column"
+                        else:
+                            profile = clusters["profile"].iloc[0]
+                            if (
+                                not isinstance(profile, (np.ndarray, list))
+                                or len(profile) == 0
+                            ):
+                                reason = "Empty or absent cluster profile"
+                            elif not np.isfinite(
+                                np.asarray(profile, dtype=float)
+                            ).all():
+                                raise ValueError(
+                                    f"Nonfinite cluster profile for {row.Resource}"
+                                )
+                            else:
+                                self.results.at[i, "profile"] = profile
+            if reason is not None:
+                capacity = row.capacity_mw
+                if pd.isna(capacity) and hasattr(self, "all_gens"):
+                    units = self.all_gens.loc[self.all_gens["Resource"] == row.Resource]
+                    # Unclustered retired units retain NaN rather than a summed zero.
+                    if not units.empty and not units["operating"].any():
+                        capacity = 0.0
+                affected.append(
+                    {
+                        "row_index": i,
+                        "Resource": row.Resource,
+                        "technology": row.technology,
+                        "region": row.region,
+                        "capacity_mw": capacity,
+                        "base_regions": regions,
+                        "reason": reason,
+                    }
+                )
+        if not affected:
+            return
+        affected = pd.DataFrame(affected)
+        gross_demand = self.gross_demand
+        if (affected["capacity_mw"] > 0).any() and gross_demand is None:
+            try:
+                gross_demand = make_pre_dg_load_curves(settings=self.settings)
+            except (KeyError, ValueError, FileNotFoundError) as exc:
+                raise ValueError(
+                    "Cannot validate missing existing-resource profiles without pre-DG "
+                    "regional demand, including with --no-load. Affected resources: "
+                    f"{affected['Resource'].tolist()}. Demand error: {exc}"
+                ) from exc
+            self.gross_demand = gross_demand
+        check_profile_fallback_budget(
+            affected,
+            gross_demand,
+            self.profile_fallback_fraction,
+            self.settings.get("model_year"),
+            self.settings.get("case_id"),
+        )
+        # Use the modeled demand axis when available, including multi-weather-year runs.
+        weather_year = self.settings.get("weather_year")
+        default_hours = 8760 * (
+            len(weather_year) if isinstance(weather_year, list) else 1
+        )
+        hours = (
+            len(gross_demand)
+            if gross_demand is not None
+            else max(
+                (
+                    len(p)
+                    for p in self.results["profile"]
+                    if isinstance(p, (list, np.ndarray))
+                ),
+                default=default_hours,
+            )
+        )
+        for i in affected["row_index"]:
+            self.results.at[i, "profile"] = np.ones(hours)
 
     def create_new_generators(self):
         logger.info("Starting to build new generation resources")
