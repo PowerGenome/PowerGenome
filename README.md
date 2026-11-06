@@ -133,15 +133,11 @@ A few example systems are included at <https://github.com/PowerGenome/PowerGenom
 
 Settings are controlled in a set of YAML files within a folder or combined into a single file. An example folder of settings files (`settings`) and folder with extra user inputs (`extra_inputs`) are included in each of the example systems. Scenario options across different planning years are defined in the file `test_scenario_inputs.csv`. Documentation on extra inputs is included in the folder of each example system.
 
-### Example notebooks
-
-A series of example notebooks are included in [`PowerGenome/notebooks`](/notebooks) describe how to access different functions within PowerGenome to create resource clusters, variable generation profiles, fuel costs, hourly demand, and transmission constraints. They include a description of how the data are compiled and the settings parameters that are required for each type of data.
-
 ### Command line interface
 
 The outputs are all formatted for GenX we hope to make the data formatting code more module to allow users to easily switch between outputs for different power system models.
 
-Functions from each module can be imported and used in an interactive environment (e.g. JupyterLab). Examples of how to load data in this way are included in `PowerGenome/notebooks`. To run from the command line, navigate to a project folder that contains a settings file and extra inputs (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome` with flags for the settings file name and where the results should be saved. Since the `powergenome` package is installed in the `powergenome` conda environment, you can run the command line function from anywhere on your computer (not just within the cloned `PowerGenome` folder).
+Functions from each module can be imported and used in an interactive environment. To run from the command line, navigate to a project folder that contains a settings file and extra inputs (e.g. `myproject/powergenome`), activate the  `powergenome` conda environment, and use the command `run_powergenome` with flags for the settings file name and where the results should be saved. Since the `powergenome` package is installed in the `powergenome` conda environment, you can run the command line function from anywhere on your computer (not just within the cloned `PowerGenome` folder).
 
 ```sh
 run_powergenome --settings_file settings --results_folder test_system

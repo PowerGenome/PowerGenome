@@ -151,9 +151,7 @@ EIA data only includes price projections for coal, natural gas, fuel oil, and ur
 
 ## Demand
 
-PowerGenome uses historical demand for each IPM region, constructed from FERC 714 data, as the starting point to calculate future demand. IPM regions are mapped to both the current EIA EMM regions (`future_load_region_map`) and the EMM regions that were used through 2019 (`historical_load_region_maps`).
-
-Historical load is inflated through 2018 using the `historical_load_region_maps` EMM regions. The AEO scenario for AEO year `load_eia_aeo_year` specified in `growth_scenario` is used to calculate future load growth. Alternative growth rates for individual model regions can be listed under `alt_growth_rate`.
+PowerGenome uses historical demand for each IPM region, constructed from FERC 714 data, as the starting point for model load. **Load growth is no longer applied**: the functions that inflated historical load to future years were removed, so the demand table must already contain the load for each weather year you model. The legacy region maps (`historical_load_region_maps`, `future_load_region_map`) and the growth settings (`growth_scenario`, `load_eia_aeo_year`, `alt_growth_rate`) are still accepted but have no effect.
 
 Users can provide the full hourly demand for model regions using `regional_load_fn` in "extra_inputs".
 
