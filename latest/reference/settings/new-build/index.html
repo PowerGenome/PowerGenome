@@ -2829,6 +2829,7 @@
 <li><code>cost_case</code>: Cost trajectory (<code>Conservative</code>, <code>Moderate</code>, <code>Advanced</code>)</li>
 <li><code>size_mw</code>: Unit size in MW</li>
 </ul>
+<p><code>technology</code>, <code>tech_detail</code>, and <code>cost_case</code> are matched to the cost and heat rate tables as text, so <code>[Wind, 1, Moderate, 100]</code> and <code>[Wind, "1", Moderate, 100]</code> are equivalent. YAML still rewrites some unquoted values (<code>1.50</code> becomes <code>1.5</code>), so quote any value that must match the table text exactly.</p>
 <h3 id="resource_data_yearyear"><code>resource_data_year</code>year`<a class="headerlink" href="#resource_data_yearyear" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Integer
 <strong>Required</strong>: No
