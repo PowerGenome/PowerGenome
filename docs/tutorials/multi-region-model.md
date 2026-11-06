@@ -49,9 +49,12 @@ They name files under the configured `data_location: test_data`:
 - **Costs**: model-region pairs in `start_region` and `dest_region`, with capital
   cost, annualized cost, dollar year, and optional line loss.
 
-The tables define routes; YAML expansion settings do not create routes.
-Cost-table entries can also introduce candidate routes with zero existing
-capacity. To exclude a connection, check both sources.
+The constraints table defines routes; neither cost-table entries nor YAML
+expansion settings create routes. To add a candidate route with no existing
+capacity, include its base-region pair in the constraints table with
+`firm_ttc_mw: 0`, and supply the corresponding model-region pair's costs in the
+cost table. Confirm that the route appears in the generated `Network.csv`.
+To exclude a connection, remove all constraints-table entries that map to it.
 
 See the [input schemas](../reference/schemas/input-tables.md) before supplying
 replacement tables. The bundled data is for testing, not a calibrated network.

@@ -157,18 +157,21 @@ settings_management:
         regional_tag_values:
           p1:
             CapRes_1:
-              Coal: 0.8
+              Conventional Steam Coal: 0.8
       aggressive:
         regional_tag_values:
           p1:
             CapRes_1:
-              Coal: 1.0
+              Conventional Steam Coal: 1.0
 ```
 
 Set `reserve_policy` to `conservative` or `aggressive` in the scenario CSV.
-Repeat the override for each affected region. When base settings use
-`capacity_reserve_values`, their expansion occurs during settings loading;
-those existing regional values take precedence over a later shorthand change.
+Repeat the override for each affected region, using the same technology key as
+in the base credits. A shorter key such as `Coal` does not replace an existing
+`Conventional Steam Coal` entry; the longer matching key is applied last.
+When base settings use `capacity_reserve_values`, their expansion occurs during
+settings loading; those existing regional values take precedence over a later
+shorthand change.
 
 ## Technology Name Matching
 
@@ -209,7 +212,7 @@ You can also create custom new-build resources with their own names, which will 
    - `0.5`: Half credit (e.g., wind, which has low capacity factor)
    - `0.0`: Zero credit (doesn't contribute)
 
-6. **Use scenario variations for sensitivity analysis**: Explore how reserve policies affect the optimal mix by creating different cases with varying `capacity_reserve_values`.
+6. **Use scenario variations for sensitivity analysis**: Vary the expanded `regional_tag_values` using matching technology keys, as shown above, rather than changing only `capacity_reserve_values`.
 
 ## Troubleshooting
 
