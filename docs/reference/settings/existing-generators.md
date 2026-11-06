@@ -111,6 +111,42 @@ Available columns depend on your generation data schema. Common options:
 !!! tip "Clustering Quality"
     Clustering features should be normalized or on similar scales for best results. PowerGenome uses the scikit-learn `StandardScaler()` method to normalize features.
 
+### `existing_resource_profile_fallback_max_demand_fraction`
+
+**Type**: Number in `[0, 1]` (not a boolean)
+**Required**: No
+**Default**: `0.005`
+
+Maximum combined **operating existing-generator capacity** with missing availability
+profiles in each model region, as a fraction of that region's **mean hourly demand
+before distributed-generation subtraction**. Demand uses the scenario's planning
+and weather years, regional aggregation, and supplemental/flexible demand additions,
+before rounding or time reduction. Multiple weather years are weighted by their
+number of modeled hours.
+
+```yaml
+existing_resource_profile_fallback_max_demand_fraction: 0.005  # 0.5% of mean demand
+# Use 0 to forbid fallback for any positive operating capacity.
+```
+
+At or below this limit, PowerGenome warns, preserves the affected generators and
+capacity, and assigns availability `1.0` in every modeled hour. Above it, PowerGenome
+stops with affected resources, reasons, demand, and allowed MW in the error. Missing
+or invalid demand cannot authorize positive-capacity fallback, including with
+`--no-load` (demand is loaded lazily when needed).
+
+The limit combines all affected clusters and technologies, including hydro, wind,
+and solar; it is not a separate allowance for each technology. Absent resource groups,
+absent regional metadata, missing sites, and empty/incomplete hourly coverage enter
+the same check. Partial coverage charges the whole failing cluster, using its actual
+existing capacity, **not resource-group metadata capacity**. Retired/zero operating
+capacity consumes no budget. Explicitly profile-free groups (`group.profiles is None`)
+and unsupported dispatchable technologies remain exempt. New-build behavior is unchanged.
+Malformed inputs, ambiguous group matches, and unavailable weather years remain errors.
+
+This is a modeling approximation, not a reliability guarantee: constant availability
+can overstate generation. Fix coverage rather than increasing the tolerance by default.
+
 ## Technology Grouping
 
 ### `tech_groups`

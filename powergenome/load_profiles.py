@@ -1230,7 +1230,7 @@ def add_supplemental_demand(
     """Add supplemental demand to a WIDE load frame (one column per model region).
 
     This is a slim variant kept for the user-supplied WIDE load path in
-    :func:`make_final_load_curves` (when ``load_usr_demand_profiles`` supplies the
+    :func:`make_pre_dg_load_curves` (when ``load_usr_demand_profiles`` supplies the
     load and :func:`make_load_curves` is never called).  Normal pipelines apply
     supplemental demand inside :func:`make_load_curves` (via
     :func:`add_supplemental_demand_long`) in long format.
@@ -1326,32 +1326,33 @@ def add_supplemental_demand(
 
 
 @auto_fill_settings()
-def make_final_load_curves(
+def make_pre_dg_load_curves(
     data_location: Path | str = None,
     settings: dict = None,
-):
-    """Create final load profiles from base year including growth, dg, and flexible loads
+) -> pd.DataFrame:
+    """Create unrounded hourly model-region demand before DG subtraction.
 
     Parameters
     ----------
-    pg_engine : sa.engine.base.Engine
-        Engine to connect to a PowerGenome database
-    settings : dict
-        User parameter settings. Required keys are "model_regions", "future_load_region_map",
-        and "historical_load_region_maps" (if load data represent a year before
-        2019). Optional keys include "load_source_table_name", "demand_response_fn",
-        "distributed_gen_profiles_fn", "dg_as_resource", "region_aggregations",
-        "electrification_stock_fn", "electrification_scenario", and "alt_growth_rate".
+    data_location : Path or str, optional
+        Data location retained for API compatibility. Demand tables are read through
+        the initialized DataManager.
+    settings : dict, optional
+        Scenario settings, including model regions, planning/weather years, demand
+        sources, and any demand-response or electrification adjustments. Defaults
+        to the current settings.
 
     Returns
     -------
     pd.DataFrame
-        Wide dataframe with one column of load profiles for each model region
+        Gross hourly demand including supplemental and flexible demand, with
+        available model-region columns in settings order. No DG is subtracted and
+        values are not rounded. May be reused by :func:`make_final_load_curves`.
 
     Raises
     ------
     ValueError
-        When all load curves are null.
+        When all load curves are null or their time indices do not match.
     """
 
     logger.info("Creating hourly demand profiles")
@@ -1371,7 +1372,7 @@ def make_final_load_curves(
     if user_load_curves is not None and all(
         [r in user_load_curves.columns for r in settings["model_regions"]]
     ):
-        load_curves_before_dr = user_load_curves
+        load_curves_before_dr = user_load_curves.copy()
         used_user_load = True
 
     else:
@@ -1445,39 +1446,64 @@ def make_final_load_curves(
     else:
         load_curves_before_dg = load_curves_before_dr
 
-    if not settings.get("dg_as_resource"):
-        final_load_curves = subtract_distributed_generation(
-            load_curves_before_dg,
-            model_year=settings["model_year"],
-            weather_year=settings.get("weather_year"),
-            model_regions=settings["model_regions"],
-            region_aggregations=settings.get("region_aggregations"),
-            utc_offset=settings.get("utc_offset"),
-            avg_distribution_loss=settings.get("avg_distribution_loss"),
-        )
-    else:
-        final_load_curves = load_curves_before_dg
-
-    # Supplemental demand is normally added INSIDE make_load_curves (long format,
-    # before hours are renumbered), so it is applied once per load source. With a
-    # single load source (the common default) that applies it exactly once. With
-    # multiple sources in `load_source_table_name` it is applied per source — if
-    # your supplemental table is scoped to a specific region that only exists in
-    # one source, or you keep each source's regions disjoint, this is still
-    # correct; a table that targets the same hours in overlapping sources would
-    # be counted once per source. See also the user-supplied WIDE load path below.
-    # The user-supplied WIDE load path (load_usr_demand_profiles) bypasses
-    # make_load_curves entirely, so supplemental demand is applied here on the
-    # final wide frame to preserve that coverage:
+    # Normal sources already include supplemental demand in make_load_curves.
+    # The complete user-wide path bypasses that function, so include it here
+    # before sharing gross demand with generators and net-demand construction.
     if used_user_load:
-        final_load_curves = add_supplemental_demand(
-            final_load_curves,
+        load_curves_before_dg = add_supplemental_demand(
+            load_curves_before_dg,
             model_year=settings["model_year"],
             model_regions=settings["model_regions"],
             keep_regions=keep_regions,
             region_agg_map=region_agg_map,
             region_aggregations=region_aggregations,
             weather_years=settings.get("weather_year"),
+        )
+
+    return load_curves_before_dg.reindex(
+        columns=[r for r in settings["model_regions"] if r in load_curves_before_dg]
+    )
+
+
+@auto_fill_settings()
+def make_final_load_curves(
+    data_location: Path | str = None,
+    settings: dict = None,
+    load_curves_before_dg: Optional[pd.DataFrame] = None,
+) -> pd.DataFrame:
+    """Create integer hourly demand profiles, subtracting DG unless it is a resource.
+
+    Parameters
+    ----------
+    data_location : Path or str, optional
+        Data location passed to :func:`make_pre_dg_load_curves` when gross demand
+        is not provided.
+    settings : dict, optional
+        Scenario settings, including model regions, planning/weather years, DG
+        treatment, and distribution losses. Defaults to the current settings.
+    load_curves_before_dg : pd.DataFrame, optional
+        Unrounded gross hourly demand from :func:`make_pre_dg_load_curves` for the
+        same scenario. Reused without reprocessing demand and never modified.
+
+    Returns
+    -------
+    pd.DataFrame
+        Integer demand with one column per model region, in settings order.
+    """
+    if load_curves_before_dg is None:
+        load_curves_before_dg = make_pre_dg_load_curves(
+            data_location=data_location, settings=settings
+        )
+    final_load_curves = load_curves_before_dg.copy()
+    if not settings.get("dg_as_resource"):
+        final_load_curves = subtract_distributed_generation(
+            final_load_curves,
+            model_year=settings["model_year"],
+            weather_year=settings.get("weather_year"),
+            model_regions=settings["model_regions"],
+            region_aggregations=settings.get("region_aggregations"),
+            utc_offset=settings.get("utc_offset"),
+            avg_distribution_loss=settings.get("avg_distribution_loss"),
         )
 
     final_load_curves = final_load_curves.astype(int)
