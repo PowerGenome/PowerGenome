@@ -59,7 +59,7 @@ exclude = ["/data/eia*"]
 
 [project.optional-dependencies]
 dev = [
-    "black == 24.3.0",
+    "black == 26.10.1",
     "pre-commit",
     "pytest",
     "pytest-cov",
