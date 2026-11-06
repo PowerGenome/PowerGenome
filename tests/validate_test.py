@@ -1211,13 +1211,17 @@ class TestPhase2WithTestData:
         assert "2025–2030" not in detail
         assert "2031–2040" in detail
 
-    def test_new_resource_cost_years_non_string_table_value_does_not_match(self):
-        """A string resource entry must not match a non-string table value.
+    @pytest.mark.parametrize(
+        "table_value, settings_value",
+        [(5, "5"), (5, 5), ("5", 5), ("2030", 2030), ("1.5", 1.5)],
+    )
+    def test_new_resource_cost_years_keys_compared_as_text(
+        self, table_value, settings_value
+    ):
+        """Table and settings keys match as text, like fetch_resource_costs().
 
-        The previous mask comparisons (``cost_df["technology"] == technology``)
-        treat an integer table value and a string resource entry as different,
-        so the check warned "no matching rows found". The lookup must preserve
-        that: no str() coercion of table keys.
+        YAML turns unquoted values like ``5`` into ints. The pipeline compares
+        keys as text, so the check must not warn for these matching rows.
         """
         import pandas as pd
 
@@ -1227,8 +1231,8 @@ class TestPhase2WithTestData:
             def get_data(self, *a, **kw):
                 return pd.DataFrame(
                     {
-                        "technology": [5],  # int, resource entry is "5"
-                        "tech_detail": ["CCGT"],
+                        "technology": ["NaturalGas"],
+                        "tech_detail": [table_value],
                         "cost_case": ["Moderate"],
                         "basis_year": [2028],
                     }
@@ -1236,7 +1240,30 @@ class TestPhase2WithTestData:
 
         s = _minimal_valid_settings(
             model_periods=[[2025, 2030]],
-            new_resources=[["5", "CCGT", "Moderate", 500]],
+            new_resources=[["NaturalGas", settings_value, "Moderate", 500]],
+        )
+        assert _warnings(_check_new_resource_cost_years(s, FakeDM())) == []
+
+    def test_new_resource_cost_years_text_keys_do_not_round(self):
+        """A text table value "1.5" must not match a settings value of 2."""
+        import pandas as pd
+
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame(
+                    {
+                        "technology": ["NaturalGas"],
+                        "tech_detail": ["1.5"],
+                        "cost_case": ["Moderate"],
+                        "basis_year": [2028],
+                    }
+                )
+
+        s = _minimal_valid_settings(
+            model_periods=[[2025, 2030]],
+            new_resources=[["NaturalGas", 2, "Moderate", 500]],
         )
         results = _check_new_resource_cost_years(s, FakeDM())
         assert any(
