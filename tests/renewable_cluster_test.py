@@ -3,13 +3,9 @@
 import logging
 from pathlib import Path
 
-import hypothesis
+import numpy as np
 import pandas as pd
 import pytest
-from hypothesis import given
-from hypothesis import strategies as st
-from hypothesis.extra.numpy import arrays
-from hypothesis.extra.pandas import column, data_frames, range_indexes, series
 
 from powergenome.cluster.renewables import (
     agg_cluster_other,
@@ -26,109 +22,266 @@ from powergenome.cluster.renewables import (
 CWD = Path.cwd()
 DATA_FOLDER = CWD / "tests" / "data" / "cpa_cluster_data"
 
-cluster_data = data_frames(
-    columns=[
-        column(
-            name="profile",
-            elements=arrays(
-                float, (10,), elements=st.floats(min_value=0, max_value=100)
-            ),
-        ),
-        column(
-            name="lcoe",
-            elements=st.floats(min_value=0, max_value=100, allow_infinity=False),
-        ),
-        column(
-            name="lat",
-            elements=st.floats(min_value=50, max_value=70, allow_infinity=False),
-        ),
-        column(
-            name="lon",
-            elements=st.floats(min_value=-100, max_value=-70, allow_infinity=False),
-        ),
-        column(name="state", elements=st.sampled_from(["a", "b"])),
-    ]
-)
+# These tests are deterministic, parametrized replacements for the former randomized
+# property-based fuzz tests of the same functions. The fixed cases below deliberately
+# span the input space those tests explored: every combination of binning arguments,
+# weighted vs. unweighted binning, constant/degenerate series, n_clusters values below,
+# at, and above the number of sites, and both clustering methods/features.
+
+# Values include near-zero entries: pandas binning breaks with very small values, so
+# the tests clip anything in (0, 0.01) to 0.01 (see the LOC below).
+FEATURE_VALUES = [0.0, 0.001, 0.005, 3.5, 12.0, 40.0, 55.0, 70.0, 85.0, 100.0]
+
+FEATURE_WEIGHTS = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
+
+VALUE_BIN_BINS = [
+    pytest.param(1, id="bins-int-1"),
+    pytest.param(4, id="bins-int-4"),
+    pytest.param(20, id="bins-int-20"),
+    pytest.param([20.0, 100.0], id="bins-list"),
+]
+
+VALUE_BIN_Q = [
+    pytest.param(None, id="q-none"),
+    pytest.param(4, id="q-int-4"),
+    pytest.param([0.0, 0.5, 1.0], id="q-list"),
+]
+
+# 10-element float profiles for 6 sites. Each row is distinct so clustering is stable.
+SITE_PROFILES = [[float((i * 7 + j * 3) % 17) for j in range(10)] for i in range(6)]
 
 
-@given(
-    bins=st.one_of(
-        st.integers(min_value=1, max_value=20),
-        st.lists(
-            st.floats(min_value=0.001, max_value=100),
-            min_size=2,
-            max_size=5,
-            unique=True,
-        ),
-    ),
-    q=st.one_of(
-        st.none(),
-        st.integers(min_value=1, max_value=20),
-        st.lists(
-            st.floats(min_value=0, max_value=1), min_size=2, max_size=5, unique=True
-        ),
-    ),
-    data=st.data(),
-)
-def test_fuzz_value_bins(bins, q, data):
-    strategy = series(
-        elements=st.floats(min_value=0, max_value=100),
-        index=range_indexes(min_size=10, max_size=10),
+def _site_dataframe() -> pd.DataFrame:
+    """Fixed stand-in for the randomly generated renewable site data."""
+    return pd.DataFrame(
+        {
+            "profile": [np.asarray(row, dtype=np.float64) for row in SITE_PROFILES],
+            "lcoe": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
+            "lat": [55.0, 57.5, 60.0, 62.5, 65.0, 67.5],
+            "lon": [-95.0, -90.0, -85.0, -80.0, -75.0, -72.0],
+            "state": ["a", "a", "a", "b", "b", "b"],
+        },
+        index=pd.RangeIndex(6),
     )
-    s = data.draw(strategy)
+
+
+def _expected_bins(bins, q) -> int:
+    """Number of bins value_bin should request (q takes precedence over bins)."""
+    if q:
+        return q if isinstance(q, int) else len(q) - 1
+    if isinstance(bins, int):
+        return bins
+    return len(bins) - 1
+
+
+@pytest.mark.parametrize("bins", VALUE_BIN_BINS)
+@pytest.mark.parametrize("q", VALUE_BIN_Q)
+@pytest.mark.parametrize(
+    "use_weights", [False, True], ids=["no-weights", "with-weights"]
+)
+def test_value_bins_bins_q_combinations(bins, q, use_weights):
+    s = pd.Series(FEATURE_VALUES)
     # pandas binning breaks with very small values. Allow 0 but nothing smaller than 0.01
     s.loc[(s > 0) & (s < 0.01)] = 0.01
+    weights = pd.Series(FEATURE_WEIGHTS) if use_weights else None
+    n_requested = min(_expected_bins(bins, q), len(s))
 
-    # Run separately with and without weights. Tried st.one_of but it causes an error:
-    # elif (weights == 0).all():
-    # AttributeError: 'bool' object has no attribute 'all'
-    value_bin(s=s, bins=bins, q=q)
-    w = data.draw(strategy)
-    value_bin(s=s, bins=bins, q=q, weights=w)
+    # value_bin sorts/clamps list arguments in place, so pass fresh copies.
+    labels = value_bin(
+        s=s,
+        bins=list(bins) if isinstance(bins, list) else bins,
+        q=list(q) if isinstance(q, list) else q,
+        weights=weights,
+    )
+
+    assert len(labels) == len(s)
+    assert not pd.isna(labels).any()
+    n_bins = len(pd.unique(labels))
+    assert 1 <= n_bins <= n_requested
 
 
-@given(
-    s=series(
-        elements=arrays(float, (10,), elements=st.floats(min_value=0, max_value=100))
-    ),
-    n_clusters=st.integers(),
+@pytest.mark.parametrize(
+    "q", [pytest.param(4, id="q-int-4"), pytest.param([0.0, 0.5, 1.0], id="q-list")]
 )
-def test_fuzz_agg_cluster_profile(s, n_clusters):
-    agg_cluster_profile(s=s, n_clusters=n_clusters)
-
-
-@given(s=st.builds(pd.Series), n_clusters=st.integers())
-def test_fuzz_agg_cluster_other(s, n_clusters):
-    agg_cluster_other(s=s, n_clusters=n_clusters)
-
-
-@given(
-    data=cluster_data,
-    feature=st.sampled_from(["profile", "lcoe"]),
-    n_clusters=st.integers(max_value=10),
+@pytest.mark.parametrize(
+    "weights",
+    [
+        pytest.param([0.0] * 10, id="all-zero-weights"),
+        pytest.param([0.0] + [1.0] * 9, id="zero-weight-at-minimum"),
+    ],
 )
-def test_fuzz_cluster_no_bin(data, feature, n_clusters):
-    cluster_sites_no_bin(
-        data=data, method="agg", feature=feature, n_clusters=n_clusters
-    )
-    cluster_sites_no_bin(
-        data=data, method="kmeans", feature=["lat", "lon"], n_clusters=n_clusters
+def test_value_bins_zero_weights(q, weights):
+    """Zero weights are a real edge case of the weighted quantile path."""
+    s = pd.Series(FEATURE_VALUES)
+    labels = value_bin(
+        s=s, q=list(q) if isinstance(q, list) else q, weights=pd.Series(weights)
     )
 
+    assert len(labels) == len(s)
+    # A zero weight on the minimum value can push the lowest weighted quantile above
+    # it, leaving that single site unassigned to a bin.
+    assert pd.isna(labels).sum() <= 1
+    assert not pd.isna(labels).all()
 
-@given(
-    data=cluster_data,
-    by=st.just(["state"]),
-    feature=st.sampled_from(["profile", "lcoe"]),
-    n_clusters=st.integers(max_value=10),
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        pytest.param([0.0] * 10, id="all-zero"),
+        pytest.param([7.0] * 10, id="all-same-value"),
+    ],
 )
-def test_fuzz_cluster_binned(data, feature, by, n_clusters):
-    cluster_sites_binned(
-        data=data, by=by, method="agg", feature=feature, n_clusters=n_clusters
+@pytest.mark.parametrize("bins", VALUE_BIN_BINS)
+@pytest.mark.parametrize("q", VALUE_BIN_Q)
+def test_value_bins_constant_series(values, bins, q):
+    """Constant and all-zero series collapse to a single bin for every argument combo."""
+    s = pd.Series(values)
+    labels = value_bin(
+        s=s,
+        bins=list(bins) if isinstance(bins, list) else bins,
+        q=list(q) if isinstance(q, list) else q,
     )
-    cluster_sites_binned(
-        data=data, by=by, method="kmeans", feature=["lat", "lon"], n_clusters=n_clusters
+
+    assert len(labels) == len(s)
+    assert (np.asarray(labels) == 1).all()
+
+
+@pytest.mark.parametrize(
+    "n_clusters",
+    [
+        pytest.param(-2, id="n-clusters-negative"),
+        pytest.param(0, id="n-clusters-zero"),
+        pytest.param(1, id="n-clusters-1"),
+        pytest.param(3, id="n-clusters-3"),
+        pytest.param(6, id="n-clusters-rows"),
+        pytest.param(10, id="n-clusters-exceeds-rows"),
+    ],
+)
+@pytest.mark.parametrize(
+    "profiles",
+    [
+        pytest.param([], id="empty"),
+        pytest.param(SITE_PROFILES[:1], id="single-row"),
+        pytest.param(SITE_PROFILES, id="six-rows"),
+    ],
+)
+def test_agg_cluster_profile_parametrized(profiles, n_clusters):
+    s = pd.Series([np.asarray(row, dtype=np.float64) for row in profiles], dtype=object)
+    labels = np.asarray(agg_cluster_profile(s=s, n_clusters=n_clusters))
+
+    assert len(labels) == len(profiles)
+    if len(profiles) == 0:
+        return
+    expected = min(max(n_clusters, 1), len(profiles))
+    assert len(pd.unique(labels)) == expected
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        pytest.param(None, id="default-empty-series"),
+        pytest.param([], id="empty-float-series"),
+        pytest.param([5.0], id="single-value"),
+        pytest.param([5.0, 10.0, 15.0, 20.0, 25.0, 30.0], id="six-values"),
+    ],
+)
+@pytest.mark.parametrize(
+    "n_clusters",
+    [
+        pytest.param(-2, id="n-clusters-negative"),
+        pytest.param(0, id="n-clusters-zero"),
+        pytest.param(1, id="n-clusters-1"),
+        pytest.param(3, id="n-clusters-3"),
+        pytest.param(6, id="n-clusters-rows"),
+        pytest.param(10, id="n-clusters-exceeds-rows"),
+    ],
+)
+def test_agg_cluster_other_parametrized(values, n_clusters):
+    if values is None:
+        s = pd.Series()
+    else:
+        s = pd.Series(values, dtype=float)
+    labels = np.asarray(agg_cluster_other(s=s, n_clusters=n_clusters))
+
+    assert len(labels) == len(s)
+    if len(s) == 0:
+        return
+    expected = min(max(n_clusters, 1), len(s))
+    assert len(pd.unique(labels)) == expected
+
+
+CLUSTER_METHOD_FEATURES = [
+    pytest.param("agg", "profile", id="agg-profile"),
+    pytest.param("agg", "lcoe", id="agg-lcoe"),
+    pytest.param("kmeans", ["lat", "lon"], id="kmeans-lat-lon"),
+]
+
+CLUSTER_N_CLUSTERS = [
+    pytest.param(-1, id="n-clusters-negative"),
+    pytest.param(1, id="n-clusters-1"),
+    pytest.param(2, id="n-clusters-2"),
+    pytest.param(3, id="n-clusters-group-size"),
+    pytest.param(6, id="n-clusters-rows"),
+    pytest.param(10, id="n-clusters-exceeds-rows"),
+]
+
+
+@pytest.mark.parametrize("n_clusters", CLUSTER_N_CLUSTERS)
+@pytest.mark.parametrize("method, feature", CLUSTER_METHOD_FEATURES)
+def test_cluster_sites_no_bin_parametrized(method, feature, n_clusters):
+    data = _site_dataframe()
+    result = cluster_sites_no_bin(
+        data=data, method=method, feature=feature, n_clusters=n_clusters
     )
+
+    assert len(result) == len(data)
+    assert "cluster" in result.columns
+    assert result["cluster"].notna().all()
+    expected = min(max(n_clusters, 1), len(data))
+    assert result["cluster"].nunique() == expected
+
+
+@pytest.mark.parametrize("n_clusters", CLUSTER_N_CLUSTERS)
+@pytest.mark.parametrize("method, feature", CLUSTER_METHOD_FEATURES)
+def test_cluster_sites_binned_parametrized(method, feature, n_clusters):
+    data = _site_dataframe()
+    result = cluster_sites_binned(
+        data=data,
+        by=["state"],
+        method=method,
+        feature=feature,
+        n_clusters=n_clusters,
+    )
+
+    assert len(result) == len(data)
+    assert "cluster" in result.columns
+    assert result["cluster"].notna().all()
+    # Clusters are numbered contiguously across groups, so the total number of clusters
+    # is the sum of the per-state minimum(n_clusters, group size).
+    group_sizes = data.groupby("state").size()
+    expected = sum(min(max(n_clusters, 1), size) for size in group_sizes)
+    assert result["cluster"].nunique() == expected
+
+
+@pytest.mark.parametrize("binned", [False, True], ids=["no-bin", "binned"])
+@pytest.mark.parametrize("n_rows", [0, 1], ids=["empty-frame", "single-row-frame"])
+def test_cluster_sites_small_frames(binned, n_rows):
+    """Empty and single-row site data are short-circuited by both clusterers."""
+    data = _site_dataframe().iloc[:n_rows].copy()
+    kwargs = dict(method="agg", feature="lcoe", n_clusters=2)
+    if binned:
+        result = cluster_sites_binned(data=data, by=["state"], **kwargs)
+    else:
+        result = cluster_sites_no_bin(data=data, **kwargs)
+
+    assert len(result) == n_rows
+    assert "cluster" in result.columns
+    if n_rows == 0:
+        return
+    assert result["cluster"].notna().all()
+    # cluster_sites_no_bin assigns the scalar label 1 to a single site; the binned
+    # variant offsets the labels from the underlying clusterer (0).
+    assert (result["cluster"] == (0 if binned else 1)).all()
 
 
 def test_assign_site_cluster():

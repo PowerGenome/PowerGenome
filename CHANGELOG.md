@@ -21,6 +21,7 @@ and this project adheres to Semantic Versioning.
 
 ### Changed
 
+- The test suite no longer depends on `hypothesis`. Property-based fuzz tests in `tests/renewable_cluster_test.py` are now deterministic parametrized cases that cover the same input space (every binning combination, weighted and unweighted, degenerate series, and `n_clusters` below/at/above the number of sites), and the generator fixtures in `tests/test_generators.py` build their data lazily. `hypothesis` is dropped from the `dev` extra and `environment.yml`, and the full suite runs in about 22s.
 - Retirement guidance in the docs and in the multi-period retirement error now points at the `retirement_year` column of the generation input data, which is what controls existing-generator retirements. The age-based retirement settings `retirement_ages`, `additional_retirements`, and `cluster_with_retired_gens` have no live code path — the `label_retirement_year` function that read them was removed some time ago — so they are dropped from the example systems, the test settings, and `example_systems/settings_documentation.md`, together with the commented-out remains of that function. Set `retirement_year` in the generation input data instead.
 - Settings fingerprints canonicalize set-valued and set-derived list settings (e.g. `generator_columns`) so validation cache keys are stable across Python processes (string hash randomization previously reordered them on every run).
 
