@@ -7,7 +7,7 @@ These core parameters define the overall model scope, planning periods, and curr
 ### `model_periods`
 
 **Type**: List of 2-element lists `[[first_year, last_year], ...]`
-**Required**: Yes
+**Required**: Yes, unless using `model_year` and `model_first_planning_year`
 
 Defines planning periods as pairs of `[first_year, last_year]`. The last year is used for demand profiles and technology cost vintages; costs are averaged over the full span of each period.
 
@@ -15,7 +15,9 @@ Defines planning periods as pairs of `[first_year, last_year]`. The last year is
 # Single period
 model_periods:
   - [2025, 2030]
+```
 
+```yaml
 # Multi-period study
 model_periods:
   - [2025, 2030]
@@ -33,7 +35,8 @@ This creates planning periods:
 
     - **Demand**: Uses the last year of each period (e.g., 2030 demand for 2025–2030)
     - **New-build costs**: Averaged across the full period (e.g., 2025–2030 capital costs are mean values over those years)
-    - **Retirements**: A generator is retired if its expected retirement year falls before the end of a period
+    - **Retirements**: A generator is retired at period end if its retirement
+      year is on or before that period's final year
 
 ### Legacy format
 
@@ -60,7 +63,8 @@ All monetary values are converted to this base year USD using CPI data.
 target_usd_year: 2023
 ```
 
-PowerGenome loads CPI data from `data/cpi_data/` to perform conversions. Technology costs from ATB (in their native years) and EIA data (various years) are all normalized to this target year.
+Configure `dollar_year_table` to point to a CPI table in `data_location`.
+Applicable technology and fuel costs are converted using that table.
 
 ## Time Zone
 
@@ -71,7 +75,7 @@ PowerGenome loads CPI data from `data/cpi_data/` to perform conversions. Technol
 **Default**: 0
 **Example**: `-8`
 
-Hour offset from UTC for the model timezone. All time-series data is stored in UTC and converted using this offset.
+Hour offset applied when shifting input time profiles to the model timezone.
 
 ```yaml
 utc_offset: -8  # Pacific Time (UTC-8)

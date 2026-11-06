@@ -15,7 +15,8 @@ PowerGenome gets technology data from several sources:
 
 ### List Available Technologies
 
-ATB technologies follow naming convention: `{Technology}_{TechDetail}_{FinancialCase}`
+New resource names follow `{Technology}_{TechDetail}_{CostCase}`. The available
+names depend on the configured resource cost table and data vintage.
 
 **Common technologies**:
 
@@ -64,7 +65,7 @@ new_resources:
 Choose financial assumptions and cost trajectories:
 
 ```yaml
-resource_data_year: 2023  # ATB vintage year
+resource_data_year: 2024  # Data vintage; must exist in the configured cost table
 resource_financial_case: Market  # Market or R&D
 resource_cap_recovery_years: 20  # Economic lifetime
 ```
@@ -119,22 +120,26 @@ resource_modifiers:
     technology: UtilityPV
     tech_detail: Class1
     capex_mw: [mul, 1.2]  # Multiply by 1.2 (20% higher)
-    fixed_o_m_mw: 18000  # Direct override to $18,000/MW-year
+    Fixed_OM_Cost_per_MWyr: 18000  # Direct override to $18,000/MW-year
 
   landbased_wind:
     technology: LandbasedWind
     tech_detail: Class3
     capex_mw: [mul, 0.9]  # 10% cost reduction
-    variable_o_m_mwh: 0  # Zero variable O&M
+    Var_OM_Cost_per_MWh: 0  # Zero variable O&M
 
   batteries:
     technology: Utility-Scale Battery Storage
     tech_detail: Lithium Ion
-    capex_mw: [add, 55000]  # Add $100/kW (in 2004 USD) for interconnection
+    capex_mw: [add, 55000]  # Add $55,000/MW
     Var_OM_Cost_per_MWh: [add, 0.15]
     Var_OM_Cost_per_MWh_In: 0.15  # Set directly (not in ATB)
-    wacc_real: 0.04675  # NREL ATB Market WACC for UtilityPV
+    wacc_real: 0.04675  # Override the real WACC
 ```
+
+`resource_modifiers` runs after O&M columns are renamed to their GenX names;
+`modified_new_resources` runs earlier and uses source names such as
+`fixed_o_m_mw` and `variable_o_m_mwh`.
 
 **Modifier behavior**:
 
@@ -162,6 +167,8 @@ Utility-Scale Battery Storage_Lithium Ion,p1,1.072245
 ```
 
 Multipliers apply on top of `resource_modifiers`.
+Configure this file with `regional_cost_factor_table`; it must cover the
+technologies and regions in the study.
 
 ## Create Technology Variants
 
@@ -252,7 +259,7 @@ renewables_clusters:
   - region: all
     technology: offshorewind
     turbine_type: floating
-    pref_site: 0  # Include all sites (1 for preferred sites only)
+    pref_site: 0  # Match resource groups whose metadata has pref_site: 0
     bin:
       - feature: lcoe_interconnect_adj
         weights: capacity_mw
@@ -268,7 +275,7 @@ renewables_clusters:
   - `max`: Maximum value threshold
 - `bin`: List of binning operations
   - `feature`: Attribute to bin by
-  - `weights`: Weight bins by capacity (`mw`, `capacity_mw`)
+  - `weights`: Weight quantiles by a site-data column such as `capacity_mw`
   - `q`: Number of quantile bins
   - `mw_per_bin`: Fixed MW per bin
 - `cluster`: List of clustering operations within bins
@@ -278,7 +285,8 @@ renewables_clusters:
 
 **Technology-specific parameters**:
 
-- Offshore wind: `turbine_type` (`fixed`, `floating`), `pref_site` (0 or 1)
+- Offshore wind: `turbine_type` (`fixed`, `floating`), and optionally `pref_site`
+  to match the corresponding resource-group metadata
 - Geothermal: `type` (`egs`, `geohydrobinary`)
 
 ### Advanced: Group Modifiers
@@ -309,10 +317,9 @@ renewables_clusters:
 
 !!! warning "Legacy setting — not applied"
     `new_gen_not_available` is only validated for region-name consistency; it is **not**
-    applied to exclude technologies. `new_resources` entries are built in **every** model
-    region, so a new-build resource cannot be restricted to a subset of regions. Renewable
-    resource clusters are scoped per region through `renewables_clusters` (each entry has
-    a `region` key).
+    applied to exclude technologies. Non-renewable `new_resources` are built in
+    every model region. Renewable resource clusters are scoped per region through
+    `renewables_clusters` (each entry has a `region` key).
 
 ```yaml
 # Legacy — not applied in this version
@@ -326,46 +333,25 @@ new_gen_not_available:
     - Coal
 ```
 
-### Technology Minimum Load
+### Operating Constraints
 
-Set minimum stable generation level:
-
-```yaml
-min_cap_req:
-  NaturalGas_2-on-1 Combined Cycle (F-Frame)_Moderate: 0.3  # 30% minimum load
-  Nuclear_Nuclear - Large_Moderate: 0.9  # 90% minimum load
-  Coal_New_Moderate: 0.4
-```
-
-### Ramp Rates
-
-Define maximum ramp rates (fraction per hour):
-
-```yaml
-ramp_up_rates:
-  NaturalGas_2-on-1 Combined Cycle (F-Frame)_Moderate: 0.5  # 50% per hour
-  Coal_New_Moderate: 0.2  # 20% per hour
-  Nuclear_Nuclear - Large_Moderate: 0.05  # 5% per hour
-
-ramp_down_rates:
-  NaturalGas_2-on-1 Combined Cycle (F-Frame)_Moderate: 0.5
-  Coal_New_Moderate: 0.2
-  Nuclear_Nuclear - Large_Moderate: 0.05
-```
+Configure minimum output and ramping in the operational constraints input table,
+not with `min_cap_req`, `ramp_up_rates`, or `ramp_down_rates` settings.
 
 ## Example: Add Hydrogen Technology
 
-Complete example adding hydrogen turbines:
+The following fragments add hydrogen turbines to an existing working setup.
+Include Hydrogen in the regional cost factors and operational constraints too.
 
 ### 1. Create Additional Technology
 
-**additional_technologies.csv**:
+**extra_inputs/additional_technologies.csv**:
 
 ```csv
-technology,tech_detail,model_year,capex_mw,fixed_o_m_mw,variable_o_m_mwh,heat_rate_mmbtu_mwh,fuel,wacc_real,capital_recovery_period,unit_size_mw
-Hydrogen,Turbine,2030,900000,18000,4,9.5,hydrogen,0.055,25,150
-Hydrogen,Turbine,2040,750000,15000,4,9.0,hydrogen,0.055,25,150
-Hydrogen,Turbine,2050,600000,12000,4,8.5,hydrogen,0.055,25,150
+technology,tech_detail,cost_case,planning_year,capex_mw,capex_mwh,fixed_o_m_mw,fixed_o_m_mwh,variable_o_m_mwh,heat_rate,wacc_real,Cap_Size,dollar_year
+Hydrogen,Turbine,Moderate,2030,900000,0,18000,0,4,9.5,0.055,150,2023
+Hydrogen,Turbine,Moderate,2040,750000,0,15000,0,4,9.0,0.055,150,2023
+Hydrogen,Turbine,Moderate,2050,600000,0,12000,0,4,8.5,0.055,150,2023
 ```
 
 ### 2. Configure in Settings
@@ -376,9 +362,9 @@ Hydrogen,Turbine,2050,600000,12000,4,8.5,hydrogen,0.055,25,150
 # Include additional tech file
 additional_technologies_fn: additional_technologies.csv
 
-# Add to new resources - use list format
-new_resources:
-  - [Hydrogen, Turbine, Moderate, 150]
+# Select rows by technology name; additional technologies are not added to new_resources
+additional_new_gen:
+  - Hydrogen
 
 # Assign tags
 model_tag_values:
@@ -393,14 +379,11 @@ model_tag_values:
 tech_fuel_map:
   Hydrogen: hydrogen
 
-# Operational constraints
-min_cap_req:
-  Hydrogen_Turbine_Moderate: 0.2
-ramp_up_rates:
-  Hydrogen_Turbine_Moderate: 0.8
-ramp_down_rates:
-  Hydrogen_Turbine_Moderate: 0.8
 ```
+
+The loader selects rows matching `additional_new_gen` and the model
+`planning_year`. `resource_cap_recovery_years` sets the default recovery period.
+The dollar-year adjustment also requires a configured `dollar_year_table`.
 
 ### 3. Add Fuel Prices
 
@@ -409,25 +392,19 @@ ramp_down_rates:
 ```yaml
 user_fuel_price:
   hydrogen:
-    2030:
-      CA_N: 25  # $/MMBtu
-      CA_S: 25
-      AZ: 28
-    2040:
-      CA_N: 18
-      CA_S: 18
-      AZ: 20
-    2050:
-      CA_N: 12
-      CA_S: 12
-      AZ: 14
+    CA_N: {2030: 25, 2040: 18, 2050: 12}  # $/MMBtu
+    CA_S: {2030: 25, 2040: 18, 2050: 12}
+    AZ: {2030: 28, 2040: 20, 2050: 14}
 ```
+
+Year-keyed values are resolved before prices are processed. Each fuel can also
+use a single price for all regions.
 
 ### 4. Set Regional Availability
 
-`new_resources` builds each listed technology in **every** model region, so it cannot be
-used to keep a technology out of a single region. Renewable clusters are scoped per region
-through `renewables_clusters` (each entry specifies a `region`). The legacy
+`new_resources` builds each listed non-renewable technology in **every** model region,
+so it cannot be used to keep one out of a single region. Renewable clusters are scoped
+per region through `renewables_clusters` (each entry specifies a `region`). The legacy
 `new_gen_not_available` key is only validated, not applied.
 
 **settings/tech_availability.yml** (renewables scoped per region):
@@ -454,10 +431,10 @@ renewables_clusters:
 
 **Check**:
 
-1. Technology in `new_resources`?
-2. Technology size specified (fourth element in list)?
+1. Technology in `new_resources`, or in `additional_new_gen` if supplied by a CSV?
+2. Technology size specified in the fourth list element or CSV `Cap_Size`?
 3. Tags defined in `model_tag_values`?
-4. Technology omitted from `new_resources` for the target region?
+4. For renewables, is a cluster definition present for the target region?
 
 ### Renewable Clustering Issues
 
@@ -482,13 +459,12 @@ renewables_clusters:
 
 ## Best Practices
 
-1. **Use wildcards**: `Battery_*` matches all battery durations
-2. **Start with ATB**: Prefer ATB technologies when available
-3. **Document assumptions**: Comment custom cost adjustments
-4. **Validate tags**: All technologies need complete tag assignments
-5. **Test incrementally**: Add one technology at a time
-6. **Regional variation**: Use `resource_modifiers` for regional costs
-7. **Version data**: Track ATB year, profile vintage in documentation
+1. **Start with the configured cost table**: Prefer existing technologies when available
+2. **Document assumptions**: Comment custom cost adjustments
+3. **Validate tags**: Check resource classifications
+4. **Test incrementally**: Add one technology at a time
+5. **Regional variation**: Use `regional_cost_factor_table` for regional costs
+6. **Version data**: Track ATB year, profile vintage in documentation
 
 ## Next Steps
 

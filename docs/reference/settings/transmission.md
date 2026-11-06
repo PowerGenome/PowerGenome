@@ -61,19 +61,9 @@ transmission_cost_table: network_costs.csv
 - `total_line_loss_frac`: Line loss as fraction (0.05 = 5%)
 - `dollar_year`: Cost basis year
 
-### `user_transmission_costs`
+Provide user-specified costs via `transmission_cost_table`:
 
-**Type**: String (filename in `input_folder`)
-**Required**: For user-specified transmission costs
-**Example**: `"network_costs_wecc_6_zone.csv"`
-
-CSV file with transmission costs between model regions. Overrides database values.
-
-```yaml
-user_transmission_costs: network_costs.csv
-```
-
-**File format** (`extra_inputs/network_costs.csv`):
+**File format** (`network_costs.csv`):
 
 ```csv
 start_region,dest_region,total_interconnect_annuity_mw,total_interconnect_cost_mw,total_line_loss_frac,dollar_year
@@ -106,7 +96,7 @@ tx_value_col: firm_ttc_mw
 
 PowerGenome v0.8+ defaults to `firm_ttc_mw`. Previous versions used `nonfirm_ttc_mw`.
 
-### `distribution_loss_factor`
+### `avg_distribution_loss`
 
 **Type**: Float
 **Required**: For distributed generation
@@ -116,7 +106,7 @@ PowerGenome v0.8+ defaults to `firm_ttc_mw`. Previous versions used `nonfirm_ttc
 Distribution-level line loss (transmission substation to customer).
 
 ```yaml
-distribution_loss_factor: 0.06  # 6% distribution loss
+avg_distribution_loss: 0.06  # 6% distribution loss
 ```
 
 Used when subtracting distributed generation from total demand. Total demand includes distribution losses, so DG must be adjusted.
@@ -155,7 +145,8 @@ Absolute expansion limit per line per period (MW).
 tx_expansion_mw_per_period: 500  # Can add up to 500 MW
 ```
 
-Useful for setting minimum buildable increments (e.g., one 230kV line ≈ 200-400 MW).
+This is an alternative upper bound, not a minimum build size or a discrete
+construction increment. If the fractional bound is larger, it takes precedence.
 
 **Expansion calculation per line**:
 
@@ -170,12 +161,12 @@ max_expansion = max(
 
 PowerGenome generates these GenX transmission files:
 
-**`Network.csv`**:
+**`system/Network.csv`** (default layout):
 
+- `Network_zones`: Zone labels
 - `Network_Lines`: Line ID number
-- `z1`, `z2`, ...: Network topology matrix
+- `Start_Zone`, `End_Zone`: Numeric zone identifiers for each line
 - `Line_Max_Flow_MW`: Existing capacity
-- `Line_Min_Flow_MW`: Reverse flow limit (typically negative of max)
 - `transmission_path_name`: Human-readable name
 - `Line_Loss_Percentage`: Loss fraction
 - `Line_Reinforcement_Cost_per_MWyr`: Annualized expansion cost

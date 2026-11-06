@@ -7,9 +7,8 @@ This guide shows how to apply custom formulas to existing generator attributes, 
 The `resource_attr_modifiers` parameter allows you to define custom formulas that modify generator attributes based on other data fields. This is useful for:
 
 - **Age-based cost adjustments**: Increase O&M costs as plants get older
-- **Regional cost scaling**: Apply region-specific multipliers
 - **Capacity-based modifications**: Scale costs with unit size
-- **Custom business logic**: Apply any formula using available data
+- **Custom adjustments**: Combine a rate and a column from the generator data
 
 ## Basic Usage
 
@@ -47,7 +46,7 @@ resource_attr_modifiers:
 
 ### Increase O&M with Plant Age
 
-Increase fixed O&M costs by $126/kW-yr for each year of plant age:
+Increase fixed O&M costs by $126/MW-yr for each year of plant age:
 
 ```yaml
 resource_attr_modifiers:
@@ -55,7 +54,7 @@ resource_attr_modifiers:
     - attribute: fom_per_mwyr
       formula:
         op: add
-        rate: 126  # $/kW-yr per year of age
+        rate: 126  # $/MW-yr per year of age
         multiplier: age
 ```
 
@@ -63,7 +62,7 @@ resource_attr_modifiers:
 
 1. Matches all generators with "conventional steam coal" in technology name
 2. For each matched generator: `fom_per_mwyr = fom_per_mwyr + (126 × age)`
-3. Example: 20-year-old plant adds $2,520/kW-yr to base O&M
+3. Example: 20-year-old plant adds $2,520/MW-yr to base O&M
 
 ### Multiple Attributes for One Technology
 
@@ -75,12 +74,12 @@ resource_attr_modifiers:
     - attribute: fom_per_mwyr
       formula:
         op: add
-        rate: 50  # $/kW-yr per year
+        rate: 50  # $/MW-yr per year
         multiplier: age
     - attribute: heat_rate_mmbtu_mwh
       formula:
-        op: mul
-        rate: 1.005  # 0.5% degradation per year
+        op: add
+        rate: 0.005  # MMBtu/MWh per year of age
         multiplier: age
 ```
 
@@ -96,11 +95,12 @@ resource_attr_modifiers:
     - attribute: fom_per_mwyr
       formula:
         op: replace
-        rate: 100  # $/kW-yr base
-        multiplier: capacity_factor_multiplier
+        rate: 100  # Illustrative coefficient
+        multiplier: capacity_mw
 ```
 
-With `replace`, the original `fom_per_mwyr` value is ignored and completely replaced by `100 × capacity_factor_multiplier`.
+With `replace`, the original `fom_per_mwyr` value is ignored and replaced by
+`100 × capacity_mw`. Check units and input columns for your own formula.
 
 ### Multiple Technologies
 
@@ -139,9 +139,7 @@ Common attributes you can modify:
 | `fom_per_mwyr` | Fixed O&M cost | $/MW-yr |
 | `vom_per_mwh` | Variable O&M cost | $/MWh |
 | `heat_rate_mmbtu_mwh` | Heat rate | MMBtu/MWh |
-| `capex_mw` | Capital cost | $/MW |
 | `minimum_load_mw` | Minimum load | MW |
-| `ramp_rate_mw_per_min` | Ramp rate | MW/min |
 
 Available multiplier columns depend on your data schema. Common ones:
 
@@ -171,7 +169,10 @@ resource_attr_modifiers:
 
 - Case-insensitive: `"Coal"` matches `"conventional steam coal"`
 - Substring: `"gas"` matches `"Natural Gas Fired Combined Cycle"`
-- Underscores ignored: `"natural_gas"` matches `"NaturalGas"`
+- Underscores ignored, but spaces are not: `"natural_gas"` matches
+  `"NaturalGas"`, not `"Natural Gas"`
+- Keys are regular expressions; escape regex metacharacters when matching them literally.
+- An unmatched technology does not raise an error; it changes no rows.
 
 Be specific enough to avoid unintended matches. For example:
 
@@ -181,14 +182,10 @@ Be specific enough to avoid unintended matches. For example:
 
 ## Execution Order
 
-`resource_attr_modifiers` is applied **after**:
-
-1. Generator data loaded from tables
-2. Clustering performed
-3. Costs loaded from ATB/cost tables
-4. Other cost modifiers applied
-
-This means you can reference attributes that were calculated earlier in the pipeline, such as `age` (calculated from `operating_date`) or cluster-averaged values.
+`resource_attr_modifiers` is applied to individual rows immediately after
+loading the generation table and calculating `age` as the model year minus
+`operating_year`. It runs before region mapping and clustering, so later
+cluster-averaged values and region mapping columns are not available.
 
 ## Validation
 
@@ -265,12 +262,12 @@ resource_attr_modifiers:
     - attribute: fom_per_mwyr
       formula:
         op: add
-        rate: 126  # $/kW-yr per year of age
+        rate: 126  # $/MW-yr per year of age
         multiplier: age
     - attribute: heat_rate_mmbtu_mwh
       formula:
-        op: mul
-        rate: 1.003  # 0.3% efficiency loss per year
+        op: add
+        rate: 0.003  # MMBtu/MWh per year of age
         multiplier: age
 
   natural gas fired combined cycle:
@@ -281,8 +278,8 @@ resource_attr_modifiers:
         multiplier: age
     - attribute: heat_rate_mmbtu_mwh
       formula:
-        op: mul
-        rate: 1.002  # 0.2% efficiency loss per year
+        op: add
+        rate: 0.002  # MMBtu/MWh per year of age
         multiplier: age
 
   nuclear:
@@ -299,25 +296,31 @@ resource_attr_modifiers:
 
 To verify formula application:
 
-1. **Check generator output**: Examine `Generators_data.csv` for modified values
+1. **Check generator output**: Examine the relevant `resources/*.csv` file for modified values (`Generators_data.csv` with `old_genx_format: true`)
 2. **Compare with/without modifiers**: Run with `resource_attr_modifiers` commented out
-3. **Inspect logs**: PowerGenome logs formula applications
-4. **Validate formulas**: Test with simple cases before complex scenarios
+3. **Validate formulas**: Test with simple cases before complex scenarios
 
 Example validation:
 
 ```python
-# In Python after loading generators
 import pandas as pd
+from powergenome.generators import apply_custom_gen_formula
 
-gens = pd.read_csv("results/Generators_data.csv")
-
-# Check coal plant O&M vs. age
-coal = gens[gens["technology"].str.contains("Coal", case=False)]
-print(coal[["Resource", "age", "fom_per_mwyr"]].sort_values("age"))
+gens = pd.DataFrame({
+    "technology": ["Conventional Steam Coal"],
+    "age": [20],
+    "fom_per_mwyr": [10000],
+})
+modifiers = {
+    "coal": [{
+        "attribute": "fom_per_mwyr",
+        "formula": {"op": "add", "rate": 126, "multiplier": "age"},
+    }],
+}
+print(apply_custom_gen_formula(gens, modifiers)["fom_per_mwyr"])
 ```
 
-Expected pattern: Higher `fom_per_mwyr` for older plants.
+The result is `12520` $/MW-yr.
 
 ## Related Settings
 

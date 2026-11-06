@@ -1,346 +1,96 @@
 # Architecture Overview
 
-This article explains PowerGenome's high-level architecture, key design patterns, and how components interact.
-
-## System Design
-
-PowerGenome is a **data pipeline** that transforms raw energy data into model-ready input files. It's not a simulation tool—it prepares inputs for capacity expansion models like GenX.
-
-!!! abstract "Geographic Flexibility"
-    While documentation examples reference US data sources (EIA, NREL ATB, PUDL databases), PowerGenome is **region-agnostic**. The pipeline accepts data tables from any geographic region—Europe, Asia, South America, etc.—as long as they follow the expected schemas. Replace US-specific inputs with your region's generation fleet, technology costs, demand data, and regional definitions.
+PowerGenome is a **data pipeline**, not a power-system simulator. Settings select
+and transform source data into inputs for an optimization model such as GenX.
+The model is run separately.
 
 ```mermaid
 graph LR
-    A[Settings YAML] --> B[Settings Class]
-    C[Data Sources] --> D[DataManager]
-    B --> E[Pipeline Execution]
+    A[Settings YAML and scenario CSV] --> B[Resolved case settings]
+    C[Source tables and resource profiles] --> D[DataManager]
+    B --> D
+    B --> E[Processing modules]
     D --> E
-    E --> F[GeneratorClusters]
-    E --> G[Load Profiles]
-    E --> H[Fuel Costs]
-    E --> I[Transmission]
-    F --> J[GenX Formatter]
-    G --> J
-    H --> J
-    I --> J
-    J --> K[Output CSV Files]
+    E --> F[Model-specific writers]
+    F --> G[Input files for GenX or Macro]
 ```
 
-## Core Components
-
-### Settings Class
-
-**Purpose**: Configuration management with frozen dictionary semantics
-
-**Location**: `powergenome/settings.py`
-
-**Key Features**:
-
-- Loads and merges multiple YAML files
-- Provides immutable configuration (frozen after loading)
-- Supports multi-scenario parameter swapping
-- Auto-fills function parameters via decorator
-
-**Example**:
-
-```python
-from powergenome.settings import load_settings
-
-# Load from folder
-settings = load_settings(Path("settings"))
-
-# Access with safety
-model_regions = settings.get("model_regions", [])
-target_year = settings["target_usd_year"]  # KeyError if missing
-```
-
-The `@auto_fill_settings()` decorator automatically injects settings:
-
-```python
-@auto_fill_settings(settings="SETTINGS")
-def my_function(data, settings=None):
-    # settings parameter auto-filled if not provided
-    regions = settings["model_regions"]
-```
-
-### DataManager (Singleton)
-
-**Purpose**: Centralized data access with in-memory DuckDB
-
-**Location**: `powergenome/database.py`
-
-**Key Features**:
-
-- Singleton pattern (one instance per execution)
-- Supports CSV, Parquet, and DuckDB sources
-- Table configurations with DNF (Disjunctive Normal Form) filters
-- Standardized table naming
-- Automatic column snake_casing
-
-**Data Flow**:
-
-```mermaid
-graph TD
-    A[Settings YAML] --> B[DataManager Init]
-    B --> C{Table Config}
-    C -->|Simple String| D[Load from filename]
-    C -->|Dict with Filters| E[Load + Filter]
-    D --> F[Register as Standard Table]
-    E --> F
-    F --> G[get_data table_name]
-    G --> H[Return DataFrame]
-```
-
-**Example Table Config**:
-
-```yaml
-# Simple
-generation_table: "generators.csv"
-
-# Advanced with filters
-demand_table:
-  table_name: demand_timeseries.parquet
-  scenario: HighEV
-  filters:
-    - - [region, '=', 'CA']
-      - [year, '>=', 2030]
-```
-
-**Usage**:
-
-```python
-from powergenome.database import get_data
-
-# Get standardized table
-generators = get_data("generation")
-demand = get_data("demand")
-```
-
-### GeneratorClusters Class
-
-**Purpose**: Main workflow orchestrator for generator data
-
-**Location**: `powergenome/generators.py`
-
-**Responsibilities**:
-
-1. Cluster existing generators (k-means on heat rate/capacity)
-2. Add new-build resources from technology cost data
-3. Calculate costs (capex, O&M, fuel startup)
-4. Assign fuels and emission factors
-5. Apply regional cost multipliers
-6. Configure renewable resource groups
-7. Add distributed generation
-8. Format for GenX output
-
-**Example Workflow**:
-
-```python
-from powergenome.generators import GeneratorClusters
-
-# Initialize with settings
-gc = GeneratorClusters(settings)
-
-# Main execution creates all generators
-all_gens = gc.create_all_generators()
-
-# Returns DataFrame with existing (clustered) + new-build resources
-```
-
-### GenX Formatter
-
-**Purpose**: Format data for GenX model inputs
-
-**Location**: `powergenome/GenX.py`
-
-**Key Functions**:
-
-- `network_max_reinforcement()`: Expansion limits
-- `energy_share_req()`: RPS/CES policy constraints
-- `min_cap_req()`: Minimum capacity requirements
-- Time reduction (clustering hours → representative periods)
-
-## Design Patterns
-
-### Frozen Settings Pattern
-
-Settings are immutable after loading to prevent accidental modifications:
-
-```python
-settings = load_settings(path)
-settings["new_key"] = "value"  # Raises TypeError
-
-# Must create new instance
-updated = settings.with_updates({"new_key": "value"})
-```
-
-### Singleton DataManager
-
-Only one DataManager instance exists per run:
-
-```python
-from powergenome.database import initialize_data_manager, get_data
-
-# Initialize once
-initialize_data_manager(settings, data_location)
-
-# Use anywhere
-df = get_data("generation")  # Uses singleton instance
-```
-
-### Snake Case Normalization
-
-All column names converted to snake_case:
-
-```python
-# Input: "Technology", "Existing Cap MW"
-# After normalization: "technology", "existing_cap_mw"
-```
-
-This ensures consistent column access regardless of source data formatting.
-
-### Auto-Fill Decorator
-
-Dependency injection for settings parameter:
-
-```python
-@auto_fill_settings(settings="SETTINGS")
-def process_data(data, settings=None):
-    # If settings not provided, uses global/contextvar
-    return transform(data, settings["param"])
-
-# Can call with or without settings
-result = process_data(my_data)
-result = process_data(my_data, custom_settings)
-```
-
-## Data Flow
-
-### Full Pipeline Execution
-
-```mermaid
-sequenceDiagram
-    participant CLI
-    participant Settings
-    participant DataMgr as DataManager
-    participant GenCls as GeneratorClusters
-    participant GenX
-    participant Files
-
-    CLI->>Settings: load_settings(path)
-    CLI->>DataMgr: initialize(settings, data_loc)
-    DataMgr->>DataMgr: Load all tables
-    CLI->>GenCls: GeneratorClusters(settings)
-    GenCls->>DataMgr: get_data("generation")
-    DataMgr-->>GenCls: generators DataFrame
-    GenCls->>GenCls: Cluster existing gens
-    GenCls->>GenCls: Add new-build resources
-    GenCls->>GenCls: Calculate costs
-    GenCls-->>CLI: all_generators DataFrame
-    CLI->>GenX: Format for GenX
-    GenX-->>Files: Write CSV outputs
-```
-
-## Module Organization
-
-### Core Pipeline
-
-- **run_powergenome.py**: CLI entry point, orchestrates execution
-- **settings.py**: Configuration management
-- **database.py**: Data access layer
-
-### Data Processing
-
-- **generators.py**: Generator clustering and new-build
-- **load_profiles.py**: Demand profile construction
-- **fuels.py**: Fuel price time series
-- **transmission.py**: Network constraints
-- **resource_clusters.py**: Renewable site clustering
-
-### Model-Specific
-
-- **GenX.py**: GenX output formatting
-- **time_reduction.py**: Representative period selection
-- **financials.py**: Investment cost calculations
-
-### Utilities
-
-- **util.py**: Helper functions (snake_case, region mapping)
-- **params.py**: Global parameters
-- **external_data.py**: Policy scenarios, demand response
-
-## Multi-Scenario Architecture
-
-PowerGenome supports running multiple scenarios in one execution:
-
-```mermaid
-graph TD
-    A[scenario_definitions.csv] --> B[Load Base Settings]
-    B --> C{For Each Scenario}
-    C --> D[Apply settings_management]
-    D --> E[Update Parameters]
-    E --> F[Run Pipeline]
-    F --> G[Write to case_id folder]
-    G --> C
-```
-
-**Example scenario_definitions.csv**:
-
-```csv
-year,case_id,case_name,solar_cost,wind_cost
-2030,baseline,Baseline,mid,mid
-2030,high_re,High RE,low,low
-2030,low_re,Low RE,high,high
-```
-
-Settings management swaps parameters:
-
-```yaml
-settings_management:
-  2030:
-    solar_cost:
-      low:
-        new_resources:
-          - [UtilityPV, Class1, Advanced, 1]
-      mid:
-        new_resources:
-          - [UtilityPV, Class1, Moderate, 1]
-```
-
-## Performance Considerations
-
-### Memory Management
-
-- DataManager holds all tables in memory (DuckDB)
-- Large generation profiles can use significant RAM
-- Tidy format profiles loaded with column projection (only needed columns)
-
-### Computation Bottlenecks
-
-- **K-means clustering**: O(n²) in worst case, but typically fast for 1000s of generators
-- **Time reduction**: K-means on 8760 hours, multiple iterations
-- **Profile aggregation**: Can be slow for many renewable sites
-
-### Optimization Strategies
-
-- Use table filters to load only needed data
-- Cache renewable clusters (avoids re-clustering profiles)
-- Reduce time domain aggressively (168 hours common)
-- Use aggregated regions (fewer transmission constraints)
-
-## Extension Points
-
-PowerGenome is designed for extension:
-
-1. **Custom technologies**: `additional_technologies_fn` for user-defined resources
-2. **Custom fuels**: `user_fuel_price` with emission factors
-3. **Custom data sources**: DataManager supports any CSV/Parquet/DuckDB
-4. **Custom clustering**: Override `cluster_generators()` method
-5. **Custom output formats**: Subclass GenX formatter for other models
-
-## Related Documentation
-
-- [Data Pipeline Flow](pipeline.md): Detailed execution sequence
-- [DataManager](../how-to/configure-data-tables.md): Table configuration guide
-- [Settings](../reference/settings/index.md): All configuration parameters
-- [Generator Clustering](clustering.md): K-means methodology
+## Core components
+
+| Component | Responsibility |
+| --- | --- |
+| `run_powergenome.py` | CLI entry point; coordinates cases, periods, validation, processing, and writing. |
+| `settings.py` | Loads YAML, resolves scenario/year overrides, and provides settings contexts. |
+| `database.py` | DataManager: standardized table access over CSV, Parquet, SQLite, and DuckDB sources. |
+| `generators.py`, `new_build.py` | Cluster existing units, construct new-build resources, and calculate resource attributes. |
+| `resource_clusters.py` | Select renewable sites and aggregate their capacity, costs, and profiles. |
+| `load_profiles.py`, `distributed_gen.py` | Build demand and distributed-generation contributions. |
+| `fuels.py`, `transmission.py` | Construct fuel-price and inter-regional network inputs. |
+| `GenX.py`, `time_reduction.py` | Format GenX data and select representative time periods. |
+
+These responsibilities explain where to investigate a problem; normal studies
+are configured through YAML rather than by calling these modules directly.
+
+## Settings and scenario isolation
+
+Settings load into a mutable dictionary-like `Settings` object. Each case/period
+gets its own resolved settings, keeping scenario changes separate from the base
+configuration. A settings context lets decorated functions obtain arguments
+without every caller passing the entire dictionary.
+
+This convenience does not make arbitrary settings names valid. Parameters still
+need to match their consuming functions, and source tables need the expected
+schemas. See [Configure Settings](../how-to/configure-settings.md) for loading
+rules and [Scenario Management](scenarios.md) for override precedence.
+
+## Centralized data access
+
+DataManager is a singleton backed by an in-memory DuckDB connection. It maps
+settings such as `generation_table` to standard names such as `generation`.
+Processing modules request those standard names instead of knowing source
+filenames.
+
+By default, file-backed sources use lazy views rather than loading all data at
+initialization. Row filters and optional column projection control the exposed
+data. Source columns retain their names; the access layer is not a general
+schema-conversion service.
+
+At case/period boundaries, the pipeline updates table configurations for the
+resolved settings. Thus one command can use different demand scenarios without
+rewriting downstream processing. See [Data Tables Settings](../reference/settings/data-tables.md)
+for source lookup and filter semantics.
+
+## From resources to model-specific files
+
+Existing generators are grouped by region and technology, then clustered using
+the configured features. New-build resources come from technology cost and
+performance tables; renewable site data adds supply limits and generation
+profiles. Demand, fuels, transmission, and policies are built alongside them.
+
+The resulting DataFrames are formatted for the selected model. For default
+GenX output, resource attributes are split across resource-type files; they are
+not written as one legacy `Generators_data.csv`. Optional Macro output uses the
+same processed data but has its own asset and file conventions. See
+[Output Formats](output-format.md).
+
+## Scale and fidelity trade-offs
+
+Runtime and memory use grow with renewable site counts, profile length,
+existing-unit counts, and requested clusters. Filters, renewable cluster caches,
+and regional aggregation can reduce work, but they can also change the study's
+representation.
+
+Time-domain reduction reduces downstream optimization size; it is not a reason
+to choose a universal number of hours. Select and validate spatial, technology,
+and temporal resolution against the questions your study must answer.
+
+Some conventions reflect US sources such as EIA and NREL ATB. Other geographies
+can use custom data, but must supply compatible schemas and mappings rather than
+only changing region labels.
+
+## Related documentation
+
+- [Data Pipeline Flow](pipeline.md): processing order and intermediate products.
+- [Generator Clustering](clustering.md): aggregation methods and trade-offs.
+- [Input Table Schemas](../reference/schemas/input-tables.md): source requirements.
+- [Contributing](../about/contributing.md): development and testing workflow.

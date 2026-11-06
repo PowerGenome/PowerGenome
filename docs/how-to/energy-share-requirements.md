@@ -28,7 +28,9 @@ PowerGenome writes these to `Energy_share_requirement.csv` (zone requirements) a
 
 ## Step 1: Create the emission policies CSV
 
-In your `extra_inputs` folder, create `emission_policies.csv`. The required columns are `case_id`, `year`, and `region`. Additional columns define policy constraints.
+In your `extra_inputs` folder, create `emission_policies.csv` with `case_id`,
+`year`, `region`, and policy columns. `case_id` may be omitted when every row
+applies to the current case, but include it when using `copy_case_id`.
 
 **Column naming**:
 
@@ -45,7 +47,8 @@ all,2040,all,0.70
 all,2050,all,0.90
 ```
 
-Using `region = all` applies the same policy fraction to every model region.
+A single policy row for a case and year applies its values to every model
+region. Here `all` makes that intent clear.
 
 ### Multi-region example (different RPS per zone)
 
@@ -61,7 +64,8 @@ all,2040,AZ,0.25,0.00
 
 ### Multi-case example
 
-Use `case_id = all` when the same policy applies to all scenario cases. Use a specific `case_id` to vary policies across scenarios:
+Use `case_id = all` as a fallback for cases with no explicit rows. Use a specific
+`case_id` to vary policies across scenarios:
 
 ```csv
 case_id,year,region,ESR_1
@@ -69,6 +73,10 @@ all,2030,all,0.50
 high_policy,2030,all,0.70
 low_policy,2030,all,0.30
 ```
+
+The fallback is selected only when the case ID is absent from the entire policy
+table, not separately for each year or region. Include every needed year for an
+explicit case.
 
 ### Copy policies from another case
 
@@ -80,7 +88,8 @@ baseline,2030,all,,0.50
 alternative,2030,all,baseline,
 ```
 
-`alternative` will use the same ESR_1 value as `baseline`.
+`alternative` copies the policy values from `baseline` for the same year and
+region. Keep `case_id`, `year`, and `region` as the first three columns.
 
 ---
 
@@ -136,20 +145,18 @@ model_tag_values:
 
 Only resources with tag value `1` count toward the corresponding constraint.
 
-!!! note "Tag names must be in model_tag_names"
-    Any tag name you use in `model_tag_values` must also be listed in `model_tag_names`. If you add `ESR_1` to `model_tag_values` but not `model_tag_names`, PowerGenome will raise an error.
+Tag keys in `model_tag_values` are included even if they are absent from
+`model_tag_names`. Check the resource technology names in your data and adjust
+the examples above to match.
 
 ---
 
 ## Step 4: Clean Energy Standard (CES) credits
 
-For a CES — where resources earn fractional credits based on their emission rate relative to coal — enable the `ESR_CES_numerator` option:
-
-```yaml
-ESR_CES_numerator: true
-```
-
-When enabled, resources earn a credit equal to `(1 - emission_rate / coal_emission_rate)` instead of a binary 0/1 flag. A zero-emission resource earns a credit of 1.0; a resource emitting half of coal earns 0.5.
+PowerGenome's GenX output validates `ESR_*` resource tags as binary values.
+It does not calculate emission-rate-based fractional CES credits from an
+`ESR_CES_numerator` setting. Use binary eligibility or configure a different
+policy mechanism in the downstream model.
 
 ---
 
@@ -173,11 +180,15 @@ Confirm `emission_policies_table` is set in settings and the file is in `input_f
 
 **Resources not marked as eligible**
 
-Check that the technology name in `model_tag_values` is a substring of the resource names in your output. Technology matching is case-insensitive. Use `Generators_data.csv` (or the equivalent resources CSV) to see actual resource names, then adjust tag key strings accordingly.
+Check that each key in `model_tag_values` is a substring of the resource
+`technology` field. Matching is case-insensitive and ignores underscores. Inspect
+the resource CSVs and adjust the keys accordingly.
 
 **Wrong fraction applied to a region**
 
-If using `region = all`, the same value is applied everywhere. Switch to per-region rows if zones need different fractions.
+If a case/year has only one policy row, PowerGenome applies it to every zone,
+regardless of its `region` value. Use multiple per-region rows when zones need
+different fractions.
 
 ---
 

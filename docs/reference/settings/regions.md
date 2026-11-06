@@ -25,10 +25,10 @@ Names of the regions that will appear in output files. These can be:
 - Aggregated region names (defined in `region_aggregations`)
 
 ```yaml
-model_regions: [p1_2, p3, p4]
+model_regions: [p1_2, p3, northwest]
 ```
 
-Where `p1_2` is an aggregated region and `p3`, `p4` are individual base regions.
+Here `p1_2` and `northwest` are aggregated regions and `p3` is a base region.
 
 All regional parameters use these names as keys.
 
@@ -77,13 +77,15 @@ regional_capacity_reserves:
     AZ: 0.12
 ```
 
-Each `CapRes_X` tag creates a corresponding column in generators output, indicating which reserve zone each resource can contribute to.
+Configure resource contributions with `capacity_reserve_values`,
+`model_tag_values`, or `regional_tag_values`; see
+[Resource Tags](resource-tags.md#capacity-reserve-tags).
 
 ### `cap_res_network_derate_default`
 
 **Type**: Float (0-1)
 **Required**: No
-**Default**: 1.0
+**Default**: 0.95
 **Example**: `0.95`
 
 Derating factor for transmission imports used to meet capacity reserves. A value of 0.95 means transmission can only contribute 95% of its capacity toward reserve requirements.
@@ -171,7 +173,7 @@ cost_multiplier_technology_map:
 **Default**: 0
 **Example**: `-8`
 
-Hour offset from UTC for the model timezone. All time-series data is stored in UTC and converted using this offset.
+Hour offset applied when shifting input time profiles to the model timezone.
 
 ```yaml
 utc_offset: -8  # Pacific Time (UTC-8)

@@ -83,10 +83,10 @@ If only some planning years are covered and no fallback exists, PowerGenome rais
 Exact years only:
 
 ```yaml
-reserve_margin:
-  2030: 0.15
-  2040: 0.18
-  2050: 0.20
+carbon_tax:
+  2030: 25
+  2040: 50
+  2050: 75
 ```
 
 Constant across all years (prefer scalar):

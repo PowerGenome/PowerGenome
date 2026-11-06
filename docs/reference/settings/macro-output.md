@@ -12,8 +12,10 @@ model. To write only Macro inputs, disable GenX (see [`genx_output`](#genx_outpu
 
 The same options are available as command-line flags to `run_powergenome`:
 [`--macro`](../cli.md#macro), [`--genx`](../cli.md#genx), and [`--no-genx`](../cli.md#no-genx). Flags and settings
-values are combined per format (either one enables that format), and all flags and boolean settings are
-case-insensitive (`--Macro`, `"TRUE"`, etc.).
+values are combined per format (either one enables that format). CLI flag names
+and the `macro_output`/`genx_output` values are case-insensitive (`--Macro`,
+`"TRUE"`, etc.). Use actual YAML booleans (`true`/`false`) for the other Macro
+boolean settings; quoted strings are not parsed as booleans there.
 
 ## `macro_output`
 
@@ -22,11 +24,13 @@ case-insensitive (`--Macro`, `"TRUE"`, etc.).
 **CLI equivalent**: `--macro`
 
 When `true`, write a Macro `simpleCSVinputs` case (only the simpleCSV inputs format — not the Macro JSON format)
-in a `macro_out/`-style folder, matching the structure of the Macro examples (e.g.
+at the results root, or under its case-ID folder when using scenario definitions,
+matching the structure of the Macro examples (e.g.
 `macroenergy/MacroEnergyExamples.jl/examples/multisector_3zone_simpleCSVinputs`). The semantic mapping of
 generators, transmission, demand, fuel supply, and CO2 caps follows the GenX-to-Macro converter
-(`EmilDimanchev/GenX_to_Macro`; multistage runs follow the `lb/multistage` branch). Cross-sector assets
-(hydrogen, liquid fuels, CCS) are not yet emitted.
+(`EmilDimanchev/GenX_to_Macro`; multistage runs follow the `lb/multistage`
+branch). Thermal CCS resources are supported; broader cross-sector hydrogen and
+liquid-fuel assets are not emitted.
 
 GenX output is **not** disabled by this setting — see [`genx_output`](#genx_output).
 

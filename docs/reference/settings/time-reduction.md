@@ -15,7 +15,8 @@ Time domain reduction is applied jointly to load profiles and variable generatio
 
 Set to `true` to enable time domain reduction. When `false` (or absent), all 8760 hours are passed to GenX as a single period with weight 8760.
 
-Time reduction only works on data with ≤ 8760 hourly rows. If your data is already shorter (e.g., a previous reduction), the step is skipped automatically.
+Time reduction only runs on data with at most 8760 hourly rows. Shorter inputs
+can still be reduced; inputs longer than 8760 hours are passed through.
 
 ```yaml
 reduce_time_domain: true
@@ -68,7 +69,9 @@ time_domain_days_per_period: 7   # weekly periods
 **Type**: `bool`
 **Required when**: `reduce_time_domain: true`
 
-When `true`, the day with the highest system-wide demand is always included as one of the representative periods, regardless of which day k-means would select. This ensures the optimization model sees the true system peak.
+When `true`, clustering includes the period containing the highest system-wide
+demand. When the requested periods cover nearly all input hours, PowerGenome
+uses a shortcut that selects the first periods instead of clustering.
 
 ```yaml
 include_peak_day: true
@@ -116,7 +119,8 @@ include_peak_day: true
 demand_weight_factor: 5
 ```
 
-This creates 12 representative weeks, with the peak demand day guaranteed to appear in one of them.
+For a full year, this creates 12 representative weeks, including the peak
+demand period.
 
 ---
 
@@ -133,7 +137,9 @@ period:
 | `Sub_Weights` | Number of hours from the full year that each period represents |
 | `Time_Index` | Hour index (1 to `Rep_Periods × Timesteps_per_Rep_Period`) |
 
-`Sub_Weights` must sum to 8760 across all periods for an annual model.
+Check the sum of `Sub_Weights` against the input hours. Periods use whole
+blocks of days, so a period length that does not divide the input year can
+leave a remainder outside the clustered blocks.
 
 ---
 

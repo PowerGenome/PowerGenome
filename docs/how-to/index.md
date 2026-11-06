@@ -5,6 +5,8 @@ These guides provide step-by-step instructions for specific tasks. Each guide as
 ## Configuration
 
 - **[Configure Settings](configure-settings.md)**: Organize settings files, use modular YAML, and manage complex configurations
+- **[Configure Data Tables](configure-data-tables.md)**: Point settings at your datasets and select columns, scenarios, and rows
+- **[Configure Energy Share Requirements](energy-share-requirements.md)**: Set renewable or clean-energy policy requirements
 - **[Use Year-Keyed Settings Values](use-year-keyed-settings.md)**: Resolve parameter values automatically by planning year across settings files
 - **[Configure Renewable Resource Clusters](configure-renewable-clusters.md)**: Set up wind and solar clusters using filters, bins, groups, and agglomerative or k-means clustering
 - **[Configure Capacity Reserve Requirements](configure-capacity-reserves.md)**: Specify technology credit values for capacity reserve constraints

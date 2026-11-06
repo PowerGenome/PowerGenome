@@ -28,7 +28,7 @@ demand_table:
 
 **Required columns**:
 
-- `region`: Model region name
+- `region`: Base region name, or a model region that is not aggregated
 - `time_index`: Hour index
 - `load_mw`: Demand in MW
 - `year`: Planning year
