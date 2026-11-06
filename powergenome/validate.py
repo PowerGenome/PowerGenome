@@ -808,6 +808,20 @@ def _check_new_resource_cost_years(settings: dict, dm: Any) -> List[ValidationRe
     except Exception:
         pass
 
+    # Index the table once instead of masking all ~1M cost rows per resource.
+    # Keys stay raw (no str coercion) so a string resource entry only matches
+    # string table values, exactly like the previous mask comparisons.
+    years_by_resource: Dict[Tuple[str, str, str], set] = {}
+    for key, years in cost_df.dropna(subset=["basis_year"]).groupby(
+        ["technology", "tech_detail", "cost_case"], sort=False, observed=True
+    )["basis_year"]:
+        years_by_resource[key] = set(years)
+
+    period_ranges = [
+        (first_year, end_year, set(range(first_year, end_year + 1)))
+        for first_year, end_year in planning_periods
+    ]
+
     no_overlap: List[str] = []
     for resource in new_resources:
         if not isinstance(resource, (list, tuple)) or len(resource) < 3:
@@ -818,14 +832,7 @@ def _check_new_resource_cost_years(settings: dict, dm: Any) -> List[ValidationRe
             str(resource[2]),
         )
 
-        available_years: set = set(
-            cost_df.loc[
-                (cost_df["technology"] == technology)
-                & (cost_df["tech_detail"] == tech_detail)
-                & (cost_df["cost_case"] == cost_case),
-                "basis_year",
-            ].dropna()
-        )
+        available_years = years_by_resource.get((technology, tech_detail, cost_case))
 
         if not available_years:
             no_overlap.append(
@@ -834,8 +841,7 @@ def _check_new_resource_cost_years(settings: dict, dm: Any) -> List[ValidationRe
             )
             continue
 
-        for first_year, end_year in planning_periods:
-            period_range = set(range(first_year, end_year + 1))
+        for first_year, end_year, period_range in period_ranges:
             if period_range.isdisjoint(available_years):
                 available_sample = sorted(available_years)[:5]
                 ellipsis = "…" if len(available_years) > 5 else ""
