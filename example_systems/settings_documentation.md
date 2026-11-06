@@ -270,7 +270,7 @@ description: How much inter-regional transmission can be expanded/increased with
 
 type: float, int
 
-description: **Legacy; not applied.** The `network_line_loss` function that used this parameter was removed. Model inter-regional losses from the transmission constraints data instead.
+description: **Legacy; not applied.** The `network_line_loss` function that used this parameter was removed. Inter-regional line losses now come from the `total_line_loss_frac` column of the DataManager `transmission_cost` table (configured with `transmission_cost_table`), which is written to GenX as `Line_Loss_Percentage`.
 
 ### interconnect_capex_mw
 

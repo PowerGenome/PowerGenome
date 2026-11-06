@@ -5,7 +5,6 @@ channels:
 dependencies:
   - python>=3.10 # Remove for tox.ini & setup.py
   - pip
-  - jupyterlab
   - black
   - pytest
   - pytest-cov
@@ -13,7 +12,6 @@ dependencies:
   - pyyaml
   - isort
   - pre-commit
-  - conda-forge::nb_conda_kernels
   - statsmodels>=0.12.2
   - conda-forge::python-dotenv
   - conda-forge::flatten-dict

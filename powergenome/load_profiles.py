@@ -124,8 +124,10 @@ def make_load_curves(
     Parameters
     ----------
     settings : dict
-        User parameter settings. Required key is "model_regions". Optional keys
-        include "region_aggregations" and "utc_offset".
+        User parameter settings. Required keys are "model_regions" and "model_year".
+        Optional keys include "region_aggregations", "utc_offset", and "weather_year"
+        (a single weather year or a list; when omitted, every weather year available
+        for "model_year" is used).
 
     Returns
     -------
