@@ -11,7 +11,6 @@ from powergenome.util import (
     build_where_clause_from_filters,
     get_all_table_names,
     load_data,
-    prepend_db_to_tables,
 )
 
 logger = logging.getLogger(__name__)

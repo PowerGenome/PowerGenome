@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -393,37 +393,6 @@ def load_demand_segments(settings):
     return get_data("demand_segments")
 
 
-def load_user_genx_settings(settings):
-    """Load a file with user-supplied GenX settings and copy values to cases where
-    needed.
-
-    Parameters
-    ----------
-    settings : dict
-        User defined PowerGenome settings. Must have the keys "input_folder" and
-        "case_genx_settings_fn".
-
-    Returns
-    -------
-    DataFrame
-        Values for GenX settings across cases and years as defined by the user. The
-        index is ["case_id", "year"] and columns are GenX parameters.
-    """
-
-    path = Path(settings["input_folder"]) / settings["case_genx_settings_fn"]
-    genx_case_settings = pd.read_csv(path)
-
-    if "copy_case_id" in genx_case_settings.columns:
-        genx_case_settings = copy_case_values(
-            genx_case_settings, match_cols=["case_id", "year"]
-        )
-
-    genx_case_settings = genx_case_settings.drop(columns=["copy_case_id"])
-    genx_case_settings = genx_case_settings.set_index(["case_id", "year"])
-
-    return genx_case_settings
-
-
 def overwrite_wind_pv_capacity(df, settings):
     """Use external data to overwrite the wind and solarpv capacity extracted from
     EIA860.
@@ -507,129 +476,3 @@ def make_usr_demand_profiles(path, settings):
     scenario_df = df.loc[:, idx[str(year), scenario]]
 
     return scenario_df
-
-
-def load_user_tx_costs(
-    path: Path,
-    model_regions: List[str],
-    target_usd_year: int = None,
-    settings: dict = None,
-) -> pd.DataFrame:
-    """Load a user data file with cost and line loss of each interregional transmission
-    line. Map the region names to zones (z1 to zM) and adjust the total cost columns
-    to the dollar year specified in settings.
-
-    Parameters
-    ----------
-    path : Path
-        Path to the CSV file, which should have columns "start_region", "dest_region",
-        "total_interconnect_annuity_mw", "total_interconnect_cost_mw", and "dollar_year".
-    model_regions : List[str]
-        List of model region names. Should be sorted to match order in other functions.
-    target_usd_year : int, optional
-        Desired final dollar year of cost columns, by default None. If None, no adjustment
-        is made.
-
-    Returns
-    -------
-    pd.DataFrame
-        Cost and line loss of each potential transmission line between model regions.
-        Contains columns "start_region", "dest_region", "zone_1", "zone_2",
-        "total_interconnect_annuity_mw", "total_interconnect_cost_mw", "dollar_year",
-        and "adjusted_dollar_year".
-    """
-    df = pd.read_csv(path)
-
-    zones = model_regions
-    zone_num_map = {
-        zone: f"z{number + 1}" for zone, number in zip(zones, range(len(zones)))
-    }
-    df["zone_1"] = df["start_region"].map(zone_num_map)
-    df["zone_2"] = df["dest_region"].map(zone_num_map)
-    df = df.dropna(subset=["zone_1", "zone_2"])
-
-    if target_usd_year:
-        adjusted_annuities = []
-        adjusted_costs = []
-        for row in df.itertuples():
-            adj_annuity = inflation_price_adjustment(
-                row.total_interconnect_annuity_mw,
-                row.dollar_year,
-                target_usd_year,
-                data_location=settings["data_location"],
-                table_name=settings["dollar_year_table"],
-            ).round(0)
-            adjusted_annuities.append(adj_annuity)
-
-            adj_cost = inflation_price_adjustment(
-                row.total_interconnect_cost_mw,
-                row.dollar_year,
-                target_usd_year,
-                data_location=settings["data_location"],
-                table_name=settings["dollar_year_table"],
-            ).round(0)
-            adjusted_costs.append(adj_cost)
-        df["total_interconnect_annuity_mw"] = adjusted_annuities
-        df["total_interconnect_cost_mw"] = adjusted_costs
-        df["adjusted_dollar_year"] = target_usd_year
-
-    return df
-
-
-def insert_user_tx_costs(tx_df: pd.DataFrame, user_costs: pd.DataFrame) -> pd.DataFrame:
-    """Insert costs and line loss from the user. Can include more lines than were in the
-    original transmission dataframe to create lines with zero existing capacity.
-
-    Parameters
-    ----------
-    tx_df : pd.DataFrame
-        Dataframe of interregional transmission lines created by PG. Must have the column
-        "Network_Lines" (integer from 1 to N), a column for each network zone (z1 to zM),
-        "Line_Max_Flow_MW", "Line_Min_Flow_MW", and "transmission_path_name".
-    user_costs : pd.DataFrame
-        Dataframe of costs and line loss created by the user. Should have columns
-        "zone_1" and "zone_2" (possible values are z1 through zM), "total_interconnect_annuity_mw",
-        "total_interconnect_cost_mw", and "total_line_loss_frac". Cost values should
-        already be adjusted to the desired dollar year.
-
-    Returns
-    -------
-    pd.DataFrame
-        Supplemented interregional transmission lines
-    """
-    if tx_df.empty:
-        return tx_df
-    user_costs = user_costs.dropna(subset=["zone_1", "zone_2"], how="any")
-    user_costs = user_costs.rename(
-        columns={
-            "total_interconnect_annuity_mw": "Line_Reinforcement_Cost_per_MWyr",
-            "total_interconnect_cost_mw": "Line_Reinforcement_Cost_per_MW",
-            "total_line_loss_frac": "Line_Loss_Percentage",
-        }
-    )
-    tx_df = pd.merge(
-        tx_df,
-        pd.concat(
-            [
-                user_costs,
-                user_costs.rename(
-                    columns={
-                        "start_region": "dest_region",
-                        "dest_region": "start_region",
-                    }
-                ),
-            ]
-        )[
-            [
-                "start_region",
-                "dest_region",
-                "Line_Reinforcement_Cost_per_MWyr",
-                "Line_Reinforcement_Cost_per_MW",
-                "Line_Loss_Percentage",
-            ]
-        ],
-        on=["start_region", "dest_region"],
-        how="left",
-    )
-
-    return tx_df

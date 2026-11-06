@@ -19,7 +19,6 @@ import duckdb
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import requests
 import yaml
 
 logger = logging.getLogger(__name__)
@@ -312,24 +311,6 @@ def snake_case_str(s: str) -> str:
         return clean
 
 
-def download_save(url: str, save_path: Union[str, Path]):
-    """
-    Download a file that isn't zipped and save it to a given path
-
-    Parameters
-    ----------
-    url : str
-        Valid url to download the zip file
-    save_path : str or path object
-        Destination to save the file
-
-    """
-
-    r = requests.get(url)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-    save_path.write_bytes(r.content)
-
-
 def update_dictionary(d: dict, u: dict) -> dict:
     """
     Update keys in an existing dictionary (d) with values from u
@@ -454,52 +435,6 @@ def write_case_settings_file(settings: dict, folder: Path, file_name: str):
     # stream = file(path_out, 'w')
     with open(path_out, "w") as f:
         yaml.dump(_settings, f)
-
-
-def find_centroid(gdf):
-    """Find the centroid of polygons, even when in a geographic CRS
-
-    If the crs is geographic (uses lat/lon) then it is converted to a projection before
-    calculating the centroid.
-
-    The projected CRS used here is:
-
-    <Projected CRS: EPSG:2163>
-    Name: US National Atlas Equal Area
-    Axis Info [cartesian]:
-    - X[east]: Easting (metre)
-    - Y[north]: Northing (metre)
-    Area of Use:
-    - name: USA
-    - bounds: (167.65, 15.56, -65.69, 74.71)
-    Coordinate Operation:
-    - name: US National Atlas Equal Area
-    - method: Lambert Azimuthal Equal Area (Spherical)
-    Datum: Not specified (based on Clarke 1866 Authalic Sphere)
-    - Ellipsoid: Clarke 1866 Authalic Sphere
-    - Prime Meridian: Greenwich
-
-    Parameters
-    ----------
-    gdf : GeoDataFrame
-        A gdf with a geometry column.
-
-    Returns
-    -------
-    GeoSeries
-        A GeoSeries of centroid Points.
-    """
-
-    crs = gdf.crs
-
-    if crs.is_geographic:
-        _gdf = gdf.to_crs("EPSG:2163")
-        centroid = _gdf.centroid
-        centroid = centroid.to_crs(crs)
-    else:
-        centroid = gdf.centroid
-
-    return centroid
 
 
 def regions_to_keep(
@@ -722,33 +657,6 @@ def find_region_col(cols: Union[pd.Index, List[str]], context: str = None) -> st
         return region_col[0]
 
 
-def remove_leading_zero(id: Union[str, int]) -> Union[str, int]:
-    """Remove leading zero from IDs that are otherwise integers.
-
-    There is a discrepency between some generator IDs in PUDL and 860m where they are
-    listed with a leading zero in one and an integer in the other. To better match,
-    strip zeros from IDs that would be an integer without them.
-
-    Parameters
-    ----------
-    id : Union[str, int]
-        An integer or string identifier
-
-    Returns
-    -------
-    Union[str, int]
-        Either the original ID (if integer or non-numeric string) or an integer version
-        of the ID with leading zeros removed
-    """
-    if isinstance(id, int):
-        return id
-    elif isinstance(id, float):
-        return int(id)
-    elif id.isnumeric():
-        id = id.lstrip("0")
-    return id
-
-
 def hash_string_sha256(input_string: str) -> str:
     """Create a reproducible hash of an input string. Use for creating cache filenames.
 
@@ -895,32 +803,6 @@ def get_all_table_names(data_location: Union[Path, str]) -> List[str]:
     table_names = con.execute("SHOW TABLES").fetchall()
     con.close()
     return [table[0] for table in table_names]
-
-
-def prepend_db_to_tables(
-    query: str, table_names: List[str], db_prefix: str = "db."
-) -> str:
-    """
-    Finds all table names within a query and appends them with the provided db_prefix.
-
-    Parameters
-    ----------
-    query : str
-        The SQL query containing table names.
-    table_names : List[str]
-        A list of table names in the database.
-    db_prefix : str, optional
-        The prefix to prepend to table names. Default is 'db.'.
-
-    Returns
-    -------
-    str
-        The modified query with table names prepended by db_prefix.
-    """
-    for table_name in table_names:
-        # Use regex to find table names not followed by a period
-        query = re.sub(rf"\b{table_name}\b(?!\s*\.)", f"{db_prefix}{table_name}", query)
-    return query
 
 
 def build_where_clause_from_filters(

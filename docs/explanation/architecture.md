@@ -155,7 +155,6 @@ all_gens = gc.create_all_generators()
 
 **Key Functions**:
 
-- `network_line_loss()`: Transmission constraints
 - `network_max_reinforcement()`: Expansion limits
 - `energy_share_req()`: RPS/CES policy constraints
 - `min_cap_req()`: Minimum capacity requirements

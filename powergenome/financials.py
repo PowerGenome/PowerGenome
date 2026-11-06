@@ -2,10 +2,9 @@
 
 import json
 import logging
-from datetime import date
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, NamedTuple, Union
+from typing import Any, Union
 
 import numpy as np
 import pandas as pd
@@ -17,12 +16,6 @@ from powergenome.params import DATA_PATHS
 logger = logging.getLogger(__name__)
 
 ListLike = Union[list, set, pd.Series, np.array]
-
-
-class MonthlyCPI(NamedTuple):
-    year: int
-    period: int
-    value: float
 
 
 def investment_cost_calculator(

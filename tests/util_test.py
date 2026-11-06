@@ -25,7 +25,6 @@ from powergenome.util import (
     load_data_file,
     load_table_from_db,
     make_iterable,
-    prepend_db_to_tables,
     read_tidy_profiles_wide,
     sort_nested_dict,
     update_dictionary,
@@ -293,14 +292,6 @@ def test_get_all_table_names_duckdb(tmp_duckdb):
     # should list "bar"
     tables = get_all_table_names(tmp_duckdb)
     assert "bar" in tables
-
-
-def test_prepend_db_to_tables_simple():
-    q = "SELECT * FROM foo JOIN baz ON foo.id = baz.fk"
-    out = prepend_db_to_tables(q, table_names=["foo", "baz"], db_prefix="db.")
-    # every standalone foo/baz should be prefixed, but not foo.id
-    assert "db.foo JOIN db.baz" in out
-    assert "db.foo.id" not in out
 
 
 def test_load_data_file_csv(tmp_path):
