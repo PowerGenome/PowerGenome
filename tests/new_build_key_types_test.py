@@ -155,6 +155,49 @@ def test_text_filter_does_not_round_decimal_settings(make_dm, settings_value):
     assert costs.empty
 
 
+@pytest.mark.parametrize("settings_value", [True, "True"])
+def test_boolean_csv_column_matches_settings(make_dm, settings_value):
+    """A boolean key column matches YAML booleans and quoted "True".
+
+    DuckDB infers ``BOOLEAN`` for a column of lowercase ``true``/``false`` and
+    casts it to 'true'/'false' in SQL, while Python ``str()`` gives 'True'.
+    The cost filter, the returned frames, the heat-rate merge, and
+    ``single_generator_row`` must all agree on the text form.
+    """
+    dm = make_dm(
+        _cost_rows("Wind", "true", "Moderate", wacc_detail=None)
+        + _cost_rows("Wind", "false", "Moderate", 2, wacc_detail=None),
+        hr_rows=[
+            {
+                "technology": "Wind",
+                "tech_detail": "true",
+                "cost_case": "Moderate",
+                "basis_year": basis_year,
+                "heat_rate": 7.0,
+                "data_year": 2024,
+            }
+            for basis_year in (2030, 2031)
+        ],
+    )
+    assert pd.api.types.is_bool_dtype(dm.get_data("resource_cost")["tech_detail"])
+    assert pd.api.types.is_bool_dtype(dm.get_data("resource_heat_rate")["tech_detail"])
+
+    costs = new_build.fetch_resource_costs(
+        _settings([["Wind", settings_value, "Moderate", 1]])
+    )
+    merged = costs.merge(
+        new_build.fetch_heat_rates(),
+        on=["technology", "tech_detail", "cost_case", "basis_year"],
+        how="left",
+    )
+
+    gen = _row(
+        merged, "Wind", "True", "Moderate", ("Wind", settings_value, "Moderate", 1)
+    )
+    assert gen.loc[0, "capex_mw"] == pytest.approx(1000.0)
+    assert gen.loc[0, "heat_rate"] == pytest.approx(7.0)
+
+
 def test_build_new_resources_unquoted_keys_end_to_end(make_dm, monkeypatch):
     """Unquoted numeric keys get costs, heat rates, modifiers, and names."""
     monkeypatch.setattr(new_build, "apply_all_tag_to_regions", lambda s: s)

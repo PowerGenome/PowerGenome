@@ -1213,7 +1213,15 @@ class TestPhase2WithTestData:
 
     @pytest.mark.parametrize(
         "table_value, settings_value",
-        [(5, "5"), (5, 5), ("5", 5), ("2030", 2030), ("1.5", 1.5)],
+        [
+            (5, "5"),
+            (5, 5),
+            ("5", 5),
+            ("2030", 2030),
+            ("1.5", 1.5),
+            (True, True),
+            (True, "True"),
+        ],
     )
     def test_new_resource_cost_years_keys_compared_as_text(
         self, table_value, settings_value
