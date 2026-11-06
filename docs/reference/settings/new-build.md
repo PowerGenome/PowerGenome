@@ -30,7 +30,7 @@ new_resources:
 - `cost_case`: Cost trajectory (`Conservative`, `Moderate`, `Advanced`)
 - `size_mw`: Unit size in MW
 
-`technology`, `tech_detail`, and `cost_case` are matched to the cost and heat rate tables as text, so `[Wind, 1, Moderate, 100]` and `[Wind, "1", Moderate, 100]` are equivalent. YAML still rewrites some unquoted values before PowerGenome sees them (`1.50` becomes `1.5`, `2030.0` stays `2030.0`, and `true` becomes `True`). A boolean table column is compared in that same `True`/`False` form. Quote any value that must match the table text exactly.
+`technology`, `tech_detail`, and `cost_case` are matched to the cost and heat rate tables as text, so `[Wind, 1, Moderate, 100]` and `[Wind, "1", Moderate, 100]` are equivalent. YAML still rewrites some unquoted values (`1.50` becomes `1.5`), so quote any value that must match the table text exactly.
 
 ### `resource_data_year`year`
 

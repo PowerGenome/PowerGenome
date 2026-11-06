@@ -160,9 +160,7 @@ def test_boolean_csv_column_matches_settings(make_dm, settings_value):
     """A boolean key column matches YAML booleans and quoted "True".
 
     DuckDB infers ``BOOLEAN`` for a column of lowercase ``true``/``false`` and
-    casts it to 'true'/'false' in SQL, while Python ``str()`` gives 'True'.
-    The cost filter, the returned frames, the heat-rate merge, and
-    ``single_generator_row`` must all agree on the text form.
+    casts it to 'true'/'false' in SQL, unlike Python ``str()``.
     """
     dm = make_dm(
         _cost_rows("Wind", "true", "Moderate", wacc_detail=None)

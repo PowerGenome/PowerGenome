@@ -67,27 +67,18 @@ def _key_cols_to_str(
     return df
 
 
-def _text_key_expr(col: str) -> str:
-    """Return a SQL expression that renders a key column as text.
+def _text_filter(col: str, value: Any) -> Tuple[str, str, Any]:
+    """Build a DataManager filter that compares a column with a value as text.
 
-    DuckDB casts ``BOOLEAN`` values to ``'true'``/``'false'``, while Python
-    ``str()`` and pandas ``astype(str)`` give ``'True'``/``'False'`` (the form
-    returned by ``get_data`` and used by ``_key_cols_to_str``). Rendering
-    booleans the Python way keeps the SQL filter consistent with the rows it
-    selects, so a resource like ``[Wind, true, Moderate, 100]`` does not lose
-    its cost rows when DuckDB infers a boolean key column.
+    DuckDB casts BOOLEAN columns to 'true'/'false', while Python ``str()`` and
+    the frames returned by ``get_data`` use 'True'/'False'.
     """
     as_text = f"CAST({col} AS VARCHAR)"
-    return (
-        f"CASE WHEN typeof({col}) = 'BOOLEAN' AND {col} IS NOT NULL "
-        f"THEN CASE WHEN {as_text} = 'true' THEN 'True' ELSE 'False' END "
-        f"ELSE {as_text} END"
+    key_text = (
+        f"IF({col} IS NOT NULL AND typeof({col}) = 'BOOLEAN', "
+        f"IF({as_text} = 'true', 'True', 'False'), {as_text})"
     )
-
-
-def _text_filter(col: str, value: Any) -> Tuple[str, str, Any]:
-    "Build a DataManager filter that compares a column with a value as text."
-    return (_text_key_expr(col), "=", _key_to_str(value))
+    return (key_text, "=", _key_to_str(value))
 
 
 def fetch_resource_costs(
