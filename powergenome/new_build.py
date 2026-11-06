@@ -7,7 +7,7 @@ import copy
 import logging
 import operator
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import pandas as pd
 from joblib import Parallel, delayed
@@ -38,6 +38,47 @@ from powergenome.util import (
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
+
+# Columns that identify a new resource in the cost and heat rate tables.
+RESOURCE_KEY_COLS = ["technology", "tech_detail", "cost_case"]
+
+
+def _key_to_str(value: Any) -> Any:
+    """Return a resource key value from settings as text.
+
+    YAML parses unquoted values such as ``1`` or ``2030`` as numbers, while the
+    cost and heat rate tables usually store these keys as text. Comparing both
+    sides as text lets quoted and unquoted settings values match the same rows.
+    ``None`` is returned unchanged.
+    """
+    if value is None:
+        return None
+    return str(value)
+
+
+def _key_cols_to_str(
+    df: pd.DataFrame, cols: List[str] = RESOURCE_KEY_COLS
+) -> pd.DataFrame:
+    """Return a copy of ``df`` with non-null values in ``cols`` cast to text."""
+    df = df.copy()
+    for col in cols:
+        if col in df.columns:
+            df[col] = df[col].astype(str).where(df[col].notna(), df[col])
+    return df
+
+
+def _text_filter(col: str, value: Any) -> Tuple[str, str, Any]:
+    """Build a DataManager filter that compares a column with a value as text.
+
+    DuckDB casts BOOLEAN columns to 'true'/'false', while Python ``str()`` and
+    the frames returned by ``get_data`` use 'True'/'False'.
+    """
+    as_text = f"CAST({col} AS VARCHAR)"
+    key_text = (
+        f"IF({col} IS NOT NULL AND typeof({col}) = 'BOOLEAN', "
+        f"IF({as_text} = 'true', 'True', 'False'), {as_text})"
+    )
+    return (key_text, "=", _key_to_str(value))
 
 
 def fetch_resource_costs(
@@ -106,13 +147,15 @@ def fetch_resource_costs(
     cols = ["technology", "tech_detail", "financial_case", "cost_case", "data_year"]
     # valid_inputs = db_col_values(data_location, data_name, cols)
     for tech in techs + mod_techs:
-        tech, tech_detail, cost_case, _ = tech
+        tech, tech_detail, cost_case = (_key_to_str(v) for v in tech[:3])
+        # Compare resource keys as text so unquoted YAML numbers (e.g. tech_detail
+        # 1) match text table values and never trigger DuckDB numeric casts.
         filters = [
             [
-                ("technology", "=", tech),
-                ("tech_detail", "=", tech_detail),
+                _text_filter("technology", tech),
+                _text_filter("tech_detail", tech_detail),
                 ("financial_case", "=", fin_case),
-                ("cost_case", "=", cost_case),
+                _text_filter("cost_case", cost_case),
                 ("parameter", "IN", cost_params),
             ]
         ]
@@ -129,9 +172,9 @@ def fetch_resource_costs(
             # Only need to fetch once per technology.
             wacc_filters = [
                 [
-                    ("technology", "=", tech),
+                    _text_filter("technology", tech),
                     ("financial_case", "=", fin_case),
-                    ("cost_case", "=", cost_case),
+                    _text_filter("cost_case", cost_case),
                     ("parameter", "=", "wacc_real"),
                 ]
             ]
@@ -143,10 +186,12 @@ def fetch_resource_costs(
 
         tech_list.append((tech, cost_case))
 
-    df = pd.concat(all_rows, ignore_index=True)[col_names]
-    wacc_df = pd.concat(wacc_rows, ignore_index=True)[
-        ["technology", "cost_case", "basis_year", "parameter_value"]
-    ].rename(columns={"parameter_value": "wacc_real"})
+    df = _key_cols_to_str(pd.concat(all_rows, ignore_index=True)[col_names])
+    wacc_df = _key_cols_to_str(
+        pd.concat(wacc_rows, ignore_index=True)[
+            ["technology", "cost_case", "basis_year", "parameter_value"]
+        ].rename(columns={"parameter_value": "wacc_real"})
+    )
 
     # Transform from tidy to wide dataframe, which makes it easier to fill generator
     # rows with the correct values.
@@ -228,7 +273,7 @@ def fetch_heat_rates(data_year: int = None) -> pd.DataFrame:
         )
         raise ValueError(s)
 
-    return heat_rates
+    return _key_cols_to_str(heat_rates)
 
 
 def single_generator_row(
@@ -255,6 +300,10 @@ def single_generator_row(
     """
 
     technology, tech_detail, cost_case, size_mw = new_gen_type
+    # Key columns of resource_costs_hr are text (see _key_cols_to_str).
+    technology, tech_detail, cost_case = (
+        _key_to_str(v) for v in (technology, tech_detail, cost_case)
+    )
     numeric_cols = [
         "basis_year",
         "fixed_o_m_mw",
@@ -765,8 +814,8 @@ def build_new_resources(
 
     regions = settings["model_regions"]
 
-    resource_costs_hr = resource_costs.merge(
-        resource_hr,
+    resource_costs_hr = _key_cols_to_str(resource_costs).merge(
+        _key_cols_to_str(resource_hr),
         on=["technology", "tech_detail", "cost_case", "basis_year"],
         how="left",
     )
@@ -833,18 +882,18 @@ def build_new_resources(
             "tech_detail" in tech_modifiers
         ), "Each nested dictionary in resource_modifiers must have a 'tech_detail' key."
 
-        technology = tech_modifiers.pop("technology")
-        tech_detail = tech_modifiers.pop("tech_detail")
+        technology = _key_to_str(tech_modifiers.pop("technology"))
+        tech_detail = _key_to_str(tech_modifiers.pop("tech_detail"))
+        gen_keys = _key_cols_to_str(new_gen_df[["technology", "tech_detail"]])
+        modifier_mask = (gen_keys.technology == technology) & (
+            gen_keys.tech_detail == tech_detail
+        )
 
         allowed_operators = ["add", "mul", "truediv", "sub"]
 
         for key, op_list in tech_modifiers.items():
             if isinstance(op_list, float) | isinstance(op_list, int):
-                new_gen_df.loc[
-                    (new_gen_df.technology == technology)
-                    & (new_gen_df.tech_detail == tech_detail),
-                    key,
-                ] = op_list
+                new_gen_df.loc[modifier_mask, key] = op_list
             else:
                 assert len(op_list) == 2, (
                     "Two values, an operator and a numeric value, are needed in the parameter\n"
@@ -859,17 +908,8 @@ def build_new_resources(
                 )
 
                 f = operator.attrgetter(op)
-                new_gen_df.loc[
-                    (new_gen_df.technology == technology)
-                    & (new_gen_df.tech_detail == tech_detail),
-                    key,
-                ] = f(operator)(
-                    new_gen_df.loc[
-                        (new_gen_df.technology == technology)
-                        & (new_gen_df.tech_detail == tech_detail),
-                        key,
-                    ],
-                    op_value,
+                new_gen_df.loc[modifier_mask, key] = f(operator)(
+                    new_gen_df.loc[modifier_mask, key], op_value
                 )
 
     new_gen_df["cap_recovery_years"] = settings["resource_cap_recovery_years"]

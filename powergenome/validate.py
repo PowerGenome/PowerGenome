@@ -808,12 +808,16 @@ def _check_new_resource_cost_years(settings: dict, dm: Any) -> List[ValidationRe
     except Exception:
         pass
 
+    # Compare keys as text, like new_build.fetch_resource_costs(), so quoted and
+    # unquoted settings values match the same table rows (e.g. tech_detail 1).
+    key_cols = ["technology", "tech_detail", "cost_case"]
+    for col in key_cols:
+        cost_df[col] = cost_df[col].astype(str).where(cost_df[col].notna(), None)
+
     # Index the table once instead of masking all ~1M cost rows per resource.
-    # Keys stay raw (no str coercion) so a string resource entry only matches
-    # string table values, exactly like the previous mask comparisons.
     years_by_resource: Dict[Tuple[str, str, str], set] = {}
     for key, years in cost_df.dropna(subset=["basis_year"]).groupby(
-        ["technology", "tech_detail", "cost_case"], sort=False, observed=True
+        key_cols, sort=False, observed=True
     )["basis_year"]:
         years_by_resource[key] = set(years)
 
