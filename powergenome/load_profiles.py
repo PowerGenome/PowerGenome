@@ -413,7 +413,7 @@ def add_load_growth(load_curves: pd.DataFrame, settings: dict) -> pd.DataFrame:
                 for region, rate in (settings.get("alt_growth_rate") or {}).items():
                     if isinstance(rate, dict):
                         if rate.get(sector):
-                            growth_factor[region] = (1 + rate["sector"]) ** years_growth
+                            growth_factor[region] = (1 + rate[sector]) ** years_growth
                         else:
                             raise KeyError(
                                 f"You specified a sector specific alt_growth_rate for the "
@@ -563,7 +563,7 @@ def grow_historical_load(
             years_growth = 1
             for region, rate in (alt_growth_rate or {}).items():
                 if isinstance(rate, dict) and rate.get(sector):
-                    growth_factor[region] = (1 + rate["sector"]) ** years_growth
+                    growth_factor[region] = (1 + rate[sector]) ** years_growth
             for region in keep_regions:
                 _df.loc[_df["region"] == region, "load_mw"] *= growth_factor[region]
             old_aeo_list.append(_df)

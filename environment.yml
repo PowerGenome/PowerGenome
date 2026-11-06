@@ -19,7 +19,6 @@ dependencies:
   - conda-forge::flatten-dict
   - conda-forge::ruamel.yaml
   - conda-forge::frozendict
-  - conda-forge::hypothesis[pandas]
   - numpy
   - openpyxl>=3.0
   - pandas>=2.2.0

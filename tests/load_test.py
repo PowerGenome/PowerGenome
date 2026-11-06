@@ -29,32 +29,86 @@ def _isolate_data_manager(monkeypatch):
     monkeypatch.setattr(lp_mod, "list_tables", lambda: [])
 
 
-def test_grow_historical_load():
-    base_load = {"region": ["A", "A", "B", "B"], "load_mw": [1, 1, 1, 1]}
-    base_load_df = pd.DataFrame(base_load)
-    hist_region_map = {
-        "A": "MWRCE",
-        "B": "TRE",
-    }
-    future_region_map = {
-        "A": "MCW",
-        "B": "TRE",
-    }
+# Hermetic stand-ins for the EIA AEO data read by ``grow_historical_load``.
+#
+# The real ``get_aeo_load`` downloads multi-hundred-MB AEO bulk files from
+# api.eia.gov when they are not cached, so the tests below patch it out. Demand for
+# an AEO region is a straight line in ``year`` plus a small offset for the AEO
+# edition (``aeo_year``), scaled by sector. Different regions, editions and sectors
+# return different series, and every growth factor the function derives is a ratio
+# of small integers, so expected load values can be verified by hand.
+_FAKE_AEO_REGIONS = {
+    # AEO EMM region: (baseline demand, demand added per year after 2010)
+    "MWRCE": (10.0, 8.0),
+    "MCW": (10.0, 4.0),
+    "TRE": (10.0, 12.0),
+}
+_FAKE_AEO_SECTOR_SCALE = {
+    "ELEP": 1.0,
+    "COMM": 1.5,
+    "RESD": 2.0,
+    "IDAL": 0.75,
+    "TRN": 0.5,
+}
+
+
+def _fake_aeo_load(region, aeo_year, scenario_series, sector="ELEP"):
+    """Deterministic, offline replacement for ``eia_opendata.get_aeo_load``."""
+    base_demand, annual_increase = _FAKE_AEO_REGIONS[region]
+    years = list(range(2010, 2036))
+    demand = [
+        _FAKE_AEO_SECTOR_SCALE[sector] * base_demand
+        + annual_increase * (year - 2010)
+        + (aeo_year - 2010)
+        for year in years
+    ]
+    return pd.DataFrame({"year": years, "demand": demand})
+
+
+def _load_by_region(df):
+    """Return ``{region: [load_mw, ...]}`` to keep expected values readable."""
+    return {region: _df["load_mw"].tolist() for region, _df in df.groupby("region")}
+
+
+def test_grow_historical_load(monkeypatch):
+    """Two-step growth: pre-2019 with ``hist_region_map``, post-2019 with
+    ``future_region_map``.
+
+    Growth factors are ratios of synthetic AEO demand. For example region A in the
+    first step is MWRCE in AEO2014 (year 2012) growing to MWRCE in AEO2019 (year
+    2019): (10 + 8*9 + 9) / (10 + 8*2 + 4) = 91 / 30.
+    """
+    monkeypatch.setattr(lp_mod, "get_aeo_load", _fake_aeo_load)
+
+    hist_region_map = {"A": "MWRCE", "B": "TRE"}
+    future_region_map = {"A": "MCW", "B": "TRE"}
     keep_regions = ["A", "B"]
-    start_year = 2012
     load_aeo_year = 2022
+
+    base_load_df = pd.DataFrame({"region": ["A", "A", "B", "B"], "load_mw": [1.0] * 4})
+    original_base_load = base_load_df.copy()
+
+    # --- Step 1: 2012 -> 2019 using the pre-2019 AEO EMM regions ---------------
     end_year, load_2019 = grow_historical_load(
         base_load_df.copy(),
-        start_year,
+        2012,
         load_aeo_year,
         keep_regions,
         hist_region_map,
         future_region_map,
     )
+    assert end_year == 2019
 
-    assert end_year > start_year
-    assert not base_load_df.equals(load_2019)
+    # Region A: 1 MW * 91/30 from MWRCE. Region B: 1 MW * 127/38 from TRE.
+    expected_2019 = pd.DataFrame(
+        {
+            "region": ["A", "A", "B", "B"],
+            "load_mw": [91 / 30, 91 / 30, 127 / 38, 127 / 38],
+        }
+    )
+    pd.testing.assert_frame_equal(load_2019, expected_2019)
 
+    # --- Step 2: 2019 -> 2021 using the post-2019 AEO EMM regions -------------
     end_year, load_2021 = grow_historical_load(
         load_2019.copy(),
         end_year,
@@ -63,47 +117,67 @@ def test_grow_historical_load():
         hist_region_map,
         future_region_map,
     )
-
     assert end_year == 2021
-    assert not load_2021.equals(load_2019)
 
+    # Region A: MCW 2020@2019 -> MCW 2022@2021 is (10 + 4*11 + 12) / (10 + 4*9 + 10)
+    # = 66/56. Region B: TRE is (10 + 12*11 + 12) / (10 + 12*9 + 10) = 154/128.
+    expected_2021 = pd.DataFrame(
+        {
+            "region": ["A", "A", "B", "B"],
+            "load_mw": [
+                (91 / 30) * (66 / 56),
+                (91 / 30) * (66 / 56),
+                (127 / 38) * (154 / 128),
+                (127 / 38) * (154 / 128),
+            ],
+        }
+    )
+    pd.testing.assert_frame_equal(load_2021, expected_2021)
+    assert not load_2021.equals(load_2019)
+    # The input frame was not modified in place.
+    pd.testing.assert_frame_equal(base_load_df, original_base_load)
+
+    # --- Same two steps with a sector column and aeo_sector_map ---------------
     aeo_sector_map = {
         "commercial": "COMM",
         "industrial": "IDAL",
         "residential": "RESD",
         "transportation": "TRN",
     }
-    base_load = {
-        "region": ["A", "A", "B", "B"],
-        "load_mw": [1, 1, 1, 1],
-        "sector": ["commercial"] * 4,
-    }
-    base_load_df = pd.DataFrame(base_load)
-    hist_region_map = {
-        "A": "MWRCE",
-        "B": "TRE",
-    }
-    future_region_map = {
-        "A": "MCW",
-        "B": "TRE",
-    }
-    keep_regions = ["A", "B"]
-    start_year = 2013
+    base_load_sector = pd.DataFrame(
+        {
+            "region": ["A", "A", "B", "B"],
+            "load_mw": [1.0] * 4,
+            "sector": ["commercial"] * 4,
+        }
+    )
+    original_base_load_sector = base_load_sector.copy()
+
+    # 2013 -> 2019. The COMM sector scales baseline demand by 1.5, so region A is
+    # (1.5*10 + 8*9 + 9) / (1.5*10 + 8*3 + 5) = 96/44 and region B is
+    # (1.5*10 + 12*9 + 9) / (1.5*10 + 12*3 + 5) = 132/56.
     end_year, load_2019_sector = grow_historical_load(
-        base_load_df.copy(),
-        start_year,
+        base_load_sector.copy(),
+        2013,
         load_aeo_year,
         keep_regions,
         hist_region_map,
         future_region_map,
         aeo_sector_map,
     )
-
+    assert end_year == 2019
+    expected_2019_sector = pd.DataFrame(
+        {
+            "region": ["A", "A", "B", "B"],
+            "load_mw": [96 / 44, 96 / 44, 132 / 56, 132 / 56],
+            "sector": ["commercial"] * 4,
+        }
+    )
+    pd.testing.assert_frame_equal(load_2019_sector, expected_2019_sector)
     assert not load_2019_sector.equals(load_2019)
 
-    assert end_year > start_year
-    assert not base_load_df.equals(load_2019_sector)
-
+    # 2019 -> 2021. Region A: (1.5*10 + 4*11 + 12) / (1.5*10 + 4*9 + 10) = 71/61
+    # and region B: (1.5*10 + 12*11 + 12) / (1.5*10 + 12*9 + 10) = 159/133.
     end_year, load_2021_sector = grow_historical_load(
         load_2019_sector.copy(),
         end_year,
@@ -113,9 +187,112 @@ def test_grow_historical_load():
         future_region_map,
         aeo_sector_map,
     )
-
     assert end_year == 2021
+    expected_2021_sector = pd.DataFrame(
+        {
+            "region": ["A", "A", "B", "B"],
+            "load_mw": [
+                (96 / 44) * (71 / 61),
+                (96 / 44) * (71 / 61),
+                (132 / 56) * (159 / 133),
+                (132 / 56) * (159 / 133),
+            ],
+            "sector": ["commercial"] * 4,
+        }
+    )
+    pd.testing.assert_frame_equal(load_2021_sector, expected_2021_sector)
     assert not load_2021_sector.equals(load_2019_sector)
+    pd.testing.assert_frame_equal(base_load_sector, original_base_load_sector)
+
+
+def test_grow_historical_load_alt_growth_rate(monkeypatch):
+    """``alt_growth_rate`` overrides the AEO growth factor, both as a float (applies
+    to the whole region) and as a sector dict."""
+    monkeypatch.setattr(lp_mod, "get_aeo_load", _fake_aeo_load)
+
+    hist_region_map = {"A": "MWRCE", "B": "TRE"}
+    future_region_map = {"A": "MCW", "B": "TRE"}
+    keep_regions = ["A", "B"]
+
+    # Float rate: region A grows at 5%/year instead of the AEO factor, while
+    # region B falls back to TRE 2020@2019 -> TRE 2022@2021 = 154/128.
+    total_load = pd.DataFrame({"region": ["A", "A", "B", "B"], "load_mw": [1.0] * 4})
+    end_year, grown = grow_historical_load(
+        total_load,
+        2019,
+        2022,
+        keep_regions,
+        hist_region_map,
+        future_region_map,
+        alt_growth_rate={"A": 0.05},
+    )
+    assert end_year == 2021
+    grown_by_region = _load_by_region(grown)
+    assert grown_by_region["A"] == pytest.approx([1.05, 1.05])
+    assert grown_by_region["B"] == pytest.approx([154 / 128, 154 / 128])
+
+    # Sector dict: region A/COMM uses 2%/year, region B keeps the AEO factor of
+    # (1.5*10 + 12*11 + 12) / (1.5*10 + 12*9 + 10) = 159/133.
+    sector_load = pd.DataFrame(
+        {
+            "region": ["A", "A", "B", "B"],
+            "load_mw": [1.0] * 4,
+            "sector": ["commercial"] * 4,
+        }
+    )
+    end_year, grown = grow_historical_load(
+        sector_load,
+        2019,
+        2022,
+        keep_regions,
+        hist_region_map,
+        future_region_map,
+        {"commercial": "COMM"},
+        alt_growth_rate={"A": {"commercial": 0.02}},
+    )
+    assert end_year == 2021
+    grown_by_region = _load_by_region(grown)
+    assert grown_by_region["A"] == pytest.approx([1.02, 1.02])
+    assert grown_by_region["B"] == pytest.approx([159 / 133, 159 / 133])
+
+
+def test_add_load_growth_sector_alt_growth_rate(monkeypatch):
+    """A sector-keyed ``alt_growth_rate`` overrides the AEO factor for that region
+    while other regions keep theirs (``add_load_growth`` had the same
+    ``rate["sector"]`` lookup bug as ``grow_historical_load``)."""
+    monkeypatch.setattr(lp_mod, "get_aeo_load", _fake_aeo_load)
+
+    load_curves = pd.DataFrame(
+        {
+            "year": [2019] * 4,
+            "region": ["A", "A", "B", "B"],
+            "load_mw": [1.0] * 4,
+            "sector": ["commercial"] * 4,
+        }
+    )
+    settings = {
+        "model_regions": ["A", "B"],
+        "historical_load_region_map": {"MWRCE": ["A"], "TRE": ["B"]},
+        "future_load_region_map": {"MCW": ["A"], "TRE": ["B"]},
+        "load_eia_aeo_year": 2022,
+        "growth_scenario": "REF2022",
+        "model_year": 2030,
+        "aeo_sector_map": {"commercial": "COMM"},
+        "alt_growth_rate": {"A": {"commercial": 0.02}},
+    }
+
+    grown = lp_mod.add_load_growth(load_curves.copy(), settings)
+
+    by_region = _load_by_region(grown)
+    # Region A: add_load_growth forwards alt_growth_rate to grow_historical_load, which
+    # compounds it one year at a time (1.02 for 2019 -> 2021) and then applies it again
+    # for the 9 years to the model year, so 1.02**1 * 1.02**9 = 1.02**10.
+    # Region B keeps the AEO factors: 159/133 to 2021, then (15 + 12*20 + 12) /
+    # (15 + 12*11 + 12) = 267/159 up to 2030.
+    assert by_region["A"] == pytest.approx([1.02**10] * 2)
+    assert by_region["B"] == pytest.approx([(159 / 133) * (267 / 159)] * 2)
+    # Input is not modified in place.
+    assert load_curves["load_mw"].tolist() == [1.0] * 4
 
 
 def test_subtract_distributed_generation_no_data(monkeypatch):

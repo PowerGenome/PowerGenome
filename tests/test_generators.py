@@ -834,8 +834,9 @@ class TestMultiPeriodRetirement:
 
     SETTINGS_PATH = "tests/test_system/settings"
 
-    def load_settings(self):
-        settings = Settings(config_path=self.SETTINGS_PATH)
+    @classmethod
+    def load_settings(cls):
+        settings = Settings(config_path=cls.SETTINGS_PATH)
         settings["RESOURCE_GROUPS"] = "tests/test_system/test_data/resource_groups"
         settings["data_location"] = "tests/test_system/test_data"
         settings["cache_resource_clusters"] = False
@@ -843,7 +844,8 @@ class TestMultiPeriodRetirement:
         initialize_data_manager(settings, settings["data_location"])
         return settings
 
-    def _gen_data(self, settings, year, include_retired_cap, extra_outputs_path):
+    @classmethod
+    def _gen_data(cls, settings, year, include_retired_cap, extra_outputs_path):
         """Build the generator dataframe for one planning period, the way the
         multi-period pipeline does."""
         year_settings = resolve_settings_to_year(settings, year)
@@ -855,36 +857,63 @@ class TestMultiPeriodRetirement:
         )
         return gc.create_all_generators()
 
-    def test_first_period_writes_no_retirement_requirements(self, tmp_path):
-        settings = self.load_settings()
+    @pytest.fixture(scope="class")
+    @classmethod
+    def gen_data_for(cls, tmp_path_factory):
+        """Cache each planning period's generator dataframe for the whole class.
+
+        ``create_all_generators`` is nearly all of this class's runtime and depends
+        only on the single-year settings, so each period is built at most once per
+        class instead of once per test (lazily, so running a single test still only
+        builds the period it asks for). The accessor below returns ``df.copy()``, so
+        no test can mutate a frame another test reads.
+
+        Reusing the frames is safe with respect to the ``DataManager`` singleton:
+        the fixture calls ``load_settings`` (and therefore
+        ``initialize_data_manager``) itself, so it never relies on an earlier test
+        having run, and the cached values are plain in-memory DataFrames whose
+        contents a later re-initialization cannot alter.
+        """
+        extra_outputs_path = tmp_path_factory.mktemp("retirement_extra_outputs")
+        settings = cls.load_settings()
+        cache = {}
+
+        def gen_data_for(year, include_retired_cap):
+            key = (year, include_retired_cap)
+            if key not in cache:
+                cache[key] = cls._gen_data(
+                    settings, year, include_retired_cap, extra_outputs_path
+                )
+            return cache[key].copy()
+
+        return gen_data_for
+
+    def test_first_period_writes_no_retirement_requirements(self, gen_data_for):
         # GenX compares retirement requirements with the capacity available in the
         # first period, so every case's first period must require nothing to retire
         # even when another case has already written requirements for later periods.
-        gen_data = self._gen_data(settings, 2030, False, tmp_path)
+        gen_data = gen_data_for(2030, False)
         for col in RETIRED_CAP_COLUMNS:
             assert col in gen_data.columns
             assert (gen_data[col] == 0).all(), f"{col} is not zero in the first period"
 
-    def test_later_periods_require_retiring_capacity(self, tmp_path):
-        settings = self.load_settings()
-        gen_data = self._gen_data(settings, 2040, True, tmp_path)
+    def test_later_periods_require_retiring_capacity(self, gen_data_for):
+        gen_data = gen_data_for(2040, True)
         assert (gen_data["Min_Retired_Cap_MW"] > 0).any()
 
-    def test_requirements_are_floored_to_capacity_precision(self, tmp_path):
-        settings = self.load_settings()
-        gen_data = self._gen_data(settings, 2040, True, tmp_path)
+    def test_requirements_are_floored_to_capacity_precision(self, gen_data_for):
+        gen_data = gen_data_for(2040, True)
         for col in RETIRED_CAP_COLUMNS:
             values = gen_data[col].astype(float)
             floored = np.floor(np.round(values, 7) * 10) / 10
             assert np.allclose(values, floored), f"{col} is finer than Existing_Cap_MW"
 
-    def test_requirements_do_not_exceed_first_period_capacity(self, tmp_path):
-        settings = self.load_settings()
+    def test_requirements_do_not_exceed_first_period_capacity(self, gen_data_for):
         budget = {}
-        period_1 = self._gen_data(settings, 2030, False, tmp_path)
+        period_1 = gen_data_for(2030, False)
         check_retirement_budget(period_1, "test_case", 1, budget)
 
-        later = self._gen_data(settings, 2040, True, tmp_path)
+        later = gen_data_for(2040, True)
         # Raises if the later period asks GenX to retire more capacity than the
         # first period makes available.
         check_retirement_budget(later, "test_case", 2, budget)
