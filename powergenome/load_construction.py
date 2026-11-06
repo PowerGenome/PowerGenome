@@ -106,12 +106,6 @@ running_sectors = {
 }
 
 
-def CreateOutputFolder(case_folder):
-    path = case_folder / "extra_outputs"
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-
 def create_subsector_ts(
     sector: str,
     subsector: str,

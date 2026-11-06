@@ -213,34 +213,16 @@ settings_management:
 
 ### Demand Growth
 
-Vary electrification assumptions:
+!!! warning "Load growth is not applied"
+    The demand-growth settings (`growth_scenario`, `load_eia_aeo_year`,
+    `historical_load_region_map`, `future_load_region_map`, and `alt_growth_rate`) are
+    legacy and have no effect: the code that inflated base-year load with AEO growth
+    rates (`add_load_growth` / `grow_historical_load`) has been removed. Load curves are
+    read as-is from the DataManager demand table, so any growth must be baked into the
+    input data.
 
-```yaml
-settings_management:
-  2030:
-    demand:
-      low:
-        growth_scenario: REF2020
-        alt_growth_rate:
-          CA_N: 0.005
-          CA_S: 0.005
-      mid:
-        growth_scenario: REF2020
-        alt_growth_rate:
-          CA_N: 0.015
-          CA_S: 0.015
-      high:
-        growth_scenario: REF2020
-        alt_growth_rate:
-          CA_N: 0.03
-          CA_S: 0.03
-```
-
-!!! note "Demand growth and distributed generation"
-    Load growth is set with `growth_scenario` (an EIA AEO scenario code, e.g. `REF2020`)
-    plus the optional `alt_growth_rate` override (a per-region rate or a per-region/sector
-    dict). There is no `default_growth_rate` setting. Distributed generation capacity is
-    no longer set through a settings value — it comes from the DataManager
+    There is no `default_growth_rate` setting. Distributed generation capacity is
+    not set through a settings value — it comes from the DataManager
     (`distributed_capacity_table` / `distributed_profiles_table`). See
     [Distributed Generation](../explanation/distributed-generation.md).
 

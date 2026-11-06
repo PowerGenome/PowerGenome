@@ -68,9 +68,6 @@ docs/_build/
 # PyBuilder
 target/
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
 # pyenv
 .python-version
 
@@ -122,10 +119,9 @@ data/transformed_data/*
 # *.png
 *.pdf
 
-# Ignore notebooks, but not examples
+# Ignore notebooks, which live in a separate repo
 *.ipynb
 .DS_Store
-!/notebooks/*
 
 # Results files
 /results

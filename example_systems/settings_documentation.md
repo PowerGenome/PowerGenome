@@ -270,7 +270,7 @@ description: How much inter-regional transmission can be expanded/increased with
 
 type: float, int
 
-description: The fraction of electricity lost during each 100 miles of transmission between regions due to line loss. The default value of 0.01 represents a 1% loss per 100 miles.
+description: **Legacy; not applied.** The `network_line_loss` function that used this parameter was removed. Inter-regional line losses now come from the `total_line_loss_frac` column of the DataManager `transmission_cost` table (configured with `transmission_cost_table`), which is written to GenX as `Line_Loss_Percentage`.
 
 ### interconnect_capex_mw
 
@@ -748,6 +748,13 @@ type: Dict[str, list]
 description: ATB technologies need to be matched against the names included in AEO's regional cost multiplier table. All of the ATB technologies are already included in the example file, but any new or modified technologies should be added.
 
 ## Load growth
+
+!!! warning "Legacy settings"
+    The parameters in this section are no longer used. The functions that applied
+    demand growth (`add_load_growth` and `grow_historical_load`) were removed, so
+    load curves are read directly from the DataManager demand table and must already
+    contain any growth. The settings are still accepted (and ignored) so existing
+    inputs keep loading.
 
 ### default_load_year
 

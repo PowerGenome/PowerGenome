@@ -201,7 +201,7 @@ low_policy,2050,low
 
 In this example:
 
-- `all_cases` sets carbon tax and load growth for each year
+- `all_cases` sets carbon tax for each year
 - `policy` column varies RES policy files across scenarios
 - Both are applied together for each case/year combination
 

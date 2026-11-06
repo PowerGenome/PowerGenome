@@ -306,9 +306,9 @@ print(f"\nPeak loads:\n{peak_load}")
 
 **Problem**: Some regions have no load or unrealistic load profiles
 
-**Cause**: Incorrect region mapping in `historical_load_region_map`
+**Cause**: Load data does not cover the base regions or weather year you configured
 
-**Solution**: Verify that all base regions in your aggregations are listed in the load region maps
+**Solution**: Verify that the demand table in the DataManager contains rows for every base region in your aggregations and for the requested weather year. The legacy load region maps (`historical_load_region_map`, `future_load_region_map`) are no longer used. The unbalance may also come from `region_aggregations`, which sums load for the aggregated regions.
 
 ## Regional Settings Reference
 
@@ -323,7 +323,7 @@ Parameters that accept model region names:
 - `regional_no_grouping` - Disable technology grouping in specific regions
 - `regional_hydro_factor` - Hydro energy-to-power ratio by region
 - `alt_num_clusters` - Override clustering settings by region
-- `alt_growth_rate` - Custom load growth rates by region
+- `alt_growth_rate` - Legacy; load growth settings are no longer applied
 
 See [Regions and Geography Settings](../reference/settings/regions.md) for complete documentation.
 

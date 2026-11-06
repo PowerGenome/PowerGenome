@@ -91,7 +91,7 @@ make_final_load_curves()
 ```
 
 - Loads the `demand` table from DataManager
-- Applies regional load growth multipliers
+- Aggregates base regions into model regions
 - Subtracts distributed generation (rooftop solar) if configured
 - Optionally adds demand response resources
 - Returns an hourly DataFrame with one column per model region
