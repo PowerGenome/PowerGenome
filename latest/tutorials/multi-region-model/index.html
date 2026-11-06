@@ -3156,8 +3156,8 @@ resource clusters are scoped per region through <code>renewables_clusters</code>
 <p><strong>Solution</strong>: Add the missing line to your transmission constraints CSV with appropriate capacity</p>
 <h3 id="unbalanced-load">Unbalanced Load<a class="headerlink" href="#unbalanced-load" title="Permanent link">&para;</a></h3>
 <p><strong>Problem</strong>: Some regions have no load or unrealistic load profiles</p>
-<p><strong>Cause</strong>: Incorrect region mapping in <code>historical_load_region_map</code></p>
-<p><strong>Solution</strong>: Verify that all base regions in your aggregations are listed in the load region maps</p>
+<p><strong>Cause</strong>: Load data does not cover the base regions or weather year you configured</p>
+<p><strong>Solution</strong>: Verify that the demand table in the DataManager contains rows for every base region in your aggregations and for the requested weather year. The legacy load region maps (<code>historical_load_region_map</code>, <code>future_load_region_map</code>) are no longer used. The unbalance may also come from <code>region_aggregations</code>, which sums load for the aggregated regions.</p>
 <h2 id="regional-settings-reference">Regional Settings Reference<a class="headerlink" href="#regional-settings-reference" title="Permanent link">&para;</a></h2>
 <p>Parameters that accept model region names:</p>
 <ul>
@@ -3170,7 +3170,7 @@ resource clusters are scoped per region through <code>renewables_clusters</code>
 <li><code>regional_no_grouping</code> - Disable technology grouping in specific regions</li>
 <li><code>regional_hydro_factor</code> - Hydro energy-to-power ratio by region</li>
 <li><code>alt_num_clusters</code> - Override clustering settings by region</li>
-<li><code>alt_growth_rate</code> - Custom load growth rates by region</li>
+<li><code>alt_growth_rate</code> - Legacy; load growth settings are no longer applied</li>
 </ul>
 <p>See <a href="../../reference/settings/regions/">Regions and Geography Settings</a> for complete documentation.</p>
 <h2 id="advanced-topics">Advanced Topics<a class="headerlink" href="#advanced-topics" title="Permanent link">&para;</a></h2>
