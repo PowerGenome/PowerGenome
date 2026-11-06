@@ -4,7 +4,12 @@ These articles provide background information on how PowerGenome works and why i
 
 ## Architecture and Design
 
-- **[Architecture Overview](architecture.md)**: High-level system design, key components, and design patterns
+- **[Data Pipeline Flow](pipeline.md)**: What happens between loading settings and writing model inputs
+- **[Generator Clustering](clustering.md)**: How existing generators become representative resources
+- **[Distributed Generation](distributed-generation.md)**: Capacity, profiles, and net-load treatment
+- **[Scenario Management](scenarios.md)**: How cases and planning periods resolve settings
+- **[Output File Format](output-format.md)**: Default and legacy GenX layouts, plus Macro outputs
+- **[Architecture Overview](architecture.md)**: Developer-oriented components and data access
 
 ## Understanding vs. Doing
 

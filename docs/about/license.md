@@ -33,12 +33,20 @@ Most data inputs are from US government sources (EIA, EPA, FERC, etc.), which sh
 ### Third-Party Data
 
 - **Hourly FERC demand data**: Cleaned using techniques developed by Tyler Ruggles and David Farnham, and allocated to regions using methods developed by Catalyst Cooperative
-- **Hourly generation profiles**: Created by Vibrant Clean Energy and provided without usage restrictions
-- **NREL ATB data**: Available under NREL's standard data license
+- **Project-provided historical wind/solar profiles**: The project README
+  identifies Vibrant Clean Energy as the source and states that these were
+  provided without usage restrictions
+- **Other profiles and technology-cost datasets**: Check the license supplied
+  with the particular data release; PowerGenome can load user-provided sources
 
 ### PowerGenome Outputs
 
-All PowerGenome data outputs are released under the [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/legalcode) license.
+The [project README](https://github.com/PowerGenome/PowerGenome#license)
+states that PowerGenome data outputs are released under
+[CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/legalcode). This does not
+replace the terms of third-party data supplied to a study. Retain source
+attribution and check redistribution permissions for your inputs and derived
+outputs.
 
 ## Contributing
 

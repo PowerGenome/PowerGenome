@@ -4,7 +4,9 @@ This guide shows how to specify capacity reserve credit values for different tec
 
 ## Overview
 
-Capacity reserve requirements define how much capacity different technologies contribute to meeting reserve obligations. PowerGenome supports specifying these values in a user-friendly way that automatically populates the underlying `regional_tag_values` structure.
+`regional_capacity_reserves` specifies reserve margins by constraint and region;
+`capacity_reserve_values` specifies how much of each technology's capacity counts.
+PowerGenome expands the latter into `regional_tag_values`.
 
 ## Basic Setup: Uniform Technology Credits
 
@@ -32,7 +34,7 @@ capacity_reserve_values:
 
 In this format:
 
-- All technologies listed in `capacity_reserve_values` receive the same credit values
+- Each listed technology receives its specified credit for every constraint
 - These values apply to **all** capacity reserve constraints in `regional_capacity_reserves`
 - Each region gets populated automatically with the technology credits
 
@@ -55,14 +57,7 @@ regional_tag_values:
       Utility Solar Photovoltaic: 0.25
       Hydroelectric: 1.0
       Nuclear: 1.0
-  p2:
-    CapRes_1:
-      Conventional Steam Coal: 0.9
-      ...
-    CapRes_2:
-      Conventional Steam Coal: 0.9
-      ...
-  # Similar structure for p3
+  # p2 and p3 receive the same mappings.
 ```
 
 ## Advanced Setup: Multiple Constraints
@@ -116,26 +111,8 @@ In this format:
 - Constraints can have different requirements in different regions
 - Technologies can have different credits depending on the constraint
 
-**Result** (internally):
-
-```yaml
-regional_tag_values:
-  p1:
-    CapRes_1:
-      Conventional Steam Coal: 0.85
-      Natural Gas Fired Combined Cycle: 0.85
-      ...
-    CapRes_3:
-      Conventional Steam Coal: 0.9
-      ...
-  p4:
-    CapRes_2:
-      Conventional Steam Coal: 0.95
-      ...
-    CapRes_3:
-      Conventional Steam Coal: 0.9
-      ...
-```
+For example, `p1` receives the `CapRes_1` and `CapRes_3` mappings, while
+`p4` receives the `CapRes_2` and `CapRes_3` mappings.
 
 ## Mixing Automatic and Manual Configuration
 
@@ -169,32 +146,38 @@ Explicit entries always take precedence over auto-generated values, allowing you
 
 ## Scenario-Specific Values
 
-You can use the scenario management system to vary capacity reserve values across different cases:
+Use scenario-specific `regional_tag_values` to vary credits. For example, with
+`p1` in `CapRes_1`:
 
 ```yaml
-# Base settings
-capacity_reserve_values:
-  Coal: 0.9
-  Natural Gas: 0.9
-
 settings_management:
   all_years:
     reserve_policy:
       conservative:
-        capacity_reserve_values:
-          Coal: 0.8      # Lower credit in conservative scenario
-          Natural Gas: 0.8
+        regional_tag_values:
+          p1:
+            CapRes_1:
+              Conventional Steam Coal: 0.8
       aggressive:
-        capacity_reserve_values:
-          Coal: 1.0      # Higher credit in aggressive scenario
-          Natural Gas: 1.0
+        regional_tag_values:
+          p1:
+            CapRes_1:
+              Conventional Steam Coal: 1.0
 ```
 
-Then in your scenario definitions file, set `reserve_policy` to `conservative` or `aggressive` for each case. PowerGenome will automatically expand the scenario-specific `capacity_reserve_values` for each case.
+Set `reserve_policy` to `conservative` or `aggressive` in the scenario CSV.
+Repeat the override for each affected region, using the same technology key as
+in the base credits. A shorter key such as `Coal` does not replace an existing
+`Conventional Steam Coal` entry; the longer matching key is applied last.
+When base settings use `capacity_reserve_values`, their expansion occurs during
+settings loading; those existing regional values take precedence over a later
+shorthand change.
 
 ## Technology Name Matching
 
-Technology names in `capacity_reserve_values` must match the technology names in your generator data exactly (case-sensitive). Common technology names in PowerGenome include:
+Technology keys are matched as case-insensitive substrings of the generator's
+`technology` field, after underscores are removed. Check your actual data:
+longer matching keys override shorter ones. Examples include:
 
 - `Conventional Steam Coal`
 - `Natural Gas Fired Combined Cycle`
@@ -229,14 +212,14 @@ You can also create custom new-build resources with their own names, which will 
    - `0.5`: Half credit (e.g., wind, which has low capacity factor)
    - `0.0`: Zero credit (doesn't contribute)
 
-6. **Use scenario variations for sensitivity analysis**: Explore how reserve policies affect the optimal mix by creating different cases with varying `capacity_reserve_values`.
+6. **Use scenario variations for sensitivity analysis**: Vary the expanded `regional_tag_values` using matching technology keys, as shown above, rather than changing only `capacity_reserve_values`.
 
 ## Troubleshooting
 
 **Settings not taking effect?**
 
 - Check that `capacity_reserve_values` and `regional_capacity_reserves` are both present in your settings.
-- Verify that technology names match exactly (spaces, capitalization, hyphens).
+- Verify that technology keys match the `technology` field; spaces and hyphens matter.
 - Ensure `model_regions` includes all regions referenced in `regional_capacity_reserves`.
 
 **Different constraints getting same credits unexpectedly?**

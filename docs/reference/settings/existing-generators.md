@@ -6,13 +6,14 @@ These parameters control how existing power plants are processed, clustered, and
 
 ### `num_clusters`
 
-**Type**: Integer or nested dictionary
+**Type**: Dictionary (technology → number or null)
 **Required**: Yes
 **Example**: See below
 
-Default number of clusters to create for each technology in each region. Can be specified globally or per region/technology.
+Default number of clusters per technology in each region. Use `alt_num_clusters`
+for regional overrides. Technologies omitted from both mappings are excluded.
 
-**Global** (same for all regions/technologies):
+**Global defaults** (per technology, across regions):
 
 ```yaml
 num_clusters:
@@ -42,7 +43,7 @@ alt_num_clusters:
 
 !!! note "Practical guidance (ReEDS/IPM-scale regions)"
 
-    - Small regions often work with `num_clusters: 1` as a starting point
+    - Start with one cluster per technology in small regions
     - Use `alt_num_clusters` to split very large or heterogeneous fleets (e.g., >3–4 GW of combustion turbines with a wide heat-rate IQR)
     - The generated thermal inputs include heat rate inter-quartile range and standard deviation columns. Check those to decide where an extra cluster is warranted.
 
@@ -70,7 +71,7 @@ This allows fine-grained control without repeating all technologies in the main 
 
 **Type**: List of strings
 **Required**: No
-**Default**: `["heat_rate_mmbtu_mwh", "fixed_o_m_mw"]`
+**Default**: `["heat_rate_mmbtu_mwh", "fom_per_mwyr"]`
 **Example**: See below
 
 Columns (features) used for k-means clustering. By default, generators are clustered based on heat rate and fixed O&M costs.
@@ -80,7 +81,7 @@ Columns (features) used for k-means clustering. By default, generators are clust
 ```yaml
 generator_cluster_columns:
   - heat_rate_mmbtu_mwh
-  - fixed_o_m_mw
+  - fom_per_mwyr
 ```
 
 **Custom features**:
@@ -103,8 +104,8 @@ Available columns depend on your generation data schema. Common options:
 
 - `heat_rate_mmbtu_mwh`: Thermal efficiency
 - `capacity_mw`: Plant size
-- `fixed_o_m_mw`: Fixed O&M costs
-- `variable_o_m_mwh`: Variable O&M costs
+- `fom_per_mwyr`: Fixed O&M costs
+- `vom_per_mwh`: Variable O&M costs
 - `operating_year`: Plant age proxy
 - `minimum_load_mw`: Minimum stable operation level
 
@@ -174,7 +175,7 @@ tech_groups:
 - Groups functionally similar resources
 - Simplifies output analysis
 
-**Matching**: Technology names are matched case-insensitively with partial matching.
+**Matching**: Group members must match the input technology names exactly.
 
 ## Attribute Modifiers
 
@@ -192,7 +193,7 @@ resource_attr_modifiers:
     - attribute: fom_per_mwyr
       formula:
         op: add
-        rate: 126  # $/kW-yr per year of age
+        rate: 126  # $/MW-yr per year of age
         multiplier: age
 ```
 
@@ -216,7 +217,7 @@ Each technology can have multiple modifiers. Each modifier requires:
 | `truediv` | `new = old / (rate × multiplier)` | Divide value |
 | `replace` | `new = rate × multiplier` | Ignore old value |
 
-**Multiple attributes**:
+**Example for another technology**:
 
 ```yaml
 resource_attr_modifiers:
@@ -225,11 +226,6 @@ resource_attr_modifiers:
       formula:
         op: add
         rate: 75
-        multiplier: age
-    - attribute: heat_rate_mmbtu_mwh
-      formula:
-        op: mul
-        rate: 1.002  # 0.2% degradation per year
         multiplier: age
 ```
 
@@ -272,7 +268,8 @@ resource_attr_modifiers:
     Both `attribute` and `multiplier` columns must exist in the generator dataframe. Missing columns raise `KeyError`.
 
 !!! tip "Execution Order"
-    Applied **after** clustering and cost loading, so you can reference calculated fields like `age`.
+    Applied to individual generator rows **before** grouping and clustering,
+    after the `age` column is calculated.
 
 See [Modify Generator Attributes How-To Guide](../../how-to/modify-generator-attributes.md) for detailed examples and validation.
 
@@ -299,16 +296,16 @@ generation_table:
   table_name: generators.parquet
   filters:
     - - [operating_year, '<=', 2030]
-      - [retirement_year, '>', 2030]
-  columns: [plant_id, technology, capacity_mw, heat_rate, region]
 ```
 
 See [Data Tables](data-tables.md) for full filter syntax.
+Filtering directly on `retirement_year` can discard units with no planned
+retirement. Let PowerGenome apply its period-specific retirement logic instead.
 
 ### `plant_region_table`
 
 **Type**: String or dictionary
-**Required**: No
+**Required**: Yes
 **Example**: `"plant_regions.csv"`
 
 Mapping of plants to base regions.

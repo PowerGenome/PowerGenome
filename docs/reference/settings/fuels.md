@@ -16,7 +16,7 @@ PowerGenome supports two fuel pricing workflows:
 
 ### Required Settings
 
-Only three parameters are needed:
+These settings select a supplied fuel table and map fuels to generators:
 
 ```yaml
 # Assign scenario names to fuels
@@ -33,11 +33,11 @@ tech_fuel_map:
 
 # Point to your fuel price table
 fuel_price_table: fuel_prices.csv
+fuel_data_year: 2025
 ```
 
-!!! tip
-
-    You can point different fuels to different scenarios. In one PJM setup, `naturalgas` and `uranium` use `reference` while `coal` uses the `no_111d` scenario, which aligns with current US policy.
+You can select different scenarios for different fuels if those scenarios are
+present in the table.
 
 ### Fuel Price Table Format
 
@@ -49,22 +49,23 @@ Your fuel price table must include prices for **every base region** in your mode
 - `region`: Base region name (must match regions in your model)
 - `year`: Calendar year
 - `price`: Price ($/MMBtu)
+- `scenario`: Scenario identifier matching `fuel_scenarios`
+- `data_year`: Data vintage year (include even for one vintage)
 
 **Optional columns**:
 
-- `scenario`: Scenario identifier (if using multiple price scenarios)
-- `data_year`: Data vintage year
 - `dollar_year`: Price year (for inflation adjustment)
 
 **Example fuel_prices.csv**:
 
 ```csv
-fuel,region,year,price,scenario,dollar_year
-coal,CA_N,2030,2.5,reference,2024
-coal,CA_S,2030,2.6,reference,2024
-naturalgas,CA_N,2030,4.2,reference,2024
-naturalgas,CA_S,2030,4.3,reference,2024
-uranium,CA_N,2030,0.8,reference,2024
+fuel,region,year,price,scenario,data_year,dollar_year
+coal,CA_N,2030,2.5,reference,2025,2024
+coal,CA_S,2030,2.6,reference,2025,2024
+naturalgas,CA_N,2030,4.2,reference,2025,2024
+naturalgas,CA_S,2030,4.3,reference,2025,2024
+uranium,CA_N,2030,0.8,reference,2025,2024
+uranium,CA_S,2030,0.8,reference,2025,2024
 ```
 
 **Important**: The table must contain prices for all base regions (e.g., CA_N, CA_S). PowerGenome will automatically average base region prices to create prices for aggregated regions defined in `region_aggregations`.
@@ -113,14 +114,16 @@ Specifies which data year to use if your fuel price table contains multiple vint
 fuel_data_year: 2025
 ```
 
-Only needed if your `fuel_price_table` has a `data_year` column with multiple years.
+Selects the vintage when the table contains multiple `data_year` values. Include
+the column even for a single vintage; without `fuel_data_year`, the loader checks
+the number of unique values in that column.
 
 ## Legacy Mapping Parameters (Optional)
 
 !!! warning "Legacy Parameters"
     The parameters below are **only needed for the legacy AEO direct workflow**. If your fuel price table already contains prices for all base regions with the fuel/scenario names you want, **skip this entire section**.
 
-These parameters were originally designed for working with EIA AEO data directly via API or raw AEO files with region/fuel codes that need mapping.
+These parameters map region, fuel, and scenario codes in a supplied fuel price table.
 
 ### `fuel_series_scenario_names`
 
@@ -209,7 +212,7 @@ See EIA documentation for complete region definitions.
 
 ### `fuel_emission_factors`
 
-**Type**: Dictionary (fuel → emissions dict)
+**Type**: Dictionary (fuel → number)
 **Required**: For emissions modeling
 **Example**: See below
 
@@ -217,16 +220,11 @@ CO₂ emission factors by fuel type (tonnes CO₂ per MMBtu).
 
 ```yaml
 fuel_emission_factors:
-  coal:
-    co2_tons_per_mmbtu: 0.09552  # Bituminous coal
-  naturalgas:
-    co2_tons_per_mmbtu: 0.05306  # Natural gas
-  distillate:
-    co2_tons_per_mmbtu: 0.07315  # Diesel/fuel oil
-  uranium:
-    co2_tons_per_mmbtu: 0.0  # Nuclear (no combustion)
-  biomass:
-    co2_tons_per_mmbtu: 0.0  # Often counted as carbon neutral
+  coal: 0.09552
+  naturalgas: 0.05306
+  distillate: 0.07315
+  uranium: 0.0
+  biomass: 0.0
 ```
 
 Values are based on fuel carbon content and combustion chemistry.
@@ -239,7 +237,7 @@ Values are based on fuel carbon content and combustion chemistry.
 - Diesel: 0.0732
 - Biomass: 0.0 (policy-dependent)
 
-### `fuel_prices_table`
+### `fuel_price_table`
 
 **Type**: String or dictionary
 **Required**: For custom fuel prices
@@ -250,13 +248,14 @@ Custom fuel price time series (alternative to AEO).
 **Simple**:
 
 ```yaml
-fuel_prices_table: fuel_prices.csv
+fuel_price_table: fuel_prices.csv
+fuel_data_year: 2025
 ```
 
 **Advanced**:
 
 ```yaml
-fuel_prices_table:
+fuel_price_table:
   table_name: fuel_prices.parquet
   scenario: high_gas
   filters:
@@ -274,82 +273,43 @@ fuel_prices_table:
 
 ### `user_fuel_price`
 
-**Type**: Dictionary (fuel → year → price)
+**Type**: Dictionary (fuel → price or region → price)
 **Required**: No
 **Example**: See below
 
-Directly specify fuel prices by year, overriding AEO or table data.
+Supply prices for user-defined fuels. Values can be scalar across regions or
+specified by model region; use fuels not already assigned in `fuel_scenarios`.
 
 ```yaml
 user_fuel_price:
-  naturalgas:
-    2030: 4.5  # $/MMBtu
-    2040: 5.2
-    2050: 5.8
-  coal:
-    2030: 2.1
-    2040: 2.3
-    2050: 2.5
+  hydrogen: 16.0  # $/MMBtu in every region
+  biomass:
+    CA_N: 5.0
+    CA_S: 6.0
 ```
 
-Useful for sensitivity analyses or policy scenarios (e.g., carbon pricing embedded in fuel costs).
-
-### `user_fuel_price_regions`
-
-**Type**: List of regions
-**Required**: If using `user_fuel_price` with regional variation
-**Example**: `["CA_N", "CA_S", "AZ"]`
-
-Regions where `user_fuel_price` should apply. If omitted, applies to all regions.
-
-```yaml
-user_fuel_price_regions: [CA_N, CA_S]
-```
+Use [year-keyed values](year-keyed-values.md) or scenario management for prices
+that change by planning period. `user_fuel_usd_year` optionally maps fuel names
+to the dollar year of each user-supplied price.
 
 ## Fuel Technology Mappings
 
 ### `tech_fuel_map`
 
 **Type**: Dictionary (technology → fuel)
-**Required**: No (has defaults)
+**Required**: For assigning fuels to generators
 **Example**: See below
 
-Maps technologies to fuel types. PowerGenome has defaults, but you can override.
+Maps technology-name substrings to fuels in `fuel_scenarios` or
+`user_fuel_price`. Matching is case-insensitive.
 
 ```yaml
 tech_fuel_map:
-  NaturalGas_CCAvgCF_Moderate: naturalgas
-  Coal_new_Moderate: coal
-  Nuclear_Nuclear_Moderate: uranium
-  Biomass_Dedicated_Moderate: biomass
+  NaturalGas: naturalgas
+  Conventional Steam Coal: coal
+  Nuclear: uranium
+  Biomass: biomass
 ```
-
-**Default mappings**:
-
-- Natural gas technologies → `naturalgas`
-- Coal technologies → `coal`
-- Nuclear → `uranium`
-- Biomass/MSW → `biomass`
-- Oil/diesel → `distillate`
-
-Custom mappings are only needed for non-standard technology names.
-
-### `eia_atb_tech_map`
-
-**Type**: Dictionary (EIA tech → ATB tech)
-**Required**: No
-**Example**: See below
-
-Maps EIA technology names to ATB names for startup cost calculations.
-
-```yaml
-eia_atb_tech_map:
-  Natural Gas Fired Combined Cycle: NaturalGas_CCAvgCF
-  Natural Gas Fired Combustion Turbine: NaturalGas_CTAvgCF
-  Conventional Steam Coal: Coal_newAvgCF
-```
-
-Used to assign ATB startup costs to existing generators based on their EIA technology classification.
 
 ## Regional Fuel Prices
 
@@ -391,7 +351,7 @@ carbon_tax: 50  # $/tonne CO₂
 Carbon costs are calculated as:
 
 ```text
-carbon_cost_per_mmbtu = carbon_tax * fuel_emission_factors[fuel]['co2_tons_per_mmbtu']
+carbon_cost_per_mmbtu = carbon_tax * fuel_emission_factors[fuel]
 ```
 
 ## Example Configurations
@@ -406,10 +366,9 @@ fuel_price_table: fuel_prices.csv
 
 # Map scenario names to fuels
 fuel_scenarios:
-  coal: no_111d
+  coal: reference
   naturalgas: reference
   uranium: reference
-  distillate: reference
 
 # Map technologies to fuels
 tech_fuel_map:
@@ -417,7 +376,6 @@ tech_fuel_map:
   Natural Gas Fired Combined Cycle: naturalgas
   Natural Gas Fired Combustion Turbine: naturalgas
   Nuclear: uranium
-  Petroleum Liquids: distillate
 
 # Emission factors (tonnes CO2 per MMBtu)
 fuel_emission_factors:
@@ -441,16 +399,16 @@ ccs_disposal_cost: 10  # $/tonne CO2
 Your `fuel_prices.csv` must contain all base regions:
 
 ```csv
-fuel,region,year,price,scenario,dollar_year
-coal,CA_N,2030,2.5,reference,2024
-coal,CA_S,2030,2.6,reference,2024
-coal,AZ,2030,2.4,reference,2024
-naturalgas,CA_N,2030,4.2,reference,2024
-naturalgas,CA_S,2030,4.3,reference,2024
-naturalgas,AZ,2030,3.8,reference,2024
-uranium,CA_N,2030,0.8,reference,2024
-uranium,CA_S,2030,0.8,reference,2024
-uranium,AZ,2030,0.8,reference,2024
+fuel,region,year,price,scenario,data_year,dollar_year
+coal,CA_N,2030,2.5,reference,2025,2024
+coal,CA_S,2030,2.6,reference,2025,2024
+coal,AZ,2030,2.4,reference,2025,2024
+naturalgas,CA_N,2030,4.2,reference,2025,2024
+naturalgas,CA_S,2030,4.3,reference,2025,2024
+naturalgas,AZ,2030,3.8,reference,2025,2024
+uranium,CA_N,2030,0.8,reference,2025,2024
+uranium,CA_S,2030,0.8,reference,2025,2024
+uranium,AZ,2030,0.8,reference,2025,2024
 ```
 
 ### Legacy Workflow Example (AEO Direct)
@@ -492,15 +450,14 @@ fuel_emission_factors:
   naturalgas: 0.05306
   distillate: 0.07315
   uranium: 0.0
-  biomass:
-    co2_tons_per_mmbtu: 0.0
+  biomass: 0.0
 
 # Regional adjustments
 regional_fuel_adjustments:
   CA_N:
-    naturalgas: 1.2
+    naturalgas: [mul, 1.2]
   CA_S:
-    naturalgas: 1.2
+    naturalgas: [mul, 1.2]
 
 # Carbon pricing
 carbon_tax:
@@ -508,23 +465,11 @@ carbon_tax:
   2040: 75
   2050: 100
 
-regional_carbon_tax:
-  CA_N: 100  # Higher CA carbon price
-  CA_S: 100
 ```
 
 ## Data Sources
 
-### AEO API
-
-PowerGenome can fetch fuel prices directly from EIA's AEO API:
-
-```python
-# Requires EIA API key in settings or environment
-eia_api_key: "YOUR_API_KEY_HERE"
-```
-
-Set `EIA_API_KEY` environment variable or include in settings.
+Prepare an AEO-derived table separately, then configure it with `fuel_price_table`.
 
 ### Custom Data Tables
 
@@ -533,17 +478,18 @@ Alternative to AEO, provide complete fuel price time series:
 **fuel_prices.csv**:
 
 ```csv
-fuel,region,year,price
-naturalgas,CA_N,2030,4.5
-naturalgas,CA_N,2040,5.2
-naturalgas,CA_S,2030,4.7
-coal,AZ,2030,2.1
+fuel,region,year,price,scenario,data_year,dollar_year
+naturalgas,CA_N,2030,4.5,reference,2025,2024
+naturalgas,CA_S,2030,4.7,reference,2025,2024
+naturalgas,CA_N,2040,5.2,reference,2025,2024
+naturalgas,CA_S,2040,5.4,reference,2025,2024
 ```
 
 Configure:
 
 ```yaml
-fuel_prices_table: fuel_prices.csv
+fuel_price_table: fuel_prices.csv
+fuel_data_year: 2025
 ```
 
 ## Fuel Cost Calculation

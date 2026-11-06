@@ -1,6 +1,8 @@
 # Distributed Generation
 
-PowerGenome models **distributed generation (DG)** — primarily rooftop solar — as behind-the-meter generation that reduces the net load seen by the bulk power system. This page explains how the DG system works and what data it needs.
+PowerGenome models **distributed generation (DG)** — primarily rooftop solar — either
+as behind-the-meter generation that reduces net load or as a generating resource.
+This page explains the inputs and both treatments.
 
 For reference documentation on the related settings parameters, see [Demand and Load Settings](../reference/settings/demand.md).
 
@@ -10,11 +12,13 @@ For reference documentation on the related settings parameters, see [Demand and 
 
 In PowerGenome, "distributed generation" refers to small-scale generators sited at customer meters, mainly rooftop photovoltaics. These resources:
 
-- Are never dispatched by the optimizer (they generate whenever sunlight is available)
-- Reduce the net electricity demand that grid-scale resources must serve
+- By default, reduce the net electricity demand that grid-scale resources must serve
+- Can instead be included as generating resources using `dg_as_resource: true`
 - Are modeled via two inputs: **how much capacity** exists, and **what normalized profile** it follows
 
-The pipeline subtracts DG generation from hourly gross load before passing demand to GenX.
+By default, the pipeline subtracts DG generation from hourly gross load before passing
+demand to GenX. Resource mode leaves gross demand unchanged; the resource's tags
+determine its treatment in GenX.
 
 ---
 
@@ -29,13 +33,16 @@ Required columns:
 
 | Column | Description |
 |---|---|
-| `region` | Model region name or base region name |
+| `region` | Base region name, or model region name when it is not aggregated |
 | `capacity_mw` | Installed DG capacity in MW |
 | `year` | Planning year |
 
 Optional column: `scenario` (for multi-scenario files).
 
-If data is not available for a requested planning year, PowerGenome linearly interpolates between the nearest years with data. If the year is outside the range of available data, the nearest year's values are used.
+If **no requested base region** has data for the planning year, PowerGenome
+interpolates each region between available years, using the nearest value outside
+the range. If some regions have an exact-year value and others do not, the missing
+regions are not interpolated. Provide complete coverage for each requested year.
 
 ### Profiles table (`distributed_profiles_table`)
 
@@ -44,12 +51,15 @@ Required columns:
 
 | Column | Description |
 |---|---|
-| `region` | Model region name or base region name |
+| `region` | Base region name, or model region name when it is not aggregated |
 | `weather_year` | Year the weather data comes from |
-| `time_index` | Hour index (1 to 8760) |
-| `value` | Normalized generation (0–1, where 1 = peak output) |
+| `time_index` | Hour index within the source profile |
+| `value` | Capacity factor (0–1, relative to installed capacity) |
 
-`value` must be normalized so the maximum is 1. Hourly generation (MWh) is computed by multiplying `value × capacity_mw`.
+Hourly generation in MW is computed as `value × capacity_mw`; the profile's maximum
+need not reach 1. Profiles are reordered and indexed from 1. Supply matching hours
+and weather years for DG and load. For multiple weather years, list them in
+ascending order: DG profiles are sorted by year, and subtraction is positional.
 
 ---
 
@@ -61,7 +71,7 @@ During load profile construction, PowerGenome:
 2. Loads DG capacity for the planning year
 3. Loads normalized DG profiles for the appropriate `weather_year`
 4. Multiplies capacity × profile to get hourly generation
-5. Subtracts hourly DG generation from gross demand → **net load**
+5. Multiplies generation by `1 + avg_distribution_loss` (default 1) and subtracts it from gross demand → **net load**
 
 Net load is what is written to GenX's demand input (`system/Demand_data.csv` in the default v6 format; `Load_data.csv` in the legacy `old_genx_format` mode).
 
@@ -105,7 +115,9 @@ Alternatively, keep separate files per scenario and swap them via
 
 If your data uses sub-regional base regions (e.g., IPM regions) while your
 model combines them into aggregated model regions, PowerGenome automatically
-aggregates capacity when `region_aggregations` is defined in settings.
+aggregates capacity and computes capacity-weighted profiles when
+`region_aggregations` is defined. Provide both inputs for the component regions;
+each component with a profile needs a capacity value.
 
 ---
 
@@ -122,52 +134,14 @@ with two tables in `data_location`. This section explains how to convert.
 | `distributed_gen_fn` | `distributed_capacity_table` + `distributed_profiles_table` |
 | `distributed_gen_scenario` | `scenario` key in table config |
 | `DISTRIBUTED_GEN_DATA` env var | `data_location` in settings |
-| Population-weighted aggregation | Direct region-level data |
+| Legacy region mappings | Base-region capacity and capacity-weighted profiles |
 
 ### Converting your data
 
-The script below converts the old NREL-format Parquet file to the new format:
-
-```python
-import pandas as pd
-from pathlib import Path
-
-# Configuration
-old_data_path = Path("/path/to/DISTRIBUTED_GEN_DATA")
-old_file = "dgen_profiles.parquet"
-scenario = "reference"  # your scenario name
-output_path = Path("/path/to/new/data")
-output_path.mkdir(parents=True, exist_ok=True)
-
-# Load old data and filter to scenario
-old_data = pd.read_parquet(old_data_path / old_file)
-old_data = old_data[old_data["scenario"] == scenario]
-
-# Create capacity table (peak generation = installed capacity proxy)
-capacity = (
-    old_data
-    .groupby(["region", "year"])["distpv_MWh"]
-    .max()
-    .reset_index()
-    .rename(columns={"distpv_MWh": "capacity_mw"})
-)
-
-# Create profiles table (normalize by peak)
-profiles = []
-for (region, year), group in old_data.groupby(["region", "year"]):
-    peak = group["distpv_MWh"].max()
-    if peak > 0:
-        profile = group.copy()
-        profile["value"] = profile["distpv_MWh"] / peak
-        profile["weather_year"] = year
-        profiles.append(profile[["region", "weather_year", "time_index", "value"]])
-
-profiles_df = pd.concat(profiles, ignore_index=True)
-
-# Save
-capacity.to_parquet(output_path / "distributed_capacity.parquet", index=False)
-profiles_df.to_parquet(output_path / "distributed_profiles.parquet", index=False)
-```
+Prepare separate capacity and profile tables using the columns above. Use installed
+capacity, not peak hourly generation, as the capacity value; divide generation by
+installed capacity to derive the capacity-factor profile. Preserve the actual
+weather year independently of the planning year.
 
 ### Updating settings
 
@@ -204,11 +178,13 @@ Explicitly set `weather_year` in settings to pin the profile year:
 weather_year: 2012
 ```
 
-By default, `weather_year` falls back to `model_year`, which may not match your available profile data.
+If `weather_year` is omitted, all available DG weather years are loaded. Ensure
+they align with the selected demand profiles.
 
 **Region names don't match**
 
-DG data region names must match either the base (IPM) region names or the aggregated model region names in `model_regions`. Check the `region` column in your capacity and profile files against your settings.
+For aggregated model regions, use their component base-region names in both tables.
+For other regions, use the names in `model_regions`.
 
 ---
 

@@ -3,20 +3,23 @@
 PowerGenome uses technology names from NREL's Annual Technology Baseline (ATB) for new-build generation resources. This page documents the valid `technology` and `tech_detail` names for each ATB version.
 
 !!! info "Technology Naming Convention"
-    ATB technologies use a two-part naming structure: `<technology>_<tech_detail>`. The `technology` indicates the generation type (e.g., `LandbasedWind`), while `tech_detail` specifies resource quality, configuration, or capture technology (e.g., `Class3`, `Moderate`).
+    Each `new_resources` entry supplies separate `technology`, `tech_detail`,
+    `cost_case`, and `size_mw` values. For example, `Class3` is a detail and
+    `Moderate` is a cost case.
 
 ## Cost Scenarios
 
 Most ATB technologies support three cost scenarios:
 
 - **Conservative**: High-cost projection
-- **Moderate**: Mid-range cost projection (default)
+- **Moderate**: Mid-range cost projection
 - **Advanced**: Low-cost projection with optimistic technology improvements
 
 The cost scenario is selected per resource in the `new_resources` list, where the third
 element of each entry is the cost case (e.g., `Moderate`, `Advanced`, or `Conservative`).
-It can also be adjusted across all resources with `resource_modifiers`. There is no
-standalone `atb_cost_case` setting.
+Set the case for each entry. There is no standalone `atb_cost_case` setting.
+Available names and cases depend on the actual cost and heat-rate tables
+configured for the chosen vintage.
 
 ---
 
@@ -259,7 +262,8 @@ All wind classes in ATB2022 have identical capex. **Class 4** represents the maj
 ### Battery Storage
 
 **Technology**: `Battery`
-**Tech Details**: `*` (wildcard - duration determined by model)
+**Tech Details**: Check the configured cost table for the exact value. A literal
+`*` is matched as text, not as a wildcard.
 
 ATB2022 reports batteries in 2-10 hour configurations. NREL provides energy ($/kWh) and power ($/kW) costs separately. PowerGenome provides both, allowing models to determine optimal storage duration. Fixed O&M is 2.5% of capex for both components.
 
@@ -474,17 +478,19 @@ To use ATB technologies in your PowerGenome configuration:
 
 ```yaml
 # Specify ATB data year
-atb_data_year: 2024
+resource_data_year: 2024
+resource_financial_case: Market
+resource_cap_recovery_years: 20
 
 # List available new-build technologies (cost case is the 3rd element)
 new_resources:
   - [LandbasedWind, Class3, Moderate, 100]
   - [UtilityPV, Class1, Advanced, 100]
-  - NaturalGas_CCAvgCF_Moderate
-  - Battery_*_Moderate  # Wildcard for all battery durations
+  - [NaturalGas, 1-on-1 Combined Cycle (H-Frame), Moderate, 500]
+  - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 100]
 ```
 
-The format is `<technology>_<tech_detail>_<cost_case>`.
+Each entry has the format `[technology, tech_detail, cost_case, size_mw]`.
 
 See [Adding Technologies](../how-to/add-technologies.md) for complete configuration details.
 

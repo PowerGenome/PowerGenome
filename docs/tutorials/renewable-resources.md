@@ -1,416 +1,277 @@
 # Working with Renewable Resources
 
-This tutorial teaches you how to configure wind and solar resources in PowerGenome, including how to select high-quality sites, cluster resources, and customize costs by region.
-
-**Time**: ~45 minutes
-**Prerequisites**: Complete [Getting Started](getting-started.md)
-
-## What You'll Learn
-
-- How PowerGenome represents renewable resources
-- How to filter sites by resource quality (LCOE, capacity factor)
-- How to cluster many sites into representative resources
-- How to configure interconnection and transmission costs
-- How to customize renewable resources by region
-
-## Understanding Renewable Resource Modeling
-
-PowerGenome models renewables differently than thermal generators:
-
-**Thermal generators** (gas, coal, nuclear)
-: Defined by technology, cost case, and size from NREL ATB. Dispatchable with heat rates and fuel costs.
-
-**Renewable resources** (wind, solar)
-: Site-specific with generation profiles, location costs (spur lines, transmission), and variable output.
-
-### Resource Groups vs Resource Clusters
-
-**Resource groups**
-: Pre-computed renewable resource sites with hourly generation profiles, typically from NREL or other datasets. Each site has characteristics like LCOE, capacity factor, spur line distance.
-
-**Resource clusters**
-: Aggregations of similar resource group sites into a single representative resource for the capacity expansion model. Reduces model size while preserving resource quality diversity.
-
-!!! example "Why Cluster?"
-    A region might have 1,000 potential wind sites. Clustering groups them into 5-10 representative "bins" based on cost or quality, making the optimization tractable while maintaining diversity.
-
-## Step 1: Understanding Resource Group Data
-
-PowerGenome expects renewable resource data with these columns:
-
-**Required**:
-
-- `region` - Model region name
-- `technology` - Technology type (landbasedwind, utilitypv, offshorewind)
-- `cluster` - Unique identifier for the resource cluster
-- `lcoe` or `cost` - Levelized cost of energy ($/MWh)
-- `mw` or `capacity` - Available capacity (MW)
-
-**Optional but recommended**:
-
-- `capacity_factor` - Annual average capacity factor
-- `spur_miles` - Distance to nearest transmission (miles)
-- `offshore_spur_miles` - Offshore cable distance
-- `interconnect_capex_mw` - Connection cost ($/MW)
-
-PowerGenome includes sample resource group data in test systems. Check the structure:
-
-```python
-import pandas as pd
-
-# Load example resource groups
-resource_groups = pd.read_csv(
-    "tests/test_system/test_data/resource_groups/test_resource_groups.csv"
-)
-
-print(resource_groups.columns)
-print(resource_groups.groupby(['region', 'technology']).size())
-```
-
-## Step 2: Basic Renewable Configuration
-
-Add renewables to your new-build resources in `settings/resources.yml`:
-
-```yaml
-# Include renewable technologies in new-build options
-new_resources:
-  - [NaturalGas, CCAvgCF, Moderate, 500]
-  - [LandbasedWind, Class3, Moderate, 1]
-  - [UtilityPV, Class1, Moderate, 1]
-  - [OffShoreWind, Class12, Moderate, 1]
-```
-
-Note the `1` MW size - this indicates the unit size for unit commitment. GenX does not apply unit commitment to renewable resources, so the value here is not important.
-
-## Step 3: Configure Renewable Clusters
-
-The `renewables_clusters` parameter controls how resource group sites are filtered and aggregated.
-
-### Simple Example: All Sites
-
-Include all available sites without filtering:
-
-```yaml
-renewables_clusters:
-  - region: all  # Apply to all regions
-    technology: landbasedwind
-    bin:
-      - feature: lcoe
-        weights: capacity_mw
-        q: 1  # One bin = all sites aggregated
-```
-
-This creates a single wind resource per region with weighted-average characteristics.
-
-### Filter by Cost
-
-Include only economically attractive sites:
-
-```yaml
-renewables_clusters:
-  - region: all
-    technology: landbasedwind
-    filter:
-      - feature: lcoe
-        max: 60  # Only sites with LCOE ≤ $60/MWh
-    bin:
-      - feature: lcoe
-        weights: capacity_mw
-        q: 3  # Create 3 cost bins (low/mid/high)
-```
-
-This creates 3 wind resources per region representing low, medium, and high cost sites.
-
-### Filter by Capacity Factor
-
-Select high-quality wind resources:
-
-```yaml
-renewables_clusters:
-  - region: all
-    technology: landbasedwind
-    filter:
-      - feature: cf
-        min: 0.35  # Only sites with CF ≥ 35%
-      - feature: lcoe
-        max: 70
-    bin:
-      - feature: cf
-        weights: capacity_mw
-        q: 4  # 4 bins by capacity factor
-```
-
-### Multiple Filters
-
-Combine filters to select sites meeting all criteria:
-
-```yaml
-renewables_clusters:
-  - region: all
-    technology: utilitypv
-    filter:
-      - feature: lcoe
-        max: 50
-      - feature: spur_miles  # Close to transmission
-        max: 10
-    bin:
-      - feature: lcoe
-        weights: capacity_mw
-        q: 2
-```
-
-## Step 4: Region-Specific Configuration
-
-Different regions may have different resource quality. Configure separately:
-
-```yaml
-renewables_clusters:
-  # Great Plains: Excellent wind, more bins
-  - region: midwest
-    technology: landbasedwind
-    filter:
-      - feature: lcoe
-        max: 50  # Abundant low-cost wind
-    bin:
-      - feature: lcoe
-        weights: capacity_mw
-        q: 5  # High resolution
-
-  # Northeast: Limited wind, fewer bins
-  - region: northeast
-    technology: landbasedwind
-    filter:
-      - feature: lcoe
-        max: 80  # Higher cost threshold
-    bin:
-      - feature: lcoe
-        weights: capacity_mw
-        q: 2  # Coarser resolution
-```
-
-## Step 5: Binning Methods
-
-PowerGenome supports different clustering approaches:
-
-### Quantile Binning (Default)
-
-Divide sites into equal-capacity bins:
-
-```yaml
-bin:
-  - feature: lcoe
-    weights: capacity_mw  # Equal capacity per bin
-    q: 4  # 4 bins (quantiles)
-```
-
-Each bin has approximately the same total MW capacity.
-
-### Custom Bin Edges
-
-Specify exact bin boundaries:
-
-```yaml
-bin:
-  - feature: lcoe
-    weights: capacity_mw
-    bins: [0, 30, 50, 70, 100]  # Create 4 bins with these boundaries
-```
-
-Useful for aligning with policy thresholds or known resource quality tiers.
-
-## Step 6: Caching for Speed
-
-Processing large resource group datasets can be slow. PowerGenome will cache renewable clustering results in the `extra_inputs` folder. The cached results are uniquely identified based on the renewable cluster specifications, the `utc_offset` value, and the hash value of resource group files.
-
-Enable caching:
-
-```yaml
-# Cache processed clusters
-cache_resource_clusters: true
-
-# Use cached clusters (skip processing)
-use_resource_clusters_cache: true
-```
-
-**How caching works**:
-
-1. First run: Process resource groups → save to cache → use in model
-2. Subsequent runs: Load from cache → use in model (much faster)
-
-Delete cache files manually if desired or set `cache_resource_clusters: false`.
-
-## Step 7: Run and Examine Outputs
+Turn the bundled test system's two wind cost tiers per region into four
+cost-and-profile clusters, then verify that the change preserves available
+capacity and writes matching generation profiles.
+
+**Time:** about 20 minutes.
+**Prerequisites:** complete the source installation in
+[Getting Started](getting-started.md), activate that Python environment, and
+have a matching checkout containing `tests/test_system/`. No external renewable
+data download is needed.
+
+This exercise uses the existing `p1_2`, `p3`, and `p4` geography and only bundled
+land-based wind data. It generates GenX inputs; it does not run a capacity
+expansion optimization or demonstrate calibrated wind economics. Solar in the
+existing-generator table is not a new solar resource-group dataset.
+
+## Step 1: Copy the bundled study
+
+Use a new destination outside the source checkout so that edits, caches, and
+outputs do not change the test fixture:
 
 ```bash
-run_powergenome \
-  --settings_file settings \
-  --results_folder renewable_test
+cp -R /path/to/PowerGenome/tests/test_system "$HOME/powergenome-wind-study"
+cd "$HOME/powergenome-wind-study"
 ```
 
-### Examine Renewable Resources
+Replace `/path/to/PowerGenome` with your checkout path. The destination should
+not already exist. Run every following command from this study directory.
+Save the Python snippets as the named scripts inside this copied study and run
+them with your activated environment.
+
+Leave `settings/model_definition.yml` unchanged:
+
+```yaml
+model_regions: [p1_2, p3, p4]
+region_aggregations:
+  p1_2: [p1, p2]
+```
+
+The resource metadata already uses `p1_2`; PowerGenome includes both model-region
+and aggregated base-region names when selecting sites. Do not rename the
+metadata regions or introduce unrelated example geographies.
+
+## Step 2: Inspect the actual wind inputs
+
+Open `settings/data.yml`. It already points to the copied files:
+
+```yaml
+RESOURCE_GROUPS: test_data/resource_groups
+data_location: test_data
+```
+
+The uppercase resource path resolves from your **current working directory**,
+which is why you changed into the study. `data_location` and the existing
+`input_folder: extra_inputs` resolve relative to the study containing `settings/`.
+
+Save this as `inspect_wind.py` to inspect the definition and eligible supply:
 
 ```python
+import json
+from pathlib import Path
+
 import pandas as pd
 
-gens = pd.read_csv("renewable_test/p1/Inputs/Inputs_p1/Generators_data.csv")
-
-# Filter to renewables
-renewables = gens[gens['technology'].isin(['landbasedwind', 'utilitypv', 'offshorewind'])]
-
-print(f"Total renewable clusters: {len(renewables)}")
-print(f"\nBy technology:")
-print(renewables.groupby('technology').size())
-
-print(f"\nBy region and technology:")
-print(renewables.groupby(['region', 'technology']).size())
-
-# Check cost range
-print(f"\nWind investment costs ($/MW-yr):")
-wind = renewables[renewables['technology'] == 'landbasedwind']
-print(f"  Min: ${wind['Inv_Cost_per_MWyr'].min():,.0f}")
-print(f"  Max: ${wind['Inv_Cost_per_MWyr'].max():,.0f}")
-
-# Capacity available
-print(f"\nTotal wind capacity available: {wind['Max_Cap_MW'].sum():,.0f} MW")
+root = Path("test_data/resource_groups")
+definition = json.loads((root / "onshorewind_group.json").read_text())
+print(definition)
+sites = pd.read_csv(root / definition["metadata"])
+print(sites.columns.tolist())
+eligible = sites.loc[(sites["capacity_mw"] > 0) & (sites["lcoe"] <= 75)]
+print(eligible.groupby("metro_region")["capacity_mw"].sum().round(1))
 ```
 
-### Check Generation Profiles
+```bash
+python inspect_wind.py
+```
+
+The JSON contains these real filenames:
+
+```json
+{
+  "technology": "landbasedwind",
+  "metadata": "onshorewind_lcoe_ReEDS.csv",
+  "profiles": "onshorewind_profiles_test_data_tidy.csv",
+  "site_map": "site_map_test_data.csv"
+}
+```
+
+The metadata's `CPA_ID` identifies candidate sites. `metro_region` identifies
+location, `capacity_mw` is available MW, `cf` is a fractional capacity factor,
+and `lcoe` is the input cost-screening feature. `interconnect_annuity` and
+`interconnect_capex_mw` supply site-specific interconnection costs. PowerGenome
+normalizes column names, so `CPA_ID` is available internally as `cpa_id`.
+
+The profiles are tidy `weather_year,time_index,site_id,value` rows. The site map
+connects metadata `CPA_ID` to profile `Site` IDs; keep it alongside the profile
+file. The fixture has short profiles for 2012 and 2013, not two complete years.
+
+The eligible supply is approximately:
+
+| Region | Wind capacity (MW) |
+| --- | ---: |
+| `p1_2` | 54,045.6 |
+| `p3` | 26,375.9 |
+| `p4` | 24,066.3 |
+
+The `lcoe <= 75` screen is an existing **test-system assumption**, not an economic
+recommendation. Keep it unchanged here so you can isolate the effect of
+aggregation. A different screening threshold changes candidate supply, not just
+model size.
+
+## Step 3: Run the unchanged baseline
+
+In `settings/resources.yml`, confirm the existing `new_resources` list includes:
+
+```yaml
+new_resources:
+  # Other bundled technologies remain in this list.
+  - [LandbasedWind, Class3, Moderate, 1]
+```
+
+This is an excerpt, not a replacement list. Its four values are technology,
+technology detail, cost case, and unit size in MW. Do not add solar or offshore
+wind: their new-build resource groups are not bundled with this study.
+
+The existing renewable definition filters at 75 and creates two capacity-weighted
+LCOE quantile bins. With no additional clustering, each nonempty bin becomes one
+new-build resource: two wind resources per region.
+
+Run the baseline:
+
+```bash
+validate_powergenome --settings_file settings
+run_powergenome --settings_file settings --results_folder wind_baseline
+```
+
+Validation and generation can finish with warnings about the bundled study,
+including missing uranium/distillate fuel prices, unassigned resource tags, and
+missing output columns for other resource types. These are not evidence of a
+calibrated study; resolve them before using a real study for decisions. Stop if
+you get an error rather than continuing with incomplete outputs.
+
+The two planning periods are written under
+`wind_baseline/Inputs/Inputs_p1/` (2030) and `Inputs_p2/` (2040).
+
+## Step 4: Split each cost tier by generation profile
+
+Edit the copied `settings/resources.yml`. Replace its existing
+`renewables_clusters` list with:
+
+```yaml
+renewables_clusters:
+  - region: all
+    technology: landbasedwind
+    filter:
+      - feature: lcoe
+        max: 75
+    bin:
+      - feature: lcoe
+        q: 2
+        weights: capacity_mw
+    cluster:
+      - feature: profile
+        method: agglomerative
+        n_clusters: 2
+```
+
+Only the `cluster` block is new. Sites are still screened and divided into the
+same two LCOE tiers within each region; now each tier is split into two groups
+with similar output timing. Profiles and supported cost columns are
+capacity-weighted within each final cluster, and capacities are summed.
+
+Keep both existing cache controls `false` for this exercise. Leave
+`reduce_time_domain: false`, all other technologies, and both planning periods
+unchanged. With no `weather_year` selection in the baseline, both bundled
+profile years are loaded in each run.
+
+Edit the existing definition, **not** a new override file. A settings directory
+loads only immediate `.yml` files with shallow top-level replacement and no
+reliable ordering; another `renewables_clusters` key could replace the whole
+list unexpectedly.
+
+Run the modified study into a separate output folder:
+
+```bash
+validate_powergenome --settings_file settings
+run_powergenome --settings_file settings --results_folder wind_profiles
+```
+
+## Step 5: Compare the outputs
+
+Use `resources/Vre.csv`, not the legacy flat generator filename. The file also
+contains existing wind and solar; select new-build land-based wind explicitly.
+Save this complete check as `check_wind.py` in the study directory:
 
 ```python
-# Load variability profiles
-profiles = pd.read_csv("renewable_test/p1/Inputs/Inputs_p1/Generators_variability.csv")
+from pathlib import Path
 
-# Get wind resources
-wind_resources = renewables[renewables['technology'] == 'landbasedwind']['Resource'].tolist()
+import pandas as pd
 
-# Check capacity factors
-for resource in wind_resources:
-    if resource in profiles.columns:
-        cf = profiles[resource].mean()
-        print(f"{resource}: CF = {cf:.2%}")
+
+def new_wind(folder, period):
+    path = Path(folder) / "Inputs" / f"Inputs_p{period}" / "resources/Vre.csv"
+    resources = pd.read_csv(path)
+    mask = resources["technology"].str.contains("landbasedwind", case=False, na=False)
+    return resources.loc[mask & resources["New_Build"].eq(1)].copy()
+
+
+sites = pd.read_csv("test_data/resource_groups/onshorewind_lcoe_ReEDS.csv")
+eligible = sites.loc[(sites["capacity_mw"] > 0) & sites["lcoe"].le(75)]
+expected_mw = eligible.groupby("metro_region")["capacity_mw"].sum().sort_index()
+
+for period in (1, 2):
+    before = new_wind("wind_baseline", period)
+    after = new_wind("wind_profiles", period)
+    counts = pd.DataFrame({
+        "baseline": before.groupby("region").size(),
+        "profile_clusters": after.groupby("region").size(),
+    }).sort_index()
+    assert counts.index.tolist() == ["p1_2", "p3", "p4"]
+    assert counts["baseline"].eq(2).all()
+    assert counts["profile_clusters"].eq(4).all()
+    print(f"Period {period} resource counts:\n{counts}")
+
+    for wind in (before, after):
+        actual_mw = wind.groupby("region")["Max_Cap_MW"].sum().sort_index()
+        # CSV output rounds capacities, so allow 1 MW per region.
+        pd.testing.assert_series_equal(
+            actual_mw, expected_mw, check_names=False,
+            check_exact=False, rtol=0, atol=1,
+        )
+
+    period_dir = Path("wind_profiles/Inputs") / f"Inputs_p{period}"
+    profiles = pd.read_csv(period_dir / "system/Generators_variability.csv")
+    assert set(after["Resource"]).issubset(profiles.columns)
+    wind_profiles = profiles.loc[:, after["Resource"].tolist()]
+    assert wind_profiles.notna().all().all()
+    assert wind_profiles.ge(0).all().all() and wind_profiles.le(1).all().all()
+    print("Profile rows:", len(wind_profiles))
+    print(after.groupby("region")["Inv_Cost_per_MWyr"].agg(["min", "max"]))
 ```
 
-## Advanced Topics
-
-### Hierarchical Clustering
-
-For more sophisticated resource aggregation:
-
-```yaml
-renewables_clusters:
-  - region: all
-    technology: landbasedwind
-    filter:
-      - feature: lcoe
-        max: 70
-    cluster:
-      - feature: cf  # Cluster on a single feature
-        method: hierarchical
-        n_clusters: 5
+```bash
+python check_wind.py
 ```
 
-This uses hierarchical clustering to group sites by both cost and quality.
+Expect **6 → 12 new wind resources** in each period, with the same total
+available capacity in each region (apart from CSV rounding). The fixture writes
+336 modeled profile rows when both short weather-year samples are loaded.
+`Inv_Cost_per_MWyr` is an annual investment cost in $/MW-year; it is not the
+screening metadata's `lcoe`.
 
-### Combining with Modified Resources
+A mean of these short sample profiles is not an annual capacity factor. If you
+later enable representative-period time reduction, simple row means also omit
+period weights and durations.
 
-Adjust renewable costs after clustering:
+To inspect which sites were combined, open the three
+`*site_cluster_assignments.csv` files under each period's `extra_outputs/`.
+They contain `cpa_id` and `cluster`. Join `cpa_id` to the input metadata's
+`CPA_ID` to inspect capacity and LCOE ranges; cluster labels need not stay
+identical when you change settings.
 
-```yaml
-resource_modifiers:
-  wind_bonus:
-    technology: landbasedwind
-    Inv_Cost_per_MWyr: [mul, 0.9]  # 10% investment tax credit equivalent
-```
+## What you changed
 
-### Regional Technology Restrictions
+You held geography, eligible supply, underlying technology costs, and time
+settings fixed, and added temporal differentiation **within** each cost tier.
+Cluster costs can change because different sites are averaged. More resources
+are not automatically more accurate: this check establishes that the software
+change behaved as intended, not that four clusters is the right study resolution.
 
-`renewables_clusters` controls which regions receive *clustered* renewable resources
-(each entry has a `region` key). There is currently no supported way to fully exclude a
-renewable from a subset of regions: a technology listed in `new_resources` is built in
-every region, and the legacy `new_gen_not_available` key is only validated, not applied.
-
-```yaml
-# Legacy — not applied in this version
-new_gen_not_available:
-  desert_region:
-    - LandbasedWind_*  # No wind (low capacity factors)
-  mountain_region:
-    - OffShoreWind_*  # No offshore wind (landlocked)
-```
-
-## Common Issues
-
-### No Renewable Resources Generated
-
-**Problem**: Model has no wind/solar resources
-
-**Possible causes**:
-
-1. No `renewables_clusters` configured
-2. Filters too restrictive (no sites pass)
-3. Technology not in `new_resources`
-4. Missing resource group data
-
-**Solutions**:
-
-```yaml
-# Check data availability
-renewables_clusters:
-  - region: all
-    technology: landbasedwind
-    # No filters - include everything
-    bin:
-      - feature: lcoe
-        weights: capacity_mw
-        q: 1
-```
-
-### Too Many Resources
-
-**Problem**: Hundreds of renewable clusters, model too large
-
-**Solution**: Use fewer bins or stricter filters:
-
-```yaml
-renewables_clusters:
-  - region: all
-    technology: landbasedwind
-    filter:
-      - feature: lcoe
-        max: 50  # Only best sites
-    bin:
-      - feature: lcoe
-        weights: capacity_mw
-        q: 2  # Just 2 bins per region
-```
-
-## Renewable Clustering Parameters Reference
-
-**`renewables_clusters`** - List of dictionaries, each with:
-
-- **`region`** (required): Model region name or "all"
-- **`technology`** (required): landbasedwind, utilitypv, offshorewind, geothermal
-- **`filter`** (optional): List of filters to apply
-  - **`feature`**: Column name to filter on (lcoe, capacity_factor, spur_miles, etc.)
-  - **`min`**: Minimum value (inclusive)
-  - **`max`**: Maximum value (inclusive)
-- **`bin`** or **`cluster`** (required): How to group sites
-  - **`feature`**: Column(s) to bin/cluster on
-  - **`weights`**: Column for weighting (usually "mw")
-  - **`q`**: Number of bins/clusters
-  - **`method`**: *Only in `cluster`* kmeans or agg (hierarchical)
-
-See [New Build Resources Settings](../reference/settings/new-build.md) for complete documentation.
-
-## Next Steps
-
-- **Configure policies**: [Resource Tags](../reference/settings/resource-tags.md) for renewable portfolio standards
-- **Multi-region renewables**: [Building a Multi-Region Model](multi-region-model.md)
-- **Offshore wind details**: [New Build Settings](../reference/settings/new-build.md)
-- **Resource group data**: [Data Tables](../how-to/configure-data-tables.md)
-
-## Further Reading
-
-- NREL ATB: [Annual Technology Baseline](https://atb.nrel.gov/)
-- Resource data sources: [NREL reV](https://www.nrel.gov/gis/renewable-energy-potential.html)
-- GenX renewable modeling: [GenX Documentation](https://genxproject.github.io/GenX/)
+For further work, compare model outcomes at different resolutions. Use
+[Configure Renewable Resource Clusters](../how-to/configure-renewable-clusters.md)
+for input schemas, method choices, caching, regional definitions, and optional
+cost modifiers. See [New-Build Resources](../reference/settings/new-build.md) for
+technology settings and [Output Format](../explanation/output-format.md) for
+output layouts.

@@ -21,37 +21,43 @@ run_powergenome --settings_file SETTINGS_PATH --results_folder OUTPUT_PATH
 
 #### `--settings_file` / `-sf`
 
-Path to the folder containing settings YAML files.
+Path to a settings file or a directory containing settings files.
 
 **Type**: String (path)
-**Example**: `--settings_file tests/test_system/settings`
+**Default**: `example_settings.yml`
+**Example**: `--settings_file settings`
 
 !!! note
-    PowerGenome loads **all** YAML files in the folder and merges them. Files loaded later override earlier values for duplicate keys.
+    Directory mode loads immediate `*.yml` files only, not subdirectories or
+    `.yaml` files. Avoid duplicate top-level keys across files: later files
+    replace whole values, and file order is not a configuration interface.
 
 #### `--results_folder` / `-rf`
 
-Directory where output files will be saved. Created if it doesn't exist.
+Directory where output files will be saved. Created if it does not exist;
+its parent directory must already exist.
 
 **Type**: String (path)
+**Default**: A timestamp, for example `2026-01-15 14.30.00`
 **Example**: `--results_folder my_study_outputs`
 
-#### `--case_id`
+#### `--case-id` / `-c`
 
-Run only specific scenarios from the scenario definitions file.
+Run only the specified case IDs from `scenario_definitions_fn`. Without a
+scenario definitions file, this selection is ignored with a warning.
 
-**Type**: String or list of strings
-**Default**: Run all scenarios
-**Example**: `--case_id p1 p2` or `--case_id "high_demand"`
+**Type**: One or more case IDs, separated by spaces
+**Default**: Run all cases
+**Example**: `--case-id baseline high_demand`
 
 ```bash
-# Run only scenarios p1 and p3
-run_powergenome -sf settings -rf output --case_id p1 p3
+run_powergenome -sf settings -rf output --case-id baseline high_demand
 ```
 
 #### `--sort-gens`
 
-Sort generator resources alphabetically in output files.
+Sort generator resources alphabetically within each region. Existing and
+new-build resources remain in separate groups.
 
 **Type**: Boolean flag
 **Default**: False
@@ -146,13 +152,21 @@ with unchanged inputs skips the check computation. Equivalent to
 run_powergenome -sf settings --no-validation-cache
 ```
 
-#### `--verbose` / `-v`
+#### `--no-gens`
 
-Increase logging verbosity.
+Skip generator processing entirely, including existing and new-build resources.
+This does not disable demand or transmission processing.
 
-**Type**: Boolean flag
-**Default**: INFO level logging
-**Example**: `--verbose`
+#### `--no-transmission`
+
+Skip transmission processing and network output.
+
+#### `--multi-period` / `-mp`
+
+The current parser sets the internal `multi_period` value to `False` when this
+flag is present, despite its name. Omit it for the default multi-period output
+layout shown below. Planning years are configured with `model_year` and
+`model_first_planning_year`, not this flag.
 
 #### `--help` / `-h`
 
@@ -178,7 +192,7 @@ run_powergenome \
 run_powergenome \
     -sf settings \
     -rf output \
-    --case_id baseline high_renewable low_cost
+    --case-id baseline high_renewable low_cost
 ```
 
 #### Greenfield with sorted output
@@ -198,36 +212,37 @@ run_powergenome \
     -sf settings \
     -rf output \
     --no-current-gens \
-    --no-load \
-    --verbose
+    --no-load
 ```
 
 ### Output organization
 
-Results are organized by scenario and planning period:
+With a scenario definitions file, results are organized by case and planning period:
 
-```
+```text
 results_folder/
+├── log.txt
 ├── case_id_1/
-│   ├── Inputs/
-│   │   └── Inputs_p1/
-│   │       ├── Generators_data.csv
-│   │       ├── Load_data.csv
-│   │       ├── Fuels_data.csv
-│   │       └── ...
-│   └── log.txt
+│   └── Inputs/
+│       ├── Inputs_p1/
+│       │   ├── resources/
+│       │   ├── system/
+│       │   └── policies/
+│       └── Inputs_p2/
 └── case_id_2/
-    ├── Inputs/
-    │   └── Inputs_p1/
-    └── log.txt
+    └── Inputs/
+        └── Inputs_p1/
 ```
 
-Each scenario folder contains:
+Without `scenario_definitions_fn`, period folders are directly under
+`results_folder/Inputs/`, for example `results_folder/Inputs/Inputs_p1/`.
 
-- **Inputs/Inputs_p#/**: GenX input CSV files (written unless `--no-genx`)
-- **Macro `simpleCSVinputs` case**: written alongside GenX when `--macro`/`macro_output: true` is enabled
-  (see [Output File Format](../explanation/output-format.md) for the layout)
-- **log.txt**: Execution log with warnings and info messages
+- **Inputs/Inputs_p#/**: GenX input folders `resources/`, `system/`, and
+  `policies/` by default; `old_genx_format: true` selects legacy flat CSVs
+  (written unless `--no-genx`)
+- **Macro case**: written when `--macro`/`macro_output: true` is enabled;
+  see [Output File Format](../explanation/output-format.md) for its layout
+- **log.txt**: One detailed execution log at the results root, not per case
 
 ### Exit codes
 
@@ -303,10 +318,13 @@ validate_powergenome -sf settings --no-validation-cache
 
 PowerGenome respects these environment variables (legacy, prefer settings YAML):
 
-- `DATA_LOCATION`: Path to data folder
 - `RESOURCE_GROUPS`: Path to renewable resource group definitions
 - `RESOURCE_GROUP_PROFILES`: Path to generation profiles
 - `EFS_DATA`: Path to NREL EFS electrification data
+- `DISTRIBUTED_GEN_DATA`: Legacy distributed-generation data path
+
+`DATA_LOCATION` is not a supported environment-variable substitute for the
+`data_location` YAML setting.
 
 Environment variables are always single paths. When using settings YAML,
 `RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` may instead be a list of paths
@@ -355,7 +373,10 @@ main(
 )
 ```
 
-See the source code in `powergenome/run_powergenome.py` for details.
+`main()` still parses the process command line before applying these keyword
+arguments. In notebooks or applications with their own arguments, prefer calling
+the CLI in a subprocess with an explicit argument list. This is an internal entry
+point, not a separate stable Python API.
 
 ## Troubleshooting
 
@@ -367,13 +388,12 @@ Error: Settings path 'settings' does not exist
 
 **Solution**: Provide absolute path or path relative to current directory
 
-### No scenarios found
+### No scenario definitions file
 
-```
-Warning: No scenario definitions found
-```
-
-**Solution**: Check `scenario_definitions_fn` points to valid CSV file in `extra_inputs/`
+A scenario CSV is optional. Without one, PowerGenome runs the configured planning
+years as a single case. If you intended to use cases, set
+`scenario_definitions_fn` to a CSV under `input_folder`, with `case_id` and `year`
+columns.
 
 ### Permission denied writing output
 

@@ -21,7 +21,7 @@ Each resource must have a value for every tag defined in the model.
 ### `model_tag_names`
 
 **Type**: List of strings
-**Required**: Yes
+**Required**: No
 **Example**: See below
 
 List of all resource tags used in the model.
@@ -37,7 +37,9 @@ model_tag_names:
   - LDS
 ```
 
-All resources must be assigned a value for each tag in this list.
+Tags named here or in the tag-value mappings are initialized to
+`default_model_tag` (zero by default). Specify values for technologies that
+need different values.
 
 !!! note "Custom Tags"
     You can define custom tags for specialized models. For example, `OFFSHORE` for offshore wind, `BIOMASS` for biomass resources, or `NEW_BUILD` to distinguish new vs. existing capacity.
@@ -47,7 +49,7 @@ All resources must be assigned a value for each tag in this list.
 ### `model_tag_values`
 
 **Type**: Dictionary (tag → technology → value)
-**Required**: Yes
+**Required**: No
 **Example**: See below
 
 Default tag values for each technology. These apply across all regions unless overridden.
@@ -104,11 +106,11 @@ model_tag_values:
 
 - Binary (0/1): Most tags are binary flags
 - Integer (1, 2, 3...): THERM tag often uses integers for thermal zones
-- Wildcard matching: Use `*` in technology names to match patterns
+- Technology keys are literal substrings; `*` is not a wildcard.
 
-### Wildcard Patterns
+### Technology Matching
 
-Use wildcards to assign tags to multiple technologies at once. The `*` matches any characters.
+Use a shared substring to assign tags to multiple technologies at once.
 
 ```yaml
 model_tag_values:
@@ -292,23 +294,12 @@ Capacity reserve requirements are set in `regional_capacity_reserves`.
 
 ## Tag Validation
 
-PowerGenome validates tag assignments:
-
-**Missing tags**: Error if a resource lacks a required tag
-
-```text
-ResourceTagError: Technology 'UtilityPV' missing tag 'THERM'
-```
-
-**Solution**: Add missing tag to `model_tag_values` or `regional_tag_values`.
-
-**Too many tags**: Warning if resource has tags not in `model_tag_names`
-
-```text
-Warning: Resource has tag 'OFFSHORE' not in model_tag_names
-```
-
-**Solution**: Add tag to `model_tag_names` or remove from resource definitions.
+For GenX output, each resource must have exactly one nonzero resource-type tag
+among the recognized types (such as `THERM`, `VRE`, `STOR`, `FLEX`, and
+`HYDRO`). PowerGenome logs the affected resources and raises a `ValueError`
+when a resource has none or more than one. Policy tags such as `ESR_1` are
+additional to the resource type. Unassigned tag values default to zero unless
+`default_model_tag` is set.
 
 ## Generator Columns Output
 

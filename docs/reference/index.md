@@ -9,9 +9,9 @@ Comprehensive documentation of all settings parameters organized by functional a
 - **[Model Definition](settings/model-definition.md)**: Planning periods, target year, timezone
 - **[Regions and Geography](settings/regions.md)**: Model regions, aggregations, capacity reserves
 - **[Existing Generators](settings/existing-generators.md)**: Clustering, retirements, hydro configuration
-- **[New Build Resources](settings/new-build.md)**: Technology costs, WACC, regional availability
+- **[New Build Resources](settings/new-build.md)**: Technology costs, WACC, resource modifiers, renewable clusters
 - **[Fuels](settings/fuels.md)**: Fuel prices, emission factors, CCS configuration
-- **[Demand and Load](settings/demand.md)**: Load profiles, growth rates, distributed generation
+- **[Demand and Load](settings/demand.md)**: Year-specific load profiles, supplemental demand, distributed generation
 - **[Transmission](settings/transmission.md)**: Network constraints, expansion costs, line loss
 - **[Time Reduction](settings/time-reduction.md)**: Representative period selection and weighting
 - **[Resource Tags](settings/resource-tags.md)**: Technology categorization for model behavior

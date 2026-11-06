@@ -6,7 +6,9 @@ PowerGenome groups real-world power plants into representative **clusters** to k
 
 ## Why clustering is needed
 
-Detailed generator inventories from EIA data can contain thousands of individual units. Including each unit as a separate resource in GenX would make the optimization problem very large without meaningfully improving accuracy, because units of the same vintage and technology behave nearly identically.
+Detailed generator inventories can contain thousands of individual units. Modeling each
+unit separately can make the optimization problem much larger; clustering trades some
+unit-level detail for a more compact model.
 
 Clustering reduces these to a manageable number of representative resources while preserving the key features the model needs: capacity, heat rate, cost, and retirement eligibility.
 
@@ -23,7 +25,7 @@ not cluster membership.
 
 ### Step 2: K-means clustering
 
-Within each region–technology group, [k-means clustering](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html) partitions units into `k` clusters where `k` is set by `num_clusters` (or `alt_num_clusters` for per-region overrides).
+Within each region–technology group, [k-means clustering](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html) partitions units into `k` clusters where `k` is set by the technology entry in `num_clusters` (or `alt_num_clusters` for per-region overrides).
 
 **Clustering features** (by default):
 
@@ -31,6 +33,7 @@ Within each region–technology group, [k-means clustering](https://scikit-learn
 - `fom_per_mwyr` — fixed O&M cost
 
 Features are standardized (mean 0, unit variance) before clustering so that neither dominates the distance metric purely because of scale.
+Use `generator_cluster_columns` to choose different features.
 
 If a region–technology group has fewer plants than the requested number of clusters, the number of clusters is automatically reduced to match the number of plants.
 
@@ -44,7 +47,7 @@ For each cluster, representative values are computed:
 | `heat_rate_mmbtu_mwh` | Capacity-weighted average |
 | `fom_per_mwyr` | Capacity-weighted average |
 | `vom_per_mwh` | Capacity-weighted average |
-| `minimum_load_mw` | Capacity-weighted average |
+| `capacity_mwh` | Sum of operating units in cluster |
 
 ### Step 4: Resource naming
 
@@ -109,10 +112,14 @@ coverage before considering a larger tolerance.
 ### Default cluster count
 
 ```yaml
-num_clusters: 1  # Default: merge all plants of a type into one cluster
+num_clusters:
+  Natural Gas Fired Combined Cycle: 1
+  Conventional Steam Coal: 1
 ```
 
-A value of `1` means all generators of the same type in a region become one representative unit. This is the most aggressive reduction and is appropriate when you need a compact model.
+A value of `1` merges all generators of that type in a region into one representative
+resource. Technologies omitted from this mapping are excluded unless an override
+includes them.
 
 ### Per-region overrides
 
@@ -127,14 +134,18 @@ alt_num_clusters:
     Natural Gas Fired Combined Cycle: 5
 ```
 
-Setting `num_clusters` to `0` or omitting a region/tech combination excludes those generators entirely. Technology names here are matched against the raw data values; they are **not** the ATB-style names.
+Setting a technology's count to `0`, or omitting it from both the base mapping and
+the region's override, excludes those generators. Names match the generation table's
+technology values, or the grouped names after applying `tech_groups`.
 
 ### Individual units (no clustering)
 
-To preserve every generator as an individual resource, set `num_clusters` equal to the number of plants (or use a large number — PowerGenome reduces it to the number of plants automatically):
+To preserve every unit of a technology as an individual resource, set its count to
+`null` (or use a large number; PowerGenome reduces it to the number of units):
 
 ```yaml
-num_clusters: 999  # Each plant becomes its own resource
+num_clusters:
+  Natural Gas Fired Combined Cycle: null
 ```
 
 ---
@@ -166,16 +177,19 @@ A unit contributes its full capacity if it is operating at the planning period's
 period are included without prorating their capacity.
 
 !!! note "Myopic multi-period models"
-    Use the same generation data across the periods of a case to keep cluster
-    membership consistent. PowerGenome records scheduled retirements in later
-    periods as minimum retirement requirements for each resource (`Min_Retired_*`
-    columns).
+    Omit `--multi-period` to keep the CLI's default multi-period behavior; passing
+    this flag disables it. Use the same generation data across the periods of a
+    case to keep cluster membership consistent. PowerGenome records scheduled
+    retirements in later periods as minimum retirement requirements for each
+    resource (`Min_Retired_*` columns).
 
 ---
 
 ## Viewing cluster assignments
 
-When `extra_outputs_path` is configured (or by default in the `extra_outputs` sub-folder of each case), PowerGenome writes a CSV file showing which real plant belonged to which cluster. This is useful for debugging unexpected groupings.
+The CLI writes `extra_outputs/existing_gen_units.csv` inside each period folder,
+showing which units belong to each cluster. This is useful for debugging unexpected
+groupings.
 
 ---
 

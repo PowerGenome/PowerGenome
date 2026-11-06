@@ -19,12 +19,12 @@ Thank you for your interest in contributing to PowerGenome! This document provid
 git clone https://github.com/PowerGenome/PowerGenome.git
 cd PowerGenome
 
-# Create a virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Create a virtual environment with Python 3.11 or newer
+uv venv --python 3.11
+source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
 
 # Install in development mode with dev dependencies
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
 
 # Install pre-commit hooks
 pre-commit install
@@ -74,7 +74,6 @@ PowerGenome uses automated code formatting and linting:
 
 - **black**: Code formatting (runs automatically via pre-commit)
 - **isort**: Import sorting
-- **flake8**: Linting (in some configurations)
 
 Pre-commit hooks will automatically format your code when you commit. If formatting changes are made, you'll need to stage and commit again.
 
@@ -117,7 +116,10 @@ When documenting:
 
 ```bash
 # Install docs dependencies
-pip install -e ".[docs]"
+uv pip install -e ".[docs]"
+
+# Check links and build the site
+mkdocs build --strict
 
 # Serve docs locally
 mkdocs serve
