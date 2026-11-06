@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -33,10 +33,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2015,6 +2015,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#missing-existing-resource-availability-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing existing-resource availability profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#controlling-the-number-of-clusters" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2452,6 +2463,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#missing-existing-resource-availability-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing existing-resource availability profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#controlling-the-number-of-clusters" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2674,6 +2696,42 @@ not cluster membership.</p>
 <p>For example: <code>CA_N_natural_gas_fired_combined_cycle_1</code></p>
 <p>This name is used as the resource identifier throughout the output files.</p>
 <hr />
+<h2 id="missing-existing-resource-availability-profiles">Missing existing-resource availability profiles<a class="headerlink" href="#missing-existing-resource-availability-profiles" title="Permanent link">&para;</a></h2>
+<p>Existing hydro, wind, solar, and other profile-backed resources need usable hourly
+availability data. PowerGenome checks missing resource groups, missing regional
+metadata, missing sites, and incomplete time series against a combined regional
+fallback budget before assigning constant <code>1.0</code> availability.</p>
+<p>PowerGenome permits a small, <strong>combined regional fallback fleet</strong>: by default,
+<code>existing_resource_profile_fallback_max_demand_fraction: 0.005</code> allows affected
+operating capacity up to 0.5% of mean regional demand <strong>before DG subtraction</strong>.
+The denominator includes regional aggregation and supplemental/flexible demand,
+uses unrounded hourly values for the selected scenario and years, and precedes time
+reduction. Means across weather years are weighted by modeled hours.</p>
+<p>At or below the limit, a warning identifies the affected resources and PowerGenome
+retains their capacity, tags, and retirement attributes with availability <code>1.0</code> in
+all modeled hours. Above it, an actionable error stops generation of model inputs.
+Partial profile coverage charges the entire failing existing-generator cluster;
+resource-group metadata capacity is never used as the affected capacity. All affected
+technologies and clusters share the allowance in their model region. Valid profiles
+remain unchanged, and retired/zero-capacity clusters consume no allowance.</p>
+<p>For example, SD (p32 + p38) with 1584.86 MW mean demand has a 7.92 MW allowance:
+4 MW of missing run-of-river profiles warns and falls back. Modeling p32 alone with
+206.28 MW mean demand gives only 1.03 MW, so the same 4 MW errors. If those units
+retire in 2030, they contribute zero operating capacity at model year 2030, even if
+the planning period starts in 2026.</p>
+<p>Set the fraction to <code>0</code> for strict mode; values must be finite numbers in <code>[0, 1]</code>,
+not booleans. Positive-capacity fallback requires valid demand even with <code>--no-load</code>;
+complete profiles add no demand requirement. Explicitly profile-free resource groups
+(<code>group.profiles is None</code>, such as thermal/storage groups) remain exempt, as do
+unsupported dispatchable technologies. New-build behavior is unchanged. Invalid schemas,
+unreadable files, ambiguous group matches, and invalid weather-year requests remain
+errors rather than fallback conditions.</p>
+<p>This tolerance is a modeling choice, <strong>not an industry standard or reliability
+guarantee</strong>. Constant availability can overstate usable generation. Its full-output
+energy is bounded by the chosen fraction of gross demand over the same hours, but
+that bound says nothing about hourly reliability or dispatch. Repair metadata/profile
+coverage before considering a larger tolerance.</p>
+<hr />
 <h2 id="controlling-the-number-of-clusters">Controlling the number of clusters<a class="headerlink" href="#controlling-the-number-of-clusters" title="Permanent link">&para;</a></h2>
 <h3 id="default-cluster-count">Default cluster count<a class="headerlink" href="#default-cluster-count" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">num_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">  </span><span class="c1"># Default: merge all plants of a type into one cluster</span>
@@ -2811,10 +2869,10 @@ columns).</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       
