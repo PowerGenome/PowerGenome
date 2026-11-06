@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from unittest.mock import Mock
 
 import numpy as np
 import pandas as pd
@@ -282,6 +283,119 @@ def test_cluster_sites_small_frames(binned, n_rows):
     # cluster_sites_no_bin assigns the scalar label 1 to a single site; the binned
     # variant offsets the labels from the underlying clusterer (0).
     assert (result["cluster"] == (0 if binned else 1)).all()
+
+
+@pytest.mark.parametrize("cluster_func", [agg_cluster_profile, agg_cluster_other])
+@pytest.mark.parametrize("n_clusters", [1, 0, -2, np.int64(1)])
+def test_agg_single_cluster_skips_fitting(
+    cluster_func, n_clusters, monkeypatch, caplog
+):
+    values = np.arange(24, dtype=float).reshape(4, 6) / 24
+    s = pd.Series(
+        list(values) if cluster_func is agg_cluster_profile else values[:, 0],
+        index=[30, 10, 40, 20],
+    )
+    estimator = Mock(side_effect=AssertionError("Single clusters must not fit a tree"))
+    monkeypatch.setattr(
+        "powergenome.cluster.renewables.AgglomerativeClustering", estimator
+    )
+
+    with caplog.at_level(logging.WARNING):
+        labels = cluster_func(s, n_clusters=n_clusters)
+
+    np.testing.assert_array_equal(labels, np.zeros(len(s), dtype=int))
+    assert np.issubdtype(labels.dtype, np.integer)
+    estimator.assert_not_called()
+    assert ("less than or equal to 0" in caplog.text) == (n_clusters <= 0)
+
+
+@pytest.mark.parametrize("cluster_func", [agg_cluster_profile, agg_cluster_other])
+@pytest.mark.parametrize("bad_value", [np.nan, np.inf, -np.inf, "invalid"])
+def test_agg_single_cluster_rejects_invalid_data(cluster_func, bad_value):
+    values = [[0.1, 0.2], [bad_value, 0.4]]
+    s = pd.Series(values if cluster_func is agg_cluster_profile else [0.1, bad_value])
+
+    with pytest.raises(ValueError):
+        cluster_func(s, n_clusters=1)
+
+
+@pytest.mark.parametrize("values", [[[], []], [[0.1, 0.2], [0.3]]])
+def test_agg_single_cluster_rejects_invalid_profile_shapes(values):
+    with pytest.raises(ValueError):
+        agg_cluster_profile(pd.Series(values), n_clusters=1)
+
+
+@pytest.mark.parametrize("cluster_func", [agg_cluster_profile, agg_cluster_other])
+def test_agg_single_cluster_rejects_noninteger_count(cluster_func):
+    values = [[0.1, 0.2], [0.3, 0.4]]
+    s = pd.Series(values if cluster_func is agg_cluster_profile else [0.1, 0.3])
+
+    with pytest.raises(ValueError, match="n_clusters"):
+        cluster_func(s, n_clusters=1.0)
+
+
+@pytest.mark.parametrize("cluster_func", [agg_cluster_profile, agg_cluster_other])
+@pytest.mark.parametrize("n_clusters", [1, 0, -2, 2, 9])
+def test_agg_cluster_labels_match_estimator(cluster_func, n_clusters):
+    from sklearn.cluster import AgglomerativeClustering
+
+    values = np.array([[0.1, 0.2], [0.15, 0.25], [0.8, 0.9], [0.85, 0.95]])
+    if cluster_func is agg_cluster_other:
+        values = values[:, :1]
+    s = pd.Series(list(values) if cluster_func is agg_cluster_profile else values[:, 0])
+    expected = (
+        AgglomerativeClustering(n_clusters=min(max(n_clusters, 1), len(s)))
+        .fit(values)
+        .labels_
+    )
+
+    np.testing.assert_array_equal(cluster_func(s, n_clusters=n_clusters), expected)
+
+
+@pytest.mark.parametrize("cluster_func", [agg_cluster_profile, agg_cluster_other])
+@pytest.mark.parametrize("size", [0, 1])
+def test_agg_cluster_trivial_inputs(cluster_func, size, monkeypatch):
+    s = pd.Series(
+        [[0.1, 0.2]][:size] if cluster_func is agg_cluster_profile else [0.1][:size]
+    )
+    estimator = Mock(side_effect=AssertionError("Trivial inputs must not fit a tree"))
+    monkeypatch.setattr(
+        "powergenome.cluster.renewables.AgglomerativeClustering", estimator
+    )
+
+    np.testing.assert_array_equal(cluster_func(s, n_clusters=1), [0] * size)
+    estimator.assert_not_called()
+
+
+@pytest.mark.parametrize("feature", ["profile", "lcoe"])
+@pytest.mark.parametrize("binned", [False, True])
+def test_single_cluster_site_assignments(feature, binned, monkeypatch):
+    data = pd.DataFrame(
+        {
+            "profile": [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6], [0.7, 0.8]],
+            "lcoe": [10.0, 20.0, 30.0, 40.0],
+            "state": ["a", "a", "b", "b"],
+        },
+        index=[30, 10, 40, 20],
+    )
+    estimator = Mock(side_effect=AssertionError("Single clusters must not fit a tree"))
+    monkeypatch.setattr(
+        "powergenome.cluster.renewables.AgglomerativeClustering", estimator
+    )
+
+    if binned:
+        result = cluster_sites_binned(
+            data, by="state", method="agg", feature=feature, n_clusters=1
+        )
+    else:
+        result = cluster_sites_no_bin(data, method="agg", feature=feature, n_clusters=1)
+
+    np.testing.assert_array_equal(
+        result["cluster"], [0, 0, 1, 1] if binned else [0] * 4
+    )
+    pd.testing.assert_frame_equal(result.drop(columns="cluster"), data)
+    assert "cluster" not in data.columns
+    estimator.assert_not_called()
 
 
 def test_assign_site_cluster():

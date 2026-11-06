@@ -1109,6 +1109,140 @@ class TestPhase2WithTestData:
         results = _check_new_resource_cost_years(s, FakeDM())
         assert "…" in (_warnings(results)[0].detail or "")
 
+    def test_new_resource_cost_years_multiple_resources_share_a_key(self):
+        """Repeated (tech, detail, case) rows collapse to one year set."""
+        import pandas as pd
+
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame(
+                    {
+                        "technology": ["NaturalGas", "NaturalGas", "Wind"],
+                        "tech_detail": ["CCGT", "CCGT", "Class3"],
+                        "cost_case": ["Moderate", "Moderate", "Moderate"],
+                        "basis_year": [2026, 2028, 2027],
+                    }
+                )
+
+        s = _minimal_valid_settings(
+            model_periods=[[2025, 2030]],
+            new_resources=[
+                ["NaturalGas", "CCGT", "Moderate", 500],
+                ["Wind", "Class3", "Moderate", 1],
+            ],
+        )
+        assert _warnings(_check_new_resource_cost_years(s, FakeDM())) == []
+
+    def test_new_resource_cost_years_nan_years_ignore_valid_siblings(self):
+        """A NaN basis_year does not hide the valid years for the same resource."""
+        import numpy as np
+        import pandas as pd
+
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame(
+                    {
+                        "technology": ["NaturalGas", "NaturalGas"],
+                        "tech_detail": ["CCGT", "CCGT"],
+                        "cost_case": ["Moderate", "Moderate"],
+                        "basis_year": [np.nan, 2028],
+                    }
+                )
+
+        s = _minimal_valid_settings(
+            model_periods=[[2025, 2030]],
+            new_resources=[["NaturalGas", "CCGT", "Moderate", 500]],
+        )
+        assert _warnings(_check_new_resource_cost_years(s, FakeDM())) == []
+
+    def test_new_resource_cost_years_all_nan_years_report_no_matching_rows(self):
+        """A resource whose every basis_year is NaN still reports no rows."""
+        import numpy as np
+        import pandas as pd
+
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame(
+                    {
+                        "technology": ["NaturalGas"],
+                        "tech_detail": ["CCGT"],
+                        "cost_case": ["Moderate"],
+                        "basis_year": [np.nan],
+                    }
+                )
+
+        s = _minimal_valid_settings(
+            model_periods=[[2025, 2030]],
+            new_resources=[["NaturalGas", "CCGT", "Moderate", 500]],
+        )
+        results = _check_new_resource_cost_years(s, FakeDM())
+        assert any(
+            "no matching rows found" in (r.detail or "") for r in _warnings(results)
+        )
+
+    def test_new_resource_cost_years_checks_every_planning_period(self):
+        """Each hoisted planning-period range is still checked separately."""
+        import pandas as pd
+
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame(
+                    {
+                        "technology": ["NaturalGas"],
+                        "tech_detail": ["CCGT"],
+                        "cost_case": ["Moderate"],
+                        "basis_year": [2028],  # only covers the first period
+                    }
+                )
+
+        s = _minimal_valid_settings(
+            model_periods=[[2025, 2030], [2031, 2040]],
+            new_resources=[["NaturalGas", "CCGT", "Moderate", 500]],
+        )
+        detail = _warnings(_check_new_resource_cost_years(s, FakeDM()))[0].detail or ""
+        assert "2025–2030" not in detail
+        assert "2031–2040" in detail
+
+    def test_new_resource_cost_years_non_string_table_value_does_not_match(self):
+        """A string resource entry must not match a non-string table value.
+
+        The previous mask comparisons (``cost_df["technology"] == technology``)
+        treat an integer table value and a string resource entry as different,
+        so the check warned "no matching rows found". The lookup must preserve
+        that: no str() coercion of table keys.
+        """
+        import pandas as pd
+
+        class FakeDM:
+            available_tables = {"resource_cost"}
+
+            def get_data(self, *a, **kw):
+                return pd.DataFrame(
+                    {
+                        "technology": [5],  # int, resource entry is "5"
+                        "tech_detail": ["CCGT"],
+                        "cost_case": ["Moderate"],
+                        "basis_year": [2028],
+                    }
+                )
+
+        s = _minimal_valid_settings(
+            model_periods=[[2025, 2030]],
+            new_resources=[["5", "CCGT", "Moderate", 500]],
+        )
+        results = _check_new_resource_cost_years(s, FakeDM())
+        assert any(
+            "no matching rows found" in (r.detail or "") for r in _warnings(results)
+        )
+
 
 class TestCheckAggregationBaseRegions:
     """Tests for _check_aggregation_base_regions."""

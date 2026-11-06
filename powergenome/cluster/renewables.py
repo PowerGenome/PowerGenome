@@ -5,6 +5,7 @@ Flexible methods to cluster/aggregate renewable projects
 import logging
 import operator
 from functools import lru_cache
+from numbers import Integral
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -13,6 +14,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.preprocessing import StandardScaler
+from sklearn.utils.validation import check_array
 
 from powergenome.resource_clusters import MERGE
 from powergenome.util import read_tidy_profiles_wide, snake_case_str
@@ -281,9 +283,13 @@ def agg_cluster_profile(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
         )
         n_clusters = len(s)
 
-    clust = AgglomerativeClustering(n_clusters=n_clusters).fit(
-        np.array([x for x in np.array(s)])
-    )
+    profiles = np.array([x for x in np.array(s)])
+    if isinstance(n_clusters, Integral) and n_clusters == 1:
+        # Keep input validation without building a tree whose labels are already known.
+        check_array(profiles, ensure_min_samples=2)
+        return np.zeros(len(s), dtype=int)
+
+    clust = AgglomerativeClustering(n_clusters=n_clusters).fit(profiles)
     labels = clust.labels_
     return labels
 
@@ -307,9 +313,12 @@ def agg_cluster_other(s: pd.Series, n_clusters: int, **kwargs) -> np.ndarray:
             "Manually setting n_clusters to the number of renewable sites in this case."
         )
         n_clusters = len(s)
-    clust = AgglomerativeClustering(n_clusters=n_clusters).fit(
-        np.array(s).reshape(-1, 1)
-    )
+    values = np.array(s).reshape(-1, 1)
+    if isinstance(n_clusters, Integral) and n_clusters == 1:
+        check_array(values, ensure_min_samples=2)
+        return np.zeros(len(s), dtype=int)
+
+    clust = AgglomerativeClustering(n_clusters=n_clusters).fit(values)
     labels = clust.labels_
     return labels
 
