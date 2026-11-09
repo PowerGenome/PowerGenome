@@ -89,7 +89,7 @@ class TestParseCommandLine:
         assert args.case_id is None
         assert (
             args.multi_period is True
-        )  # Default is True, becomes False when flag is used
+        )  # Multi-period output is on unless --no-multi-period is used
         assert args.macro is False  # Macro output is opt-in
         assert args.genx is False  # GenX is the default in main(); flag is explicit
         assert args.no_genx is False
@@ -213,15 +213,20 @@ class TestParseCommandLine:
         args = parse_command_line(argv)
         assert args.case_id == ["single_case"]
 
-    def test_multi_period_flag(self):
-        """Test the --multi-period flag."""
-        argv = ["script_name", "-mp"]
-        args = parse_command_line(argv)
-        assert args.multi_period is False
+    def test_multi_period_flags(self):
+        """Test the explicit multi-period enable/disable flags."""
+        assert parse_command_line(["script_name"]).multi_period is True
+        assert (
+            parse_command_line(["script_name", "--multi-period"]).multi_period is True
+        )
+        assert parse_command_line(["script_name", "-mp"]).multi_period is True
+        assert (
+            parse_command_line(["script_name", "--no-multi-period"]).multi_period
+            is False
+        )
 
-        argv = ["script_name", "--multi-period"]
-        args = parse_command_line(argv)
-        assert args.multi_period is False
+        with pytest.raises(SystemExit):
+            parse_command_line(["script_name", "--multi-period", "--no-multi-period"])
 
     def test_combined_arguments(self):
         """Test parsing multiple arguments together."""
@@ -249,7 +254,7 @@ class TestParseCommandLine:
         assert args.transmission is True
         assert args.sort_gens is True
         assert args.case_id == ["case1", "case2"]
-        assert args.multi_period is False
+        assert args.multi_period is True
 
 
 class TestResolveOutputFormats:
@@ -545,11 +550,11 @@ class TestMainFunction:
                             # Test with multi_period=False (should log message)
                             main(multi_period=False)
 
-                            # Check that multi-period info message WAS logged
+                            # Check that the disabled-output notice WAS logged
                             info_calls = [
                                 call
                                 for call in mock_info.call_args_list
-                                if "version 0.6.2" in str(call)
+                                if "Multi-period output is disabled" in str(call)
                             ]
                             assert len(info_calls) == 1
 

@@ -177,8 +177,9 @@ A unit contributes its full capacity if it is operating at the planning period's
 period are included without prorating their capacity.
 
 !!! note "Myopic multi-period models"
-    Omit `--multi-period` to keep the CLI's default multi-period behavior; passing
-    this flag disables it. Use the same generation data across the periods of a
+    Multi-period output is the CLI default, and `--multi-period` only makes that
+    explicit. Do not pass `--no-multi-period`, which omits the retirement
+    requirements described here. Use the same generation data across the periods of a
     case to keep cluster membership consistent. PowerGenome records scheduled
     retirements in later periods as minimum retirement requirements for each
     resource (`Min_Retired_*` columns).
