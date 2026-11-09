@@ -5,7 +5,7 @@ For component responsibilities, see [Architecture Overview](architecture.md).
 
 ```text
 Settings and validation → DataManager → Gross demand → Generators and fuels
-→ Net demand and time reduction → Transmission and policies → Output writers
+→ Net demand → Transmission and policies → Output writers
 ```
 
 ## Stage 1: Settings loading and validation
@@ -58,21 +58,16 @@ applied as required by the resource workflow.
 **Products**: resource attributes (`gen_data`), hourly resource variability,
 and fuel-price inputs—not yet the final split GenX files.
 
-## Stage 4: Net demand and time reduction
+## Stage 4: Net demand
 
 `make_final_load_curves()` uses the earlier gross demand, including configured
 supplemental/flexible demand. Distributed generation is subtracted unless it is
 represented as an explicit resource with `dg_as_resource`.
 
-When `reduce_time_domain: true`, load and generation variability are reduced
-together into representative groups of days. Weights and mapping data describe
-how those periods represent the original series. Without reduction, all input
-hours pass through as one period. Reduction is skipped for series longer than
-8760 hours.
+Demand and variability profiles are written at the resolution of the input
+data, so the model sees every supplied hour.
 
-**Products**: aligned demand and variability profiles, weights, and time-series
-mapping. An unweighted reduced sum is not annual energy. See
-[Time Reduction Settings](../reference/settings/time-reduction.md).
+**Products**: aligned demand and variability profiles.
 
 ## Stage 5: Transmission and policies
 
@@ -119,7 +114,7 @@ Skip-stage flags are mainly useful for focused development and diagnostics:
 | --- | --- |
 | `--no-current-gens` | Existing generator clustering; new-build resources still run. |
 | `--no-gens` | The entire generator stage. |
-| `--no-load` | Load construction and time reduction. |
+| `--no-load` | Load construction. |
 | `--no-transmission` | Transmission and policy files. |
 
 Not every partial-stage combination produces complete model inputs. The default

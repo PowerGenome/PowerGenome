@@ -135,7 +135,7 @@ PowerGenome generates multiple CSV files formatted for GenX:
   when that type is present
 
 **system/Demand_data.csv**
-: Demand by zone and time step, plus representative-period metadata
+: Demand by zone and time step
 
 **system/Fuels_data.csv**
 : Fuel prices by region and time step

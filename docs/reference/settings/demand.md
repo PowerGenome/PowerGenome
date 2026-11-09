@@ -179,5 +179,4 @@ For a step-by-step guide see [Add Supplemental Hourly Demand](../../how-to/add-s
 
 - [Data Tables](data-tables.md): Format specification for all data tables
 - [Regions](regions.md): Model region definitions
-- [Time Reduction](time-reduction.md): Representative period selection
 - [Model Definition](model-definition.md): Planning years configuration

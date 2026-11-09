@@ -23,8 +23,6 @@ results/<case_id>/Inputs/Inputs_p<N>/
 │   ├── Fuels_data.csv
 │   ├── Generators_variability.csv
 │   ├── Network.csv
-│   ├── Period_map.csv
-│   ├── Representative_Period.csv
 │   └── Operational_reserves.csv
 ├── resources/                               # One file per resource type
 │   ├── Thermal.csv
@@ -55,14 +53,14 @@ Files that are empty or correspond to disabled features are omitted.
 
 ### `Demand_data.csv` / `Load_data.csv`
 
-Hourly (or representative-period) electricity demand for each model zone.
+Hourly electricity demand for each model zone.
 
 | Column | Description |
 |---|---|
 | `Time_Index` | Hour index (1-based) |
 | `Demand_MW_z{N}` | Load in MW for zone N (one column per zone) |
-| `Rep_Periods` | Number of representative periods |
-| `Timesteps_per_Rep_Period` | Hours per representative period |
+| `Rep_Periods` | Number of periods in the file |
+| `Timesteps_per_Rep_Period` | Hours per period |
 | `Sub_Weights` | Hours represented by each period, stored in the first rows |
 
 The legacy file uses `Load_MW_z{N}` instead of `Demand_MW_z{N}`.
@@ -99,25 +97,6 @@ Transmission network topology and line parameters.
 | `Line_Max_Reinforcement_MW` | Maximum allowed capacity expansion |
 | `Line_Reinforcement_Cost_per_MWyr` | Annualized expansion cost ($/MW-year) |
 | `CapRes_Excl_{N}` | Capacity reserve zone exclusion flag |
-
-### `Period_map.csv`
-
-Maps each representative period to the full-year hours it represents (only present when time-domain reduction is used).
-
-| Column | Description |
-|---|---|
-| `Period_Index` | Row index |
-| `Rep_Period_Index` | Index of the selected representative period |
-| `Rep_Period` | Original period number selected as the representative |
-| `Month` | Month associated with the original period |
-
-### `Representative_Period.csv`
-
-Original periods selected as representatives. Weights are in `Demand_data.csv`.
-
-| Column | Description |
-|---|---|
-| `slot` | Original period label, such as `p42` |
 
 ---
 

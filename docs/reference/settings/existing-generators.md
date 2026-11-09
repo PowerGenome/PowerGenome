@@ -122,7 +122,7 @@ Maximum combined **operating existing-generator capacity** with missing availabi
 profiles in each model region, as a fraction of that region's **mean hourly demand
 before distributed-generation subtraction**. Demand uses the scenario's planning
 and weather years, regional aggregation, and supplemental/flexible demand additions,
-before rounding or time reduction. Multiple weather years are weighted by their
+before rounding. Multiple weather years are weighted by their
 number of modeled hours.
 
 ```yaml

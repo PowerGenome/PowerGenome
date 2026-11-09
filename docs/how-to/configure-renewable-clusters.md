@@ -204,9 +204,9 @@ layout is not the default; see [Output Format](../explanation/output-format.md).
 Check new-build wind separately from existing wind. Compare `Max_Cap_MW` totals
 with eligible site capacity, count resources by region, and inspect
 `Inv_Cost_per_MWyr` ($/MW-year), not just the metadata's screening `lcoe`.
-Profile columns must match the written `Resource` names. A simple mean over
-representative time steps is **not an annual capacity factor**: use period
-weights and durations when time reduction is enabled. See the
+Profile columns must match the written `Resource` names. A simple mean over the
+written hours is **not an annual capacity factor** when the profile covers only
+a sample of hours. See the
 [tutorial's output checks](../tutorials/renewable-resources.md#step-5-compare-the-outputs).
 
 ## Caching for speed

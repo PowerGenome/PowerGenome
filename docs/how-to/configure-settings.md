@@ -16,7 +16,6 @@ my_project/
 │   ├── fuels.yml
 │   ├── transmission.yml
 │   ├── demand.yml
-│   ├── time_reduction.yml
 │   ├── scenario_management.yml
 │   └── data.yml
 └── extra_inputs/
@@ -100,7 +99,6 @@ Split settings by functional area:
 **fuels.yml**: Fuel prices, emissions, carbon pricing
 **transmission.yml**: Network constraints, expansion costs
 **demand.yml**: Load profiles, growth, distributed generation
-**time_reduction.yml**: Representative period configuration
 **scenario_management.yml**: Multi-scenario definitions
 
 ### By Model Year

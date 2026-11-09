@@ -171,10 +171,9 @@ same two LCOE tiers within each region; now each tier is split into two groups
 with similar output timing. Profiles and supported cost columns are
 capacity-weighted within each final cluster, and capacities are summed.
 
-Keep both existing cache controls `false` for this exercise. Leave
-`reduce_time_domain: false`, all other technologies, and both planning periods
-unchanged. With no `weather_year` selection in the baseline, both bundled
-profile years are loaded in each run.
+Keep both existing cache controls `false` for this exercise. Leave all other
+technologies and both planning periods unchanged. With no `weather_year`
+selection in the baseline, both bundled profile years are loaded in each run.
 
 Edit the existing definition, **not** a new override file. A settings directory
 loads only immediate `.yml` files with shallow top-level replacement and no
@@ -251,9 +250,7 @@ available capacity in each region (apart from CSV rounding). The fixture writes
 `Inv_Cost_per_MWyr` is an annual investment cost in $/MW-year; it is not the
 screening metadata's `lcoe`.
 
-A mean of these short sample profiles is not an annual capacity factor. If you
-later enable representative-period time reduction, simple row means also omit
-period weights and durations.
+A mean of these short sample profiles is not an annual capacity factor.
 
 To inspect which sites were combined, open the three
 `*site_cluster_assignments.csv` files under each period's `extra_outputs/`.

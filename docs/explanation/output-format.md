@@ -23,9 +23,7 @@ results/
             │   ├── Demand_data.csv
             │   ├── Fuels_data.csv
             │   ├── Generators_variability.csv
-            │   ├── Network.csv
-            │   ├── Period_map.csv
-            │   └── Representative_Period.csv
+            │   └── Network.csv
             ├── resources/          ← one CSV per resource type
             │   ├── Thermal.csv
             │   ├── Vre.csv
@@ -53,17 +51,19 @@ When running without scenario definitions, `case_id = Inputs` and the folder is 
 
 ### `Demand_data.csv`
 
-Hourly electricity demand for each model zone. One row per hour (or representative period timestep), with columns:
+Hourly electricity demand for each model zone. One row per hour, with columns:
 
 | Column | Description |
 |---|---|
-| `Rep_Periods` | Number of representative periods |
-| `Timesteps_per_Rep_Period` | Hours per representative period |
-| `Sub_Weights` | Weight (hours) each period represents in the full year |
+| `Rep_Periods` | Number of periods in the file |
+| `Timesteps_per_Rep_Period` | Hours per period |
+| `Sub_Weights` | Hours each period represents |
 | `Time_Index` | Sequential hour index |
 | `Demand_MW_z<N>` | Load in MW for zone N |
 
-When time domain reduction is off, there is one period covering all 8760 hours with `Sub_Weights = 8760`.
+All supplied hours are written as one period, so `Rep_Periods` is `1`,
+`Timesteps_per_Rep_Period` is the number of hours, and `Sub_Weights` equals that
+hour count.
 
 ### `Fuels_data.csv`
 
@@ -87,10 +87,6 @@ Transmission network topology. One row per network line (inter-regional connecti
 | `Line_Loss_Percentage` | Fraction of power lost in transmission |
 | `Line_Max_Reinforcement_MW` | Maximum expansion allowed (if `tx_expansion_per_period` or `tx_expansion_mw_per_period` is set) |
 | `Line_Reinforcement_Cost_per_MWyr` | Annualized cost to expand line by 1 MW |
-
-### `Period_map.csv` and `Representative_Period.csv`
-
-Present only when time domain reduction is active. Map representative periods back to the original 8760-hour year for chronological analysis.
 
 ---
 
@@ -198,7 +194,7 @@ transmission, demand, fuel supply, and CO2 caps follows the [GenX-to-Macro conve
 
 With `macro_output: true`, both formats are written in the same `run_powergenome`
 call unless GenX output is disabled. Because all intermediate data processing
-(storage clustering, time reduction, market data) is shared, writing GenX and Macro inputs together in one run is
+(storage clustering, market data) is shared, writing GenX and Macro inputs together in one run is
 **faster than running PowerGenome twice** (once per model). Use `--no-genx` / `genx_output: false` to produce Macro
 inputs only.
 
@@ -218,7 +214,6 @@ at `results/` without them. It contains one stage per planning period:
 │   ├── locations.json        # Model region names
 │   ├── nodes_1.json          # Stage 1 demand nodes, fuel supply nodes, CO2 sinks
 │   ├── time_data_1.json      # Stage 1 time settings
-│   ├── Period_map_1.csv      # Only when time reduction is active
 │   ├── demand_1.csv
 │   ├── availability_1.csv
 │   └── fuel_prices_1.csv
@@ -258,7 +253,6 @@ hydrogen, liquid-fuel, or demand-side assets.
 ## Related documentation
 
 - [Resource Tags Settings](../reference/settings/resource-tags.md): How `THERM`, `VRE`, `STOR` etc. are assigned
-- [Time Reduction Settings](../reference/settings/time-reduction.md): Controls `Rep_Periods` and `Sub_Weights`
 - [Transmission Settings](../reference/settings/transmission.md): Network parameters
 - [Macro Output Settings](../reference/settings/macro-output.md): How to enable GenX and/or Macro output
 - [Data Pipeline Flow](pipeline.md): How outputs are assembled from pipeline stages

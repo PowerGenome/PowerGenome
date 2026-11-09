@@ -68,16 +68,7 @@ that profile identifiers match resource metadata. For aggregated demand regions,
 supply the constituent base regions, not just an aggregate label.
 
 Review [Demand Settings](../reference/settings/demand.md) and
-[Configure Renewable Clusters](configure-renewable-clusters.md). For reduced
-profiles, an unweighted sum is not annual energy; use the output weights.
-
-### Time reduction fails or is skipped
-
-Check `time_domain_periods`, `time_domain_days_per_period`, `include_peak_day`,
-and `demand_weight_factor` against the available hours. Reduction is skipped
-for time series longer than 8760 hours. See
-[Time Reduction Settings](../reference/settings/time-reduction.md); a smaller
-representation is not automatically adequate for your study.
+[Configure Renewable Clusters](configure-renewable-clusters.md).
 
 ### Resource files are empty or absent
 

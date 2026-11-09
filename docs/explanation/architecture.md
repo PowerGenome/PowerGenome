@@ -26,7 +26,7 @@ graph LR
 | `resource_clusters.py` | Select renewable sites and aggregate their capacity, costs, and profiles. |
 | `load_profiles.py`, `distributed_gen.py` | Build demand and distributed-generation contributions. |
 | `fuels.py`, `transmission.py` | Construct fuel-price and inter-regional network inputs. |
-| `GenX.py`, `time_reduction.py` | Format GenX data and select representative time periods. |
+| `GenX.py` | Format GenX inputs: resource tags, column naming, and output files. |
 
 These responsibilities explain where to investigate a problem; normal studies
 are configured through YAML rather than by calling these modules directly.

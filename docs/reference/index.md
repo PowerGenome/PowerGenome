@@ -13,7 +13,6 @@ Comprehensive documentation of all settings parameters organized by functional a
 - **[Fuels](settings/fuels.md)**: Fuel prices, emission factors, CCS configuration
 - **[Demand and Load](settings/demand.md)**: Year-specific load profiles, supplemental demand, distributed generation
 - **[Transmission](settings/transmission.md)**: Network constraints, expansion costs, line loss
-- **[Time Reduction](settings/time-reduction.md)**: Representative period selection and weighting
 - **[Resource Tags](settings/resource-tags.md)**: Technology categorization for model behavior
 - **[Multi-Scenario Management](settings/scenario-management.md)**: Parameter variation across cases
 - **[Output Formats](settings/macro-output.md)**: GenX and Macro output selection, Macro model-run settings

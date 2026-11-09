@@ -89,40 +89,6 @@ type: List[int]
 
 description: Integer values. The first year in each planning period. These are combined with the values from `model_year` to define the range of years for each planning period. Cost values (capex, fuel cost, etc) are the average of values from all years within a planning period.
 
-## Time reduction
-
-PowerGenome can reduce hourly demand/generation data to a series of time periods/slices. These parameters control how many periods will be used, how many days each period should be, if the day with peak demand should be included, and if/how much demand should be weighted relative to generation profiles when selecting representative time periods.
-
-### reduce_time_domain
-
-type: bool
-
-description: If the load and generation profiles should be reduced from 8760 hourly values to a representative subset of hours.
-
-### time_domain_periods
-
-type: int
-
-description: The number of periods (or clusters) of days. As an example, a system with 10 representative weeks would have 10 periods.
-
-### time_domain_days_per_period
-
-type: int
-
-description: The number of days (24 consecutive hours) to include in each period. If a model uses operational constraints like start-up or shutdown times then multiple days might be appropriate.
-
-### include_peak_day
-
-type: bool
-
-description: If the system-wide peak demand day should be included in one of periods.
-
-### demand_weight_factor
-
-type: int
-
-description: Demand and variable generation profiles are scaled from 0-1 before calculating clusters. Demand profiles are then multiplied by this parameter. Values greater than 1 will weight demand more heavily than variable generation profiles.
-
 ## Multi-scenario/period and user-input parameters
 
 Users need to supply additional information about scenarios and some data that are not yet included in PowerGenome. These parameters point to where those files are located (relative to the settings file).
@@ -479,7 +445,7 @@ type: float (finite number in [0, 1], not a boolean)
 
 default: 0.005
 
-description: Combined maximum operating capacity of existing resources with missing availability profiles in each model region, as a fraction of mean hourly regional demand **before DG subtraction**, rounding, or time reduction. Uses scenario/year/weather selection, regional aggregation, and supplemental/flexible demand additions; multiple weather years are weighted by modeled hours. At or below the budget, warn and retain affected capacity with availability 1.0 in every modeled hour; above it, error. Set 0 for strict mode. Includes absent resource groups, absent regional metadata, missing sites, and empty/incomplete profiles for hydro, wind, solar, and other profile-backed technologies. Partial coverage charges the whole failing existing cluster, never resource-group metadata capacity. All affected clusters/technologies share one regional budget. Retired/zero operating capacity consumes no budget. Explicitly profile-free groups (`group.profiles is None`) and unsupported dispatchable technologies remain exempt; new-build behavior is unchanged. Positive-capacity fallback requires valid pre-DG demand, loaded lazily even with `--no-load`. Invalid schemas, corrupt files, ambiguous groups, and unavailable weather years remain errors. Constant availability is a modeling approximation, not a reliability guarantee; fix coverage before raising the tolerance. See [Missing existing-resource availability profiles](../docs/explanation/clustering.md#missing-existing-resource-availability-profiles).
+description: Combined maximum operating capacity of existing resources with missing availability profiles in each model region, as a fraction of mean hourly regional demand **before DG subtraction** and rounding. Uses scenario/year/weather selection, regional aggregation, and supplemental/flexible demand additions; multiple weather years are weighted by modeled hours. At or below the budget, warn and retain affected capacity with availability 1.0 in every modeled hour; above it, error. Set 0 for strict mode. Includes absent resource groups, absent regional metadata, missing sites, and empty/incomplete profiles for hydro, wind, solar, and other profile-backed technologies. Partial coverage charges the whole failing existing cluster, never resource-group metadata capacity. All affected clusters/technologies share one regional budget. Retired/zero operating capacity consumes no budget. Explicitly profile-free groups (`group.profiles is None`) and unsupported dispatchable technologies remain exempt; new-build behavior is unchanged. Positive-capacity fallback requires valid pre-DG demand, loaded lazily even with `--no-load`. Invalid schemas, corrupt files, ambiguous groups, and unavailable weather years remain errors. Constant availability is a modeling approximation, not a reliability guarantee; fix coverage before raising the tolerance. See [Missing existing-resource availability profiles](../docs/explanation/clustering.md#missing-existing-resource-availability-profiles).
 
 ### alt_cluster_method
 

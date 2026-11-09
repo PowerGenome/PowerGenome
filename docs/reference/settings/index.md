@@ -80,14 +80,6 @@ Settings are grouped by functional area:
 
     Parameters: `demand_table`, `distributed_capacity_table`, etc.
 
-- :material-clock-fast: **[Time Reduction](time-reduction.md)**
-
-    ---
-
-    Representative period selection, clustering methodology, time domain control.
-
-    Parameters: `reduce_time_domain`, `time_domain_periods`, `include_peak_day`, etc.
-
 - :material-tag-multiple: **[Resource Tags](resource-tags.md)**
 
     ---
@@ -130,7 +122,7 @@ Settings are grouped by functional area:
 # Scalars
 model_year: 2030
 target_usd_year: 2023
-reduce_time_domain: true
+old_genx_format: false
 
 # Lists
 model_regions: [CA_N, CA_S, AZ]
@@ -289,7 +281,7 @@ Use `.get(key, default)` for optional parameters:
 year = settings["model_year"]
 
 # Optional (use default)
-reduce_time = settings.get("reduce_time_domain", False)
+macro = settings.get("macro_output", False)
 ```
 
 ## Environment Variables (Deprecated)
