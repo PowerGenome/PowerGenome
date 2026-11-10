@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -547,12 +547,12 @@
   <a href="#learning-path" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Learning Path
+        Learning path
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Learning Path">
+    <nav class="md-nav" aria-label="Learning path">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -594,21 +594,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#before-you-begin" class="md-nav__link">
+  <a href="#move-to-your-own-study" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Before You Begin
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#data-requirements" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Data Requirements
+        Move to your own study
       
     </span>
   </a>
@@ -619,7 +608,7 @@
   <a href="#need-help" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Need Help?
+        Need help?
       
     </span>
   </a>
@@ -1630,34 +1619,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../reference/settings/macro-output/" class="md-nav__link">
         
   
@@ -2300,12 +2261,12 @@
   <a href="#learning-path" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Learning Path
+        Learning path
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Learning Path">
+    <nav class="md-nav" aria-label="Learning path">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2347,21 +2308,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#before-you-begin" class="md-nav__link">
+  <a href="#move-to-your-own-study" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Before You Begin
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#data-requirements" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Data Requirements
+        Move to your own study
       
     </span>
   </a>
@@ -2372,7 +2322,7 @@
   <a href="#need-help" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Need Help?
+        Need help?
       
     </span>
   </a>
@@ -2448,65 +2398,46 @@
 
 
 <h1 id="tutorials">Tutorials<a class="headerlink" href="#tutorials" title="Permanent link">&para;</a></h1>
-<p>Welcome to the PowerGenome tutorials! These step-by-step guides will teach you how to use PowerGenome effectively.</p>
-<h2 id="learning-path">Learning Path<a class="headerlink" href="#learning-path" title="Permanent link">&para;</a></h2>
-<p>We recommend completing these tutorials in order:</p>
+<p>Start with a complete small study, then change one part at a time. These lessons
+use the published Texas three-zone study from
+<a href="https://github.com/PowerGenome/PowerGenome-examples">PowerGenome-examples</a>.
+Inspect actual outputs without assembling a research dataset or cloning
+PowerGenome's source. PowerGenome prepares inputs; it does not solve the model.</p>
+<h2 id="learning-path">Learning path<a class="headerlink" href="#learning-path" title="Permanent link">&para;</a></h2>
 <h3 id="1-getting-started">1. <a href="getting-started/">Getting Started</a><a class="headerlink" href="#1-getting-started" title="Permanent link">&para;</a></h3>
-<p>Install PowerGenome, understand the basic workflow, and run your first model. You'll learn:</p>
-<ul>
-<li>How to install PowerGenome</li>
-<li>The structure of a PowerGenome project</li>
-<li>How to run the command-line interface</li>
-<li>How to examine the output files</li>
-</ul>
-<p><strong>Time</strong>: ~30 minutes
-<strong>Prerequisites</strong>: Basic command-line knowledge</p>
+<p>Install a published release with uv, download a pinned examples snapshot,
+validate the Texas study, and generate inputs for 2030 and 2045. Learn where
+settings, data, logs, and GenX outputs live.</p>
+<p><strong>Prerequisites</strong>: uv, curl, tar, a terminal, and basic command-line familiarity.</p>
 <h3 id="2-building-a-multi-region-model">2. <a href="multi-region-model/">Building a Multi-Region Model</a><a class="headerlink" href="#2-building-a-multi-region-model" title="Permanent link">&para;</a></h3>
-<p>Create a model with multiple regions and transmission constraints. You'll learn:</p>
-<ul>
-<li>How to define model regions (base regions and aggregated regions)</li>
-<li>How PowerGenome's regional hierarchy works</li>
-<li>How to configure transmission between regions</li>
-<li>How to set regional parameters</li>
-</ul>
-<p><strong>Time</strong>: ~45 minutes
-<strong>Prerequisites</strong>: Complete "Getting Started"</p>
+<p>Continue with the downloaded Texas study. Inspect its base-to-model-region
+aggregation, change transmission expansion limits, and verify both periods'
+network outputs against the first run.</p>
+<p><strong>Prerequisites</strong>: Getting Started and its unchanged <code>tx_output/</code> baseline.</p>
 <h3 id="3-working-with-renewable-resources">3. <a href="renewable-resources/">Working with Renewable Resources</a><a class="headerlink" href="#3-working-with-renewable-resources" title="Permanent link">&para;</a></h3>
-<p>Configure wind and solar resources with generation profiles. You'll learn:</p>
+<p>Aggregate the Texas example's wind candidates into cost-and-profile clusters
+and compare resource counts, capacity limits, and generation profiles while
+preserving solar. Follow the separate-settings setup to isolate the change.</p>
+<p><strong>Prerequisites</strong>: The installed environment and downloaded examples from Getting
+Started. This lesson can be taken independently of the transmission exercise.</p>
+<h2 id="move-to-your-own-study">Move to your own study<a class="headerlink" href="#move-to-your-own-study" title="Permanent link">&para;</a></h2>
+<p>The example has short synthetic profiles and can emit warnings; it demonstrates
+the workflow, not realistic system economics. Browse
+<a href="https://github.com/PowerGenome/PowerGenome-examples">PowerGenome-examples</a> for
+other published cases. A real study needs complete compatible sources
+for existing plants, technology costs, renewable profiles, demand, fuels,
+transmission, and any configured policies.</p>
+<p>Use the <a href="https://gschivley.github.io/PowerGenome-tools/web/">System Design tool</a>
+to create starting settings, then <a href="../how-to/configure-data-tables/">Configure Data Tables</a>
+and <a href="../how-to/validate-settings/">validate the study</a>. Changing region names
+or planning years alone does not supply the corresponding data.</p>
+<h2 id="need-help">Need help?<a class="headerlink" href="#need-help" title="Permanent link">&para;</a></h2>
 <ul>
-<li>How renewable resource groups work</li>
-<li>How to filter and cluster renewable sites</li>
-<li>How to configure interconnection costs</li>
-<li>How to customize resource characteristics by region</li>
+<li><a href="../how-to/debugging/">Debugging</a>: first checks and common failures.</li>
+<li><a href="../reference/">Reference</a>: exact parameters and schemas.</li>
+<li><a href="https://groups.io/g/powergenome">groups.io</a>: community questions.</li>
+<li><a href="https://github.com/PowerGenome/PowerGenome/issues">GitHub Issues</a>: bug reports.</li>
 </ul>
-<p><strong>Time</strong>: ~45 minutes
-<strong>Prerequisites</strong>: Complete "Getting Started"</p>
-<h2 id="before-you-begin">Before You Begin<a class="headerlink" href="#before-you-begin" title="Permanent link">&para;</a></h2>
-<p>Make sure you have:</p>
-<ul>
-<li>Python 3.8 or higher installed</li>
-<li>Basic familiarity with YAML file format</li>
-<li>A text editor or IDE for editing configuration files</li>
-<li>Enough disk space for data files (~5-10 GB depending on scope)</li>
-</ul>
-<h2 id="data-requirements">Data Requirements<a class="headerlink" href="#data-requirements" title="Permanent link">&para;</a></h2>
-<p>PowerGenome uses data from multiple sources. The tutorials use small test datasets, but for real studies you'll need:</p>
-<ul>
-<li>Generator data (from EIA via PUDL)</li>
-<li>Technology cost data (NREL ATB)</li>
-<li>Generation profiles for renewables</li>
-<li>Demand time series</li>
-<li>Transmission network data</li>
-</ul>
-<p>See the <a href="../how-to/configure-data-tables/">Configure Data Tables</a> guide for details on obtaining and configuring data sources.</p>
-<h2 id="need-help">Need Help?<a class="headerlink" href="#need-help" title="Permanent link">&para;</a></h2>
-<p>If you get stuck:</p>
-<ol>
-<li>Check the <a href="../how-to/debugging/">Debugging</a> guide for common issues</li>
-<li>Review the <a href="../reference/">Reference</a> documentation for parameter details</li>
-<li>Ask questions on <a href="https://groups.io/g/powergenome">groups.io</a></li>
-<li>Open an issue on <a href="https://github.com/PowerGenome/PowerGenome/issues">GitHub</a></li>
-</ol>
 
 
 
@@ -2592,7 +2523,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

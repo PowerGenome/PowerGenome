@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1699,34 +1699,6 @@
   
   
     <li class="md-nav__item">
-      <a href="time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="macro-output/" class="md-nav__link">
         
   
@@ -2605,7 +2577,10 @@
 
 <h1 id="settings-reference">Settings Reference<a class="headerlink" href="#settings-reference" title="Permanent link">&para;</a></h1>
 <p>This section documents all configuration parameters that control PowerGenome's behavior.</p>
-<p>Settings are defined in YAML files and loaded from a directory. PowerGenome recursively reads all <code>.yml</code> and <code>.yaml</code> files, with later files overriding earlier ones.</p>
+<p>Settings are defined in YAML files. When given a directory, PowerGenome reads
+its immediate <code>.yml</code> files, not nested folders or <code>.yaml</code> files. Avoid defining
+the same top-level setting in multiple files: their iteration order is not
+guaranteed, and a later value replaces the entire earlier value.</p>
 <h2 id="organization">Organization<a class="headerlink" href="#organization" title="Permanent link">&para;</a></h2>
 <p>Settings are grouped by functional area:</p>
 <div class="grid cards">
@@ -2654,19 +2629,13 @@
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m8.28 5.45-1.78-.9L7.76 2h8.47l1.27 2.55-1.78.89L15 4H9zM18.62 8h-4.53l-.79-3h-2.6l-.79 3H5.38L4.1 10.55l1.79.89.73-1.44h10.76l.72 1.45 1.79-.89zm-.85 14H15.7l-.24-.9L12 15.9l-3.47 5.2-.23.9H6.23l2.89-11h2.07l-.36 1.35L12 14.1l1.16-1.75-.35-1.35h2.07zm-6.37-7-.9-1.35-1.18 4.48zm3.28 3.12-1.18-4.48-.9 1.36z"/></svg></span> <strong><a href="transmission/">Transmission</a></strong></p>
 <hr />
 <p>Network topology, line limits, expansion costs, loss percentages.</p>
-<p>Parameters: <code>transmission_constraints</code>, <code>tx_line_loss_pct</code>, <code>tx_expansion_per_period</code>, <code>tx_expansion_mw_per_period</code>, etc.</p>
+<p>Parameters: <code>transmission_constraints_table</code>, <code>tx_expansion_per_period</code>, etc.</p>
 </li>
 <li>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4C7 7 6 8 6 9v5.5L9.5 18v3h5v-3l3.5-3.5V9c0-1-1-2-2-2m0 6.67-2.91 2.92-.42.41h-1.34l-.41-.41L8 13.67V9.09c0-.03.06-.09.09-.09h7.83c.03 0 .08.06.08.09z"/></svg></span> <strong><a href="demand/">Demand</a></strong></p>
 <hr />
 <p>Load profile sources, distributed generation, time weighting.</p>
-<p>Parameters: <code>load_zones</code>, <code>dg_capacity_table</code>, <code>dg_profiles_table</code>, etc.</p>
-</li>
-<li>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M15 4a8 8 0 0 1 8 8 8 8 0 0 1-8 8 8 8 0 0 1-8-8 8 8 0 0 1 8-8m0 2a6 6 0 0 0-6 6 6 6 0 0 0 6 6 6 6 0 0 0 6-6 6 6 0 0 0-6-6m-1 2h1.5v3.78l2.33 2.33-1.06 1.06L14 12.4zM2 18a1 1 0 0 1-1-1 1 1 0 0 1 1-1h3.83c.31.71.71 1.38 1.17 2zm1-5a1 1 0 0 1-1-1 1 1 0 0 1 1-1h2.05L5 12l.05 1zm1-5a1 1 0 0 1-1-1 1 1 0 0 1 1-1h3c-.46.62-.86 1.29-1.17 2z"/></svg></span> <strong><a href="time-reduction/">Time Reduction</a></strong></p>
-<hr />
-<p>Representative period selection, clustering methodology, time domain control.</p>
-<p>Parameters: <code>reduce_time_domain</code>, <code>time_domain_periods</code>, <code>include_peak_day</code>, etc.</p>
+<p>Parameters: <code>demand_table</code>, <code>distributed_capacity_table</code>, etc.</p>
 </li>
 <li>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.5 9A1.5 1.5 0 0 0 7 7.5 1.5 1.5 0 0 0 5.5 6 1.5 1.5 0 0 0 4 7.5 1.5 1.5 0 0 0 5.5 9m11.91 2.58c.36.36.59.86.59 1.42 0 .55-.22 1.05-.59 1.41l-5 5a1.996 1.996 0 0 1-2.83 0l-6.99-6.99C2.22 12.05 2 11.55 2 11V6c0-1.11.89-2 2-2h5c.55 0 1.05.22 1.41.58zm-3.87-5.87 1-1 6.87 6.87c.37.36.59.87.59 1.42s-.22 1.05-.58 1.41l-5.38 5.38-1-1L20.75 13z"/></svg></span> <strong><a href="resource-tags/">Resource Tags</a></strong></p>
@@ -2678,7 +2647,7 @@
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 3h6v4H3zm12 7h6v4h-6zm0 7h6v4h-6zm-2-4H7v5h6v2H5V9h2v2h6z"/></svg></span> <strong><a href="data-tables/">Data Tables</a></strong></p>
 <hr />
 <p>Input data source configuration with filtering and scenario selection.</p>
-<p>Parameters: <code>generation_table</code>, <code>demand_table</code>, <code>fuel_prices_table</code>, etc.</p>
+<p>Parameters: <code>generation_table</code>, <code>demand_table</code>, <code>fuel_price_table</code>, etc.</p>
 </li>
 <li>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 1c-1.11 0-2 .89-2 2v11c0 1.11.89 2 2 2h4v4c0 1.11.89 2 2 2h11c1.11 0 2-.89 2-2V9c0-1.11-.89-2-2-2h-4V3c0-1.11-.89-2-2-2zm0 2h11v4H9c-1.11 0-2 .89-2 2v5H3zm6 6h5v5H9zm7 0h4v11H9v-4h5c1.11 0 2-.89 2-2z"/></svg></span> <strong><a href="scenario-management/">Scenario Management</a></strong></p>
@@ -2699,12 +2668,12 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Scalars</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">model_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2030</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">target_usd_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2023</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nt">reduce_time_domain</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nt">old_genx_format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Lists</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="nt">model_regions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">CA_N</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CA_S</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">AZ</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="nt">new_resources</span><span class="p">:</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">NaturalGas</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CCAvgCF</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">500</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">NaturalGas</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1-on-1 Combined Cycle (H-Frame)</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">500</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">UtilityPV</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># Dictionaries</span>
@@ -2742,24 +2711,24 @@
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Conventional Steam Coal</span>
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Coal Integrated Gasification Combined Cycle</span>
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="nt">num_clusters</span><span class="p">:</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="nt">alt_num_clusters</span><span class="p">:</span>
 <a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
 <a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="nt">Conventional Steam Coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
 <a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="nt">Natural Gas Fired Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
 </code></pre></div>
 <p>Access pattern in code:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">combined_cycle_techs</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"tech_groups"</span><span class="p">][</span><span class="s2">"Combined Cycle"</span><span class="p">]</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">clusters</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"num_clusters"</span><span class="p">][</span><span class="s2">"CA_N"</span><span class="p">][</span><span class="s2">"Conventional Steam Coal"</span><span class="p">]</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">clusters</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"alt_num_clusters"</span><span class="p">][</span><span class="s2">"CA_N"</span><span class="p">][</span><span class="s2">"Conventional Steam Coal"</span><span class="p">]</span>
 </code></pre></div>
 <h3 id="regional-parameters">Regional Parameters<a class="headerlink" href="#regional-parameters" title="Permanent link">&para;</a></h3>
 <p>Regional settings can use model region names as keys:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">regional_tag_values</span><span class="p">:</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">THERM</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="nt">VRE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">THERM</span><span class="p">:</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">      </span><span class="nt">NaturalGas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="nt">THERM</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="nt">VRE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="nt">THERM</span><span class="p">:</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">      </span><span class="nt">NaturalGas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
 <a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="c1"># Legacy — only validated, not applied</span>
 <a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
@@ -2777,36 +2746,33 @@
 </code></pre></div>
 <p>These apply changes to base technology costs using operators like <code>mul</code>, <code>add</code>, <code>sub</code>.</p>
 <h3 id="technology-matching">Technology Matching<a class="headerlink" href="#technology-matching" title="Permanent link">&para;</a></h3>
-<p>Technology names are matched <strong>case-insensitively</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># These all match "naturalgas_ccavgcf_moderate" resource</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nt">tech_groups</span><span class="p">:</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nt">Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">NaturalGas_CCAvgCF</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">naturalgas_ccavgcf</span><span class="p p-Indicator">]</span>
+<p>Matching depends on the setting. Resource tags use case-insensitive substring
+matching (ignoring underscores), whereas <code>tech_groups</code> requires exact input
+technology names:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">model_tag_values</span><span class="p">:</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">THERM</span><span class="p">:</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="nt">NaturalGas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 </code></pre></div>
 <p>Region names are <strong>case-sensitive</strong> and must match exactly.</p>
 <h2 id="loading-mechanism">Loading Mechanism<a class="headerlink" href="#loading-mechanism" title="Permanent link">&para;</a></h2>
-<p>PowerGenome loads settings from a <strong>folder</strong>, not individual files:</p>
+<p>PowerGenome can load a settings folder or an individual YAML file:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_settings</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Correct: point to folder</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"my_study/settings"</span><span class="p">))</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># Incorrect: don't point to specific file</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="c1"># settings = load_settings(Path("my_study/settings/generators.yml"))</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"my_study/settings"</span><span class="p">))</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="c1"># Alternatively: load_settings(Path("my_study/settings.yml"))</span>
 </code></pre></div>
 <p><strong>Load Order</strong>:</p>
 <ol>
-<li>All <code>.yml</code> and <code>.yaml</code> files found recursively</li>
-<li>Files sorted alphabetically</li>
-<li>Later files override earlier ones</li>
-<li>Nested dictionaries are merged (not replaced)</li>
+<li>Immediate <code>.yml</code> files in the folder are read without a guaranteed order.</li>
+<li>Duplicate top-level keys replace previous values, including nested dictionaries.</li>
+<li>Keep each top-level setting in one file to avoid order-dependent results.</li>
 </ol>
 <p><strong>Example structure</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>settings/
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>├── 01_model_definition.yml   # Loaded first
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>├── 02_regions.yml
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>├── 03_generators.yml
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>└── 04_overrides.yml           # Loaded last, takes precedence
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>├── model_definition.yml
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>├── regions.yml
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>└── generators.yml
 </code></pre></div>
 <h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
 <p>PowerGenome validates settings at runtime:</p>
@@ -2821,7 +2787,7 @@
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">year</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"model_year"</span><span class="p">]</span>
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Optional (use default)</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">reduce_time</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"reduce_time_domain"</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">macro</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"macro_output"</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="environment-variables-deprecated">Environment Variables (Deprecated)<a class="headerlink" href="#environment-variables-deprecated" title="Permanent link">&para;</a></h2>
 <p>Older versions used <code>.env</code> files for data paths:</p>
@@ -2835,12 +2801,9 @@
 </code></pre></div>
 <h2 id="override-priority">Override Priority<a class="headerlink" href="#override-priority" title="Permanent link">&para;</a></h2>
 <p>When the same parameter appears in multiple places:</p>
-<ol>
-<li><strong>Command-line arguments</strong> (highest priority)</li>
-<li><strong>Scenario-specific settings_management</strong> swaps</li>
-<li><strong>YAML files</strong> (last file wins)</li>
-<li><strong>Default values</strong> in code (lowest priority)</li>
-</ol>
+<p>Scenario-specific <code>settings_management</code> swaps update the loaded settings; code
+defaults apply where values are absent. Individual command-line options have
+their own precedence rules and do not generally override arbitrary settings.</p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="model-definition/">Model Definition Parameters</a>: Start here for core settings</li>
@@ -2933,7 +2896,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

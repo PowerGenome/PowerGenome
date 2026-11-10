@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1030,21 +1030,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#technology-minimum-load" class="md-nav__link">
+  <a href="#operating-constraints" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Technology Minimum Load
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ramp-rates" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ramp Rates
+        Operating Constraints
       
     </span>
   </a>
@@ -1908,34 +1897,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../reference/settings/macro-output/" class="md-nav__link">
         
   
@@ -2776,21 +2737,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#technology-minimum-load" class="md-nav__link">
+  <a href="#operating-constraints" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Technology Minimum Load
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ramp-rates" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ramp Rates
+        Operating Constraints
       
     </span>
   </a>
@@ -3015,7 +2965,8 @@
 </ol>
 <h2 id="add-atb-technologies">Add ATB Technologies<a class="headerlink" href="#add-atb-technologies" title="Permanent link">&para;</a></h2>
 <h3 id="list-available-technologies">List Available Technologies<a class="headerlink" href="#list-available-technologies" title="Permanent link">&para;</a></h3>
-<p>ATB technologies follow naming convention: <code>{Technology}_{TechDetail}_{FinancialCase}</code></p>
+<p>New resource names follow <code>{Technology}_{TechDetail}_{CostCase}</code>. The available
+names depend on the configured resource cost table and data vintage.</p>
 <p><strong>Common technologies</strong>:</p>
 <ul>
 <li><code>NaturalGas_2-on-1 Combined Cycle (F-Frame)_Moderate</code>: Combined cycle gas turbine</li>
@@ -3053,7 +3004,7 @@
 </code></pre></div>
 <h3 id="set-cost-case">Set Cost Case<a class="headerlink" href="#set-cost-case" title="Permanent link">&para;</a></h3>
 <p>Choose financial assumptions and cost trajectories:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">resource_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2023</span><span class="w">  </span><span class="c1"># ATB vintage year</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">resource_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2024</span><span class="w">  </span><span class="c1"># Data vintage; must exist in the configured cost table</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">resource_financial_case</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Market</span><span class="w">  </span><span class="c1"># Market or R&amp;D</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">resource_cap_recovery_years</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w">  </span><span class="c1"># Economic lifetime</span>
 </code></pre></div>
@@ -3096,22 +3047,25 @@
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">UtilityPV</span>
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Class1</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.2</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Multiply by 1.2 (20% higher)</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="nt">fixed_o_m_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">18000</span><span class="w">  </span><span class="c1"># Direct override to $18,000/MW-year</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="nt">Fixed_OM_Cost_per_MWyr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">18000</span><span class="w">  </span><span class="c1"># Direct override to $18,000/MW-year</span>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span><span class="nt">landbased_wind</span><span class="p">:</span>
 <a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">LandbasedWind</span>
 <a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Class3</span>
 <a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.9</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># 10% cost reduction</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="nt">variable_o_m_mwh</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">  </span><span class="c1"># Zero variable O&amp;M</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="nt">Var_OM_Cost_per_MWh</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">  </span><span class="c1"># Zero variable O&amp;M</span>
 <a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>
 <a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">  </span><span class="nt">batteries</span><span class="p">:</span>
 <a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Utility-Scale Battery Storage</span>
 <a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">    </span><span class="nt">tech_detail</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Lithium Ion</span>
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">55000</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Add $100/kW (in 2004 USD) for interconnection</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">55000</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Add $55,000/MW</span>
 <a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">    </span><span class="nt">Var_OM_Cost_per_MWh</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.15</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">    </span><span class="nt">Var_OM_Cost_per_MWh_In</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.15</span><span class="w">  </span><span class="c1"># Set directly (not in ATB)</span>
-<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">    </span><span class="nt">wacc_real</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.04675</span><span class="w">  </span><span class="c1"># NREL ATB Market WACC for UtilityPV</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">    </span><span class="nt">wacc_real</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.04675</span><span class="w">  </span><span class="c1"># Override the real WACC</span>
 </code></pre></div>
+<p><code>resource_modifiers</code> runs after O&amp;M columns are renamed to their GenX names;
+<code>modified_new_resources</code> runs earlier and uses source names such as
+<code>fixed_o_m_mw</code> and <code>variable_o_m_mwh</code>.</p>
 <p><strong>Modifier behavior</strong>:</p>
 <ul>
 <li><strong>Operators in lists</strong>: <code>[operator, value]</code> format</li>
@@ -3132,7 +3086,9 @@
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>LandbasedWind_Class3,p2,1.097588
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>Utility-Scale Battery Storage_Lithium Ion,p1,1.072245
 </code></pre></div>
-<p>Multipliers apply on top of <code>resource_modifiers</code>.</p>
+<p>Multipliers apply on top of <code>resource_modifiers</code>.
+Configure this file with <code>regional_cost_factor_table</code>; it must cover the
+technologies and regions in the study.</p>
 <h2 id="create-technology-variants">Create Technology Variants<a class="headerlink" href="#create-technology-variants" title="Permanent link">&para;</a></h2>
 <h3 id="modified-new-resources">Modified New Resources<a class="headerlink" href="#modified-new-resources" title="Permanent link">&para;</a></h3>
 <p>Create renamed copies of ATB technologies with modified parameters:</p>
@@ -3209,7 +3165,7 @@
 <a id="__codelineno-9-26" name="__codelineno-9-26" href="#__codelineno-9-26"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
 <a id="__codelineno-9-27" name="__codelineno-9-27" href="#__codelineno-9-27"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">offshorewind</span>
 <a id="__codelineno-9-28" name="__codelineno-9-28" href="#__codelineno-9-28"></a><span class="w">    </span><span class="nt">turbine_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">floating</span>
-<a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a><span class="w">    </span><span class="nt">pref_site</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">  </span><span class="c1"># Include all sites (1 for preferred sites only)</span>
+<a id="__codelineno-9-29" name="__codelineno-9-29" href="#__codelineno-9-29"></a><span class="w">    </span><span class="nt">pref_site</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">  </span><span class="c1"># Match resource groups whose metadata has pref_site: 0</span>
 <a id="__codelineno-9-30" name="__codelineno-9-30" href="#__codelineno-9-30"></a><span class="w">    </span><span class="nt">bin</span><span class="p">:</span>
 <a id="__codelineno-9-31" name="__codelineno-9-31" href="#__codelineno-9-31"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe_interconnect_adj</span>
 <a id="__codelineno-9-32" name="__codelineno-9-32" href="#__codelineno-9-32"></a><span class="w">        </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span>
@@ -3224,7 +3180,7 @@
 <li><code>max</code>: Maximum value threshold</li>
 <li><code>bin</code>: List of binning operations</li>
 <li><code>feature</code>: Attribute to bin by</li>
-<li><code>weights</code>: Weight bins by capacity (<code>mw</code>, <code>capacity_mw</code>)</li>
+<li><code>weights</code>: Weight quantiles by a site-data column such as <code>capacity_mw</code></li>
 <li><code>q</code>: Number of quantile bins</li>
 <li><code>mw_per_bin</code>: Fixed MW per bin</li>
 <li><code>cluster</code>: List of clustering operations within bins</li>
@@ -3234,7 +3190,8 @@
 </ul>
 <p><strong>Technology-specific parameters</strong>:</p>
 <ul>
-<li>Offshore wind: <code>turbine_type</code> (<code>fixed</code>, <code>floating</code>), <code>pref_site</code> (0 or 1)</li>
+<li>Offshore wind: <code>turbine_type</code> (<code>fixed</code>, <code>floating</code>), and optionally <code>pref_site</code>
+  to match the corresponding resource-group metadata</li>
 <li>Geothermal: <code>type</code> (<code>egs</code>, <code>geohydrobinary</code>)</li>
 </ul>
 <h3 id="advanced-group-modifiers">Advanced: Group Modifiers<a class="headerlink" href="#advanced-group-modifiers" title="Permanent link">&para;</a></h3>
@@ -3259,10 +3216,9 @@
 <div class="admonition warning">
 <p class="admonition-title">Legacy setting — not applied</p>
 <p><code>new_gen_not_available</code> is only validated for region-name consistency; it is <strong>not</strong>
-applied to exclude technologies. <code>new_resources</code> entries are built in <strong>every</strong> model
-region, so a new-build resource cannot be restricted to a subset of regions. Renewable
-resource clusters are scoped per region through <code>renewables_clusters</code> (each entry has
-a <code>region</code> key).</p>
+applied to exclude technologies. Non-renewable <code>new_resources</code> are built in
+every model region. Renewable resource clusters are scoped per region through
+<code>renewables_clusters</code> (each entry has a <code>region</code> key).</p>
 </div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Legacy — not applied in this version</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nt">new_gen_not_available</span><span class="p">:</span>
@@ -3274,108 +3230,81 @@ a <code>region</code> key).</p>
 <a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span>
 <a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Coal</span>
 </code></pre></div>
-<h3 id="technology-minimum-load">Technology Minimum Load<a class="headerlink" href="#technology-minimum-load" title="Permanent link">&para;</a></h3>
-<p>Set minimum stable generation level:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">min_cap_req</span><span class="p">:</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">NaturalGas_2-on-1 Combined Cycle (F-Frame)_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.3</span><span class="w">  </span><span class="c1"># 30% minimum load</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">Nuclear_Nuclear - Large_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.9</span><span class="w">  </span><span class="c1"># 90% minimum load</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="nt">Coal_New_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.4</span>
-</code></pre></div>
-<h3 id="ramp-rates">Ramp Rates<a class="headerlink" href="#ramp-rates" title="Permanent link">&para;</a></h3>
-<p>Define maximum ramp rates (fraction per hour):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">ramp_up_rates</span><span class="p">:</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">NaturalGas_2-on-1 Combined Cycle (F-Frame)_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span><span class="w">  </span><span class="c1"># 50% per hour</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">Coal_New_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.2</span><span class="w">  </span><span class="c1"># 20% per hour</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span><span class="nt">Nuclear_Nuclear - Large_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05</span><span class="w">  </span><span class="c1"># 5% per hour</span>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="nt">ramp_down_rates</span><span class="p">:</span>
-<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">  </span><span class="nt">NaturalGas_2-on-1 Combined Cycle (F-Frame)_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
-<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="w">  </span><span class="nt">Coal_New_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.2</span>
-<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="w">  </span><span class="nt">Nuclear_Nuclear - Large_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05</span>
-</code></pre></div>
+<h3 id="operating-constraints">Operating Constraints<a class="headerlink" href="#operating-constraints" title="Permanent link">&para;</a></h3>
+<p>Configure minimum output and ramping in the operational constraints input table,
+not with <code>min_cap_req</code>, <code>ramp_up_rates</code>, or <code>ramp_down_rates</code> settings.</p>
 <h2 id="example-add-hydrogen-technology">Example: Add Hydrogen Technology<a class="headerlink" href="#example-add-hydrogen-technology" title="Permanent link">&para;</a></h2>
-<p>Complete example adding hydrogen turbines:</p>
+<p>The following fragments add hydrogen turbines to an existing working setup.
+Include Hydrogen in the regional cost factors and operational constraints too.</p>
 <h3 id="1-create-additional-technology">1. Create Additional Technology<a class="headerlink" href="#1-create-additional-technology" title="Permanent link">&para;</a></h3>
-<p><strong>additional_technologies.csv</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>technology,tech_detail,model_year,capex_mw,fixed_o_m_mw,variable_o_m_mwh,heat_rate_mmbtu_mwh,fuel,wacc_real,capital_recovery_period,unit_size_mw
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>Hydrogen,Turbine,2030,900000,18000,4,9.5,hydrogen,0.055,25,150
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>Hydrogen,Turbine,2040,750000,15000,4,9.0,hydrogen,0.055,25,150
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>Hydrogen,Turbine,2050,600000,12000,4,8.5,hydrogen,0.055,25,150
+<p><strong>extra_inputs/additional_technologies.csv</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>technology,tech_detail,cost_case,planning_year,capex_mw,capex_mwh,fixed_o_m_mw,fixed_o_m_mwh,variable_o_m_mwh,heat_rate,wacc_real,Cap_Size,dollar_year
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>Hydrogen,Turbine,Moderate,2030,900000,0,18000,0,4,9.5,0.055,150,2023
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>Hydrogen,Turbine,Moderate,2040,750000,0,15000,0,4,9.0,0.055,150,2023
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>Hydrogen,Turbine,Moderate,2050,600000,0,12000,0,4,8.5,0.055,150,2023
 </code></pre></div>
 <h3 id="2-configure-in-settings">2. Configure in Settings<a class="headerlink" href="#2-configure-in-settings" title="Permanent link">&para;</a></h3>
 <p><strong>settings/custom_technologies.yml</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Include additional tech file</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nt">additional_technologies_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">additional_technologies.csv</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># Add to new resources - use list format</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="nt">new_resources</span><span class="p">:</span>
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Hydrogen</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Turbine</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">150</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="c1"># Assign tags</span>
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="nt">model_tag_values</span><span class="p">:</span>
-<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">  </span><span class="nt">THERM</span><span class="p">:</span>
-<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="w">    </span><span class="nt">Hydrogen</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="w">  </span><span class="nt">Commit</span><span class="p">:</span>
-<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="w">    </span><span class="nt">Hydrogen</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a><span class="w">  </span><span class="nt">New_Build</span><span class="p">:</span>
-<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a><span class="w">    </span><span class="nt">Hydrogen</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a>
-<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a><span class="c1"># Map to fuel</span>
-<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a><span class="nt">tech_fuel_map</span><span class="p">:</span>
-<a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a><span class="w">  </span><span class="nt">Hydrogen</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hydrogen</span>
-<a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a>
-<a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a><span class="c1"># Operational constraints</span>
-<a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a><span class="nt">min_cap_req</span><span class="p">:</span>
-<a id="__codelineno-15-23" name="__codelineno-15-23" href="#__codelineno-15-23"></a><span class="w">  </span><span class="nt">Hydrogen_Turbine_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.2</span>
-<a id="__codelineno-15-24" name="__codelineno-15-24" href="#__codelineno-15-24"></a><span class="nt">ramp_up_rates</span><span class="p">:</span>
-<a id="__codelineno-15-25" name="__codelineno-15-25" href="#__codelineno-15-25"></a><span class="w">  </span><span class="nt">Hydrogen_Turbine_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.8</span>
-<a id="__codelineno-15-26" name="__codelineno-15-26" href="#__codelineno-15-26"></a><span class="nt">ramp_down_rates</span><span class="p">:</span>
-<a id="__codelineno-15-27" name="__codelineno-15-27" href="#__codelineno-15-27"></a><span class="w">  </span><span class="nt">Hydrogen_Turbine_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.8</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Include additional tech file</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="nt">additional_technologies_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">additional_technologies.csv</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="c1"># Select rows by technology name; additional technologies are not added to new_resources</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="nt">additional_new_gen</span><span class="p">:</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Hydrogen</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="c1"># Assign tags</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="nt">model_tag_values</span><span class="p">:</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="w">  </span><span class="nt">THERM</span><span class="p">:</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="w">    </span><span class="nt">Hydrogen</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="w">  </span><span class="nt">Commit</span><span class="p">:</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="w">    </span><span class="nt">Hydrogen</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="w">  </span><span class="nt">New_Build</span><span class="p">:</span>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="w">    </span><span class="nt">Hydrogen</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a>
+<a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="c1"># Map to fuel</span>
+<a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a><span class="nt">tech_fuel_map</span><span class="p">:</span>
+<a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a><span class="w">  </span><span class="nt">Hydrogen</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hydrogen</span>
 </code></pre></div>
+<p>The loader selects rows matching <code>additional_new_gen</code> and the model
+<code>planning_year</code>. <code>resource_cap_recovery_years</code> sets the default recovery period.
+The dollar-year adjustment also requires a configured <code>dollar_year_table</code>.</p>
 <h3 id="3-add-fuel-prices">3. Add Fuel Prices<a class="headerlink" href="#3-add-fuel-prices" title="Permanent link">&para;</a></h3>
 <p><strong>settings/fuels.yml</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nt">user_fuel_price</span><span class="p">:</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="nt">hydrogen</span><span class="p">:</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="nt">2030</span><span class="p">:</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">      </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25</span><span class="w">  </span><span class="c1"># $/MMBtu</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">      </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">      </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">28</span>
-<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">    </span><span class="nt">2040</span><span class="p">:</span>
-<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">      </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">18</span>
-<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">      </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">18</span>
-<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">      </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
-<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="w">    </span><span class="nt">2050</span><span class="p">:</span>
-<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="w">      </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">12</span>
-<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="w">      </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">12</span>
-<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a><span class="w">      </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">14</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">user_fuel_price</span><span class="p">:</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">hydrogen</span><span class="p">:</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">2030</span><span class="p">:</span><span class="w"> </span><span class="nv">25</span><span class="p p-Indicator">,</span><span class="nt"> 2040</span><span class="p">:</span><span class="w"> </span><span class="nv">18</span><span class="p p-Indicator">,</span><span class="nt"> 2050</span><span class="p">:</span><span class="w"> </span><span class="nv">12</span><span class="p p-Indicator">}</span><span class="w">  </span><span class="c1"># $/MMBtu</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">2030</span><span class="p">:</span><span class="w"> </span><span class="nv">25</span><span class="p p-Indicator">,</span><span class="nt"> 2040</span><span class="p">:</span><span class="w"> </span><span class="nv">18</span><span class="p p-Indicator">,</span><span class="nt"> 2050</span><span class="p">:</span><span class="w"> </span><span class="nv">12</span><span class="p p-Indicator">}</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">2030</span><span class="p">:</span><span class="w"> </span><span class="nv">28</span><span class="p p-Indicator">,</span><span class="nt"> 2040</span><span class="p">:</span><span class="w"> </span><span class="nv">20</span><span class="p p-Indicator">,</span><span class="nt"> 2050</span><span class="p">:</span><span class="w"> </span><span class="nv">14</span><span class="p p-Indicator">}</span>
 </code></pre></div>
+<p>Year-keyed values are resolved before prices are processed. Each fuel can also
+use a single price for all regions.</p>
 <h3 id="4-set-regional-availability">4. Set Regional Availability<a class="headerlink" href="#4-set-regional-availability" title="Permanent link">&para;</a></h3>
-<p><code>new_resources</code> builds each listed technology in <strong>every</strong> model region, so it cannot be
-used to keep a technology out of a single region. Renewable clusters are scoped per region
-through <code>renewables_clusters</code> (each entry specifies a <code>region</code>). The legacy
+<p><code>new_resources</code> builds each listed non-renewable technology in <strong>every</strong> model region,
+so it cannot be used to keep one out of a single region. Renewable clusters are scoped
+per region through <code>renewables_clusters</code> (each entry specifies a <code>region</code>). The legacy
 <code>new_gen_not_available</code> key is only validated, not applied.</p>
 <p><strong>settings/tech_availability.yml</strong> (renewables scoped per region):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">new_resources</span><span class="p">:</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LandbasedWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CA_N</span>
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">    </span><span class="nt">min_capacity</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25000</span>
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">new_resources</span><span class="p">:</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LandbasedWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CA_N</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">    </span><span class="nt">min_capacity</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">25000</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
 </code></pre></div>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="technology-not-appearing">Technology Not Appearing<a class="headerlink" href="#technology-not-appearing" title="Permanent link">&para;</a></h3>
 <p><strong>Problem</strong>: Technology defined but not in output</p>
 <p><strong>Check</strong>:</p>
 <ol>
-<li>Technology in <code>new_resources</code>?</li>
-<li>Technology size specified (fourth element in list)?</li>
+<li>Technology in <code>new_resources</code>, or in <code>additional_new_gen</code> if supplied by a CSV?</li>
+<li>Technology size specified in the fourth list element or CSV <code>Cap_Size</code>?</li>
 <li>Tags defined in <code>model_tag_values</code>?</li>
-<li>Technology omitted from <code>new_resources</code> for the target region?</li>
+<li>For renewables, is a cluster definition present for the target region?</li>
 </ol>
 <h3 id="renewable-clustering-issues">Renewable Clustering Issues<a class="headerlink" href="#renewable-clustering-issues" title="Permanent link">&para;</a></h3>
 <p><strong>Problem</strong>: No renewable resources in output</p>
@@ -3396,12 +3325,11 @@ through <code>renewables_clusters</code> (each entry specifies a <code>region</c
 </ul>
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Use wildcards</strong>: <code>Battery_*</code> matches all battery durations</li>
-<li><strong>Start with ATB</strong>: Prefer ATB technologies when available</li>
+<li><strong>Start with the configured cost table</strong>: Prefer existing technologies when available</li>
 <li><strong>Document assumptions</strong>: Comment custom cost adjustments</li>
-<li><strong>Validate tags</strong>: All technologies need complete tag assignments</li>
+<li><strong>Validate tags</strong>: Check resource classifications</li>
 <li><strong>Test incrementally</strong>: Add one technology at a time</li>
-<li><strong>Regional variation</strong>: Use <code>resource_modifiers</code> for regional costs</li>
+<li><strong>Regional variation</strong>: Use <code>regional_cost_factor_table</code> for regional costs</li>
 <li><strong>Version data</strong>: Track ATB year, profile vintage in documentation</li>
 </ol>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
@@ -3495,7 +3423,7 @@ through <code>renewables_clusters</code> (each entry specifies a <code>region</c
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

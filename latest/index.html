@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -541,10 +541,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#quick-start" class="md-nav__link">
+  <a href="#start-here" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quick Start
+        Start Here
       
     </span>
   </a>
@@ -1669,34 +1669,6 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="reference/settings/macro-output/" class="md-nav__link">
         
   
@@ -2419,10 +2391,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#quick-start" class="md-nav__link">
+  <a href="#start-here" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quick Start
+        Start Here
       
     </span>
   </a>
@@ -2494,13 +2466,13 @@
 <p>Welcome to the PowerGenome documentation! PowerGenome is a data pipeline tool that generates input files for capacity expansion models, primarily <a href="https://genxproject.github.io/GenX.jl/">GenX</a>, with optional output for <a href="https://github.com/macroenergy/MacroEnergy.jl">MacroEnergy.jl</a> (see <a href="reference/settings/macro-output/">Output Formats</a>).</p>
 <div class="admonition tip">
 <p class="admonition-title">First time user or setting up a new system?</p>
-<p>Use the <strong><a href="https://gschivley.github.io/PowerGenome-tools/web/">PowerGenome System Design tool</a></strong> to generate a starting settings folder for your study area. The interactive tool walks you through selecting regions, planning periods, technologies, and policies, then produces a ready-to-use settings folder you can download and customise. See the <a href="https://gschivley.github.io/PowerGenome-tools/">System Design tool documentation</a> for a step-by-step walkthrough.</p>
+<p>Use the <strong><a href="https://gschivley.github.io/PowerGenome-tools/web/">PowerGenome System Design tool</a></strong> to generate a starting settings folder for your study area. The interactive tool walks you through selecting regions, planning periods, technologies, and policies, then produces a starting settings folder you can download and customise. You must also obtain the data files referenced by those settings. See the <a href="https://gschivley.github.io/PowerGenome-tools/">System Design tool documentation</a> for a step-by-step walkthrough.</p>
 </div>
 <h2 id="what-is-powergenome">What is PowerGenome?<a class="headerlink" href="#what-is-powergenome" title="Permanent link">&para;</a></h2>
 <p>PowerGenome simplifies the process of creating power system model inputs by transforming raw energy system data (from sources like EIA and NREL) into model-ready datasets. Instead of manually assembling data for each region and scenario, you define your requirements in settings files and PowerGenome generates all necessary inputs.</p>
 <div class="admonition info">
-<p class="admonition-title">International Use</p>
-<p>While PowerGenome's examples reference US data sources (EIA, NREL ATB, PUDL), the tool is <strong>region-agnostic</strong>. Users can supply custom data tables representing any geographic region worldwide. The data pipeline works with any properly-structured input data—European grids, Asian power systems, Latin American networks, etc.</p>
+<p class="admonition-title">Other geographies</p>
+<p>Custom regions and datasets can be used, but some processing conventions reflect US sources such as EIA and NREL ATB. Check the required schemas and technology mappings when adapting a study; changing region labels alone is not enough.</p>
 </div>
 <h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2509,7 +2481,6 @@
 <li><strong>Renewable Resource Groups</strong>: Pre-clustered wind and solar resources with generation profiles</li>
 <li><strong>Transmission Constraints</strong>: Inter-regional transmission limits and expansion costs</li>
 <li><strong>Demand Profiles</strong>: Hourly load profiles with electrification scenarios</li>
-<li><strong>Time Reduction</strong>: Representative period selection to reduce computational complexity</li>
 <li><strong>Multi-Scenario Management</strong>: Run sensitivity analyses across different assumptions</li>
 <li><strong>Year-Keyed Settings Values</strong>: Define parameter values by planning year across all settings sections</li>
 <li><strong>Flexible Data Sources</strong>: DataManager architecture supports CSV, Parquet, and DuckDB</li>
@@ -2524,18 +2495,19 @@
 <p>Technical descriptions of settings parameters, data schemas, and the command-line interface.</p>
 <h3 id="explanation"><a href="explanation/">Explanation</a><a class="headerlink" href="#explanation" title="Permanent link">&para;</a></h3>
 <p>Background information on how PowerGenome works and why it's designed the way it is.</p>
-<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Install from PyPI</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span>powergenome
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Or for development</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/PowerGenome/PowerGenome.git
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nb">cd</span><span class="w"> </span>PowerGenome
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[dev]"</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Run with example settings</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>run_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>settings<span class="w"> </span>--results_folder<span class="w"> </span>output
-</code></pre></div>
+<h2 id="start-here">Start Here<a class="headerlink" href="#start-here" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Run a small, complete example</strong>: Follow <a href="tutorials/getting-started/">Getting Started</a>
+   to install a published package with uv and run the published Texas example.</li>
+<li><strong>Define your own study</strong>: Generate a settings folder with the
+   <a href="https://gschivley.github.io/PowerGenome-tools/web/">System Design tool</a>, then
+   <a href="how-to/configure-data-tables/">configure the input tables</a>. Settings alone
+   are not a dataset: the referenced data files must also be available locally.</li>
+<li><strong>Check before a full run</strong>: Use <a href="how-to/validate-settings/">Validate Settings</a>,
+   then run <code>run_powergenome -sf settings -rf output</code> from your study directory.</li>
+</ol>
+<p>PowerGenome <strong>prepares model inputs</strong>; it does not solve the capacity expansion
+model. Run GenX or Macro separately after inspecting those inputs.</p>
 <h2 id="get-help">Get Help<a class="headerlink" href="#get-help" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Issues</strong>: Report bugs or request features on <a href="https://github.com/PowerGenome/PowerGenome/issues">GitHub Issues</a></li>
@@ -2632,7 +2604,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

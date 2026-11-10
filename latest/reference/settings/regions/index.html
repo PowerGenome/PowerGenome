@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1773,34 +1773,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../macro-output/" class="md-nav__link">
         
   
@@ -2773,9 +2745,9 @@
 <li>Single base regions (e.g., <code>p10</code>, <code>p22</code>)</li>
 <li>Aggregated region names (defined in <code>region_aggregations</code>)</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">model_regions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">p1_2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p4</span><span class="p p-Indicator">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">model_regions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">p1_2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">northwest</span><span class="p p-Indicator">]</span>
 </code></pre></div>
-<p>Where <code>p1_2</code> is an aggregated region and <code>p3</code>, <code>p4</code> are individual base regions.</p>
+<p>Here <code>p1_2</code> and <code>northwest</code> are aggregated regions and <code>p3</code> is a base region.</p>
 <p>All regional parameters use these names as keys.</p>
 <h3 id="region_aggregations"><code>region_aggregations</code><a class="headerlink" href="#region_aggregations" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Dictionary (model region → list of base regions)
@@ -2811,11 +2783,13 @@
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">CapRes_2</span><span class="p">:</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="nt">AZ</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.12</span>
 </code></pre></div>
-<p>Each <code>CapRes_X</code> tag creates a corresponding column in generators output, indicating which reserve zone each resource can contribute to.</p>
+<p>Configure resource contributions with <code>capacity_reserve_values</code>,
+<code>model_tag_values</code>, or <code>regional_tag_values</code>; see
+<a href="../resource-tags/#capacity-reserve-tags">Resource Tags</a>.</p>
 <h3 id="cap_res_network_derate_default"><code>cap_res_network_derate_default</code><a class="headerlink" href="#cap_res_network_derate_default" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Float (0-1)
 <strong>Required</strong>: No
-<strong>Default</strong>: 1.0
+<strong>Default</strong>: 0.95
 <strong>Example</strong>: <code>0.95</code></p>
 <p>Derating factor for transmission imports used to meet capacity reserves. A value of 0.95 means transmission can only contribute 95% of its capacity toward reserve requirements.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">cap_res_network_derate_default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.95</span>
@@ -2879,7 +2853,7 @@ through <code>renewables_clusters</code>.</p>
 <strong>Required</strong>: No
 <strong>Default</strong>: 0
 <strong>Example</strong>: <code>-8</code></p>
-<p>Hour offset from UTC for the model timezone. All time-series data is stored in UTC and converted using this offset.</p>
+<p>Hour offset applied when shifting input time profiles to the model timezone.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">utc_offset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-8</span><span class="w">  </span><span class="c1"># Pacific Time (UTC-8)</span>
 </code></pre></div>
 <p>US time zones:</p>
@@ -3035,7 +3009,7 @@ through <code>renewables_clusters</code>.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

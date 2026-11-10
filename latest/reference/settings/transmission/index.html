@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1484,17 +1484,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#user_transmission_costs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        user_transmission_costs
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1524,10 +1513,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#distribution_loss_factor" class="md-nav__link">
+  <a href="#avg_distribution_loss" class="md-nav__link">
     <span class="md-ellipsis">
       
-        distribution_loss_factor
+        avg_distribution_loss
       
     </span>
   </a>
@@ -1680,34 +1669,6 @@
     
   
     Multi-Scenario Management
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
   
 
     
@@ -2403,17 +2364,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#user_transmission_costs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        user_transmission_costs
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -2443,10 +2393,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#distribution_loss_factor" class="md-nav__link">
+  <a href="#avg_distribution_loss" class="md-nav__link">
     <span class="md-ellipsis">
       
-        distribution_loss_factor
+        avg_distribution_loss
       
     </span>
   </a>
@@ -2651,17 +2601,11 @@
 <li><code>total_line_loss_frac</code>: Line loss as fraction (0.05 = 5%)</li>
 <li><code>dollar_year</code>: Cost basis year</li>
 </ul>
-<h3 id="user_transmission_costs"><code>user_transmission_costs</code><a class="headerlink" href="#user_transmission_costs" title="Permanent link">&para;</a></h3>
-<p><strong>Type</strong>: String (filename in <code>input_folder</code>)
-<strong>Required</strong>: For user-specified transmission costs
-<strong>Example</strong>: <code>"network_costs_wecc_6_zone.csv"</code></p>
-<p>CSV file with transmission costs between model regions. Overrides database values.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">user_transmission_costs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">network_costs.csv</span>
-</code></pre></div>
-<p><strong>File format</strong> (<code>extra_inputs/network_costs.csv</code>):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>start_region,dest_region,total_interconnect_annuity_mw,total_interconnect_cost_mw,total_line_loss_frac,dollar_year
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>northeast,midwest,15000,350000,0.08,2018
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>midwest,south,12000,280000,0.05,2018
+<p>Provide user-specified costs via <code>transmission_cost_table</code>:</p>
+<p><strong>File format</strong> (<code>network_costs.csv</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>start_region,dest_region,total_interconnect_annuity_mw,total_interconnect_cost_mw,total_line_loss_frac,dollar_year
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>northeast,midwest,15000,350000,0.08,2018
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>midwest,south,12000,280000,0.05,2018
 </code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Use Pre-Calculated Costs</p>
@@ -2674,7 +2618,7 @@
 <strong>Default</strong>: <code>"firm_ttc_mw"</code>
 <strong>Options</strong>: <code>"firm_ttc_mw"</code> or <code>"nonfirm_ttc_mw"</code></p>
 <p>Which capacity column to use from transmission data tables.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">tx_value_col</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">firm_ttc_mw</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">tx_value_col</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">firm_ttc_mw</span>
 </code></pre></div>
 <p><strong>Firm vs non-firm</strong>:</p>
 <ul>
@@ -2682,13 +2626,13 @@
 <li><strong>Non-firm</strong>: Opportunistic capacity (higher value, less reliable)</li>
 </ul>
 <p>PowerGenome v0.8+ defaults to <code>firm_ttc_mw</code>. Previous versions used <code>nonfirm_ttc_mw</code>.</p>
-<h3 id="distribution_loss_factor"><code>distribution_loss_factor</code><a class="headerlink" href="#distribution_loss_factor" title="Permanent link">&para;</a></h3>
+<h3 id="avg_distribution_loss"><code>avg_distribution_loss</code><a class="headerlink" href="#avg_distribution_loss" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Float
 <strong>Required</strong>: For distributed generation
 <strong>Default</strong>: <code>0.0</code>
 <strong>Example</strong>: <code>0.06</code></p>
 <p>Distribution-level line loss (transmission substation to customer).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">distribution_loss_factor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.06</span><span class="w">  </span><span class="c1"># 6% distribution loss</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">avg_distribution_loss</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.06</span><span class="w">  </span><span class="c1"># 6% distribution loss</span>
 </code></pre></div>
 <p>Used when subtracting distributed generation from total demand. Total demand includes distribution losses, so DG must be adjusted.</p>
 <h2 id="expansion-controls">Expansion Controls<a class="headerlink" href="#expansion-controls" title="Permanent link">&para;</a></h2>
@@ -2697,7 +2641,7 @@
 <strong>Required</strong>: For transmission expansion
 <strong>Example</strong>: <code>1.0</code></p>
 <p>Maximum fractional expansion of existing transmission per planning period.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">tx_expansion_per_period</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span><span class="w">  </span><span class="c1"># Can double existing capacity</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">tx_expansion_per_period</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span><span class="w">  </span><span class="c1"># Can double existing capacity</span>
 </code></pre></div>
 <p><strong>Interpretation</strong>:</p>
 <ul>
@@ -2711,23 +2655,24 @@
 <strong>Required</strong>: No
 <strong>Example</strong>: <code>500</code></p>
 <p>Absolute expansion limit per line per period (MW).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">tx_expansion_mw_per_period</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">500</span><span class="w">  </span><span class="c1"># Can add up to 500 MW</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">tx_expansion_mw_per_period</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">500</span><span class="w">  </span><span class="c1"># Can add up to 500 MW</span>
 </code></pre></div>
-<p>Useful for setting minimum buildable increments (e.g., one 230kV line ≈ 200-400 MW).</p>
+<p>This is an alternative upper bound, not a minimum build size or a discrete
+construction increment. If the fractional bound is larger, it takes precedence.</p>
 <p><strong>Expansion calculation per line</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">max_expansion</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">existing_capacity</span> <span class="o">*</span> <span class="n">tx_expansion_per_period</span><span class="p">,</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">tx_expansion_mw_per_period</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">max_expansion</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">existing_capacity</span> <span class="o">*</span> <span class="n">tx_expansion_per_period</span><span class="p">,</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="n">tx_expansion_mw_per_period</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="p">)</span>
 </code></pre></div>
 <h2 id="genx-output-files">GenX Output Files<a class="headerlink" href="#genx-output-files" title="Permanent link">&para;</a></h2>
 <p>PowerGenome generates these GenX transmission files:</p>
-<p><strong><code>Network.csv</code></strong>:</p>
+<p><strong><code>system/Network.csv</code></strong> (default layout):</p>
 <ul>
+<li><code>Network_zones</code>: Zone labels</li>
 <li><code>Network_Lines</code>: Line ID number</li>
-<li><code>z1</code>, <code>z2</code>, ...: Network topology matrix</li>
+<li><code>Start_Zone</code>, <code>End_Zone</code>: Numeric zone identifiers for each line</li>
 <li><code>Line_Max_Flow_MW</code>: Existing capacity</li>
-<li><code>Line_Min_Flow_MW</code>: Reverse flow limit (typically negative of max)</li>
 <li><code>transmission_path_name</code>: Human-readable name</li>
 <li><code>Line_Loss_Percentage</code>: Loss fraction</li>
 <li><code>Line_Reinforcement_Cost_per_MWyr</code>: Annualized expansion cost</li>
@@ -2824,7 +2769,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

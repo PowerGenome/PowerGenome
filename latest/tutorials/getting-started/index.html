@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -606,10 +606,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-use-the-test-system" class="md-nav__link">
+  <a href="#1-download-the-texas-example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Use the Test System
+        1. Download the Texas example
       
     </span>
   </a>
@@ -617,10 +617,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-understanding-command-line-flags" class="md-nav__link">
+  <a href="#2-check-completion" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Understanding Command-Line Flags
+        2. Check completion
       
     </span>
   </a>
@@ -667,10 +667,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#exploring-generators_datacsv" class="md-nav__link">
+  <a href="#exploring-resource-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Exploring Generators_data.csv
+        Exploring Resource Data
       
     </span>
   </a>
@@ -1730,34 +1730,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../reference/settings/macro-output/" class="md-nav__link">
         
   
@@ -2431,10 +2403,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-use-the-test-system" class="md-nav__link">
+  <a href="#1-download-the-texas-example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Use the Test System
+        1. Download the Texas example
       
     </span>
   </a>
@@ -2442,10 +2414,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-understanding-command-line-flags" class="md-nav__link">
+  <a href="#2-check-completion" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Understanding Command-Line Flags
+        2. Check completion
       
     </span>
   </a>
@@ -2492,10 +2464,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#exploring-generators_datacsv" class="md-nav__link">
+  <a href="#exploring-resource-data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Exploring Generators_data.csv
+        Exploring Resource Data
       
     </span>
   </a>
@@ -2648,179 +2620,166 @@
 
 
 <h1 id="getting-started-with-powergenome">Getting Started with PowerGenome<a class="headerlink" href="#getting-started-with-powergenome" title="Permanent link">&para;</a></h1>
-<p>This tutorial will guide you through installing PowerGenome, understanding its structure, running your first model, and examining the outputs.</p>
-<p><strong>Time</strong>: ~30 minutes
-<strong>Prerequisites</strong>: Basic command-line knowledge, Python 3.8+</p>
-<div class="admonition note">
-<p class="admonition-title">Data Sources</p>
-<p>PowerGenome's examples use US data sources (EIA, NREL ATB, IPM regions), but <strong>the tool works with any geographic region</strong>. Simply provide your own generation data, demand profiles, technology costs, and regional definitions in the expected table formats.</p>
-</div>
+<p>Install a published PowerGenome release, run the Texas three-zone example from
+<a href="https://github.com/PowerGenome/PowerGenome-examples">PowerGenome-examples</a>, and
+inspect the generated GenX inputs. PowerGenome prepares inputs; it does not
+solve the capacity expansion model.</p>
+<p><strong>Prerequisites</strong>: Basic command-line knowledge,
+<a href="https://docs.astral.sh/uv/getting-started/installation/">uv</a>, <code>curl</code>, and <code>tar</code>.
+The commands below use a macOS/Linux shell and Python 3.11. Git and a PowerGenome
+source checkout are not required.</p>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
-<p>Choose one of the following installation methods:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">PyPI (Recommended for Users)</label><label for="__tabbed_1_2">uv (Recommended for Development)</label><label for="__tabbed_1_3">conda</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>powergenome
+<p>From a directory where you keep projects, create a new tutorial folder and
+install the published release used by this exercise:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mkdir<span class="w"> </span>powergenome-tutorial
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>powergenome-tutorial
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>uv<span class="w"> </span>venv<span class="w"> </span>--python<span class="w"> </span><span class="m">3</span>.11
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="nv">powergenome</span><span class="o">==</span><span class="m">0</span>.8.0
 </code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Install uv</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>curl<span class="w"> </span>-LsSf<span class="w"> </span>https://astral.sh/uv/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh<span class="w">  </span><span class="c1"># macOS/Linux</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># or: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"  # Windows</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Clone and install</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/PowerGenome/PowerGenome.git
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="nb">cd</span><span class="w"> </span>PowerGenome
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>uv<span class="w"> </span>venv
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate<span class="w">  </span><span class="c1"># Windows: .venv\Scripts\activate</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[dev]"</span>
-</code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/PowerGenome/PowerGenome.git
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">cd</span><span class="w"> </span>PowerGenome
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yml
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>powergenome
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
-</code></pre></div>
-</div>
-</div>
-</div>
+<p>On Windows PowerShell, activate with <code>.venv\Scripts\Activate.ps1</code> instead of
+<code>source .venv/bin/activate</code>. Use <code>curl.exe</code> for the download below, or download
+and extract the linked archive manually. Keep the environment active when
+changing directories.</p>
+<p>The package version and example snapshot below are pinned together for a
+repeatable first run. For another release, check example compatibility before
+upgrading.</p>
 <p>Verify installation:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>run_powergenome<span class="w"> </span>--help
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>run_powergenome<span class="w"> </span>--help
 </code></pre></div>
 <h2 id="project-structure">Project Structure<a class="headerlink" href="#project-structure" title="Permanent link">&para;</a></h2>
 <p>PowerGenome projects follow this structure:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>my_study/
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>├── settings/              # Configuration files (YAML)
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>│   ├── model_definition.yml
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>│   ├── resources.yml
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>│   ├── fuels.yml
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>│   ├── demand.yml
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>│   ├── transmission.yml
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>│   └── ...
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>├── extra_inputs/          # User-provided data files
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>│   ├── scenario_inputs.csv
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>│   ├── emission_policies.csv
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>│   └── ...
-<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>├── data/                  # Source data (optional, can be elsewhere)
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>│   ├── generators.csv
-<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>│   ├── demand_profiles.parquet
-<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>│   └── ...
-<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>└── results/               # Output folder (created by PowerGenome)
-<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>    └── case_2030/
-<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>        ├── Generators_data.csv
-<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>        ├── Load_data.csv
-<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>        ├── Fuels_data.csv
-<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>        └── ...
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>my_study/
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>├── settings/              # Configuration files (YAML)
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>│   ├── model_definition.yml
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>│   ├── resources.yml
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>│   ├── fuels.yml
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>│   ├── demand.yml
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>│   ├── transmission.yml
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>│   └── ...
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>├── extra_inputs/          # User-provided data files
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>│   ├── scenario_inputs.csv
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>│   ├── emission_policies.csv
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>│   └── ...
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>├── data/                  # Source data (optional, can be elsewhere)
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>│   ├── generators.csv
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>│   ├── demand_profiles.parquet
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>│   └── ...
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>└── results/               # Output folder (created by PowerGenome)
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    ├── log.txt
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    └── Inputs/            # Under a case ID if using a scenario CSV
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>        └── Inputs_p1/
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>            ├── resources/ # Thermal.csv, Vre.csv, Storage.csv, ...
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>            ├── system/    # Demand_data.csv, Fuels_data.csv, Network.csv, ...
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>            └── policies/
 </code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Keep Projects Separate</p>
 <p>Create project folders <strong>outside</strong> the PowerGenome repository to avoid git conflicts and make updates easier.</p>
 </div>
 <h2 id="running-your-first-model">Running Your First Model<a class="headerlink" href="#running-your-first-model" title="Permanent link">&para;</a></h2>
-<h3 id="1-use-the-test-system">1. Use the Test System<a class="headerlink" href="#1-use-the-test-system" title="Permanent link">&para;</a></h3>
-<p>PowerGenome includes a minimal test system that's perfect for learning:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span>/path/to/PowerGenome
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>--settings_file<span class="w"> </span>tests/test_system/settings<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span>--results_folder<span class="w"> </span>test_output
+<h3 id="1-download-the-texas-example">1. Download the Texas example<a class="headerlink" href="#1-download-the-texas-example" title="Permanent link">&para;</a></h3>
+<p>From <code>powergenome-tutorial/</code>, download and extract the pinned
+<a href="https://github.com/PowerGenome/PowerGenome-examples/tree/7e34f714469e68fca173cdb849f74c47be779420">examples snapshot</a>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>curl<span class="w"> </span>--fail<span class="w"> </span>--location<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>https://codeload.github.com/PowerGenome/PowerGenome-examples/tar.gz/7e34f714469e68fca173cdb849f74c47be779420<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--output<span class="w"> </span>powergenome-examples.tar.gz
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>tar<span class="w"> </span>-xzf<span class="w"> </span>powergenome-examples.tar.gz<span class="w"> </span>--strip-components<span class="o">=</span><span class="m">1</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>rm<span class="w"> </span>powergenome-examples.tar.gz
+</code></pre></div>
+<p>This downloads the examples, not PowerGenome's source code. The Texas study is
+under <code>example_systems/TX-3-zone/</code>, with <code>settings/</code>, <code>data/</code>, <code>extra_inputs/</code>,
+<code>resource_groups/</code>, and <code>resource_profiles/</code> already populated. The archive also
+includes a CA/AZ study; browse the
+<a href="https://github.com/PowerGenome/PowerGenome-examples">examples repository</a> for
+its instructions and other available cases.</p>
+<p>Stay in <code>powergenome-tutorial/</code> for all commands below; <strong>do not change into
+<code>example_systems/TX-3-zone/</code></strong>. The published resource-group paths require this
+working directory.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>example_systems/TX-3-zone/settings
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--settings_file<span class="w"> </span>example_systems/TX-3-zone/settings<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--results_folder<span class="w"> </span>tx_output
 </code></pre></div>
 <p>This will:</p>
 <ol>
-<li>Load settings from <code>tests/test_system/settings/</code></li>
-<li>Read data from <code>tests/test_system/test_data/</code></li>
-<li>Generate output files in <code>test_output/</code></li>
+<li>Load the <code>.yml</code> files directly inside <code>example_systems/TX-3-zone/settings/</code></li>
+<li>Read the study's source tables from <code>data/</code> and policy inputs from <code>extra_inputs/</code></li>
+<li>Aggregate seven base regions into three model zones: <code>TX1</code>, <code>TX2</code>, and <code>TX3</code></li>
+<li>Write the <code>base</code> case's two planning periods (2030 and 2045) to
+   <code>tx_output/base/Inputs/Inputs_p1/</code> and <code>Inputs_p2/</code></li>
 </ol>
-<h3 id="2-understanding-command-line-flags">2. Understanding Command-Line Flags<a class="headerlink" href="#2-understanding-command-line-flags" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>--settings_file<span class="w"> </span>settings<span class="w"> </span><span class="se">\ </span><span class="w">     </span><span class="c1"># Path to settings folder</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>--results_folder<span class="w"> </span>output<span class="w"> </span><span class="se">\ </span><span class="w">      </span><span class="c1"># Where to save results</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>--no-current-gens<span class="w"> </span><span class="se">\ </span><span class="w">           </span><span class="c1"># Skip existing generators (optional)</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span>--no-load<span class="w"> </span><span class="se">\ </span><span class="w">                    </span><span class="c1"># Skip demand profiles (optional)</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span>--sort-gens<span class="w">                     </span><span class="c1"># Sort output by resource name (optional)</span>
-</code></pre></div>
-<p>Common flags:</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Short</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--settings_file</code></td>
-<td><code>-sf</code></td>
-<td>Path to settings folder</td>
-</tr>
-<tr>
-<td><code>--results_folder</code></td>
-<td><code>-rf</code></td>
-<td>Output directory</td>
-</tr>
-<tr>
-<td><code>--no-current-gens</code></td>
-<td></td>
-<td>Skip existing generator clustering</td>
-</tr>
-<tr>
-<td><code>--no-load</code></td>
-<td></td>
-<td>Skip demand profile generation</td>
-</tr>
-<tr>
-<td><code>--sort-gens</code></td>
-<td></td>
-<td>Sort generators by name in output</td>
-</tr>
-</tbody>
-</table>
-<p>See the <a href="../../reference/cli/">CLI Reference</a> for all options.</p>
+<p><code>data_location</code> and <code>input_folder</code> resolve relative to the parent of the settings
+directory (<code>example_systems/TX-3-zone/</code>). In contrast, relative <code>RESOURCE_GROUPS</code>
+and <code>RESOURCE_GROUP_PROFILES</code> paths resolve from your current working directory
+(<code>powergenome-tutorial/</code>).</p>
+<div class="admonition note">
+<p class="admonition-title">Demonstration data, not a calibrated study</p>
+<p>The Texas example contains 240 synthetic profile time steps, not a complete
+year. It is intended to demonstrate input generation, not support economic
+conclusions. Do not change regions, years, or technologies without checking
+that every source table and profile covers the new configuration.</p>
+</div>
+<h3 id="2-check-completion">2. Check completion<a class="headerlink" href="#2-check-completion" title="Permanent link">&para;</a></h3>
+<p>Both commands should exit successfully. Confirm that
+<code>tx_output/base/Inputs/Inputs_p1/system/Demand_data.csv</code> and the corresponding
+<code>Inputs_p2/</code> directory exist. If the run fails, read the first error in the
+terminal and <a href="../../how-to/debugging/">check the log</a>.</p>
+<p>The <a href="../../reference/cli/">CLI Reference</a> covers optional flags. Do not skip
+pipeline stages for this first run; the analysis below needs their outputs.</p>
 <h3 id="3-monitor-progress">3. Monitor Progress<a class="headerlink" href="#3-monitor-progress" title="Permanent link">&para;</a></h3>
-<p>PowerGenome provides detailed logging:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>INFO:powergenome.run_powergenome:Loading settings from tests/test_system/settings
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>INFO:powergenome.database:Initializing DataManager with data from tests/test_system/test_data
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>INFO:powergenome.generators:Clustering existing generators
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>INFO:powergenome.generators:Adding CCS pipeline costs
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>INFO:powergenome.GenX:Creating load profiles for 1 regions
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>INFO:powergenome.GenX:Reducing time domain from 8760 to 168 hours
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>Writing output files to test_output/p1/Inputs/Inputs_p1/
-</code></pre></div>
+<p>PowerGenome logs progress and warnings to the terminal and writes a more detailed
+<code>tx_output/log.txt</code>. The example can warn about unassigned resource tags,
+missing output columns, and missing transmission investment costs for some
+resources. Review warnings rather than treating a completed run as proof of
+study quality. Resolve missing costs and prices, unmatched technologies, and
+incomplete regional data before using your own results.</p>
 <h2 id="examining-outputs">Examining Outputs<a class="headerlink" href="#examining-outputs" title="Permanent link">&para;</a></h2>
 <p>PowerGenome generates multiple CSV files formatted for GenX:</p>
 <h3 id="key-output-files">Key Output Files<a class="headerlink" href="#key-output-files" title="Permanent link">&para;</a></h3>
-<p><strong>Generators_data.csv</strong>
-: Resource characteristics, costs, and operational parameters</p>
-<p><strong>Load_data.csv</strong>
-: Hourly demand by region</p>
-<p><strong>Fuels_data.csv</strong>
-: Fuel prices by region and time period</p>
-<p><strong>Network.csv</strong>
+<p><strong>resources/Thermal.csv, Vre.csv, Storage.csv, Hydro.csv, Must_run.csv</strong>
+: Resource characteristics grouped by resource type; files are written only
+  when that type is present</p>
+<p><strong>system/Demand_data.csv</strong>
+: Demand by zone and time step</p>
+<p><strong>system/Fuels_data.csv</strong>
+: Fuel prices by region and time step</p>
+<p><strong>system/Network.csv</strong>
 : Transmission topology and constraints</p>
-<p><strong>Generators_variability.csv</strong>
-: Hourly generation profiles for variable resources</p>
-<h3 id="exploring-generators_datacsv">Exploring Generators_data.csv<a class="headerlink" href="#exploring-generators_datacsv" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="c1"># Load generator data</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">gens</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"test_output/p1/Inputs/Inputs_p1/Generators_data.csv"</span><span class="p">)</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="c1"># View summary</span>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Total resources: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">gens</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Regions: </span><span class="si">{</span><span class="n">gens</span><span class="p">[</span><span class="s1">'region'</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Technologies: </span><span class="si">{</span><span class="n">gens</span><span class="p">[</span><span class="s1">'technology'</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="c1"># Check existing vs new capacity</span>
-<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Existing capacity: </span><span class="si">{</span><span class="n">gens</span><span class="p">[</span><span class="s1">'Existing_Cap_MW'</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> MW"</span><span class="p">)</span>
-<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"New-build available: </span><span class="si">{</span><span class="n">gens</span><span class="p">[</span><span class="n">gens</span><span class="p">[</span><span class="s1">'New_Build'</span><span class="p">]</span><span class="o">==</span><span class="mi">1</span><span class="p">][</span><span class="s1">'technology'</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>
-<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="c1"># View by technology</span>
-<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="n">gens</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">'technology'</span><span class="p">)[</span><span class="s1">'Existing_Cap_MW'</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<p><strong>system/Generators_variability.csv</strong>
+: Generation profiles for variable resources</p>
+<p>These are the default GenX outputs. Set <code>old_genx_format: true</code> only when your
+GenX workflow requires the legacy flat <code>Generators_data.csv</code> and <code>Load_data.csv</code>
+layout. See <a href="../../explanation/output-format/">Output Format</a> for both layouts.</p>
+<h3 id="exploring-resource-data">Exploring Resource Data<a class="headerlink" href="#exploring-resource-data" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">period</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"tx_output/base/Inputs/Inputs_p1"</span><span class="p">)</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">resource_files</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">period</span> <span class="o">/</span> <span class="s2">"resources"</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">.csv"</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">"Thermal"</span><span class="p">,</span> <span class="s2">"Vre"</span><span class="p">,</span> <span class="s2">"Storage"</span><span class="p">,</span> <span class="s2">"Hydro"</span><span class="p">,</span> <span class="s2">"Must_run"</span><span class="p">,</span> <span class="s2">"Flex_demand"</span><span class="p">]</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="p">]</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">gens</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">resource_files</span> <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">()],</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="p">)</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="c1"># View summary</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Total resources: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">gens</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Regions: </span><span class="si">{</span><span class="n">gens</span><span class="p">[</span><span class="s1">'region'</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Technologies: </span><span class="si">{</span><span class="n">gens</span><span class="p">[</span><span class="s1">'technology'</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="c1"># Check existing vs new capacity</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">Existing capacity: </span><span class="si">{</span><span class="n">gens</span><span class="p">[</span><span class="s1">'Existing_Cap_MW'</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> MW"</span><span class="p">)</span>
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"New-build available: </span><span class="si">{</span><span class="n">gens</span><span class="p">[</span><span class="n">gens</span><span class="p">[</span><span class="s1">'New_Build'</span><span class="p">]</span><span class="o">==</span><span class="mi">1</span><span class="p">][</span><span class="s1">'technology'</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a><span class="c1"># View by technology</span>
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a><span class="n">gens</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">'technology'</span><span class="p">)[</span><span class="s1">'Existing_Cap_MW'</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 </code></pre></div>
 <h3 id="understanding-resource-columns">Understanding Resource Columns<a class="headerlink" href="#understanding-resource-columns" title="Permanent link">&para;</a></h3>
-<p>Key columns in <code>Generators_data.csv</code>:</p>
+<p>Common columns in the resource files (some are resource-type specific):</p>
 <ul>
 <li><strong>Resource</strong>: Unique resource name</li>
 <li><strong>region</strong>: Model region</li>
@@ -2842,13 +2801,20 @@
 </ul>
 <p>See <a href="../../explanation/output-format/">Output Format</a> for complete documentation.</p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
-<p>Now that you've run your first model:</p>
+<p>Continue with the downloaded Texas study:</p>
 <ol>
-<li><strong>Modify settings</strong>: Try changing <code>model_year</code> or <code>model_regions</code></li>
-<li><strong>Add technologies</strong>: Include new resources in <code>new_resources</code></li>
-<li><strong>Multi-region model</strong>: Continue to <a href="../multi-region-model/">Building a Multi-Region Model</a></li>
-<li><strong>Configure renewables</strong>: Try <a href="../renewable-resources/">Working with Renewable Resources</a></li>
+<li><a href="../multi-region-model/">Building a Multi-Region Model</a>: use the same study to
+   inspect its regions and change transmission expansion limits.</li>
+<li><a href="../renewable-resources/">Working with Renewable Resources</a>: follow its
+   separate-settings setup to change wind resource resolution while keeping solar.</li>
+<li>Explore the other published studies in
+   <a href="https://github.com/PowerGenome/PowerGenome-examples">PowerGenome-examples</a>.</li>
+<li>For your own study, generate starting settings with the
+   <a href="https://gschivley.github.io/PowerGenome-tools/web/">System Design tool</a> and
+   <a href="../../how-to/configure-data-tables/">supply the referenced data tables</a>.</li>
 </ol>
+<p>Do not change regions or planning years without checking data coverage. The
+example's dataset is deliberately small.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="common-issues">Common Issues<a class="headerlink" href="#common-issues" title="Permanent link">&para;</a></h3>
 <p><strong>"Table not found" error</strong>
@@ -2856,7 +2822,11 @@
 <p><strong>"Region not found" error</strong>
 : Verify region names in <code>model_regions</code> match data tables</p>
 <p><strong>Import errors</strong>
-: Reinstall with <code>pip install -e .</code> from PowerGenome directory</p>
+: Activate the environment in <code>powergenome-tutorial/.venv/</code>. If installation did
+  not complete, rerun <code>uv pip install powergenome==0.8.0</code> in that environment.</p>
+<p><strong>Resource-group directory not found</strong>
+: Run from <code>powergenome-tutorial/</code>, not from inside the Texas study. Check that
+  <code>example_systems/TX-3-zone/resource_groups/</code> exists.</p>
 <p>See <a href="../../how-to/debugging/">Debugging</a> for more solutions.</p>
 <h2 id="learning-resources">Learning Resources<a class="headerlink" href="#learning-resources" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2955,7 +2925,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

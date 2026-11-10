@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1497,34 +1497,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../reference/settings/macro-output/" class="md-nav__link">
         
   
@@ -2639,7 +2611,9 @@
 <p>PowerGenome groups real-world power plants into representative <strong>clusters</strong> to keep capacity expansion models tractable. Rather than modeling each unit individually (which could mean thousands of rows), generators with similar characteristics are merged into a smaller number of clusters per region and technology type.</p>
 <hr />
 <h2 id="why-clustering-is-needed">Why clustering is needed<a class="headerlink" href="#why-clustering-is-needed" title="Permanent link">&para;</a></h2>
-<p>Detailed generator inventories from EIA data can contain thousands of individual units. Including each unit as a separate resource in GenX would make the optimization problem very large without meaningfully improving accuracy, because units of the same vintage and technology behave nearly identically.</p>
+<p>Detailed generator inventories can contain thousands of individual units. Modeling each
+unit separately can make the optimization problem much larger; clustering trades some
+unit-level detail for a more compact model.</p>
 <p>Clustering reduces these to a manageable number of representative resources while preserving the key features the model needs: capacity, heat rate, cost, and retirement eligibility.</p>
 <hr />
 <h2 id="how-existing-generators-are-clustered">How existing generators are clustered<a class="headerlink" href="#how-existing-generators-are-clustered" title="Permanent link">&para;</a></h2>
@@ -2649,13 +2623,14 @@
 <a href="#retirement-filtering">Retirement status</a> determines which units contribute capacity,
 not cluster membership.</p>
 <h3 id="step-2-k-means-clustering">Step 2: K-means clustering<a class="headerlink" href="#step-2-k-means-clustering" title="Permanent link">&para;</a></h3>
-<p>Within each region–technology group, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html">k-means clustering</a> partitions units into <code>k</code> clusters where <code>k</code> is set by <code>num_clusters</code> (or <code>alt_num_clusters</code> for per-region overrides).</p>
+<p>Within each region–technology group, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html">k-means clustering</a> partitions units into <code>k</code> clusters where <code>k</code> is set by the technology entry in <code>num_clusters</code> (or <code>alt_num_clusters</code> for per-region overrides).</p>
 <p><strong>Clustering features</strong> (by default):</p>
 <ul>
 <li><code>heat_rate_mmbtu_mwh</code> — thermal efficiency</li>
 <li><code>fom_per_mwyr</code> — fixed O&amp;M cost</li>
 </ul>
-<p>Features are standardized (mean 0, unit variance) before clustering so that neither dominates the distance metric purely because of scale.</p>
+<p>Features are standardized (mean 0, unit variance) before clustering so that neither dominates the distance metric purely because of scale.
+Use <code>generator_cluster_columns</code> to choose different features.</p>
 <p>If a region–technology group has fewer plants than the requested number of clusters, the number of clusters is automatically reduced to match the number of plants.</p>
 <h3 id="step-3-cluster-aggregation">Step 3: Cluster aggregation<a class="headerlink" href="#step-3-cluster-aggregation" title="Permanent link">&para;</a></h3>
 <p>For each cluster, representative values are computed:</p>
@@ -2684,8 +2659,8 @@ not cluster membership.</p>
 <td>Capacity-weighted average</td>
 </tr>
 <tr>
-<td><code>minimum_load_mw</code></td>
-<td>Capacity-weighted average</td>
+<td><code>capacity_mwh</code></td>
+<td>Sum of operating units in cluster</td>
 </tr>
 </tbody>
 </table>
@@ -2734,9 +2709,13 @@ coverage before considering a larger tolerance.</p>
 <hr />
 <h2 id="controlling-the-number-of-clusters">Controlling the number of clusters<a class="headerlink" href="#controlling-the-number-of-clusters" title="Permanent link">&para;</a></h2>
 <h3 id="default-cluster-count">Default cluster count<a class="headerlink" href="#default-cluster-count" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">num_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">  </span><span class="c1"># Default: merge all plants of a type into one cluster</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">num_clusters</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">Natural Gas Fired Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">Conventional Steam Coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 </code></pre></div>
-<p>A value of <code>1</code> means all generators of the same type in a region become one representative unit. This is the most aggressive reduction and is appropriate when you need a compact model.</p>
+<p>A value of <code>1</code> merges all generators of that type in a region into one representative
+resource. Technologies omitted from this mapping are excluded unless an override
+includes them.</p>
 <h3 id="per-region-overrides">Per-region overrides<a class="headerlink" href="#per-region-overrides" title="Permanent link">&para;</a></h3>
 <p>Use <code>alt_num_clusters</code> to set different cluster counts for specific combinations:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">alt_num_clusters</span><span class="p">:</span>
@@ -2746,10 +2725,14 @@ coverage before considering a larger tolerance.</p>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">TX</span><span class="p">:</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="nt">Natural Gas Fired Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
 </code></pre></div>
-<p>Setting <code>num_clusters</code> to <code>0</code> or omitting a region/tech combination excludes those generators entirely. Technology names here are matched against the raw data values; they are <strong>not</strong> the ATB-style names.</p>
+<p>Setting a technology's count to <code>0</code>, or omitting it from both the base mapping and
+the region's override, excludes those generators. Names match the generation table's
+technology values, or the grouped names after applying <code>tech_groups</code>.</p>
 <h3 id="individual-units-no-clustering">Individual units (no clustering)<a class="headerlink" href="#individual-units-no-clustering" title="Permanent link">&para;</a></h3>
-<p>To preserve every generator as an individual resource, set <code>num_clusters</code> equal to the number of plants (or use a large number — PowerGenome reduces it to the number of plants automatically):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">num_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">999</span><span class="w">  </span><span class="c1"># Each plant becomes its own resource</span>
+<p>To preserve every unit of a technology as an individual resource, set its count to
+<code>null</code> (or use a large number; PowerGenome reduces it to the number of units):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">num_clusters</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">Natural Gas Fired Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
 </code></pre></div>
 <hr />
 <h2 id="technology-grouping">Technology grouping<a class="headerlink" href="#technology-grouping" title="Permanent link">&para;</a></h2>
@@ -2771,14 +2754,17 @@ blank value or missing column means no planned retirement.</p>
 period are included without prorating their capacity.</p>
 <div class="admonition note">
 <p class="admonition-title">Myopic multi-period models</p>
-<p>Use the same generation data across the periods of a case to keep cluster
-membership consistent. PowerGenome records scheduled retirements in later
-periods as minimum retirement requirements for each resource (<code>Min_Retired_*</code>
-columns).</p>
+<p>Omit <code>--multi-period</code> to keep the CLI's default multi-period behavior; passing
+this flag disables it. Use the same generation data across the periods of a
+case to keep cluster membership consistent. PowerGenome records scheduled
+retirements in later periods as minimum retirement requirements for each
+resource (<code>Min_Retired_*</code> columns).</p>
 </div>
 <hr />
 <h2 id="viewing-cluster-assignments">Viewing cluster assignments<a class="headerlink" href="#viewing-cluster-assignments" title="Permanent link">&para;</a></h2>
-<p>When <code>extra_outputs_path</code> is configured (or by default in the <code>extra_outputs</code> sub-folder of each case), PowerGenome writes a CSV file showing which real plant belonged to which cluster. This is useful for debugging unexpected groupings.</p>
+<p>The CLI writes <code>extra_outputs/existing_gen_units.csv</code> inside each period folder,
+showing which units belong to each cluster. This is useful for debugging unexpected
+groupings.</p>
 <hr />
 <h2 id="related-documentation">Related documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2872,7 +2858,7 @@ columns).</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

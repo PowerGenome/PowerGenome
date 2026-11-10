@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1483,34 +1483,6 @@
     
   
     Multi-Scenario Management
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
   
 
     
@@ -3637,19 +3609,22 @@
 <p>PowerGenome uses technology names from NREL's Annual Technology Baseline (ATB) for new-build generation resources. This page documents the valid <code>technology</code> and <code>tech_detail</code> names for each ATB version.</p>
 <div class="admonition info">
 <p class="admonition-title">Technology Naming Convention</p>
-<p>ATB technologies use a two-part naming structure: <code>&lt;technology&gt;_&lt;tech_detail&gt;</code>. The <code>technology</code> indicates the generation type (e.g., <code>LandbasedWind</code>), while <code>tech_detail</code> specifies resource quality, configuration, or capture technology (e.g., <code>Class3</code>, <code>Moderate</code>).</p>
+<p>Each <code>new_resources</code> entry supplies separate <code>technology</code>, <code>tech_detail</code>,
+<code>cost_case</code>, and <code>size_mw</code> values. For example, <code>Class3</code> is a detail and
+<code>Moderate</code> is a cost case.</p>
 </div>
 <h2 id="cost-scenarios">Cost Scenarios<a class="headerlink" href="#cost-scenarios" title="Permanent link">&para;</a></h2>
 <p>Most ATB technologies support three cost scenarios:</p>
 <ul>
 <li><strong>Conservative</strong>: High-cost projection</li>
-<li><strong>Moderate</strong>: Mid-range cost projection (default)</li>
+<li><strong>Moderate</strong>: Mid-range cost projection</li>
 <li><strong>Advanced</strong>: Low-cost projection with optimistic technology improvements</li>
 </ul>
 <p>The cost scenario is selected per resource in the <code>new_resources</code> list, where the third
 element of each entry is the cost case (e.g., <code>Moderate</code>, <code>Advanced</code>, or <code>Conservative</code>).
-It can also be adjusted across all resources with <code>resource_modifiers</code>. There is no
-standalone <code>atb_cost_case</code> setting.</p>
+Set the case for each entry. There is no standalone <code>atb_cost_case</code> setting.
+Available names and cases depend on the actual cost and heat-rate tables
+configured for the chosen vintage.</p>
 <hr />
 <h2 id="atb-2024">ATB 2024<a class="headerlink" href="#atb-2024" title="Permanent link">&para;</a></h2>
 <p>NREL's <a href="https://atb.nrel.gov/electricity/2024/technologies">2024 Annual Technology Baseline</a> provides cost and performance data for the following technologies:</p>
@@ -3844,7 +3819,8 @@ standalone <code>atb_cost_case</code> setting.</p>
 <strong>Tech Details</strong>: <code>Class1</code> through <code>Class10</code></p>
 <h3 id="battery-storage_1">Battery Storage<a class="headerlink" href="#battery-storage_1" title="Permanent link">&para;</a></h3>
 <p><strong>Technology</strong>: <code>Battery</code>
-<strong>Tech Details</strong>: <code>*</code> (wildcard - duration determined by model)</p>
+<strong>Tech Details</strong>: Check the configured cost table for the exact value. A literal
+<code>*</code> is matched as text, not as a wildcard.</p>
 <p>ATB2022 reports batteries in 2-10 hour configurations. NREL provides energy ($/kWh) and power ($/kW) costs separately. PowerGenome provides both, allowing models to determine optimal storage duration. Fixed O&amp;M is 2.5% of capex for both components.</p>
 <h3 id="pumped-storage-hydropower_1">Pumped Storage Hydropower<a class="headerlink" href="#pumped-storage-hydropower_1" title="Permanent link">&para;</a></h3>
 <p><strong>Technology</strong>: <code>Pumped Storage Hydropower</code>
@@ -4001,16 +3977,18 @@ standalone <code>atb_cost_case</code> setting.</p>
 <h2 id="usage-in-settings">Usage in Settings<a class="headerlink" href="#usage-in-settings" title="Permanent link">&para;</a></h2>
 <p>To use ATB technologies in your PowerGenome configuration:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Specify ATB data year</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">atb_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2024</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># List available new-build technologies (cost case is the 3rd element)</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nt">new_resources</span><span class="p">:</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LandbasedWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">UtilityPV</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Advanced</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NaturalGas_CCAvgCF_Moderate</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Battery_*_Moderate</span><span class="w">  </span><span class="c1"># Wildcard for all battery durations</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">resource_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2024</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">resource_financial_case</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Market</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nt">resource_cap_recovery_years</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># List available new-build technologies (cost case is the 3rd element)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="nt">new_resources</span><span class="p">:</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LandbasedWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">UtilityPV</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Advanced</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">NaturalGas</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1-on-1 Combined Cycle (H-Frame)</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">500</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Utility-Scale Battery Storage</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Lithium Ion</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
 </code></pre></div>
-<p>The format is <code>&lt;technology&gt;_&lt;tech_detail&gt;_&lt;cost_case&gt;</code>.</p>
+<p>Each entry has the format <code>[technology, tech_detail, cost_case, size_mw]</code>.</p>
 <p>See <a href="../../how-to/add-technologies/">Adding Technologies</a> for complete configuration details.</p>
 <h2 id="related-resources">Related Resources<a class="headerlink" href="#related-resources" title="Permanent link">&para;</a></h2>
 <ul>
@@ -4104,7 +4082,7 @@ standalone <code>atb_cost_case</code> setting.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

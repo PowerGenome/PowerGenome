@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1503,34 +1503,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../settings/macro-output/" class="md-nav__link">
         
   
@@ -1837,6 +1809,28 @@
     <span class="md-ellipsis">
       
         Demand / load profiles (demand)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supplemental-demand-supplemental_demand" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supplemental demand (supplemental_demand)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#emission-policies-and-demand-segments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Emission policies and demand segments
       
     </span>
   </a>
@@ -2506,6 +2500,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#supplemental-demand-supplemental_demand" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supplemental demand (supplemental_demand)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#emission-policies-and-demand-segments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Emission policies and demand segments
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#distributed-capacity-distributed_capacity" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2686,6 +2702,21 @@
 <td><code>load_curves.csv</code></td>
 </tr>
 <tr>
+<td><code>supplemental_demand_table</code></td>
+<td><code>supplemental_demand</code></td>
+<td><code>supplemental_demand.csv</code></td>
+</tr>
+<tr>
+<td><code>emission_policies_table</code></td>
+<td><code>emission_policies</code></td>
+<td><code>emission_policies.csv</code></td>
+</tr>
+<tr>
+<td><code>demand_segments_table</code></td>
+<td><code>demand_segments</code></td>
+<td><code>demand_segments.csv</code></td>
+</tr>
+<tr>
 <td><code>distributed_capacity_table</code></td>
 <td><code>distributed_capacity</code></td>
 <td><code>distributed_capacity.csv</code></td>
@@ -2697,6 +2728,9 @@
 </tr>
 </tbody>
 </table>
+<p><code>distributed_profile_table</code> is also accepted for <code>distributed_profiles</code>.
+See <a href="../../../how-to/configure-data-tables/">Configure Data Tables</a> for aliases
+and configuration options.</p>
 <hr />
 <h2 id="existing-generators-generation">Existing generators (<code>generation</code>)<a class="headerlink" href="#existing-generators-generation" title="Permanent link">&para;</a></h2>
 <p>Contains one row per generator unit. Matched to model regions via the <code>plant_region</code> table.</p>
@@ -2725,8 +2759,8 @@
 <tr>
 <td><code>generator_id</code></td>
 <td>string</td>
-<td>Yes</td>
-<td>EIA generator ID</td>
+<td>Recommended</td>
+<td>Identifies the unit in cluster-assignment outputs</td>
 </tr>
 <tr>
 <td><code>capacity_mw</code></td>
@@ -2737,8 +2771,8 @@
 <tr>
 <td><code>capacity_mwh</code></td>
 <td>float</td>
-<td>No</td>
-<td>Storage energy capacity in MWh; leave blank for non-storage</td>
+<td>Yes</td>
+<td>Storage energy capacity in MWh; values may be blank for non-storage</td>
 </tr>
 <tr>
 <td><code>operating_year</code></td>
@@ -2756,37 +2790,37 @@
 <td><code>historical_capacity_factor</code></td>
 <td>float</td>
 <td>No</td>
-<td>Used to impute missing heat-rate data</td>
+<td>Source-data attribute</td>
 </tr>
 <tr>
 <td><code>heat_rate_mmbtu_mwh</code></td>
 <td>float</td>
-<td>No</td>
-<td>Average heat rate; required for thermal generators</td>
+<td>Yes</td>
+<td>Average heat rate; supply appropriate values for thermal generators</td>
 </tr>
 <tr>
 <td><code>vom_per_mwh</code></td>
 <td>float</td>
-<td>No</td>
+<td>Yes</td>
 <td>Variable O&amp;M cost ($/MWh)</td>
 </tr>
 <tr>
 <td><code>fom_per_mwyr</code></td>
 <td>float</td>
-<td>No</td>
+<td>Yes</td>
 <td>Fixed O&amp;M cost ($/MW-year)</td>
 </tr>
 <tr>
 <td><code>energy_source_code</code></td>
 <td>string</td>
-<td>Yes</td>
-<td>EIA fuel code (e.g. <code>NG</code>, <code>BIT</code>, <code>SUN</code>)</td>
+<td>No</td>
+<td>Source fuel code (e.g. <code>NG</code>, <code>BIT</code>, <code>SUN</code>)</td>
 </tr>
 <tr>
 <td><code>minimum_load_mw</code></td>
 <td>float</td>
 <td>No</td>
-<td>Minimum stable load in MW</td>
+<td>Source-data attribute; operational constraints set <code>Min_Power</code></td>
 </tr>
 </tbody>
 </table>
@@ -2813,7 +2847,7 @@
 <td><code>region</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Model region name</td>
+<td>Base region or unaggregated model region name</td>
 </tr>
 </tbody>
 </table>
@@ -2840,13 +2874,13 @@
 <td><code>tech_detail</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>ATB detail variant (e.g. <code>Moderate</code>, <code>Conservative</code>)</td>
+<td>Technology detail (e.g. <code>Lithium Ion</code>)</td>
 </tr>
 <tr>
 <td><code>cost_case</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>ATB cost case (e.g. <code>R&amp;D</code>, <code>Market</code>)</td>
+<td>ATB cost case (e.g. <code>Advanced</code>, <code>Moderate</code>, <code>Conservative</code>)</td>
 </tr>
 <tr>
 <td><code>financial_case</code></td>
@@ -2858,7 +2892,7 @@
 <td><code>parameter</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Cost parameter name (e.g. <code>CAPEX</code>, <code>Fixed_OM_Cost_per_kWyr</code>)</td>
+<td>Cost parameter name (e.g. <code>capex_mw</code>, <code>fixed_o_m_mw</code>, <code>wacc_real</code>)</td>
 </tr>
 <tr>
 <td><code>parameter_value</code></td>
@@ -2888,7 +2922,7 @@
 <td><code>cap_recovery_years</code></td>
 <td>integer</td>
 <td>No</td>
-<td>Assumed capital recovery period</td>
+<td>Source attribute; the new-build workflow uses the corresponding settings</td>
 </tr>
 <tr>
 <td><code>dollar_year</code></td>
@@ -2951,7 +2985,8 @@
 </table>
 <hr />
 <h2 id="operational-constraints-operational_constraints">Operational constraints (<code>operational_constraints</code>)<a class="headerlink" href="#operational-constraints-operational_constraints" title="Permanent link">&para;</a></h2>
-<p>Per-technology or per-resource overrides for GenX operational parameters. Values here are written directly to <code>Generators_data.csv</code>.</p>
+<p>Per-technology or per-resource overrides for GenX operational parameters.
+Matching values are applied to generator rows before output formatting.</p>
 <table>
 <thead>
 <tr>
@@ -2966,13 +3001,13 @@
 <td><code>Resource</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Resource name or technology name pattern; <code>all</code> matches any resource</td>
+<td>Resource name or technology name pattern</td>
 </tr>
 <tr>
 <td><code>region</code></td>
 <td>string</td>
-<td>Yes</td>
-<td>Model region or <code>all</code> for all regions</td>
+<td>No</td>
+<td>Model region or <code>all</code> for all regions; omitted means all regions</td>
 </tr>
 <tr>
 <td><code>Min_Power</code></td>
@@ -3036,7 +3071,8 @@
 </tr>
 </tbody>
 </table>
-<p>Any column that matches a <code>Generators_data.csv</code> column name is forwarded to that output file.</p>
+<p>Non-null parameter values are applied to matching rows. The v6 output writer
+then splits those rows into resource files and may omit empty columns.</p>
 <hr />
 <h2 id="transmission-constraints-transmission_constraints">Transmission constraints (<code>transmission_constraints</code>)<a class="headerlink" href="#transmission-constraints-transmission_constraints" title="Permanent link">&para;</a></h2>
 <p>Existing inter-regional transfer capacities. Used to build <code>Network.csv</code>.</p>
@@ -3102,21 +3138,21 @@
 <td>Model region at the other end</td>
 </tr>
 <tr>
-<td><code>interconnect_cost_mw</code></td>
+<td><code>total_interconnect_cost_mw</code></td>
 <td>float</td>
 <td>Yes</td>
 <td>Total build cost ($/MW)</td>
 </tr>
 <tr>
-<td><code>interconnect_annuity_mw</code></td>
+<td><code>total_interconnect_annuity_mw</code></td>
 <td>float</td>
 <td>Yes</td>
 <td>Annualized build cost ($/MW-year)</td>
 </tr>
 <tr>
-<td><code>line_loss_frac</code></td>
+<td><code>total_line_loss_frac</code></td>
 <td>float</td>
-<td>Yes</td>
+<td>No</td>
 <td>Fractional line loss</td>
 </tr>
 <tr>
@@ -3180,7 +3216,7 @@
 <td><code>region</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Model region</td>
+<td>Fuel price region</td>
 </tr>
 <tr>
 <td><code>price</code></td>
@@ -3192,18 +3228,18 @@
 <td><code>scenario</code></td>
 <td>string</td>
 <td>No</td>
-<td>AEO scenario name; used with <code>fuel_price_scenario</code> setting</td>
+<td>Fuel price scenario; can be filtered in the table configuration</td>
 </tr>
 <tr>
 <td><code>data_year</code></td>
 <td>integer</td>
-<td>No</td>
-<td>AEO data vintage</td>
+<td>Yes</td>
+<td>Data vintage; include even for one vintage</td>
 </tr>
 <tr>
 <td><code>dollar_year</code></td>
 <td>integer</td>
-<td>Yes</td>
+<td>For inflation adjustment</td>
 <td>Dollar-year for price figures</td>
 </tr>
 </tbody>
@@ -3291,13 +3327,13 @@
 <td><code>time_index</code></td>
 <td>integer</td>
 <td>Yes</td>
-<td>Hour index within the year (0–8759)</td>
+<td>Hour index within the source profile</td>
 </tr>
 <tr>
 <td><code>region</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Model region</td>
+<td>Base region or unaggregated model region</td>
 </tr>
 <tr>
 <td><code>load_mw</code></td>
@@ -3320,6 +3356,21 @@
 </tbody>
 </table>
 <hr />
+<h2 id="supplemental-demand-supplemental_demand">Supplemental demand (<code>supplemental_demand</code>)<a class="headerlink" href="#supplemental-demand-supplemental_demand" title="Permanent link">&para;</a></h2>
+<p>Adds hourly load before region aggregation. It uses <code>region</code>, <code>time_index</code>, and
+<code>load_mw</code>; optional <code>year</code> and <code>weather_year</code> select the applicable planning and
+weather years. See <a href="../../../how-to/add-supplemental-demand/">Add Supplemental Demand</a>
+for coverage and aggregation rules.</p>
+<hr />
+<h2 id="emission-policies-and-demand-segments">Emission policies and demand segments<a class="headerlink" href="#emission-policies-and-demand-segments" title="Permanent link">&para;</a></h2>
+<p><code>emission_policies</code> uses <code>year</code>, <code>region</code>, optional <code>case_id</code> and <code>copy_case_id</code>,
+and policy columns such as <code>CO_2_Cap_Zone_1</code> and <code>CO_2_Max_Mtons_1</code>. If
+<code>case_id</code> is omitted, the current case is used; an <code>all</code> case can provide
+fallback values.</p>
+<p><code>demand_segments</code> contains GenX demand-curtailment inputs, such as <code>Voll</code>,
+<code>Demand_Segment</code>, <code>Cost_of_Demand_Curtailment_per_MW</code>, and
+<code>Max_Demand_Curtailment</code>. These columns are included in the demand output.</p>
+<hr />
 <h2 id="distributed-capacity-distributed_capacity">Distributed capacity (<code>distributed_capacity</code>)<a class="headerlink" href="#distributed-capacity-distributed_capacity" title="Permanent link">&para;</a></h2>
 <p>Installed distributed generation capacity by region and year.</p>
 <table>
@@ -3336,7 +3387,7 @@
 <td><code>region</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Model region</td>
+<td>Base region or unaggregated model region</td>
 </tr>
 <tr>
 <td><code>year</code></td>
@@ -3369,18 +3420,18 @@
 <td><code>time_index</code></td>
 <td>integer</td>
 <td>Yes</td>
-<td>Hour index within the year (0–8759)</td>
+<td>Hour index within the source profile</td>
 </tr>
 <tr>
 <td><code>region</code></td>
 <td>string</td>
 <td>Yes</td>
-<td>Model region</td>
+<td>Base region or unaggregated model region</td>
 </tr>
 <tr>
 <td><code>weather_year</code></td>
 <td>integer</td>
-<td>No</td>
+<td>Yes</td>
 <td>Meteorological year for the profile</td>
 </tr>
 <tr>
@@ -3391,6 +3442,9 @@
 </tr>
 </tbody>
 </table>
+<p>When regions are aggregated, provide component-region capacities and profiles.
+See <a href="../../../explanation/distributed-generation/">Distributed Generation</a> for
+interpolation and aggregation behavior.</p>
 
 
 
@@ -3476,7 +3530,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

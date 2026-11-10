@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1702,34 +1702,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../reference/settings/macro-output/" class="md-nav__link">
         
   
@@ -2640,7 +2612,7 @@
 </tr>
 <tr>
 <td><code>scenario</code></td>
-<td>Scenario identifier; when present <strong>exactly one</strong> scenario must remain after loading (see <a href="#step-3-select-a-scenario-optional">Step 3</a>)</td>
+<td>Scenario identifier; at most one non-null value may remain after filtering (see <a href="#step-3-select-a-scenario-optional">Step 3</a>)</td>
 </tr>
 <tr>
 <td><code>weather_year</code></td>
@@ -2690,7 +2662,7 @@
 </code></pre></div>
 <hr />
 <h2 id="step-3-select-a-scenario-optional">Step 3: Select a scenario (optional)<a class="headerlink" href="#step-3-select-a-scenario-optional" title="Permanent link">&para;</a></h2>
-<p>If your supplemental demand file contains multiple scenarios (identified by a <code>scenario</code> column), you <strong>must</strong> specify which one to use. Without a selection, PowerGenome raises an error listing the available options.</p>
+<p>If more than one non-null scenario remains after filtering to the current planning year, you <strong>must</strong> select one. Otherwise, PowerGenome raises an error listing the available options.</p>
 <p>Use the dictionary format:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">supplemental_demand_table</span><span class="p">:</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">supplemental_demand.csv</span>
@@ -2715,21 +2687,29 @@
 <p><strong>Option B — apply only to a specific weather year</strong></p>
 <p>Give the row a specific <code>weather_year</code> value. An <code>all</code> / <code>all_hours</code> row then applies to every hour of only that weather year; a specific integer <code>time_index</code> applies to just that hour within the weather year.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>region,time_index,load_mw,year,weather_year
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>WEST,all_hours,500,2035,2012      # every hour of 2012
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>WEST,all_hours,300,2035,2013      # every hour of 2013
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>WEST,3,400,2035,2013              # hour 3 of 2013 only
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>WEST,all_hours,500,2035,2012
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>WEST,all_hours,300,2035,2013
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>WEST,3,400,2035,2013
 </code></pre></div>
+<p>The first two rows apply to every hour of their respective weather years; the
+last applies only to hour 3 of 2013.</p>
 <div class="admonition warning">
 <p class="admonition-title">Blank <code>weather_year</code> rows are skipped</p>
 <p>A row with a blank/empty <code>weather_year</code> is <strong>not</strong> applied. Use <code>weather_year: all</code> when you want a row to apply across every weather year.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Coverage check</p>
-<p>When the supplemental demand table includes a <code>weather_year</code> column <strong>and</strong> the load data's weather years are known (via the <code>weather_year</code> setting), every weather year present in the load data must be covered by the supplemental demand table — either by a row for that specific year or by a row with <code>weather_year: all</code>. A missing weather year raises an error naming the years that aren't covered. No coverage check is performed when the supplemental demand table has no <code>weather_year</code> column.</p>
+<p>When the supplemental table includes <code>weather_year</code> and the load weather
+years are known from settings or the data, every weather year must be
+covered by a specific-year row or an <code>all</code> row. Otherwise PowerGenome raises
+an error. No coverage check runs when the column is absent.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">How supplemental demand is added</p>
-<p>Supplemental demand is joined into the <strong>base load data stage</strong>, before the per-weather-year hours are renumbered 1..N and before base regions are aggregated into model regions. Rows that share the same <code>(region, weather_year, time_index)</code> are summed together, so there is <strong>no tiling</strong> and <strong>no fixed weather-year length assumption</strong>: weather years of different lengths (e.g. a 8 784-hour leap year next to a normal 8 760-hour year) are handled correctly. This is unlike the older implementation, which block-tiled supplemental load using a fixed <code>hours_per_year</code>.</p>
+<p>In the standard load pipeline, supplemental demand is added before hours are
+renumbered and base regions are aggregated. Rows for the same region, weather
+year, and hour are summed. With user-supplied wide load profiles, specific
+weather years are not supported; omit the column or use <code>all</code>.</p>
 </div>
 <hr />
 <h2 id="step-5-choose-base-or-model-regions">Step 5: Choose base or model regions<a class="headerlink" href="#step-5-choose-base-or-model-regions" title="Permanent link">&para;</a></h2>
@@ -2857,7 +2837,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

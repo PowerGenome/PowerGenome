@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1696,34 +1696,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../reference/settings/macro-output/" class="md-nav__link">
         
   
@@ -2599,7 +2571,9 @@
 <p>PowerGenome writes these to <code>Energy_share_requirement.csv</code> (zone requirements) and <code>Resource_energy_share_requirement.csv</code> (resource eligibility) in the GenX output.</p>
 <hr />
 <h2 id="step-1-create-the-emission-policies-csv">Step 1: Create the emission policies CSV<a class="headerlink" href="#step-1-create-the-emission-policies-csv" title="Permanent link">&para;</a></h2>
-<p>In your <code>extra_inputs</code> folder, create <code>emission_policies.csv</code>. The required columns are <code>case_id</code>, <code>year</code>, and <code>region</code>. Additional columns define policy constraints.</p>
+<p>In your <code>extra_inputs</code> folder, create <code>emission_policies.csv</code> with <code>case_id</code>,
+<code>year</code>, <code>region</code>, and policy columns. <code>case_id</code> may be omitted when every row
+applies to the current case, but include it when using <code>copy_case_id</code>.</p>
 <p><strong>Column naming</strong>:</p>
 <ul>
 <li><code>ESR_&lt;N&gt;</code> — energy share requirement constraint N (fraction, e.g. <code>0.5</code> = 50%)</li>
@@ -2612,7 +2586,8 @@
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>all,2040,all,0.70
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>all,2050,all,0.90
 </code></pre></div>
-<p>Using <code>region = all</code> applies the same policy fraction to every model region.</p>
+<p>A single policy row for a case and year applies its values to every model
+region. Here <code>all</code> makes that intent clear.</p>
 <h3 id="multi-region-example-different-rps-per-zone">Multi-region example (different RPS per zone)<a class="headerlink" href="#multi-region-example-different-rps-per-zone" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>case_id,year,region,ESR_1,ESR_2
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>all,2030,CA_N,0.60,0.80
@@ -2623,19 +2598,24 @@
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>all,2040,AZ,0.25,0.00
 </code></pre></div>
 <h3 id="multi-case-example">Multi-case example<a class="headerlink" href="#multi-case-example" title="Permanent link">&para;</a></h3>
-<p>Use <code>case_id = all</code> when the same policy applies to all scenario cases. Use a specific <code>case_id</code> to vary policies across scenarios:</p>
+<p>Use <code>case_id = all</code> as a fallback for cases with no explicit rows. Use a specific
+<code>case_id</code> to vary policies across scenarios:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>case_id,year,region,ESR_1
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>all,2030,all,0.50
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>high_policy,2030,all,0.70
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>low_policy,2030,all,0.30
 </code></pre></div>
+<p>The fallback is selected only when the case ID is absent from the entire policy
+table, not separately for each year or region. Include every needed year for an
+explicit case.</p>
 <h3 id="copy-policies-from-another-case">Copy policies from another case<a class="headerlink" href="#copy-policies-from-another-case" title="Permanent link">&para;</a></h3>
 <p>Use <code>copy_case_id</code> to reuse another case's policies rather than duplicating rows:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>case_id,year,region,copy_case_id,ESR_1
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>baseline,2030,all,,0.50
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>alternative,2030,all,baseline,
 </code></pre></div>
-<p><code>alternative</code> will use the same ESR_1 value as <code>baseline</code>.</p>
+<p><code>alternative</code> copies the policy values from <code>baseline</code> for the same year and
+region. Keep <code>case_id</code>, <code>year</code>, and <code>region</code> as the first three columns.</p>
 <hr />
 <h2 id="step-2-point-settings-to-the-file">Step 2: Point settings to the file<a class="headerlink" href="#step-2-point-settings-to-the-file" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># settings/policies.yml</span>
@@ -2679,16 +2659,15 @@ legacy <code>emission_policies_fn</code> key is still accepted as an alias.</p>
 <a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a><span class="w">    </span><span class="nt">Coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
 </code></pre></div>
 <p>Only resources with tag value <code>1</code> count toward the corresponding constraint.</p>
-<div class="admonition note">
-<p class="admonition-title">Tag names must be in model_tag_names</p>
-<p>Any tag name you use in <code>model_tag_values</code> must also be listed in <code>model_tag_names</code>. If you add <code>ESR_1</code> to <code>model_tag_values</code> but not <code>model_tag_names</code>, PowerGenome will raise an error.</p>
-</div>
+<p>Tag keys in <code>model_tag_values</code> are included even if they are absent from
+<code>model_tag_names</code>. Check the resource technology names in your data and adjust
+the examples above to match.</p>
 <hr />
 <h2 id="step-4-clean-energy-standard-ces-credits">Step 4: Clean Energy Standard (CES) credits<a class="headerlink" href="#step-4-clean-energy-standard-ces-credits" title="Permanent link">&para;</a></h2>
-<p>For a CES — where resources earn fractional credits based on their emission rate relative to coal — enable the <code>ESR_CES_numerator</code> option:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">ESR_CES_numerator</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</code></pre></div>
-<p>When enabled, resources earn a credit equal to <code>(1 - emission_rate / coal_emission_rate)</code> instead of a binary 0/1 flag. A zero-emission resource earns a credit of 1.0; a resource emitting half of coal earns 0.5.</p>
+<p>PowerGenome's GenX output validates <code>ESR_*</code> resource tags as binary values.
+It does not calculate emission-rate-based fractional CES credits from an
+<code>ESR_CES_numerator</code> setting. Use binary eligibility or configure a different
+policy mechanism in the downstream model.</p>
 <hr />
 <h2 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">&para;</a></h2>
 <p>After running PowerGenome, check the output:</p>
@@ -2700,9 +2679,13 @@ legacy <code>emission_policies_fn</code> key is still accepted as an alias.</p>
 <p><strong>ESR columns missing from output</strong></p>
 <p>Confirm <code>emission_policies_table</code> is set in settings and the file is in <code>input_folder</code>. If the CSV has no <code>ESR_*</code> columns, no ESR output is produced.</p>
 <p><strong>Resources not marked as eligible</strong></p>
-<p>Check that the technology name in <code>model_tag_values</code> is a substring of the resource names in your output. Technology matching is case-insensitive. Use <code>Generators_data.csv</code> (or the equivalent resources CSV) to see actual resource names, then adjust tag key strings accordingly.</p>
+<p>Check that each key in <code>model_tag_values</code> is a substring of the resource
+<code>technology</code> field. Matching is case-insensitive and ignores underscores. Inspect
+the resource CSVs and adjust the keys accordingly.</p>
 <p><strong>Wrong fraction applied to a region</strong></p>
-<p>If using <code>region = all</code>, the same value is applied everywhere. Switch to per-region rows if zones need different fractions.</p>
+<p>If a case/year has only one policy row, PowerGenome applies it to every zone,
+regardless of its <code>region</code> value. Use multiple per-region rows when zones need
+different fractions.</p>
 <hr />
 <h2 id="related-documentation">Related documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2795,7 +2778,7 @@ legacy <code>emission_policies_fn</code> key is still accepted as an alias.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

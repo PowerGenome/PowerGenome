@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1579,10 +1579,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fuel_prices_table" class="md-nav__link">
+  <a href="#fuel_price_table" class="md-nav__link">
     <span class="md-ellipsis">
       
-        fuel_prices_table
+        fuel_price_table
       
     </span>
   </a>
@@ -1617,17 +1617,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#user_fuel_price_regions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        user_fuel_price_regions
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1650,17 +1639,6 @@
     <span class="md-ellipsis">
       
         tech_fuel_map
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#eia_atb_tech_map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        eia_atb_tech_map
       
     </span>
   </a>
@@ -1778,17 +1756,6 @@
   
     <nav class="md-nav" aria-label="Data Sources">
       <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#aeo-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        AEO API
-      
-    </span>
-  </a>
-  
-</li>
         
           <li class="md-nav__item">
   <a href="#custom-data-tables" class="md-nav__link">
@@ -1964,34 +1931,6 @@
     
   
     Multi-Scenario Management
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
   
 
     
@@ -2838,10 +2777,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#fuel_prices_table" class="md-nav__link">
+  <a href="#fuel_price_table" class="md-nav__link">
     <span class="md-ellipsis">
       
-        fuel_prices_table
+        fuel_price_table
       
     </span>
   </a>
@@ -2876,17 +2815,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#user_fuel_price_regions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        user_fuel_price_regions
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -2909,17 +2837,6 @@
     <span class="md-ellipsis">
       
         tech_fuel_map
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#eia_atb_tech_map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        eia_atb_tech_map
       
     </span>
   </a>
@@ -3037,17 +2954,6 @@
   
     <nav class="md-nav" aria-label="Data Sources">
       <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#aeo-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        AEO API
-      
-    </span>
-  </a>
-  
-</li>
         
           <li class="md-nav__item">
   <a href="#custom-data-tables" class="md-nav__link">
@@ -3188,7 +3094,7 @@
 <p><strong>Most users should use the simplified workflow</strong> with a complete fuel price table containing all base regions.</p>
 <h2 id="simplified-workflow-recommended">Simplified Workflow (Recommended)<a class="headerlink" href="#simplified-workflow-recommended" title="Permanent link">&para;</a></h2>
 <h3 id="required-settings">Required Settings<a class="headerlink" href="#required-settings" title="Permanent link">&para;</a></h3>
-<p>Only three parameters are needed:</p>
+<p>These settings select a supplied fuel table and map fuels to generators:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Assign scenario names to fuels</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">fuel_scenarios</span><span class="p">:</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
@@ -3203,11 +3109,10 @@
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="c1"># Point to your fuel price table</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="nt">fuel_price_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.csv</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="nt">fuel_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2025</span>
 </code></pre></div>
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p>You can point different fuels to different scenarios. In one PJM setup, <code>naturalgas</code> and <code>uranium</code> use <code>reference</code> while <code>coal</code> uses the <code>no_111d</code> scenario, which aligns with current US policy.</p>
-</div>
+<p>You can select different scenarios for different fuels if those scenarios are
+present in the table.</p>
 <h3 id="fuel-price-table-format">Fuel Price Table Format<a class="headerlink" href="#fuel-price-table-format" title="Permanent link">&para;</a></h3>
 <p>Your fuel price table must include prices for <strong>every base region</strong> in your model:</p>
 <p><strong>Required columns</strong>:</p>
@@ -3216,20 +3121,21 @@
 <li><code>region</code>: Base region name (must match regions in your model)</li>
 <li><code>year</code>: Calendar year</li>
 <li><code>price</code>: Price ($/MMBtu)</li>
+<li><code>scenario</code>: Scenario identifier matching <code>fuel_scenarios</code></li>
+<li><code>data_year</code>: Data vintage year (include even for one vintage)</li>
 </ul>
 <p><strong>Optional columns</strong>:</p>
 <ul>
-<li><code>scenario</code>: Scenario identifier (if using multiple price scenarios)</li>
-<li><code>data_year</code>: Data vintage year</li>
 <li><code>dollar_year</code>: Price year (for inflation adjustment)</li>
 </ul>
 <p><strong>Example fuel_prices.csv</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>fuel,region,year,price,scenario,dollar_year
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>coal,CA_N,2030,2.5,reference,2024
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>coal,CA_S,2030,2.6,reference,2024
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>naturalgas,CA_N,2030,4.2,reference,2024
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>naturalgas,CA_S,2030,4.3,reference,2024
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>uranium,CA_N,2030,0.8,reference,2024
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>fuel,region,year,price,scenario,data_year,dollar_year
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>coal,CA_N,2030,2.5,reference,2025,2024
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>coal,CA_S,2030,2.6,reference,2025,2024
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>naturalgas,CA_N,2030,4.2,reference,2025,2024
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>naturalgas,CA_S,2030,4.3,reference,2025,2024
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>uranium,CA_N,2030,0.8,reference,2025,2024
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>uranium,CA_S,2030,0.8,reference,2025,2024
 </code></pre></div>
 <p><strong>Important</strong>: The table must contain prices for all base regions (e.g., CA_N, CA_S). PowerGenome will automatically average base region prices to create prices for aggregated regions defined in <code>region_aggregations</code>.</p>
 <h3 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
@@ -3261,13 +3167,15 @@
 <p>Specifies which data year to use if your fuel price table contains multiple vintages.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">fuel_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2025</span>
 </code></pre></div>
-<p>Only needed if your <code>fuel_price_table</code> has a <code>data_year</code> column with multiple years.</p>
+<p>Selects the vintage when the table contains multiple <code>data_year</code> values. Include
+the column even for a single vintage; without <code>fuel_data_year</code>, the loader checks
+the number of unique values in that column.</p>
 <h2 id="legacy-mapping-parameters-optional">Legacy Mapping Parameters (Optional)<a class="headerlink" href="#legacy-mapping-parameters-optional" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Legacy Parameters</p>
 <p>The parameters below are <strong>only needed for the legacy AEO direct workflow</strong>. If your fuel price table already contains prices for all base regions with the fuel/scenario names you want, <strong>skip this entire section</strong>.</p>
 </div>
-<p>These parameters were originally designed for working with EIA AEO data directly via API or raw AEO files with region/fuel codes that need mapping.</p>
+<p>These parameters map region, fuel, and scenario codes in a supplied fuel price table.</p>
 <h3 id="fuel_series_scenario_names"><code>fuel_series_scenario_names</code><a class="headerlink" href="#fuel_series_scenario_names" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Dictionary (user scenario → AEO scenario code)
 <strong>Required</strong>: No (legacy workflow only)
@@ -3332,21 +3240,16 @@
 <p>See EIA documentation for complete region definitions.</p>
 <h2 id="fuel-emission-factors">Fuel Emission Factors<a class="headerlink" href="#fuel-emission-factors" title="Permanent link">&para;</a></h2>
 <h3 id="fuel_emission_factors"><code>fuel_emission_factors</code><a class="headerlink" href="#fuel_emission_factors" title="Permanent link">&para;</a></h3>
-<p><strong>Type</strong>: Dictionary (fuel → emissions dict)
+<p><strong>Type</strong>: Dictionary (fuel → number)
 <strong>Required</strong>: For emissions modeling
 <strong>Example</strong>: See below</p>
 <p>CO₂ emission factors by fuel type (tonnes CO₂ per MMBtu).</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">fuel_emission_factors</span><span class="p">:</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="nt">co2_tons_per_mmbtu</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.09552</span><span class="w">  </span><span class="c1"># Bituminous coal</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="nt">co2_tons_per_mmbtu</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05306</span><span class="w">  </span><span class="c1"># Natural gas</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">  </span><span class="nt">distillate</span><span class="p">:</span>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="nt">co2_tons_per_mmbtu</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.07315</span><span class="w">  </span><span class="c1"># Diesel/fuel oil</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span>
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="nt">co2_tons_per_mmbtu</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span><span class="w">  </span><span class="c1"># Nuclear (no combustion)</span>
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">  </span><span class="nt">biomass</span><span class="p">:</span>
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="nt">co2_tons_per_mmbtu</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span><span class="w">  </span><span class="c1"># Often counted as carbon neutral</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.09552</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05306</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="nt">distillate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.07315</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">  </span><span class="nt">biomass</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
 </code></pre></div>
 <p>Values are based on fuel carbon content and combustion chemistry.</p>
 <p><strong>Common factors</strong> (tonnes CO₂/MMBtu):</p>
@@ -3357,16 +3260,17 @@
 <li>Diesel: 0.0732</li>
 <li>Biomass: 0.0 (policy-dependent)</li>
 </ul>
-<h3 id="fuel_prices_table"><code>fuel_prices_table</code><a class="headerlink" href="#fuel_prices_table" title="Permanent link">&para;</a></h3>
+<h3 id="fuel_price_table"><code>fuel_price_table</code><a class="headerlink" href="#fuel_price_table" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: String or dictionary
 <strong>Required</strong>: For custom fuel prices
 <strong>Example</strong>: See below</p>
 <p>Custom fuel price time series (alternative to AEO).</p>
 <p><strong>Simple</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">fuel_prices_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.csv</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">fuel_price_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.csv</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nt">fuel_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2025</span>
 </code></pre></div>
 <p><strong>Advanced</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">fuel_prices_table</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">fuel_price_table</span><span class="p">:</span>
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.parquet</span>
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_gas</span>
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
@@ -3381,72 +3285,45 @@
 </ul>
 <h2 id="user-defined-fuel-prices">User-Defined Fuel Prices<a class="headerlink" href="#user-defined-fuel-prices" title="Permanent link">&para;</a></h2>
 <h3 id="user_fuel_price"><code>user_fuel_price</code><a class="headerlink" href="#user_fuel_price" title="Permanent link">&para;</a></h3>
-<p><strong>Type</strong>: Dictionary (fuel → year → price)
+<p><strong>Type</strong>: Dictionary (fuel → price or region → price)
 <strong>Required</strong>: No
 <strong>Example</strong>: See below</p>
-<p>Directly specify fuel prices by year, overriding AEO or table data.</p>
+<p>Supply prices for user-defined fuels. Values can be scalar across regions or
+specified by model region; use fuels not already assigned in <code>fuel_scenarios</code>.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">user_fuel_price</span><span class="p">:</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="nt">2030</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4.5</span><span class="w">  </span><span class="c1"># $/MMBtu</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="nt">2040</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5.2</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="nt">2050</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5.8</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span>
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="nt">2030</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.1</span>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="nt">2040</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.3</span>
-<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">    </span><span class="nt">2050</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.5</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">hydrogen</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">16.0</span><span class="w">  </span><span class="c1"># $/MMBtu in every region</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">biomass</span><span class="p">:</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5.0</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">6.0</span>
 </code></pre></div>
-<p>Useful for sensitivity analyses or policy scenarios (e.g., carbon pricing embedded in fuel costs).</p>
-<h3 id="user_fuel_price_regions"><code>user_fuel_price_regions</code><a class="headerlink" href="#user_fuel_price_regions" title="Permanent link">&para;</a></h3>
-<p><strong>Type</strong>: List of regions
-<strong>Required</strong>: If using <code>user_fuel_price</code> with regional variation
-<strong>Example</strong>: <code>["CA_N", "CA_S", "AZ"]</code></p>
-<p>Regions where <code>user_fuel_price</code> should apply. If omitted, applies to all regions.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">user_fuel_price_regions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">CA_N</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CA_S</span><span class="p p-Indicator">]</span>
-</code></pre></div>
+<p>Use <a href="../year-keyed-values/">year-keyed values</a> or scenario management for prices
+that change by planning period. <code>user_fuel_usd_year</code> optionally maps fuel names
+to the dollar year of each user-supplied price.</p>
 <h2 id="fuel-technology-mappings">Fuel Technology Mappings<a class="headerlink" href="#fuel-technology-mappings" title="Permanent link">&para;</a></h2>
 <h3 id="tech_fuel_map"><code>tech_fuel_map</code><a class="headerlink" href="#tech_fuel_map" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Dictionary (technology → fuel)
-<strong>Required</strong>: No (has defaults)
+<strong>Required</strong>: For assigning fuels to generators
 <strong>Example</strong>: See below</p>
-<p>Maps technologies to fuel types. PowerGenome has defaults, but you can override.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">tech_fuel_map</span><span class="p">:</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">NaturalGas_CCAvgCF_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">naturalgas</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span><span class="nt">Coal_new_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">coal</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span><span class="nt">Nuclear_Nuclear_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">uranium</span>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">  </span><span class="nt">Biomass_Dedicated_Moderate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">biomass</span>
+<p>Maps technology-name substrings to fuels in <code>fuel_scenarios</code> or
+<code>user_fuel_price</code>. Matching is case-insensitive.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">tech_fuel_map</span><span class="p">:</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">NaturalGas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">naturalgas</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">Conventional Steam Coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">coal</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="nt">Nuclear</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">uranium</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span><span class="nt">Biomass</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">biomass</span>
 </code></pre></div>
-<p><strong>Default mappings</strong>:</p>
-<ul>
-<li>Natural gas technologies → <code>naturalgas</code></li>
-<li>Coal technologies → <code>coal</code></li>
-<li>Nuclear → <code>uranium</code></li>
-<li>Biomass/MSW → <code>biomass</code></li>
-<li>Oil/diesel → <code>distillate</code></li>
-</ul>
-<p>Custom mappings are only needed for non-standard technology names.</p>
-<h3 id="eia_atb_tech_map"><code>eia_atb_tech_map</code><a class="headerlink" href="#eia_atb_tech_map" title="Permanent link">&para;</a></h3>
-<p><strong>Type</strong>: Dictionary (EIA tech → ATB tech)
-<strong>Required</strong>: No
-<strong>Example</strong>: See below</p>
-<p>Maps EIA technology names to ATB names for startup cost calculations.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">eia_atb_tech_map</span><span class="p">:</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">Natural Gas Fired Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NaturalGas_CCAvgCF</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">Natural Gas Fired Combustion Turbine</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NaturalGas_CTAvgCF</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span><span class="nt">Conventional Steam Coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Coal_newAvgCF</span>
-</code></pre></div>
-<p>Used to assign ATB startup costs to existing generators based on their EIA technology classification.</p>
 <h2 id="regional-fuel-prices">Regional Fuel Prices<a class="headerlink" href="#regional-fuel-prices" title="Permanent link">&para;</a></h2>
 <h3 id="regional_fuel_adjustments"><code>regional_fuel_adjustments</code><a class="headerlink" href="#regional_fuel_adjustments" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Dictionary (region → fuel → value or modifier)
 <strong>Required</strong>: No
 <strong>Example</strong>: See below</p>
 <p>Regional price adjustments, either relative to base prices or as a relacement value.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">regional_fuel_adjustments</span><span class="p">:</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.5</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Add $1.5/mmbtu to gas prices in CA_N</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.9</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># Multiply all fuel costs in CA_S by 0.9</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span>
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.0</span><span class="w">  </span><span class="c1"># $2/mmbtu fuel cost in AZ (dollar year must match target_usd_year)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">regional_fuel_adjustments</span><span class="p">:</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.5</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Add $1.5/mmbtu to gas prices in CA_N</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.9</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># Multiply all fuel costs in CA_S by 0.9</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">  </span><span class="nt">AZ</span><span class="p">:</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">    </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.0</span><span class="w">  </span><span class="c1"># $2/mmbtu fuel cost in AZ (dollar year must match target_usd_year)</span>
 </code></pre></div>
 <p>Accounts for regional market conditions, transportation costs, or local policies.</p>
 <h2 id="carbon-pricing">Carbon Pricing<a class="headerlink" href="#carbon-pricing" title="Permanent link">&para;</a></h2>
@@ -3456,152 +3333,141 @@
 <strong>Example</strong>: See below</p>
 <p>Carbon price ($/tonne CO₂) added to fuel costs.</p>
 <p><strong>Single value</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nt">carbon_tax</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">  </span><span class="c1"># $/tonne CO₂</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">carbon_tax</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">  </span><span class="c1"># $/tonne CO₂</span>
 </code></pre></div>
 <p>Carbon costs are calculated as:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>carbon_cost_per_mmbtu = carbon_tax * fuel_emission_factors[fuel]['co2_tons_per_mmbtu']
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>carbon_cost_per_mmbtu = carbon_tax * fuel_emission_factors[fuel]
 </code></pre></div>
 <h2 id="example-configurations">Example Configurations<a class="headerlink" href="#example-configurations" title="Permanent link">&para;</a></h2>
 <h3 id="simplified-workflow-example">Simplified Workflow Example<a class="headerlink" href="#simplified-workflow-example" title="Permanent link">&para;</a></h3>
 <p>Complete fuel pricing with custom fuel price table:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Fuel price table location</span>
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="nt">fuel_price_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.csv</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># Map scenario names to fuels</span>
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="nt">fuel_scenarios</span><span class="p">:</span>
-<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">no_111d</span>
-<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
-<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
-<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="w">  </span><span class="nt">distillate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
-<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>
-<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="c1"># Map technologies to fuels</span>
-<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="nt">tech_fuel_map</span><span class="p">:</span>
-<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="w">  </span><span class="nt">Conventional Steam Coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">coal</span>
-<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a><span class="w">  </span><span class="nt">Natural Gas Fired Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">naturalgas</span>
-<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a><span class="w">  </span><span class="nt">Natural Gas Fired Combustion Turbine</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">naturalgas</span>
-<a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a><span class="w">  </span><span class="nt">Nuclear</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">uranium</span>
-<a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a><span class="w">  </span><span class="nt">Petroleum Liquids</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">distillate</span>
-<a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a>
-<a id="__codelineno-18-19" name="__codelineno-18-19" href="#__codelineno-18-19"></a><span class="c1"># Emission factors (tonnes CO2 per MMBtu)</span>
-<a id="__codelineno-18-20" name="__codelineno-18-20" href="#__codelineno-18-20"></a><span class="nt">fuel_emission_factors</span><span class="p">:</span>
-<a id="__codelineno-18-21" name="__codelineno-18-21" href="#__codelineno-18-21"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.09552</span>
-<a id="__codelineno-18-22" name="__codelineno-18-22" href="#__codelineno-18-22"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05306</span>
-<a id="__codelineno-18-23" name="__codelineno-18-23" href="#__codelineno-18-23"></a><span class="w">  </span><span class="nt">distillate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.07315</span>
-<a id="__codelineno-18-24" name="__codelineno-18-24" href="#__codelineno-18-24"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
-<a id="__codelineno-18-25" name="__codelineno-18-25" href="#__codelineno-18-25"></a>
-<a id="__codelineno-18-26" name="__codelineno-18-26" href="#__codelineno-18-26"></a><span class="c1"># CCS fuel mapping</span>
-<a id="__codelineno-18-27" name="__codelineno-18-27" href="#__codelineno-18-27"></a><span class="nt">ccs_fuel_map</span><span class="p">:</span>
-<a id="__codelineno-18-28" name="__codelineno-18-28" href="#__codelineno-18-28"></a><span class="w">  </span><span class="nt">NaturalGas_CCS90</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">naturalgas_ccs90</span>
-<a id="__codelineno-18-29" name="__codelineno-18-29" href="#__codelineno-18-29"></a><span class="w">  </span><span class="nt">Coal_CCS90</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">coal_ccs90</span>
-<a id="__codelineno-18-30" name="__codelineno-18-30" href="#__codelineno-18-30"></a>
-<a id="__codelineno-18-31" name="__codelineno-18-31" href="#__codelineno-18-31"></a><span class="nt">ccs_capture_rate</span><span class="p">:</span>
-<a id="__codelineno-18-32" name="__codelineno-18-32" href="#__codelineno-18-32"></a><span class="w">  </span><span class="nt">naturalgas_ccs90</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.9</span>
-<a id="__codelineno-18-33" name="__codelineno-18-33" href="#__codelineno-18-33"></a><span class="w">  </span><span class="nt">coal_ccs90</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.9</span>
-<a id="__codelineno-18-34" name="__codelineno-18-34" href="#__codelineno-18-34"></a>
-<a id="__codelineno-18-35" name="__codelineno-18-35" href="#__codelineno-18-35"></a><span class="nt">ccs_disposal_cost</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">  </span><span class="c1"># $/tonne CO2</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Fuel price table location</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="nt">fuel_price_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.csv</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># Map scenario names to fuels</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="nt">fuel_scenarios</span><span class="p">:</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="c1"># Map technologies to fuels</span>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="nt">tech_fuel_map</span><span class="p">:</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="w">  </span><span class="nt">Conventional Steam Coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">coal</span>
+<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="w">  </span><span class="nt">Natural Gas Fired Combined Cycle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">naturalgas</span>
+<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a><span class="w">  </span><span class="nt">Natural Gas Fired Combustion Turbine</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">naturalgas</span>
+<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a><span class="w">  </span><span class="nt">Nuclear</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">uranium</span>
+<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>
+<a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a><span class="c1"># Emission factors (tonnes CO2 per MMBtu)</span>
+<a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a><span class="nt">fuel_emission_factors</span><span class="p">:</span>
+<a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.09552</span>
+<a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05306</span>
+<a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a><span class="w">  </span><span class="nt">distillate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.07315</span>
+<a id="__codelineno-16-22" name="__codelineno-16-22" href="#__codelineno-16-22"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<a id="__codelineno-16-23" name="__codelineno-16-23" href="#__codelineno-16-23"></a>
+<a id="__codelineno-16-24" name="__codelineno-16-24" href="#__codelineno-16-24"></a><span class="c1"># CCS fuel mapping</span>
+<a id="__codelineno-16-25" name="__codelineno-16-25" href="#__codelineno-16-25"></a><span class="nt">ccs_fuel_map</span><span class="p">:</span>
+<a id="__codelineno-16-26" name="__codelineno-16-26" href="#__codelineno-16-26"></a><span class="w">  </span><span class="nt">NaturalGas_CCS90</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">naturalgas_ccs90</span>
+<a id="__codelineno-16-27" name="__codelineno-16-27" href="#__codelineno-16-27"></a><span class="w">  </span><span class="nt">Coal_CCS90</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">coal_ccs90</span>
+<a id="__codelineno-16-28" name="__codelineno-16-28" href="#__codelineno-16-28"></a>
+<a id="__codelineno-16-29" name="__codelineno-16-29" href="#__codelineno-16-29"></a><span class="nt">ccs_capture_rate</span><span class="p">:</span>
+<a id="__codelineno-16-30" name="__codelineno-16-30" href="#__codelineno-16-30"></a><span class="w">  </span><span class="nt">naturalgas_ccs90</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.9</span>
+<a id="__codelineno-16-31" name="__codelineno-16-31" href="#__codelineno-16-31"></a><span class="w">  </span><span class="nt">coal_ccs90</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.9</span>
+<a id="__codelineno-16-32" name="__codelineno-16-32" href="#__codelineno-16-32"></a>
+<a id="__codelineno-16-33" name="__codelineno-16-33" href="#__codelineno-16-33"></a><span class="nt">ccs_disposal_cost</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">  </span><span class="c1"># $/tonne CO2</span>
 </code></pre></div>
 <p>Your <code>fuel_prices.csv</code> must contain all base regions:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>fuel,region,year,price,scenario,dollar_year
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>coal,CA_N,2030,2.5,reference,2024
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>coal,CA_S,2030,2.6,reference,2024
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>coal,AZ,2030,2.4,reference,2024
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>naturalgas,CA_N,2030,4.2,reference,2024
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>naturalgas,CA_S,2030,4.3,reference,2024
-<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>naturalgas,AZ,2030,3.8,reference,2024
-<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>uranium,CA_N,2030,0.8,reference,2024
-<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>uranium,CA_S,2030,0.8,reference,2024
-<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>uranium,AZ,2030,0.8,reference,2024
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>fuel,region,year,price,scenario,data_year,dollar_year
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>coal,CA_N,2030,2.5,reference,2025,2024
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>coal,CA_S,2030,2.6,reference,2025,2024
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>coal,AZ,2030,2.4,reference,2025,2024
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>naturalgas,CA_N,2030,4.2,reference,2025,2024
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>naturalgas,CA_S,2030,4.3,reference,2025,2024
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>naturalgas,AZ,2030,3.8,reference,2025,2024
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>uranium,CA_N,2030,0.8,reference,2025,2024
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>uranium,CA_S,2030,0.8,reference,2025,2024
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>uranium,AZ,2030,0.8,reference,2025,2024
 </code></pre></div>
 <h3 id="legacy-workflow-example-aeo-direct">Legacy Workflow Example (AEO Direct)<a class="headerlink" href="#legacy-workflow-example-aeo-direct" title="Permanent link">&para;</a></h3>
 <p>If using EIA AEO data directly:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># AEO fuel prices</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nt">fuel_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2025</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="nt">fuel_series_scenario_names</span><span class="p">:</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">reference</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">REF2025</span>
-<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">  </span><span class="nt">high_resource</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HIGHOGS</span>
-<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="nt">low_price</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">LOWPRICE</span>
-<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>
-<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="nt">fuel_series_names</span><span class="p">:</span>
-<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">STC</span>
-<a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NG</span>
-<a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a><span class="w">  </span><span class="nt">distillate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DFO</span>
-<a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">U</span>
-<a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a>
-<a id="__codelineno-20-15" name="__codelineno-20-15" href="#__codelineno-20-15"></a><span class="nt">fuel_series_region_names</span><span class="p">:</span>
-<a id="__codelineno-20-16" name="__codelineno-20-16" href="#__codelineno-20-16"></a><span class="w">  </span><span class="nt">pacific</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PCF</span>
-<a id="__codelineno-20-17" name="__codelineno-20-17" href="#__codelineno-20-17"></a><span class="w">  </span><span class="nt">mountain</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">MTN</span>
-<a id="__codelineno-20-18" name="__codelineno-20-18" href="#__codelineno-20-18"></a>
-<a id="__codelineno-20-19" name="__codelineno-20-19" href="#__codelineno-20-19"></a><span class="nt">fuel_scenarios</span><span class="p">:</span>
-<a id="__codelineno-20-20" name="__codelineno-20-20" href="#__codelineno-20-20"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
-<a id="__codelineno-20-21" name="__codelineno-20-21" href="#__codelineno-20-21"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
-<a id="__codelineno-20-22" name="__codelineno-20-22" href="#__codelineno-20-22"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
-<a id="__codelineno-20-23" name="__codelineno-20-23" href="#__codelineno-20-23"></a><span class="w">  </span><span class="nt">distillate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_resource</span>
-<a id="__codelineno-20-24" name="__codelineno-20-24" href="#__codelineno-20-24"></a>
-<a id="__codelineno-20-25" name="__codelineno-20-25" href="#__codelineno-20-25"></a><span class="nt">fuel_region_map</span><span class="p">:</span>
-<a id="__codelineno-20-26" name="__codelineno-20-26" href="#__codelineno-20-26"></a><span class="w">  </span><span class="nt">pacific</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">CA_N</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CA_S</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-20-27" name="__codelineno-20-27" href="#__codelineno-20-27"></a><span class="w">  </span><span class="nt">mountain</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">AZ</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">NM</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-20-28" name="__codelineno-20-28" href="#__codelineno-20-28"></a>
-<a id="__codelineno-20-29" name="__codelineno-20-29" href="#__codelineno-20-29"></a><span class="c1"># Emission factors</span>
-<a id="__codelineno-20-30" name="__codelineno-20-30" href="#__codelineno-20-30"></a><span class="nt">fuel_emission_factors</span><span class="p">:</span>
-<a id="__codelineno-20-31" name="__codelineno-20-31" href="#__codelineno-20-31"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.09552</span>
-<a id="__codelineno-20-32" name="__codelineno-20-32" href="#__codelineno-20-32"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05306</span>
-<a id="__codelineno-20-33" name="__codelineno-20-33" href="#__codelineno-20-33"></a><span class="w">  </span><span class="nt">distillate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.07315</span>
-<a id="__codelineno-20-34" name="__codelineno-20-34" href="#__codelineno-20-34"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
-<a id="__codelineno-20-35" name="__codelineno-20-35" href="#__codelineno-20-35"></a><span class="w">  </span><span class="nt">biomass</span><span class="p">:</span>
-<a id="__codelineno-20-36" name="__codelineno-20-36" href="#__codelineno-20-36"></a><span class="w">    </span><span class="nt">co2_tons_per_mmbtu</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
-<a id="__codelineno-20-37" name="__codelineno-20-37" href="#__codelineno-20-37"></a>
-<a id="__codelineno-20-38" name="__codelineno-20-38" href="#__codelineno-20-38"></a><span class="c1"># Regional adjustments</span>
-<a id="__codelineno-20-39" name="__codelineno-20-39" href="#__codelineno-20-39"></a><span class="nt">regional_fuel_adjustments</span><span class="p">:</span>
-<a id="__codelineno-20-40" name="__codelineno-20-40" href="#__codelineno-20-40"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
-<a id="__codelineno-20-41" name="__codelineno-20-41" href="#__codelineno-20-41"></a><span class="w">    </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.2</span>
-<a id="__codelineno-20-42" name="__codelineno-20-42" href="#__codelineno-20-42"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span>
-<a id="__codelineno-20-43" name="__codelineno-20-43" href="#__codelineno-20-43"></a><span class="w">    </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.2</span>
-<a id="__codelineno-20-44" name="__codelineno-20-44" href="#__codelineno-20-44"></a>
-<a id="__codelineno-20-45" name="__codelineno-20-45" href="#__codelineno-20-45"></a><span class="c1"># Carbon pricing</span>
-<a id="__codelineno-20-46" name="__codelineno-20-46" href="#__codelineno-20-46"></a><span class="nt">carbon_tax</span><span class="p">:</span>
-<a id="__codelineno-20-47" name="__codelineno-20-47" href="#__codelineno-20-47"></a><span class="w">  </span><span class="nt">2030</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
-<a id="__codelineno-20-48" name="__codelineno-20-48" href="#__codelineno-20-48"></a><span class="w">  </span><span class="nt">2040</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">75</span>
-<a id="__codelineno-20-49" name="__codelineno-20-49" href="#__codelineno-20-49"></a><span class="w">  </span><span class="nt">2050</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
-<a id="__codelineno-20-50" name="__codelineno-20-50" href="#__codelineno-20-50"></a>
-<a id="__codelineno-20-51" name="__codelineno-20-51" href="#__codelineno-20-51"></a><span class="nt">regional_carbon_tax</span><span class="p">:</span>
-<a id="__codelineno-20-52" name="__codelineno-20-52" href="#__codelineno-20-52"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span><span class="w">  </span><span class="c1"># Higher CA carbon price</span>
-<a id="__codelineno-20-53" name="__codelineno-20-53" href="#__codelineno-20-53"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># AEO fuel prices</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="nt">fuel_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2025</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="nt">fuel_series_scenario_names</span><span class="p">:</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">  </span><span class="nt">reference</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">REF2025</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">  </span><span class="nt">high_resource</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HIGHOGS</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">  </span><span class="nt">low_price</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">LOWPRICE</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="nt">fuel_series_names</span><span class="p">:</span>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">STC</span>
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NG</span>
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="w">  </span><span class="nt">distillate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DFO</span>
+<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">U</span>
+<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>
+<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a><span class="nt">fuel_series_region_names</span><span class="p">:</span>
+<a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a><span class="w">  </span><span class="nt">pacific</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PCF</span>
+<a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a><span class="w">  </span><span class="nt">mountain</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">MTN</span>
+<a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a>
+<a id="__codelineno-18-19" name="__codelineno-18-19" href="#__codelineno-18-19"></a><span class="nt">fuel_scenarios</span><span class="p">:</span>
+<a id="__codelineno-18-20" name="__codelineno-18-20" href="#__codelineno-18-20"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
+<a id="__codelineno-18-21" name="__codelineno-18-21" href="#__codelineno-18-21"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
+<a id="__codelineno-18-22" name="__codelineno-18-22" href="#__codelineno-18-22"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
+<a id="__codelineno-18-23" name="__codelineno-18-23" href="#__codelineno-18-23"></a><span class="w">  </span><span class="nt">distillate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_resource</span>
+<a id="__codelineno-18-24" name="__codelineno-18-24" href="#__codelineno-18-24"></a>
+<a id="__codelineno-18-25" name="__codelineno-18-25" href="#__codelineno-18-25"></a><span class="nt">fuel_region_map</span><span class="p">:</span>
+<a id="__codelineno-18-26" name="__codelineno-18-26" href="#__codelineno-18-26"></a><span class="w">  </span><span class="nt">pacific</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">CA_N</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CA_S</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-18-27" name="__codelineno-18-27" href="#__codelineno-18-27"></a><span class="w">  </span><span class="nt">mountain</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">AZ</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">NM</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-18-28" name="__codelineno-18-28" href="#__codelineno-18-28"></a>
+<a id="__codelineno-18-29" name="__codelineno-18-29" href="#__codelineno-18-29"></a><span class="c1"># Emission factors</span>
+<a id="__codelineno-18-30" name="__codelineno-18-30" href="#__codelineno-18-30"></a><span class="nt">fuel_emission_factors</span><span class="p">:</span>
+<a id="__codelineno-18-31" name="__codelineno-18-31" href="#__codelineno-18-31"></a><span class="w">  </span><span class="nt">coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.09552</span>
+<a id="__codelineno-18-32" name="__codelineno-18-32" href="#__codelineno-18-32"></a><span class="w">  </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05306</span>
+<a id="__codelineno-18-33" name="__codelineno-18-33" href="#__codelineno-18-33"></a><span class="w">  </span><span class="nt">distillate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.07315</span>
+<a id="__codelineno-18-34" name="__codelineno-18-34" href="#__codelineno-18-34"></a><span class="w">  </span><span class="nt">uranium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<a id="__codelineno-18-35" name="__codelineno-18-35" href="#__codelineno-18-35"></a><span class="w">  </span><span class="nt">biomass</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<a id="__codelineno-18-36" name="__codelineno-18-36" href="#__codelineno-18-36"></a>
+<a id="__codelineno-18-37" name="__codelineno-18-37" href="#__codelineno-18-37"></a><span class="c1"># Regional adjustments</span>
+<a id="__codelineno-18-38" name="__codelineno-18-38" href="#__codelineno-18-38"></a><span class="nt">regional_fuel_adjustments</span><span class="p">:</span>
+<a id="__codelineno-18-39" name="__codelineno-18-39" href="#__codelineno-18-39"></a><span class="w">  </span><span class="nt">CA_N</span><span class="p">:</span>
+<a id="__codelineno-18-40" name="__codelineno-18-40" href="#__codelineno-18-40"></a><span class="w">    </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.2</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-18-41" name="__codelineno-18-41" href="#__codelineno-18-41"></a><span class="w">  </span><span class="nt">CA_S</span><span class="p">:</span>
+<a id="__codelineno-18-42" name="__codelineno-18-42" href="#__codelineno-18-42"></a><span class="w">    </span><span class="nt">naturalgas</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.2</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-18-43" name="__codelineno-18-43" href="#__codelineno-18-43"></a>
+<a id="__codelineno-18-44" name="__codelineno-18-44" href="#__codelineno-18-44"></a><span class="c1"># Carbon pricing</span>
+<a id="__codelineno-18-45" name="__codelineno-18-45" href="#__codelineno-18-45"></a><span class="nt">carbon_tax</span><span class="p">:</span>
+<a id="__codelineno-18-46" name="__codelineno-18-46" href="#__codelineno-18-46"></a><span class="w">  </span><span class="nt">2030</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
+<a id="__codelineno-18-47" name="__codelineno-18-47" href="#__codelineno-18-47"></a><span class="w">  </span><span class="nt">2040</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">75</span>
+<a id="__codelineno-18-48" name="__codelineno-18-48" href="#__codelineno-18-48"></a><span class="w">  </span><span class="nt">2050</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
 </code></pre></div>
 <h2 id="data-sources">Data Sources<a class="headerlink" href="#data-sources" title="Permanent link">&para;</a></h2>
-<h3 id="aeo-api">AEO API<a class="headerlink" href="#aeo-api" title="Permanent link">&para;</a></h3>
-<p>PowerGenome can fetch fuel prices directly from EIA's AEO API:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Requires EIA API key in settings or environment</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">eia_api_key</span><span class="p">:</span> <span class="s2">"YOUR_API_KEY_HERE"</span>
-</code></pre></div>
-<p>Set <code>EIA_API_KEY</code> environment variable or include in settings.</p>
+<p>Prepare an AEO-derived table separately, then configure it with <code>fuel_price_table</code>.</p>
 <h3 id="custom-data-tables">Custom Data Tables<a class="headerlink" href="#custom-data-tables" title="Permanent link">&para;</a></h3>
 <p>Alternative to AEO, provide complete fuel price time series:</p>
 <p><strong>fuel_prices.csv</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>fuel,region,year,price
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>naturalgas,CA_N,2030,4.5
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>naturalgas,CA_N,2040,5.2
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>naturalgas,CA_S,2030,4.7
-<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>coal,AZ,2030,2.1
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>fuel,region,year,price,scenario,data_year,dollar_year
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>naturalgas,CA_N,2030,4.5,reference,2025,2024
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>naturalgas,CA_S,2030,4.7,reference,2025,2024
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>naturalgas,CA_N,2040,5.2,reference,2025,2024
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>naturalgas,CA_S,2040,5.4,reference,2025,2024
 </code></pre></div>
 <p>Configure:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nt">fuel_prices_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.csv</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">fuel_price_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices.csv</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nt">fuel_data_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2025</span>
 </code></pre></div>
 <h2 id="fuel-cost-calculation">Fuel Cost Calculation<a class="headerlink" href="#fuel-cost-calculation" title="Permanent link">&para;</a></h2>
 <p>Final fuel cost per MMBtu:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>total_fuel_cost = base_price
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>                  × regional_adjustment
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>                  + (carbon_tax × emission_factor)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>total_fuel_cost = base_price
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>                  × regional_adjustment
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>                  + (carbon_tax × emission_factor)
 </code></pre></div>
 <p>Example (natural gas in CA_N, 2030):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>base_price = 4.00 $/MMBtu (from AEO)
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>regional_adjustment = 1.2
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>carbon_tax = 100 $/tonne
-<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>emission_factor = 0.05306 tonnes/MMBtu
-<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>
-<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>total_cost = 4.00 × 1.2 + (100 × 0.05306)
-<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>          = 4.80 + 5.31
-<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>          = 10.11 $/MMBtu
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>base_price = 4.00 $/MMBtu (from AEO)
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>regional_adjustment = 1.2
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>carbon_tax = 100 $/tonne
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>emission_factor = 0.05306 tonnes/MMBtu
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>total_cost = 4.00 × 1.2 + (100 × 0.05306)
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>          = 4.80 + 5.31
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>          = 10.11 $/MMBtu
 </code></pre></div>
 <p>This cost is combined with heat rates to calculate fuel costs per MWh for each generator.</p>
 <h2 id="related-settings">Related Settings<a class="headerlink" href="#related-settings" title="Permanent link">&para;</a></h2>
@@ -3696,7 +3562,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1739,34 +1739,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../macro-output/" class="md-nav__link">
         
   
@@ -2687,11 +2659,12 @@
 <p>These parameters control how existing power plants are processed, clustered, and configured for the model.</p>
 <h2 id="clustering-parameters">Clustering Parameters<a class="headerlink" href="#clustering-parameters" title="Permanent link">&para;</a></h2>
 <h3 id="num_clusters"><code>num_clusters</code><a class="headerlink" href="#num_clusters" title="Permanent link">&para;</a></h3>
-<p><strong>Type</strong>: Integer or nested dictionary
+<p><strong>Type</strong>: Dictionary (technology → number or null)
 <strong>Required</strong>: Yes
 <strong>Example</strong>: See below</p>
-<p>Default number of clusters to create for each technology in each region. Can be specified globally or per region/technology.</p>
-<p><strong>Global</strong> (same for all regions/technologies):</p>
+<p>Default number of clusters per technology in each region. Use <code>alt_num_clusters</code>
+for regional overrides. Technologies omitted from both mappings are excluded.</p>
+<p><strong>Global defaults</strong> (per technology, across regions):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">num_clusters</span><span class="p">:</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">Conventional Steam Coal</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">Nuclear</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
@@ -2716,7 +2689,7 @@
 <div class="admonition note">
 <p class="admonition-title">Practical guidance (ReEDS/IPM-scale regions)</p>
 <ul>
-<li>Small regions often work with <code>num_clusters: 1</code> as a starting point</li>
+<li>Start with one cluster per technology in small regions</li>
 <li>Use <code>alt_num_clusters</code> to split very large or heterogeneous fleets (e.g., &gt;3–4 GW of combustion turbines with a wide heat-rate IQR)</li>
 <li>The generated thermal inputs include heat rate inter-quartile range and standard deviation columns. Check those to decide where an extra cluster is warranted.</li>
 </ul>
@@ -2738,13 +2711,13 @@
 <h3 id="generator_cluster_columns"><code>generator_cluster_columns</code><a class="headerlink" href="#generator_cluster_columns" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: List of strings
 <strong>Required</strong>: No
-<strong>Default</strong>: <code>["heat_rate_mmbtu_mwh", "fixed_o_m_mw"]</code>
+<strong>Default</strong>: <code>["heat_rate_mmbtu_mwh", "fom_per_mwyr"]</code>
 <strong>Example</strong>: See below</p>
 <p>Columns (features) used for k-means clustering. By default, generators are clustered based on heat rate and fixed O&amp;M costs.</p>
 <p><strong>Default behavior</strong> (uses heat rate and fixed O&amp;M implicitly):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">generator_cluster_columns</span><span class="p">:</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">heat_rate_mmbtu_mwh</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fixed_o_m_mw</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fom_per_mwyr</span>
 </code></pre></div>
 <p><strong>Custom features</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">generator_cluster_columns</span><span class="p">:</span>
@@ -2763,8 +2736,8 @@
 <ul>
 <li><code>heat_rate_mmbtu_mwh</code>: Thermal efficiency</li>
 <li><code>capacity_mw</code>: Plant size</li>
-<li><code>fixed_o_m_mw</code>: Fixed O&amp;M costs</li>
-<li><code>variable_o_m_mwh</code>: Variable O&amp;M costs</li>
+<li><code>fom_per_mwyr</code>: Fixed O&amp;M costs</li>
+<li><code>vom_per_mwh</code>: Variable O&amp;M costs</li>
 <li><code>operating_year</code>: Plant age proxy</li>
 <li><code>minimum_load_mw</code>: Minimum stable operation level</li>
 </ul>
@@ -2780,7 +2753,7 @@
 profiles in each model region, as a fraction of that region's <strong>mean hourly demand
 before distributed-generation subtraction</strong>. Demand uses the scenario's planning
 and weather years, regional aggregation, and supplemental/flexible demand additions,
-before rounding or time reduction. Multiple weather years are weighted by their
+before rounding. Multiple weather years are weighted by their
 number of modeled hours.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">existing_resource_profile_fallback_max_demand_fraction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.005</span><span class="w">  </span><span class="c1"># 0.5% of mean demand</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1"># Use 0 to forbid fallback for any positive operating capacity.</span>
@@ -2821,7 +2794,7 @@ can overstate generation. Fix coverage rather than increasing the tolerance by d
 <li>Groups functionally similar resources</li>
 <li>Simplifies output analysis</li>
 </ul>
-<p><strong>Matching</strong>: Technology names are matched case-insensitively with partial matching.</p>
+<p><strong>Matching</strong>: Group members must match the input technology names exactly.</p>
 <h2 id="attribute-modifiers">Attribute Modifiers<a class="headerlink" href="#attribute-modifiers" title="Permanent link">&para;</a></h2>
 <h3 id="resource_attr_modifiers"><code>resource_attr_modifiers</code><a class="headerlink" href="#resource_attr_modifiers" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: Dictionary (technology → list of modifier dictionaries)
@@ -2833,7 +2806,7 @@ can overstate generation. Fix coverage rather than increasing the tolerance by d
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">attribute</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fom_per_mwyr</span>
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">      </span><span class="nt">formula</span><span class="p">:</span>
 <a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">        </span><span class="nt">op</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">add</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">        </span><span class="nt">rate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">126</span><span class="w">  </span><span class="c1"># $/kW-yr per year of age</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">        </span><span class="nt">rate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">126</span><span class="w">  </span><span class="c1"># $/MW-yr per year of age</span>
 <a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">        </span><span class="nt">multiplier</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">age</span>
 </code></pre></div>
 <p><strong>Structure</strong>:</p>
@@ -2882,7 +2855,7 @@ can overstate generation. Fix coverage rather than increasing the tolerance by d
 </tr>
 </tbody>
 </table>
-<p><strong>Multiple attributes</strong>:</p>
+<p><strong>Example for another technology</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">resource_attr_modifiers</span><span class="p">:</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">natural gas fired combined cycle</span><span class="p">:</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">attribute</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fom_per_mwyr</span>
@@ -2890,11 +2863,6 @@ can overstate generation. Fix coverage rather than increasing the tolerance by d
 <a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">        </span><span class="nt">op</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">add</span>
 <a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">        </span><span class="nt">rate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">75</span>
 <a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">        </span><span class="nt">multiplier</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">age</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">attribute</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">heat_rate_mmbtu_mwh</span>
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">      </span><span class="nt">formula</span><span class="p">:</span>
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">        </span><span class="nt">op</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mul</span>
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">        </span><span class="nt">rate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.002</span><span class="w">  </span><span class="c1"># 0.2% degradation per year</span>
-<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">        </span><span class="nt">multiplier</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">age</span>
 </code></pre></div>
 <p><strong>Multiple technologies</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">resource_attr_modifiers</span><span class="p">:</span>
@@ -2933,7 +2901,8 @@ can overstate generation. Fix coverage rather than increasing the tolerance by d
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Execution Order</p>
-<p>Applied <strong>after</strong> clustering and cost loading, so you can reference calculated fields like <code>age</code>.</p>
+<p>Applied to individual generator rows <strong>before</strong> grouping and clustering,
+after the <code>age</code> column is calculated.</p>
 </div>
 <p>See <a href="../../../how-to/modify-generator-attributes/">Modify Generator Attributes How-To Guide</a> for detailed examples and validation.</p>
 <h2 id="data-table-configuration">Data Table Configuration<a class="headerlink" href="#data-table-configuration" title="Permanent link">&para;</a></h2>
@@ -2950,13 +2919,13 @@ can overstate generation. Fix coverage rather than increasing the tolerance by d
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generators.parquet</span>
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">operating_year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'&lt;='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">retirement_year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'&gt;'</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span><span class="nt">columns</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">plant_id</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">technology</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">capacity_mw</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">heat_rate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">region</span><span class="p p-Indicator">]</span>
 </code></pre></div>
-<p>See <a href="../data-tables/">Data Tables</a> for full filter syntax.</p>
+<p>See <a href="../data-tables/">Data Tables</a> for full filter syntax.
+Filtering directly on <code>retirement_year</code> can discard units with no planned
+retirement. Let PowerGenome apply its period-specific retirement logic instead.</p>
 <h3 id="plant_region_table"><code>plant_region_table</code><a class="headerlink" href="#plant_region_table" title="Permanent link">&para;</a></h3>
 <p><strong>Type</strong>: String or dictionary
-<strong>Required</strong>: No
+<strong>Required</strong>: Yes
 <strong>Example</strong>: <code>"plant_regions.csv"</code></p>
 <p>Mapping of plants to base regions.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">plant_region_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plant_region_map.csv</span>
@@ -3090,7 +3059,7 @@ period-end capacity rules and multi-period guidance, see
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

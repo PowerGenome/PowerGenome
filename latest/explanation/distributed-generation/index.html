@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1497,34 +1497,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../reference/settings/macro-output/" class="md-nav__link">
         
   
@@ -2648,17 +2620,21 @@
 
 
 <h1 id="distributed-generation">Distributed Generation<a class="headerlink" href="#distributed-generation" title="Permanent link">&para;</a></h1>
-<p>PowerGenome models <strong>distributed generation (DG)</strong> — primarily rooftop solar — as behind-the-meter generation that reduces the net load seen by the bulk power system. This page explains how the DG system works and what data it needs.</p>
+<p>PowerGenome models <strong>distributed generation (DG)</strong> — primarily rooftop solar — either
+as behind-the-meter generation that reduces net load or as a generating resource.
+This page explains the inputs and both treatments.</p>
 <p>For reference documentation on the related settings parameters, see <a href="../../reference/settings/demand/">Demand and Load Settings</a>.</p>
 <hr />
 <h2 id="what-is-distributed-generation-here">What is distributed generation here?<a class="headerlink" href="#what-is-distributed-generation-here" title="Permanent link">&para;</a></h2>
 <p>In PowerGenome, "distributed generation" refers to small-scale generators sited at customer meters, mainly rooftop photovoltaics. These resources:</p>
 <ul>
-<li>Are never dispatched by the optimizer (they generate whenever sunlight is available)</li>
-<li>Reduce the net electricity demand that grid-scale resources must serve</li>
+<li>By default, reduce the net electricity demand that grid-scale resources must serve</li>
+<li>Can instead be included as generating resources using <code>dg_as_resource: true</code></li>
 <li>Are modeled via two inputs: <strong>how much capacity</strong> exists, and <strong>what normalized profile</strong> it follows</li>
 </ul>
-<p>The pipeline subtracts DG generation from hourly gross load before passing demand to GenX.</p>
+<p>By default, the pipeline subtracts DG generation from hourly gross load before passing
+demand to GenX. Resource mode leaves gross demand unchanged; the resource's tags
+determine its treatment in GenX.</p>
 <hr />
 <h2 id="data-model">Data model<a class="headerlink" href="#data-model" title="Permanent link">&para;</a></h2>
 <p>DG data is stored in two tables that DataManager loads at runtime.</p>
@@ -2675,7 +2651,7 @@ Required columns:</p>
 <tbody>
 <tr>
 <td><code>region</code></td>
-<td>Model region name or base region name</td>
+<td>Base region name, or model region name when it is not aggregated</td>
 </tr>
 <tr>
 <td><code>capacity_mw</code></td>
@@ -2688,7 +2664,10 @@ Required columns:</p>
 </tbody>
 </table>
 <p>Optional column: <code>scenario</code> (for multi-scenario files).</p>
-<p>If data is not available for a requested planning year, PowerGenome linearly interpolates between the nearest years with data. If the year is outside the range of available data, the nearest year's values are used.</p>
+<p>If <strong>no requested base region</strong> has data for the planning year, PowerGenome
+interpolates each region between available years, using the nearest value outside
+the range. If some regions have an exact-year value and others do not, the missing
+regions are not interpolated. Provide complete coverage for each requested year.</p>
 <h3 id="profiles-table-distributed_profiles_table">Profiles table (<code>distributed_profiles_table</code>)<a class="headerlink" href="#profiles-table-distributed_profiles_table" title="Permanent link">&para;</a></h3>
 <p>Rows: one per region per hour per weather year
 Required columns:</p>
@@ -2702,7 +2681,7 @@ Required columns:</p>
 <tbody>
 <tr>
 <td><code>region</code></td>
-<td>Model region name or base region name</td>
+<td>Base region name, or model region name when it is not aggregated</td>
 </tr>
 <tr>
 <td><code>weather_year</code></td>
@@ -2710,15 +2689,18 @@ Required columns:</p>
 </tr>
 <tr>
 <td><code>time_index</code></td>
-<td>Hour index (1 to 8760)</td>
+<td>Hour index within the source profile</td>
 </tr>
 <tr>
 <td><code>value</code></td>
-<td>Normalized generation (0–1, where 1 = peak output)</td>
+<td>Capacity factor (0–1, relative to installed capacity)</td>
 </tr>
 </tbody>
 </table>
-<p><code>value</code> must be normalized so the maximum is 1. Hourly generation (MWh) is computed by multiplying <code>value × capacity_mw</code>.</p>
+<p>Hourly generation in MW is computed as <code>value × capacity_mw</code>; the profile's maximum
+need not reach 1. Profiles are reordered and indexed from 1. Supply matching hours
+and weather years for DG and load. For multiple weather years, list them in
+ascending order: DG profiles are sorted by year, and subtraction is positional.</p>
 <hr />
 <h2 id="how-dg-affects-load">How DG affects load<a class="headerlink" href="#how-dg-affects-load" title="Permanent link">&para;</a></h2>
 <p>During load profile construction, PowerGenome:</p>
@@ -2727,7 +2709,7 @@ Required columns:</p>
 <li>Loads DG capacity for the planning year</li>
 <li>Loads normalized DG profiles for the appropriate <code>weather_year</code></li>
 <li>Multiplies capacity × profile to get hourly generation</li>
-<li>Subtracts hourly DG generation from gross demand → <strong>net load</strong></li>
+<li>Multiplies generation by <code>1 + avg_distribution_loss</code> (default 1) and subtracts it from gross demand → <strong>net load</strong></li>
 </ol>
 <p>Net load is what is written to GenX's demand input (<code>system/Demand_data.csv</code> in the default v6 format; <code>Load_data.csv</code> in the legacy <code>old_genx_format</code> mode).</p>
 <hr />
@@ -2759,7 +2741,9 @@ Required columns:</p>
 <h3 id="region-aggregation">Region aggregation<a class="headerlink" href="#region-aggregation" title="Permanent link">&para;</a></h3>
 <p>If your data uses sub-regional base regions (e.g., IPM regions) while your
 model combines them into aggregated model regions, PowerGenome automatically
-aggregates capacity when <code>region_aggregations</code> is defined in settings.</p>
+aggregates capacity and computes capacity-weighted profiles when
+<code>region_aggregations</code> is defined. Provide both inputs for the component regions;
+each component with a profile needs a capacity value.</p>
 <hr />
 <h2 id="migrating-from-the-old-system">Migrating from the old system<a class="headerlink" href="#migrating-from-the-old-system" title="Permanent link">&para;</a></h2>
 <p>Before the DataManager refactor, DG used a single Parquet file with an
@@ -2787,63 +2771,27 @@ with two tables in <code>data_location</code>. This section explains how to conv
 <td><code>data_location</code> in settings</td>
 </tr>
 <tr>
-<td>Population-weighted aggregation</td>
-<td>Direct region-level data</td>
+<td>Legacy region mappings</td>
+<td>Base-region capacity and capacity-weighted profiles</td>
 </tr>
 </tbody>
 </table>
 <h3 id="converting-your-data">Converting your data<a class="headerlink" href="#converting-your-data" title="Permanent link">&para;</a></h3>
-<p>The script below converts the old NREL-format Parquet file to the new format:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Configuration</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">old_data_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"/path/to/DISTRIBUTED_GEN_DATA"</span><span class="p">)</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">old_file</span> <span class="o">=</span> <span class="s2">"dgen_profiles.parquet"</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">scenario</span> <span class="o">=</span> <span class="s2">"reference"</span>  <span class="c1"># your scenario name</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"/path/to/new/data"</span><span class="p">)</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">output_path</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1"># Load old data and filter to scenario</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">old_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">old_data_path</span> <span class="o">/</span> <span class="n">old_file</span><span class="p">)</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="n">old_data</span> <span class="o">=</span> <span class="n">old_data</span><span class="p">[</span><span class="n">old_data</span><span class="p">[</span><span class="s2">"scenario"</span><span class="p">]</span> <span class="o">==</span> <span class="n">scenario</span><span class="p">]</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="c1"># Create capacity table (peak generation = installed capacity proxy)</span>
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="n">capacity</span> <span class="o">=</span> <span class="p">(</span>
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>    <span class="n">old_data</span>
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    <span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">"region"</span><span class="p">,</span> <span class="s2">"year"</span><span class="p">])[</span><span class="s2">"distpv_MWh"</span><span class="p">]</span>
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    <span class="o">.</span><span class="n">max</span><span class="p">()</span>
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>    <span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
-<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>    <span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">"distpv_MWh"</span><span class="p">:</span> <span class="s2">"capacity_mw"</span><span class="p">})</span>
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="p">)</span>
-<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>
-<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="c1"># Create profiles table (normalize by peak)</span>
-<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="n">profiles</span> <span class="o">=</span> <span class="p">[]</span>
-<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a><span class="k">for</span> <span class="p">(</span><span class="n">region</span><span class="p">,</span> <span class="n">year</span><span class="p">),</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">old_data</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">"region"</span><span class="p">,</span> <span class="s2">"year"</span><span class="p">]):</span>
-<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>    <span class="n">peak</span> <span class="o">=</span> <span class="n">group</span><span class="p">[</span><span class="s2">"distpv_MWh"</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
-<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>    <span class="k">if</span> <span class="n">peak</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a>        <span class="n">profile</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a>        <span class="n">profile</span><span class="p">[</span><span class="s2">"value"</span><span class="p">]</span> <span class="o">=</span> <span class="n">profile</span><span class="p">[</span><span class="s2">"distpv_MWh"</span><span class="p">]</span> <span class="o">/</span> <span class="n">peak</span>
-<a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a>        <span class="n">profile</span><span class="p">[</span><span class="s2">"weather_year"</span><span class="p">]</span> <span class="o">=</span> <span class="n">year</span>
-<a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a>        <span class="n">profiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">profile</span><span class="p">[[</span><span class="s2">"region"</span><span class="p">,</span> <span class="s2">"weather_year"</span><span class="p">,</span> <span class="s2">"time_index"</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">]])</span>
-<a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a>
-<a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a><span class="n">profiles_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">profiles</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a>
-<a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a><span class="c1"># Save</span>
-<a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a><span class="n">capacity</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">output_path</span> <span class="o">/</span> <span class="s2">"distributed_capacity.parquet"</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a><span class="n">profiles_df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">output_path</span> <span class="o">/</span> <span class="s2">"distributed_profiles.parquet"</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-</code></pre></div>
+<p>Prepare separate capacity and profile tables using the columns above. Use installed
+capacity, not peak hourly generation, as the capacity value; divide generation by
+installed capacity to derive the capacity-factor profile. Preserve the actual
+weather year independently of the planning year.</p>
 <h3 id="updating-settings">Updating settings<a class="headerlink" href="#updating-settings" title="Permanent link">&para;</a></h3>
 <p>Remove old settings:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Remove these:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">distributed_gen_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dgen_profiles.parquet</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nt">distributed_gen_scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># DISTRIBUTED_GEN_DATA env var in .env</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Remove these:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">distributed_gen_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dgen_profiles.parquet</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">distributed_gen_scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># DISTRIBUTED_GEN_DATA env var in .env</span>
 </code></pre></div>
 <p>Add new settings:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">distributed_capacity_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">distributed_capacity.parquet</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">distributed_profiles_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">distributed_profiles.parquet</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">weather_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2012</span><span class="w">  </span><span class="c1"># optional</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">distributed_capacity_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">distributed_capacity.parquet</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">distributed_profiles_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">distributed_profiles.parquet</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nt">weather_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2012</span><span class="w">  </span><span class="c1"># optional</span>
 </code></pre></div>
 <hr />
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
@@ -2851,11 +2799,13 @@ with two tables in <code>data_location</code>. This section explains how to conv
 <p>Confirm both <code>distributed_capacity_table</code> and <code>distributed_profiles_table</code> are set in settings. DataManager will log a warning if either table cannot be loaded.</p>
 <p><strong>Wrong year being used for profiles</strong></p>
 <p>Explicitly set <code>weather_year</code> in settings to pin the profile year:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">weather_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2012</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">weather_year</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2012</span>
 </code></pre></div>
-<p>By default, <code>weather_year</code> falls back to <code>model_year</code>, which may not match your available profile data.</p>
+<p>If <code>weather_year</code> is omitted, all available DG weather years are loaded. Ensure
+they align with the selected demand profiles.</p>
 <p><strong>Region names don't match</strong></p>
-<p>DG data region names must match either the base (IPM) region names or the aggregated model region names in <code>model_regions</code>. Check the <code>region</code> column in your capacity and profile files against your settings.</p>
+<p>For aggregated model regions, use their component base-region names in both tables.
+For other regions, use the names in <code>model_regions</code>.</p>
 <hr />
 <h2 id="related-documentation">Related documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2948,7 +2898,7 @@ with two tables in <code>data_location</code>. This section explains how to conv
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

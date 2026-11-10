@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://powergenome.github.io/PowerGenome/latest/reference/settings/macro-output/">
       
       
-        <link rel="prev" href="../time-reduction/">
+        <link rel="prev" href="../scenario-management/">
       
       
         <link rel="next" href="../../atb-technologies/">
@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1500,34 +1500,6 @@
                 
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
     
   
   
@@ -2382,18 +2354,22 @@ formats in one run reuses all the intermediate data processing, which is faster 
 model. To write only Macro inputs, disable GenX (see <a href="#genx_output"><code>genx_output</code></a>).</p>
 <p>The same options are available as command-line flags to <code>run_powergenome</code>:
 <a href="../../cli/#macro"><code>--macro</code></a>, <a href="../../cli/#genx"><code>--genx</code></a>, and <a href="../../cli/#no-genx"><code>--no-genx</code></a>. Flags and settings
-values are combined per format (either one enables that format), and all flags and boolean settings are
-case-insensitive (<code>--Macro</code>, <code>"TRUE"</code>, etc.).</p>
+values are combined per format (either one enables that format). CLI flag names
+and the <code>macro_output</code>/<code>genx_output</code> values are case-insensitive (<code>--Macro</code>,
+<code>"TRUE"</code>, etc.). Use actual YAML booleans (<code>true</code>/<code>false</code>) for the other Macro
+boolean settings; quoted strings are not parsed as booleans there.</p>
 <h2 id="macro_output"><code>macro_output</code><a class="headerlink" href="#macro_output" title="Permanent link">&para;</a></h2>
 <p><strong>Type</strong>: bool
 <strong>Default</strong>: <code>false</code>
 <strong>CLI equivalent</strong>: <code>--macro</code></p>
 <p>When <code>true</code>, write a Macro <code>simpleCSVinputs</code> case (only the simpleCSV inputs format — not the Macro JSON format)
-in a <code>macro_out/</code>-style folder, matching the structure of the Macro examples (e.g.
+at the results root, or under its case-ID folder when using scenario definitions,
+matching the structure of the Macro examples (e.g.
 <code>macroenergy/MacroEnergyExamples.jl/examples/multisector_3zone_simpleCSVinputs</code>). The semantic mapping of
 generators, transmission, demand, fuel supply, and CO2 caps follows the GenX-to-Macro converter
-(<code>EmilDimanchev/GenX_to_Macro</code>; multistage runs follow the <code>lb/multistage</code> branch). Cross-sector assets
-(hydrogen, liquid fuels, CCS) are not yet emitted.</p>
+(<code>EmilDimanchev/GenX_to_Macro</code>; multistage runs follow the <code>lb/multistage</code>
+branch). Thermal CCS resources are supported; broader cross-sector hydrogen and
+liquid-fuel assets are not emitted.</p>
 <p>GenX output is <strong>not</strong> disabled by this setting — see <a href="#genx_output"><code>genx_output</code></a>.</p>
 <h2 id="genx_output"><code>genx_output</code><a class="headerlink" href="#genx_output" title="Permanent link">&para;</a></h2>
 <p><strong>Type</strong>: bool
@@ -2586,7 +2562,7 @@ layout, and the <a href="../../cli/">CLI Reference</a> for the command-line flag
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

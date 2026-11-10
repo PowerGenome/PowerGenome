@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1503,34 +1503,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../settings/macro-output/" class="md-nav__link">
         
   
@@ -1954,10 +1926,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#no-scenarios-found" class="md-nav__link">
+  <a href="#no-scenario-definitions-file" class="md-nav__link">
     <span class="md-ellipsis">
       
-        No scenarios found
+        No scenario definitions file
       
     </span>
   </a>
@@ -2603,10 +2575,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#no-scenarios-found" class="md-nav__link">
+  <a href="#no-scenario-definitions-file" class="md-nav__link">
     <span class="md-ellipsis">
       
-        No scenarios found
+        No scenario definitions file
       
     </span>
   </a>
@@ -2724,27 +2696,33 @@
 </code></pre></div>
 <h3 id="flags">Flags<a class="headerlink" href="#flags" title="Permanent link">&para;</a></h3>
 <h4 id="-settings_file-sf"><code>--settings_file</code> / <code>-sf</code><a class="headerlink" href="#-settings_file-sf" title="Permanent link">&para;</a></h4>
-<p>Path to the folder containing settings YAML files.</p>
+<p>Path to a settings file or a directory containing settings files.</p>
 <p><strong>Type</strong>: String (path)
-<strong>Example</strong>: <code>--settings_file tests/test_system/settings</code></p>
+<strong>Default</strong>: <code>example_settings.yml</code>
+<strong>Example</strong>: <code>--settings_file settings</code></p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>PowerGenome loads <strong>all</strong> YAML files in the folder and merges them. Files loaded later override earlier values for duplicate keys.</p>
+<p>Directory mode loads immediate <code>*.yml</code> files only, not subdirectories or
+<code>.yaml</code> files. Avoid duplicate top-level keys across files: later files
+replace whole values, and file order is not a configuration interface.</p>
 </div>
 <h4 id="-results_folder-rf"><code>--results_folder</code> / <code>-rf</code><a class="headerlink" href="#-results_folder-rf" title="Permanent link">&para;</a></h4>
-<p>Directory where output files will be saved. Created if it doesn't exist.</p>
+<p>Directory where output files will be saved. Created if it does not exist;
+its parent directory must already exist.</p>
 <p><strong>Type</strong>: String (path)
+<strong>Default</strong>: A timestamp, for example <code>2026-01-15 14.30.00</code>
 <strong>Example</strong>: <code>--results_folder my_study_outputs</code></p>
-<h4 id="-case_id"><code>--case_id</code><a class="headerlink" href="#-case_id" title="Permanent link">&para;</a></h4>
-<p>Run only specific scenarios from the scenario definitions file.</p>
-<p><strong>Type</strong>: String or list of strings
-<strong>Default</strong>: Run all scenarios
-<strong>Example</strong>: <code>--case_id p1 p2</code> or <code>--case_id "high_demand"</code></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Run only scenarios p1 and p3</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>run_powergenome<span class="w"> </span>-sf<span class="w"> </span>settings<span class="w"> </span>-rf<span class="w"> </span>output<span class="w"> </span>--case_id<span class="w"> </span>p1<span class="w"> </span>p3
+<h4 id="-case-id-c"><code>--case-id</code> / <code>-c</code><a class="headerlink" href="#-case-id-c" title="Permanent link">&para;</a></h4>
+<p>Run only the specified case IDs from <code>scenario_definitions_fn</code>. Without a
+scenario definitions file, this selection is ignored with a warning.</p>
+<p><strong>Type</strong>: One or more case IDs, separated by spaces
+<strong>Default</strong>: Run all cases
+<strong>Example</strong>: <code>--case-id baseline high_demand</code></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>run_powergenome<span class="w"> </span>-sf<span class="w"> </span>settings<span class="w"> </span>-rf<span class="w"> </span>output<span class="w"> </span>--case-id<span class="w"> </span>baseline<span class="w"> </span>high_demand
 </code></pre></div>
 <h4 id="-sort-gens"><code>--sort-gens</code><a class="headerlink" href="#-sort-gens" title="Permanent link">&para;</a></h4>
-<p>Sort generator resources alphabetically in output files.</p>
+<p>Sort generator resources alphabetically within each region. Existing and
+new-build resources remain in separate groups.</p>
 <p><strong>Type</strong>: Boolean flag
 <strong>Default</strong>: False
 <strong>Example</strong>: <code>--sort-gens</code></p>
@@ -2816,11 +2794,16 @@ with unchanged inputs skips the check computation. Equivalent to
 <strong>Example</strong>: <code>--force-validation</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>run_powergenome<span class="w"> </span>-sf<span class="w"> </span>settings<span class="w"> </span>--no-validation-cache
 </code></pre></div>
-<h4 id="-verbose-v"><code>--verbose</code> / <code>-v</code><a class="headerlink" href="#-verbose-v" title="Permanent link">&para;</a></h4>
-<p>Increase logging verbosity.</p>
-<p><strong>Type</strong>: Boolean flag
-<strong>Default</strong>: INFO level logging
-<strong>Example</strong>: <code>--verbose</code></p>
+<h4 id="-no-gens"><code>--no-gens</code><a class="headerlink" href="#-no-gens" title="Permanent link">&para;</a></h4>
+<p>Skip generator processing entirely, including existing and new-build resources.
+This does not disable demand or transmission processing.</p>
+<h4 id="-no-transmission"><code>--no-transmission</code><a class="headerlink" href="#-no-transmission" title="Permanent link">&para;</a></h4>
+<p>Skip transmission processing and network output.</p>
+<h4 id="-multi-period-mp"><code>--multi-period</code> / <code>-mp</code><a class="headerlink" href="#-multi-period-mp" title="Permanent link">&para;</a></h4>
+<p>The current parser sets the internal <code>multi_period</code> value to <code>False</code> when this
+flag is present, despite its name. Omit it for the default multi-period output
+layout shown below. Planning years are configured with <code>model_year</code> and
+<code>model_first_planning_year</code>, not this flag.</p>
 <h4 id="-help-h"><code>--help</code> / <code>-h</code><a class="headerlink" href="#-help-h" title="Permanent link">&para;</a></h4>
 <p>Display help message with all available flags.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>run_powergenome<span class="w"> </span>--help
@@ -2835,7 +2818,7 @@ with unchanged inputs skips the check computation. Equivalent to
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span>-sf<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span>-rf<span class="w"> </span>output<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>--case_id<span class="w"> </span>baseline<span class="w"> </span>high_renewable<span class="w"> </span>low_cost
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span>--case-id<span class="w"> </span>baseline<span class="w"> </span>high_renewable<span class="w"> </span>low_cost
 </code></pre></div>
 <h4 id="greenfield-with-sorted-output">Greenfield with sorted output<a class="headerlink" href="#greenfield-with-sorted-output" title="Permanent link">&para;</a></h4>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
@@ -2849,31 +2832,32 @@ with unchanged inputs skips the check computation. Equivalent to
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span>-sf<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span>-rf<span class="w"> </span>output<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span>--no-current-gens<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span>--no-load<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">    </span>--verbose
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span>--no-load
 </code></pre></div>
 <h3 id="output-organization">Output organization<a class="headerlink" href="#output-organization" title="Permanent link">&para;</a></h3>
-<p>Results are organized by scenario and planning period:</p>
+<p>With a scenario definitions file, results are organized by case and planning period:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>results_folder/
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>├── case_id_1/
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>│   ├── Inputs/
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>│   │   └── Inputs_p1/
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>│   │       ├── Generators_data.csv
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>│   │       ├── Load_data.csv
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>│   │       ├── Fuels_data.csv
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>│   │       └── ...
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>│   └── log.txt
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>├── log.txt
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>├── case_id_1/
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>│   └── Inputs/
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>│       ├── Inputs_p1/
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>│       │   ├── resources/
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>│       │   ├── system/
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>│       │   └── policies/
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>│       └── Inputs_p2/
 <a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>└── case_id_2/
-<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>    ├── Inputs/
-<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>    │   └── Inputs_p1/
-<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>    └── log.txt
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>    └── Inputs/
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>        └── Inputs_p1/
 </code></pre></div>
-<p>Each scenario folder contains:</p>
+<p>Without <code>scenario_definitions_fn</code>, period folders are directly under
+<code>results_folder/Inputs/</code>, for example <code>results_folder/Inputs/Inputs_p1/</code>.</p>
 <ul>
-<li><strong>Inputs/Inputs_p#/</strong>: GenX input CSV files (written unless <code>--no-genx</code>)</li>
-<li><strong>Macro <code>simpleCSVinputs</code> case</strong>: written alongside GenX when <code>--macro</code>/<code>macro_output: true</code> is enabled
-  (see <a href="../../explanation/output-format/">Output File Format</a> for the layout)</li>
-<li><strong>log.txt</strong>: Execution log with warnings and info messages</li>
+<li><strong>Inputs/Inputs_p#/</strong>: GenX input folders <code>resources/</code>, <code>system/</code>, and
+  <code>policies/</code> by default; <code>old_genx_format: true</code> selects legacy flat CSVs
+  (written unless <code>--no-genx</code>)</li>
+<li><strong>Macro case</strong>: written when <code>--macro</code>/<code>macro_output: true</code> is enabled;
+  see <a href="../../explanation/output-format/">Output File Format</a> for its layout</li>
+<li><strong>log.txt</strong>: One detailed execution log at the results root, not per case</li>
 </ul>
 <h3 id="exit-codes">Exit codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h3>
 <table>
@@ -2950,11 +2934,13 @@ DataManager entirely. See
 <h2 id="environment-variables">Environment variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h2>
 <p>PowerGenome respects these environment variables (legacy, prefer settings YAML):</p>
 <ul>
-<li><code>DATA_LOCATION</code>: Path to data folder</li>
 <li><code>RESOURCE_GROUPS</code>: Path to renewable resource group definitions</li>
 <li><code>RESOURCE_GROUP_PROFILES</code>: Path to generation profiles</li>
 <li><code>EFS_DATA</code>: Path to NREL EFS electrification data</li>
+<li><code>DISTRIBUTED_GEN_DATA</code>: Legacy distributed-generation data path</li>
 </ul>
+<p><code>DATA_LOCATION</code> is not a supported environment-variable substitute for the
+<code>data_location</code> YAML setting.</p>
 <p>Environment variables are always single paths. When using settings YAML,
 <code>RESOURCE_GROUPS</code> and <code>RESOURCE_GROUP_PROFILES</code> may instead be a list of paths
 (split across multiple folders).</p>
@@ -2992,18 +2978,22 @@ DataManager entirely. See
 <a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="n">case_id</span><span class="o">=</span><span class="p">[</span><span class="s2">"case1"</span><span class="p">,</span> <span class="s2">"case2"</span><span class="p">],</span>
 <a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="p">)</span>
 </code></pre></div>
-<p>See the source code in <code>powergenome/run_powergenome.py</code> for details.</p>
+<p><code>main()</code> still parses the process command line before applying these keyword
+arguments. In notebooks or applications with their own arguments, prefer calling
+the CLI in a subprocess with an explicit argument list. This is an internal entry
+point, not a separate stable Python API.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="settings-folder-not-found">Settings folder not found<a class="headerlink" href="#settings-folder-not-found" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>Error: Settings path 'settings' does not exist
 </code></pre></div>
 <p><strong>Solution</strong>: Provide absolute path or path relative to current directory</p>
-<h3 id="no-scenarios-found">No scenarios found<a class="headerlink" href="#no-scenarios-found" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>Warning: No scenario definitions found
-</code></pre></div>
-<p><strong>Solution</strong>: Check <code>scenario_definitions_fn</code> points to valid CSV file in <code>extra_inputs/</code></p>
+<h3 id="no-scenario-definitions-file">No scenario definitions file<a class="headerlink" href="#no-scenario-definitions-file" title="Permanent link">&para;</a></h3>
+<p>A scenario CSV is optional. Without one, PowerGenome runs the configured planning
+years as a single case. If you intended to use cases, set
+<code>scenario_definitions_fn</code> to a CSV under <code>input_folder</code>, with <code>case_id</code> and <code>year</code>
+columns.</p>
 <h3 id="permission-denied-writing-output">Permission denied writing output<a class="headerlink" href="#permission-denied-writing-output" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>PermissionError: [Errno 13] Permission denied: 'results/case1'
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>PermissionError: [Errno 13] Permission denied: 'results/case1'
 </code></pre></div>
 <p><strong>Solution</strong>: Ensure write permissions on output directory or choose different location</p>
 <p>See <a href="../../how-to/debugging/">Debugging</a> for more troubleshooting tips.</p>
@@ -3092,7 +3082,7 @@ DataManager entirely. See
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       

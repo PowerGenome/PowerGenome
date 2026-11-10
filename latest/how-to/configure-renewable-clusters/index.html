@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -896,544 +896,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#when-to-use-renewable-clusters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to Use Renewable Clusters
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-the-resource-data-should-contain" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What the resource data should contain
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#basic-configuration-pattern" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Basic Configuration Pattern
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-1-start-with-filters-recommended" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 1: Start with Filters (Recommended)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 1: Start with Filters (Recommended)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#why-filter-on-lcoe" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why Filter on LCOE?
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-2-add-bins-for-cost-stratification-recommended" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 2: Add Bins for Cost Stratification (Recommended)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 2: Add Bins for Cost Stratification (Recommended)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lcoe-binning-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LCOE Binning Example
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#binning-methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Binning Methods
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#binning-on-other-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Binning on Other Features
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#multiple-bins" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Multiple Bins
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-3-use-groups-for-categorical-divisions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 3: Use Groups for Categorical Divisions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 3: Use Groups for Categorical Divisions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#wind-class-grouping" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Wind Class Grouping
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#geographic-grouping" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Geographic Grouping
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#multiple-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Multiple Groups
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-4-configure-k-means-clustering" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 4: Configure K-Means Clustering
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 4: Configure K-Means Clustering">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#basic-clustering" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Basic Clustering
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#clustering-on-multiple-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Clustering on Multiple Features
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#clustering-on-generation-profiles" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Clustering on Generation Profiles
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#alternative-clustering-methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternative Clustering Methods
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#limiting-total-clusters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Limiting Total Clusters
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-5-modify-costs-by-group" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 5: Modify Costs by Group
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 5: Modify Costs by Group">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#modifier-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Modifier Operations
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#calculating-total-cluster-count" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Calculating Total Cluster Count
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Calculating Total Cluster Count">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#formula" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Formula
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Examples
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#complete-examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Complete Examples
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Complete Examples">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#example-1-simple-wind-clustering-recommended-starting-point" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 1: Simple Wind Clustering (Recommended Starting Point)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-2-wind-with-class-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 2: Wind with Class Groups
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-3-solar-with-geographic-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 3: Solar with Geographic Groups
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-4-offshore-wind-performance-based" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 4: Offshore Wind (Performance-Based)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-5-complex-multi-region-system" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 5: Complex Multi-Region System
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Best Practices
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Best Practices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-start-simple-add-complexity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Start Simple, Add Complexity
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-always-filter-on-lcoe-first-if-available" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Always Filter on LCOE First (If Available)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-use-quantile-binning-for-balanced-clusters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Use Quantile Binning for Balanced Clusters
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-match-cluster-count-to-model-scale" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Match Cluster Count to Model Scale
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#5-use-group-modifiers-sparingly" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. Use Group Modifiers Sparingly
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#6-check-cluster-counts-before-running" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. Check Cluster Counts Before Running
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#7-balance-geographic-and-cost-diversity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7. Balance Geographic and Cost Diversity
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Troubleshooting
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Troubleshooting">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#too-many-clusters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Too Many Clusters
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#all-clusters-in-one-region" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        All Clusters in One Region
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#expensive-sites-selected" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Expensive Sites Selected
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#missing-expected-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Missing Expected Groups
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#data-requirements" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1480,6 +942,161 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-configuration-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Configuration Pattern
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Basic Configuration Pattern">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-match-the-technology-and-edit-one-settings-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Match the technology and edit one settings definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-apply-one-filterbincluster-recipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Apply one filter/bin/cluster recipe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-set-regional-scope-deliberately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Set regional scope deliberately
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calculating-total-cluster-count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calculating Total Cluster Count
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-and-inspect-the-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run and inspect the result
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#caching-for-speed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caching for speed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-refinements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional refinements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Optional refinements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#binning-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binning Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clustering-on-generation-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clustering on Generation Profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-modify-costs-by-group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modify Costs by Group
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#selecting-a-limited-candidate-supply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selecting a limited candidate supply
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
   
 </li>
       
@@ -2168,34 +1785,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/settings/time-reduction/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Time Reduction
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../reference/settings/macro-output/" class="md-nav__link">
         
   
@@ -2846,544 +2435,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#when-to-use-renewable-clusters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to Use Renewable Clusters
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-the-resource-data-should-contain" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What the resource data should contain
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#basic-configuration-pattern" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Basic Configuration Pattern
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-1-start-with-filters-recommended" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 1: Start with Filters (Recommended)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 1: Start with Filters (Recommended)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#why-filter-on-lcoe" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why Filter on LCOE?
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-2-add-bins-for-cost-stratification-recommended" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 2: Add Bins for Cost Stratification (Recommended)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 2: Add Bins for Cost Stratification (Recommended)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lcoe-binning-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        LCOE Binning Example
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#binning-methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Binning Methods
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#binning-on-other-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Binning on Other Features
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#multiple-bins" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Multiple Bins
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-3-use-groups-for-categorical-divisions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 3: Use Groups for Categorical Divisions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 3: Use Groups for Categorical Divisions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#wind-class-grouping" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Wind Class Grouping
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#geographic-grouping" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Geographic Grouping
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#multiple-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Multiple Groups
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-4-configure-k-means-clustering" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 4: Configure K-Means Clustering
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 4: Configure K-Means Clustering">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#basic-clustering" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Basic Clustering
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#clustering-on-multiple-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Clustering on Multiple Features
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#clustering-on-generation-profiles" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Clustering on Generation Profiles
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#alternative-clustering-methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternative Clustering Methods
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#limiting-total-clusters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Limiting Total Clusters
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#step-5-modify-costs-by-group" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 5: Modify Costs by Group
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 5: Modify Costs by Group">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#modifier-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Modifier Operations
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#calculating-total-cluster-count" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Calculating Total Cluster Count
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Calculating Total Cluster Count">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#formula" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Formula
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Examples
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#complete-examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Complete Examples
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Complete Examples">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#example-1-simple-wind-clustering-recommended-starting-point" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 1: Simple Wind Clustering (Recommended Starting Point)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-2-wind-with-class-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 2: Wind with Class Groups
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-3-solar-with-geographic-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 3: Solar with Geographic Groups
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-4-offshore-wind-performance-based" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 4: Offshore Wind (Performance-Based)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#example-5-complex-multi-region-system" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example 5: Complex Multi-Region System
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Best Practices
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Best Practices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-start-simple-add-complexity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Start Simple, Add Complexity
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-always-filter-on-lcoe-first-if-available" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Always Filter on LCOE First (If Available)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-use-quantile-binning-for-balanced-clusters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Use Quantile Binning for Balanced Clusters
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-match-cluster-count-to-model-scale" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Match Cluster Count to Model Scale
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#5-use-group-modifiers-sparingly" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. Use Group Modifiers Sparingly
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#6-check-cluster-counts-before-running" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. Check Cluster Counts Before Running
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#7-balance-geographic-and-cost-diversity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7. Balance Geographic and Cost Diversity
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Troubleshooting
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Troubleshooting">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#too-many-clusters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Too Many Clusters
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#all-clusters-in-one-region" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        All Clusters in One Region
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#expensive-sites-selected" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Expensive Sites Selected
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#missing-expected-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Missing Expected Groups
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#data-requirements" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3430,6 +2481,161 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-configuration-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Configuration Pattern
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Basic Configuration Pattern">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-match-the-technology-and-edit-one-settings-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Match the technology and edit one settings definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-apply-one-filterbincluster-recipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Apply one filter/bin/cluster recipe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-set-regional-scope-deliberately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Set regional scope deliberately
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calculating-total-cluster-count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calculating Total Cluster Count
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-and-inspect-the-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run and inspect the result
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#caching-for-speed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caching for speed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-refinements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional refinements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Optional refinements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#binning-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binning Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clustering-on-generation-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clustering on Generation Profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-modify-costs-by-group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modify Costs by Group
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#selecting-a-limited-candidate-supply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selecting a limited candidate supply
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
   
 </li>
       
@@ -3524,736 +2730,382 @@
 
 
 <h1 id="configure-renewable-resource-clusters">Configure Renewable Resource Clusters<a class="headerlink" href="#configure-renewable-resource-clusters" title="Permanent link">&para;</a></h1>
-<p>This guide explains how to set up renewable resource clusters (wind and solar sites) using PowerGenome's flexible clustering system. The clustering approach allows you to divide renewable resources by performance characteristics, geography, and cost attributes.</p>
+<p>Use this guide to turn candidate wind or solar sites into buildable model
+resources, with explicit choices about screening, cost tiers, and profile
+similarity. For a runnable exercise using the published Texas example, follow
+<a href="../../tutorials/renewable-resources/">Working with Renewable Resources</a>.</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Renewable clustering divides potential wind and solar sites into discrete groups that can be invested in by the capacity expansion model. The clustering system supports four complementary mechanisms:</p>
-<ol>
-<li><strong>Filters</strong> - Exclude sites based on criteria (e.g., only sites with LCOE &lt; $50/MWh)</li>
-<li><strong>Groups</strong> - Divide sites by categorical features (e.g., wind class, county)</li>
-<li><strong>Bins</strong> - Divide sites by continuous features into ranges (e.g., LCOE quartiles)</li>
-<li><strong>Clusters</strong> - Apply k-means clustering within each group/bin combination</li>
-</ol>
-<p><strong>Total clusters</strong> = (# groups) × (# bins) × (# clusters per combination)</p>
-<p>For example: 3 wind classes × 4 LCOE bins × 2 k-means clusters = <strong>24 total resource clusters</strong></p>
-<h2 id="when-to-use-renewable-clusters">When to Use Renewable Clusters<a class="headerlink" href="#when-to-use-renewable-clusters" title="Permanent link">&para;</a></h2>
-<p>Use renewable clusters when:</p>
-<ul>
-<li><strong>Geographic diversity</strong> matters (wind/solar in different regions)</li>
-<li><strong>Cost variation</strong> is significant (want to build cheapest sites first)</li>
-<li><strong>Performance differences</strong> exist (Class 3 vs Class 7 wind)</li>
-<li><strong>Resource limits</strong> apply (land availability in each county)</li>
-</ul>
-<p>Skip clustering if you have a simple system where all renewable sites are similar.</p>
-<h2 id="what-the-resource-data-should-contain">What the resource data should contain<a class="headerlink" href="#what-the-resource-data-should-contain" title="Permanent link">&para;</a></h2>
-<p>PowerGenome expects each renewable site record to include at least:</p>
-<ul>
-<li><code>lcoe</code>: Pre-calculated levelized cost that blends capital cost and capacity factor</li>
-<li><code>cf</code> (or <code>capacity_factor</code>): Performance metric used for clustering</li>
-<li><code>interconnect_mw</code> or similar: Interconnection cost that will be re-aggregated when you change regional aggregations</li>
-</ul>
-<p>Wind/solar “resource group” files generated for projects come with exactly these fields. If you add or reaggregate regions, interconnection costs will need to be recalculated for the new region layout.</p>
-<h2 id="basic-configuration-pattern">Basic Configuration Pattern<a class="headerlink" href="#basic-configuration-pattern" title="Permanent link">&para;</a></h2>
-<p>Renewable clusters are defined in the <code>renewables_clusters</code> section:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span><span class="w">             </span><span class="c1"># Required: region(s) to include</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span><span class="w">  </span><span class="c1"># Required: technology name</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">...</span><span class="p p-Indicator">]</span><span class="w">          </span><span class="c1"># Optional: exclude sites</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">...</span><span class="p p-Indicator">]</span><span class="w">           </span><span class="c1"># Optional: categorical divisions</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="nt">bin</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">...</span><span class="p p-Indicator">]</span><span class="w">             </span><span class="c1"># Optional: continuous feature ranges</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">...</span><span class="p p-Indicator">]</span><span class="w">         </span><span class="c1"># Optional: k-means within groups</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nt">group_modifiers</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">...</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Optional: adjust costs by group</span>
-</code></pre></div>
-<h2 id="step-1-start-with-filters-recommended">Step 1: Start with Filters (Recommended)<a class="headerlink" href="#step-1-start-with-filters-recommended" title="Permanent link">&para;</a></h2>
-<p><strong>Filters remove sites</strong> that don't meet quality thresholds. If your resource data includes a cost metric like <code>lcoe</code>, <strong>start by filtering on it</strong>.</p>
-<h3 id="why-filter-on-lcoe">Why Filter on LCOE?<a class="headerlink" href="#why-filter-on-lcoe" title="Permanent link">&para;</a></h3>
-<p>LCOE (Levelized Cost of Energy) combines capacity factor and capital costs. Filtering on LCOE ensures you only consider economically viable sites, reducing computational complexity.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">  </span><span class="c1"># Only sites with LCOE ≤ $50/MWh</span>
-</code></pre></div>
-<p><strong>Filter structure</strong>: Each filter in the list must have:</p>
-<ul>
-<li><code>feature</code>: Column name from resource data (e.g., <code>lcoe</code>, <code>capacity_factor</code>, <code>dist_to_tx_km</code>)</li>
-<li><code>max</code>: Maximum value (optional, sites with feature &gt; max are excluded)</li>
-<li><code>min</code>: Minimum value (optional, sites with feature &lt; min are excluded)</li>
-</ul>
-<p><strong>Example filters</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">           </span><span class="c1"># Exclude sites with LCOE &gt; $50/MWh</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="nt">min</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.3</span><span class="w">          </span><span class="c1"># Exclude sites with CF &lt; 30%</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dist_to_tx_km</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span><span class="w">          </span><span class="c1"># Exclude sites &gt; 100 km from transmission</span>
-</code></pre></div>
-<h2 id="step-2-add-bins-for-cost-stratification-recommended">Step 2: Add Bins for Cost Stratification (Recommended)<a class="headerlink" href="#step-2-add-bins-for-cost-stratification-recommended" title="Permanent link">&para;</a></h2>
-<p>After filtering, <strong>bin on LCOE</strong> to divide resources into cost tiers. This allows the model to build the cheapest sites first.</p>
-<h3 id="lcoe-binning-example">LCOE Binning Example<a class="headerlink" href="#lcoe-binning-example" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w">          </span><span class="c1"># Create 4 quantile bins (quartiles)</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span><span class="w">   </span><span class="c1"># Weight by capacity when creating bins</span>
-</code></pre></div>
-<p><strong>Result</strong>: Sites divided into 4 bins (e.g., $0-$30, $30-$38, $38-$44, $44-$50 LCOE ranges)</p>
-<div class="admonition note">
-<p class="admonition-title">Quick-start ideas</p>
-<ul>
-<li>First filter on <code>lcoe</code> to drop obviously uneconomic sites</li>
-<li>Use <code>mw_per_bin</code> to target roughly one bin per ~5-10 GW of available capacity</li>
-<li>If early runs show large unused capacity in a specific region, add a region-specific filter with a tighter <code>lcoe</code> cap instead of shrinking other regions</li>
-</ul>
-</div>
-<p><strong>Bin structure</strong>: Each bin entry is a dictionary with:</p>
-<ul>
-<li><code>feature</code>: Column name to bin on (required)</li>
-<li><code>bins</code>: Integer number of equal-width bins OR list of bin edges (e.g., <code>[0, 30, 50, 75]</code>)</li>
-<li><code>q</code>: Integer number of quantile bins OR list of quantile edges (e.g., <code>[0, 0.25, 0.5, 0.75, 1.0]</code>)</li>
-<li><code>weights</code>: Column to weight bins by (optional, e.g., <code>mw</code> to weight by capacity)</li>
-<li><code>mw_per_bin</code>: Alternative to <code>bins</code>/<code>q</code> - calculate number of bins from total MW (optional)</li>
-<li><code>mw_per_q</code>: Alternative to <code>bins</code>/<code>q</code> - calculate number of quantiles from total MW (optional)</li>
-</ul>
-<p><strong>Note</strong>: Use either <code>bins</code> OR <code>q</code>, not both. If <code>weights</code> is specified with <code>q</code>, weighted quantiles are calculated.</p>
-<h3 id="binning-methods">Binning Methods<a class="headerlink" href="#binning-methods" title="Permanent link">&para;</a></h3>
-<p><strong>Quantile binning</strong> (recommended for balanced clusters):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">            </span><span class="c1"># 3 quantiles (terciles)</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span><span class="w">     </span><span class="c1"># Equal MW in each bin</span>
-</code></pre></div>
-<p><strong>Equal-width binning</strong> (may create unbalanced bins):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">bins</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w">  </span><span class="c1"># 4 equal-width bins across LCOE range</span>
-</code></pre></div>
-<p><strong>Explicit bin edges</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">bins</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">30</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">50</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">75</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Custom bin boundaries</span>
-</code></pre></div>
-<p><strong>Capacity-based bins</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="nt">mw_per_bin</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10000</span><span class="w">  </span><span class="c1"># ~10 GW per bin, number of bins calculated automatically</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span>
-</code></pre></div>
-<h3 id="binning-on-other-features">Binning on Other Features<a class="headerlink" href="#binning-on-other-features" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Bin by capacity factor (performance tiers)</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span><span class="w">  </span><span class="c1"># Equal capacity in each performance tier</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># Bin by distance to transmission</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dist_to_tx_km</span>
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">    </span><span class="nt">bins</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">25</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">50</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">200</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Explicit distance ranges</span>
-</code></pre></div>
-<h3 id="multiple-bins">Multiple Bins<a class="headerlink" href="#multiple-bins" title="Permanent link">&para;</a></h3>
-<p>You can apply multiple binning dimensions sequentially:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w">  </span><span class="c1"># Further divide each LCOE bin by CF</span>
-</code></pre></div>
-<p><strong>Result</strong>: 3 LCOE bins × 2 CF bins = 6 total bin combinations</p>
-<h2 id="step-3-use-groups-for-categorical-divisions">Step 3: Use Groups for Categorical Divisions<a class="headerlink" href="#step-3-use-groups-for-categorical-divisions" title="Permanent link">&para;</a></h2>
-<p><strong>Groups divide sites by categorical features</strong> like wind class, county, or interconnection zone.</p>
-<h3 id="wind-class-grouping">Wind Class Grouping<a class="headerlink" href="#wind-class-grouping" title="Permanent link">&para;</a></h3>
-<p>Most common use case - divide by resource quality:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">class</span><span class="w">  </span><span class="c1"># Divides by wind class (Class 3, Class 4, etc.)</span>
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-</code></pre></div>
-<p><strong>Result</strong>: Each class gets 2 k-means clusters (e.g., Class 3 → 2 clusters, Class 4 → 2 clusters)</p>
-<h3 id="geographic-grouping">Geographic Grouping<a class="headerlink" href="#geographic-grouping" title="Permanent link">&para;</a></h3>
-<p>Divide by county or zone to respect land availability:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">utilitypv</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">county</span><span class="w">  </span><span class="c1"># One or more clusters per county</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">  </span><span class="c1"># Single representative site per county</span>
-<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-</code></pre></div>
-<h3 id="multiple-groups">Multiple Groups<a class="headerlink" href="#multiple-groups" title="Permanent link">&para;</a></h3>
-<p>Combine categorical features (multiplies cluster count):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">class</span><span class="w">   </span><span class="c1"># 3 wind classes</span>
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ipm_region</span><span class="w">  </span><span class="c1"># 5 IPM regions (use different column than model region)</span>
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-</code></pre></div>
-<p><strong>Total clusters</strong> = 3 classes × 5 regions × 2 k-means = <strong>30 clusters</strong></p>
-<h2 id="step-4-configure-k-means-clustering">Step 4: Configure K-Means Clustering<a class="headerlink" href="#step-4-configure-k-means-clustering" title="Permanent link">&para;</a></h2>
-<p>After grouping/binning, <strong>k-means clusters aggregate similar sites</strong> within each combination.</p>
-<h3 id="basic-clustering">Basic Clustering<a class="headerlink" href="#basic-clustering" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span><span class="w">           </span><span class="c1"># Cluster on capacity factor</span>
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">         </span><span class="c1"># 3 clusters per group/bin</span>
-<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span><span class="w">           </span><span class="c1"># Clustering algorithm</span>
-</code></pre></div>
-<p><strong>Cluster structure</strong>: Each cluster entry is a dictionary with:</p>
-<ul>
-<li><code>feature</code>: Column name(s) to cluster on (required). Can be a string or list of strings. Use <code>profile</code> to cluster on generation profiles.</li>
-<li><code>method</code>: Clustering algorithm - <code>kmeans</code>, <code>agglomerative</code>/<code>agg</code>, <code>max_distance</code> (required)</li>
-<li><code>n_clusters</code>: Number of clusters (required)</li>
-<li><code>mw_per_cluster</code>: Alternative to <code>n_clusters</code> - calculate number of clusters from total MW (optional)</li>
-</ul>
-<h3 id="clustering-on-multiple-features">Clustering on Multiple Features<a class="headerlink" href="#clustering-on-multiple-features" title="Permanent link">&para;</a></h3>
-<p>Specify a list of features to cluster on multiple columns simultaneously:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">latitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">longitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">capacity_factor</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kmeans</span>
-</code></pre></div>
-<p>This creates 2 clusters based on geographic proximity AND performance similarity.</p>
-<p><strong>Common feature choices</strong>:</p>
-<ul>
-<li><code>latitude</code>, <code>longitude</code>: Geographic proximity</li>
-<li><code>capacity_factor</code> or <code>cf</code>: Performance similarity</li>
-<li><code>lcoe</code>: Cost similarity</li>
-<li><code>elevation</code>, <code>slope</code>: Terrain characteristics</li>
-<li><code>profile</code>: Generation time series (only works with <code>agglomerative</code> method)</li>
-</ul>
-<h3 id="clustering-on-generation-profiles">Clustering on Generation Profiles<a class="headerlink" href="#clustering-on-generation-profiles" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">profile</span><span class="w">        </span><span class="c1"># Cluster on hourly generation patterns</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agglomerative</span><span class="w">   </span><span class="c1"># Required for profile clustering</span>
-</code></pre></div>
-<h3 id="alternative-clustering-methods">Alternative Clustering Methods<a class="headerlink" href="#alternative-clustering-methods" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Hierarchical/agglomerative clustering</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span><span class="w">              </span><span class="c1"># Short for agglomerative</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>
-<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="c1"># Max-distance clustering (ensures spatial diversity)</span>
-<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">latitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">longitude</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
-<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">max_distance</span>
-</code></pre></div>
-<h3 id="limiting-total-clusters">Limiting Total Clusters<a class="headerlink" href="#limiting-total-clusters" title="Permanent link">&para;</a></h3>
-<p><strong>Note</strong>: The total number of clusters is the product of groups × bins × n_clusters. To manage cluster count:</p>
-<ol>
-<li>Reduce the number of groups</li>
-<li>Reduce the number of bins (<code>q</code> or <code>bins</code> value)</li>
-<li>Reduce <code>n_clusters</code></li>
-<li>Be selective about which regions/technologies to cluster</li>
-</ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">class</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">ipm_region</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Could create 3 × 5 = 15 combinations</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">    </span><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">        </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w">                </span><span class="c1"># × 2 bins = 30 combinations (reduced from 4)</span>
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">       </span><span class="c1"># × 1 cluster = 30 total</span>
-<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-</code></pre></div>
-<p>Reducing bins/clusters can simplify the model while preserving geographic and cost diversity.</p>
-<h2 id="step-5-modify-costs-by-group">Step 5: Modify Costs by Group<a class="headerlink" href="#step-5-modify-costs-by-group" title="Permanent link">&para;</a></h2>
-<p><strong>Group modifiers adjust costs for specific groups</strong> after clustering (e.g., higher interconnection costs in certain regions).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">class</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="w">    </span><span class="nt">group_modifiers</span><span class="p">:</span>
-<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">class</span>
-<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="w">        </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="w">        </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.1</span><span class="p p-Indicator">]</span><span class="w">   </span><span class="c1"># 10% higher capex for Class 3 wind</span>
-<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="w">        </span><span class="nt">fixed_o_m_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">5</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># +$5/MW-yr O&amp;M</span>
-<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">class</span>
-<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a><span class="w">        </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span>
-<a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a><span class="w">        </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.95</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># 5% lower capex for Class 7</span>
-</code></pre></div>
-<h3 id="modifier-operations">Modifier Operations<a class="headerlink" href="#modifier-operations" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>[mul, factor]</code>: Multiply existing value</li>
-<li><code>[add, value]</code>: Add to existing value</li>
-<li><code>[sub, value]</code>: Subtract from existing value</li>
-<li>Scalar: Replace value entirely</li>
-</ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">group_modifiers</span><span class="p">:</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ipm_region</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CA_N</span>
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.2</span><span class="p p-Indicator">]</span><span class="w">      </span><span class="c1"># 20% cost increase</span>
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span><span class="nt">interconnect_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">50</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># +$50/MW interconnection</span>
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ipm_region</span>
-<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TX</span>
-<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">800000</span><span class="w">          </span><span class="c1"># Set to $800k/MW (replaces value)</span>
-</code></pre></div>
-<h2 id="calculating-total-cluster-count">Calculating Total Cluster Count<a class="headerlink" href="#calculating-total-cluster-count" title="Permanent link">&para;</a></h2>
-<p>Understanding how cluster count multiplies is critical for managing model size.</p>
-<h3 id="formula">Formula<a class="headerlink" href="#formula" title="Permanent link">&para;</a></h3>
-<p><strong>Total Clusters</strong> = (# filter-passing groups) × (# bins) × (# k-means clusters)</p>
-<ul>
-<li>If no groups: 1 group assumed</li>
-<li>If no bins: 1 bin assumed</li>
-<li>If no k-means: 1 cluster assumed</li>
-</ul>
-<h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
-<p><strong>Simple k-means only</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-</code></pre></div>
-<p>→ <strong>5 total clusters</strong></p>
-<p><strong>Groups + k-means</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">class</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># 3 classes in data</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-</code></pre></div>
-<p>→ 3 × 2 = <strong>6 total clusters</strong></p>
-<p><strong>Bins + k-means</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-</code></pre></div>
-<p>→ 4 × 3 = <strong>12 total clusters</strong></p>
-<p><strong>Groups + bins + k-means</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># 5 regions</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-</code></pre></div>
-<p>→ 5 × 3 × 2 = <strong>30 total clusters</strong></p>
-<p><strong>Groups + bins (no k-means)</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">class</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">county</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># 3 classes, 20 counties</span>
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
-</code></pre></div>
-<p>→ 3 × 20 × 4 × 1 = <strong>240 total clusters</strong> (potentially too many!)</p>
-<h2 id="complete-examples">Complete Examples<a class="headerlink" href="#complete-examples" title="Permanent link">&para;</a></h2>
-<h3 id="example-1-simple-wind-clustering-recommended-starting-point">Example 1: Simple Wind Clustering (Recommended Starting Point)<a class="headerlink" href="#example-1-simple-wind-clustering-recommended-starting-point" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
-<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">    </span><span class="c1"># Filter to economically viable sites</span>
-<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="w">        </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
-<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span>
-<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="w">        </span><span class="nt">min</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w">  </span><span class="c1"># Sites must be ≥ 5 MW</span>
-<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a>
-<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a><span class="w">    </span><span class="c1"># Divide into 4 cost tiers</span>
-<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a><span class="w">    </span><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-25-14" name="__codelineno-25-14" href="#__codelineno-25-14"></a><span class="w">        </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w">          </span><span class="c1"># 4 quantiles (quartiles)</span>
-<a id="__codelineno-25-15" name="__codelineno-25-15" href="#__codelineno-25-15"></a><span class="w">        </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span><span class="w">   </span><span class="c1"># Equal capacity in each bin</span>
-<a id="__codelineno-25-16" name="__codelineno-25-16" href="#__codelineno-25-16"></a>
-<a id="__codelineno-25-17" name="__codelineno-25-17" href="#__codelineno-25-17"></a><span class="w">    </span><span class="c1"># 2 k-means clusters per cost tier (geographic diversity)</span>
-<a id="__codelineno-25-18" name="__codelineno-25-18" href="#__codelineno-25-18"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-25-19" name="__codelineno-25-19" href="#__codelineno-25-19"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">latitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">longitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">capacity_factor</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-25-20" name="__codelineno-25-20" href="#__codelineno-25-20"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-25-21" name="__codelineno-25-21" href="#__codelineno-25-21"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kmeans</span>
-</code></pre></div>
-<p><strong>Result</strong>: 4 bins × 2 clusters = <strong>8 wind resource clusters</strong></p>
-<h3 id="example-2-wind-with-class-groups">Example 2: Wind with Class Groups<a class="headerlink" href="#example-2-wind-with-class-groups" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
-<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="w">        </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
-<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a>
-<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="w">    </span><span class="c1"># Group by wind class (categorical)</span>
-<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">class</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a>
-<a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a><span class="w">    </span><span class="c1"># Bin by cost within each class</span>
-<a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a><span class="w">    </span><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-26-14" name="__codelineno-26-14" href="#__codelineno-26-14"></a><span class="w">        </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<a id="__codelineno-26-15" name="__codelineno-26-15" href="#__codelineno-26-15"></a><span class="w">        </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span>
-<a id="__codelineno-26-16" name="__codelineno-26-16" href="#__codelineno-26-16"></a>
-<a id="__codelineno-26-17" name="__codelineno-26-17" href="#__codelineno-26-17"></a><span class="w">    </span><span class="c1"># 1 representative cluster per class/bin</span>
-<a id="__codelineno-26-18" name="__codelineno-26-18" href="#__codelineno-26-18"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-26-19" name="__codelineno-26-19" href="#__codelineno-26-19"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-26-20" name="__codelineno-26-20" href="#__codelineno-26-20"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<a id="__codelineno-26-21" name="__codelineno-26-21" href="#__codelineno-26-21"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-<a id="__codelineno-26-22" name="__codelineno-26-22" href="#__codelineno-26-22"></a>
-<a id="__codelineno-26-23" name="__codelineno-26-23" href="#__codelineno-26-23"></a><span class="w">    </span><span class="c1"># Adjust costs for lower-quality wind</span>
-<a id="__codelineno-26-24" name="__codelineno-26-24" href="#__codelineno-26-24"></a><span class="w">    </span><span class="nt">group_modifiers</span><span class="p">:</span>
-<a id="__codelineno-26-25" name="__codelineno-26-25" href="#__codelineno-26-25"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">class</span>
-<a id="__codelineno-26-26" name="__codelineno-26-26" href="#__codelineno-26-26"></a><span class="w">        </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<a id="__codelineno-26-27" name="__codelineno-26-27" href="#__codelineno-26-27"></a><span class="w">        </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.15</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># 15% higher costs</span>
-</code></pre></div>
-<p><strong>Result</strong>: 3 classes × 3 bins × 1 cluster = <strong>9 wind clusters</strong></p>
-<h3 id="example-3-solar-with-geographic-groups">Example 3: Solar with Geographic Groups<a class="headerlink" href="#example-3-solar-with-geographic-groups" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">utilitypv</span>
-<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="w">        </span><span class="nt">min</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.18</span>
-<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a><span class="w">        </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">40</span>
-<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a>
-<a id="__codelineno-27-10" name="__codelineno-27-10" href="#__codelineno-27-10"></a><span class="w">    </span><span class="c1"># Group by county for land use limits</span>
-<a id="__codelineno-27-11" name="__codelineno-27-11" href="#__codelineno-27-11"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">county</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-27-12" name="__codelineno-27-12" href="#__codelineno-27-12"></a>
-<a id="__codelineno-27-13" name="__codelineno-27-13" href="#__codelineno-27-13"></a><span class="w">    </span><span class="c1"># No binning (costs similar within counties)</span>
-<a id="__codelineno-27-14" name="__codelineno-27-14" href="#__codelineno-27-14"></a>
-<a id="__codelineno-27-15" name="__codelineno-27-15" href="#__codelineno-27-15"></a><span class="w">    </span><span class="c1"># Single representative site per county</span>
-<a id="__codelineno-27-16" name="__codelineno-27-16" href="#__codelineno-27-16"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-27-17" name="__codelineno-27-17" href="#__codelineno-27-17"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">latitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">longitude</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-27-18" name="__codelineno-27-18" href="#__codelineno-27-18"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<a id="__codelineno-27-19" name="__codelineno-27-19" href="#__codelineno-27-19"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kmeans</span>
-<a id="__codelineno-27-20" name="__codelineno-27-20" href="#__codelineno-27-20"></a>
-<a id="__codelineno-27-21" name="__codelineno-27-21" href="#__codelineno-27-21"></a><span class="w">    </span><span class="c1"># Higher interconnection costs in remote counties</span>
-<a id="__codelineno-27-22" name="__codelineno-27-22" href="#__codelineno-27-22"></a><span class="w">    </span><span class="nt">group_modifiers</span><span class="p">:</span>
-<a id="__codelineno-27-23" name="__codelineno-27-23" href="#__codelineno-27-23"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">county</span>
-<a id="__codelineno-27-24" name="__codelineno-27-24" href="#__codelineno-27-24"></a><span class="w">        </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rural_County_A</span>
-<a id="__codelineno-27-25" name="__codelineno-27-25" href="#__codelineno-27-25"></a><span class="w">        </span><span class="nt">interconnect_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-27-26" name="__codelineno-27-26" href="#__codelineno-27-26"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">county</span>
-<a id="__codelineno-27-27" name="__codelineno-27-27" href="#__codelineno-27-27"></a><span class="w">        </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Rural_County_B</span>
-<a id="__codelineno-27-28" name="__codelineno-27-28" href="#__codelineno-27-28"></a><span class="w">        </span><span class="nt">interconnect_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">150</span><span class="p p-Indicator">]</span>
-</code></pre></div>
-<p><strong>Result</strong>: 1 cluster per county (e.g., 25 counties = <strong>25 solar clusters</strong>)</p>
-<h3 id="example-4-offshore-wind-performance-based">Example 4: Offshore Wind (Performance-Based)<a class="headerlink" href="#example-4-offshore-wind-performance-based" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
-<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">offshorewind</span>
-<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="w">        </span><span class="nt">min</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.35</span><span class="w">  </span><span class="c1"># Only high-quality sites</span>
-<a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dist_to_shore_km</span>
-<a id="__codelineno-28-8" name="__codelineno-28-8" href="#__codelineno-28-8"></a><span class="w">        </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">   </span><span class="c1"># Within 50 km of shore</span>
-<a id="__codelineno-28-9" name="__codelineno-28-9" href="#__codelineno-28-9"></a>
-<a id="__codelineno-28-10" name="__codelineno-28-10" href="#__codelineno-28-10"></a><span class="w">    </span><span class="c1"># Bin by performance (no geographic groups - limited areas)</span>
-<a id="__codelineno-28-11" name="__codelineno-28-11" href="#__codelineno-28-11"></a><span class="w">    </span><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-28-12" name="__codelineno-28-12" href="#__codelineno-28-12"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-28-13" name="__codelineno-28-13" href="#__codelineno-28-13"></a><span class="w">        </span><span class="nt">bins</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">       </span><span class="c1"># 3 equal-width bins</span>
-<a id="__codelineno-28-14" name="__codelineno-28-14" href="#__codelineno-28-14"></a>
-<a id="__codelineno-28-15" name="__codelineno-28-15" href="#__codelineno-28-15"></a><span class="w">    </span><span class="c1"># 2 clusters per performance tier</span>
-<a id="__codelineno-28-16" name="__codelineno-28-16" href="#__codelineno-28-16"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-28-17" name="__codelineno-28-17" href="#__codelineno-28-17"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">latitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">longitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">water_depth</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-28-18" name="__codelineno-28-18" href="#__codelineno-28-18"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-28-19" name="__codelineno-28-19" href="#__codelineno-28-19"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-</code></pre></div>
-<p><strong>Result</strong>: 3 CF bins × 2 clusters = <strong>6 offshore wind clusters</strong></p>
-<h3 id="example-5-complex-multi-region-system">Example 5: Complex Multi-Region System<a class="headerlink" href="#example-5-complex-multi-region-system" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">TX</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">OK</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">KS</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">NM</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Great Plains only</span>
-<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
-<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a><span class="w">        </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">55</span>
-<a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a>
-<a id="__codelineno-29-8" name="__codelineno-29-8" href="#__codelineno-29-8"></a><span class="w">    </span><span class="c1"># Group by state and wind class</span>
-<a id="__codelineno-29-9" name="__codelineno-29-9" href="#__codelineno-29-9"></a><span class="w">    </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">class</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-29-10" name="__codelineno-29-10" href="#__codelineno-29-10"></a>
-<a id="__codelineno-29-11" name="__codelineno-29-11" href="#__codelineno-29-11"></a><span class="w">    </span><span class="c1"># Bin by cost within each group</span>
-<a id="__codelineno-29-12" name="__codelineno-29-12" href="#__codelineno-29-12"></a><span class="w">    </span><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-29-13" name="__codelineno-29-13" href="#__codelineno-29-13"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-29-14" name="__codelineno-29-14" href="#__codelineno-29-14"></a><span class="w">        </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w">           </span><span class="c1"># Keep bins low with multiple groups</span>
-<a id="__codelineno-29-15" name="__codelineno-29-15" href="#__codelineno-29-15"></a><span class="w">        </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span>
-<a id="__codelineno-29-16" name="__codelineno-29-16" href="#__codelineno-29-16"></a>
-<a id="__codelineno-29-17" name="__codelineno-29-17" href="#__codelineno-29-17"></a><span class="w">    </span><span class="c1"># Small number of clusters per group/bin</span>
-<a id="__codelineno-29-18" name="__codelineno-29-18" href="#__codelineno-29-18"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-29-19" name="__codelineno-29-19" href="#__codelineno-29-19"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-29-20" name="__codelineno-29-20" href="#__codelineno-29-20"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<a id="__codelineno-29-21" name="__codelineno-29-21" href="#__codelineno-29-21"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-<a id="__codelineno-29-22" name="__codelineno-29-22" href="#__codelineno-29-22"></a>
-<a id="__codelineno-29-23" name="__codelineno-29-23" href="#__codelineno-29-23"></a><span class="w">    </span><span class="nt">group_modifiers</span><span class="p">:</span>
-<a id="__codelineno-29-24" name="__codelineno-29-24" href="#__codelineno-29-24"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ipm_region</span>
-<a id="__codelineno-29-25" name="__codelineno-29-25" href="#__codelineno-29-25"></a><span class="w">        </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TX_Class7</span>
-<a id="__codelineno-29-26" name="__codelineno-29-26" href="#__codelineno-29-26"></a><span class="w">        </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.9</span><span class="p p-Indicator">]</span><span class="w">   </span><span class="c1"># Best TX wind</span>
-<a id="__codelineno-29-27" name="__codelineno-29-27" href="#__codelineno-29-27"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ipm_region</span>
-<a id="__codelineno-29-28" name="__codelineno-29-28" href="#__codelineno-29-28"></a><span class="w">        </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NM_Class3</span>
-<a id="__codelineno-29-29" name="__codelineno-29-29" href="#__codelineno-29-29"></a><span class="w">        </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.1</span><span class="p p-Indicator">]</span><span class="w">   </span><span class="c1"># Lower quality NM wind</span>
-</code></pre></div>
-<p><strong>Result</strong>: 4 regions × ~2 classes × 2 bins × 1 cluster = <strong>~16 clusters</strong></p>
-<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
-<h3 id="1-start-simple-add-complexity">1. Start Simple, Add Complexity<a class="headerlink" href="#1-start-simple-add-complexity" title="Permanent link">&para;</a></h3>
-<p><strong>Phase 1</strong> - Filter + Bins:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="w">    </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
-<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
-<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-30-10" name="__codelineno-30-10" href="#__codelineno-30-10"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-</code></pre></div>
-<p><strong>Phase 2</strong> - Add groups if needed:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a><span class="w">    </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
-<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">class</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Add categorical division</span>
-<a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-31-7" name="__codelineno-31-7" href="#__codelineno-31-7"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">          </span><span class="c1"># Reduce bins to manage count</span>
-<a id="__codelineno-31-8" name="__codelineno-31-8" href="#__codelineno-31-8"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-31-9" name="__codelineno-31-9" href="#__codelineno-31-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-31-10" name="__codelineno-31-10" href="#__codelineno-31-10"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-31-11" name="__codelineno-31-11" href="#__codelineno-31-11"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-</code></pre></div>
-<h3 id="2-always-filter-on-lcoe-first-if-available">2. Always Filter on LCOE First (If Available)<a class="headerlink" href="#2-always-filter-on-lcoe-first-if-available" title="Permanent link">&para;</a></h3>
-<p>Filtering removes uneconomical sites before clustering, reducing:</p>
-<ul>
-<li>Computational time</li>
-<li>Memory usage</li>
-<li>Irrelevant resource options</li>
-</ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="c1"># Good: Filter before clustering</span>
-<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="w">    </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
-<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-32-7" name="__codelineno-32-7" href="#__codelineno-32-7"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">  </span><span class="c1"># Only clusters good sites</span>
-<a id="__codelineno-32-8" name="__codelineno-32-8" href="#__codelineno-32-8"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-<a id="__codelineno-32-9" name="__codelineno-32-9" href="#__codelineno-32-9"></a>
-<a id="__codelineno-32-10" name="__codelineno-32-10" href="#__codelineno-32-10"></a><span class="c1"># Avoid: Clustering everything</span>
-<a id="__codelineno-32-11" name="__codelineno-32-11" href="#__codelineno-32-11"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-32-12" name="__codelineno-32-12" href="#__codelineno-32-12"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-32-13" name="__codelineno-32-13" href="#__codelineno-32-13"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">  </span><span class="c1"># Includes expensive sites</span>
-<a id="__codelineno-32-14" name="__codelineno-32-14" href="#__codelineno-32-14"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-</code></pre></div>
-<h3 id="3-use-quantile-binning-for-balanced-clusters">3. Use Quantile Binning for Balanced Clusters<a class="headerlink" href="#3-use-quantile-binning-for-balanced-clusters" title="Permanent link">&para;</a></h3>
-<p>Quantile binning ensures each cost tier has similar site counts:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w">          </span><span class="c1"># Each bin has ~25% of sites (quartiles)</span>
-<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a><span class="w">    </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span><span class="w">   </span><span class="c1"># Can also weight by capacity</span>
-</code></pre></div>
-<p>Equal-width binning may create bins with very few sites.</p>
-<h3 id="4-match-cluster-count-to-model-scale">4. Match Cluster Count to Model Scale<a class="headerlink" href="#4-match-cluster-count-to-model-scale" title="Permanent link">&para;</a></h3>
-<p><strong>Small model</strong> (1-5 regions):</p>
-<ul>
-<li>5-15 clusters per technology</li>
-<li>Simple binning (2-3 bins)</li>
-<li>Single k-means cluster per bin</li>
-</ul>
-<p><strong>Medium model</strong> (5-15 regions):</p>
-<ul>
-<li>15-40 clusters per technology</li>
-<li>Groups by region or class</li>
-<li>2-3 bins × 1-2 k-means clusters</li>
-</ul>
-<p><strong>Large model</strong> (15+ regions):</p>
-<ul>
-<li>40-100 clusters per technology</li>
-<li>Multiple groups (region + class)</li>
-<li>Keep bins and n_clusters low to manage total count</li>
-<li>Consider 1 k-means cluster per group/bin</li>
-</ul>
-<h3 id="5-use-group-modifiers-sparingly">5. Use Group Modifiers Sparingly<a class="headerlink" href="#5-use-group-modifiers-sparingly" title="Permanent link">&para;</a></h3>
-<p>Only modify costs when you have specific regional data:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="c1"># Good: Specific, data-driven adjustment</span>
-<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a><span class="nt">group_modifiers</span><span class="p">:</span>
-<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ipm_region</span>
-<a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a><span class="w">    </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CA_N</span>
-<a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a><span class="w">    </span><span class="nt">interconnect_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">add</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">75</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Known higher interconnection costs</span>
-<a id="__codelineno-34-6" name="__codelineno-34-6" href="#__codelineno-34-6"></a>
-<a id="__codelineno-34-7" name="__codelineno-34-7" href="#__codelineno-34-7"></a><span class="c1"># Avoid: Arbitrary adjustments</span>
-<a id="__codelineno-34-8" name="__codelineno-34-8" href="#__codelineno-34-8"></a><span class="nt">group_modifiers</span><span class="p">:</span>
-<a id="__codelineno-34-9" name="__codelineno-34-9" href="#__codelineno-34-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ipm_region</span>
-<a id="__codelineno-34-10" name="__codelineno-34-10" href="#__codelineno-34-10"></a><span class="w">    </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Region1</span>
-<a id="__codelineno-34-11" name="__codelineno-34-11" href="#__codelineno-34-11"></a><span class="w">    </span><span class="nt">capex_mw</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.05</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Why 5%?</span>
-</code></pre></div>
-<h3 id="6-check-cluster-counts-before-running">6. Check Cluster Counts Before Running<a class="headerlink" href="#6-check-cluster-counts-before-running" title="Permanent link">&para;</a></h3>
-<p>Calculate expected clusters:</p>
-<ul>
-<li>Count unique values in grouping columns</li>
-<li>Multiply by bins and k-means clusters</li>
-<li>Ensure total is reasonable (&lt; 100 per technology for most models)</li>
-</ul>
-<h3 id="7-balance-geographic-and-cost-diversity">7. Balance Geographic and Cost Diversity<a class="headerlink" href="#7-balance-geographic-and-cost-diversity" title="Permanent link">&para;</a></h3>
-<p><strong>Good balance</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">]</span><span class="w">      </span><span class="c1"># Geographic diversity</span>
-<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">             </span><span class="c1"># Cost diversity</span>
-<a id="__codelineno-35-5" name="__codelineno-35-5" href="#__codelineno-35-5"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-35-6" name="__codelineno-35-6" href="#__codelineno-35-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">    </span><span class="c1"># Simple representative</span>
-</code></pre></div>
-<p><strong>Too geographic-heavy</strong> (ignores costs):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">county</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">class</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Very specific locations</span>
-<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a><span class="c1"># No cost binning - might select expensive sites</span>
-</code></pre></div>
-<p><strong>Too cost-heavy</strong> (ignores geography):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">            </span><span class="c1"># Fine cost resolution</span>
-<a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a><span class="c1"># No groups - might concentrate in one region</span>
-</code></pre></div>
-<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
-<h3 id="too-many-clusters">Too Many Clusters<a class="headerlink" href="#too-many-clusters" title="Permanent link">&para;</a></h3>
-<p><strong>Problem</strong>: 200+ clusters slow down the model</p>
-<p><strong>Solutions</strong>:</p>
-<ol>
-<li>Reduce number of bins (lower <code>q</code> or <code>bins</code> value)</li>
-<li>Use fewer groups</li>
-<li>Reduce <code>n_clusters</code></li>
-</ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="c1"># Before: 5 regions × 4 bins × 3 clusters = 60</span>
-<a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-38-3" name="__codelineno-38-3" href="#__codelineno-38-3"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-38-4" name="__codelineno-38-4" href="#__codelineno-38-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-38-5" name="__codelineno-38-5" href="#__codelineno-38-5"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
-<a id="__codelineno-38-6" name="__codelineno-38-6" href="#__codelineno-38-6"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-38-7" name="__codelineno-38-7" href="#__codelineno-38-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-38-8" name="__codelineno-38-8" href="#__codelineno-38-8"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<a id="__codelineno-38-9" name="__codelineno-38-9" href="#__codelineno-38-9"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-<a id="__codelineno-38-10" name="__codelineno-38-10" href="#__codelineno-38-10"></a>
-<a id="__codelineno-38-11" name="__codelineno-38-11" href="#__codelineno-38-11"></a><span class="c1"># After: 5 regions × 2 bins × 2 clusters = 20</span>
-<a id="__codelineno-38-12" name="__codelineno-38-12" href="#__codelineno-38-12"></a><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-38-13" name="__codelineno-38-13" href="#__codelineno-38-13"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-38-14" name="__codelineno-38-14" href="#__codelineno-38-14"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-38-15" name="__codelineno-38-15" href="#__codelineno-38-15"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-38-16" name="__codelineno-38-16" href="#__codelineno-38-16"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-38-17" name="__codelineno-38-17" href="#__codelineno-38-17"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-38-18" name="__codelineno-38-18" href="#__codelineno-38-18"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-38-19" name="__codelineno-38-19" href="#__codelineno-38-19"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agg</span>
-</code></pre></div>
-<h3 id="all-clusters-in-one-region">All Clusters in One Region<a class="headerlink" href="#all-clusters-in-one-region" title="Permanent link">&para;</a></h3>
-<p><strong>Problem</strong>: All selected sites in the same area</p>
-<p><strong>Solutions</strong>:</p>
-<ol>
-<li>Add geographic groups</li>
-<li>Include lat/lon in clustering features</li>
-<li>Use <code>max_distance</code> clustering method</li>
-</ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="c1"># Solution 1: Group by region</span>
-<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-39-3" name="__codelineno-39-3" href="#__codelineno-39-3"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-39-4" name="__codelineno-39-4" href="#__codelineno-39-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cf</span>
-<a id="__codelineno-39-5" name="__codelineno-39-5" href="#__codelineno-39-5"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<a id="__codelineno-39-6" name="__codelineno-39-6" href="#__codelineno-39-6"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kmeans</span>
-<a id="__codelineno-39-7" name="__codelineno-39-7" href="#__codelineno-39-7"></a>
-<a id="__codelineno-39-8" name="__codelineno-39-8" href="#__codelineno-39-8"></a><span class="c1"># Solution 2: Geographic features</span>
-<a id="__codelineno-39-9" name="__codelineno-39-9" href="#__codelineno-39-9"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-39-10" name="__codelineno-39-10" href="#__codelineno-39-10"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">latitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">longitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">lcoe</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-39-11" name="__codelineno-39-11" href="#__codelineno-39-11"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<a id="__codelineno-39-12" name="__codelineno-39-12" href="#__codelineno-39-12"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kmeans</span>
-<a id="__codelineno-39-13" name="__codelineno-39-13" href="#__codelineno-39-13"></a>
-<a id="__codelineno-39-14" name="__codelineno-39-14" href="#__codelineno-39-14"></a><span class="c1"># Solution 3: Max-distance</span>
-<a id="__codelineno-39-15" name="__codelineno-39-15" href="#__codelineno-39-15"></a><span class="err">```</span><span class="l l-Scalar l-Scalar-Plain">yaml</span>
-<a id="__codelineno-39-16" name="__codelineno-39-16" href="#__codelineno-39-16"></a><span class="nt">cluster</span><span class="p">:</span>
-<a id="__codelineno-39-17" name="__codelineno-39-17" href="#__codelineno-39-17"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">latitude</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">longitude</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-39-18" name="__codelineno-39-18" href="#__codelineno-39-18"></a><span class="w">    </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">max_distance</span>
-<a id="__codelineno-39-19" name="__codelineno-39-19" href="#__codelineno-39-19"></a><span class="w">    </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
-</code></pre></div>
-<h3 id="expensive-sites-selected">Expensive Sites Selected<a class="headerlink" href="#expensive-sites-selected" title="Permanent link">&para;</a></h3>
-<p><strong>Problem</strong>: High-cost clusters appear in optimal solution</p>
-<p><strong>Solutions</strong>:</p>
-<ol>
-<li>Tighten <code>max_lcoe</code> filter</li>
-<li>Add more cost bins</li>
-<li>Check that bins are actually dividing by cost</li>
-</ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="c1"># Tighter filter</span>
-<a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a><span class="nt">filter</span><span class="p">:</span>
-<a id="__codelineno-40-3" name="__codelineno-40-3" href="#__codelineno-40-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-40-4" name="__codelineno-40-4" href="#__codelineno-40-4"></a><span class="w">    </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">45</span><span class="w">  </span><span class="c1"># Was 60</span>
-<a id="__codelineno-40-5" name="__codelineno-40-5" href="#__codelineno-40-5"></a>
-<a id="__codelineno-40-6" name="__codelineno-40-6" href="#__codelineno-40-6"></a><span class="c1"># More cost granularity</span>
-<a id="__codelineno-40-7" name="__codelineno-40-7" href="#__codelineno-40-7"></a><span class="nt">bin</span><span class="p">:</span>
-<a id="__codelineno-40-8" name="__codelineno-40-8" href="#__codelineno-40-8"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
-<a id="__codelineno-40-9" name="__codelineno-40-9" href="#__codelineno-40-9"></a><span class="w">    </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w">     </span><span class="c1"># Was 3</span>
-</code></pre></div>
-<h3 id="missing-expected-groups">Missing Expected Groups<a class="headerlink" href="#missing-expected-groups" title="Permanent link">&para;</a></h3>
-<p><strong>Problem</strong>: Fewer clusters than expected</p>
-<p><strong>Cause</strong>: Not all group combinations exist in filtered data</p>
-<p><strong>Solution</strong>: Check resource data to verify group values exist after filtering</p>
+<p>A resource <strong>group</strong> is an input dataset: a JSON definition connects a technology
+to site metadata and generation profiles. A resource <strong>cluster</strong> is an output:
+one candidate resource representing one or more sites within a model region.
+The setting <code>group</code> is different again: it separates sites by categorical
+metadata, such as county.</p>
+<p>Choose the simplest representation that preserves the differences your study
+needs. More clusters increase model size; fewer can hide cost or temporal
+variation. Compare results at different resolutions rather than choosing counts
+from the number of model regions alone.</p>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Setting</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keep every eligible site</td>
+<td>Omit <code>group</code>, <code>bin</code>, and <code>cluster</code></td>
+<td>One resource per site</td>
+</tr>
+<tr>
+<td>Aggregate all eligible sites</td>
+<td>One <code>bin</code> with <code>q: 1</code></td>
+<td>One resource per model region</td>
+</tr>
+<tr>
+<td>Separate cost or performance tiers</td>
+<td><code>bin</code></td>
+<td>One resource per nonempty bin unless further split</td>
+</tr>
+<tr>
+<td>Preserve categorical boundaries</td>
+<td><code>group</code></td>
+<td>Separate resources for observed categories</td>
+</tr>
+<tr>
+<td>Preserve differences within tiers/categories</td>
+<td><code>cluster</code></td>
+<td>Cluster within each nonempty combination</td>
+</tr>
+<tr>
+<td>Exclude candidates outside the study scope</td>
+<td><code>filter</code></td>
+<td>Removes sites before aggregation</td>
+</tr>
+</tbody>
+</table>
 <h2 id="data-requirements">Data Requirements<a class="headerlink" href="#data-requirements" title="Permanent link">&para;</a></h2>
-<p>Renewable clustering requires <strong>resource group profiles</strong> with site-level data.</p>
 <h3 id="required-data-files">Required Data Files<a class="headerlink" href="#required-data-files" title="Permanent link">&para;</a></h3>
-<p>Located in <code>RESOURCE_GROUP_PROFILES</code> directory:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>RESOURCE_GROUP_PROFILES/
-<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>├── LandbasedWind_Class1_resource_groups.parquet
-<a id="__codelineno-41-3" name="__codelineno-41-3" href="#__codelineno-41-3"></a>├── UtilityPV_Class1_resource_groups.parquet
-<a id="__codelineno-41-4" name="__codelineno-41-4" href="#__codelineno-41-4"></a>└── OffshoreWind_Class1_resource_groups.parquet
+<p>Set <code>RESOURCE_GROUPS</code> to a directory of JSON definitions (or a list of such
+directories). This is the published Texas wind definition,
+<code>example_systems/TX-3-zone/resource_groups/onshorewind_group.json</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">"technology"</span><span class="p">:</span><span class="w"> </span><span class="s2">"landbasedwind"</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">"metadata"</span><span class="p">:</span><span class="w"> </span><span class="s2">"onshorewind_lcoe_tx_3_zone.csv"</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">"profiles"</span><span class="p">:</span><span class="w"> </span><span class="s2">"onshorewind_profiles_tx_3_zone.csv"</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">"site_map"</span><span class="p">:</span><span class="w"> </span><span class="s2">"onshorewind_site_map_tx_3_zone.csv"</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="p">}</span>
 </code></pre></div>
+<p>Metadata paths resolve relative to the JSON file. Profiles are sought under
+<code>RESOURCE_GROUP_PROFILES</code>, if supplied, then alongside the JSON. In the flexible
+clustering path, <code>site_map</code> resolves alongside the <strong>resolved profiles file</strong>.
+Keep that map with profiles if you move them to a separate directory.</p>
+<p>Relative <code>RESOURCE_GROUPS</code> and <code>RESOURCE_GROUP_PROFILES</code> paths resolve from the
+current working directory. The published Texas settings require running from
+the <strong>examples root</strong>, not inside <code>example_systems/TX-3-zone/</code>. By contrast,
+<code>data_location</code> and <code>input_folder</code> resolve relative to the parent of the settings
+directory.</p>
 <h3 id="required-columns">Required Columns<a class="headerlink" href="#required-columns" title="Permanent link">&para;</a></h3>
-<p><strong>Minimum</strong>:</p>
-<ul>
-<li><code>region</code>: Model region name</li>
-<li><code>latitude</code>, <code>longitude</code>: Coordinates</li>
-<li><code>capacity_mw</code>: Site capacity</li>
-<li><code>capacity_factor</code>: Average CF</li>
-<li><code>profile_id</code>: Links to generation profile</li>
-</ul>
-<p><strong>Recommended</strong>:</p>
-<ul>
-<li><code>lcoe</code>: For filtering and binning</li>
-<li><code>class</code>: Wind/solar resource class</li>
-<li><code>county</code>: For geographic grouping</li>
-</ul>
-<p><strong>Optional</strong>:</p>
-<ul>
-<li><code>dist_to_tx_km</code>: Distance to transmission</li>
-<li><code>elevation</code>, <code>slope</code>: Terrain features</li>
-<li><code>interconnect_mw</code>: Interconnection cost</li>
-</ul>
+<p>These requirements describe flexible site clustering, not legacy preclustered
+resource trees. Column names are normalized to snake case when loaded; for
+example, <code>CPA_ID</code> becomes <code>cpa_id</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Requirement and units</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cpa_id</code></td>
+<td>Unique candidate-site identifier</td>
+</tr>
+<tr>
+<td><code>region</code> or <code>metro_region</code></td>
+<td>Region matching a model region or its base regions in <code>region_aggregations</code></td>
+</tr>
+<tr>
+<td><code>capacity_mw</code> or <code>cpa_mw</code></td>
+<td>Available site capacity, MW; nonpositive-capacity rows are dropped</td>
+</tr>
+<tr>
+<td>Filter/bin/cluster features</td>
+<td>Actual metadata columns; no automatic creation of <code>cf</code>, <code>lcoe</code>, latitude, etc.</td>
+</tr>
+<tr>
+<td><code>lcoe</code>, if used</td>
+<td>Input screening/binning metric, typically $/MWh; verify its definition and dollar year</td>
+</tr>
+<tr>
+<td><code>cf</code>, if used</td>
+<td>Capacity factor as a fraction, not percent; a metadata feature, not recomputed from profiles</td>
+</tr>
+<tr>
+<td>Interconnection costs, if supplied</td>
+<td><code>interconnect_capex_mw</code> in $/MW or <code>interconnect_annuity</code> in $/MW-year</td>
+</tr>
+</tbody>
+</table>
+<p>Other feature units come from your dataset. Do not treat <code>capacity_factor</code> as an
+alias for <code>cf</code>, or assume county and coordinate columns exist. Check data
+coverage and cost definitions before changing regional aggregations.</p>
 <h3 id="generation-profiles">Generation Profiles<a class="headerlink" href="#generation-profiles" title="Permanent link">&para;</a></h3>
-<p>Hourly profiles in same directory:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>LandbasedWind_Class1_profile_0001.csv  # 8760 hourly CFs
-<a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a>LandbasedWind_Class1_profile_0002.csv
-<a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a>...
+<p>Use CSV or Parquet with tidy columns <code>site_id</code>, <code>time_index</code>, <code>value</code>, and
+optionally <code>weather_year</code>. Values are generation per unit of capacity. IDs match
+<code>cpa_id</code> directly, or map through <code>site_map</code>: its first column is the candidate ID
+and its second column the profile ID (the Texas example uses <code>cpa_id,profile_id</code>).
+Check mapping completeness; candidates missing from a supplied map are dropped.</p>
+<p>Set <code>weather_year</code> to select the intended year(s), and <code>utc_offset</code> to align
+profiles with demand. Wide profiles with site IDs as columns are deprecated and
+cannot be filtered by <code>weather_year</code>. Without a profiles file, the flexible path
+uses constant availability of 1; that is not a realistic wind or solar profile.</p>
+<h2 id="basic-configuration-pattern">Basic Configuration Pattern<a class="headerlink" href="#basic-configuration-pattern" title="Permanent link">&para;</a></h2>
+<h3 id="1-match-the-technology-and-edit-one-settings-definition">1. Match the technology and edit one settings definition<a class="headerlink" href="#1-match-the-technology-and-edit-one-settings-definition" title="Permanent link">&para;</a></h3>
+<p>Include the matching cost-table technology in the existing <code>new_resources</code> list:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">new_resources</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LandbasedWind</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Class3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">]</span>
 </code></pre></div>
-<p>Each <code>profile_id</code> in resource groups must have a corresponding profile file.</p>
+<p>Each entry is <code>[technology, tech_detail, cost_case, unit_size]</code>, with unit size in
+MW. Keep the other technologies your study needs; replacing this list removes
+them. <code>technology: landbasedwind</code> in a cluster entry is the resource-group
+identifier mapped from the new-build technology, not the full cost-table name.
+For offshore wind, also match <code>turbine_type: fixed</code> or <code>floating</code> to the selected
+technology detail and resource JSON.</p>
+<p>Edit existing definitions rather than adding an override file with duplicate
+top-level keys. A settings directory loads only its immediate <code>.yml</code> files,
+uses shallow top-level replacement, and has no reliable override order. Lists
+and nested dictionaries are not merged across files.</p>
+<h3 id="2-apply-one-filterbincluster-recipe">2. Apply one filter/bin/cluster recipe<a class="headerlink" href="#2-apply-one-filterbincluster-recipe" title="Permanent link">&para;</a></h3>
+<p>The following uses features in the Texas wind metadata and preserves the
+example's solar definition. Replace the existing <code>renewables_clusters</code> list in
+the study's resource settings:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">renewables_clusters</span><span class="p">:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">landbasedwind</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">        </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">75</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nt">bin</span><span class="p">:</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">        </span><span class="nt">q</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">        </span><span class="nt">weights</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">capacity_mw</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">profile</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agglomerative</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">        </span><span class="nt">n_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">region</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">    </span><span class="nt">technology</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">utilitypv</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">    </span><span class="nt">filter</span><span class="p">:</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">feature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lcoe</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">        </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+</code></pre></div>
+<p>Here <code>75</code> retains the Texas example's illustrative wind screening assumption;
+it is <strong>not a recommended economic cutoff</strong>. A high-LCOE site can still be valuable
+because of its location or output timing. Omit the filter if all candidates
+belong in the study, and document any exclusion you do use. Filter bounds are
+inclusive, but the implementation ignores <code>min: 0</code> and <code>max: 0</code>.</p>
+<p>Processing order is:</p>
+<ol>
+<li>Select sites in each model region, including its aggregated base regions.</li>
+<li>Apply all filters, then optional <code>min_capacity</code> selection.</li>
+<li>Bin numeric features across filtered sites in that model region.</li>
+<li>Separate categorical groups, if requested.</li>
+<li>Cluster within each nonempty bin/group combination.</li>
+<li>Sum site capacity and capacity-weight profiles and supported cost columns.</li>
+</ol>
+<p>In this recipe, two capacity-weighted LCOE tiers are each split into up to two
+profile clusters: <strong>at most four new wind resources per model region</strong>.
+Weighted quantiles aim for similar MW, not exactly equal capacity; indivisible
+sites and duplicate values can produce unequal or fewer bins. Aggregation
+averages profiles; it does not select a single representative site.</p>
+<h3 id="3-set-regional-scope-deliberately">3. Set regional scope deliberately<a class="headerlink" href="#3-set-regional-scope-deliberately" title="Permanent link">&para;</a></h3>
+<p>Use <code>region: all</code> for a common definition. To vary it, add a complete entry for
+an exact model-region name, such as <code>TX2</code>; it replaces the <code>all</code> definition for
+the same resource identifiers in that region. It does not inherit omitted
+filters or bin settings. Avoid duplicate entries for the same region/resource.</p>
+<p>Use a categorical <code>group</code> only to preserve a boundary <strong>inside</strong> a model region;
+model regions are already processed separately. Scoping cluster entries is not
+a general mechanism for excluding technologies. In particular,
+<code>new_gen_not_available</code> is validated but not applied; do not rely on it to
+enforce a regional technology restriction.</p>
+<h2 id="calculating-total-cluster-count">Calculating Total Cluster Count<a class="headerlink" href="#calculating-total-cluster-count" title="Permanent link">&para;</a></h2>
+<p>For one binning and one clustering step, the approximate upper bound per model
+region is observed category combinations × bins × requested clusters. Empty
+combinations, duplicate bin edges, and too few sites reduce the count.</p>
+<ul>
+<li>No <code>group</code>, <code>bin</code>, or <code>cluster</code>: each retained site remains a resource.</li>
+<li><code>group</code> and/or <code>bin</code>, without <code>cluster</code>: one resource per nonempty combination.</li>
+<li><code>bin: [{feature: lcoe, q: 1}]</code>: aggregate all retained sites into one resource.</li>
+<li><code>cluster</code> only: up to <code>n_clusters</code> resources per region.</li>
+</ul>
+<p>Do not filter sites merely to meet a resource-count target: that changes the
+candidate supply. First reduce bin/cluster counts or unnecessary groups, then
+compare capacity, cost ranges, profile diversity, runtime, and model outcomes.</p>
+<h2 id="run-and-inspect-the-result">Run and inspect the result<a class="headerlink" href="#run-and-inspect-the-result" title="Permanent link">&para;</a></h2>
+<p>For the Texas example, run from the examples root (use <code>settings_wind</code> instead
+of <code>settings</code> if following the tutorial's separate-settings exercise):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>example_systems/TX-3-zone/settings
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--settings_file<span class="w"> </span>example_systems/TX-3-zone/settings<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span>--results_folder<span class="w"> </span>renewable_test
+</code></pre></div>
+<p>The first planning period's default GenX outputs are:</p>
+<ul>
+<li><code>renewable_test/base/Inputs/Inputs_p1/resources/Vre.csv</code>: resource attributes.</li>
+<li><code>renewable_test/base/Inputs/Inputs_p1/system/Generators_variability.csv</code>: profiles
+  named by <code>Resource</code>, aligned with modeled time steps.</li>
+<li><code>renewable_test/base/Inputs/Inputs_p1/extra_outputs/</code>: site-to-cluster assignment
+  CSVs for checking membership.</li>
+</ul>
+<p>Other studies can use different case-directory names. The legacy flat generator
+layout is not the default; see <a href="../../explanation/output-format/">Output Format</a>.</p>
+<p>Check new-build wind separately from existing wind. Compare <code>Max_Cap_MW</code> totals
+with eligible site capacity, count resources by region, and inspect
+<code>Inv_Cost_per_MWyr</code> ($/MW-year), not just the metadata's screening <code>lcoe</code>.
+Profile columns must match the written <code>Resource</code> names. A simple mean over the
+written hours is <strong>not an annual capacity factor</strong> when the profile covers only
+a sample of hours. See the
+<a href="../../tutorials/renewable-resources/#step-5-compare-the-outputs">tutorial's output checks</a>.</p>
+<h2 id="caching-for-speed">Caching for speed<a class="headerlink" href="#caching-for-speed" title="Permanent link">&para;</a></h2>
+<p>The generator workflow defaults both controls to <code>true</code>; the published Texas
+example explicitly sets both to <code>false</code>. To enable reads and writes, use:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">cache_resource_clusters</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">use_resource_clusters_cache</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<p>Caches live under <code>input_folder/cluster_assignments/</code>, in a resource-path-specific
+subfolder. Reading and writing are separate: set <code>use_resource_clusters_cache</code>
+to <code>false</code> to recompute; <code>cache_resource_clusters: false</code> only disables writes.</p>
+<p>Keys include region, technology, cluster settings, timezone, weather year, and
+metadata/profile file hashes. The site-map file is not separately hashed. After
+changing a site map, remove the affected cache files before regenerating them;
+disabling reads alone recomputes but does not overwrite existing same-key files.</p>
+<h2 id="optional-refinements">Optional refinements<a class="headerlink" href="#optional-refinements" title="Permanent link">&para;</a></h2>
+<h3 id="binning-methods">Binning Methods<a class="headerlink" href="#binning-methods" title="Permanent link">&para;</a></h3>
+<p>Use one bin-count option per entry; provide a numeric <code>feature</code> column:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>q: 3</code></td>
+<td>Three quantile bins; add <code>weights: capacity_mw</code> to balance by MW rather than site count</td>
+</tr>
+<tr>
+<td><code>bins: 3</code></td>
+<td>Three equal-width feature ranges; <code>weights</code> has no effect</td>
+</tr>
+<tr>
+<td><code>bins: [0, 30, 50, 75]</code></td>
+<td>Explicit feature-value edges</td>
+</tr>
+<tr>
+<td><code>q: [0, 0.5, 1]</code></td>
+<td>Explicit quantile edges</td>
+</tr>
+<tr>
+<td><code>mw_per_bin: 10000</code></td>
+<td>Equal-width count from total MW divided by this value, truncated, minimum one</td>
+</tr>
+<tr>
+<td><code>mw_per_q: 10000</code></td>
+<td>Quantile count from the same calculation</td>
+</tr>
+</tbody>
+</table>
+<p>Explicit outer bin edges are expanded to cover the data range, with warnings;
+<strong>bin edges are not screening thresholds</strong>. Multiple bin entries subdivide
+sites sequentially, before categorical grouping. Keep one dimension until you
+have checked its effect.</p>
+<h3 id="clustering-on-generation-profiles">Clustering on Generation Profiles<a class="headerlink" href="#clustering-on-generation-profiles" title="Permanent link">&para;</a></h3>
+<p>Use <code>feature: profile</code> with <code>agglomerative</code> (aliases <code>agg</code>, <code>hierarchical</code>) as in
+the main recipe. For metadata instead of profiles:</p>
+<ul>
+<li>Agglomerative clustering accepts one scalar numeric feature, such as <code>cf</code>.</li>
+<li><code>kmeans</code> accepts a list of numeric columns, even for one feature, such as
+  <code>feature: [cf]</code>; features are standardized. Latitude/longitude can be included
+  only if present in your metadata. Use agglomerative for profile clustering.</li>
+<li>Set <code>n_clusters</code> explicitly, or use <code>mw_per_cluster</code> to derive a count from
+  capacity within each bin/group (truncated, minimum one).</li>
+</ul>
+<h3 id="step-5-modify-costs-by-group">Modify Costs by Group<a class="headerlink" href="#step-5-modify-costs-by-group" title="Permanent link">&para;</a></h3>
+<p>Group modifiers are optional, after aggregation. For example, if your metadata
+has <code>county</code>, put <code>group: [county]</code> in the same cluster definition and add:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">group_modifiers</span><span class="p">:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">county</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">group_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Example_County</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="nt">Inv_Cost_per_MWyr</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">mul</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.1</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<p>Use only documented cost adjustments. The group must appear in <code>group</code> so its
+value enters the cluster label. Matching is by case-insensitive substring of
+that label: inspect matches carefully. Scalars replace values; two-item lists
+support <code>add</code>, <code>sub</code>, <code>mul</code>, and <code>truediv</code>.</p>
+<p>Annual technology investment costs have already been calculated here. Modify
+<code>Inv_Cost_per_MWyr</code> to change that component; changing <code>capex_mw</code> alone does not
+recalculate it. <code>interconnect_annuity</code> is a separate site-cost component added
+later. Avoid double counting it. To modify technology capital cost <strong>before</strong>
+annualization, use <code>resource_modifiers</code> with exact <code>technology</code> <strong>and</strong>
+<code>tech_detail</code> selectors, as described in
+<a href="../../reference/settings/new-build/#resource_modifiers">New-Build Resources</a>.</p>
+<h3 id="selecting-a-limited-candidate-supply">Selecting a limited candidate supply<a class="headerlink" href="#selecting-a-limited-candidate-supply" title="Permanent link">&para;</a></h3>
+<p><code>min_capacity</code> retains the lowest-<code>lcoe</code> sites up to the first site meeting the
+requested MW, after filters. It is not a minimum build requirement, and can
+overshoot because sites are indivisible. It requires an <code>lcoe</code> column. Use it
+only when deliberately limiting candidate supply, not to choose cluster size.</p>
+<p>The legacy <code>precluster_renewables</code>/<code>max_clusters</code>/<code>max_lcoe</code> resource-tree workflow
+is separate from this guide. Do not mix its keys into the flexible recipe.</p>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check first</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No resource group matches</td>
+<td>JSON technology/other identifiers, matching <code>new_resources</code>, file paths, and current working directory</td>
+</tr>
+<tr>
+<td>No or missing sites</td>
+<td>Region names, nonpositive capacity, filters, site-map coverage, and requested weather years</td>
+</tr>
+<tr>
+<td>Far more resources than expected</td>
+<td>Omitting all aggregation settings preserves individual sites; use one bin to aggregate</td>
+</tr>
+<tr>
+<td>Fewer clusters than requested</td>
+<td>Empty category combinations, duplicate feature/bin values, or fewer sites than requested clusters</td>
+</tr>
+<tr>
+<td>Unexpected cost or location</td>
+<td>Inspect site assignments and inputs; expensive sites can be valuable, so do not automatically tighten screening</td>
+</tr>
+<tr>
+<td>Changed mappings have no effect</td>
+<td>Recompute and remove affected stale cache entries; see caching above</td>
+</tr>
+</tbody>
+</table>
 <h2 id="related-settings">Related Settings<a class="headerlink" href="#related-settings" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong><a href="../../reference/settings/new-build/">New-Build Resources</a></strong>: Base technology costs</li>
-<li><strong><a href="../../reference/settings/resource-tags/">Resource Tags</a></strong>: GenX resource classifications</li>
-<li><strong><a href="../../reference/settings/regions/">Regions</a></strong>: Model region definitions</li>
-<li><strong><a href="../../reference/settings/data-tables/">Data Tables</a></strong>: Table configuration</li>
+<li><a href="../../reference/settings/new-build/">New-Build Resources</a>: cost technologies,
+  modifiers, and renewable settings.</li>
+<li><a href="../../reference/settings/resource-tags/">Resource Tags</a>: model classifications.</li>
+<li><a href="../../reference/settings/regions/">Regions</a>: regional aggregation.</li>
+<li><a href="../../reference/settings/data-tables/">Data Tables</a>: source-table configuration.</li>
 </ul>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>Verify data</strong>: Check resource group files have required columns</li>
-<li><strong>Start simple</strong>: Filter + bin on LCOE with 2-3 k-means clusters</li>
-<li><strong>Examine results</strong>: Look at cluster sizes and locations</li>
-<li><strong>Iterate</strong>: Add groups or bins based on model needs</li>
-<li><strong>Optimize</strong>: Adjust cluster count for runtime vs. resolution trade-off</li>
-</ol>
+<p>Run the <a href="../../tutorials/renewable-resources/">Texas wind tutorial</a>, then test a
+second aggregation resolution while holding candidate supply fixed. Record
+which differences matter for your study before adding groups or more features.</p>
 
 
 
@@ -4339,7 +3191,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.top", "navigation.tracking", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
       
