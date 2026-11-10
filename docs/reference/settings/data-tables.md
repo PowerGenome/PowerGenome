@@ -57,6 +57,27 @@ demand_table:
 | `filters` | nested lists | Row predicates; see below. |
 | `columns` | list of strings | Source columns to expose. Omit to retain all columns. |
 
+### Combined Configuration
+
+Any table setting also accepts a list of entries, each a filename or its own
+advanced configuration. The parts are stacked with `UNION ALL BY NAME`, so every
+part must have the same columns. This is how a study adds its own technology costs
+next to the ATB tables:
+
+```yaml
+resource_cost_table:
+  - technology_costs_atb_tx_3_zone.csv
+  - table_name: custom_technology_costs.csv
+    filters:
+      - - [scenario, '=', high_nuclear]
+resource_heat_rate_table:
+  - technology_heat_rates_nrelatb.csv
+  - custom_technology_heat_rates.csv
+```
+
+Parts load in list order, and each part is resolved separately, so they may live in
+different `data_location` entries. An empty list is treated like an unset setting.
+
 These examples configure table access, not a complete runnable study. Source
 columns must match downstream schemas; DataManager does not rename them to
 repair an incompatible dataset.
@@ -105,6 +126,8 @@ blank `retirement_year` means no planned retirement, but ordinary comparison
 filters exclude blank values.
 
 ## Standard Table Mappings
+
+Every setting below accepts a single configuration or a list of them.
 
 | Setting | Internal name | Contents |
 | --- | --- | --- |

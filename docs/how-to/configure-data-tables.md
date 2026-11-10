@@ -70,6 +70,23 @@ names (`generators.csv`, `demand_load.csv`, `fuel_prices.csv`) because its data
 folder holds a single study. The filenames are yours to choose; the setting keys
 are not.
 
+### Combining tables
+
+A table setting can also be a list. The entries are stacked with
+`UNION ALL BY NAME`, which is how you add your own data to a published table
+instead of editing it:
+
+```yaml
+resource_cost_table:
+  - technology_costs_atb_tx_3_zone.csv
+  - custom_technology_costs.csv
+```
+
+Every part needs the same columns and resolves independently, so mixed CSV and
+database parts are allowed. See
+[Add a Technology With Its Own Cost Table](add-technologies.md#add-a-technology-with-its-own-cost-table)
+for a working example.
+
 ## 3. Select a demand scenario
 
 Suppose `hourly_demand.parquet` contains multiple scenarios and planning years.

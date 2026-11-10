@@ -33,6 +33,15 @@ class DataManager:
             - filters (optional): DNF filters; accepts lists or tuples in shapes like
                 [[("col", "=", val)], [("col2", ">", 0)]], [["col","=",val]], or ["col","=",val]
             - scenario (optional): convenience filter; ANDed into every OR-clause as (scenario = <value>)
+        - A list of strings and/or dicts: each entry is loaded separately (with its own
+            filters/columns/scenario) and the results are combined with
+            ``UNION ALL BY NAME`` into the single standardized table. This lets a
+            standard table be assembled from more than one file, e.g. adding a
+            user-supplied technology cost table alongside the ATB table::
+
+                resource_cost_table:
+                  - technology_costs_atb.csv
+                  - custom_technology_costs.csv
     - If both filters and scenario are provided, scenario is added to each clause unless
         a scenario condition already exists in that clause.
     """
@@ -149,6 +158,7 @@ class DataManager:
         self.lazy_loading = lazy_loading
         self.table_configurations = {}  # Reset configurations
         self._table_locations = {}
+        self._combined_parts = {}
         self._attached_databases = {}
         self._database_tables = {}
 
@@ -358,17 +368,25 @@ class DataManager:
     def _location_for_table(self, standard_name: str) -> Path:
         return self._table_locations.get(standard_name, self.data_location)
 
-    def _create_table_view(self, table_config: Union[str, Dict], standard_name: str):
+    def _create_table_view(
+        self, table_config: Union[str, Dict, List], standard_name: str
+    ):
         """
         Create a table or view in the in-memory database.
 
         Parameters
         ----------
-        table_config : Union[str, Dict]
-            Either a string table name or dict with table configuration
+        table_config : Union[str, Dict, List]
+            A string table name, a dict with table configuration, or a list of
+            strings/dicts that are combined into a single table (see
+            ``_create_combined_table_view``).
         standard_name : str
             Standardized name for the table in the in-memory database
         """
+        if isinstance(table_config, list):
+            self._create_combined_table_view(table_config, standard_name)
+            return
+
         source_table, filters, columns = self._validate_table_config(
             table_config, standard_name
         )
@@ -381,6 +399,40 @@ class DataManager:
             self._create_materialized_table(
                 source_table, standard_name, filters, columns
             )
+
+    def _create_combined_table_view(self, table_configs: List, standard_name: str):
+        """Combine a list of table configurations into one standardized table.
+
+        Each entry is loaded as its own view/table (honoring its own filters,
+        columns, and scenario) and the parts are stacked with
+        ``UNION ALL BY NAME``, so the entries only need to agree on the columns
+        they share.
+        """
+        if not table_configs:
+            raise ValueError(f"No table configurations found for '{standard_name}'.")
+
+        for part_name in self._combined_parts.get(standard_name, []):
+            self._remove_table(part_name)
+
+        part_names = []
+        for i, table_config in enumerate(table_configs):
+            part_name = f"{standard_name}__part{i}"
+            source_table, filters, columns = self._validate_table_config(
+                table_config, part_name
+            )
+            if self.lazy_loading and self.data_location:
+                self._create_lazy_view(source_table, part_name, filters, columns)
+            else:
+                self._create_materialized_table(
+                    source_table, part_name, filters, columns
+                )
+            part_names.append(part_name)
+
+        union_query = " UNION ALL BY NAME ".join(
+            f"SELECT * FROM {part_name}" for part_name in part_names
+        )
+        self.connection.execute(f"CREATE VIEW {standard_name} AS {union_query}")
+        self._combined_parts[standard_name] = part_names
 
     def _create_lazy_view(
         self,
@@ -860,6 +912,9 @@ class DataManager:
                 self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
             except Exception as e:
                 logger.debug(f"Failed to drop table {table_name}: {e}")
+
+            for part_name in self._combined_parts.pop(table_name, []):
+                self._remove_table(part_name)
 
             self.available_tables.discard(table_name)
             logger.debug(f"Removed table/view: {table_name}")
