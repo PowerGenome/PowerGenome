@@ -161,12 +161,17 @@ This does not disable demand or transmission processing.
 
 Skip transmission processing and network output.
 
-#### `--multi-period` / `-mp`
+#### `--multi-period` / `-mp` and `--no-multi-period`
 
-The current parser sets the internal `multi_period` value to `False` when this
-flag is present, despite its name. Omit it for the default multi-period output
-layout shown below. Planning years are configured with `model_year` and
-`model_first_planning_year`, not this flag.
+Multi-period output is enabled by default. These two flags are mutually
+exclusive and only make the choice explicit:
+
+- `--multi-period` / `-mp` enables it.
+- `--no-multi-period` disables it.
+
+Disabling omits the `Min_Retired_*` retirement requirements and the
+multi-stage transmission fields. It does not change which planning years are
+processed; use `model_year` and `model_first_planning_year` for that.
 
 #### `--help` / `-h`
 

@@ -181,13 +181,28 @@ def parse_command_line(argv):
             "cases will be used."
         ),
     )
-    parser.add_argument(
+    multi_period_group = parser.add_mutually_exclusive_group()
+    multi_period_group.add_argument(
         "-mp",
         "--multi-period",
         dest="multi_period",
-        action="store_false",
-        help=("Use multi-period output format."),
+        action="store_true",
+        help=(
+            "Format inputs for multi-stage modeling in GenX (default). Use "
+            "--no-multi-period to omit multi-period retirement requirements and "
+            "multi-stage transmission fields."
+        ),
     )
+    multi_period_group.add_argument(
+        "--no-multi-period",
+        dest="multi_period",
+        action="store_false",
+        help=(
+            "Omit multi-period retirement requirements (Min_Retired_*) and "
+            "multi-stage transmission fields. Planning years are unaffected."
+        ),
+    )
+    parser.set_defaults(multi_period=True)
     parser.add_argument(
         "--macro",
         dest="macro",
@@ -278,8 +293,8 @@ def main(**kwargs):
 
     if not args.multi_period:
         logger.info(
-            "As of version 0.6.2 the --multi-period/-mp flag can be used to format inputs "
-            "for multi-stage modeling in GenX."
+            "Multi-period output is disabled (--no-multi-period). Scheduled retirement "
+            "requirements and multi-stage transmission fields will be omitted."
         )
 
     logger.info("Reading settings file")
