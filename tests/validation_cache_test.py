@@ -197,6 +197,26 @@ class TestFingerprints:
             ("generation", str(second / "generation.csv")),
         ]
 
+    def test_resolve_data_files_handles_list_config(self, tmp_path):
+        data = tmp_path / "data"
+        data.mkdir()
+        (data / "costs.csv").write_text("a\n1\n")
+        (data / "extra_costs.csv").write_text("a\n2\n")
+        settings = {
+            "data_location": str(data),
+            "resource_cost_table": [
+                "costs.csv",
+                {"table_name": "extra_costs.csv"},
+                "missing.csv",
+            ],
+        }
+
+        assert resolve_data_files(settings) == [
+            ("resource_cost", str(data / "costs.csv")),
+            ("resource_cost", str(data / "extra_costs.csv")),
+            ("resource_cost", "unresolved"),
+        ]
+
     def test_data_fingerprint_changes_on_file_edit(self, tmp_path):
         data = tmp_path / "data"
         data.mkdir()

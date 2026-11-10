@@ -272,17 +272,20 @@ def resolve_data_files(settings: Dict[str, Any]) -> List[Tuple[str, str]]:
         table_config = get_table_setting_value(settings, setting_key)
         if not table_config:
             continue
-        if isinstance(table_config, dict):
-            source = table_config.get("table_name") or table_config.get("name")
-        else:
-            source = table_config
-        if not source:
-            continue
-        matches = _resolve_table_sources(locations, str(source))
-        if not matches:
-            entries.append((standard_name, "unresolved"))
-        else:
-            entries.extend((standard_name, match) for match in matches)
+        # A list-valued config combines several sources into one table.
+        parts = table_config if isinstance(table_config, list) else [table_config]
+        for part in parts:
+            if isinstance(part, dict):
+                source = part.get("table_name") or part.get("name")
+            else:
+                source = part
+            if not source:
+                continue
+            matches = _resolve_table_sources(locations, str(source))
+            if not matches:
+                entries.append((standard_name, "unresolved"))
+            else:
+                entries.extend((standard_name, match) for match in matches)
     return sorted(entries)
 
 
