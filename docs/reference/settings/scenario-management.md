@@ -98,7 +98,8 @@ resolved or provide `default`; see [Year-Keyed Values](year-keyed-values.md).
 
 These are alternative fragments to put under a selected level, not a second
 complete settings file. Use values supported by your configured input tables.
-The example names below match the bundled test system where applicable.
+The technology and region names below are illustrative; substitute names that
+exist in your own data tables.
 
 ### Technology Costs
 
