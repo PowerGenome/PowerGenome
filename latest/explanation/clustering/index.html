@@ -2754,8 +2754,9 @@ blank value or missing column means no planned retirement.</p>
 period are included without prorating their capacity.</p>
 <div class="admonition note">
 <p class="admonition-title">Myopic multi-period models</p>
-<p>Omit <code>--multi-period</code> to keep the CLI's default multi-period behavior; passing
-this flag disables it. Use the same generation data across the periods of a
+<p>Multi-period output is the CLI default, and <code>--multi-period</code> only makes that
+explicit. Do not pass <code>--no-multi-period</code>, which omits the retirement
+requirements described here. Use the same generation data across the periods of a
 case to keep cluster membership consistent. PowerGenome records scheduled
 retirements in later periods as minimum retirement requirements for each
 resource (<code>Min_Retired_*</code> columns).</p>

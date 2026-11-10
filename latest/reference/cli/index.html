@@ -2799,11 +2799,16 @@ with unchanged inputs skips the check computation. Equivalent to
 This does not disable demand or transmission processing.</p>
 <h4 id="-no-transmission"><code>--no-transmission</code><a class="headerlink" href="#-no-transmission" title="Permanent link">&para;</a></h4>
 <p>Skip transmission processing and network output.</p>
-<h4 id="-multi-period-mp"><code>--multi-period</code> / <code>-mp</code><a class="headerlink" href="#-multi-period-mp" title="Permanent link">&para;</a></h4>
-<p>The current parser sets the internal <code>multi_period</code> value to <code>False</code> when this
-flag is present, despite its name. Omit it for the default multi-period output
-layout shown below. Planning years are configured with <code>model_year</code> and
-<code>model_first_planning_year</code>, not this flag.</p>
+<h4 id="-multi-period-mp-and-no-multi-period"><code>--multi-period</code> / <code>-mp</code> and <code>--no-multi-period</code><a class="headerlink" href="#-multi-period-mp-and-no-multi-period" title="Permanent link">&para;</a></h4>
+<p>Multi-period output is enabled by default. These two flags are mutually
+exclusive and only make the choice explicit:</p>
+<ul>
+<li><code>--multi-period</code> / <code>-mp</code> enables it.</li>
+<li><code>--no-multi-period</code> disables it.</li>
+</ul>
+<p>Disabling omits the <code>Min_Retired_*</code> retirement requirements and the
+multi-stage transmission fields. It does not change which planning years are
+processed; use <code>model_year</code> and <code>model_first_planning_year</code> for that.</p>
 <h4 id="-help-h"><code>--help</code> / <code>-h</code><a class="headerlink" href="#-help-h" title="Permanent link">&para;</a></h4>
 <p>Display help message with all available flags.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>run_powergenome<span class="w"> </span>--help
