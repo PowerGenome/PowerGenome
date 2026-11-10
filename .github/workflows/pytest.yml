@@ -20,7 +20,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install powergenome with dev dependencies
       run: |
-        uv sync --extra dev --python ${{ matrix.python-version }}
+        # --locked asserts uv.lock is up to date and installs exactly what it pins
+        uv sync --extra dev --locked --python ${{ matrix.python-version }}
     - name: Lint with flake8
       run: |
         uv pip install flake8
