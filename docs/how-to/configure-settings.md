@@ -47,7 +47,7 @@ The Texas settings folder shows how the files in this guide fit together:
 
 ```text
 example_systems/TX-3-zone/settings/
-├── model_definition.yml   # regions, years, tags, output columns
+├── model_definition.yml   # regions, years, capacity reserves, output columns
 ├── resources.yml          # existing fleet, new build, renewable clusters
 ├── resource_tags.yml      # model_tag_names and model_tag_values
 ├── fuels.yml              # fuel prices, assignments, carbon tax

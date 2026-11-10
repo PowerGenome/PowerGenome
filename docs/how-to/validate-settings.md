@@ -20,11 +20,15 @@ writing.
 To confirm the validator itself works, run it against a published example from the
 root of a clone of
 [PowerGenome-examples](https://github.com/PowerGenome/PowerGenome-examples) rather
-than from inside the example system folder:
+than from inside the example system folder. Check out the same pinned snapshot the
+[Getting Started](../tutorials/getting-started.md#1-download-the-texas-example)
+tutorial uses, so the exercise keeps validating the configuration it was written
+for even as the default branch moves on:
 
 ```bash
 git clone https://github.com/PowerGenome/PowerGenome-examples.git
 cd PowerGenome-examples
+git checkout 7e34f714469e68fca173cdb849f74c47be779420
 validate_powergenome --settings_file example_systems/TX-3-zone/settings
 ```
 
