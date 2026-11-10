@@ -264,7 +264,11 @@ def resolve_data_files(settings: Dict[str, Any]) -> List[Tuple[str, str]]:
     """
     # Imported lazily so that importing this module stays light (database.py
     # pulls in transmission and other heavy pipeline modules).
-    from powergenome.database import DataManager, get_table_setting_value
+    from powergenome.database import (
+        DataManager,
+        expand_table_config_parts,
+        get_table_setting_value,
+    )
 
     locations = _table_source_locations(settings)
     entries: List[Tuple[str, str]] = []
@@ -272,8 +276,13 @@ def resolve_data_files(settings: Dict[str, Any]) -> List[Tuple[str, str]]:
         table_config = get_table_setting_value(settings, setting_key)
         if not table_config:
             continue
-        # A list-valued config combines several sources into one table.
-        parts = table_config if isinstance(table_config, list) else [table_config]
+        # A combined table may be a list of parts, or a dict whose table_name is a
+        # list of sources sharing the dict's filters/scenario.
+        try:
+            parts = expand_table_config_parts(table_config)
+        except ValueError:
+            entries.append((standard_name, "unresolved"))
+            continue
         for part in parts:
             if isinstance(part, dict):
                 source = part.get("table_name") or part.get("name")

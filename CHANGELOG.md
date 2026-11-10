@@ -17,6 +17,12 @@ and this project adheres to Semantic Versioning.
   a full table configuration with its own `columns`, `filters`, or `scenario`, and
   entries may resolve in different `data_location` folders. The "Add Custom
   Technologies" how-to now builds its new-technology example this way.
+- A table configuration may also give `table_name` as a list of sources. Each
+  source becomes a part of the same combined table and the configuration's
+  `filters`, `columns`, and `scenario` are applied to every part, so shared
+  configuration is written once:
+  `demand_table: {table_name: [demand_west.parquet, demand_east.parquet], scenario: high_ev}`.
+  Parts that need different configuration use the list-of-configurations form.
 - Validation result cache so the Phase 1 (settings) and Phase 2 (data) validation checks can be skipped when nothing changed. Each run fingerprints the resolved settings, the validation code version, and — for Phase 2 — the size plus the first and last 1 MB of content of every data file backing a configured DataManager table (whole files are never hashed; profile sources can be multi-GB). When the fingerprint is unchanged, the previously stored results are replayed: warnings still print and cached errors still stop the run, but the checks are not recomputed, and the standalone `validate_powergenome` CLI additionally skips `initialize_data_manager()` (the pipeline still loads DataManager because it needs the tables). Cached results live in `<input_folder>/validation_cache/`; delete that folder to force re-validation. Enabled by default — disable with `use_validation_cache: false` in settings or the `--no-validation-cache` (`--force-validation`) flag on `run_powergenome` and `validate_powergenome`.
 
 ### Removed

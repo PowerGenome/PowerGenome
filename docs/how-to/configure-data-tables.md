@@ -87,6 +87,17 @@ database parts are allowed. See
 [Add a Technology With Its Own Cost Table](add-technologies.md#add-a-technology-with-its-own-cost-table)
 for a working example.
 
+If all parts share the same `scenario`, `filters`, or `columns`, keep them as
+sibling keys and give `table_name` a list instead of repeating each part:
+
+```yaml
+resource_cost_table:
+  table_name:
+    - technology_costs_atb_tx_3_zone.csv
+    - custom_technology_costs.csv
+  scenario: core
+```
+
 ## 3. Select a demand scenario
 
 Suppose `hourly_demand.parquet` contains multiple scenarios and planning years.

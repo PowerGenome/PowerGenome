@@ -438,7 +438,17 @@ resource_heat_rate_table:
 ```
 
 Both files are resolved in `data_location`. List entries are stacked in order, so
-your table can also be listed first if a later ATB entry should win.
+your table can also be listed first if a later ATB entry should win. If all parts
+share the same `scenario`, `filters`, or `columns`, write them once as sibling keys
+and give `table_name` a list instead:
+
+```yaml
+resource_cost_table:
+  table_name:
+    - technology_costs_atb_tx_3_zone.csv
+    - custom_technology_costs.csv
+  scenario: core
+```
 
 ### 4. List and Tag the Technology
 
