@@ -148,10 +148,12 @@ All `.json` group definitions are discovered recursively under these folders.
 Unlike `data_location`, relative paths resolve from the process working directory.
 
 ```yaml
-RESOURCE_GROUPS: test_data/resource_groups
+RESOURCE_GROUPS: example_systems/TX-3-zone/resource_groups
 ```
 
-This is the bundled study's path; use your own group directory for another study.
+This is the published Texas example's path when running from the examples root,
+as in [Getting Started](../../tutorials/getting-started.md). Use your own group
+directory for another study.
 
 ### `RESOURCE_GROUP_PROFILES`
 

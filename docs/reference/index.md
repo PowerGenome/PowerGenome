@@ -34,7 +34,7 @@ Documentation of input and output file formats:
 
 - [System Design Tool](https://gschivley.github.io/PowerGenome-tools/web/): Interactive tool for generating settings files for your study area
 - [System Design Tool Documentation](https://gschivley.github.io/PowerGenome-tools/): Walkthrough of each configuration step
-- [Test System](https://github.com/PowerGenome/PowerGenome/tree/main/tests/test_system): Minimal test configuration
+- [Published Examples](https://github.com/PowerGenome/PowerGenome-examples): Texas and CA/AZ study configurations and demonstration data
 
 ## API Reference
 

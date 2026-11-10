@@ -46,7 +46,7 @@ Background information on how PowerGenome works and why it's designed the way it
 ## Start Here
 
 1. **Run a small, complete example**: Follow [Getting Started](tutorials/getting-started.md)
-   to install with Python 3.11+ and run the bundled test system.
+   to install a published package with uv and run the published Texas example.
 2. **Define your own study**: Generate a settings folder with the
    [System Design tool](https://gschivley.github.io/PowerGenome-tools/web/), then
    [configure the input tables](how-to/configure-data-tables.md). Settings alone

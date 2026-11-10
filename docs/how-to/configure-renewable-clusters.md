@@ -2,7 +2,7 @@
 
 Use this guide to turn candidate wind or solar sites into buildable model
 resources, with explicit choices about screening, cost tiers, and profile
-similarity. For a runnable exercise using bundled data, follow
+similarity. For a runnable exercise using the published Texas example, follow
 [Working with Renewable Resources](../tutorials/renewable-resources.md).
 
 ## Overview
@@ -32,15 +32,15 @@ from the number of model regions alone.
 ### Required Data Files
 
 Set `RESOURCE_GROUPS` to a directory of JSON definitions (or a list of such
-directories). This is the actual bundled wind definition,
-`tests/test_system/test_data/resource_groups/onshorewind_group.json`:
+directories). This is the published Texas wind definition,
+`example_systems/TX-3-zone/resource_groups/onshorewind_group.json`:
 
 ```json
 {
   "technology": "landbasedwind",
-  "metadata": "onshorewind_lcoe_ReEDS.csv",
-  "profiles": "onshorewind_profiles_test_data_tidy.csv",
-  "site_map": "site_map_test_data.csv"
+  "metadata": "onshorewind_lcoe_tx_3_zone.csv",
+  "profiles": "onshorewind_profiles_tx_3_zone.csv",
+  "site_map": "onshorewind_site_map_tx_3_zone.csv"
 }
 ```
 
@@ -49,16 +49,17 @@ Metadata paths resolve relative to the JSON file. Profiles are sought under
 clustering path, `site_map` resolves alongside the **resolved profiles file**.
 Keep that map with profiles if you move them to a separate directory.
 
-Run from the study directory when using relative `RESOURCE_GROUPS` or
-`RESOURCE_GROUP_PROFILES`: these paths resolve from the current working
-directory. By contrast, `data_location` and `input_folder` resolve relative to
-the study directory containing the settings folder.
+Relative `RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` paths resolve from the
+current working directory. The published Texas settings require running from
+the **examples root**, not inside `example_systems/TX-3-zone/`. By contrast,
+`data_location` and `input_folder` resolve relative to the parent of the settings
+directory.
 
 ### Required Columns
 
 These requirements describe flexible site clustering, not legacy preclustered
-resource trees. Column names are normalized to snake case when loaded; the
-fixture's `CPA_ID` becomes `cpa_id`.
+resource trees. Column names are normalized to snake case when loaded; for
+example, `CPA_ID` becomes `cpa_id`.
 
 | Input | Requirement and units |
 | --- | --- |
@@ -79,7 +80,7 @@ coverage and cost definitions before changing regional aggregations.
 Use CSV or Parquet with tidy columns `site_id`, `time_index`, `value`, and
 optionally `weather_year`. Values are generation per unit of capacity. IDs match
 `cpa_id` directly, or map through `site_map`: its first column is the candidate ID
-and its second column the profile ID (the fixture uses `CPA_ID,Site,profile_dist`).
+and its second column the profile ID (the Texas example uses `cpa_id,profile_id`).
 Check mapping completeness; candidates missing from a supplied map are dropped.
 
 Set `weather_year` to select the intended year(s), and `utc_offset` to align
@@ -112,8 +113,9 @@ and nested dictionaries are not merged across files.
 
 ### 2. Apply one filter/bin/cluster recipe
 
-The following uses only features in the bundled wind metadata. Replace the
-existing `renewables_clusters` list with it, in the study's resource settings:
+The following uses features in the Texas wind metadata and preserves the
+example's solar definition. Replace the existing `renewables_clusters` list in
+the study's resource settings:
 
 ```yaml
 renewables_clusters:
@@ -130,10 +132,15 @@ renewables_clusters:
       - feature: profile
         method: agglomerative
         n_clusters: 2
+  - region: all
+    technology: utilitypv
+    filter:
+      - feature: lcoe
+        max: 60
 ```
 
-Here `75` retains the bundled study's illustrative screening assumption; it is
-**not a recommended economic cutoff**. A high-LCOE site can still be valuable
+Here `75` retains the Texas example's illustrative wind screening assumption;
+it is **not a recommended economic cutoff**. A high-LCOE site can still be valuable
 because of its location or output timing. Omit the filter if all candidates
 belong in the study, and document any exclusion you do use. Filter bounds are
 inclusive, but the implementation ignores `min: 0` and `max: 0`.
@@ -156,7 +163,7 @@ averages profiles; it does not select a single representative site.
 ### 3. Set regional scope deliberately
 
 Use `region: all` for a common definition. To vary it, add a complete entry for
-an exact model-region name, such as `p3`; it replaces the `all` definition for
+an exact model-region name, such as `TX2`; it replaces the `all` definition for
 the same resource identifiers in that region. It does not inherit omitted
 filters or bin settings. Avoid duplicate entries for the same region/resource.
 
@@ -183,22 +190,25 @@ compare capacity, cost ranges, profile diversity, runtime, and model outcomes.
 
 ## Run and inspect the result
 
-From your study directory:
+For the Texas example, run from the examples root (use `settings_wind` instead
+of `settings` if following the tutorial's separate-settings exercise):
 
 ```bash
-validate_powergenome --settings_file settings
-run_powergenome --settings_file settings --results_folder renewable_test
+validate_powergenome --settings_file example_systems/TX-3-zone/settings
+run_powergenome \
+  --settings_file example_systems/TX-3-zone/settings \
+  --results_folder renewable_test
 ```
 
-For the bundled study's first planning period, default GenX outputs are:
+The first planning period's default GenX outputs are:
 
-- `renewable_test/Inputs/Inputs_p1/resources/Vre.csv`: resource attributes.
-- `renewable_test/Inputs/Inputs_p1/system/Generators_variability.csv`: profiles
+- `renewable_test/base/Inputs/Inputs_p1/resources/Vre.csv`: resource attributes.
+- `renewable_test/base/Inputs/Inputs_p1/system/Generators_variability.csv`: profiles
   named by `Resource`, aligned with modeled time steps.
-- `renewable_test/Inputs/Inputs_p1/extra_outputs/`: site-to-cluster assignment
+- `renewable_test/base/Inputs/Inputs_p1/extra_outputs/`: site-to-cluster assignment
   CSVs for checking membership.
 
-Scenario studies can use other case-directory names. The legacy flat generator
+Other studies can use different case-directory names. The legacy flat generator
 layout is not the default; see [Output Format](../explanation/output-format.md).
 
 Check new-build wind separately from existing wind. Compare `Max_Cap_MW` totals
@@ -211,8 +221,8 @@ a sample of hours. See the
 
 ## Caching for speed
 
-The generator workflow defaults both controls to `true`; the bundled test study
-explicitly sets both to `false`:
+The generator workflow defaults both controls to `true`; the published Texas
+example explicitly sets both to `false`. To enable reads and writes, use:
 
 ```yaml
 cache_resource_clusters: true
@@ -316,6 +326,6 @@ is separate from this guide. Do not mix its keys into the flexible recipe.
 
 ## Next Steps
 
-Run the [bundled wind tutorial](../tutorials/renewable-resources.md), then test a
+Run the [Texas wind tutorial](../tutorials/renewable-resources.md), then test a
 second aggregation resolution while holding candidate supply fixed. Record
 which differences matter for your study before adding groups or more features.

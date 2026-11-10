@@ -1,40 +1,44 @@
 # Tutorials
 
 Start with a complete small study, then change one part at a time. These lessons
-use bundled test data so you can inspect actual outputs without first assembling
-a research dataset. PowerGenome prepares inputs; it does not solve the model.
+use the published Texas three-zone study from
+[PowerGenome-examples](https://github.com/PowerGenome/PowerGenome-examples).
+Inspect actual outputs without assembling a research dataset or cloning
+PowerGenome's source. PowerGenome prepares inputs; it does not solve the model.
 
 ## Learning path
 
 ### 1. [Getting Started](getting-started.md)
 
-Install with uv, copy the bundled study outside the source checkout, validate it,
-and generate inputs for two planning periods. Learn where settings, data, logs,
-and GenX outputs live.
+Install a published release with uv, download a pinned examples snapshot,
+validate the Texas study, and generate inputs for 2030 and 2045. Learn where
+settings, data, logs, and GenX outputs live.
 
-**Prerequisites**: Git, uv, a terminal, and basic command-line familiarity.
+**Prerequisites**: uv, curl, tar, a terminal, and basic command-line familiarity.
 
 ### 2. [Building a Multi-Region Model](multi-region-model.md)
 
-Continue in the copied study. Inspect its base-to-model-region aggregation,
-change transmission expansion limits, and verify both periods' network outputs
-against the first run.
+Continue with the downloaded Texas study. Inspect its base-to-model-region
+aggregation, change transmission expansion limits, and verify both periods'
+network outputs against the first run.
 
-**Prerequisites**: Getting Started and its unchanged `test_output/` baseline.
+**Prerequisites**: Getting Started and its unchanged `tx_output/` baseline.
 
 ### 3. [Working with Renewable Resources](renewable-resources.md)
 
-Use the bundled wind data to change renewable resource resolution and compare
-resource counts, capacity limits, and generation profiles. Follow the page's
-isolated-copy setup so previous tutorial changes do not affect the comparison.
+Aggregate the Texas example's wind candidates into cost-and-profile clusters
+and compare resource counts, capacity limits, and generation profiles while
+preserving solar. Follow the separate-settings setup to isolate the change.
 
-**Prerequisites**: The installed environment and bundled source data from Getting
+**Prerequisites**: The installed environment and downloaded examples from Getting
 Started. This lesson can be taken independently of the transmission exercise.
 
 ## Move to your own study
 
-The fixture has short profiles and known warnings; it demonstrates the workflow,
-not realistic system economics. A real study needs complete compatible sources
+The example has short synthetic profiles and can emit warnings; it demonstrates
+the workflow, not realistic system economics. Browse
+[PowerGenome-examples](https://github.com/PowerGenome/PowerGenome-examples) for
+other published cases. A real study needs complete compatible sources
 for existing plants, technology costs, renewable profiles, demand, fuels,
 transmission, and any configured policies.
 

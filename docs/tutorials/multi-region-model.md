@@ -1,31 +1,35 @@
 # Building a Multi-Region Model
 
-In this tutorial, inspect the bundled study's three-region network, change its
-transmission expansion limits, and verify the difference in the generated inputs.
-PowerGenome prepares these inputs; GenX decides whether to build transmission.
+In this tutorial, inspect the published Texas study's three-region network,
+change its transmission expansion limits, and verify the difference in the
+generated inputs. PowerGenome prepares these inputs; GenX decides whether to
+build transmission.
 
 **Prerequisites**: Complete [Getting Started](getting-started.md). Keep the
-PowerGenome environment activated and work from the copied `powergenome-study`
-directory, where `settings/`, `test_data/`, and `test_output/` already exist.
+PowerGenome environment activated and work from `powergenome-tutorial/`, where
+`example_systems/TX-3-zone/` and the unchanged `tx_output/` baseline already exist.
+Do not change into the Texas subdirectory: resource paths resolve from the
+examples root.
 
 ## Step 1: Understand the configured regions
 
-Open `settings/model_definition.yml`. The bundled study already contains:
+Open `example_systems/TX-3-zone/settings/model_definition.yml`. It contains:
 
 ```yaml
-model_regions: [p1_2, p3, p4]
+model_regions: [TX1, TX2, TX3]
 region_aggregations:
-  p1_2: [p1, p2]
+  TX1: [p60, p61, p62]
+  TX2: [p63, p64]
+  TX3: [p65, p67]
 ```
 
-`p1`, `p2`, `p3`, and `p4` are **base regions** in the source data.
-`p1_2` is a **model region** combining two base regions. The other model regions,
-`p3` and `p4`, pass through unchanged and need no aggregation entry.
+The seven `p...` names are ReEDS balancing areas, the **base regions** in the
+source data. `TX1`, `TX2`, and `TX3` are **model regions** combining them.
 
 PowerGenome sums demand and existing capacity into the model regions and
-aggregates transmission between them. Connections internal to `p1_2` are no
-longer inter-regional lines. Model regions are sorted alphabetically; that order
-determines GenX zone numbers.
+aggregates transmission between them. Connections internal to `TX1`, such as
+`p60`–`p61`, are no longer inter-regional lines. Model regions are sorted
+alphabetically; that order determines GenX zone numbers.
 
 Do not change the region names in this exercise: all source tables and renewable
 groups must cover the selected geography. For another study, start with the
@@ -35,14 +39,15 @@ for the complete regional configuration.
 
 ## Step 2: Inspect the network sources
 
-Open `settings/data.yml` and find these existing entries:
+Open `example_systems/TX-3-zone/settings/data.yml` and find these entries:
 
 ```yaml
-transmission_constraints_table: reeds_ba_tx_NARIS_avg_test_data.csv
-transmission_cost_table: network_costs_test_data.csv
+transmission_constraints_table: transmission_capacity_tx_3_zone.csv
+transmission_cost_table: network_costs_tx_3_zone.csv
 ```
 
-They name files under the configured `data_location: test_data`:
+They name files under `data_location: data`, relative to
+`example_systems/TX-3-zone/`:
 
 - **Constraints**: directed base-region capacities in `region_from`, `region_to`,
   and `firm_ttc_mw`. PowerGenome aggregates these into model-region connections.
@@ -57,11 +62,12 @@ cost table. Confirm that the route appears in the generated `Network.csv`.
 To exclude a connection, remove all constraints-table entries that map to it.
 
 See the [input schemas](../reference/schemas/input-tables.md) before supplying
-replacement tables. The bundled data is for testing, not a calibrated network.
+replacement tables. The published example is not a calibrated network.
 
 ## Step 3: Change expansion limits
 
-Replace the contents of the copied study's `settings/transmission.yml` with:
+Replace the contents of
+`example_systems/TX-3-zone/settings/transmission.yml` with:
 
 ```yaml
 tx_expansion_per_period: 0.5
@@ -69,7 +75,7 @@ tx_expansion_mw_per_period: 100
 ```
 
 Do not add duplicate keys in another settings file. These values replace the
-bundled limits of `1.0` and `400`.
+published limits of `1.0` and `400`.
 
 For each line, PowerGenome allows the **larger** of:
 
@@ -83,16 +89,18 @@ planning period; they do not require GenX to build anything.
 
 ## Step 4: Generate the changed inputs
 
-Run from the copied study directory:
+Run from `powergenome-tutorial/`:
 
 ```bash
-validate_powergenome --settings_file settings
-run_powergenome --settings_file settings --results_folder multi_region_test
+validate_powergenome --settings_file example_systems/TX-3-zone/settings
+run_powergenome \
+  --settings_file example_systems/TX-3-zone/settings \
+  --results_folder multi_region_test
 ```
 
-Keep `test_output/` from Getting Started unchanged for comparison. Investigate
-new errors or warnings in `multi_region_test/log.txt`; the fixture's known fuel
-coverage warnings do not make it suitable for economic analysis.
+Keep `tx_output/` from Getting Started unchanged for comparison. Investigate
+errors or new warnings in `multi_region_test/log.txt`. Both planning periods
+(2030 and 2045) are written under `multi_region_test/base/Inputs/`.
 
 ## Step 5: Verify both planning periods
 
@@ -104,8 +112,8 @@ from pathlib import Path
 import pandas as pd
 
 for period in ("Inputs_p1", "Inputs_p2"):
-    relative = Path("Inputs") / period / "system/Network.csv"
-    baseline = pd.read_csv(Path("test_output") / relative)
+    relative = Path("base/Inputs") / period / "system/Network.csv"
+    baseline = pd.read_csv(Path("tx_output") / relative)
     changed = pd.read_csv(Path("multi_region_test") / relative)
     key = "transmission_path_name"
     baseline = baseline.set_index(key).sort_index()
@@ -135,12 +143,13 @@ while expansion bounds reflect the new settings in both periods. Inspect
 when reviewing the cost and loss assumptions.
 
 Restore `tx_expansion_per_period: 1.0` and `tx_expansion_mw_per_period: 400` in
-`settings/transmission.yml` before continuing another tutorial.
+`example_systems/TX-3-zone/settings/transmission.yml` before continuing another
+tutorial.
 
 ## Next steps
 
 - [Working with Renewable Resources](renewable-resources.md): change wind
-  resource resolution using the same bundled dataset.
+  resource resolution using the same published Texas dataset.
 - [Transmission settings](../reference/settings/transmission.md): capacity
   selection, costs, and expansion parameters.
 - [Configure Capacity Reserves](../how-to/configure-capacity-reserves.md):

@@ -1,35 +1,36 @@
 # Getting Started with PowerGenome
 
-Install PowerGenome, run a small bundled study, and inspect the generated GenX
-inputs. PowerGenome prepares inputs; it does not solve the capacity expansion
-model.
+Install a published PowerGenome release, run the Texas three-zone example from
+[PowerGenome-examples](https://github.com/PowerGenome/PowerGenome-examples), and
+inspect the generated GenX inputs. PowerGenome prepares inputs; it does not
+solve the capacity expansion model.
 
-**Prerequisites**: Basic command-line knowledge, Git, and
-[uv](https://docs.astral.sh/uv/getting-started/installation/). The commands below
-use a macOS/Linux shell and Python 3.11.
+**Prerequisites**: Basic command-line knowledge,
+[uv](https://docs.astral.sh/uv/getting-started/installation/), `curl`, and `tar`.
+The commands below use a macOS/Linux shell and Python 3.11. Git and a PowerGenome
+source checkout are not required.
 
 ## Installation
 
-Use a source checkout for this tutorial so the installed code and bundled data
-match. From a directory where you keep projects:
+From a directory where you keep projects, create a new tutorial folder and
+install the published release used by this exercise:
 
 ```bash
-git clone https://github.com/PowerGenome/PowerGenome.git
-cd PowerGenome
+mkdir powergenome-tutorial
+cd powergenome-tutorial
 uv venv --python 3.11
 source .venv/bin/activate
-uv pip install -e .
+uv pip install powergenome==0.8.0
 ```
 
 On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` instead of
-`source .venv/bin/activate`, and use the equivalent PowerShell copy commands
-below. Keep the environment active when changing directories.
+`source .venv/bin/activate`. Use `curl.exe` for the download below, or download
+and extract the linked archive manually. Keep the environment active when
+changing directories.
 
-??? note "Installing a published release instead"
-    For an existing study, you can install a release with `uv pip install powergenome`
-    in an activated uv environment. Use documentation and example
-    data matching that release. The bundled `tests/test_system/` data is not
-    installed by the package; the source workflow above avoids that mismatch.
+The package version and example snapshot below are pinned together for a
+repeatable first run. For another release, check example compatibility before
+upgrading.
 
 Verify installation:
 
@@ -41,7 +42,7 @@ run_powergenome --help
 
 PowerGenome projects follow this structure:
 
-```
+```text
 my_study/
 ├── settings/              # Configuration files (YAML)
 │   ├── model_definition.yml
@@ -72,44 +73,60 @@ my_study/
 
 ## Running Your First Model
 
-### 1. Use the Test System
+### 1. Download the Texas example
 
-From the `PowerGenome` checkout root, copy the bundled study outside the
-repository so later tutorial edits do not change the test fixtures. Choose an
-unused destination; the commands below use `powergenome-study`:
+From `powergenome-tutorial/`, download and extract the pinned
+[examples snapshot](https://github.com/PowerGenome/PowerGenome-examples/tree/7e34f714469e68fca173cdb849f74c47be779420):
 
 ```bash
-cp -R tests/test_system ../powergenome-study
-cd ../powergenome-study
-validate_powergenome --settings_file settings
-run_powergenome --settings_file settings --results_folder test_output
+curl --fail --location \
+  https://codeload.github.com/PowerGenome/PowerGenome-examples/tar.gz/7e34f714469e68fca173cdb849f74c47be779420 \
+  --output powergenome-examples.tar.gz
+tar -xzf powergenome-examples.tar.gz --strip-components=1
+rm powergenome-examples.tar.gz
 ```
 
-Run from this study directory unless a later tutorial explicitly creates a
-separate copy. Its relative resource-group path depends on that working directory.
+This downloads the examples, not PowerGenome's source code. The Texas study is
+under `example_systems/TX-3-zone/`, with `settings/`, `data/`, `extra_inputs/`,
+`resource_groups/`, and `resource_profiles/` already populated. The archive also
+includes a CA/AZ study; browse the
+[examples repository](https://github.com/PowerGenome/PowerGenome-examples) for
+its instructions and other available cases.
+
+Stay in `powergenome-tutorial/` for all commands below; **do not change into
+`example_systems/TX-3-zone/`**. The published resource-group paths require this
+working directory.
+
+```bash
+validate_powergenome --settings_file example_systems/TX-3-zone/settings
+run_powergenome \
+  --settings_file example_systems/TX-3-zone/settings \
+  --results_folder tx_output
+```
 
 This will:
 
-1. Load the `.yml` files directly inside `settings/`
-2. Read source tables from `test_data/` and policy inputs from `extra_inputs/`
-3. Write two planning periods to `test_output/Inputs/Inputs_p1/` and
-   `test_output/Inputs/Inputs_p2/`
+1. Load the `.yml` files directly inside `example_systems/TX-3-zone/settings/`
+2. Read the study's source tables from `data/` and policy inputs from `extra_inputs/`
+3. Aggregate seven base regions into three model zones: `TX1`, `TX2`, and `TX3`
+4. Write the `base` case's two planning periods (2030 and 2045) to
+   `tx_output/base/Inputs/Inputs_p1/` and `Inputs_p2/`
 
-`data_location` and `input_folder` resolve relative to the directory containing
-`settings/`. In contrast, relative `RESOURCE_GROUPS` and
-`RESOURCE_GROUP_PROFILES` paths resolve from your current working directory.
+`data_location` and `input_folder` resolve relative to the parent of the settings
+directory (`example_systems/TX-3-zone/`). In contrast, relative `RESOURCE_GROUPS`
+and `RESOURCE_GROUP_PROFILES` paths resolve from your current working directory
+(`powergenome-tutorial/`).
 
-For a study-oriented example, see the
-[CA/AZ and Texas configurations in the examples update](https://github.com/PowerGenome/PowerGenome-examples/pull/1).
-These use short, synthetic profiles for demonstration, not production studies.
-The [System Design tool](https://gschivley.github.io/PowerGenome-tools/web/)
-is another way to generate a starting settings folder; obtain its required data
-files before running it.
+!!! note "Demonstration data, not a calibrated study"
+    The Texas example contains 240 synthetic profile time steps, not a complete
+    year. It is intended to demonstrate input generation, not support economic
+    conclusions. Do not change regions, years, or technologies without checking
+    that every source table and profile covers the new configuration.
 
 ### 2. Check completion
 
 Both commands should exit successfully. Confirm that
-`test_output/Inputs/Inputs_p1/system/Demand_data.csv` and the corresponding
+`tx_output/base/Inputs/Inputs_p1/system/Demand_data.csv` and the corresponding
 `Inputs_p2/` directory exist. If the run fails, read the first error in the
 terminal and [check the log](../how-to/debugging.md).
 
@@ -119,10 +136,11 @@ pipeline stages for this first run; the analysis below needs their outputs.
 ### 3. Monitor Progress
 
 PowerGenome logs progress and warnings to the terminal and writes a more detailed
-`test_output/log.txt`. The bundled test run completes with warnings, including
-missing uranium and distillate fuel prices; it is a software demonstration, not
-a calibrated study. Resolve missing prices, unmatched technologies, and incomplete
-regional data before using your own results.
+`tx_output/log.txt`. The example can warn about unassigned resource tags,
+missing output columns, and missing transmission investment costs for some
+resources. Review warnings rather than treating a completed run as proof of
+study quality. Resolve missing costs and prices, unmatched technologies, and
+incomplete regional data before using your own results.
 
 ## Examining Outputs
 
@@ -157,7 +175,7 @@ from pathlib import Path
 
 import pandas as pd
 
-period = Path("test_output/Inputs/Inputs_p1")
+period = Path("tx_output/base/Inputs/Inputs_p1")
 resource_files = [
     period / "resources" / f"{name}.csv"
     for name in ["Thermal", "Vre", "Storage", "Hydro", "Must_run", "Flex_demand"]
@@ -206,18 +224,20 @@ See [Output Format](../explanation/output-format.md) for complete documentation.
 
 ## Next Steps
 
-Continue with the bundled study:
+Continue with the downloaded Texas study:
 
-1. [Building a Multi-Region Model](multi-region-model.md): use the same copy to
+1. [Building a Multi-Region Model](multi-region-model.md): use the same study to
    inspect its regions and change transmission expansion limits.
 2. [Working with Renewable Resources](renewable-resources.md): follow its
-   separate-copy setup to change renewable resource resolution.
-3. For your own study, generate starting settings with the
+   separate-settings setup to change wind resource resolution while keeping solar.
+3. Explore the other published studies in
+   [PowerGenome-examples](https://github.com/PowerGenome/PowerGenome-examples).
+4. For your own study, generate starting settings with the
    [System Design tool](https://gschivley.github.io/PowerGenome-tools/web/) and
    [supply the referenced data tables](../how-to/configure-data-tables.md).
 
 Do not change regions or planning years without checking data coverage. The
-bundled dataset is deliberately small.
+example's dataset is deliberately small.
 
 ## Troubleshooting
 
@@ -230,8 +250,12 @@ bundled dataset is deliberately small.
 : Verify region names in `model_regions` match data tables
 
 **Import errors**
-: Activate the environment where PowerGenome is installed. For an editable source
-  install, run `uv pip install -e .` from the PowerGenome directory.
+: Activate the environment in `powergenome-tutorial/.venv/`. If installation did
+  not complete, rerun `uv pip install powergenome==0.8.0` in that environment.
+
+**Resource-group directory not found**
+: Run from `powergenome-tutorial/`, not from inside the Texas study. Check that
+  `example_systems/TX-3-zone/resource_groups/` exists.
 
 See [Debugging](../how-to/debugging.md) for more solutions.
 
