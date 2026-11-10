@@ -88,8 +88,30 @@ out-of-order row can put a year in the wrong `Inputs_pN` directory.
 
 The study's emission policy table is keyed by `case_id` (the published rows all
 use `base`), so a case with no matching rows stops the run with a `KeyError` such
-as `('carbon_50', 2030)`. Replace the contents of
+as `('carbon_50', 2030)`. Two mechanisms share one set of values across cases.
+
+**`case_id: all`** treats a row as belonging to whichever case is running: rows
+whose `case_id` is `all` (any capitalization) are read as the requested case
+whenever that case has no rows of its own. Replace the contents of
 `example_systems/TX-3-zone/extra_inputs/emission_policies.csv` with:
+
+```csv
+case_id,year,region,ESR_1,ESR_2,ESR_3
+all,2030,TX1,0,0,0
+all,2030,TX2,0,0,0
+all,2030,TX3,0,0,0
+all,2045,TX1,0,0,0
+all,2045,TX2,0,0,0
+all,2045,TX3,0,0,0
+```
+
+Both `base` and `carbon_50` then read these six rows, and adding another case
+needs no new policy rows. The substitution is decided per case, not per row: as
+soon as a case has even one row of its own, its `all` rows are left unused, so a
+case with 2030 rows but no 2045 rows fails on 2045.
+
+**`copy_case_id`** is the alternative when each case needs its own rows, with
+values copied from a source case:
 
 ```csv
 case_id,year,region,ESR_1,ESR_2,ESR_3,copy_case_id
@@ -114,13 +136,6 @@ rows under `case_id,carbon_50` works too. Every `ESR_*` value here is zero, so
 this step only satisfies the per-case lookup; real policies would need the values
 you intend for each case.
 
-!!! note "The carbon tax does not need extra fuel data"
-    `carbon_tax` is applied using CO₂ content built from the
-    [`fuel_emission_factors` settings parameter](../reference/settings/fuels.md#fuel_emission_factors),
-    not from a column in the fuel price table. The Texas `fuels.yml` already
-    defines factors for natural gas, coal, distillate, and hydrogen, so the swap
-    below works as written.
-
 ### 3. Configure Settings Management
 
 Replace the contents of
@@ -142,8 +157,8 @@ a second mapping.
 
 This is one swap: `tax_50` sets `carbon_tax` to 50 USD per metric tonne of CO₂
 for both years. The tax is added to fuel costs using fuel CO₂ content; it is not
-an emissions-cap setting.
-The emission policies from the previous step remain in place for both cases.
+an emissions-cap setting. The policies from the previous step are unchanged and
+serve both cases, whichever mechanism you used.
 
 The published `settings/extra_inputs.yml` already sets
 `input_folder: extra_inputs` and
