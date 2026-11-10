@@ -16,14 +16,19 @@ For precedence and execution order, see
 The three-region test system lives in `tests/test_system/` of the PowerGenome
 source repository. It is **not** part of the installed package: the distribution
 ships only the `powergenome` package and its bundled `data/` folder, so
-`pip install`/`uv` alone leaves you without the fixture. Download the repository
-first — if you installed a release from PyPI, add `--branch <tag>` so the fixture
-matches the version you are running:
+`pip install`/`uv` alone leaves you without the fixture. Pull just that folder
+with a sparse, blobless clone rather than the whole repository:
 
 ```bash
-git clone --depth 1 https://github.com/PowerGenome/PowerGenome.git
+git clone --depth 1 --filter=blob:none --sparse \
+  https://github.com/PowerGenome/PowerGenome.git
 cd PowerGenome
+git sparse-checkout set tests/test_system
 ```
+
+That downloads the folder and nothing else (~20 MB, a couple of seconds). If you
+installed a release and want the fixture to match it, add `--branch <tag>` to the
+clone.
 
 The fixture is small demonstration data, not a production study. If you only need
 values to change over time within one case, use
