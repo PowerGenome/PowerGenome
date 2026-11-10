@@ -141,6 +141,10 @@ resource_modifiers:
 `modified_new_resources` runs earlier and uses source names such as
 `fixed_o_m_mw` and `variable_o_m_mwh`.
 
+Both published examples set battery variable O&M this way in
+`settings/resources.yml`: `Var_OM_Cost_per_MWh: [add, 0.15]` and
+`Var_OM_Cost_per_MWh_In: 0.15`.
+
 **Modifier behavior**:
 
 - **Operators in lists**: `[operator, value]` format
@@ -209,6 +213,12 @@ modified_new_resources:
 - `size_mw`: Unit size
 
 **Optional modifiers**: Use `[operator, value]` format same as `resource_modifiers`
+
+The Texas example's only entry, `hydrogen_turbine`, shows the minimum required
+fields: a 100 MW copy of `NaturalGas / 1-on-1 Combined Cycle (H-Frame) /
+Moderate` renamed to `hydrogen / 1-on-1 Combined Cycle (H-Frame)`, with no cost
+modifiers. See
+[`settings/resources.yml`](https://github.com/PowerGenome/PowerGenome-examples/blob/7e34f714469e68fca173cdb849f74c47be779420/example_systems/TX-3-zone/settings/resources.yml).
 
 **Assign tags**:
 
@@ -342,6 +352,11 @@ not with `min_cap_req`, `ramp_up_rates`, or `ramp_down_rates` settings.
 
 The following fragments add hydrogen turbines to an existing working setup.
 Include Hydrogen in the regional cost factors and operational constraints too.
+
+The Texas example takes the variant route instead of the CSV route: it defines
+`hydrogen_turbine` as a modified new resource, leaves
+`additional_technologies_fn: ~`, maps `hydrogen: hydrogen` in `tech_fuel_map`,
+and sets `user_fuel_price.hydrogen: 16.0` in `settings/fuels.yml`.
 
 ### 1. Create Additional Technology
 

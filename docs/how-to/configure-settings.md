@@ -31,6 +31,43 @@ my_project/
 
 ## Starting from Examples
 
+### Published Example Systems
+
+The [PowerGenome-examples](https://github.com/PowerGenome/PowerGenome-examples)
+repository contains complete studies whose settings you can copy and adapt:
+
+- [TX-3-zone](https://github.com/PowerGenome/PowerGenome-examples/tree/7e34f714469e68fca173cdb849f74c47be779420/example_systems/TX-3-zone):
+  three ERCOT model zones (`TX1`, `TX2`, `TX3`) aggregated from seven ReEDS
+  balancing areas.
+- [CA_AZ](https://github.com/PowerGenome/PowerGenome-examples/tree/7e34f714469e68fca173cdb849f74c47be779420/example_systems/CA_AZ):
+  California (`CA`) and Arizona (`AZ`) aggregated from eight ReEDS balancing
+  areas.
+
+The Texas settings folder shows how the files in this guide fit together:
+
+```text
+example_systems/TX-3-zone/settings/
+├── model_definition.yml   # regions, years, tags, output columns
+├── resources.yml          # existing fleet, new build, renewable clusters
+├── resource_tags.yml      # model_tag_names and model_tag_values
+├── fuels.yml              # fuel prices, assignments, carbon tax
+├── demand.yml
+├── distributed_gen.yml
+├── transmission.yml
+├── startup_costs.yml
+├── time_clustering.yml
+├── data.yml               # source tables and data paths
+├── extra_inputs.yml       # policy and scenario files
+├── scenario_management.yml
+└── env.yml
+```
+
+The CA/AZ study uses the same layout with different values. Both are small
+demonstration datasets rather than calibrated studies, but each runs end to end
+and is a working reference for every file described here. The
+[Getting Started](../tutorials/getting-started.md#1-download-the-texas-example)
+tutorial downloads a pinned snapshot and runs the Texas study.
+
 ### Copy Example System
 
 Use the [PowerGenome System Design tool](https://gschivley.github.io/PowerGenome-tools/web/) to generate a starting settings folder for your study area. The tool walks you through selecting regions, technologies, and policies, then produces a settings folder you can download and modify.
@@ -40,8 +77,8 @@ See the [System Design tool documentation](https://gschivley.github.io/PowerGeno
 ### Minimal Settings
 
 These fragments illustrate the structure; they are not a complete runnable
-configuration. Start with a generated configuration for the required tables and
-other settings.
+configuration. Start with a generated configuration or a published example for
+the required tables and other settings.
 
 **settings/model_definition.yml**:
 
@@ -92,7 +129,7 @@ region_aggregations:
 
 Split settings by functional area:
 
-**model_definition.yml**: Planning years, tags, execution control
+**model_definition.yml**: Planning years, model regions and aggregations, tags, execution control
 **regions.yml**: Regional configuration, aggregations, reserves
 **generators.yml**: Existing generator clustering, retirement
 **new_build.yml**: New-build technologies, costs, renewable clusters
@@ -100,6 +137,10 @@ Split settings by functional area:
 **transmission.yml**: Network constraints, expansion costs
 **demand.yml**: Load profiles, growth, distributed generation
 **scenario_management.yml**: Multi-scenario definitions
+
+How you group these is a project choice. Both published examples keep existing
+generators, new-build resources, and renewable clusters in `resources.yml`, and
+model tags in `resource_tags.yml`.
 
 ### By Model Year
 

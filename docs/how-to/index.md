@@ -2,6 +2,14 @@
 
 These guides provide step-by-step instructions for specific tasks. Each guide assumes you have completed the [Getting Started](../tutorials/getting-started.md) tutorial.
 
+!!! tip "Cross-check against a published example"
+    The [PowerGenome-examples](https://github.com/PowerGenome/PowerGenome-examples)
+    repository contains two complete, runnable systems: `TX-3-zone` (three ERCOT
+    zones) and `CA_AZ` (two states, separate capacity reserve constraints, and
+    distributed generation). Guides link to the matching settings file whenever a
+    guide's configuration appears there verbatim. Download instructions are in
+    [Getting Started](../tutorials/getting-started.md#1-download-the-texas-example).
+
 ## Configuration
 
 - **[Configure Settings](configure-settings.md)**: Organize settings files, use modular YAML, and manage complex configurations

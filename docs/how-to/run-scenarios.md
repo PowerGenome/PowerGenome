@@ -62,6 +62,11 @@ case. Duplicate case/year pairs fail, but incomplete cases are not automatically
 rejected. Period numbers follow row order within each case, so a missing or
 out-of-order row can put a year in the wrong `Inputs_pN` directory.
 
+The published example systems ship a minimal version of this file with a single
+`base` case covering both planning years, paired with
+`settings_management: {}`. That is a valid single-case setup, not a template for
+variation: copy its shape, then add the case and policy rows you need.
+
 ### 3. Configure Settings Management
 
 Replace the contents of the copied `settings/scenario_management.yml` with:

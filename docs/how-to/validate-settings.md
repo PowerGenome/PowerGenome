@@ -15,6 +15,25 @@ writing.
     appropriate, or ready for optimization. Review the logs and generated files,
     especially for a new study or dataset.
 
+## Validate a known-good configuration first
+
+To confirm the validator itself works, run it against a published example from the
+root of a clone of
+[PowerGenome-examples](https://github.com/PowerGenome/PowerGenome-examples) rather
+than from inside the example system folder:
+
+```bash
+git clone https://github.com/PowerGenome/PowerGenome-examples.git
+cd PowerGenome-examples
+validate_powergenome --settings_file example_systems/TX-3-zone/settings
+```
+
+Remove nothing and change nothing: these settings are expected to load and pass
+the settings phase. If this run reports errors, check your installation and the
+data download before debugging your own settings. Swap in
+`example_systems/CA_AZ/settings` to exercise a two-region setup with two capacity
+reserve constraints.
+
 ## Understand the result
 
 - **Errors** stop the pipeline. Fix them before running again.

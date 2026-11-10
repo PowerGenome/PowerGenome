@@ -22,6 +22,12 @@ PowerGenome searches both locations. Each configured table must resolve in
 exactly one place; do not keep duplicate copies with the same table name in both.
 `data_location` can also be a list of locations or a SQLite/DuckDB file.
 
+`RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` are the exception: they resolve
+from the process working directory, not from `data_location` or the settings
+folder. The published examples write them relative to the examples root
+(`example_systems/TX-3-zone/resource_groups`), which is why their instructions
+run every command from that root.
+
 ## 2. Name your source tables
 
 Use exact settings keys and source filenames:
@@ -38,6 +44,31 @@ transmission_cost_table: network_costs.csv
 These are illustrative filenames, not a complete study. Keep the other table
 settings and processing parameters your workflow needs. For a database backend,
 use database table names without file extensions.
+
+### Published example
+
+The [Texas `settings/data.yml`](https://github.com/PowerGenome/PowerGenome-examples/blob/7e34f714469e68fca173cdb849f74c47be779420/example_systems/TX-3-zone/settings/data.yml)
+maps the same keys to real files:
+
+```yaml
+data_location: data
+RESOURCE_GROUPS: example_systems/TX-3-zone/resource_groups
+RESOURCE_GROUP_PROFILES: example_systems/TX-3-zone/resource_profiles
+
+generation_table: reeds_generators_tx_3_zone.csv
+plant_region_table: plant_region_map_tx_3_zone.csv
+demand_table: reeds_load_tx_3_zone.csv
+fuel_price_table: fuel_prices_tx_3_zone.csv
+transmission_constraints_table: transmission_capacity_tx_3_zone.csv
+transmission_cost_table: network_costs_tx_3_zone.csv
+regional_cost_factor_table: regional_cost_multipliers_tx_3_zone.csv
+```
+
+It also configures heat-rate, cost, operational-constraint, dollar-year, and
+distributed-generation tables. The CA/AZ example uses the same keys with plain
+names (`generators.csv`, `demand_load.csv`, `fuel_prices.csv`) because its data
+folder holds a single study. The filenames are yours to choose; the setting keys
+are not.
 
 ## 3. Select a demand scenario
 
