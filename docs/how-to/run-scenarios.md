@@ -13,10 +13,21 @@ For precedence and execution order, see
 
 ### 1. Copy a working system
 
-Prerequisites: an installed PowerGenome environment and a matching source
-checkout containing `tests/test_system/`. The fixture is small demonstration data,
-not a production study. If you only need values to change over time within one
-case, use [year-keyed settings](use-year-keyed-settings.md) instead.
+The three-region test system lives in `tests/test_system/` of the PowerGenome
+source repository. It is **not** part of the installed package: the distribution
+ships only the `powergenome` package and its bundled `data/` folder, so
+`pip install`/`uv` alone leaves you without the fixture. Download the repository
+first — if you installed a release from PyPI, add `--branch <tag>` so the fixture
+matches the version you are running:
+
+```bash
+git clone --depth 1 https://github.com/PowerGenome/PowerGenome.git
+cd PowerGenome
+```
+
+The fixture is small demonstration data, not a production study. If you only need
+values to change over time within one case, use
+[year-keyed settings](use-year-keyed-settings.md) instead.
 
 From the repository root, copy the fixture outside the checkout:
 
@@ -63,9 +74,19 @@ rejected. Period numbers follow row order within each case, so a missing or
 out-of-order row can put a year in the wrong `Inputs_pN` directory.
 
 The published example systems ship a minimal version of this file with a single
-`base` case covering both planning years, paired with
-`settings_management: {}`. That is a valid single-case setup, not a template for
-variation: copy its shape, then add the case and policy rows you need.
+`base` case covering both planning years, paired with `settings_management: {}` —
+see the [Texas three-zone `scenario_inputs.csv`](https://github.com/PowerGenome/PowerGenome-examples/blob/7e34f714469e68fca173cdb849f74c47be779420/example_systems/TX-3-zone/extra_inputs/scenario_inputs.csv)
+and its [`scenario_management.yml`](https://github.com/PowerGenome/PowerGenome-examples/blob/7e34f714469e68fca173cdb849f74c47be779420/example_systems/TX-3-zone/settings/scenario_management.yml).
+That is a valid single-case setup, not a template for variation: copy its shape,
+then add the case and policy rows you need.
+
+Two things break if you add cases to an example system without checking the rest
+of its inputs. Its emission policy table is keyed by `case_id` (the Texas rows use
+`base`), so a new case with no matching rows stops the run with a `KeyError` such
+as `('baseline', 2030)`; duplicate the `base` rows for the new case ID or set
+[`copy_case_id`](../reference/settings/scenario-management.md#copy_case_id) to
+reuse them. The `carbon_tax` swap used below also needs a fuel price table with a
+`CO2_content_tons_per_MMBtu` column, which the Texas example does not include.
 
 ### 3. Configure Settings Management
 
