@@ -7,7 +7,7 @@ solve the capacity expansion model.
 
 **Prerequisites**: Basic command-line knowledge,
 [uv](https://docs.astral.sh/uv/getting-started/installation/), `curl`, and `tar`.
-The commands below use a macOS/Linux shell and Python 3.11. Git and a PowerGenome
+The commands below use a macOS/Linux shell and Python 3.12. Git and a PowerGenome
 source checkout are not required.
 
 ## Installation
@@ -18,7 +18,7 @@ install the published release used by this exercise:
 ```bash
 mkdir powergenome-tutorial
 cd powergenome-tutorial
-uv venv --python 3.11
+uv venv --python 3.12
 source .venv/bin/activate
 uv pip install powergenome==0.8.0
 ```

@@ -19,8 +19,8 @@ Thank you for your interest in contributing to PowerGenome! This document provid
 git clone https://github.com/PowerGenome/PowerGenome.git
 cd PowerGenome
 
-# Create a virtual environment with Python 3.11 or newer
-uv venv --python 3.11
+# Create a virtual environment with the default development Python (3.12)
+uv venv --python 3.12
 source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
 
 # Install in development mode with dev dependencies

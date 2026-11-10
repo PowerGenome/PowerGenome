@@ -23,6 +23,8 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
@@ -59,7 +61,7 @@ exclude = ["/data/eia*"]
 
 [project.optional-dependencies]
 dev = [
-    "black == 24.3.0",
+    "black==26.10.1",
     "pre-commit",
     "pytest",
     "pytest-cov",
