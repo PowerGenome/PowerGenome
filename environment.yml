@@ -3,7 +3,7 @@ channels:
   - conda-forge
   # - defaults
 dependencies:
-  - python>=3.10 # Remove for tox.ini & setup.py
+  - python=3.12 # Default development version; the package supports >=3.11
   - pip
   - black
   - pytest
