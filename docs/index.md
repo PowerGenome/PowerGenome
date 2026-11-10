@@ -3,14 +3,14 @@
 Welcome to the PowerGenome documentation! PowerGenome is a data pipeline tool that generates input files for capacity expansion models, primarily [GenX](https://genxproject.github.io/GenX.jl/), with optional output for [MacroEnergy.jl](https://github.com/macroenergy/MacroEnergy.jl) (see [Output Formats](reference/settings/macro-output.md)).
 
 !!! tip "First time user or setting up a new system?"
-    Use the **[PowerGenome System Design tool](https://gschivley.github.io/PowerGenome-tools/web/)** to generate a starting settings folder for your study area. The interactive tool walks you through selecting regions, planning periods, technologies, and policies, then produces a ready-to-use settings folder you can download and customise. See the [System Design tool documentation](https://gschivley.github.io/PowerGenome-tools/) for a step-by-step walkthrough.
+    Use the **[PowerGenome System Design tool](https://gschivley.github.io/PowerGenome-tools/web/)** to generate a starting settings folder for your study area. The interactive tool walks you through selecting regions, planning periods, technologies, and policies, then produces a starting settings folder you can download and customise. You must also obtain the data files referenced by those settings. See the [System Design tool documentation](https://gschivley.github.io/PowerGenome-tools/) for a step-by-step walkthrough.
 
 ## What is PowerGenome?
 
 PowerGenome simplifies the process of creating power system model inputs by transforming raw energy system data (from sources like EIA and NREL) into model-ready datasets. Instead of manually assembling data for each region and scenario, you define your requirements in settings files and PowerGenome generates all necessary inputs.
 
-!!! info "International Use"
-    While PowerGenome's examples reference US data sources (EIA, NREL ATB, PUDL), the tool is **region-agnostic**. Users can supply custom data tables representing any geographic region worldwide. The data pipeline works with any properly-structured input data—European grids, Asian power systems, Latin American networks, etc.
+!!! info "Other geographies"
+    Custom regions and datasets can be used, but some processing conventions reflect US sources such as EIA and NREL ATB. Check the required schemas and technology mappings when adapting a study; changing region labels alone is not enough.
 
 ## Key Features
 
@@ -19,7 +19,6 @@ PowerGenome simplifies the process of creating power system model inputs by tran
 - **Renewable Resource Groups**: Pre-clustered wind and solar resources with generation profiles
 - **Transmission Constraints**: Inter-regional transmission limits and expansion costs
 - **Demand Profiles**: Hourly load profiles with electrification scenarios
-- **Time Reduction**: Representative period selection to reduce computational complexity
 - **Multi-Scenario Management**: Run sensitivity analyses across different assumptions
 - **Year-Keyed Settings Values**: Define parameter values by planning year across all settings sections
 - **Flexible Data Sources**: DataManager architecture supports CSV, Parquet, and DuckDB
@@ -44,20 +43,19 @@ Technical descriptions of settings parameters, data schemas, and the command-lin
 
 Background information on how PowerGenome works and why it's designed the way it is.
 
-## Quick Start
+## Start Here
 
-```bash
-# Install from PyPI
-pip install powergenome
+1. **Run a small, complete example**: Follow [Getting Started](tutorials/getting-started.md)
+   to install a published package with uv and run the published Texas example.
+2. **Define your own study**: Generate a settings folder with the
+   [System Design tool](https://gschivley.github.io/PowerGenome-tools/web/), then
+   [configure the input tables](how-to/configure-data-tables.md). Settings alone
+   are not a dataset: the referenced data files must also be available locally.
+3. **Check before a full run**: Use [Validate Settings](how-to/validate-settings.md),
+   then run `run_powergenome -sf settings -rf output` from your study directory.
 
-# Or for development
-git clone https://github.com/PowerGenome/PowerGenome.git
-cd PowerGenome
-pip install -e ".[dev]"
-
-# Run with example settings
-run_powergenome --settings_file settings --results_folder output
-```
+PowerGenome **prepares model inputs**; it does not solve the capacity expansion
+model. Run GenX or Macro separately after inspecting those inputs.
 
 ## Get Help
 

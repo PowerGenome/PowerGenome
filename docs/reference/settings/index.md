@@ -2,7 +2,10 @@
 
 This section documents all configuration parameters that control PowerGenome's behavior.
 
-Settings are defined in YAML files and loaded from a directory. PowerGenome recursively reads all `.yml` and `.yaml` files, with later files overriding earlier ones.
+Settings are defined in YAML files. When given a directory, PowerGenome reads
+its immediate `.yml` files, not nested folders or `.yaml` files. Avoid defining
+the same top-level setting in multiple files: their iteration order is not
+guaranteed, and a later value replaces the entire earlier value.
 
 ## Organization
 
@@ -18,7 +21,7 @@ Settings are grouped by functional area:
 
     Parameters: `model_periods`, `model_tag_names`, etc.
 
-  - :material-calendar-range: **[Year-Keyed Values](year-keyed-values.md)**
+- :material-calendar-range: **[Year-Keyed Values](year-keyed-values.md)**
 
     ---
 
@@ -67,7 +70,7 @@ Settings are grouped by functional area:
 
     Network topology, line limits, expansion costs, loss percentages.
 
-    Parameters: `transmission_constraints`, `tx_line_loss_pct`, `tx_expansion_per_period`, `tx_expansion_mw_per_period`, etc.
+    Parameters: `transmission_constraints_table`, `tx_expansion_per_period`, etc.
 
 - :material-power-plug-outline: **[Demand](demand.md)**
 
@@ -75,15 +78,7 @@ Settings are grouped by functional area:
 
     Load profile sources, distributed generation, time weighting.
 
-    Parameters: `load_zones`, `dg_capacity_table`, `dg_profiles_table`, etc.
-
-- :material-clock-fast: **[Time Reduction](time-reduction.md)**
-
-    ---
-
-    Representative period selection, clustering methodology, time domain control.
-
-    Parameters: `reduce_time_domain`, `time_domain_periods`, `include_peak_day`, etc.
+    Parameters: `demand_table`, `distributed_capacity_table`, etc.
 
 - :material-tag-multiple: **[Resource Tags](resource-tags.md)**
 
@@ -99,7 +94,7 @@ Settings are grouped by functional area:
 
     Input data source configuration with filtering and scenario selection.
 
-    Parameters: `generation_table`, `demand_table`, `fuel_prices_table`, etc.
+    Parameters: `generation_table`, `demand_table`, `fuel_price_table`, etc.
 
 - :material-vector-combine: **[Scenario Management](scenario-management.md)**
 
@@ -127,12 +122,12 @@ Settings are grouped by functional area:
 # Scalars
 model_year: 2030
 target_usd_year: 2023
-reduce_time_domain: true
+old_genx_format: false
 
 # Lists
 model_regions: [CA_N, CA_S, AZ]
 new_resources:
-  - [NaturalGas, CCAvgCF, Moderate, 500]
+  - [NaturalGas, 1-on-1 Combined Cycle (H-Frame), Moderate, 500]
   - [UtilityPV, Class1, Moderate, 100]
 
 # Dictionaries
@@ -182,7 +177,7 @@ tech_groups:
     - Conventional Steam Coal
     - Coal Integrated Gasification Combined Cycle
 
-num_clusters:
+alt_num_clusters:
   CA_N:
     Conventional Steam Coal: 5
     Natural Gas Fired Combined Cycle: 10
@@ -192,7 +187,7 @@ Access pattern in code:
 
 ```python
 combined_cycle_techs = settings["tech_groups"]["Combined Cycle"]
-clusters = settings["num_clusters"]["CA_N"]["Conventional Steam Coal"]
+clusters = settings["alt_num_clusters"]["CA_N"]["Conventional Steam Coal"]
 ```
 
 ### Regional Parameters
@@ -202,11 +197,11 @@ Regional settings can use model region names as keys:
 ```yaml
 regional_tag_values:
   CA_N:
-    THERM: 1
-    VRE: 0
+    THERM:
+      NaturalGas: 1
   AZ:
-    THERM: 2
-    VRE: 1
+    THERM:
+      NaturalGas: 2
 
 # Legacy — only validated, not applied
 new_gen_not_available:
@@ -231,46 +226,43 @@ These apply changes to base technology costs using operators like `mul`, `add`, 
 
 ### Technology Matching
 
-Technology names are matched **case-insensitively**:
+Matching depends on the setting. Resource tags use case-insensitive substring
+matching (ignoring underscores), whereas `tech_groups` requires exact input
+technology names:
 
 ```yaml
-# These all match "naturalgas_ccavgcf_moderate" resource
-tech_groups:
-  Combined Cycle: [NaturalGas_CCAvgCF, naturalgas_ccavgcf]
+model_tag_values:
+  THERM:
+    NaturalGas: 1
 ```
 
 Region names are **case-sensitive** and must match exactly.
 
 ## Loading Mechanism
 
-PowerGenome loads settings from a **folder**, not individual files:
+PowerGenome can load a settings folder or an individual YAML file:
 
 ```python
 from powergenome.settings import load_settings
 from pathlib import Path
 
-# Correct: point to folder
 settings = load_settings(Path("my_study/settings"))
-
-# Incorrect: don't point to specific file
-# settings = load_settings(Path("my_study/settings/generators.yml"))
+# Alternatively: load_settings(Path("my_study/settings.yml"))
 ```
 
 **Load Order**:
 
-1. All `.yml` and `.yaml` files found recursively
-2. Files sorted alphabetically
-3. Later files override earlier ones
-4. Nested dictionaries are merged (not replaced)
+1. Immediate `.yml` files in the folder are read without a guaranteed order.
+2. Duplicate top-level keys replace previous values, including nested dictionaries.
+3. Keep each top-level setting in one file to avoid order-dependent results.
 
 **Example structure**:
 
 ```
 settings/
-├── 01_model_definition.yml   # Loaded first
-├── 02_regions.yml
-├── 03_generators.yml
-└── 04_overrides.yml           # Loaded last, takes precedence
+├── model_definition.yml
+├── regions.yml
+└── generators.yml
 ```
 
 ## Validation
@@ -289,7 +281,7 @@ Use `.get(key, default)` for optional parameters:
 year = settings["model_year"]
 
 # Optional (use default)
-reduce_time = settings.get("reduce_time_domain", False)
+macro = settings.get("macro_output", False)
 ```
 
 ## Environment Variables (Deprecated)
@@ -313,10 +305,9 @@ RESOURCE_GROUP_PROFILES: /path/to/generation_profiles
 
 When the same parameter appears in multiple places:
 
-1. **Command-line arguments** (highest priority)
-2. **Scenario-specific settings_management** swaps
-3. **YAML files** (last file wins)
-4. **Default values** in code (lowest priority)
+Scenario-specific `settings_management` swaps update the loaded settings; code
+defaults apply where values are absent. Individual command-line options have
+their own precedence rules and do not generally override arbitrary settings.
 
 ## Next Steps
 

@@ -1,173 +1,157 @@
 # Multi-Scenario Architecture
 
-This page explains *how* PowerGenome's scenario management system works internally. For step-by-step instructions on setting up scenarios, see [Run Multi-Scenario Studies](../how-to/run-scenarios.md).
+PowerGenome separates a study into **cases** (alternative assumptions) and
+**planning periods** (time within each case). It generates inputs for those
+case/year pairs; it does not run the capacity-expansion optimization.
 
----
-
-## The problem scenarios solve
-
-A single capacity expansion study typically involves multiple assumptions about uncertain inputs — technology costs, fuel prices, demand growth, policy stringency. Rather than running PowerGenome once per assumption set by hand, the scenario system lets you define a matrix of cases and process them in a single invocation.
-
----
+This page explains why settings resolve as they do. Follow
+[Run Multiple Scenarios](../how-to/run-scenarios.md) for a runnable example, or
+use [Scenario Management Settings](../reference/settings/scenario-management.md)
+for accepted shapes and parameter-specific patterns.
 
 ## Two types of variation
 
-PowerGenome distinguishes between two kinds of parameter variation:
+Use **year-keyed values** for changes over time, such as an increasing carbon tax
+within one case. Use **scenario management** for alternatives, such as comparing
+a tax with no tax. These mechanisms can be combined: a selected scenario swap
+can itself contain year-keyed values.
 
-### 1. Planning-year variation (year-keyed values)
-
-When a parameter naturally varies over time — e.g., capital costs fall as technology matures — you encode this directly in the settings using a year-keyed dictionary:
-
-```yaml
-resource_modifiers:
-  utilitypv:
-    technology: UtilityPV
-    tech_detail: Class1
-    capex_mw:
-      2030: [mul, 0.9]
-      2040: [mul, 0.8]
-```
-
-No scenario definitions CSV is needed. PowerGenome resolves these automatically for each planning year. See [Year-Keyed Values](../reference/settings/year-keyed-values.md) for details.
-
-### 2. Case variation (scenario management)
-
-When you want to compare *alternative futures* — e.g., low vs. high gas price, with vs. without a carbon tax — you define cases in a CSV file and describe parameter swaps in `settings_management`:
-
-```yaml
-# settings_management.yml
-settings_management:
-  all_years:
-    gas_price:
-      low:
-        fuel_scenarios:
-          naturalgas: low_price
-      high:
-        fuel_scenarios:
-          naturalgas: high_price
-```
-
-```csv
-# scenario_definitions.csv
-case_id,year,gas_price
-low_gas,2030,low
-high_gas,2030,high
-```
-
----
+A year-keyed dictionary needs integer years, optionally a `default` fallback,
+and coverage of the planning years being resolved. It is not a scenario
+selector. `all_years` is instead a selector inside `settings_management`; it is
+not a fallback key for ordinary year-keyed values. See
+[Year-Keyed Values](../reference/settings/year-keyed-values.md).
 
 ## The scenario matrix
 
-The scenario definitions CSV defines the full set of runs. Each row is one (case, year) pair:
+Each CSV row selects one case/year pair. Extra columns select named categories
+and levels in `settings_management`. The CSV is an explicit list of combinations,
+not a request to generate a Cartesian product. A case ID stays the same across
+its planning periods.
 
-| Column | Description |
-|---|---|
-| `case_id` | Unique identifier for a scenario run |
-| `year` | Planning year — must match a period end year from `model_periods` |
-| *(other columns)* | Dimension names that correspond to `settings_management` keys |
+Duplicate case/year pairs are rejected. A complete case should contain every
+planning year, but completeness is not enforced automatically. Period numbers
+are assigned by counting each case in CSV row order, independently of year
+resolution. Thus a row for 2040 can be labeled period 1 if it precedes that
+case’s 2030 row. Chronological rows and correctly paired planning-year lists
+prevent this mismatch.
 
-Every `case_id` must have one row per model year. For a model with 3 years and 4 cases, the CSV has 12 rows.
-
----
+Execution order is different from period numbering: the runner groups rows by
+year in first-seen order, then processes cases within that year in CSV order.
+It executes sequentially. With a chronological matrix, all first-period cases
+run before any second-period cases.
 
 ## How settings are constructed for each case
 
-For each (case_id, year) pair PowerGenome:
+Base settings loading and scenario swapping have different merge rules:
 
-1. **Starts from the base settings** loaded from the settings folder
-2. **Applies year-keyed resolution** — any parameter that is a year-keyed dict is resolved to its value for this planning year
-3. **Applies `all_years` swaps** — entries in `settings_management.all_years` are applied to every year
-4. **Applies year-specific swaps** — entries in `settings_management.<year>` are then applied
-5. **Within each year block**, dimension columns from the scenario CSV row are matched to sub-keys, and the corresponding parameter dict is deep-merged into settings
+- **Loading a directory:** immediate `*.yml` files are combined using shallow
+  dictionary updates. A duplicate top-level key replaces the previous value;
+  file order is not guaranteed. Splitting `settings_management` across files
+  does not combine the mappings.
+- **Applying a scenario:** each row starts with an independent deep copy of the
+  loaded base settings. Nested dictionaries in swaps merge recursively;
+  scalar values and lists replace existing values.
 
-The result is an independent, fully resolved settings dictionary for that specific run. Each case's settings do not affect any other case.
+For each CSV row, `build_scenario_settings` applies these stages:
+
+1. Assign the case ID and its row-derived period number.
+2. Apply `settings_management.all_years.all_cases`.
+3. Apply matching dimension/level swaps in `settings_management.all_years`,
+   following the CSV column order.
+4. Apply `settings_management.<year>.all_cases`.
+5. Apply matching dimension/level swaps in `settings_management.<year>`,
+   following the CSV column order.
+6. Resolve planning-year lists or periods to scalar start/end years, then
+   resolve year-keyed dictionaries. Expand reserve and output-tag settings.
+
+The entire `all_years` block is processed before the entire specific-year block.
+In particular, a year-specific `all_cases` value can override a value selected
+by a dimension under `all_years`. It is not true that all dimension selections
+always take precedence over all `all_cases` values.
 
 ### Deep merge behavior
 
-Parameter swap dictionaries are deep-merged. This means nested structures like `resource_modifiers` or `regional_capacity_reserves` are updated key-by-key rather than replaced wholesale:
+Suppose a base resource modifier has both operating-cost fields:
 
 ```yaml
-# Base settings
 resource_modifiers:
-  utilitypv:
-    technology: UtilityPV
-    tech_detail: Class1
-    capex_mw: [mul, 1.0]
-    fixed_o_m_mw: [add, 500]
-
-# Scenario swap: solar_cost = low
-resource_modifiers:
-  utilitypv:          # same short-name key, so it merges with the base entry
-    capex_mw: [mul, 0.8]   # overrides only capex_mw; fixed_o_m_mw is preserved
+  batteries:
+    technology: Utility-Scale Battery Storage
+    tech_detail: Lithium Ion
+    Var_OM_Cost_per_MWh: [add, 0.15]
+    Var_OM_Cost_per_MWh_In: 0.15
 ```
 
-However, **lists are replaced entirely** — not merged. If a swap sets `new_resources` to a new list, the base `new_resources` list is discarded.
-
----
-
-## The `all_cases` selector
-
-Within a year block, `all_cases` applies to every run regardless of case dimension values:
+A swap with the same short-name key can change just one field:
 
 ```yaml
 settings_management:
-  2040:
-    all_cases:
-      carbon_tax: 75  # Applied to every 2040 run
-    tech_cost:
-      low:
+  all_years:
+    storage_cost:
+      higher:
         resource_modifiers:
-          utilitypv:
-            technology: UtilityPV
-            tech_detail: Class1
-            capex_mw: [mul, 0.9]
+          batteries:
+            Var_OM_Cost_per_MWh: [add, 0.30]
 ```
 
-This is useful for policy parameters that change year-over-year but don't vary across scenarios.
+The technology selectors and `Var_OM_Cost_per_MWh_In` survive. The list
+`[add, 0.15]` is replaced by `[add, 0.30]`; it is not extended. Similarly,
+setting `new_resources` replaces the entire candidate list, not just one entry.
+A dictionary swap needs an absent, null, or dictionary base value; it cannot
+merge into an existing scalar or list. When adding a year-keyed dictionary to
+a swap, give the base setting a compatible shape first.
 
----
+Two selected dimensions in the **same block** cannot modify the same leaf
+setting, even to the same value. This conflict check restarts for the
+specific-year block and does not include `all_cases`, allowing the deliberate
+precedence described above. Use a combined dimension when two choices both
+need to replace the same list; do not rely on column order to break the conflict.
+
+Each row starts afresh. A swap in 2030 does not carry forward to 2040. Use
+`all_years` or an explicit later-year swap when the change must persist.
+
+## The `all_cases` selector
+
+`all_cases` contains setting/value pairs directly, without a dimension or level.
+It applies to every row covered by its enclosing block. It is useful for a
+shared year-specific assumption; a matching dimension in that same block may
+still override it. See the
+[selector format](../reference/settings/scenario-management.md#settings_management)
+for a compact example.
+
+## Multi-period consistency
+
+Settings isolation lets different cases use different input tables. It does not
+make arbitrary between-period changes safe. For myopic multi-period studies,
+keep the same generation table in every period of a case so existing-generator
+cluster membership stays fixed. Retirement assumptions belong in that data’s
+`retirement_year` column, not in period-by-period table filtering. See
+[Retirement filtering](clustering.md#retirement-filtering).
 
 ## Output folder structure
 
-Each (case_id, year) pair writes to its own folder:
-
-```
-results/
-└── <case_id>/
-    └── Inputs/
-        └── Inputs_p<period_number>/
-            ├── system/
-            │   ├── Demand_data.csv
-            │   ├── Fuels_data.csv
-            │   └── Network.csv
-            ├── resources/
-            │   └── ...
-            ├── policies/
-            │   └── ...
-            └── powergenome_case_settings.yml
-```
-
-`Inputs_p1` corresponds to the first planning period, `Inputs_p2` to the second, and so on. The `powergenome_case_settings.yml` file records the exact resolved settings used for that run — useful for debugging or reproducing results.
-
----
+With a scenario CSV, default GenX files go to
+`results/<case_id>/Inputs/Inputs_pN/{resources,system,policies}/` when the results
+folder is named `results`. `N` is the row-derived period number, not a calendar
+year. The sibling `powergenome_case_settings.yml` records resolved settings for
+checking the generated inputs. See the
+[how-to output tree](../how-to/run-scenarios.md#run-the-scenario-set) for an example.
 
 ## Running without scenario definitions
 
-If `scenario_definitions_fn` is absent from settings, PowerGenome creates one implicit "case" called `Inputs` for each period end year in `model_periods`. This is equivalent to a scenario CSV with one row per year:
+Without `scenario_definitions_fn`, the runner creates an implicit case named
+`Inputs` and resolves settings for the configured planning years in list order.
+Year-keyed values still work, but `settings_management` swaps are not applied.
+There are no dimension selections, and `--case-id` is ignored.
 
-```csv
-case_id,year
-Inputs,2030
-Inputs,2040
-```
-
-Year-keyed values in settings are still resolved per year.
-
----
+The default GenX path omits the case-ID directory:
+`results/Inputs/Inputs_pN/`. Adding a scenario CSV is therefore not just another
+way to name the same output folder.
 
 ## Related documentation
 
-- [Run Multi-Scenario Studies](../how-to/run-scenarios.md): Step-by-step instructions
-- [Scenario Management Settings](../reference/settings/scenario-management.md): Complete parameter reference
-- [Year-Keyed Values](../reference/settings/year-keyed-values.md): Per-year parameter resolution
-- [Data Pipeline Flow](pipeline.md): How scenario settings flow through the pipeline
+- [Run Multiple Scenarios](../how-to/run-scenarios.md): Create and test two cases.
+- [Scenario Management Settings](../reference/settings/scenario-management.md):
+  Schemas, validation behavior, and advanced combinations.
+- [Data Pipeline Flow](pipeline.md): How resolved settings feed data processing.

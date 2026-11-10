@@ -121,7 +121,6 @@ nav:
       - Resource Tags: reference/settings/resource-tags.md
       - Data Tables: reference/settings/data-tables.md
       - Multi-Scenario Management: reference/settings/scenario-management.md
-      - Time Reduction: reference/settings/time-reduction.md
       - Output Formats: reference/settings/macro-output.md
     - ATB Technology Names: reference/atb-technologies.md
     - Data Schemas:

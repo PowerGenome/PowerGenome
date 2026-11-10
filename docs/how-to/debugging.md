@@ -1,271 +1,112 @@
 # Debugging
 
-This guide covers the most common errors and problems you may encounter when running PowerGenome and how to fix them.
-
 ## Where to look first
 
-PowerGenome writes a detailed log file to your results folder:
+1. Run `validate_powergenome --settings_file settings` from your study directory.
+2. Read the first error and its preceding warnings in `<results_folder>/log.txt`.
+3. Check the resolved `powergenome_case_settings.yml` in the affected period's
+   output folder, not just the original YAML. Scenario swaps may have changed it.
 
-```
-results/
-└── log.txt   ← check here first
-```
-
-The log captures `DEBUG`-level messages, including which tables were loaded, what clusters were built, and any warnings about missing data. The terminal only shows `INFO` and above.
-
----
+The log contains `DEBUG` messages; the terminal shows `INFO` and above. A run
+that completes with warnings may still have unsuitable inputs. See
+[Validate Settings](validate-settings.md) for coverage and limitations.
 
 ## Common errors
 
-### `KeyError: 'model_year'` (or other required parameter)
+| Symptom | Likely cause and next check |
+| --- | --- |
+| Missing settings key, such as `model_year` | Check the exact parameter name, type, and planning-period configuration in [Model Definition](../reference/settings/model-definition.md). |
+| Table creation fails or table is missing | Check the source exists, the setting key is correct, and the table resolves in exactly one configured location. For files, include `.csv` or `.parquet`; for databases, use a table name. |
+| `FileNotFoundError` | Check relative-path rules below and whether the command was run from the intended study directory. |
+| Planning-year list lengths differ | Use valid `model_periods`, or one matching entry in each legacy year list per period. |
+| Requested case IDs are not in scenario inputs | Compare `--case-id` values with the CSV's `case_id` column. Omit the flag to run all cases. |
+| Scenario years do not match settings | CSV `year` values must match the planning-period end years. |
+| Unknown or missing region | Compare case-sensitive names in tables, `model_regions`, and `region_aggregations`. |
+| Missing fuel prices or zero fuel costs | Check fuel/scenario/base-region/year coverage and the selected data vintage. Do not assume a zero price is intentional. |
+| Zero new-build costs | Check resource identifiers and whether cost-table `basis_year` values cover each planning window. |
 
-**Cause**: A required settings parameter is missing from your YAML files.
+Use the exact keys in [Data Tables Settings](../reference/settings/data-tables.md).
+For example, `generation_table` is recognized; a similar-looking key such as
+`generators` does not configure that table.
 
-**Fix**: Check that the parameter is present in one of your settings files:
+### Check paths and settings loading
 
-```bash
-grep -r "model_year" settings/
-```
+- A settings **directory** loads its immediate `*.yml` files, not nested folders
+  or `*.yaml` files. Avoid duplicate top-level keys across files: loading performs
+  shallow replacement, not a recursive merge.
+- Relative `data_location` and `input_folder` paths resolve from the settings
+  directory's parent, or from a single settings file's containing directory.
+- Relative `RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` paths resolve from the
+  process working directory instead.
+- Configured tables are searched in both `data_location` and `input_folder`;
+  duplicate matches are an error.
 
-Common required parameters:
+See [Configure Settings](configure-settings.md) for organization and
+[Run Multi-Scenario Studies](run-scenarios.md) for override behavior.
 
-```yaml
-model_periods:
-  - [2020, 2030]
-target_usd_year: 2022
-model_regions: [CA_N, CA_S]
-model_tag_names: [THERM, VRE, MUST_RUN, STOR, FLEX, HYDRO, LDS, ELECTROLYZER]
-```
-
-See [Model Definition](../reference/settings/model-definition.md) for the full list.
-
----
-
-### `RuntimeError: Failed to create table <name>`
-
-**Cause**: DataManager could not load a table specified in settings.
-
-**Fix**: Check three things:
-
-1. **File exists** — confirm the file is in `data_location`:
-
-    ```bash
-    ls /path/to/data_location/
-    ```
-
-2. **Correct key** — verify the setting name matches the expected key (e.g., `generation_table`, not `generators`):
-
-    ```yaml
-    # Correct
-    generation_table: generators.parquet
-
-    # Wrong key — will be silently ignored
-    generators: generators.parquet
-    ```
-
-3. **File extension** — always include `.csv` or `.parquet`:
-
-    ```yaml
-    # Correct
-    demand_table: demand.parquet
-
-    # May fail if auto-detection doesn't find it
-    demand_table: demand
-    ```
-
----
-
-### `FileNotFoundError: No such file or directory`
-
-**Cause**: A path in settings doesn't exist. Most commonly `data_location`, `input_folder`, or a file pointed to by a `_fn` parameter.
-
-**Fix**: Use an absolute path to rule out working-directory issues:
-
-```yaml
-# Use absolute path
-data_location: /Users/me/powergenome_data
-input_folder: extra_inputs   # Relative paths are resolved from the settings folder
-```
-
-Run PowerGenome from the same directory that contains your settings folder.
-
----
-
-### `AssertionError: number of years in model_year must equal model_first_planning_year`
-
-**Cause**: Using the legacy `model_year` + `model_first_planning_year` format with lists of different lengths.
-
-**Fix**: Switch to `model_periods` (preferred), or ensure both lists are the same length — one entry per planning period:
-
-```yaml
-# Preferred
-model_periods:
-  - [2020, 2030]
-  - [2031, 2040]
-  - [2041, 2050]
-
-# Legacy equivalent (lists must be the same length)
-model_year: [2030, 2040, 2050]
-model_first_planning_year: [2020, 2031, 2041]  # same length
-```
-
----
-
-### `ValueError: The requested case IDs … are not in your scenario inputs file`
-
-**Cause**: You passed `--case-id` values to the CLI that don't exist in `scenario_definitions_fn`.
-
-**Fix**: Check the `case_id` column in your scenario definitions CSV:
-
-```bash
-head -1 extra_inputs/scenario_definitions.csv
-```
-
-Or omit `--case-id` to run all cases.
-
----
-
-### `Warning: One or more model regions is not valid`
-
-**Cause**: A region name in `model_regions` doesn't match any IPM region or key in `region_aggregations`.
-
-**Fix**: Check spelling carefully — region names are case-sensitive:
-
-```yaml
-model_regions:
-  - CA_N    # must match keys in region_aggregations
-  - CA_S
-
-region_aggregations:
-  CA_N: [WEC_CALN]
-  CA_S: [WEC_LADW, WEC_SCE, WEC_SDGE, WECC_TID]
-```
-
----
-
-### `Warning: The years in scenario_definitions_fn do not match model_year`
-
-**Cause**: The `year` column of your scenario definitions CSV doesn't match the planning period end years.
-
-**Fix**: Make sure the `year` values in the CSV match the last year of each period in `model_periods`:
-
-```yaml
-# settings
-model_periods:
-  - [2020, 2030]
-  - [2031, 2040]
-```
-
-```csv
-# scenario_definitions.csv
-case_id,year,...
-baseline,2030,...
-baseline,2040,...
-```
-
----
+## Unexpected outputs
 
 ### Generator clustering produces unexpected groups
 
-**Cause**: Multiple possible causes — technology name mismatches, incorrect cluster counts, or plants being filtered out.
+Check the logged number of units per region and technology, then inspect:
 
-**Diagnostics**:
+- `num_clusters` and `alt_num_clusters`: existing technologies omitted from both
+  are not included merely because they appear in the generation table.
+- `tech_groups`, `tech_fuel_map`, and model tags: matching rules differ between
+  settings. Do not assume every technology field uses the same substring rules.
+- Operating/retirement years and source filters. Blank `retirement_year` means
+  no planned retirement; filtering it with `> 2030` drops blank values.
 
-1. Check `log.txt` for messages about the number of plants being clustered per region/technology.
-2. Verify that technology names in your data match what's expected in `tech_fuel_map` and `model_tag_values`. Technology name matching is case-insensitive substring matching.
-3. Check `num_clusters` and `alt_num_clusters`:
+For myopic multi-period runs, use the same generation source in every period so
+cluster membership stays consistent. See [Existing Generators](../reference/settings/existing-generators.md).
 
-    ```yaml
-    num_clusters: 1  # Default clusters per region/tech
-    alt_num_clusters:
-      CA_N:
-        NaturalGas_CCAvgCF_Moderate: 3  # Override for a specific region/tech
-    ```
+### Demand or generation profiles are missing
 
----
+Check that source rows cover every required base region/site, planning year,
+weather year, and time step. Confirm filters have not removed needed rows and
+that profile identifiers match resource metadata. For aggregated demand regions,
+supply the constituent base regions, not just an aggregate label.
 
-### Load profiles are all zeros or missing regions
+Review [Demand Settings](../reference/settings/demand.md) and
+[Configure Renewable Clusters](configure-renewable-clusters.md).
 
-**Cause**: `demand_table` configuration doesn't include all model regions, or the region column name differs from what PowerGenome expects.
+### Resource files are empty or absent
 
-**Fix**:
+Default GenX outputs are split into `resources/Thermal.csv`, `Vre.csv`, and other
+resource types. Files for empty types are omitted. Inspect the
+[output layout](../reference/schemas/output-files.md) before assuming a missing
+legacy `Generators_data.csv` indicates failure.
 
-1. Check the column names in your demand file — PowerGenome auto-detects the region column but expects values to match `model_regions`.
-2. If using a filtered demand table, ensure the filter includes all required regions:
+If expected resources are missing, check source coverage, filters, existing-unit
+cluster settings, and model tags. A legacy setting passing validation does not
+prove it affects output; for example, `new_gen_not_available` is not applied.
 
-    ```yaml
-    demand_table:
-      table_name: demand.parquet
-      filters:
-        - - [region, 'in', ['CA_N', 'CA_S']]
-          - [year, '=', 2030]
-    ```
+## Inspect settings and tables in Python
 
----
-
-### Time domain reduction produces errors
-
-**Cause**: Usually a mismatch between `time_domain_periods` and the number of hours in your data, or missing required parameters.
-
-**Fix**: Ensure all four required parameters are present when `reduce_time_domain: true`:
-
-```yaml
-reduce_time_domain: true
-time_domain_periods: 12          # number of representative periods
-time_domain_days_per_period: 7   # days per period (7 = weekly)
-include_peak_day: true
-demand_weight_factor: 5
-```
-
-Time domain reduction only works on data with ≤ 8760 hourly rows. Check `log.txt` for the warning message if it's being skipped.
-
----
-
-### Output files are empty or very small
-
-**Cause**: Missing resource tag assignments, or all generators were filtered out before output.
-
-**Fix**:
-
-1. Check that `model_tag_names` is fully defined and all resources have tag values assigned.
-2. Verify `model_tag_values` covers your resource types (use substring matching — `NaturalGas` will match `NaturalGas_CCAvgCF_Moderate`):
-
-    ```yaml
-    model_tag_names: [THERM, VRE, MUST_RUN, STOR]
-    model_tag_values:
-      NaturalGas: {THERM: 1, VRE: 0}
-      UtilityPV:  {THERM: 0, VRE: 1}
-    ```
-
----
-
-## Checking settings are correct
-
-Validate settings load without running the full pipeline:
+For deeper diagnostics, load the settings from the study directory:
 
 ```python
-from powergenome.settings import load_settings
 from pathlib import Path
+
+from powergenome.settings import load_settings
+from powergenome.database import initialize_data_manager, list_tables
 
 settings = load_settings(Path("settings"))
 print(settings.get("model_year"))
 print(settings.get("model_regions"))
-```
-
-Confirm DataManager can see your tables:
-
-```python
-from powergenome.database import initialize_data_manager, get_data_manager
-
 initialize_data_manager(settings, settings["data_location"])
-dm = get_data_manager()
-print(dm.list_tables())
+print(list_tables())
 ```
 
----
+This inspects base settings. Compare them with the saved case/period settings
+when investigating scenario-specific behavior.
 
 ## Getting help
 
-- Review the [Settings Reference](../reference/settings/index.md) to check parameter names and types
-- Use the [System Design tool](https://gschivley.github.io/PowerGenome-tools/web/) to generate a known-good settings baseline to compare against
-- Open an issue on [GitHub](https://github.com/PowerGenome/PowerGenome) with your log file attached
+Share the command, PowerGenome version, first relevant error, and a minimal
+reproducible configuration on [GitHub](https://github.com/PowerGenome/PowerGenome/issues)
+or [groups.io](https://groups.io/g/powergenome). Redact credentials, private paths,
+and sensitive data from settings and logs before sharing.
+
+The [System Design tool](https://gschivley.github.io/PowerGenome-tools/web/)
+provides starting settings, not a guarantee that your local data covers them.

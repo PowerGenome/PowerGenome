@@ -16,7 +16,6 @@ my_project/
 │   ├── fuels.yml
 │   ├── transmission.yml
 │   ├── demand.yml
-│   ├── time_reduction.yml
 │   ├── scenario_management.yml
 │   └── data.yml
 └── extra_inputs/
@@ -25,9 +24,10 @@ my_project/
 
 **Loading behavior**:
 
-- Files load in alphabetical order
-- Later files override earlier ones
-- Split settings logically across files for maintainability
+- A directory loads its `.yml` files; a single YAML file can also be loaded.
+- Duplicate top-level keys replace the entire earlier value. File order is not
+  guaranteed, so define each top-level setting in only one file.
+- Split settings logically across files for maintainability.
 
 ## Starting from Examples
 
@@ -39,7 +39,9 @@ See the [System Design tool documentation](https://gschivley.github.io/PowerGeno
 
 ### Minimal Settings
 
-Create minimal settings from scratch:
+These fragments illustrate the structure; they are not a complete runnable
+configuration. Start with a generated configuration for the required tables and
+other settings.
 
 **settings/model_definition.yml**:
 
@@ -64,14 +66,10 @@ model_tag_names:
   - STOR
 
 model_tag_values:
-  NaturalGas_CCAvgCF_Moderate:
-    THERM: 1
-    VRE: 0
-    STOR: 0
-  UtilityPV_Class1_Moderate:
-    THERM: 0
-    VRE: 1
-    STOR: 0
+  THERM:
+    NaturalGas: 1
+  VRE:
+    UtilityPV: 1
 ```
 
 **settings/regions.yml**:
@@ -101,7 +99,6 @@ Split settings by functional area:
 **fuels.yml**: Fuel prices, emissions, carbon pricing
 **transmission.yml**: Network constraints, expansion costs
 **demand.yml**: Load profiles, growth, distributed generation
-**time_reduction.yml**: Representative period configuration
 **scenario_management.yml**: Multi-scenario definitions
 
 ### By Model Year
@@ -144,7 +141,8 @@ multiple scenario dimensions:
 settings/
 ├── base.yml                    # Core configuration
 ├── regions.yml                 # Regional definition
-├── scenario_management.yml     # Year-specific overrides
+└── scenario_management.yml     # Year-specific overrides
+extra_inputs/
 └── scenario_definitions.csv    # Case definitions
 ```
 
@@ -170,21 +168,20 @@ settings_management:
   all_years:
     policy:  # Column name from scenario_definitions.csv
       high:
-        minimum_cap_req_fn: high_res_policy.csv
+        carbon_tax: 100
       low:
-        minimum_cap_req_fn: low_res_policy.csv
+        carbon_tax: 25
   2030:
     all_cases:  # Applied to ALL scenarios in 2030
-      carbon_tax: 50
-      default_load_multiplier: 1.0
+      weather_year: 2012
   2040:
     all_cases:  # Applied to ALL scenarios in 2040
-      carbon_tax: 75
-      default_load_multiplier: 1.15
+      weather_year: 2012
   2050:
     all_cases:  # Applied to ALL scenarios in 2050
-      carbon_tax: 100
-      default_load_multiplier: 1.30
+      weather_year: 2012
+
+scenario_definitions_fn: scenario_definitions.csv
 ```
 
 **scenario_definitions.csv**:
@@ -201,19 +198,20 @@ low_policy,2050,low
 
 In this example:
 
-- `all_cases` sets carbon tax for each year
-- `policy` column varies RES policy files across scenarios
+- `all_cases` selects the weather year for each planning year
+- `policy` varies carbon tax across scenarios
 - Both are applied together for each case/year combination
 
 ### By Scenario
 
 For scenario studies, use `settings_management`:
 
-```texttext
+```text
 settings/
 ├── base.yml                    # Base configuration
-├── scenario_definitions.csv    # Scenario matrix
 └── settings_management.yml     # Parameter swaps
+extra_inputs/
+└── scenario_definitions.csv    # Scenario matrix
 ```
 
 See [Run Multiple Scenarios](run-scenarios.md) for details.
@@ -232,10 +230,11 @@ data_location: /Users/me/powergenome_data
 RESOURCE_GROUP_PROFILES: /Users/me/nrel_profiles
 input_folder: extra_inputs
 
-# Optional legacy paths
-PUDL_DB: /Users/me/databases/pudl.db
-EIA_AEO_YEAR: 2023
 ```
+
+Relative `data_location` and scalar `input_folder` paths resolve from the
+parent of the settings directory (or the directory containing a settings file).
+Resource group paths are relative to the process working directory.
 
 `RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` accept **either a single path or a
 list of paths**, so data can be split across multiple folders:
@@ -273,7 +272,8 @@ RESOURCE_GROUP_PROFILES: /shared/nrel/generation_profiles
 
 ### Parameter Override
 
-Later files override earlier values:
+Avoid defining the same top-level parameter in multiple files. For example,
+these two files conflict:
 
 **settings/01_base.yml**:
 
@@ -283,8 +283,7 @@ resource_modifiers:
     technology: UtilityPV
     tech_detail: Class1
     capex_mw: [mul, 1.0]
-alt_growth_rate:
-  CA_N: 0.01
+carbon_tax: 25
 ```
 
 **settings/02_overrides.yml**:
@@ -292,9 +291,13 @@ alt_growth_rate:
 ```yaml
 resource_modifiers:
   utilitypv:
-    capex_mw: [mul, 0.9]  # Overrides only capex_mw under the utilitypv key
-# alt_growth_rate: 0.01 remains unchanged
+    capex_mw: [mul, 0.9]
 ```
+
+The whole `resource_modifiers` dictionary is replaced, not recursively merged;
+the surviving entry lacks the required `technology` and `tech_detail` keys.
+Since directory iteration order is not guaranteed, do not rely on either file
+winning. Keep all entries for a top-level key together.
 
 ### List Merging
 
@@ -304,7 +307,7 @@ Lists are **replaced**, not merged:
 
 ```yaml
 new_resources:
-  - [NaturalGas, CCAvgCF, Moderate, 500]
+  - [NaturalGas, 2-on-1 Combined Cycle (F-Frame), Moderate, 500]
   - [UtilityPV, Class1, Moderate, 100]
   - [LandbasedWind, Class3, Moderate, 100]
 ```
@@ -313,44 +316,45 @@ new_resources:
 
 ```yaml
 new_resources:
-  - [Battery, "*", Moderate, 100]  # Replaces entire list above!
+  - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 100]
 ```
 
-**Result**: Only `Battery` is in `new_resources`.
+**Result**: One entire list replaces the other; which one wins is not guaranteed.
 
 **Solution**: Keep lists in one file or use complete lists in later files:
 
 ```yaml
 new_resources:
-  - [NaturalGas, CCAvgCF, Moderate, 500]
+  - [NaturalGas, 2-on-1 Combined Cycle (F-Frame), Moderate, 500]
   - [UtilityPV, Class1, Moderate, 100]
   - [LandbasedWind, Class3, Moderate, 100]
-  - [Battery, "*", Moderate, 100]  # Complete list
+  - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 100]
 ```
 
 ### Dictionary Merging
 
-Nested dictionaries merge recursively:
+Nested dictionaries are not merged across files:
 
 **settings/tags.yml**:
 
 ```yaml
 model_tag_values:
-  NaturalGas_CCAvgCF_Moderate:
-    THERM: 1
-    VRE: 0
+  THERM:
+    NaturalGas: 1
 ```
 
 **settings/more_tags.yml**:
 
 ```yaml
 model_tag_values:
-  UtilityPV_Class1_Moderate:  # Adds to model_tag_values
-    THERM: 0
-    VRE: 1
+  VRE:
+    UtilityPV: 1
 ```
 
-**Result**: Both technologies are in `model_tag_values`.
+**Result**: One entire `model_tag_values` dictionary replaces the other. Combine
+the tag entries in a single file instead. The Python `Settings.update()` and
+`Settings.load_settings()` methods also update top-level keys rather than
+deep-merging them.
 
 ## Validation
 
@@ -363,16 +367,17 @@ from powergenome.settings import load_settings
 from pathlib import Path
 
 settings = load_settings(Path("settings"))
-print(settings.get("model_year"))
+print(settings.get("model_periods"))
 print(settings.get("model_regions"))
 ```
 
 ### Validate Required Parameters
 
-Check for missing required parameters:
+Check for settings used in the example above:
 
 ```python
 from powergenome.settings import load_settings
+from pathlib import Path
 
 settings = load_settings(Path("settings"))
 
@@ -380,7 +385,6 @@ required = [
     "model_periods",
     "target_usd_year",
     "model_regions",
-    "model_tag_names",
 ]
 
 missing = [p for p in required if p not in settings]
@@ -395,6 +399,7 @@ Verify data tables are accessible:
 ```python
 from powergenome.settings import load_settings
 from powergenome.database import initialize_data_manager
+from pathlib import Path
 
 settings = load_settings(Path("settings"))
 data_location = settings.get("data_location")
@@ -416,20 +421,18 @@ Apply regional construction cost differences:
 **settings/regional_costs.yml**:
 
 ```yaml
-cost_multiplier_fn: regional_multipliers.csv
+regional_cost_factor_table: regional_multipliers.csv
 cost_multiplier_region_map:
-  CA_N: PCA_WECC
-  CA_S: PCA_WECC
-  AZ: PCA_WECC
+  PCA_WECC: [CA_N, CA_S, AZ]
 ```
 
 **extra_inputs/regional_multipliers.csv**:
 
 ```csv
-region,technology,multiplier
-PCA_WECC,UtilityPV,1.2
-PCA_WECC,LandbasedWind,1.15
-PCA_WECC,NaturalGas_CC,1.1
+technology,region,value
+UtilityPV_Class1,PCA_WECC,1.2
+LandbasedWind_Class3,PCA_WECC,1.15
+NaturalGas_2-on-1 Combined Cycle (F-Frame),PCA_WECC,1.1
 ```
 
 ### Technology Restrictions
@@ -438,10 +441,9 @@ Prohibit technologies in specific regions:
 
 !!! warning "Legacy setting — not applied"
     `new_gen_not_available` is only validated for region-name consistency; it is **not**
-    applied to exclude technologies. `new_resources` is not region-scoped — each listed
-    technology is built in every region — so there is currently no supported way to
-    exclude a new-build technology from a subset of regions. Renewable clusters are
-    scoped per region through `renewables_clusters`.
+    applied to exclude technologies. Non-renewable `new_resources` are built in
+    every model region; renewable resource clusters are scoped per region through
+    `renewables_clusters`.
 
 **settings/tech_availability.yml**:
 
@@ -462,18 +464,28 @@ Modify costs for specific technologies:
 
 ```yaml
 resource_modifiers:
-  UtilityPV_Class1_Moderate:
+  utility_pv:
+    technology: UtilityPV
+    tech_detail: Class1
     capex_mw:
-      2030: 1.1  # 10% higher than ATB
-    fixed_o_m_mw:
-      2030: 15000  # Override ATB value
+      2030: [mul, 1.1]  # 10% higher than source data
+    Fixed_OM_Cost_per_MWyr:
+      2030: 15000  # Override source value
 
 modified_new_resources:
-  UtilityPV_Class1_High:  # Create new variant
-    base_resource: UtilityPV_Class1_Moderate
+  utility_pv_high:
+    technology: UtilityPV
+    tech_detail: Class1
+    cost_case: Moderate
+    size_mw: 100
+    new_technology: UtilityPV
+    new_tech_detail: Class1_High
+    new_cost_case: High
     capex_mw:
-      2030: 1.3  # 30% higher
+      2030: [mul, 1.3]
 ```
+
+Add entries for every planning year or a `default` to the year-keyed values.
 
 ### Emission Policies
 
@@ -483,17 +495,10 @@ Configure renewable portfolio standards:
 
 ```yaml
 emission_policies_table: emission_policies.csv
-energy_share_req_fn: energy_share_requirements.csv
 ```
 
-**extra_inputs/emission_policies.csv**:
-
-```csv
-case_id,year,region,RPS,CES,CO2_cap
-baseline,2030,all,0.5,0.8,
-baseline,2040,all,0.7,0.9,
-baseline,2050,all,0.9,1.0,
-```
+See [Energy Share Requirements](energy-share-requirements.md) for the policy
+table format.
 
 ## Troubleshooting
 
@@ -501,13 +506,13 @@ baseline,2050,all,0.9,1.0,
 
 **Problem**: Settings folder not recognized
 
-**Solution**: Pass folder path, not individual file:
+**Solution**: Pass an existing settings directory or YAML file:
 
 ```bash
 # Correct
 run_powergenome --settings_file settings --results_folder results
 
-# Incorrect
+# Also supported: a single YAML file
 run_powergenome --settings_file settings/model.yml --results_folder results
 ```
 
@@ -526,15 +531,8 @@ grep -r "model_periods" settings/
 
 **Problem**: Parameter value not updating from later file
 
-**Solution**: Check file alphabetical order:
-
-```bash
-# Files load alphabetically
-ls settings/
-# 01_base.yml loads before 02_overrides.yml
-```
-
-Rename files to control load order if needed.
+**Solution**: Check for duplicate top-level keys and combine their values in one
+file. Renaming files does not establish a guaranteed override order.
 
 ### Path Not Found
 
@@ -546,9 +544,9 @@ Rename files to control load order if needed.
 # Use absolute path
 data_location: /Users/me/powergenome_data
 
-# Or expand home directory
-data_location: ~/powergenome_data
 ```
+
+The loader does not expand `~`; use the full home-directory path.
 
 ## Best Practices
 

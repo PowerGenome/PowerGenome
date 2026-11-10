@@ -14,29 +14,33 @@ List of technologies from NREL Annual Technology Baseline (ATB) to include as ne
 
 ```yaml
 new_resources:
-  - [NaturalGas, CCCCSAvgCF, Moderate, 500]
-  - [NaturalGas, CTAvgCF, Moderate, 100]
-  - [Battery, "*", Moderate, 100]
+  - [NaturalGas, 1-on-1 Combined Cycle (H-Frame), Moderate, 500]
+  - [NaturalGas, Combustion Turbine (F-Frame), Moderate, 100]
+  - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 100]
   - [UtilityPV, Class1, Moderate, 100]
   - [LandbasedWind, Class3, Moderate, 100]
-  - [OffshoreWind, Class3, Moderate, 100]
+  - [OffShoreWind, Class3, Moderate, 100]
   - [Nuclear, Nuclear - Large, Moderate, 1000]
 ```
 
 **Format**: `[technology, tech_detail, cost_case, size_mw]`
 
-- `technology`: Technology type (e.g., `NaturalGas`, `Battery`, `UtilityPV`)
-- `tech_detail`: Specific variant (e.g., `CCAvgCF`, `Class1`, `*` for wildcard)
+- `technology`: Technology type (e.g., `NaturalGas`, `UtilityPV`)
+- `tech_detail`: Specific variant (e.g., `1-on-1 Combined Cycle (H-Frame)`, `Class1`)
 - `cost_case`: Cost trajectory (`Conservative`, `Moderate`, `Advanced`)
 - `size_mw`: Unit size in MW
 
-`technology`, `tech_detail`, and `cost_case` are matched to the cost and heat rate tables as text, so `[Wind, 1, Moderate, 100]` and `[Wind, "1", Moderate, 100]` are equivalent. YAML still rewrites some unquoted values (`1.50` becomes `1.5`), so quote any value that must match the table text exactly.
+These examples use 2024 ATB names. Names vary by data vintage and must match
+the configured cost and heat rate tables exactly; `*` is not a wildcard.
+The three keys are compared as text, so `[Wind, 1, Moderate, 100]` and
+`[Wind, "1", Moderate, 100]` are equivalent. YAML still rewrites some
+unquoted values (`1.50` becomes `1.5`), so quote values that must match exactly.
 
-### `resource_data_year`year`
+### `resource_data_year`
 
 **Type**: Integer
 **Required**: No
-**Default**: Latest available
+**Default**: No data-year filter
 **Example**: `2023`
 
 Which year's ATB data to use for technology costs.
@@ -47,7 +51,7 @@ resource_data_year: 2023
 
 ATB is updated annually with revised cost projections. Specify the data vintage for reproducibility.
 
-### `resource_financial_case`case`
+### `resource_financial_case`
 
 **Type**: String
 **Required**: No
@@ -66,8 +70,7 @@ resource_financial_case: Market
 ### `resource_cap_recovery_years`
 
 **Type**: Integer
-**Required**: No
-**Default**: `20`
+**Required**: Yes
 **Example**: `20`
 
 Default capital recovery period (economic lifetime) for new generators, used to calculate annualized capital costs.
@@ -105,26 +108,25 @@ Modify ATB technology parameters. Each entry specifies technology/tech_detail ma
 ```yaml
 resource_modifiers:
   batteries:
-    technology: Battery
-    tech_detail: "*"
+    technology: Utility-Scale Battery Storage
+    tech_detail: Lithium Ion
     Var_OM_Cost_per_MWh: [add, 0.15]
     Var_OM_Cost_per_MWh_In: 0.15
-    size_mw: 100
 ```
 
-Each entry creates a candidate resource with the specified unit size.
+Modifiers apply to matching candidates already listed in `new_resources`;
+they do not create candidates.
 
 Parameter values inside each modifier can also be specified as **year-keyed dictionaries** (see [Settings by Model Year](#settings-by-model-year)) to vary costs across planning periods without a full scenario management setup:
 
 ```yaml
 resource_modifiers:
   batteries:
-    technology: Battery
-    tech_detail: "*"
+    technology: Utility-Scale Battery Storage
+    tech_detail: Lithium Ion
     Var_OM_Cost_per_MWh:
       2030: [add, 0.15]
       2040: [add, 0.10]
-    size_mw: 100
 ```
 
 ### `modified_new_resources`
@@ -139,7 +141,7 @@ Create new technology variants by copying and modifying existing ATB technologie
 modified_new_resources:
   NGCCS100:
     technology: NaturalGas
-    tech_detail: CCCCSAvgCF
+    tech_detail: 1-on-1 Combined Cycle (H-Frame) 95% CCS
     cost_case: Conservative
     size_mw: 500
     new_technology: NaturalGas
@@ -390,7 +392,7 @@ transmission_investment_cost:
 
 # Required extra_inputs file: capacity_limit_spur_fn
 # File: resource_capacity_spur.csv
-# resource,region,spur_miles
+# technology,region,spur_miles
 # offshore_wind_fixed,CA_N,45
 # solar_pv,CA_N,12
 ```
@@ -554,14 +556,14 @@ Complete new-build configuration:
 
 ```yaml
 # New-build technologies
-resource_data_year: 2023
+resource_data_year: 2024
 resource_financial_case: Market
 resource_cap_recovery_years: 20
 
 new_resources:
-  - [NaturalGas, CCCCSAvgCF, Conservative, 500]
-  - [NaturalGas, CTAvgCF, Moderate, 100]
-  - [Battery, "*", Moderate, 100]
+  - [NaturalGas, 1-on-1 Combined Cycle (H-Frame) 95% CCS, Conservative, 500]
+  - [NaturalGas, Combustion Turbine (F-Frame), Moderate, 100]
+  - [Utility-Scale Battery Storage, Lithium Ion, Moderate, 100]
   - [UtilityPV, Class1, Moderate, 100]
   - [LandbasedWind, Class3, Moderate, 100]
   - [Nuclear, Nuclear - Large, Moderate, 1000]
@@ -569,8 +571,8 @@ new_resources:
 # Technology modifications
 resource_modifiers:
   batteries:
-    technology: Battery
-    tech_detail: "*"
+    technology: Utility-Scale Battery Storage
+    tech_detail: Lithium Ion
     Var_OM_Cost_per_MWh: [add, 0.15]
 
 # Regional restrictions (legacy — only validated, not applied)
@@ -581,10 +583,8 @@ new_gen_not_available:
     - Coal_newAvgCF_Moderate
 
 # Capacity limits
-new_build_max_capacity:
-  CA_N:
-    Nuclear_Nuclear_Moderate: 2000
-    UtilityPV_Class1_Moderate: 10000
+input_folder: extra_inputs
+capacity_limit_spur_fn: resource_capacity_spur.csv
 
 # Renewable sites
 renewables_clusters:

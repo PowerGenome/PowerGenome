@@ -1,280 +1,96 @@
 # Configure Data Tables
 
-PowerGenome reads all input data through a central **DataManager** that loads tables from a folder of (CSV or Parquet) files or a (DuckDB or Sqlite) database. This guide walks through how to point PowerGenome at your data files and how to filter or select the data you need.
+Use this guide to point an existing study at source files and select rows from a
+multi-scenario dataset. It does not create or download the data. See
+[Input Table Schemas](../reference/schemas/input-tables.md) for required columns
+and [Data Tables Settings](../reference/settings/data-tables.md) for complete syntax.
 
-For the full parameter reference, see [Data Tables Settings](../reference/settings/data-tables.md).
+## 1. Set the search locations
 
-## Prerequisites
-
-- Completed the [Getting Started](../tutorials/getting-started.md) tutorial
-- A folder containing your source data files (CSV or Parquet)
-
----
-
-## Step 1: Set the data location
-
-Tell PowerGenome where your data files live with `data_location`:
+Put paths in your settings, for example `settings/data.yml`:
 
 ```yaml
-# settings/data.yml
-data_location: /path/to/your/data_folder # Can also be /path/to/database.db
-```
-
-Paths may be relative to the settings file (or settings directory), and multiple
-locations may be provided:
-
-```yaml
-data_location:
-  - data
-  - /shared/powergenome_data.db
+data_location: data
 input_folder: extra_inputs
 ```
 
-PowerGenome searches `input_folder` as well as `data_location` for configured
-tables. Each table must be found in exactly one location; duplicate table names
-are rejected.
+With a settings directory, these paths resolve from its parent directory; with
+a single settings file, they resolve from that file's directory. This example
+expects `data/`, `extra_inputs/`, and `settings/` alongside one another.
 
----
+PowerGenome searches both locations. Each configured table must resolve in
+exactly one place; do not keep duplicate copies with the same table name in both.
+`data_location` can also be a list of locations or a SQLite/DuckDB file.
 
-## Step 2: Configure each table
+## 2. Name your source tables
 
-### Simple configuration (filename only)
-
-Point each setting to a file by name:
+Use exact settings keys and source filenames:
 
 ```yaml
 generation_table: generators.parquet
+plant_region_table: plant_region.csv
 demand_table: hourly_demand.parquet
 fuel_price_table: fuel_prices.csv
-transmission_constraints_table: transmission_constraints.csv
+transmission_constraints_table: transmission_capacity.csv
+transmission_cost_table: network_costs.csv
 ```
 
-PowerGenome resolves each filename inside the configured data locations.
+These are illustrative filenames, not a complete study. Keep the other table
+settings and processing parameters your workflow needs. For a database backend,
+use database table names without file extensions.
 
-### Advanced configuration (with filters)
+## 3. Select a demand scenario
 
-Use a dictionary when you need to filter rows, select columns, or pick a
-specific scenario from a multi-scenario file:
-
-```yaml
-generation_table:
-  table_name: generators.parquet
-  scenario: baseline
-  filters:
-    - - [capacity_mw, '>', 10]
-```
-
-**Keys:**
-
-| Key | Required | Description |
-|-----|----------|-------------|
-| `table_name` | Yes | Filename in `data_location` |
-| `scenario`   | No  | Filter rows where `scenario` column equals this value |
-| `filters`    | No  | DNF filter logic (see below) |
-| `columns`    | No  | Load only these columns (useful for large files) |
-
----
-
-## Step 3: Write filter expressions
-
-### DNF filter syntax
-
-Filters use **Disjunctive Normal Form**: a list of AND-groups that are OR'd together.
-
-```
-(A AND B) OR (C AND D)
-```
-
-```yaml
-filters:
-  - - [column, operator, value]   # Group 1, condition A
-    - [column, operator, value]   # Group 1, condition B  (AND)
-  - - [column, operator, value]   # Group 2, condition C  (OR)
-```
-
-**Supported operators**: `=`, `==`, `!=`, `>`, `>=`, `<`, `<=`, `in`, `not in`
-
-### Common filter patterns
-
-**Single condition:**
+Suppose `hourly_demand.parquet` contains multiple scenarios and planning years.
+Replace its string setting with a dictionary:
 
 ```yaml
 demand_table:
-  table_name: demand.parquet
+  table_name: hourly_demand.parquet
+  scenario: high_ev
   filters:
-    - - [year, '=', 2030]
+    - - [region, 'in', [p1, p2, p3, p4]]
+      - [year, 'in', [2030, 2040]]
 ```
 
-**AND (two conditions must both be true):**
+This selects `high_ev` rows for the four base regions and both planning years.
+Use names and years present in your own data. Demand processing selects the
+requested planning year; do not accidentally filter out later periods.
 
-```yaml
-generation_table:
-  table_name: generators.parquet
-  filters:
-    - - [operating_year, '<=', 2030]
-      - [retirement_year, '>', 2030]
-```
+The two conditions in one group are **ANDed**. Separate groups are **ORed**;
+see the [filter reference](../reference/settings/data-tables.md#filter-syntax)
+for that syntax and the interaction with `scenario`.
 
-**OR (either region is included):**
+!!! warning "Keep generation membership stable"
+    For myopic multi-period models, point every planning period at the same
+    generation data. Per-period filters can change cluster membership. Also,
+    `retirement_year > 2030` removes blank retirement years, although blank means
+    no planned retirement. Let the generator workflow label operating capacity.
 
-```yaml
-demand_table:
-  table_name: demand.parquet
-  filters:
-    - - [region, '=', 'CA_N']
-    - - [region, '=', 'CA_S']
-```
+## 4. Validate and inspect
 
-**List membership (`in`):**
-
-```yaml
-generation_table:
-  table_name: generators.parquet
-  filters:
-    - - [region, 'in', ['CA_N', 'CA_S', 'AZ']]
-```
-
----
-
-## Step 4: Handle multi-year data
-
-If your data file spans multiple planning years, use a `year` filter so
-each run only sees the rows for that period:
-
-```yaml
-demand_table:
-  table_name: demand_all_years.parquet
-  filters:
-    - - [year, '=', 2030]
-```
-
-For settings that change across planning years, use a [year-keyed dictionary](use-year-keyed-settings.md):
-
-```yaml
-demand_table:
-  2030:
-    table_name: demand_all_years.parquet
-    filters:
-      - - [year, '=', 2030]
-  2040:
-    table_name: demand_all_years.parquet
-    filters:
-      - - [year, '=', 2040]
-```
-
----
-
-## Step 5: Combine `scenario` with filters
-
-`scenario` is a shorthand that adds a `scenario = <value>` filter. You can
-combine it with additional filters — PowerGenome ANDs the scenario condition
-into every OR-group:
-
-```yaml
-generation_table:
-  table_name: generators.parquet
-  scenario: high_retirements
-  filters:
-    - - [capacity_mw, '>=', 1]
-```
-
-This is equivalent to:
-
-```yaml
-generation_table:
-  table_name: generators.parquet
-  filters:
-    - - [scenario, '=', 'high_retirements']
-      - [capacity_mw, '>=', 1]
-```
-
----
-
-## Step 6: Reduce memory use with column selection
-
-For large Parquet files, load only the columns your model needs:
-
-```yaml
-generation_table:
-  table_name: generators.parquet
-  columns:
-    - plant_id
-    - technology
-    - capacity_mw
-    - heat_rate_mmbtu_mwh
-    - region
-    - operating_year
-```
-
----
-
-## Step 7: Use a DuckDB database (optional)
-
-If your data is stored in a database (`.db` or `.duckdb`) file rather than a folder of
-flat files, point `data_location` at the database file:
-
-```yaml
-data_location: /path/to/powergenome_data.db
-```
-
-Table names then refer to tables inside the database:
-
-```yaml
-generation_table: generators
-demand_table: hourly_demand
-```
-
-Do **not** include a file extension when using a database backend.
-
----
-
-## Table reference
-
-The following settings parameters map to tables in DataManager:
-
-| Setting parameter | Standard table name | Typical use |
-|---|---|---|
-| `generation_table` | `generation` | Existing power plants |
-| `demand_table` | `demand` | Hourly load time series |
-| `fuel_price_table` | `fuel_price` | Fuel cost time series |
-| `transmission_constraints_table` | `transmission_constraints` | Network topology |
-| `plant_region_table` | `plant_region` | Plant-to-region mapping |
-| `distributed_capacity_table` | `distributed_capacity` | Rooftop solar capacity |
-| `distributed_profiles_table` | `distributed_profiles` | Rooftop solar generation |
-| `supplemental_demand_table` | `supplemental_demand` | Extra hourly demand (data centers, etc.) |
-
----
-
-## Troubleshooting
-
-**"Table not found" error**
-
-Check that the filename is spelled correctly and is present in `data_location`:
+Run from your study directory:
 
 ```bash
-ls /path/to/your/data_folder
+validate_powergenome --settings_file settings
 ```
 
-Verify the setting key is exact (e.g., `generation_table`, not `generators_table`).
+Fix missing paths, unknown regions, missing columns, and coverage warnings before
+using the inputs for analysis. Then run your study and inspect the saved
+`powergenome_case_settings.yml` to confirm the intended table configuration was
+used in each period.
 
-**Wrong data being loaded**
+| Problem | Check |
+| --- | --- |
+| Table not found | Exact filename/table name, recognized setting key, and configured locations. |
+| Duplicate table match | Remove the duplicate source or give sources distinct names. |
+| Required column missing | Source schema and any `columns` projection. Omit `columns` unless you know all downstream requirements. |
+| Wrong rows or empty result | Filter nesting, data types, scenario spelling, and required region/year coverage. |
 
-Use `list_tables()` to confirm what DataManager sees:
+## Next steps
 
-```python
-from powergenome.database import get_data_manager
-dm = get_data_manager()
-print(dm.list_tables())
-```
-
-**File has no extension**
-
-PowerGenome tries to auto-detect `.csv` or `.parquet` files by appending extensions, but it's best practice to always include the extension in your setting.
-
----
-
-## Related documentation
-
-- [Data Tables Settings Reference](../reference/settings/data-tables.md): Full parameter documentation and filter syntax
-- [Configure Settings](configure-settings.md): Settings file organization
-- [Run Multi-Scenario Studies](run-scenarios.md): Varying data sources across scenarios
+- [Data Tables Settings](../reference/settings/data-tables.md): mappings,
+  database sources, filters, and renewable path settings.
+- [Run Multi-Scenario Studies](run-scenarios.md): swap sources between cases.
+- [Use Year-Keyed Settings](use-year-keyed-settings.md): change a configuration
+  by planning year when the source requires it.

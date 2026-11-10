@@ -42,6 +42,7 @@ carbon_tax:
 ```
 
 PowerGenome will resolve one value per planning year when building case settings.
+Use unquoted integer year keys between 1900 and 2200; `default` is optional.
 
 ## 3. Use Fallback Values With `default`
 
@@ -61,6 +62,8 @@ Behavior:
 ## 4. Apply Year-Keyed Values In Nested Settings
 
 You can use this pattern inside nested dictionaries too.
+Resolution traverses dictionaries, not dictionaries inside lists. It skips
+`settings_management` itself, but resolves selected swaps after applying them.
 
 ```yaml
 resource_modifiers:
@@ -80,6 +83,7 @@ For each year-keyed dictionary, PowerGenome expects either:
 - A `default` fallback key
 
 If only some years are covered and no fallback exists, PowerGenome raises a `ValueError`.
+With a scenario CSV, coverage is checked against the years in the selected rows.
 
 Example that fails for planning years `[2030, 2040]`:
 

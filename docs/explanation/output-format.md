@@ -11,7 +11,8 @@ For Macro, see the [MacroEnergy Examples](https://github.com/macroenergy/MacroEn
 
 ## Folder structure
 
-Each (case_id, planning period) pair produces a folder:
+Each (case_id, planning period) pair produces a folder. Files shown below are
+examples; empty or disabled outputs are omitted.
 
 ```
 results/
@@ -22,9 +23,7 @@ results/
             │   ├── Demand_data.csv
             │   ├── Fuels_data.csv
             │   ├── Generators_variability.csv
-            │   ├── Network.csv
-            │   ├── Period_map.csv
-            │   └── Representative_Period.csv
+            │   └── Network.csv
             ├── resources/          ← one CSV per resource type
             │   ├── Thermal.csv
             │   ├── Vre.csv
@@ -52,21 +51,24 @@ When running without scenario definitions, `case_id = Inputs` and the folder is 
 
 ### `Demand_data.csv`
 
-Hourly electricity demand for each model zone. One row per hour (or representative period timestep), with columns:
+Hourly electricity demand for each model zone. One row per hour, with columns:
 
 | Column | Description |
 |---|---|
-| `Rep_Periods` | Number of representative periods |
-| `Timesteps_per_Rep_Period` | Hours per representative period |
-| `Sub_Weights` | Weight (hours) each period represents in the full year |
+| `Rep_Periods` | Number of periods in the file |
+| `Timesteps_per_Rep_Period` | Hours per period |
+| `Sub_Weights` | Hours each period represents |
 | `Time_Index` | Sequential hour index |
 | `Demand_MW_z<N>` | Load in MW for zone N |
 
-When time domain reduction is off, there is one period covering all 8760 hours with `Sub_Weights = 8760`.
+All supplied hours are written as one period, so `Rep_Periods` is `1`,
+`Timesteps_per_Rep_Period` is the number of hours, and `Sub_Weights` equals that
+hour count.
 
 ### `Fuels_data.csv`
 
-Fuel prices by time step. One row per hour with one column per fuel type, plus a `Time_Index` column.
+One column per fuel plus `Time_Index`. The row with index `0` contains CO₂
+content (tonnes/MMBtu); subsequent rows contain hourly prices ($/MMBtu).
 
 ### `Generators_variability.csv`
 
@@ -79,15 +81,12 @@ Transmission network topology. One row per network line (inter-regional connecti
 | Column | Description |
 |---|---|
 | `Network_Lines` | Line identifier |
-| `z<N>` | Zone membership (+1 sending, −1 receiving, 0 not in line) |
+| `Network_zones` | Zone label (for example `z1`); rows also carry line data |
+| `Start_Zone`, `End_Zone` | Numeric zone identifiers at each end of a line |
 | `Line_Max_Flow_MW` | Maximum power flow in MW |
 | `Line_Loss_Percentage` | Fraction of power lost in transmission |
 | `Line_Max_Reinforcement_MW` | Maximum expansion allowed (if `tx_expansion_per_period` or `tx_expansion_mw_per_period` is set) |
 | `Line_Reinforcement_Cost_per_MWyr` | Annualized cost to expand line by 1 MW |
-
-### `Period_map.csv` and `Representative_Period.csv`
-
-Present only when time domain reduction is active. Map representative periods back to the original 8760-hour year for chronological analysis.
 
 ---
 
@@ -97,14 +96,16 @@ Resources are split into typed CSVs based on their primary model tag:
 
 | File | Resources included |
 |---|---|
-| `Thermal.csv` | `THERM = 1` |
+| `Thermal.csv` | `THERM > 0` |
 | `Vre.csv` | `VRE = 1` |
 | `Storage.csv` | `STOR > 0` |
 | `Hydro.csv` | `HYDRO = 1` |
 | `Flex_demand.csv` | `FLEX = 1` |
 | `Must_run.csv` | `MUST_RUN = 1` |
-| `Long_duration_storage.csv` | `LDS = 1` |
-| `Electrolyzer.csv` | `ELECTROLYZER = 1` |
+
+Long-duration storage is identified by the `LDS` column in storage or hydro files,
+not a separate resource file. The writer does not currently split electrolyzers
+into a separate file.
 
 All resource files share a common set of columns, with additional columns present depending on the resource type.
 
@@ -114,7 +115,7 @@ All resource files share a common set of columns, with additional columns presen
 |---|---|
 | `Resource` | Unique resource name |
 | `Zone` | Zone number (integer) |
-| `Existing_Cap_MW` | Installed capacity at start of planning period |
+| `Existing_Cap_MW` | Existing capacity operating at the end of the planning period |
 | `New_Build` | 1 if the resource is a candidate for new investment |
 | `Cap_Size` | Unit size in MW (for integer investment decisions) |
 | `Inv_Cost_per_MWyr` | Annualized investment cost ($/MW/yr) |
@@ -141,7 +142,8 @@ All resource files share a common set of columns, with additional columns presen
 
 ### `Energy_share_requirement.csv`
 
-Defines Renewable Portfolio Standard (RPS) or Clean Energy Standard (CES) constraints. One row per constraint:
+Defines Renewable Portfolio Standard (RPS) or Clean Energy Standard (CES) constraints
+by zone:
 
 | Column | Description |
 |---|---|
@@ -175,7 +177,9 @@ If your GenX version uses the older single-file format (`Generators_data.csv`, `
 old_genx_format: true
 ```
 
-PowerGenome then writes `Generators_data.csv` combining all resource types, and `Load_data.csv` rather than `Demand_data.csv`.
+PowerGenome then writes `Generators_data.csv` combining all resource types and
+`Load_data.csv` rather than `Demand_data.csv`. These files are directly in the
+period folder, not the v6 subfolders.
 
 ---
 
@@ -188,15 +192,16 @@ Only the simpleCSV format is produced (not Macro's JSON asset format). The seman
 transmission, demand, fuel supply, and CO2 caps follows the [GenX-to-Macro converter](https://github.com/EmilDimanchev/GenX_to_Macro)
 (`lb/multistage` branch for multi-period runs).
 
-Both formats are written in the same `run_powergenome` call by default. Because all intermediate data processing
-(storage clustering, time reduction, market data) is shared, writing GenX and Macro inputs together in one run is
+With `macro_output: true`, both formats are written in the same `run_powergenome`
+call unless GenX output is disabled. Because all intermediate data processing
+(storage clustering, market data) is shared, writing GenX and Macro inputs together in one run is
 **faster than running PowerGenome twice** (once per model). Use `--no-genx` / `genx_output: false` to produce Macro
 inputs only.
 
 ### Folder structure
 
-The Macro case is written to a `macro_out/`-style folder (per planning period when multi-period), containing
-`system_data.json` plus three input subfolders:
+The Macro case is written at `results/<case_id>/` with scenario definitions, or
+at `results/` without them. It contains one stage per planning period:
 
 ```
 <macro case folder>/
@@ -207,20 +212,23 @@ The Macro case is written to a `macro_out/`-style folder (per planning period wh
 ├── system/
 │   ├── commodities.json      # Electricity, NaturalGas, CO2, Uranium, Coal, ...
 │   ├── locations.json        # Model region names
-│   ├── nodes.json            # Electricity demand nodes, fuel supply nodes, CO2 sinks, hydro source
-│   ├── time_data.json        # HoursPerSubperiod, HoursPerTimeStep, NumberOfSubperiods, ...
-│   ├── Period_map.csv        # Sub-period mapping (only when time reduction is active)
-│   ├── demand.csv            # Time_Index, Demand_MW_z<zone>...
-│   ├── availability.csv      # Time_Index, <resource>...  (non-constant VRE/hydro/must-run profiles)
-│   └── fuel_prices.csv       # Time_Index, <fuel>_<region>... price timeseries per fuel node
+│   ├── nodes_1.json          # Stage 1 demand nodes, fuel supply nodes, CO2 sinks
+│   ├── time_data_1.json      # Stage 1 time settings
+│   ├── demand_1.csv
+│   ├── availability_1.csv
+│   └── fuel_prices_1.csv
 └── assets/
-    ├── <base fuel>_power.csv # Type=ThermalPower (one file per base fuel)
-    ├── vre.csv               # Type=VRE
-    ├── electricity_stor.csv  # Type=Battery
-    ├── hydropower.csv        # Type=HydroRes
-    ├── mustrun.csv           # Type=MustRun
-    └── powerlines.csv        # Type=TransmissionLink
+    └── assets_1/
+        ├── <base fuel>_power.csv
+        ├── vre.csv
+        ├── electricity_stor.csv
+        ├── hydropower.csv
+        ├── mustrun.csv
+        └── powerlines.csv
 ```
+
+Later stages use the same names with their stage number. Individual files depend
+on the data and options used.
 
 ### Resource mapping highlights
 
@@ -232,20 +240,19 @@ The Macro case is written to a `macro_out/`-style folder (per planning period wh
 | `Eff_Up` / `Eff_Down` | `charge_efficiency` / `discharge_efficiency` (storage, hydro) |
 | `New_Build` / `Can_Retire` | `can_expand` / `can_retire` |
 | `Line_Max_Flow_MW` + reinforcement | `existing_capacity` + `max_capacity` on a `TransmissionLink` |
-| VRE variability | `availability` column in `system/availability.csv` |
-| Demand data | `Demand_MW_z<zone>` columns in `system/demand.csv` + electricity nodes in `nodes.json` |
-| Fuel prices | per-(fuel, region) supply node + `system/fuel_prices.csv` |
+| VRE variability | Resource columns in `system/availability_<stage>.csv` |
+| Demand data | `Demand_MW_z<zone>` columns in `system/demand_<stage>.csv` and electricity nodes |
+| Fuel prices | per-(fuel, region) supply node + `system/fuel_prices_<stage>.csv` |
 | CO2 caps | CO2 sink node with `CO2CapConstraint` |
 
-Cross-sector assets (hydrogen, liquid fuels, CCS detail, demand-side) are not yet emitted; PowerGenome is
-electricity-centric and the Macro writer is scoped to the electricity system in v1.
+The Macro writer is electricity-centric; it does not yet emit cross-sector
+hydrogen, liquid-fuel, or demand-side assets.
 
 ---
 
 ## Related documentation
 
 - [Resource Tags Settings](../reference/settings/resource-tags.md): How `THERM`, `VRE`, `STOR` etc. are assigned
-- [Time Reduction Settings](../reference/settings/time-reduction.md): Controls `Rep_Periods` and `Sub_Weights`
 - [Transmission Settings](../reference/settings/transmission.md): Network parameters
 - [Macro Output Settings](../reference/settings/macro-output.md): How to enable GenX and/or Macro output
 - [Data Pipeline Flow](pipeline.md): How outputs are assembled from pipeline stages

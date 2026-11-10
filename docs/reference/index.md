@@ -9,11 +9,10 @@ Comprehensive documentation of all settings parameters organized by functional a
 - **[Model Definition](settings/model-definition.md)**: Planning periods, target year, timezone
 - **[Regions and Geography](settings/regions.md)**: Model regions, aggregations, capacity reserves
 - **[Existing Generators](settings/existing-generators.md)**: Clustering, retirements, hydro configuration
-- **[New Build Resources](settings/new-build.md)**: Technology costs, WACC, regional availability
+- **[New Build Resources](settings/new-build.md)**: Technology costs, WACC, resource modifiers, renewable clusters
 - **[Fuels](settings/fuels.md)**: Fuel prices, emission factors, CCS configuration
-- **[Demand and Load](settings/demand.md)**: Load profiles, growth rates, distributed generation
+- **[Demand and Load](settings/demand.md)**: Year-specific load profiles, supplemental demand, distributed generation
 - **[Transmission](settings/transmission.md)**: Network constraints, expansion costs, line loss
-- **[Time Reduction](settings/time-reduction.md)**: Representative period selection and weighting
 - **[Resource Tags](settings/resource-tags.md)**: Technology categorization for model behavior
 - **[Multi-Scenario Management](settings/scenario-management.md)**: Parameter variation across cases
 - **[Output Formats](settings/macro-output.md)**: GenX and Macro output selection, Macro model-run settings
@@ -35,7 +34,7 @@ Documentation of input and output file formats:
 
 - [System Design Tool](https://gschivley.github.io/PowerGenome-tools/web/): Interactive tool for generating settings files for your study area
 - [System Design Tool Documentation](https://gschivley.github.io/PowerGenome-tools/): Walkthrough of each configuration step
-- [Test System](https://github.com/PowerGenome/PowerGenome/tree/main/tests/test_system): Minimal test configuration
+- [Published Examples](https://github.com/PowerGenome/PowerGenome-examples): Texas and CA/AZ study configurations and demonstration data
 
 ## API Reference
 

@@ -8,22 +8,22 @@ PowerGenome generates a folder of CSV files for each scenario/year case. These f
     Macro layout and its GenX-to-Macro mapping are described in the [Output File Format explanation](../../explanation/output-format.md).
 
 !!! note "v6 vs legacy format"
-    The output structure differs between GenX v6+ and the legacy format. Set `genx_v6: true` in your settings to use the v6 layout (default). The legacy format uses `Generators_data.csv` and `Load_data.csv` instead of separate resource-type files.
+    The default is the split v6 layout. Set `old_genx_format: true` for the
+    legacy layout, which puts `Generators_data.csv` and `Load_data.csv` directly
+    in the period folder.
 
 ---
 
 ## Folder layout
 
 ```
-results/case_2030/
-├── Demand_data.csv                          # Hourly or representative-period load
-├── Fuels_data.csv                           # Fuel prices by time period
-├── Generators_variability.csv               # Capacity-factor profiles
-├── Network.csv                              # Transmission topology and limits
-├── Period_map.csv                           # Maps representative periods to full year
-├── Representative_Period.csv                # Weight of each representative period
-├── Operational_reserves.csv                 # Reserve requirement parameters
-│
+results/<case_id>/Inputs/Inputs_p<N>/
+├── system/
+│   ├── Demand_data.csv
+│   ├── Fuels_data.csv
+│   ├── Generators_variability.csv
+│   ├── Network.csv
+│   └── Operational_reserves.csv
 ├── resources/                               # One file per resource type
 │   ├── Thermal.csv
 │   ├── Vre.csv
@@ -31,17 +31,21 @@ results/case_2030/
 │   ├── Must_run.csv
 │   ├── Flex_demand.csv
 │   ├── Hydro.csv
-│   ├── Resource_energy_share_requirement.csv
-│   ├── Resource_capacity_reserve_margin.csv
-│   ├── Resource_minimum_capacity_requirement.csv
-│   └── Resource_maximum_capacity_requirement.csv
-│
-├── Energy_share_requirement.csv             # RPS/CES zone-level targets
-├── Capacity_reserve_margin.csv             # Planning reserve requirements
-├── CO2_cap.csv                             # Emission cap constraints
-├── Minimum_capacity_requirement.csv        # Minimum build mandates
-└── Maximum_capacity_requirement.csv        # Maximum build limits
+│   └── policy_assignments/
+│       ├── Resource_energy_share_requirement.csv
+│       ├── Resource_capacity_reserve_margin.csv
+│       ├── Resource_minimum_capacity_requirement.csv
+│       └── Resource_maximum_capacity_requirement.csv
+└── policies/
+    ├── Energy_share_requirement.csv
+    ├── Capacity_reserve_margin.csv
+    ├── CO2_cap.csv
+    ├── Minimum_capacity_requirement.csv
+    └── Maximum_capacity_requirement.csv
 ```
+
+Without scenario definitions, the period folder is `results/Inputs/Inputs_p<N>/`.
+Files that are empty or correspond to disabled features are omitted.
 
 ---
 
@@ -49,23 +53,26 @@ results/case_2030/
 
 ### `Demand_data.csv` / `Load_data.csv`
 
-Hourly (or representative-period) electricity demand for each model zone.
+Hourly electricity demand for each model zone.
 
 | Column | Description |
 |---|---|
 | `Time_Index` | Hour index (1-based) |
 | `Demand_MW_z{N}` | Load in MW for zone N (one column per zone) |
-| `Sub_Weights` | Weight (hours) assigned to this representative period row |
+| `Rep_Periods` | Number of periods in the file |
+| `Timesteps_per_Rep_Period` | Hours per period |
+| `Sub_Weights` | Hours represented by each period, stored in the first rows |
+
+The legacy file uses `Load_MW_z{N}` instead of `Demand_MW_z{N}`.
 
 ### `Fuels_data.csv`
 
-Fuel prices for each planning period.
+Fuel prices and emission factors for each planning period.
 
 | Column | Description |
 |---|---|
-| `Fuel` | Fuel name matching resource fuel assignments |
-| `{zone}` | Price in $/MMBtu for that zone (one column per zone) |
-| `CO2_content_tons_per_MMBtu` | Emission factor |
+| `Time_Index` | `0` for the emission-factor row; `1` onward for hourly prices |
+| `{fuel_name}` | CO₂ content (tonnes/MMBtu) in row 0, then hourly price ($/MMBtu) |
 
 ### `Generators_variability.csv`
 
@@ -83,33 +90,13 @@ Transmission network topology and line parameters.
 | Column | Description |
 |---|---|
 | `Network_Lines` | Line ID |
-| `z{N}` | Zone incidence (+1 sending, -1 receiving, 0 not connected) |
+| `Network_zones` | Zone label (for example `z1`); rows also carry line data |
+| `Start_Zone`, `End_Zone` | Numeric zone identifiers at each end of a line |
 | `Line_Max_Flow_MW` | Maximum forward flow |
-| `Line_Min_Flow_MW` | Maximum reverse flow (negative) |
 | `Line_Loss_Percentage` | Fractional transmission loss |
 | `Line_Max_Reinforcement_MW` | Maximum allowed capacity expansion |
 | `Line_Reinforcement_Cost_per_MWyr` | Annualized expansion cost ($/MW-year) |
 | `CapRes_Excl_{N}` | Capacity reserve zone exclusion flag |
-
-### `Period_map.csv`
-
-Maps each representative period to the full-year hours it represents (only present when time-domain reduction is used).
-
-| Column | Description |
-|---|---|
-| `Period_Index` | Row index |
-| `Rep_Period` | Representative period number |
-| `Rep_Period_Index` | Hour within the representative period |
-| `Time_Index` | Full-year hour this row represents |
-
-### `Representative_Period.csv`
-
-Weight (number of hours of the full year) each representative period represents.
-
-| Column | Description |
-|---|---|
-| `Rep_Period` | Representative period number |
-| `Sub_Weights` | Hours this period represents in the full year |
 
 ---
 
@@ -121,7 +108,7 @@ Each file contains only resources of that type. Columns common to all resource f
 |---|---|
 | `Resource` | Unique resource name |
 | `Zone` | Integer zone index |
-| `Existing_Cap_MW` | Installed capacity at start of planning period |
+| `Existing_Cap_MW` | Existing capacity operating at the end of the planning period |
 | `New_Build` | 1 = new build allowed, 0 = fixed |
 | `Max_Cap_MW` | Maximum buildable capacity (-1 = unlimited) |
 | `Min_Cap_MW` | Minimum required capacity |
@@ -133,7 +120,7 @@ Each file contains only resources of that type. Columns common to all resource f
 
 ### `Thermal.csv`
 
-Additional columns for thermal generators (tag `THERM = 1` or `2`):
+Additional columns for thermal generators (tag `THERM > 0`, written as `Model`):
 
 | Column | Description |
 |---|---|
@@ -160,7 +147,7 @@ Profiles are written to `Generators_variability.csv`.
 
 ### `Storage.csv`
 
-Battery or other storage resources (`STOR = 1` or `2`):
+Battery or other storage resources (`STOR > 0`, written as `Model`):
 
 | Column | Description |
 |---|---|
@@ -197,8 +184,9 @@ Hydropower resources (`HYDRO = 1`):
 
 | Column | Description |
 |---|---|
-| `Hydro_Energy_Share_Max` | Maximum fraction of annual energy in any period |
-| `Hydro_Energy_Share_Min` | Minimum fraction of annual energy in any period |
+| `Hydro_Energy_to_Power_Ratio` | Hydro energy-to-power ratio |
+| `Eff_Up` / `Eff_Down` | Charging and discharging efficiencies, where applicable |
+| `LDS` | Long-duration storage indicator, where applicable |
 
 ---
 
@@ -228,8 +216,11 @@ Emission caps by zone.
 
 | Column | Description |
 |---|---|
-| `CO_2_Cap_Zone_{N}` | Type of cap (1 = absolute, 2 = rate-based, 3 = fraction) |
-| `CO_2_Cap_Limit_{N}` | Cap value (metric tonnes or fraction) |
+| `CO_2_Cap_Zone_{N}` | Zone membership for cap N |
+| `CO_2_Max_Mtons_{N}` | Absolute cap N in million tonnes, when supplied |
+
+Columns are taken from the configured emission policy table, so other supported
+`CO_2` policy columns may appear.
 
 ### `Minimum_capacity_requirement.csv` / `Maximum_capacity_requirement.csv`
 
@@ -245,25 +236,27 @@ Min/max capacity build requirements per zone and technology group.
 
 ## Resource policy attribute files
 
-These live in `resources/` and link individual resources to policy constraints.
+These live in `resources/policy_assignments/` and link individual resources to
+policy constraints. Rows without a positive contribution to any constraint in
+the file are omitted.
 
 ### `Resource_energy_share_requirement.csv`
 
 | Column | Description |
 |---|---|
 | `Resource` | Resource name |
-| `ESR_{N}` | Fraction of generation counting toward ESR N (0–1; or >1 for above-market CES credit) |
+| `ESR_{N}` | Eligibility for ESR N (0 or 1) |
 
 ### `Resource_capacity_reserve_margin.csv`
 
 | Column | Description |
 |---|---|
 | `Resource` | Resource name |
-| `CapRes_{N}` | Contribution fraction for reserve zone N |
+| `Derating_factor_{N}` | Contribution fraction for reserve constraint N (0–1) |
 
 ### `Resource_minimum_capacity_requirement.csv` / `Resource_maximum_capacity_requirement.csv`
 
 | Column | Description |
 |---|---|
 | `Resource` | Resource name |
-| `MinCapTag_{N}` / `MaxCapTag_{N}` | 1 if resource counts toward constraint N, else 0 |
+| `Min_Cap_{N}` / `Max_Cap_{N}` | 1 if resource counts toward constraint N, else 0 |

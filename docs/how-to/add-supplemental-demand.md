@@ -28,7 +28,7 @@ Optional columns that PowerGenome will automatically use if present:
 | Column | Description |
 | -------- | ------------- |
 | `year` | Planning year; when present, rows are filtered to the current `model_year` |
-| `scenario` | Scenario identifier; when present **exactly one** scenario must remain after loading (see [Step 3](#step-3-select-a-scenario-optional)) |
+| `scenario` | Scenario identifier; at most one non-null value may remain after filtering (see [Step 3](#step-3-select-a-scenario-optional)) |
 | `weather_year` | Weather year; use `all` to apply to every weather year, a specific year (e.g. `2012`) to apply only to that weather year, or a blank value to **skip** the row (see [Step 4](#step-4-handle-multiple-weather-years)) |
 
 ### Using `all` / `all_hours`
@@ -100,7 +100,7 @@ supplemental_demand_table: supplemental_demand  # table inside pg_data.db
 
 ## Step 3: Select a scenario (optional)
 
-If your supplemental demand file contains multiple scenarios (identified by a `scenario` column), you **must** specify which one to use. Without a selection, PowerGenome raises an error listing the available options.
+If more than one non-null scenario remains after filtering to the current planning year, you **must** select one. Otherwise, PowerGenome raises an error listing the available options.
 
 Use the dictionary format:
 
@@ -141,19 +141,28 @@ Give the row a specific `weather_year` value. An `all` / `all_hours` row then ap
 
 ```csv
 region,time_index,load_mw,year,weather_year
-WEST,all_hours,500,2035,2012      # every hour of 2012
-WEST,all_hours,300,2035,2013      # every hour of 2013
-WEST,3,400,2035,2013              # hour 3 of 2013 only
+WEST,all_hours,500,2035,2012
+WEST,all_hours,300,2035,2013
+WEST,3,400,2035,2013
 ```
+
+The first two rows apply to every hour of their respective weather years; the
+last applies only to hour 3 of 2013.
 
 !!! warning "Blank `weather_year` rows are skipped"
     A row with a blank/empty `weather_year` is **not** applied. Use `weather_year: all` when you want a row to apply across every weather year.
 
 !!! warning "Coverage check"
-    When the supplemental demand table includes a `weather_year` column **and** the load data's weather years are known (via the `weather_year` setting), every weather year present in the load data must be covered by the supplemental demand table — either by a row for that specific year or by a row with `weather_year: all`. A missing weather year raises an error naming the years that aren't covered. No coverage check is performed when the supplemental demand table has no `weather_year` column.
+    When the supplemental table includes `weather_year` and the load weather
+    years are known from settings or the data, every weather year must be
+    covered by a specific-year row or an `all` row. Otherwise PowerGenome raises
+    an error. No coverage check runs when the column is absent.
 
 !!! tip "How supplemental demand is added"
-    Supplemental demand is joined into the **base load data stage**, before the per-weather-year hours are renumbered 1..N and before base regions are aggregated into model regions. Rows that share the same `(region, weather_year, time_index)` are summed together, so there is **no tiling** and **no fixed weather-year length assumption**: weather years of different lengths (e.g. a 8 784-hour leap year next to a normal 8 760-hour year) are handled correctly. This is unlike the older implementation, which block-tiled supplemental load using a fixed `hours_per_year`.
+    In the standard load pipeline, supplemental demand is added before hours are
+    renumbered and base regions are aggregated. Rows for the same region, weather
+    year, and hour are summed. With user-supplied wide load profiles, specific
+    weather years are not supported; omit the column or use `all`.
 
 ---
 
