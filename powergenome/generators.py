@@ -1464,10 +1464,12 @@ def add_resource_tags(
     tags_no_value = set(model_tag_names) - set(global_keys + regional_keys)
     if tags_no_value:
         logger.warning(
-            f"The model resource tags {tags_no_value} are listed in the settings parameter "
+            f"The model resource tags {sorted(tags_no_value)} are listed in the settings parameter "
             "'model_tags_name' but are not assigned values for any resources"
         )
-    for tag_col in set(model_tag_names + global_keys + regional_keys):
+    # Create columns in a stable order: set iteration follows string hashing, which
+    # is randomized per process and reordered the output columns from run to run.
+    for tag_col in dict.fromkeys(model_tag_names + global_keys + regional_keys):
         _df[tag_col] = default_model_tag
         _df[tag_col] = _df[tag_col].astype(object)
     for tag_col in global_keys:
@@ -2821,7 +2823,9 @@ def add_transmission_inv_cost(
     columns = [
         c for c in [f"{t}_inv_mwyr" for t in TRANSMISSION_TYPES] if c in resource_df
     ]
-    cost = resource_df[columns].sum(axis=1)
+    # Annuity values are floats, so keep the summed cost floating point to
+    # avoid pandas 3 rejecting a lossy int -> float assignment.
+    cost = resource_df[columns].sum(axis=1).astype(float)
     if use_total:
         total = resource_df["interconnect_annuity"]
         has_total = ~total.isna() & total != 0
@@ -2831,7 +2835,9 @@ def add_transmission_inv_cost(
             "Transmission investment costs are missing or zero for some resources"
             " and will not be included in the total investment costs."
         )
-    resource_df["Inv_Cost_per_MWyr"] += cost
+    resource_df["Inv_Cost_per_MWyr"] = (
+        resource_df["Inv_Cost_per_MWyr"].astype(float) + cost
+    )
     return resource_df
 
 
@@ -3483,7 +3489,9 @@ def check_cluster_cols(df: pd.DataFrame, cluster_cols: List[str]) -> List[str]:
                 f"Column '{col}' of the existing generators table contains missing values for plants {missing_plant_ids}. "
                 f"Filling with average value of {mean_value}."
             )
-            df[col].fillna(mean_value, inplace=True)
+            # Chained in-place assignment does not update the frame under
+            # copy-on-write (the pandas 3 default), so assign back explicitly.
+            df[col] = df[col].fillna(mean_value)
             # raise ValueError(
             #     f"Column '{col}' of the existing generators table contains some missing "
             #     f"values for plants {missing_plant_ids}."
@@ -4238,8 +4246,12 @@ class GeneratorClusters:
             lambda x: min(x) if isinstance(x, (list, np.ndarray)) else np.nan, 1, 1
         )
 
-        # Compute the minimum values from the 'profile' column
-        self.all_resources["profile_min"] = get_min_value(self.all_resources["profile"])
+        # Compute the minimum values from the 'profile' column. `frompyfunc`
+        # returns an object array, which pandas 3 refuses to assign into the
+        # float64 'Min_Power' column below, so cast it to float first.
+        self.all_resources["profile_min"] = get_min_value(
+            self.all_resources["profile"]
+        ).astype(float)
 
         # Update 'Min_Power' where necessary
         self.all_resources.loc[
@@ -4370,7 +4382,9 @@ class GeneratorClusters:
         self.adjust_min_power_based_on_profile()
         self.apply_multi_period_transformations()
 
-        # Fill NaN values with 0
-        self.all_resources.fillna(0, inplace=True)
+        # Fill NaN values with 0. infer_objects restores the object->numeric
+        # downcasting that pandas <=2.x performed in fillna; pandas 3.x no
+        # longer does it implicitly (see pandas 2.2 future.no_silent_downcasting).
+        self.all_resources = self.all_resources.fillna(0).infer_objects()
 
         return self.all_resources

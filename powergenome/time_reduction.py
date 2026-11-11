@@ -52,7 +52,7 @@ def max_rep_periods(
     for Period_Index in time_series_mapping["Period_Index"]:
         dayOfYear = days_in_group * Period_Index
         d = datetime.datetime.strptime("{} {}".format(dayOfYear, 2011), "%j %Y")
-        time_series_mapping["Month"][Period_Index - 1] = d.month
+        time_series_mapping.loc[Period_Index - 1, "Month"] = d.month
     rep_point = [f"p{i}" for i in range(1, 1 + num_clusters)]
     rep_point_df = pd.DataFrame(data=rep_point, columns=["slot"])
 
@@ -329,11 +329,13 @@ def kmeans_time_clustering(
     for Period_Index in time_series_mapping["Period_Index"]:
         dayOfYear = days_in_group * Period_Index
         d = datetime.datetime.strptime("{} {}".format(dayOfYear, 2011), "%j %Y")
-        time_series_mapping["Month"][Period_Index - 1] = d.month
+        time_series_mapping.loc[Period_Index - 1, "Month"] = d.month
 
     # Storing selected groupings in a new data frame with appropriate dimensions
     # (E.g. load in GW)
-    ClusterOutputDataTemp = ModifiedData[EachClusterRepPoint]
+    # Cast to float up front so the scale-factor assignment below does not try
+    # to write floats into an integer block (rejected by pandas 3).
+    ClusterOutputDataTemp = ModifiedData[EachClusterRepPoint].astype(float)
 
     # Selecting rows corresponding to Load in excluded subperiods and exclude them from
     # scale factor calculation
@@ -432,7 +434,10 @@ def kmeans_time_clustering(
         columns=resource_col_names, index=final_output_data.index
     )
     resource_df.loc[:, var_col_names] = final_output_data.loc[:, var_col_names]
-    resource_df = resource_df.fillna(value=1)
+    # ``infer_objects`` restores the float dtypes that pandas 2 assigned implicitly
+    # when it silently downcast the all-missing ``object`` columns on ``fillna``;
+    # pandas 3 keeps them as ``object``, which later makes rounding a no-op.
+    resource_df = resource_df.fillna(value=1).infer_objects()
 
     # load_df["Sub_Weights"] = np.nan
     # load_df.loc[: len(EachClusterWeight) - 1, "Sub_Weights"] = (

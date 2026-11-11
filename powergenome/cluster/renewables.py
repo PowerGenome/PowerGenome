@@ -471,7 +471,8 @@ def min_capacity_mw(
 
     _df = data.sort_values("lcoe")
     mask = np.ones(len(_df), dtype=bool)
-    temp = (_df.loc[mask, cap_col].cumsum() < min_cap).values
+    # ``.values`` can be a read-only view under copy-on-write, so request a copy.
+    temp = (_df.loc[mask, cap_col].cumsum() < min_cap).to_numpy(copy=True)
     temp[temp.argmin()] = True
     mask[mask] = temp
 

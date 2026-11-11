@@ -800,6 +800,35 @@ def test_create_policy_df_valid_values():
         assert not result.empty, f"Should accept valid {policy_type} values"
 
 
+def test_create_policy_df_object_dtype_policy_columns():
+    """Policy columns are object dtype in generator data (see add_resource_tags).
+
+    pandas 3 no longer downcasts all-numeric object columns when missing values
+    are filled, so these columns must be selected by name rather than by numeric
+    dtype. Otherwise the policy assignment files are silently skipped and the
+    policy columns stay in the resource files.
+    """
+    input_df = pd.DataFrame(
+        {
+            "Resource": ["gen_1", "gen_2", "gen_3"],
+            "ESR_1": pd.Series([1, 0, 0], dtype=object),
+            "CapRes_1": pd.Series([0.0, 0.25, 0.0], dtype=object),
+        }
+    )
+
+    esr_result = create_policy_df(input_df.copy(), {"oldtag": "ESR_", "newtag": "ESR_"})
+    assert list(esr_result.columns) == ["Resource", "ESR_1"]
+    assert list(esr_result["Resource"]) == ["gen_1"]
+
+    cap_res_df = input_df.copy()
+    cap_res_result = create_policy_df(
+        cap_res_df, {"oldtag": "CapRes_", "newtag": "Derating_factor_"}
+    )
+    assert list(cap_res_result["Resource"]) == ["gen_2"]
+    assert "Derating_factor_1" in cap_res_result.columns
+    assert "CapRes_1" not in cap_res_df.columns, "Policy columns are removed from df"
+
+
 def test_create_policy_df_invalid_values():
     """Test value validation rules for different policy types."""
     # Test ESR_ validation (must be 0 or 1)
