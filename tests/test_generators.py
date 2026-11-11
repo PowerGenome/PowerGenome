@@ -759,6 +759,27 @@ def test_apply_custom_gen_formula_unknown_operation():
         apply_custom_gen_formula(df.copy(), formula_dict)
 
 
+@pytest.mark.parametrize("dtype", ["int64", "Int64", "float64"])
+def test_adjust_min_power_based_on_profile_accepts_fractional_minima(dtype):
+    from inspect import unwrap
+
+    cluster_class = unwrap(GeneratorClusters)
+    gc = cluster_class.__new__(cluster_class)
+    gc.all_resources = pd.DataFrame(
+        {
+            "Min_Power": pd.Series([1, 0, 1, 1], dtype=dtype),
+            "profile": [np.array([0.25, 0.75]), [0.5, 0.8], None, [1.0, 1.0]],
+        }
+    )
+    gc.all_resources.index = [4, 8, 12, 16]
+
+    gc.adjust_min_power_based_on_profile()
+
+    assert gc.all_resources["Min_Power"].tolist() == [0.25, 0.0, 1.0, 1.0]
+    assert gc.all_resources.index.tolist() == [4, 8, 12, 16]
+    assert "profile_min" not in gc.all_resources.columns
+
+
 class TestGeneratorCluster:
 
     def load_settings(self):

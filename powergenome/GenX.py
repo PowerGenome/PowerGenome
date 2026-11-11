@@ -1406,8 +1406,9 @@ def filter_empty_columns(df: pd.DataFrame) -> List[str]:
             df[obj_cols].notna() & df[obj_cols].ne("No_fuel")
         ).any(axis=0)
 
-    # Check for non-zero values (treat NaN as False)
-    nonzero_mask = df.fillna(0).astype(bool).sum() > 0
+    # Ignore missing values before testing truthiness: numeric fill values are
+    # incompatible with nullable strings, booleans, and categorical columns.
+    nonzero_mask = df.apply(lambda col: col.dropna().astype(bool).any())
 
     # Combine all masks
     valid_cols = nonzero_mask & notnull_mask & string_notnone_mask

@@ -290,6 +290,74 @@ def test_filter_empty_columns():
     ), "NaN values case failed"
 
 
+@pytest.mark.filterwarnings("error")
+@pytest.mark.parametrize(
+    "dtype", [None, object, "string", "string[pyarrow]", "category"]
+)
+def test_filter_empty_columns_missing_strings(dtype):
+    df = pd.DataFrame(
+        {
+            "valid": pd.Series(["metadata", None], dtype=dtype),
+            "empty": pd.Series(["", None], dtype=dtype),
+            "missing": pd.Series([None, None], dtype=dtype),
+        }
+    )
+    original = df.copy(deep=True)
+
+    assert filter_empty_columns(df) == ["valid"]
+    pd.testing.assert_frame_equal(df, original)
+
+
+@pytest.mark.parametrize("dtype", ["Int64", "Float64", "boolean", "int64[pyarrow]"])
+def test_filter_empty_columns_nullable_numeric_and_boolean(dtype):
+    df = pd.DataFrame(
+        {
+            "valid": pd.Series([1, None], dtype=dtype),
+            "zero": pd.Series([0, None], dtype=dtype),
+            "missing": pd.Series([None, None], dtype=dtype),
+        }
+    )
+
+    assert filter_empty_columns(df) == ["valid"]
+
+
+@pytest.mark.parametrize("dtype", [object, "string", "boolean", "Int64", "category"])
+def test_filter_empty_columns_zero_rows(dtype):
+    df = pd.DataFrame({"empty": pd.Series(dtype=dtype)})
+
+    assert filter_empty_columns(df) == []
+
+
+def test_filter_empty_columns_preserves_explicit_nullable_fuel_strings():
+    df = pd.DataFrame(
+        {
+            "plain_fuel": ["No_fuel", None],
+            "object_fuel": pd.Series(["No_fuel", None], dtype=object),
+            "Fuel": pd.Series(["No_fuel", None], dtype="string"),
+        }
+    )
+
+    assert filter_empty_columns(df) == ["Fuel"]
+
+
+def test_create_resource_df_missing_optional_metadata():
+    df = pd.DataFrame(
+        {
+            "Resource": ["wind_1", "wind_2"],
+            "VRE": [1, 1],
+            "metadata": ["available", None],
+            "empty_metadata": ["", None],
+        }
+    )
+
+    result = create_resource_df(df, "VRE")
+
+    assert result["Resource"].tolist() == ["wind_1", "wind_2"]
+    assert "metadata" in result.columns
+    assert "empty_metadata" not in result.columns
+    assert pd.isna(result.loc[1, "metadata"])
+
+
 def test_filter_empty_columns_errors():
     """Test error handling in filter_empty_columns."""
     # Test with non-DataFrame input

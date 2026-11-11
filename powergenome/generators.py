@@ -4253,7 +4253,9 @@ class GeneratorClusters:
             self.all_resources["profile"]
         ).astype(float)
 
-        # Update 'Min_Power' where necessary
+        # Profiles can have fractional minima even when all configured values
+        # of Min_Power are integers.
+        self.all_resources["Min_Power"] = self.all_resources["Min_Power"].astype(float)
         self.all_resources.loc[
             (self.all_resources["profile_min"].notna())
             & (self.all_resources["Min_Power"] > self.all_resources["profile_min"]),
