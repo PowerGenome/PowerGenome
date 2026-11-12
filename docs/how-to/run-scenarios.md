@@ -1,8 +1,8 @@
 # Run Multiple Scenarios
 
 Compare cases by adding one scenario CSV and one settings swap to a working
-configuration. This guide uses the bundled three-region test system to compare
-`baseline` with a `carbon_50` case in 2030 and 2040.
+configuration. This guide uses the published Texas three-zone example to compare
+`base` with a `carbon_50` case in the 2030 and 2045 planning periods.
 
 Use this page for the practical workflow. For supported shapes and combinations,
 see [Scenario Management Settings](../reference/settings/scenario-management.md).
@@ -11,60 +11,135 @@ For precedence and execution order, see
 
 ## Basic Setup
 
-### 1. Copy a working system
+### 1. Download a working system
 
-Prerequisites: an installed PowerGenome environment and a matching source
-checkout containing `tests/test_system/`. The fixture is small demonstration data,
-not a production study. If you only need values to change over time within one
-case, use [year-keyed settings](use-year-keyed-settings.md) instead.
-
-From the repository root, copy the fixture outside the checkout:
+The published examples live in a separate
+[PowerGenome-examples](https://github.com/PowerGenome/PowerGenome-examples)
+repository, so no PowerGenome source checkout is involved. Download the same
+pinned Texas snapshot that
+[Getting Started](../tutorials/getting-started.md#1-download-the-texas-example)
+uses:
 
 ```bash
-cp -R tests/test_system ../scenario-study
-cd ../scenario-study
+mkdir scenario-study
+cd scenario-study
+curl --fail --location \
+  https://codeload.github.com/PowerGenome/PowerGenome-examples/tar.gz/7e34f714469e68fca173cdb849f74c47be779420 \
+  --output powergenome-examples.tar.gz
+tar -xzf powergenome-examples.tar.gz --strip-components=1
+rm powergenome-examples.tar.gz
 ```
 
-Choose a new destination if `../scenario-study` already exists. Run the remaining
-commands from the copied `scenario-study/` directory. Its settings already define:
+That archive is under 1 MB. Choose another folder name if `scenario-study`
+already exists, and run every command below from the new folder.
+
+Stay at the top of `scenario-study/` and address the study as
+`example_systems/TX-3-zone/`; do not change into that folder. Its `data_location`
+and `input_folder` resolve from the settings folder's parent, but its published
+`RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` paths resolve from your working
+directory.
+
+The example is demonstration data (240 synthetic profile time steps), not a
+production study. If you only need values to change over time within one case,
+use [year-keyed settings](use-year-keyed-settings.md) instead.
+
+Its `example_systems/TX-3-zone/settings/model_definition.yml` already defines:
 
 ```yaml
-model_regions: [p1_2, p3, p4]
+model_regions: [TX1, TX2, TX3]
 region_aggregations:
-  p1_2: [p1, p2]
-model_year: [2030, 2040]
+  TX1: [p60, p61, p62]
+  TX2: [p63, p64]
+  TX3: [p65, p67]
+model_year: [2030, 2045]
 model_first_planning_year: [2025, 2031]
 ```
 
-These are existing values in `settings/model_definition.yml`, not settings to add
-again. The first planning period is 2025–2030 and the second is 2031–2040.
-Keep the two planning-year lists in corresponding chronological order; they are
-paired by position, not sorted automatically.
+These are existing values, not settings to add again. The first planning period
+is 2025–2030 and the second is 2031–2045. Keep the two planning-year lists in
+corresponding chronological order; they are paired by position, not sorted
+automatically.
 
 ### 2. Create Scenario Definitions
 
-Replace the contents of the copied `extra_inputs/scenario_inputs.csv` with:
+Replace the contents of
+`example_systems/TX-3-zone/extra_inputs/scenario_inputs.csv` with:
 
 ```csv
 case_id,year,carbon_policy
-baseline,2030,unchanged
+base,2030,unchanged
 carbon_50,2030,tax_50
-baseline,2040,unchanged
-carbon_50,2040,tax_50
+base,2045,unchanged
+carbon_50,2045,tax_50
 ```
 
-`case_id` and `year` are mandatory. Keep the same case ID across periods: each
-row is one case/year, not a new independent case. `carbon_policy` is a dimension
-name you choose; its values select the swaps in the next step.
+The published file has a single `base` case and no dimension column; this version
+keeps `base` and adds the `carbon_50` case. `case_id` and `year` are mandatory.
+Keep the same case ID across periods: each row is one case/year, not a new
+independent case. `carbon_policy` is a dimension name you choose; its values
+select the swaps in the next step.
 
 Include every planning year for each complete case, chronologically within that
 case. Duplicate case/year pairs fail, but incomplete cases are not automatically
 rejected. Period numbers follow row order within each case, so a missing or
 out-of-order row can put a year in the wrong `Inputs_pN` directory.
 
+#### Add policy rows for the new case
+
+The study's emission policy table is keyed by `case_id` (the published rows all
+use `base`), so a case with no matching rows stops the run with a `KeyError` such
+as `('carbon_50', 2030)`. Two mechanisms share one set of values across cases.
+
+**`case_id: all`** treats a row as belonging to whichever case is running: rows
+whose `case_id` is `all` (any capitalization) are read as the requested case
+whenever that case has no rows of its own. Replace the contents of
+`example_systems/TX-3-zone/extra_inputs/emission_policies.csv` with:
+
+```csv
+case_id,year,region,ESR_1,ESR_2,ESR_3
+all,2030,TX1,0,0,0
+all,2030,TX2,0,0,0
+all,2030,TX3,0,0,0
+all,2045,TX1,0,0,0
+all,2045,TX2,0,0,0
+all,2045,TX3,0,0,0
+```
+
+Both `base` and `carbon_50` then read these six rows, and adding another case
+needs no new policy rows. The substitution is decided per case, not per row: as
+soon as a case has even one row of its own, its `all` rows are left unused, so a
+case with 2030 rows but no 2045 rows fails on 2045.
+
+**`copy_case_id`** is the alternative when each case needs its own rows, with
+values copied from a source case:
+
+```csv
+case_id,year,region,ESR_1,ESR_2,ESR_3,copy_case_id
+base,2030,TX1,0,0,0,
+base,2030,TX2,0,0,0,
+base,2030,TX3,0,0,0,
+base,2045,TX1,0,0,0,
+base,2045,TX2,0,0,0,
+base,2045,TX3,0,0,0,
+carbon_50,2030,TX1,,,,base
+carbon_50,2030,TX2,,,,base
+carbon_50,2030,TX3,,,,base
+carbon_50,2045,TX1,,,,base
+carbon_50,2045,TX2,,,,base
+carbon_50,2045,TX3,,,,base
+```
+
+The [`copy_case_id`](../reference/settings/scenario-management.md#copy_case_id)
+entries reuse the `base` values for `carbon_50`, so the cases carry identical
+policies and only one set of values needs maintenance. Duplicating the six `base`
+rows under `case_id,carbon_50` works too. Every `ESR_*` value here is zero, so
+this step only satisfies the per-case lookup; real policies would need the values
+you intend for each case.
+
 ### 3. Configure Settings Management
 
-Replace the contents of the copied `settings/scenario_management.yml` with:
+Replace the contents of
+`example_systems/TX-3-zone/settings/scenario_management.yml` with:
 
 ```yaml
 scenario_definitions_fn: scenario_inputs.csv
@@ -77,15 +152,22 @@ settings_management:
         carbon_tax: 50
 ```
 
+The published file is `settings_management: {}`, so replace it rather than adding
+a second mapping.
+
 This is one swap: `tax_50` sets `carbon_tax` to 50 USD per metric tonne of CO₂
 for both years. The tax is added to fuel costs using fuel CO₂ content; it is not
-an emissions-cap setting.
-The bundled emission policies remain in place for both cases.
+an emissions-cap setting. The policies from the previous step are unchanged and
+serve both cases, whichever mechanism you used.
 
-The copied `settings/extra_inputs.yml` already sets
-`input_folder: extra_inputs`. `scenario_definitions_fn` is relative to that
-folder, so it resolves to `scenario-study/extra_inputs/scenario_inputs.csv`.
-The commented-out filename in `extra_inputs.yml` can stay commented out.
+The published `settings/extra_inputs.yml` already sets
+`input_folder: extra_inputs` and
+`scenario_definitions_fn: scenario_inputs.csv`, and it also names this study's
+emission policy table (`emission_policies_fn: emission_policies.csv`) from the
+previous step. `scenario_definitions_fn` is relative to `input_folder`, so it
+resolves to `example_systems/TX-3-zone/extra_inputs/scenario_inputs.csv`. The
+`scenario_definitions_fn` line in the block above therefore only repeats a value
+that is already set.
 
 !!! warning "Keep each top-level setting in one file"
     A settings directory loads only its immediate `*.yml` files, not subfolders
@@ -94,9 +176,9 @@ The commented-out filename in `extra_inputs.yml` can stay commented out.
     different file: it could replace the whole mapping. Edit the existing block.
 
 Configured relative `data_location` and `input_folder` paths are rooted at the
-parent of the settings directory. Relative `RESOURCE_GROUPS` and
-`RESOURCE_GROUP_PROFILES` paths instead use the working directory. Running from
-the copied fixture keeps its `test_data/resource_groups` path valid.
+parent of the settings directory (`example_systems/TX-3-zone/`). Relative
+`RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` paths instead use the working
+directory, which is why the commands stay at the top of `scenario-study/`.
 
 ## Validation and Debugging
 
@@ -105,7 +187,7 @@ the copied fixture keeps its `test_data/resource_groups` path valid.
 First validate the settings and source data:
 
 ```bash
-validate_powergenome --settings_file settings
+validate_powergenome --settings_file example_systems/TX-3-zone/settings
 ```
 
 This is not a substitute for checking the complete scenario matrix. To check the
@@ -118,7 +200,7 @@ import pandas as pd
 
 from powergenome.settings import build_scenario_settings, load_settings
 
-settings = load_settings(Path("settings"))
+settings = load_settings(Path("example_systems/TX-3-zone/settings"))
 scenarios = pd.read_csv(
     Path(settings["input_folder"]) / settings["scenario_definitions_fn"]
 )
@@ -134,31 +216,33 @@ for year in years:
         print(year, case_id, case_settings.get("carbon_tax", 0))
 ```
 
-Expected values are 0 for `baseline` and 50 for `carbon_50` in both years.
+Expected values are 0 for `base` and 50 for `carbon_50` in 2030 and 2045.
 Unknown dimension/level selections warn and leave settings unchanged; an explicit
 `{}` means intentionally keep the base value without a missing-selection warning.
-The fixture can also emit warnings about incomplete fuel-price coverage and
-resource tags; review these before adapting it for a real study.
+The example also emits warnings about unassigned model resource tags, resources
+missing from the operational-constraints table, missing transmission investment
+costs, and a hydro resource without a variable profile. Review these before
+adapting it for a real study.
 
 ### Test Single Scenario
 
-Generate both periods of the baseline first:
+Generate both periods of the base case first:
 
 ```bash
 run_powergenome \
-  --settings_file settings \
-  --results_folder baseline_check \
-  --case-id baseline
+  --settings_file example_systems/TX-3-zone/settings \
+  --results_folder base_check \
+  --case-id base
 ```
 
-Inspect `baseline_check/log.txt` and the two period folders before running both
+Inspect `base_check/log.txt` and the two period folders before running both
 cases. PowerGenome generates model inputs; it does not solve the GenX model.
 
 ## Run the scenario set
 
 ```bash
 run_powergenome \
-  --settings_file settings \
+  --settings_file example_systems/TX-3-zone/settings \
   --results_folder results
 ```
 
@@ -167,7 +251,7 @@ With default GenX output, the directory layout is:
 ```text
 results/
 ├── log.txt
-├── baseline/
+├── base/
 │   └── Inputs/
 │       ├── Inputs_p1/
 │       │   ├── resources/
@@ -183,14 +267,18 @@ results/
 
 Each period has the same subdirectory layout. Confirm the resolved `carbon_tax`,
 `model_year`, and `model_first_planning_year` in
-`powergenome_case_settings.yml`. Compare `system/Fuels_data.csv` between cases to
-check the tax effect on emitting fuels.
+`powergenome_case_settings.yml`. Paying 50 USD per tonne of CO₂ raises the
+delivered price of emitting fuels, which you can check in
+`system/Fuels_data.csv`: in this example the first period goes from 3.16 to 5.82
+USD/MMBtu for natural gas and from 2.07 to 6.84 for coal, and the second period
+from 4.86 to 7.51 and from 2.13 to 6.91. Read the row labeled with `Time_Index`
+`1`; row `0` holds the CO₂ content per MMBtu.
 
 ## Running Scenarios Sequentially
 
 PowerGenome runs sequentially, grouped by year in the order years first appear
 in the CSV, then by case order within each year. This example runs both 2030
-cases before both 2040 cases. There is no scenario `--num_workers` option;
+cases before both 2045 cases. There is no scenario `--num_workers` option;
 `clustering_n_jobs` controls renewable clustering, not case execution.
 
 Monitor a run from another terminal in `scenario-study/`:
@@ -207,9 +295,9 @@ Select one or more existing case IDs; each selection includes all its CSV years:
 
 ```bash
 run_powergenome \
-  --settings_file settings \
+  --settings_file example_systems/TX-3-zone/settings \
   --results_folder selected_results \
-  --case-id baseline carbon_50
+  --case-id base carbon_50
 ```
 
 Use `--case-id` with a hyphen. See the [CLI Reference](../reference/cli.md) for

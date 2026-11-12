@@ -264,7 +264,11 @@ def resolve_data_files(settings: Dict[str, Any]) -> List[Tuple[str, str]]:
     """
     # Imported lazily so that importing this module stays light (database.py
     # pulls in transmission and other heavy pipeline modules).
-    from powergenome.database import DataManager, get_table_setting_value
+    from powergenome.database import (
+        DataManager,
+        expand_table_config_parts,
+        get_table_setting_value,
+    )
 
     locations = _table_source_locations(settings)
     entries: List[Tuple[str, str]] = []
@@ -272,17 +276,25 @@ def resolve_data_files(settings: Dict[str, Any]) -> List[Tuple[str, str]]:
         table_config = get_table_setting_value(settings, setting_key)
         if not table_config:
             continue
-        if isinstance(table_config, dict):
-            source = table_config.get("table_name") or table_config.get("name")
-        else:
-            source = table_config
-        if not source:
-            continue
-        matches = _resolve_table_sources(locations, str(source))
-        if not matches:
+        # A combined table may be a list of parts, or a dict whose table_name is a
+        # list of sources sharing the dict's filters/scenario.
+        try:
+            parts = expand_table_config_parts(table_config)
+        except ValueError:
             entries.append((standard_name, "unresolved"))
-        else:
-            entries.extend((standard_name, match) for match in matches)
+            continue
+        for part in parts:
+            if isinstance(part, dict):
+                source = part.get("table_name") or part.get("name")
+            else:
+                source = part
+            if not source:
+                continue
+            matches = _resolve_table_sources(locations, str(source))
+            if not matches:
+                entries.append((standard_name, "unresolved"))
+            else:
+                entries.extend((standard_name, match) for match in matches)
     return sorted(entries)
 
 

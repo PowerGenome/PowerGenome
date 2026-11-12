@@ -49,6 +49,11 @@ Metadata paths resolve relative to the JSON file. Profiles are sought under
 clustering path, `site_map` resolves alongside the **resolved profiles file**.
 Keep that map with profiles if you move them to a separate directory.
 
+`site_map` is optional. The CA/AZ example omits it for both technologies because
+its profile files already use `cpa_id` values in `site_id`. That example also
+points `RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` at the same directory, so
+metadata and profiles stay together.
+
 Relative `RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` paths resolve from the
 current working directory. The published Texas settings require running from
 the **examples root**, not inside `example_systems/TX-3-zone/`. By contrast,
@@ -144,6 +149,11 @@ it is **not a recommended economic cutoff**. A high-LCOE site can still be valua
 because of its location or output timing. Omit the filter if all candidates
 belong in the study, and document any exclusion you do use. Filter bounds are
 inclusive, but the implementation ignores `min: 0` and `max: 0`.
+
+The same illustrative screens appear in both published systems: `max: 75` for
+wind and `max: 60` for solar in Texas, and `max: 130` for wind and `max: 50` for
+solar in CA/AZ. The different numbers reflect different candidate datasets, not a
+recommendation; screen on your own metadata's cost distribution.
 
 Processing order is:
 

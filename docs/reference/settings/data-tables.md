@@ -52,14 +52,56 @@ demand_table:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `table_name` | string; required | Source filename or database table name. |
+| `table_name` | string, or list of strings | Source filename or database table name. A list stacks several sources into one table; see below. |
 | `scenario` | scalar | Convenience equality filter on the source `scenario` column. |
 | `filters` | nested lists | Row predicates; see below. |
 | `columns` | list of strings | Source columns to expose. Omit to retain all columns. |
 
+### Combined Configuration
+
+Any table setting also accepts a list of entries, each a filename or its own
+advanced configuration. The parts are stacked with `UNION ALL BY NAME`, so every
+part must have the same columns. This is how a study adds its own technology costs
+next to the ATB tables:
+
+```yaml
+resource_cost_table:
+  - technology_costs_atb_tx_3_zone.csv
+  - table_name: custom_technology_costs.csv
+    filters:
+      - - [scenario, '=', high_nuclear]
+resource_heat_rate_table:
+  - technology_heat_rates_nrelatb.csv
+  - custom_technology_heat_rates.csv
+```
+
+Parts load in list order, and each part is resolved separately, so they may live in
+different `data_location` entries. An empty list is treated like an unset setting.
+
 These examples configure table access, not a complete runnable study. Source
 columns must match downstream schemas; DataManager does not rename them to
 repair an incompatible dataset.
+
+### Shared Configuration Across Parts
+
+When every part shares `filters`, `columns`, or `scenario`, write those keys once
+and give `table_name` as a list instead of repeating a configuration per file:
+
+```yaml
+demand_table:
+  table_name:
+    - demand_west.parquet
+    - demand_east.parquet
+  scenario: high_ev
+  filters:
+    - - [year, '>=', 2030]
+```
+
+This is the same combined table as the list form: each source becomes a part, and
+the shared keys are applied to every part, so `scenario: high_ev` filters both
+files. Use the list form when parts need *different* filters or columns — entries
+in a `table_name` list must be plain filenames or table names, and an empty
+`table_name` list raises an error rather than silently skipping the table.
 
 ## Filter Syntax
 
@@ -105,6 +147,8 @@ blank `retirement_year` means no planned retirement, but ordinary comparison
 filters exclude blank values.
 
 ## Standard Table Mappings
+
+Every setting below accepts a single configuration or a list of them.
 
 | Setting | Internal name | Contents |
 | --- | --- | --- |

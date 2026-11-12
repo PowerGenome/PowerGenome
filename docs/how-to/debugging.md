@@ -41,6 +41,13 @@ For example, `generation_table` is recognized; a similar-looking key such as
 - Configured tables are searched in both `data_location` and `input_folder`;
   duplicate matches are an error.
 
+The published examples split the two rules on purpose. Their Texas settings use
+`data_location: data`, which resolves to `example_systems/TX-3-zone/data`, but
+`RESOURCE_GROUPS: example_systems/TX-3-zone/resource_groups`, which only resolves
+when you run from the examples repository root. Running the same command from
+inside `example_systems/TX-3-zone` silently looks for resource groups that are not
+there.
+
 See [Configure Settings](configure-settings.md) for organization and
 [Run Multi-Scenario Studies](run-scenarios.md) for override behavior.
 

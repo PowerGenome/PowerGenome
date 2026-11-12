@@ -62,6 +62,23 @@ all,2040,CA_S,0.80,0.90
 all,2040,AZ,0.25,0.00
 ```
 
+### Published multi-region example
+
+The CA/AZ example uses two model regions with a different RPS and CES in each:
+
+```csv
+case_id,year,region,ESR_1,ESR_2,ESR_3
+base,2030,CA,0.20,0.25,0
+base,2030,AZ,0.087,0.087,0
+base,2045,CA,0.15,0.15,0
+base,2045,AZ,0.087,0.087,0
+```
+
+The region names match `model_regions` (`CA` and `AZ`), not the ReEDS base
+regions behind them. The Texas example has the same shape for `TX1`-`TX3` but
+leaves every ESR column at `0`, which is a useful starting point when you want
+the table structure without a binding policy.
+
 ### Multi-case example
 
 Use `case_id = all` as a fallback for cases with no explicit rows. Use a specific
@@ -103,7 +120,8 @@ emission_policies_table: emission_policies.csv
 
 `emission_policies_table` is loaded through the DataManager, so the value may use
 any supported DataManager table configuration rather than only a CSV path. The
-legacy `emission_policies_fn` key is still accepted as an alias.
+legacy `emission_policies_fn` key is still accepted as an alias; both published
+examples currently use it.
 
 ---
 
@@ -144,6 +162,8 @@ model_tag_values:
 ```
 
 Only resources with tag value `1` count toward the corresponding constraint.
+Both published examples use this split: `ESR_1` covers renewables, `ESR_2` adds
+nuclear and CCS, and `ESR_3` stays at zero.
 
 Tag keys in `model_tag_values` are included even if they are absent from
 `model_tag_names`. Check the resource technology names in your data and adjust

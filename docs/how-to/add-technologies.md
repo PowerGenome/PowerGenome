@@ -8,7 +8,8 @@ PowerGenome gets technology data from several sources:
 
 1. **NREL ATB (Annual Technology Baseline)**: Standard new-build technologies
 2. **Existing generators**: From data tables (existing fleet)
-3. **Additional technologies**: User-defined technologies not in ATB
+3. **Additional technologies**: Your own cost tables, stacked next to the ATB
+   table in `data.yml`
 4. **Modified resources**: Variants of ATB technologies with adjusted parameters
 
 ## Add ATB Technologies
@@ -141,6 +142,10 @@ resource_modifiers:
 `modified_new_resources` runs earlier and uses source names such as
 `fixed_o_m_mw` and `variable_o_m_mwh`.
 
+Both published examples set battery variable O&M this way in
+`settings/resources.yml`: `Var_OM_Cost_per_MWh: [add, 0.15]` and
+`Var_OM_Cost_per_MWh_In: 0.15`.
+
 **Modifier behavior**:
 
 - **Operators in lists**: `[operator, value]` format
@@ -209,6 +214,12 @@ modified_new_resources:
 - `size_mw`: Unit size
 
 **Optional modifiers**: Use `[operator, value]` format same as `resource_modifiers`
+
+The Texas example's only entry, `hydrogen_turbine`, shows the minimum required
+fields: a 100 MW copy of `NaturalGas / 1-on-1 Combined Cycle (H-Frame) /
+Moderate` renamed to `hydrogen / 1-on-1 Combined Cycle (H-Frame)`, with no cost
+modifiers. See
+[`settings/resources.yml`](https://github.com/PowerGenome/PowerGenome-examples/blob/7e34f714469e68fca173cdb849f74c47be779420/example_systems/TX-3-zone/settings/resources.yml).
 
 **Assign tags**:
 
@@ -338,76 +349,178 @@ new_gen_not_available:
 Configure minimum output and ramping in the operational constraints input table,
 not with `min_cap_req`, `ramp_up_rates`, or `ramp_down_rates` settings.
 
-## Example: Add Hydrogen Technology
+## Add a Technology With Its Own Cost Table
 
-The following fragments add hydrogen turbines to an existing working setup.
-Include Hydrogen in the regional cost factors and operational constraints too.
+ATB will not have every technology you want to model. Rather than editing the ATB
+table, add your own cost and heat rate tables and list them next to the ATB tables
+in `data.yml`. Every table listed under a key is stacked into a single table before
+it is read, so a technology from your own file is indistinguishable from an ATB
+technology to the rest of the pipeline.
 
-### 1. Create Additional Technology
+The walkthrough below adds a 300 MW advanced nuclear (SMR-300) resource. Each
+fragment matches the
+[Texas 3-zone example system](https://github.com/PowerGenome/PowerGenome-examples/tree/7e34f714469e68fca173cdb849f74c47be779420/example_systems/TX-3-zone),
+where the steps were run end to end.
 
-**extra_inputs/additional_technologies.csv**:
+### 1. Create the Cost Table
+
+New-build costs come from the `resource_cost` table, which is tidy: one row per
+technology, cost case, basis year, and parameter.
+
+| Column | Description |
+| --- | --- |
+| `technology` | First element of the `new_resources` entry |
+| `tech_detail` | Second element |
+| `cost_case` | Third element |
+| `basis_year` | Year the value applies to |
+| `parameter` | `capex_mw`, `fixed_o_m_mw`, `variable_o_m_mwh`, `capex_mwh` and `fixed_o_m_mwh` (storage), or `wacc_real` |
+| `parameter_value` | Value |
+| `financial_case` | Must match `resource_financial_case` (default `Market`) |
+| `data_year` | Data vintage; must match `resource_data_year` when it is set |
+| `dollar_year` | Dollar year of the values, adjusted to `target_usd_year` |
+| `cap_recovery_years` | Capital recovery period, usually `resource_cap_recovery_years` |
+| `units` | Informational only |
+
+Write a `capex_mw`, `fixed_o_m_mw`, `variable_o_m_mwh`, and `wacc_real` row for every
+basis year in the modeling period, plus `capex_mwh`/`fixed_o_m_mwh` for storage.
+
+**data/custom_technology_costs.csv** (abbreviated — the real file has four rows for
+each basis year from 2025 to 2045):
 
 ```csv
-technology,tech_detail,cost_case,planning_year,capex_mw,capex_mwh,fixed_o_m_mw,fixed_o_m_mwh,variable_o_m_mwh,heat_rate,wacc_real,Cap_Size,dollar_year
-Hydrogen,Turbine,Moderate,2030,900000,0,18000,0,4,9.5,0.055,150,2023
-Hydrogen,Turbine,Moderate,2040,750000,0,15000,0,4,9.0,0.055,150,2023
-Hydrogen,Turbine,Moderate,2050,600000,0,12000,0,4,8.5,0.055,150,2023
+data_year,basis_year,cap_recovery_years,cost_case,financial_case,technology,tech_detail,parameter,parameter_value,units,dollar_year
+2024,2025,20,Moderate,Market,AdvancedNuclear,SMR-300,capex_mw,6500000.0,,2024
+2024,2025,20,Moderate,Market,AdvancedNuclear,SMR-300,fixed_o_m_mw,105000.0,,2024
+2024,2025,20,Moderate,Market,AdvancedNuclear,SMR-300,variable_o_m_mwh,2.5,,2024
+2024,2025,20,Moderate,Market,AdvancedNuclear,SMR-300,wacc_real,0.055,,2024
+2024,2026,20,Moderate,Market,AdvancedNuclear,SMR-300,capex_mw,6418750.0,,2024
 ```
 
-### 2. Configure in Settings
+A planning period uses the average of the rows whose `basis_year` falls inside it,
+so a declining cost path is a normal way to write cost projections.
 
-**settings/custom_technologies.yml**:
+!!! warning "Mismatched keys drop rows silently"
+    Costs are selected with an exact match on `technology`, `tech_detail`,
+    `cost_case`, `financial_case`, and (when `resource_data_year` is set) `data_year`.
+    A typo in one of those columns, or a `data_year` of 2022 in a system configured
+    for 2024, leaves the technology with zero costs instead of raising an error.
+
+### 2. Add Heat Rates for Thermal Technologies
+
+**data/custom_technology_heat_rates.csv** (abbreviated):
+
+```csv
+technology,tech_detail,cost_case,basis_year,heat_rate,data_year
+AdvancedNuclear,SMR-300,Moderate,2025,10.5,2024
+AdvancedNuclear,SMR-300,Moderate,2026,10.5,2024
+AdvancedNuclear,SMR-300,Moderate,2027,10.5,2024
+```
+
+Heat rates use the same keys as costs. Skip this table for VRE and storage
+technologies, which have no heat rate.
+
+### 3. List Both Tables in `data.yml`
+
+Table settings accept a list as well as a single filename. The entries are combined
+with a `UNION ALL BY NAME`, so they must have the same columns — and each entry can
+be either a filename or a full table configuration with its own `columns`,
+`filters`, or `scenario`.
+
+**settings/data.yml**:
 
 ```yaml
-# Include additional tech file
-additional_technologies_fn: additional_technologies.csv
+resource_cost_table:
+  - technology_costs_atb_tx_3_zone.csv
+  - custom_technology_costs.csv
+resource_heat_rate_table:
+  - technology_heat_rates_nrelatb.csv
+  - custom_technology_heat_rates.csv
+```
 
-# Select rows by technology name; additional technologies are not added to new_resources
-additional_new_gen:
-  - Hydrogen
+Both files are resolved in `data_location`. List entries are stacked in order, so
+your table can also be listed first if a later ATB entry should win. If all parts
+share the same `scenario`, `filters`, or `columns`, write them once as sibling keys
+and give `table_name` a list instead:
 
-# Assign tags
+```yaml
+resource_cost_table:
+  table_name:
+    - technology_costs_atb_tx_3_zone.csv
+    - custom_technology_costs.csv
+  scenario: core
+```
+
+### 4. List and Tag the Technology
+
+**settings/resources.yml** — the fourth element is the unit size in MW:
+
+```yaml
+new_resources:
+  - [Nuclear, Nuclear - Large, Moderate, 1000]
+  - [AdvancedNuclear, SMR-300, Moderate, 300]
+```
+
+**settings/fuels.yml** — assign the fuel that `tech_fuel_map` gives the technology:
+
+```yaml
+tech_fuel_map:
+  AdvancedNuclear: uranium
+```
+
+If the fuel is not in the configured fuel price table, give it a price with
+`user_fuel_price` (see [Fuels settings](../reference/settings/fuels.md#user_fuel_price)),
+e.g. `user_fuel_price: {hydrogen: 16.0}`.
+
+**settings/resource_tags.yml** — tag names match as substrings of the technology
+name, ignoring case and underscores, and longer keys are applied last. The existing
+`Nuclear` entries already cover `AdvancedNuclear`, so the specific entries below
+mainly guard against `Nuclear` exclusions — without the `New_Build` entry the new
+technology inherits `Nuclear: -1` and is not flagged as a new build:
+
+```yaml
 model_tag_values:
   THERM:
-    Hydrogen: 1
-  Commit:
-    Hydrogen: 1
+    AdvancedNuclear: 1
   New_Build:
-    Hydrogen: 1
-
-# Map to fuel
-tech_fuel_map:
-  Hydrogen: hydrogen
-
+    AdvancedNuclear: 1
+  CapRes_1:
+    AdvancedNuclear: 0.9
 ```
 
-The loader selects rows matching `additional_new_gen` and the model
-`planning_year`. `resource_cap_recovery_years` sets the default recovery period.
-The dollar-year adjustment also requires a configured `dollar_year_table`.
+### 5. Verify
 
-### 3. Add Fuel Prices
-
-**settings/fuels.yml**:
-
-```yaml
-user_fuel_price:
-  hydrogen:
-    CA_N: {2030: 25, 2040: 18, 2050: 12}  # $/MMBtu
-    CA_S: {2030: 25, 2040: 18, 2050: 12}
-    AZ: {2030: 28, 2040: 20, 2050: 14}
+```bash
+run_powergenome --settings_file example_systems/TX-3-zone/settings --results_folder tx_test
 ```
 
-Year-keyed values are resolved before prices are processed. Each fuel can also
-use a single price for all regions.
+The new resource shows up once per model region in
+`tx_test/base/Inputs/Inputs_p1/resources/Thermal.csv` and again, with the later
+planning period costs, in `Inputs_p2`:
 
-### 4. Set Regional Availability
+```
+Resource                              region  Cap_Size  Fixed_OM_Cost_per_MWyr  Var_OM_Cost_per_MWh  Heat_Rate_MMBTU_per_MWh  Fuel         basis_year  capex_mw  Model  New_Build
+TX1_advancednuclear_smr300_moderate_0  TX1         300.0                 105000                 2.5                     10.5  TX1_uranium      2027.5   6296875      1          1
+TX2_advancednuclear_smr300_moderate_0  TX2         300.0                 105000                 2.5                     10.5  TX2_uranium      2027.5   6296875      1          1
+TX3_advancednuclear_smr300_moderate_0  TX3         300.0                 105000                 2.5                     10.5  TX3_uranium      2027.5   6296875      1          1
+```
 
-`new_resources` builds each listed non-renewable technology in **every** model region,
-so it cannot be used to keep one out of a single region. Renewable clusters are scoped
-per region through `renewables_clusters` (each entry specifies a `region`). The legacy
-`new_gen_not_available` key is only validated, not applied.
+`capex_mw` is the average of the 2025–2030 rows, and `basis_year` is the midpoint
+of the years that were averaged.
 
-**settings/tech_availability.yml** (renewables scoped per region):
+!!! note "Alternative: wide-format CSV via `additional_technologies_fn`"
+    The `additional_technologies_fn` + `additional_new_gen` pair still works. It
+    reads a wide CSV (one column per cost parameter, one row per planning year) from
+    `input_folder` instead of the data tables, and only rows named in
+    `additional_new_gen` are used. Prefer the data-table route above: the costs live
+    with the rest of your data, a list entry can be filtered per scenario, and no
+    extra settings key is needed.
+
+## Regional Availability of New Resources
+
+`new_resources` builds each listed non-renewable technology in **every** model
+region, so it cannot be used to keep a technology out of a single region. Renewable
+resources are scoped per region through `renewables_clusters` (each entry has a
+`region` key). The legacy `new_gen_not_available` key is only validated, not applied.
 
 ```yaml
 new_resources:
@@ -431,10 +544,13 @@ renewables_clusters:
 
 **Check**:
 
-1. Technology in `new_resources`, or in `additional_new_gen` if supplied by a CSV?
-2. Technology size specified in the fourth list element or CSV `Cap_Size`?
-3. Tags defined in `model_tag_values`?
-4. For renewables, is a cluster definition present for the target region?
+1. Technology in `new_resources`, or in `additional_new_gen` if it comes from an
+   `additional_technologies_fn` CSV?
+2. Technology size given as the fourth list element (or as `Cap_Size` in that CSV)?
+3. Cost rows findable in the `resource_cost` table — same `technology`, `tech_detail`,
+   `cost_case`, `financial_case`, and `data_year`?
+4. Tags defined in `model_tag_values`?
+5. For renewables, is a cluster definition present for the target region?
 
 ### Renewable Clustering Issues
 
@@ -453,9 +569,13 @@ renewables_clusters:
 
 **Solution**:
 
-- For ATB technologies: Verify `resource_data_year` has that technology
-- For additional technologies: Check all required columns in CSV
-- Check technology name spelling matches exactly
+- For ATB technologies: verify `resource_data_year` has that technology
+- For your own cost table: verify the file is listed under `resource_cost_table` and
+  has one `capex_mw`, `fixed_o_m_mw`, `variable_o_m_mwh`, and `wacc_real` row per
+  basis year
+- Check that `technology`, `tech_detail`, `cost_case`, `financial_case`, and
+  `data_year` match the settings exactly — mismatched keys drop rows without an error
+- Thermal technologies also need rows in `resource_heat_rate_table`
 
 ## Best Practices
 

@@ -114,6 +114,59 @@ In this format:
 For example, `p1` receives the `CapRes_1` and `CapRes_3` mappings, while
 `p4` receives the `CapRes_2` and `CapRes_3` mappings.
 
+## Published Examples
+
+The two example systems bracket the range of setups.
+
+**CA/AZ** applies a different constraint to each model region and uses the
+nested credit format. From `settings/model_definition.yml`:
+
+```yaml
+regional_capacity_reserves:
+  CapRes_1:
+    CA: 0.164   # 16.4% planning reserve margin
+  CapRes_2:
+    AZ: 0.101   # 10.1%
+```
+
+and from `settings/resources.yml` (abridged; the real file lists every
+technology for both constraints):
+
+```yaml
+capacity_reserve_values:
+  CapRes_1:
+    Natural Gas Fired Combined Cycle: 0.9
+    Nuclear: 0.9
+    LandbasedWind: 0.8
+    UtilityPV: 0.8
+    Battery: 0.95
+  CapRes_2:
+    # Identical credits here; list them again, not by reference.
+```
+
+**Texas** has one constraint for all three zones and assigns credits directly in
+`model_tag_values`, which needs no expansion:
+
+```yaml
+regional_capacity_reserves:
+  CapRes_1:
+    TX1: 0.1375
+    TX2: 0.1375
+    TX3: 0.1375
+
+model_tag_values:
+  CapRes_1:
+    Natural Gas Fired Combined Cycle: 0.9
+    Nuclear: 0.9
+    LandbasedWind: 0.8
+    UtilityPV: 0.8
+    Battery: 0.95
+```
+
+Pick one route per constraint. Expanded `capacity_reserve_values` land in
+`regional_tag_values`, which is applied after `model_tag_values`, so a regional
+entry wins if both cover the same region and technology.
+
 ## Mixing Automatic and Manual Configuration
 
 You can mix the automatic expansion with manual `regional_tag_values` overrides for specific regions or constraints:
@@ -187,7 +240,7 @@ longer matching keys override shorter ones. Examples include:
 - `Distributed Solar Photovoltaic`
 - `Hydroelectric`
 - `Nuclear`
-- `Battery Storage`
+- `Battery`
 
 You can also create custom new-build resources with their own names, which will work with `capacity_reserve_values` as long as the names match.
 

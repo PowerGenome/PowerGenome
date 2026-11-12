@@ -33,6 +33,24 @@ class DataManager:
             - filters (optional): DNF filters; accepts lists or tuples in shapes like
                 [[("col", "=", val)], [("col2", ">", 0)]], [["col","=",val]], or ["col","=",val]
             - scenario (optional): convenience filter; ANDed into every OR-clause as (scenario = <value>)
+        - A list of strings and/or dicts: each entry is loaded separately (with its own
+            filters/columns/scenario) and the results are combined with
+            ``UNION ALL BY NAME`` into the single standardized table. This lets a
+            standard table be assembled from more than one file, e.g. adding a
+            user-supplied technology cost table alongside the ATB table::
+
+                resource_cost_table:
+                  - technology_costs_atb.csv
+                  - custom_technology_costs.csv
+        - A dict whose ``table_name`` is a list of sources. Every source becomes a part
+            of the same combined table, and the dict's ``filters``/``columns``/
+            ``scenario`` are applied to each part::
+
+                resource_cost_table:
+                  table_name:
+                    - technology_costs_atb.csv
+                    - custom_technology_costs.csv
+                  scenario: core
     - If both filters and scenario are provided, scenario is added to each clause unless
         a scenario condition already exists in that clause.
     """
@@ -149,6 +167,7 @@ class DataManager:
         self.lazy_loading = lazy_loading
         self.table_configurations = {}  # Reset configurations
         self._table_locations = {}
+        self._combined_parts = {}
         self._attached_databases = {}
         self._database_tables = {}
 
@@ -262,6 +281,14 @@ class DataManager:
         if not source_table:
             raise ValueError(f"No table name found in configuration: {table_config}")
 
+        if not isinstance(source_table, str):
+            raise ValueError(
+                f"Invalid table configuration for '{standard_name}': 'table_name' must "
+                f"be a single source, not {source_table!r}. Use a list of sources at the "
+                "setting level, or put the source list under the 'table_name' key of a "
+                "dict along with any shared filters/scenario."
+            )
+
         # If a scenario is provided, fold it into filters (DNF). We AND the scenario
         # condition into every OR-clause. If no filters exist, create a single clause.
         if scenario is not None:
@@ -358,17 +385,28 @@ class DataManager:
     def _location_for_table(self, standard_name: str) -> Path:
         return self._table_locations.get(standard_name, self.data_location)
 
-    def _create_table_view(self, table_config: Union[str, Dict], standard_name: str):
+    def _create_table_view(
+        self, table_config: Union[str, Dict, List], standard_name: str
+    ):
         """
         Create a table or view in the in-memory database.
 
         Parameters
         ----------
-        table_config : Union[str, Dict]
-            Either a string table name or dict with table configuration
+        table_config : Union[str, Dict, List]
+            A string table name, a dict with table configuration, or a list of
+            strings/dicts that are combined into a single table (see
+            ``_create_combined_table_view``). A dict whose ``table_name`` is a list
+            is also combined, with the dict's other keys shared by every part.
         standard_name : str
             Standardized name for the table in the in-memory database
         """
+        if _declares_multiple_sources(table_config):
+            self._create_combined_table_view(
+                expand_table_config_parts(table_config), standard_name
+            )
+            return
+
         source_table, filters, columns = self._validate_table_config(
             table_config, standard_name
         )
@@ -381,6 +419,40 @@ class DataManager:
             self._create_materialized_table(
                 source_table, standard_name, filters, columns
             )
+
+    def _create_combined_table_view(self, table_configs: List, standard_name: str):
+        """Combine a list of table configurations into one standardized table.
+
+        Each entry is loaded as its own view/table (honoring its own filters,
+        columns, and scenario) and the parts are stacked with
+        ``UNION ALL BY NAME``, so the entries only need to agree on the columns
+        they share.
+        """
+        if not table_configs:
+            raise ValueError(f"No table configurations found for '{standard_name}'.")
+
+        for part_name in self._combined_parts.get(standard_name, []):
+            self._remove_table(part_name)
+
+        part_names = []
+        for i, table_config in enumerate(table_configs):
+            part_name = f"{standard_name}__part{i}"
+            source_table, filters, columns = self._validate_table_config(
+                table_config, part_name
+            )
+            if self.lazy_loading and self.data_location:
+                self._create_lazy_view(source_table, part_name, filters, columns)
+            else:
+                self._create_materialized_table(
+                    source_table, part_name, filters, columns
+                )
+            part_names.append(part_name)
+
+        union_query = " UNION ALL BY NAME ".join(
+            f"SELECT * FROM {part_name}" for part_name in part_names
+        )
+        self.connection.execute(f"CREATE VIEW {standard_name} AS {union_query}")
+        self._combined_parts[standard_name] = part_names
 
     def _create_lazy_view(
         self,
@@ -861,6 +933,9 @@ class DataManager:
             except Exception as e:
                 logger.debug(f"Failed to drop table {table_name}: {e}")
 
+            for part_name in self._combined_parts.pop(table_name, []):
+                self._remove_table(part_name)
+
             self.available_tables.discard(table_name)
             logger.debug(f"Removed table/view: {table_name}")
 
@@ -886,6 +961,78 @@ class DataManager:
         except Exception:
             # Suppress all exceptions in __del__ to avoid issues during shutdown
             pass
+
+
+def _declares_multiple_sources(table_config: Any) -> bool:
+    """Return True when a table setting declares more than one source.
+
+    Covers both forms of a combined table: a list of parts at the setting level,
+    and a dict whose ``table_name`` (or ``name``) is a list.
+    """
+    if isinstance(table_config, (list, tuple)):
+        return True
+    if isinstance(table_config, dict):
+        source = table_config.get("table_name") or table_config.get("name")
+        return isinstance(source, (list, tuple))
+    return False
+
+
+def expand_table_config_parts(table_config: Any) -> List[Any]:
+    """Split a table setting into the list of per-source configurations.
+
+    A list-valued setting is returned as its entries. A dict whose ``table_name``
+    is a list is expanded into one dict per source, with the dict's other keys
+    (``filters``, ``columns``, ``scenario``) copied to every part so a shared
+    configuration is written once. Any other configuration is a single part.
+
+    Parameters
+    ----------
+    table_config : Any
+        The value of a DataManager table setting.
+
+    Returns
+    -------
+    List[Any]
+        Configurations, one per source, in declaration order.
+
+    Raises
+    ------
+    ValueError
+        If ``table_name`` is an empty list or contains something other than a
+        source name. Per-part differences belong in the list-level form::
+
+            resource_cost_table:
+              - table_name: atb.csv
+                filters: [[[scenario, '=', core]]]
+              - table_name: extra.csv
+    """
+    if isinstance(table_config, (list, tuple)):
+        return list(table_config)
+
+    if isinstance(table_config, dict):
+        source = table_config.get("table_name") or table_config.get("name")
+        if isinstance(source, (list, tuple)):
+            if not source:
+                raise ValueError(
+                    f"No table name found in configuration: {table_config}"
+                )
+            shared = {
+                key: value
+                for key, value in table_config.items()
+                if key not in ("table_name", "name")
+            }
+            parts = []
+            for entry in source:
+                if not isinstance(entry, str):
+                    raise ValueError(
+                        "Entries of a 'table_name' list must be filenames or table "
+                        f"names, not {entry!r}. To configure a part differently, use "
+                        "a list of configurations at the setting level instead."
+                    )
+                parts.append({**shared, "table_name": entry})
+            return parts
+
+    return [table_config]
 
 
 # Convenience functions for global access

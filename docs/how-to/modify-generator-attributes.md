@@ -64,6 +64,9 @@ resource_attr_modifiers:
 2. For each matched generator: `fom_per_mwyr = fom_per_mwyr + (126 × age)`
 3. Example: 20-year-old plant adds $2,520/MW-yr to base O&M
 
+This exact block is in `settings/resources.yml` in both the Texas and CA/AZ
+example systems, so it is a safe reference for the expected format.
+
 ### Multiple Attributes for One Technology
 
 Apply multiple formulas to the same technology:

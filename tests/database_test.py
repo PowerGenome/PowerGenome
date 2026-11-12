@@ -757,6 +757,286 @@ class TestConvenienceFunctions:
         assert result.iloc[0]["total"] == 3
 
 
+class TestCombinedTableConfigs:
+    """Tests for list-valued table configurations (one table built from many)."""
+
+    @staticmethod
+    def _write_extra_generators(folder, plant_id, technology):
+        path = folder / "extra_generators.csv"
+        pd.DataFrame(
+            {
+                "plant_id": [plant_id],
+                "technology": [technology],
+                "capacity": [400],
+                "region": ["C"],
+            }
+        ).to_csv(path, index=False)
+        return path
+
+    def test_list_of_csv_files_combined(self, temp_csv_folder):
+        """Two CSV files are stacked into the standardized table."""
+        self._write_extra_generators(temp_csv_folder, 4, "nuclear")
+
+        dm = DataManager()
+        dm.initialize(
+            {"generation_table": ["generators.csv", "extra_generators.csv"]},
+            temp_csv_folder,
+        )
+
+        df = dm.get_data("generation")
+        assert len(df) == 4
+        assert set(df["technology"]) == {"solar", "wind", "gas", "nuclear"}
+
+    def test_list_with_dict_entries_applies_filters(self, temp_csv_folder):
+        """Each entry keeps its own filters when combined."""
+        self._write_extra_generators(temp_csv_folder, 4, "nuclear")
+
+        dm = DataManager()
+        dm.initialize(
+            {
+                "generation_table": [
+                    "generators.csv",
+                    {
+                        "table_name": "extra_generators.csv",
+                        "filters": [[("technology", "=", "nuclear")]],
+                    },
+                ]
+            },
+            temp_csv_folder,
+        )
+
+        assert len(dm.get_data("generation")) == 4
+
+        # A filter that matches nothing removes the second entry's rows only.
+        dm.initialize(
+            {
+                "generation_table": [
+                    "generators.csv",
+                    {
+                        "table_name": "extra_generators.csv",
+                        "filters": [[("technology", "=", "coal")]],
+                    },
+                ]
+            },
+            temp_csv_folder,
+        )
+        assert len(dm.get_data("generation")) == 3
+
+    def test_list_parts_resolve_in_different_locations(self, temp_csv_folder, tmp_path):
+        """Each entry can live in a different data location."""
+        second_folder = tmp_path / "second"
+        second_folder.mkdir()
+        self._write_extra_generators(second_folder, 4, "nuclear")
+
+        dm = DataManager()
+        dm.initialize(
+            {"generation_table": ["generators.csv", "extra_generators.csv"]},
+            [temp_csv_folder, second_folder],
+        )
+
+        assert len(dm.get_data("generation")) == 4
+
+    def test_missing_part_raises(self, temp_csv_folder):
+        """A missing file in the list is reported with the standardized name."""
+        dm = DataManager()
+        with pytest.raises(RuntimeError, match="not found in any data location"):
+            dm.initialize(
+                {"generation_table": ["generators.csv", "nope.csv"]}, temp_csv_folder
+            )
+
+    def test_list_materialized_loading(self, temp_csv_folder):
+        """Combined tables also work without lazy loading."""
+        self._write_extra_generators(temp_csv_folder, 4, "nuclear")
+
+        dm = DataManager()
+        dm.initialize(
+            {"generation_table": ["generators.csv", "extra_generators.csv"]},
+            temp_csv_folder,
+            lazy_loading=False,
+        )
+
+        df = dm.get_data("generation")
+        assert len(df) == 4
+        assert df["plant_id"].nunique() == 4
+
+    def test_empty_list_skips_table(self, temp_csv_folder):
+        """An empty list is treated like an unset table setting."""
+        dm = DataManager()
+        dm.initialize({"generation_table": []}, temp_csv_folder)
+
+        assert "generation" not in dm.available_tables
+
+    def test_update_replaces_combined_table(self, temp_csv_folder):
+        """Updating a list-valued setting rebuilds the combined table."""
+        self._write_extra_generators(temp_csv_folder, 4, "nuclear")
+
+        dm = DataManager()
+        dm.initialize(
+            {
+                "generation_table": [
+                    "generators.csv",
+                    {"table_name": "extra_generators.csv"},
+                ]
+            },
+            temp_csv_folder,
+        )
+        assert len(dm.get_data("generation")) == 4
+
+        dm.update({"generation_table": ["generators.csv"]})
+        assert len(dm.get_data("generation")) == 3
+
+    def test_single_entry_list_matches_string_config(self, temp_csv_folder):
+        """A one-item list produces the same rows as a plain string."""
+        dm = DataManager()
+        dm.initialize({"generation_table": ["generators.csv"]}, temp_csv_folder)
+        from_list = dm.get_data("generation")
+
+        dm.initialize({"generation_table": "generators.csv"}, temp_csv_folder)
+        from_string = dm.get_data("generation")
+
+        pd.testing.assert_frame_equal(
+            from_list.reset_index(drop=True), from_string.reset_index(drop=True)
+        )
+
+    @staticmethod
+    def _write_scenario_generators(folder, filename, rows):
+        pd.DataFrame(rows).to_csv(folder / filename, index=False)
+
+    def _write_two_scenario_files(self, folder):
+        self._write_scenario_generators(
+            folder,
+            "scenario_a.csv",
+            {
+                "plant_id": [4, 5],
+                "technology": ["nuclear", "hydro"],
+                "capacity": [400, 50],
+                "region": ["C", "C"],
+                "scenario": ["high_ev", "low_ev"],
+            },
+        )
+        self._write_scenario_generators(
+            folder,
+            "scenario_b.csv",
+            {
+                "plant_id": [6],
+                "technology": ["gas"],
+                "capacity": [300],
+                "region": ["C"],
+                "scenario": ["low_ev"],
+            },
+        )
+
+    def test_table_name_list_shares_scenario(self, temp_csv_folder):
+        """A table_name list applies the sibling scenario to every part."""
+        self._write_two_scenario_files(temp_csv_folder)
+
+        dm = DataManager()
+        dm.initialize(
+            {
+                "generation_table": {
+                    "table_name": ["scenario_a.csv", "scenario_b.csv"],
+                    "scenario": "high_ev",
+                }
+            },
+            temp_csv_folder,
+        )
+
+        assert list(dm.get_data("generation")["plant_id"]) == [4]
+
+    def test_table_name_list_shares_filters_and_columns(self, temp_csv_folder):
+        """Sibling filters and columns reach every part of a table_name list."""
+        self._write_two_scenario_files(temp_csv_folder)
+
+        dm = DataManager()
+        dm.initialize(
+            {
+                "generation_table": {
+                    "table_name": ["scenario_a.csv", "scenario_b.csv"],
+                    "filters": [[("region", "=", "C")]],
+                    "columns": ["plant_id", "technology"],
+                }
+            },
+            temp_csv_folder,
+        )
+
+        df = dm.get_data("generation")
+        assert set(df.columns) == {"plant_id", "technology"}
+        assert sorted(df["plant_id"]) == [4, 5, 6]
+
+    def test_table_name_list_resolves_across_locations(self, temp_csv_folder, tmp_path):
+        """Parts of a table_name list may live in different data locations."""
+        second_folder = tmp_path / "second"
+        second_folder.mkdir()
+        self._write_extra_generators(second_folder, 4, "nuclear")
+
+        dm = DataManager()
+        dm.initialize(
+            {
+                "generation_table": {
+                    "table_name": ["generators.csv", "extra_generators.csv"]
+                }
+            },
+            [temp_csv_folder, second_folder],
+        )
+
+        assert len(dm.get_data("generation")) == 4
+
+    def test_table_name_list_materialized_loading(self, temp_csv_folder):
+        """A table_name list also works without lazy loading."""
+        self._write_two_scenario_files(temp_csv_folder)
+
+        dm = DataManager()
+        dm.initialize(
+            {
+                "generation_table": {
+                    "table_name": ["scenario_a.csv", "scenario_b.csv"],
+                    "scenario": "high_ev",
+                }
+            },
+            temp_csv_folder,
+            lazy_loading=False,
+        )
+
+        assert list(dm.get_data("generation")["plant_id"]) == [4]
+
+    def test_table_name_empty_list_raises(self, temp_csv_folder):
+        """An empty table_name list is reported before any view is created."""
+        dm = DataManager()
+        with pytest.raises(RuntimeError, match="No table name found"):
+            dm.initialize({"generation_table": {"table_name": []}}, temp_csv_folder)
+
+    def test_table_name_list_rejects_nested_config(self, temp_csv_folder):
+        """Per-part configuration belongs at the setting level, not in table_name."""
+        dm = DataManager()
+        with pytest.raises(RuntimeError, match="must be filenames or table names"):
+            dm.initialize(
+                {
+                    "generation_table": {
+                        "table_name": [{"table_name": "generators.csv"}]
+                    }
+                },
+                temp_csv_folder,
+            )
+
+    def test_update_replaces_table_name_list(self, temp_csv_folder):
+        """Updating a table_name list setting rebuilds the combined table."""
+        self._write_extra_generators(temp_csv_folder, 4, "nuclear")
+
+        dm = DataManager()
+        dm.initialize(
+            {
+                "generation_table": {
+                    "table_name": ["generators.csv", "extra_generators.csv"]
+                }
+            },
+            temp_csv_folder,
+        )
+        assert len(dm.get_data("generation")) == 4
+
+        dm.update({"generation_table": "generators.csv"})
+        assert len(dm.get_data("generation")) == 3
+
+
 class TestValidation:
     """Tests for the validation functionality in DataManager."""
 
