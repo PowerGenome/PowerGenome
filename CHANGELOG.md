@@ -7,6 +7,8 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-12
+
 ### Added
 
 - DataManager table settings accept a list of configurations, stacked with

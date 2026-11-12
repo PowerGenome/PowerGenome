@@ -20,7 +20,7 @@ mkdir powergenome-tutorial
 cd powergenome-tutorial
 uv venv --python 3.12
 source .venv/bin/activate
-uv pip install powergenome==0.8.0
+uv pip install powergenome==0.9.0
 ```
 
 On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` instead of
@@ -251,7 +251,7 @@ example's dataset is deliberately small.
 
 **Import errors**
 : Activate the environment in `powergenome-tutorial/.venv/`. If installation did
-  not complete, rerun `uv pip install powergenome==0.8.0` in that environment.
+  not complete, rerun `uv pip install powergenome==0.9.0` in that environment.
 
 **Resource-group directory not found**
 : Run from `powergenome-tutorial/`, not from inside the Texas study. Check that
