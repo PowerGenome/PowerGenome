@@ -98,7 +98,8 @@ resolved or provide `default`; see [Year-Keyed Values](year-keyed-values.md).
 
 These are alternative fragments to put under a selected level, not a second
 complete settings file. Use values supported by your configured input tables.
-The example names below match the bundled test system where applicable.
+The technology and region names below are illustrative; substitute names that
+exist in your own data tables.
 
 ### Technology Costs
 
@@ -222,7 +223,19 @@ Each period contains `resources/`, `system/`, `policies/`, and the resolved
 `powergenome_case_settings.yml`. Without a scenario CSV, the path is
 `results/Inputs/Inputs_pN/`. See the [CLI Reference](../cli.md) for output flags.
 
-## Scenario Copying
+## Sharing Policy Rows Across Cases
+
+### `case_id: all`
+
+**Type:** a value in the `case_id` column of the `emission_policies_table` input.
+
+Rows whose `case_id` is `all` (any capitalization) are read as the case that is
+running whenever that case has no rows of its own, so one set of policy rows can
+serve every case. The substitution is decided per case, not per row: once a case
+has any row of its own, its `all` rows are left unused, so a case with only some
+of its years fails on the missing ones. This is how the bundled fixture shares its
+caps across cases. See
+[Run Multiple Scenarios](../../how-to/run-scenarios.md#add-policy-rows-for-the-new-case).
 
 ### `copy_case_id`
 
@@ -238,8 +251,8 @@ carbon_50,2030,p1_2,baseline,
 The target copies policy values from the source case with the same **year and
 region**. Provide corresponding rows for other years and regions as needed.
 Policy columns must use output names such as `ESR_1`, not informal `RPS` or `CES`
-labels. The bundled fixture instead uses `case_id: all` rows to share its caps
-across cases. See [Energy Share Requirements](../../how-to/energy-share-requirements.md).
+labels. Use [`case_id: all`](#case_id-all) instead when every case shares the same
+rows. See [Energy Share Requirements](../../how-to/energy-share-requirements.md).
 
 ## Validation
 

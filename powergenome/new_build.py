@@ -1046,7 +1046,10 @@ def build_new_resources(
             # "cluster",
         ]
         int_cols = [c for c in int_cols if c in results.columns]
-        results = results.fillna(0)
+        # infer_objects restores the object->numeric downcasting that pandas <=2.x
+        # performed implicitly in fillna. Without it the cost columns stay object
+        # dtype on pandas 3.x and are skipped by later numeric operations.
+        results = results.fillna(0).infer_objects()
         results[int_cols] = results[int_cols].astype(int)
         results["Var_OM_Cost_per_MWh"] = results["Var_OM_Cost_per_MWh"].astype(float)
 

@@ -140,7 +140,9 @@ def fuel_cost_table(
     fuel_df = add_carbon_tax(fuel_df, settings.get("carbon_tax"))
     fuel_df["Cost_per_MMBtu"] = fuel_df["Cost_per_MMBtu"]
     fuel_df["CO2_content_tons_per_MMBtu"] = fuel_df["CO2_content_tons_per_MMBtu"]
-    fuel_df.fillna(0, inplace=True)
+    # infer_objects restores the object->numeric downcasting that pandas <=2.x
+    # performed in fillna; pandas 3.x no longer does it implicitly.
+    fuel_df = fuel_df.fillna(0).infer_objects()
 
     if settings.get("reduce_time_domain"):
         days = settings["time_domain_days_per_period"]
@@ -433,15 +435,13 @@ def fetch_fuel_prices(settings: dict, inflate_price: bool = True) -> pd.DataFram
                 df_list.append(_df)
             fuel_data = pd.concat(df_list, ignore_index=True, sort=False)
         except (KeyError, TypeError):
-            logger.warning(
-                """
+            logger.warning("""
     ************
     Unable to inflate fuel prices. Check your settings file to ensure the key
     "target_usd_year" is a valid integer and that the fuel price data table includes a
     "dollar_year" column with valid integer years.
     ************
-                """
-            )
+                """)
 
     return fuel_data
 
@@ -741,6 +741,9 @@ def add_user_fuel_prices(settings: dict, df: pd.DataFrame = None) -> pd.DataFram
             fuel_data["full_fuel_name"].extend([fuel] * len(years))
 
     user_fuel_price = pd.DataFrame(fuel_data)
+    # Prices may be configured as integers, but inflation adjustment returns
+    # floats. Use a float column so pandas 3 does not reject the dtype upcast.
+    user_fuel_price["price"] = user_fuel_price["price"].astype(float)
     if settings.get("target_usd_year"):
         for fuel, year in (settings.get("user_fuel_usd_year", {}) or {}).items():
             user_fuel_price.loc[user_fuel_price["fuel"] == fuel, "price"] = (

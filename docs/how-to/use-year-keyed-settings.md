@@ -44,6 +44,10 @@ carbon_tax:
 PowerGenome will resolve one value per planning year when building case settings.
 Use unquoted integer year keys between 1900 and 2200; `default` is optional.
 
+Both published example systems leave `carbon_tax: 0` as a scalar in
+`settings/fuels.yml`, so they are a realistic place to start this conversion:
+the value already exists and you only change its shape.
+
 ## 3. Use Fallback Values With `default`
 
 Use a fallback when you do not want to list every year explicitly.

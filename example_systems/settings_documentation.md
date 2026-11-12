@@ -550,6 +550,11 @@ PowerGenome reads input data from either a folder of CSV/Parquet files or from a
       - Full DNF: `[[(...), (...)] , [(...)]]`
     - `scenario` (optional): convenience selector for a `scenario` column. This is automatically ANDed into every OR-clause of `filters`. If a clause already includes a `scenario` condition, it is not duplicated.
 
+- As a list: multiple sources stacked into the one standardized table with `UNION ALL BY NAME`.
+  - Each entry is a string or its own dictionary, so parts can have different `filters`, `columns`, or `scenario`. Parts may resolve in different `data_location` folders.
+  - Example: `resource_cost_table: [technology_costs_atb.csv, custom_technology_costs.csv]`
+  - Instead of a list of dictionaries, `table_name` itself may be a list of sources when the entries share configuration: `demand_table: {table_name: [demand_west.parquet, demand_east.parquet], scenario: HighEV}` applies `scenario` to every part. Per-part differences require the list-of-entries form.
+
 The DataManager converts the configuration into a view or in-memory table with a standardized name (`generation`, `demand`, etc.). When `lazy_loading` is true (default), views are created so data are not fully loaded into memory.
 
 ### Scenario usage examples
