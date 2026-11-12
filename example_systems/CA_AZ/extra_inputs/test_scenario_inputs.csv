@@ -1,5 +1,0 @@
-﻿case_id,year,ng_price,ccs_capex,conv_hydro_rps_eligible,ca_nuclear_allowed
-p1,2030,reference,mid,no,no
-s1,2030,low,low,no,no
-p1,2045,reference,mid,no,yes
-s1,2045,low,low,no,yes

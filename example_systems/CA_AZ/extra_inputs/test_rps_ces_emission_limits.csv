@@ -1,7 +1,0 @@
-﻿case_id,year,region,ESR_1,ESR_2,CO_2_Cap_Zone_1,CO_2_Max_Mtons_1,CO_2_Max_tons_MWh_1,copy_case_id
-all,2030,CA_N,0.59,0,0,-1,-1,
-all,2030,CA_S,0.586,0,,,,
-all,2030,WECC_AZ,0.095,0,,,,
-all,2045,CA_N,0.59,0.912,,,,
-all,2045,CA_S,0.586,0.883,,,,
-all,2045,WECC_AZ,0.118,0.076,0,-1,-1,
