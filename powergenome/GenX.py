@@ -246,7 +246,7 @@ def create_policy_req(col_str_match: str, settings: dict = None) -> pd.DataFrame
             "Only one zone was found in the emissions policy file."
             " The same emission policies are being applied to all zones."
         )
-        for col, value in year_case_policy[policy_cols].iteritems():
+        for col, value in year_case_policy[policy_cols].items():
             if "CO_2_Max_Mtons" in col:
                 zone_df.loc[:, col] = 0
                 if value > 0:
@@ -306,7 +306,7 @@ def create_regional_cap_res(settings: dict = None) -> pd.DataFrame:
                     )
                 cap_res_df.loc[region, col] = val
 
-        cap_res_df = cap_res_df.fillna(0)
+        cap_res_df = cap_res_df.fillna(0).infer_objects()
 
         return cap_res_df
 
@@ -1349,6 +1349,20 @@ def update_newbuild_canretire(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _is_plain_string_column(series: pd.Series) -> bool:
+    """True for columns of plain (non-extension) string values.
+
+    pandas 2 stores these as ``object``; pandas 3 assigns the new ``str`` dtype,
+    which is a ``StringDtype`` whose missing value is NaN. Extension string
+    dtypes explicitly requested by callers (``dtype="string"``, Arrow-backed
+    strings) are *not* plain and keep the behavior they have under pandas 2.
+    """
+    dtype = series.dtype
+    if pd.api.types.is_object_dtype(dtype):
+        return True
+    return isinstance(dtype, pd.StringDtype) and dtype.na_value is not pd.NA
+
+
 def filter_empty_columns(df: pd.DataFrame) -> List[str]:
     """Find columns that have at least one valid value.
 
@@ -1380,14 +1394,21 @@ def filter_empty_columns(df: pd.DataFrame) -> List[str]:
     # comparisons).  Numeric columns can never hold "No_fuel", so they default
     # to True; only object columns need the actual string comparison.
     string_notnone_mask = pd.Series(True, index=df.columns)
-    obj_cols = df.select_dtypes(include="object").columns
+    # Plain string columns are stored as ``object`` in pandas 2 and as the new
+    # ``str`` dtype in pandas 3.  Both are checked for "No_fuel" values so that
+    # the selected columns do not depend on the pandas version.  Explicitly
+    # requested extension string dtypes (``StringDtype`` with ``pd.NA``) keep
+    # their dtype-determined behavior from pandas 2, where they were never
+    # matched by ``select_dtypes(include="object")``.
+    obj_cols = [col for col in df.columns if _is_plain_string_column(df[col])]
     if len(obj_cols):
         string_notnone_mask[obj_cols] = (
             df[obj_cols].notna() & df[obj_cols].ne("No_fuel")
         ).any(axis=0)
 
-    # Check for non-zero values (treat NaN as False)
-    nonzero_mask = df.fillna(0).astype(bool).sum() > 0
+    # Ignore missing values before testing truthiness: numeric fill values are
+    # incompatible with nullable strings, booleans, and categorical columns.
+    nonzero_mask = df.apply(lambda col: col.dropna().astype(bool).any())
 
     # Combine all masks
     valid_cols = nonzero_mask & notnull_mask & string_notnone_mask
@@ -1536,10 +1557,12 @@ def create_policy_df(df: pd.DataFrame, policy_info: Dict[str, str]) -> pd.DataFr
     ]
     policy_df = df[policy_cols].copy()
 
-    # Keep only rows with at least one non-zero value in policy columns
-    policy_data_cols = policy_df.select_dtypes(
-        include=["number"]
-    ).columns  # All numeric columns
+    # Keep only rows with at least one non-zero value in policy columns. Columns
+    # are selected by name rather than dtype because policy columns can be
+    # object-dtype, which pandas no longer downcasts to numeric automatically.
+    policy_data_cols = [
+        col for col in policy_cols if col.startswith(policy_info["oldtag"])
+    ]
     policy_df = policy_df[policy_df[policy_data_cols].gt(0).any(axis=1)]
 
     # Rename columns replacing oldtag with newtag

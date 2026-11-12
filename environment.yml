@@ -19,7 +19,7 @@ dependencies:
   - conda-forge::frozendict
   - numpy
   - openpyxl>=3.0
-  - pandas>=2.2.0
+  - pandas>=2.2.0,<4
   - duckdb>=1.3.0
   - pyarrow
   - scikit-learn

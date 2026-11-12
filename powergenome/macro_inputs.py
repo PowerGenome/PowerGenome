@@ -765,7 +765,9 @@ def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
     for _, row in network.iterrows():
         start = _gen_value(row, "start_region")
         dest = _gen_value(row, "dest_region")
-        if start is None or dest is None:
+        # Missing string values surface as NaN under pandas 3's default string
+        # dtype, so check with pd.isna rather than comparing to None.
+        if pd.isna(start) or pd.isna(dest):
             continue
         max_flow = _num(_gen_value(row, "Line_Max_Flow_MW", 0.0), 0.0)
         reinforcement = (

@@ -764,7 +764,10 @@ def add_model_tags_to_gen_columns(
     for region, regional_tags in (regional_tag_values or {}).items():
         regional_keys.extend(list(regional_tags.keys()))
 
-    tag_keys = set(tag_keys + regional_keys)
+    # Order-preserving de-duplication: iterating a set of strings is
+    # non-deterministic across processes, which made the column order of the
+    # dumped settings (and downstream output files) vary between runs.
+    tag_keys = list(dict.fromkeys(tag_keys + regional_keys))
     for tag in tag_keys:
         if tag not in generator_columns:
             generator_columns.append(tag)

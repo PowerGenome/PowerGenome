@@ -73,7 +73,10 @@ def get_distributed_gen_capacity(
         reverse_agg_map = reverse_dict_of_lists(region_aggregations)
         base_regions = [r for r in regions if r not in region_aggregations.keys()]
         base_regions.extend(list(reverse_agg_map.keys()))
-        base_regions = list(set(base_regions))
+        # De-duplicate while keeping a stable order: set iteration follows string
+        # hashing, which is randomized per process and shuffled the resulting
+        # distributed generation resources from run to run.
+        base_regions = list(dict.fromkeys(base_regions))
     else:
         base_regions = regions
 

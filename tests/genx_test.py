@@ -290,6 +290,74 @@ def test_filter_empty_columns():
     ), "NaN values case failed"
 
 
+@pytest.mark.filterwarnings("error")
+@pytest.mark.parametrize(
+    "dtype", [None, object, "string", "string[pyarrow]", "category"]
+)
+def test_filter_empty_columns_missing_strings(dtype):
+    df = pd.DataFrame(
+        {
+            "valid": pd.Series(["metadata", None], dtype=dtype),
+            "empty": pd.Series(["", None], dtype=dtype),
+            "missing": pd.Series([None, None], dtype=dtype),
+        }
+    )
+    original = df.copy(deep=True)
+
+    assert filter_empty_columns(df) == ["valid"]
+    pd.testing.assert_frame_equal(df, original)
+
+
+@pytest.mark.parametrize("dtype", ["Int64", "Float64", "boolean", "int64[pyarrow]"])
+def test_filter_empty_columns_nullable_numeric_and_boolean(dtype):
+    df = pd.DataFrame(
+        {
+            "valid": pd.Series([1, None], dtype=dtype),
+            "zero": pd.Series([0, None], dtype=dtype),
+            "missing": pd.Series([None, None], dtype=dtype),
+        }
+    )
+
+    assert filter_empty_columns(df) == ["valid"]
+
+
+@pytest.mark.parametrize("dtype", [object, "string", "boolean", "Int64", "category"])
+def test_filter_empty_columns_zero_rows(dtype):
+    df = pd.DataFrame({"empty": pd.Series(dtype=dtype)})
+
+    assert filter_empty_columns(df) == []
+
+
+def test_filter_empty_columns_preserves_explicit_nullable_fuel_strings():
+    df = pd.DataFrame(
+        {
+            "plain_fuel": ["No_fuel", None],
+            "object_fuel": pd.Series(["No_fuel", None], dtype=object),
+            "Fuel": pd.Series(["No_fuel", None], dtype="string"),
+        }
+    )
+
+    assert filter_empty_columns(df) == ["Fuel"]
+
+
+def test_create_resource_df_missing_optional_metadata():
+    df = pd.DataFrame(
+        {
+            "Resource": ["wind_1", "wind_2"],
+            "VRE": [1, 1],
+            "metadata": ["available", None],
+            "empty_metadata": ["", None],
+        }
+    )
+
+    result = create_resource_df(df, "VRE")
+
+    assert result["Resource"].tolist() == ["wind_1", "wind_2"]
+    assert "metadata" in result.columns
+    assert "empty_metadata" not in result.columns
+    assert pd.isna(result.loc[1, "metadata"])
+
+
 def test_filter_empty_columns_errors():
     """Test error handling in filter_empty_columns."""
     # Test with non-DataFrame input
@@ -798,6 +866,35 @@ def test_create_policy_df_valid_values():
         policy_info = {"oldtag": policy_type, "newtag": policy_type}
         result = create_policy_df(valid_mixed_df.copy(), policy_info)
         assert not result.empty, f"Should accept valid {policy_type} values"
+
+
+def test_create_policy_df_object_dtype_policy_columns():
+    """Policy columns are object dtype in generator data (see add_resource_tags).
+
+    pandas 3 no longer downcasts all-numeric object columns when missing values
+    are filled, so these columns must be selected by name rather than by numeric
+    dtype. Otherwise the policy assignment files are silently skipped and the
+    policy columns stay in the resource files.
+    """
+    input_df = pd.DataFrame(
+        {
+            "Resource": ["gen_1", "gen_2", "gen_3"],
+            "ESR_1": pd.Series([1, 0, 0], dtype=object),
+            "CapRes_1": pd.Series([0.0, 0.25, 0.0], dtype=object),
+        }
+    )
+
+    esr_result = create_policy_df(input_df.copy(), {"oldtag": "ESR_", "newtag": "ESR_"})
+    assert list(esr_result.columns) == ["Resource", "ESR_1"]
+    assert list(esr_result["Resource"]) == ["gen_1"]
+
+    cap_res_df = input_df.copy()
+    cap_res_result = create_policy_df(
+        cap_res_df, {"oldtag": "CapRes_", "newtag": "Derating_factor_"}
+    )
+    assert list(cap_res_result["Resource"]) == ["gen_2"]
+    assert "Derating_factor_1" in cap_res_result.columns
+    assert "CapRes_1" not in cap_res_df.columns, "Policy columns are removed from df"
 
 
 def test_create_policy_df_invalid_values():
