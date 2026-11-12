@@ -1713,16 +1713,27 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#scenario-copying" class="md-nav__link">
+  <a href="#sharing-policy-rows-across-cases" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Scenario Copying
+        Sharing Policy Rows Across Cases
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Scenario Copying">
+    <nav class="md-nav" aria-label="Sharing Policy Rows Across Cases">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#case_id-all" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        case_id: all
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#copy_case_id" class="md-nav__link">
@@ -2598,16 +2609,27 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#scenario-copying" class="md-nav__link">
+  <a href="#sharing-policy-rows-across-cases" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Scenario Copying
+        Sharing Policy Rows Across Cases
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Scenario Copying">
+    <nav class="md-nav" aria-label="Sharing Policy Rows Across Cases">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#case_id-all" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        case_id: all
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#copy_case_id" class="md-nav__link">
@@ -2850,7 +2872,8 @@ resolved or provide <code>default</code>; see <a href="../year-keyed-values/">Ye
 <h2 id="parameter-swap-examples">Parameter Swap Examples<a class="headerlink" href="#parameter-swap-examples" title="Permanent link">&para;</a></h2>
 <p>These are alternative fragments to put under a selected level, not a second
 complete settings file. Use values supported by your configured input tables.
-The example names below match the bundled test system where applicable.</p>
+The technology and region names below are illustrative; substitute names that
+exist in your own data tables.</p>
 <h3 id="technology-costs">Technology Costs<a class="headerlink" href="#technology-costs" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">resource_modifiers</span><span class="p">:</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">batteries</span><span class="p">:</span>
@@ -2941,7 +2964,16 @@ With default GenX output and a scenario CSV, the path is
 Each period contains <code>resources/</code>, <code>system/</code>, <code>policies/</code>, and the resolved
 <code>powergenome_case_settings.yml</code>. Without a scenario CSV, the path is
 <code>results/Inputs/Inputs_pN/</code>. See the <a href="../../cli/">CLI Reference</a> for output flags.</p>
-<h2 id="scenario-copying">Scenario Copying<a class="headerlink" href="#scenario-copying" title="Permanent link">&para;</a></h2>
+<h2 id="sharing-policy-rows-across-cases">Sharing Policy Rows Across Cases<a class="headerlink" href="#sharing-policy-rows-across-cases" title="Permanent link">&para;</a></h2>
+<h3 id="case_id-all"><code>case_id: all</code><a class="headerlink" href="#case_id-all" title="Permanent link">&para;</a></h3>
+<p><strong>Type:</strong> a value in the <code>case_id</code> column of the <code>emission_policies_table</code> input.</p>
+<p>Rows whose <code>case_id</code> is <code>all</code> (any capitalization) are read as the case that is
+running whenever that case has no rows of its own, so one set of policy rows can
+serve every case. The substitution is decided per case, not per row: once a case
+has any row of its own, its <code>all</code> rows are left unused, so a case with only some
+of its years fails on the missing ones. This is how the bundled fixture shares its
+caps across cases. See
+<a href="../../../how-to/run-scenarios/#add-policy-rows-for-the-new-case">Run Multiple Scenarios</a>.</p>
 <h3 id="copy_case_id"><code>copy_case_id</code><a class="headerlink" href="#copy_case_id" title="Permanent link">&para;</a></h3>
 <p><strong>Type:</strong> optional column in the <code>emission_policies_table</code> input, not a YAML
 setting or a column that copies scenario settings.</p>
@@ -2952,8 +2984,8 @@ setting or a column that copies scenario settings.</p>
 <p>The target copies policy values from the source case with the same <strong>year and
 region</strong>. Provide corresponding rows for other years and regions as needed.
 Policy columns must use output names such as <code>ESR_1</code>, not informal <code>RPS</code> or <code>CES</code>
-labels. The bundled fixture instead uses <code>case_id: all</code> rows to share its caps
-across cases. See <a href="../../../how-to/energy-share-requirements/">Energy Share Requirements</a>.</p>
+labels. Use <a href="#case_id-all"><code>case_id: all</code></a> instead when every case shares the same
+rows. See <a href="../../../how-to/energy-share-requirements/">Energy Share Requirements</a>.</p>
 <h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

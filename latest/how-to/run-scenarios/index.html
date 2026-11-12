@@ -953,10 +953,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-copy-a-working-system" class="md-nav__link">
+  <a href="#1-download-a-working-system" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Copy a working system
+        1. Download a working system
       
     </span>
   </a>
@@ -2398,10 +2398,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-copy-a-working-system" class="md-nav__link">
+  <a href="#1-download-a-working-system" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Copy a working system
+        1. Download a working system
       
     </span>
   </a>
@@ -2655,68 +2655,137 @@
 
 <h1 id="run-multiple-scenarios">Run Multiple Scenarios<a class="headerlink" href="#run-multiple-scenarios" title="Permanent link">&para;</a></h1>
 <p>Compare cases by adding one scenario CSV and one settings swap to a working
-configuration. This guide uses the bundled three-region test system to compare
-<code>baseline</code> with a <code>carbon_50</code> case in 2030 and 2040.</p>
+configuration. This guide uses the published Texas three-zone example to compare
+<code>base</code> with a <code>carbon_50</code> case in the 2030 and 2045 planning periods.</p>
 <p>Use this page for the practical workflow. For supported shapes and combinations,
 see <a href="../../reference/settings/scenario-management/">Scenario Management Settings</a>.
 For precedence and execution order, see
 <a href="../../explanation/scenarios/">Multi-Scenario Architecture</a>.</p>
 <h2 id="basic-setup">Basic Setup<a class="headerlink" href="#basic-setup" title="Permanent link">&para;</a></h2>
-<h3 id="1-copy-a-working-system">1. Copy a working system<a class="headerlink" href="#1-copy-a-working-system" title="Permanent link">&para;</a></h3>
-<p>Prerequisites: an installed PowerGenome environment and a matching source
-checkout containing <code>tests/test_system/</code>. The fixture is small demonstration data,
-not a production study. If you only need values to change over time within one
-case, use <a href="../use-year-keyed-settings/">year-keyed settings</a> instead.</p>
-<p>From the repository root, copy the fixture outside the checkout:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cp<span class="w"> </span>-R<span class="w"> </span>tests/test_system<span class="w"> </span>../scenario-study
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>../scenario-study
+<h3 id="1-download-a-working-system">1. Download a working system<a class="headerlink" href="#1-download-a-working-system" title="Permanent link">&para;</a></h3>
+<p>The published examples live in a separate
+<a href="https://github.com/PowerGenome/PowerGenome-examples">PowerGenome-examples</a>
+repository, so no PowerGenome source checkout is involved. Download the same
+pinned Texas snapshot that
+<a href="../../tutorials/getting-started/#1-download-the-texas-example">Getting Started</a>
+uses:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mkdir<span class="w"> </span>scenario-study
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>scenario-study
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>curl<span class="w"> </span>--fail<span class="w"> </span>--location<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span>https://codeload.github.com/PowerGenome/PowerGenome-examples/tar.gz/7e34f714469e68fca173cdb849f74c47be779420<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span>--output<span class="w"> </span>powergenome-examples.tar.gz
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>tar<span class="w"> </span>-xzf<span class="w"> </span>powergenome-examples.tar.gz<span class="w"> </span>--strip-components<span class="o">=</span><span class="m">1</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>rm<span class="w"> </span>powergenome-examples.tar.gz
 </code></pre></div>
-<p>Choose a new destination if <code>../scenario-study</code> already exists. Run the remaining
-commands from the copied <code>scenario-study/</code> directory. Its settings already define:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">model_regions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">p1_2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p4</span><span class="p p-Indicator">]</span>
+<p>That archive is under 1 MB. Choose another folder name if <code>scenario-study</code>
+already exists, and run every command below from the new folder.</p>
+<p>Stay at the top of <code>scenario-study/</code> and address the study as
+<code>example_systems/TX-3-zone/</code>; do not change into that folder. Its <code>data_location</code>
+and <code>input_folder</code> resolve from the settings folder's parent, but its published
+<code>RESOURCE_GROUPS</code> and <code>RESOURCE_GROUP_PROFILES</code> paths resolve from your working
+directory.</p>
+<p>The example is demonstration data (240 synthetic profile time steps), not a
+production study. If you only need values to change over time within one case,
+use <a href="../use-year-keyed-settings/">year-keyed settings</a> instead.</p>
+<p>Its <code>example_systems/TX-3-zone/settings/model_definition.yml</code> already defines:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">model_regions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">TX1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">TX2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">TX3</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">region_aggregations</span><span class="p">:</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">p1_2</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">p1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p2</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nt">model_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2030</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nt">model_first_planning_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2025</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2031</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">TX1</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">p60</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p61</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p62</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">TX2</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">p63</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p64</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">TX3</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">p65</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p67</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="nt">model_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2030</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2045</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="nt">model_first_planning_year</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2025</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2031</span><span class="p p-Indicator">]</span>
 </code></pre></div>
-<p>These are existing values in <code>settings/model_definition.yml</code>, not settings to add
-again. The first planning period is 2025–2030 and the second is 2031–2040.
-Keep the two planning-year lists in corresponding chronological order; they are
-paired by position, not sorted automatically.</p>
+<p>These are existing values, not settings to add again. The first planning period
+is 2025–2030 and the second is 2031–2045. Keep the two planning-year lists in
+corresponding chronological order; they are paired by position, not sorted
+automatically.</p>
 <h3 id="2-create-scenario-definitions">2. Create Scenario Definitions<a class="headerlink" href="#2-create-scenario-definitions" title="Permanent link">&para;</a></h3>
-<p>Replace the contents of the copied <code>extra_inputs/scenario_inputs.csv</code> with:</p>
+<p>Replace the contents of
+<code>example_systems/TX-3-zone/extra_inputs/scenario_inputs.csv</code> with:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>case_id,year,carbon_policy
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>baseline,2030,unchanged
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>base,2030,unchanged
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>carbon_50,2030,tax_50
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>baseline,2040,unchanged
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>carbon_50,2040,tax_50
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>base,2045,unchanged
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>carbon_50,2045,tax_50
 </code></pre></div>
-<p><code>case_id</code> and <code>year</code> are mandatory. Keep the same case ID across periods: each
-row is one case/year, not a new independent case. <code>carbon_policy</code> is a dimension
-name you choose; its values select the swaps in the next step.</p>
+<p>The published file has a single <code>base</code> case and no dimension column; this version
+keeps <code>base</code> and adds the <code>carbon_50</code> case. <code>case_id</code> and <code>year</code> are mandatory.
+Keep the same case ID across periods: each row is one case/year, not a new
+independent case. <code>carbon_policy</code> is a dimension name you choose; its values
+select the swaps in the next step.</p>
 <p>Include every planning year for each complete case, chronologically within that
 case. Duplicate case/year pairs fail, but incomplete cases are not automatically
 rejected. Period numbers follow row order within each case, so a missing or
 out-of-order row can put a year in the wrong <code>Inputs_pN</code> directory.</p>
-<h3 id="3-configure-settings-management">3. Configure Settings Management<a class="headerlink" href="#3-configure-settings-management" title="Permanent link">&para;</a></h3>
-<p>Replace the contents of the copied <code>settings/scenario_management.yml</code> with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">scenario_definitions_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scenario_inputs.csv</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nt">settings_management</span><span class="p">:</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">all_years</span><span class="p">:</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="nt">carbon_policy</span><span class="p">:</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="nt">unchanged</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w">  </span><span class="c1"># Keep the base settings</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="nt">tax_50</span><span class="p">:</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="nt">carbon_tax</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
+<h4 id="add-policy-rows-for-the-new-case">Add policy rows for the new case<a class="headerlink" href="#add-policy-rows-for-the-new-case" title="Permanent link">&para;</a></h4>
+<p>The study's emission policy table is keyed by <code>case_id</code> (the published rows all
+use <code>base</code>), so a case with no matching rows stops the run with a <code>KeyError</code> such
+as <code>('carbon_50', 2030)</code>. Two mechanisms share one set of values across cases.</p>
+<p><strong><code>case_id: all</code></strong> treats a row as belonging to whichever case is running: rows
+whose <code>case_id</code> is <code>all</code> (any capitalization) are read as the requested case
+whenever that case has no rows of its own. Replace the contents of
+<code>example_systems/TX-3-zone/extra_inputs/emission_policies.csv</code> with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>case_id,year,region,ESR_1,ESR_2,ESR_3
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>all,2030,TX1,0,0,0
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>all,2030,TX2,0,0,0
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>all,2030,TX3,0,0,0
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>all,2045,TX1,0,0,0
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>all,2045,TX2,0,0,0
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>all,2045,TX3,0,0,0
 </code></pre></div>
+<p>Both <code>base</code> and <code>carbon_50</code> then read these six rows, and adding another case
+needs no new policy rows. The substitution is decided per case, not per row: as
+soon as a case has even one row of its own, its <code>all</code> rows are left unused, so a
+case with 2030 rows but no 2045 rows fails on 2045.</p>
+<p><strong><code>copy_case_id</code></strong> is the alternative when each case needs its own rows, with
+values copied from a source case:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>case_id,year,region,ESR_1,ESR_2,ESR_3,copy_case_id
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>base,2030,TX1,0,0,0,
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>base,2030,TX2,0,0,0,
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>base,2030,TX3,0,0,0,
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>base,2045,TX1,0,0,0,
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>base,2045,TX2,0,0,0,
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>base,2045,TX3,0,0,0,
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>carbon_50,2030,TX1,,,,base
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>carbon_50,2030,TX2,,,,base
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>carbon_50,2030,TX3,,,,base
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>carbon_50,2045,TX1,,,,base
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>carbon_50,2045,TX2,,,,base
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>carbon_50,2045,TX3,,,,base
+</code></pre></div>
+<p>The <a href="../../reference/settings/scenario-management/#copy_case_id"><code>copy_case_id</code></a>
+entries reuse the <code>base</code> values for <code>carbon_50</code>, so the cases carry identical
+policies and only one set of values needs maintenance. Duplicating the six <code>base</code>
+rows under <code>case_id,carbon_50</code> works too. Every <code>ESR_*</code> value here is zero, so
+this step only satisfies the per-case lookup; real policies would need the values
+you intend for each case.</p>
+<h3 id="3-configure-settings-management">3. Configure Settings Management<a class="headerlink" href="#3-configure-settings-management" title="Permanent link">&para;</a></h3>
+<p>Replace the contents of
+<code>example_systems/TX-3-zone/settings/scenario_management.yml</code> with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">scenario_definitions_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scenario_inputs.csv</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nt">settings_management</span><span class="p">:</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">all_years</span><span class="p">:</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="nt">carbon_policy</span><span class="p">:</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">      </span><span class="nt">unchanged</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w">  </span><span class="c1"># Keep the base settings</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">      </span><span class="nt">tax_50</span><span class="p">:</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">        </span><span class="nt">carbon_tax</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
+</code></pre></div>
+<p>The published file is <code>settings_management: {}</code>, so replace it rather than adding
+a second mapping.</p>
 <p>This is one swap: <code>tax_50</code> sets <code>carbon_tax</code> to 50 USD per metric tonne of CO₂
 for both years. The tax is added to fuel costs using fuel CO₂ content; it is not
-an emissions-cap setting.
-The bundled emission policies remain in place for both cases.</p>
-<p>The copied <code>settings/extra_inputs.yml</code> already sets
-<code>input_folder: extra_inputs</code>. <code>scenario_definitions_fn</code> is relative to that
-folder, so it resolves to <code>scenario-study/extra_inputs/scenario_inputs.csv</code>.
-The commented-out filename in <code>extra_inputs.yml</code> can stay commented out.</p>
+an emissions-cap setting. The policies from the previous step are unchanged and
+serve both cases, whichever mechanism you used.</p>
+<p>The published <code>settings/extra_inputs.yml</code> already sets
+<code>input_folder: extra_inputs</code> and
+<code>scenario_definitions_fn: scenario_inputs.csv</code>, and it also names this study's
+emission policy table (<code>emission_policies_fn: emission_policies.csv</code>) from the
+previous step. <code>scenario_definitions_fn</code> is relative to <code>input_folder</code>, so it
+resolves to <code>example_systems/TX-3-zone/extra_inputs/scenario_inputs.csv</code>. The
+<code>scenario_definitions_fn</code> line in the block above therefore only repeats a value
+that is already set.</p>
 <div class="admonition warning">
 <p class="admonition-title">Keep each top-level setting in one file</p>
 <p>A settings directory loads only its immediate <code>*.yml</code> files, not subfolders
@@ -2725,91 +2794,97 @@ reliable file order. Do not add a second <code>settings_management</code> block 
 different file: it could replace the whole mapping. Edit the existing block.</p>
 </div>
 <p>Configured relative <code>data_location</code> and <code>input_folder</code> paths are rooted at the
-parent of the settings directory. Relative <code>RESOURCE_GROUPS</code> and
-<code>RESOURCE_GROUP_PROFILES</code> paths instead use the working directory. Running from
-the copied fixture keeps its <code>test_data/resource_groups</code> path valid.</p>
+parent of the settings directory (<code>example_systems/TX-3-zone/</code>). Relative
+<code>RESOURCE_GROUPS</code> and <code>RESOURCE_GROUP_PROFILES</code> paths instead use the working
+directory, which is why the commands stay at the top of <code>scenario-study/</code>.</p>
 <h2 id="validation-and-debugging">Validation and Debugging<a class="headerlink" href="#validation-and-debugging" title="Permanent link">&para;</a></h2>
 <h3 id="validate-scenario-definitions">Validate Scenario Definitions<a class="headerlink" href="#validate-scenario-definitions" title="Permanent link">&para;</a></h3>
 <p>First validate the settings and source data:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>settings
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>example_systems/TX-3-zone/settings
 </code></pre></div>
 <p>This is not a substitute for checking the complete scenario matrix. To check the
 CSV and inspect the actual resolved swaps before generating files, run:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_scenario_settings</span><span class="p">,</span> <span class="n">load_settings</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"settings"</span><span class="p">))</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">scenarios</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">Path</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"input_folder"</span><span class="p">])</span> <span class="o">/</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"scenario_definitions_fn"</span><span class="p">]</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="p">)</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">years</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"model_year"</span><span class="p">]</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="k">assert</span> <span class="p">{</span><span class="s2">"case_id"</span><span class="p">,</span> <span class="s2">"year"</span><span class="p">}</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">scenarios</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="k">assert</span> <span class="ow">not</span> <span class="n">scenarios</span><span class="o">.</span><span class="n">duplicated</span><span class="p">([</span><span class="s2">"case_id"</span><span class="p">,</span> <span class="s2">"year"</span><span class="p">])</span><span class="o">.</span><span class="n">any</span><span class="p">()</span>
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="k">for</span> <span class="n">case_id</span><span class="p">,</span> <span class="n">rows</span> <span class="ow">in</span> <span class="n">scenarios</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">"case_id"</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="k">assert</span> <span class="n">rows</span><span class="p">[</span><span class="s2">"year"</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="o">==</span> <span class="n">years</span><span class="p">,</span> <span class="n">case_id</span>
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="n">resolved</span> <span class="o">=</span> <span class="n">build_scenario_settings</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">scenarios</span><span class="p">)</span>
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="k">for</span> <span class="n">year</span> <span class="ow">in</span> <span class="n">years</span><span class="p">:</span>
-<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>    <span class="k">for</span> <span class="n">case_id</span><span class="p">,</span> <span class="n">case_settings</span> <span class="ow">in</span> <span class="n">resolved</span><span class="p">[</span><span class="n">year</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>        <span class="nb">print</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">case_id</span><span class="p">,</span> <span class="n">case_settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"carbon_tax"</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_scenario_settings</span><span class="p">,</span> <span class="n">load_settings</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">load_settings</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"example_systems/TX-3-zone/settings"</span><span class="p">))</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="n">scenarios</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">Path</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">"input_folder"</span><span class="p">])</span> <span class="o">/</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"scenario_definitions_fn"</span><span class="p">]</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="p">)</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="n">years</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="s2">"model_year"</span><span class="p">]</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="k">assert</span> <span class="p">{</span><span class="s2">"case_id"</span><span class="p">,</span> <span class="s2">"year"</span><span class="p">}</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">scenarios</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="k">assert</span> <span class="ow">not</span> <span class="n">scenarios</span><span class="o">.</span><span class="n">duplicated</span><span class="p">([</span><span class="s2">"case_id"</span><span class="p">,</span> <span class="s2">"year"</span><span class="p">])</span><span class="o">.</span><span class="n">any</span><span class="p">()</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="k">for</span> <span class="n">case_id</span><span class="p">,</span> <span class="n">rows</span> <span class="ow">in</span> <span class="n">scenarios</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">"case_id"</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>    <span class="k">assert</span> <span class="n">rows</span><span class="p">[</span><span class="s2">"year"</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="o">==</span> <span class="n">years</span><span class="p">,</span> <span class="n">case_id</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="n">resolved</span> <span class="o">=</span> <span class="n">build_scenario_settings</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">scenarios</span><span class="p">)</span>
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="k">for</span> <span class="n">year</span> <span class="ow">in</span> <span class="n">years</span><span class="p">:</span>
+<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>    <span class="k">for</span> <span class="n">case_id</span><span class="p">,</span> <span class="n">case_settings</span> <span class="ow">in</span> <span class="n">resolved</span><span class="p">[</span><span class="n">year</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>        <span class="nb">print</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">case_id</span><span class="p">,</span> <span class="n">case_settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"carbon_tax"</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
 </code></pre></div>
-<p>Expected values are 0 for <code>baseline</code> and 50 for <code>carbon_50</code> in both years.
+<p>Expected values are 0 for <code>base</code> and 50 for <code>carbon_50</code> in 2030 and 2045.
 Unknown dimension/level selections warn and leave settings unchanged; an explicit
 <code>{}</code> means intentionally keep the base value without a missing-selection warning.
-The fixture can also emit warnings about incomplete fuel-price coverage and
-resource tags; review these before adapting it for a real study.</p>
+The example also emits warnings about unassigned model resource tags, resources
+missing from the operational-constraints table, missing transmission investment
+costs, and a hydro resource without a variable profile. Review these before
+adapting it for a real study.</p>
 <h3 id="test-single-scenario">Test Single Scenario<a class="headerlink" href="#test-single-scenario" title="Permanent link">&para;</a></h3>
-<p>Generate both periods of the baseline first:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>baseline_check<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span>--case-id<span class="w"> </span>baseline
+<p>Generate both periods of the base case first:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>example_systems/TX-3-zone/settings<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>base_check<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>--case-id<span class="w"> </span>base
 </code></pre></div>
-<p>Inspect <code>baseline_check/log.txt</code> and the two period folders before running both
+<p>Inspect <code>base_check/log.txt</code> and the two period folders before running both
 cases. PowerGenome generates model inputs; it does not solve the GenX model.</p>
 <h2 id="run-the-scenario-set">Run the scenario set<a class="headerlink" href="#run-the-scenario-set" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>results
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>example_systems/TX-3-zone/settings<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>results
 </code></pre></div>
 <p>With default GenX output, the directory layout is:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>results/
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>├── log.txt
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>├── baseline/
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>│   └── Inputs/
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>│       ├── Inputs_p1/
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>│       │   ├── resources/
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>│       │   ├── system/
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>│       │   ├── policies/
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>│       │   └── powergenome_case_settings.yml
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>│       └── Inputs_p2/
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>└── carbon_50/
-<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    └── Inputs/
-<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>        ├── Inputs_p1/
-<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>        └── Inputs_p2/
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>results/
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>├── log.txt
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>├── base/
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>│   └── Inputs/
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>│       ├── Inputs_p1/
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>│       │   ├── resources/
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>│       │   ├── system/
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>│       │   ├── policies/
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>│       │   └── powergenome_case_settings.yml
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>│       └── Inputs_p2/
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>└── carbon_50/
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>    └── Inputs/
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>        ├── Inputs_p1/
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>        └── Inputs_p2/
 </code></pre></div>
 <p>Each period has the same subdirectory layout. Confirm the resolved <code>carbon_tax</code>,
 <code>model_year</code>, and <code>model_first_planning_year</code> in
-<code>powergenome_case_settings.yml</code>. Compare <code>system/Fuels_data.csv</code> between cases to
-check the tax effect on emitting fuels.</p>
+<code>powergenome_case_settings.yml</code>. Paying 50 USD per tonne of CO₂ raises the
+delivered price of emitting fuels, which you can check in
+<code>system/Fuels_data.csv</code>: in this example the first period goes from 3.16 to 5.82
+USD/MMBtu for natural gas and from 2.07 to 6.84 for coal, and the second period
+from 4.86 to 7.51 and from 2.13 to 6.91. Read the row labeled with <code>Time_Index</code>
+<code>1</code>; row <code>0</code> holds the CO₂ content per MMBtu.</p>
 <h2 id="running-scenarios-sequentially">Running Scenarios Sequentially<a class="headerlink" href="#running-scenarios-sequentially" title="Permanent link">&para;</a></h2>
 <p>PowerGenome runs sequentially, grouped by year in the order years first appear
 in the CSV, then by case order within each year. This example runs both 2030
-cases before both 2040 cases. There is no scenario <code>--num_workers</code> option;
+cases before both 2045 cases. There is no scenario <code>--num_workers</code> option;
 <code>clustering_n_jobs</code> controls renewable clustering, not case execution.</p>
 <p>Monitor a run from another terminal in <code>scenario-study/</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>tail<span class="w"> </span>-f<span class="w"> </span>results/log.txt
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>tail<span class="w"> </span>-f<span class="w"> </span>results/log.txt
 </code></pre></div>
 <h2 id="command-line-options">Command-Line Options<a class="headerlink" href="#command-line-options" title="Permanent link">&para;</a></h2>
 <h3 id="selective-execution">Selective Execution<a class="headerlink" href="#selective-execution" title="Permanent link">&para;</a></h3>
 <p>Select one or more existing case IDs; each selection includes all its CSV years:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>settings<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>selected_results<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span>--case-id<span class="w"> </span>baseline<span class="w"> </span>carbon_50
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>run_powergenome<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span>--settings_file<span class="w"> </span>example_systems/TX-3-zone/settings<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span>--results_folder<span class="w"> </span>selected_results<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span>--case-id<span class="w"> </span>base<span class="w"> </span>carbon_50
 </code></pre></div>
 <p>Use <code>--case-id</code> with a hyphen. See the <a href="../../reference/cli/">CLI Reference</a> for
 flags such as <code>--no-current-gens</code>, <code>--no-load</code>, and <code>--sort-gens</code>.

@@ -2801,6 +2801,10 @@ directories). This is the published Texas wind definition,
 <code>RESOURCE_GROUP_PROFILES</code>, if supplied, then alongside the JSON. In the flexible
 clustering path, <code>site_map</code> resolves alongside the <strong>resolved profiles file</strong>.
 Keep that map with profiles if you move them to a separate directory.</p>
+<p><code>site_map</code> is optional. The CA/AZ example omits it for both technologies because
+its profile files already use <code>cpa_id</code> values in <code>site_id</code>. That example also
+points <code>RESOURCE_GROUPS</code> and <code>RESOURCE_GROUP_PROFILES</code> at the same directory, so
+metadata and profiles stay together.</p>
 <p>Relative <code>RESOURCE_GROUPS</code> and <code>RESOURCE_GROUP_PROFILES</code> paths resolve from the
 current working directory. The published Texas settings require running from
 the <strong>examples root</strong>, not inside <code>example_systems/TX-3-zone/</code>. By contrast,
@@ -2906,6 +2910,10 @@ it is <strong>not a recommended economic cutoff</strong>. A high-LCOE site can s
 because of its location or output timing. Omit the filter if all candidates
 belong in the study, and document any exclusion you do use. Filter bounds are
 inclusive, but the implementation ignores <code>min: 0</code> and <code>max: 0</code>.</p>
+<p>The same illustrative screens appear in both published systems: <code>max: 75</code> for
+wind and <code>max: 60</code> for solar in Texas, and <code>max: 130</code> for wind and <code>max: 50</code> for
+solar in CA/AZ. The different numbers reflect different candidate datasets, not a
+recommendation; screen on your own metadata's cost distribution.</p>
 <p>Processing order is:</p>
 <ol>
 <li>Select sites in each model region, including its aggregated base regions.</li>

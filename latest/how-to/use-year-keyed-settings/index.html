@@ -2458,6 +2458,9 @@ without building a full scenario matrix.</p>
 </code></pre></div>
 <p>PowerGenome will resolve one value per planning year when building case settings.
 Use unquoted integer year keys between 1900 and 2200; <code>default</code> is optional.</p>
+<p>Both published example systems leave <code>carbon_tax: 0</code> as a scalar in
+<code>settings/fuels.yml</code>, so they are a realistic place to start this conversion:
+the value already exists and you only change its shape.</p>
 <h2 id="3-use-fallback-values-with-default">3. Use Fallback Values With <code>default</code><a class="headerlink" href="#3-use-fallback-values-with-default" title="Permanent link">&para;</a></h2>
 <p>Use a fallback when you do not want to list every year explicitly.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">carbon_tax</span><span class="p">:</span>

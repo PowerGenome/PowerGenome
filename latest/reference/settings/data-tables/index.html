@@ -1568,6 +1568,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#combined-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combined Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shared-configuration-across-parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared Configuration Across Parts
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2442,6 +2464,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#combined-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combined Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shared-configuration-across-parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shared Configuration Across Parts
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2701,8 +2745,8 @@ the table without a file extension. SQLite (<code>.db</code>, <code>.sqlite</cod
 <tbody>
 <tr>
 <td><code>table_name</code></td>
-<td>string; required</td>
-<td>Source filename or database table name.</td>
+<td>string, or list of strings</td>
+<td>Source filename or database table name. A list stacks several sources into one table; see below.</td>
 </tr>
 <tr>
 <td><code>scenario</code></td>
@@ -2721,16 +2765,48 @@ the table without a file extension. SQLite (<code>.db</code>, <code>.sqlite</cod
 </tr>
 </tbody>
 </table>
+<h3 id="combined-configuration">Combined Configuration<a class="headerlink" href="#combined-configuration" title="Permanent link">&para;</a></h3>
+<p>Any table setting also accepts a list of entries, each a filename or its own
+advanced configuration. The parts are stacked with <code>UNION ALL BY NAME</code>, so every
+part must have the same columns. This is how a study adds its own technology costs
+next to the ATB tables:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">resource_cost_table</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">technology_costs_atb_tx_3_zone.csv</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">custom_technology_costs.csv</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">filters</span><span class="p">:</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">scenario</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">high_nuclear</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="nt">resource_heat_rate_table</span><span class="p">:</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">technology_heat_rates_nrelatb.csv</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">custom_technology_heat_rates.csv</span>
+</code></pre></div>
+<p>Parts load in list order, and each part is resolved separately, so they may live in
+different <code>data_location</code> entries. An empty list is treated like an unset setting.</p>
 <p>These examples configure table access, not a complete runnable study. Source
 columns must match downstream schemas; DataManager does not rename them to
 repair an incompatible dataset.</p>
+<h3 id="shared-configuration-across-parts">Shared Configuration Across Parts<a class="headerlink" href="#shared-configuration-across-parts" title="Permanent link">&para;</a></h3>
+<p>When every part shares <code>filters</code>, <code>columns</code>, or <code>scenario</code>, write those keys once
+and give <code>table_name</code> as a list instead of repeating a configuration per file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">demand_table</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand_west.parquet</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">demand_east.parquet</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_ev</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'&gt;='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<p>This is the same combined table as the list form: each source becomes a part, and
+the shared keys are applied to every part, so <code>scenario: high_ev</code> filters both
+files. Use the list form when parts need <em>different</em> filters or columns — entries
+in a <code>table_name</code> list must be plain filenames or table names, and an empty
+<code>table_name</code> list raises an error rather than silently skipping the table.</p>
 <h2 id="filter-syntax">Filter Syntax<a class="headerlink" href="#filter-syntax" title="Permanent link">&para;</a></h2>
 <p>Filters are an <strong>OR of AND groups</strong> (disjunctive normal form):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">filters</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p1</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Both conditions must match.</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p2</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Or both conditions in this group.</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">filters</span><span class="p">:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2030</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p1</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Both conditions must match.</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'='</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p2</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Or both conditions in this group.</span>
 </code></pre></div>
 <p>Each condition is <code>[column, operator, value]</code>. Supported operators:
 <code>=</code>, <code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>in</code>, and <code>not in</code>. Membership operators
@@ -2756,6 +2832,7 @@ to preserve cluster membership. Do not filter units out by retirement year:
 blank <code>retirement_year</code> means no planned retirement, but ordinary comparison
 filters exclude blank values.</p>
 <h2 id="standard-table-mappings">Standard Table Mappings<a class="headerlink" href="#standard-table-mappings" title="Permanent link">&para;</a></h2>
+<p>Every setting below accepts a single configuration or a list of them.</p>
 <table>
 <thead>
 <tr>
@@ -2862,7 +2939,7 @@ for their schemas and configuration.</p>
 <p><strong>Type</strong>: directory path or list of directory paths.</p>
 <p>All <code>.json</code> group definitions are discovered recursively under these folders.
 Unlike <code>data_location</code>, relative paths resolve from the process working directory.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">RESOURCE_GROUPS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example_systems/TX-3-zone/resource_groups</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">RESOURCE_GROUPS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example_systems/TX-3-zone/resource_groups</span>
 </code></pre></div>
 <p>This is the published Texas example's path when running from the examples root,
 as in <a href="../../../tutorials/getting-started/">Getting Started</a>. Use your own group

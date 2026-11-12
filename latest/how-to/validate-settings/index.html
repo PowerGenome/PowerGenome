@@ -1025,6 +1025,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#validate-a-known-good-configuration-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate a known-good configuration first
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#understand-the-result" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2241,6 +2252,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#validate-a-known-good-configuration-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate a known-good configuration first
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#understand-the-result" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2376,6 +2398,24 @@ writing.</p>
 appropriate, or ready for optimization. Review the logs and generated files,
 especially for a new study or dataset.</p>
 </div>
+<h2 id="validate-a-known-good-configuration-first">Validate a known-good configuration first<a class="headerlink" href="#validate-a-known-good-configuration-first" title="Permanent link">&para;</a></h2>
+<p>To confirm the validator itself works, run it against a published example from the
+root of a clone of
+<a href="https://github.com/PowerGenome/PowerGenome-examples">PowerGenome-examples</a> rather
+than from inside the example system folder. Check out the same pinned snapshot the
+<a href="../../tutorials/getting-started/#1-download-the-texas-example">Getting Started</a>
+tutorial uses, so the exercise keeps validating the configuration it was written
+for even as the default branch moves on:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/PowerGenome/PowerGenome-examples.git
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>PowerGenome-examples
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>git<span class="w"> </span>checkout<span class="w"> </span>7e34f714469e68fca173cdb849f74c47be779420
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>example_systems/TX-3-zone/settings
+</code></pre></div>
+<p>Remove nothing and change nothing: these settings are expected to load and pass
+the settings phase. If this run reports errors, check your installation and the
+data download before debugging your own settings. Swap in
+<code>example_systems/CA_AZ/settings</code> to exercise a two-region setup with two capacity
+reserve constraints.</p>
 <h2 id="understand-the-result">Understand the result<a class="headerlink" href="#understand-the-result" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Errors</strong> stop the pipeline. Fix them before running again.</li>
@@ -2426,11 +2466,11 @@ writes them to the terminal and <code>&lt;results_folder&gt;/log.txt</code>. Use
 <p>Do not suppress a warning merely to obtain a successful exit code. For example,
 missing fuel prices may become <code>$0/MMBtu</code>, materially changing a model's choices.</p>
 <h2 id="choose-the-scope">Choose the scope<a class="headerlink" href="#choose-the-scope" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Settings-only checks, without loading source tables</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>settings<span class="w"> </span>--skip-data-checks
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Force fresh settings and data checks</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>settings<span class="w"> </span>--no-validation-cache
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Settings-only checks, without loading source tables</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>settings<span class="w"> </span>--skip-data-checks
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Force fresh settings and data checks</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>settings<span class="w"> </span>--no-validation-cache
 </code></pre></div>
 <table>
 <thead>
@@ -2477,7 +2517,7 @@ checks to be replayed rather than recomputed. Cached warnings still print;
 cached errors still fail.</p>
 <p>Use <code>--no-validation-cache</code> on either CLI whenever you need a fresh check. To
 turn caching off for a study, set:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">use_validation_cache</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">use_validation_cache</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 </code></pre></div>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>

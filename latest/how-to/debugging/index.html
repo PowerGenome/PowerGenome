@@ -2548,6 +2548,12 @@ For example, <code>generation_table</code> is recognized; a similar-looking key 
 <li>Configured tables are searched in both <code>data_location</code> and <code>input_folder</code>;
   duplicate matches are an error.</li>
 </ul>
+<p>The published examples split the two rules on purpose. Their Texas settings use
+<code>data_location: data</code>, which resolves to <code>example_systems/TX-3-zone/data</code>, but
+<code>RESOURCE_GROUPS: example_systems/TX-3-zone/resource_groups</code>, which only resolves
+when you run from the examples repository root. Running the same command from
+inside <code>example_systems/TX-3-zone</code> silently looks for resource groups that are not
+there.</p>
 <p>See <a href="../configure-settings/">Configure Settings</a> for organization and
 <a href="../run-scenarios/">Run Multi-Scenario Studies</a> for override behavior.</p>
 <h2 id="unexpected-outputs">Unexpected outputs<a class="headerlink" href="#unexpected-outputs" title="Permanent link">&para;</a></h2>

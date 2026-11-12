@@ -820,6 +820,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="2. Name your source tables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#published-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Published example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#combining-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combining tables
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2260,6 +2288,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="2. Name your source tables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#published-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Published example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#combining-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combining tables
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2379,6 +2435,11 @@ expects <code>data/</code>, <code>extra_inputs/</code>, and <code>settings/</cod
 <p>PowerGenome searches both locations. Each configured table must resolve in
 exactly one place; do not keep duplicate copies with the same table name in both.
 <code>data_location</code> can also be a list of locations or a SQLite/DuckDB file.</p>
+<p><code>RESOURCE_GROUPS</code> and <code>RESOURCE_GROUP_PROFILES</code> are the exception: they resolve
+from the process working directory, not from <code>data_location</code> or the settings
+folder. The published examples write them relative to the examples root
+(<code>example_systems/TX-3-zone/resource_groups</code>), which is why their instructions
+run every command from that root.</p>
 <h2 id="2-name-your-source-tables">2. Name your source tables<a class="headerlink" href="#2-name-your-source-tables" title="Permanent link">&para;</a></h2>
 <p>Use exact settings keys and source filenames:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">generation_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generators.parquet</span>
@@ -2391,15 +2452,55 @@ exactly one place; do not keep duplicate copies with the same table name in both
 <p>These are illustrative filenames, not a complete study. Keep the other table
 settings and processing parameters your workflow needs. For a database backend,
 use database table names without file extensions.</p>
+<h3 id="published-example">Published example<a class="headerlink" href="#published-example" title="Permanent link">&para;</a></h3>
+<p>The <a href="https://github.com/PowerGenome/PowerGenome-examples/blob/7e34f714469e68fca173cdb849f74c47be779420/example_systems/TX-3-zone/settings/data.yml">Texas <code>settings/data.yml</code></a>
+maps the same keys to real files:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">data</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">RESOURCE_GROUPS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example_systems/TX-3-zone/resource_groups</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">RESOURCE_GROUP_PROFILES</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">example_systems/TX-3-zone/resource_profiles</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">generation_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reeds_generators_tx_3_zone.csv</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nt">plant_region_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plant_region_map_tx_3_zone.csv</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="nt">demand_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reeds_load_tx_3_zone.csv</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="nt">fuel_price_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuel_prices_tx_3_zone.csv</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="nt">transmission_constraints_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">transmission_capacity_tx_3_zone.csv</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="nt">transmission_cost_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">network_costs_tx_3_zone.csv</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="nt">regional_cost_factor_table</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">regional_cost_multipliers_tx_3_zone.csv</span>
+</code></pre></div>
+<p>It also configures heat-rate, cost, operational-constraint, dollar-year, and
+distributed-generation tables. The CA/AZ example uses the same keys with plain
+names (<code>generators.csv</code>, <code>demand_load.csv</code>, <code>fuel_prices.csv</code>) because its data
+folder holds a single study. The filenames are yours to choose; the setting keys
+are not.</p>
+<h3 id="combining-tables">Combining tables<a class="headerlink" href="#combining-tables" title="Permanent link">&para;</a></h3>
+<p>A table setting can also be a list. The entries are stacked with
+<code>UNION ALL BY NAME</code>, which is how you add your own data to a published table
+instead of editing it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">resource_cost_table</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">technology_costs_atb_tx_3_zone.csv</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">custom_technology_costs.csv</span>
+</code></pre></div>
+<p>Every part needs the same columns and resolves independently, so mixed CSV and
+database parts are allowed. See
+<a href="../add-technologies/#add-a-technology-with-its-own-cost-table">Add a Technology With Its Own Cost Table</a>
+for a working example.</p>
+<p>If all parts share the same <code>scenario</code>, <code>filters</code>, or <code>columns</code>, keep them as
+sibling keys and give <code>table_name</code> a list instead of repeating each part:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">resource_cost_table</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">technology_costs_atb_tx_3_zone.csv</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">custom_technology_costs.csv</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">core</span>
+</code></pre></div>
 <h2 id="3-select-a-demand-scenario">3. Select a demand scenario<a class="headerlink" href="#3-select-a-demand-scenario" title="Permanent link">&para;</a></h2>
 <p>Suppose <code>hourly_demand.parquet</code> contains multiple scenarios and planning years.
 Replace its string setting with a dictionary:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">demand_table</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hourly_demand.parquet</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_ev</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'in'</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">p1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p4</span><span class="p p-Indicator">]]</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'in'</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2030</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">]]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">demand_table</span><span class="p">:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">table_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hourly_demand.parquet</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">scenario</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high_ev</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">filters</span><span class="p">:</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">region</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'in'</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">p1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p4</span><span class="p p-Indicator">]]</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">year</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">'in'</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2030</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2040</span><span class="p p-Indicator">]]</span>
 </code></pre></div>
 <p>This selects <code>high_ev</code> rows for the four base regions and both planning years.
 Use names and years present in your own data. Demand processing selects the
@@ -2416,7 +2517,7 @@ no planned retirement. Let the generator workflow label operating capacity.</p>
 </div>
 <h2 id="4-validate-and-inspect">4. Validate and inspect<a class="headerlink" href="#4-validate-and-inspect" title="Permanent link">&para;</a></h2>
 <p>Run from your study directory:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>settings
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>validate_powergenome<span class="w"> </span>--settings_file<span class="w"> </span>settings
 </code></pre></div>
 <p>Fix missing paths, unknown regions, missing columns, and coverage warnings before
 using the inputs for analysis. Then run your study and inspect the saved
