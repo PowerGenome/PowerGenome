@@ -1,7 +1,0 @@
-﻿case_id,year,region,ESR_1,ESR_2,ESR_3,ESR_4,ESR_5,ESR_6
-all,2030,ERCOT,0,0,0,0,0,0
-all,2030,Eastern,0.164,0,0,0.06,0,0
-all,2030,Western,0,0.355,0,0,0.18,0
-all,2050,ERCOT,0,0,0,0,0,0
-all,2050,Eastern,0.202,0,0,0.257,0,0
-all,2050,Western,0,0.368,0,0,0.699,0
