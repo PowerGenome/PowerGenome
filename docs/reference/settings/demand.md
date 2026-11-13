@@ -243,7 +243,7 @@ include_peak_day: true
 ### `demand_weight_factor`
 
 **Type**: Number (>= 0)
-**Default**: `1`
+**Required when reducing** (typical value `1`)
 **Effect**: Weight of each demand feature relative to the resource features. Demand
 values are multiplied by `sqrt(demand_weight_factor)` after they are scaled. This is
 a deliberate change from earlier releases, which multiplied raw demand by the factor
