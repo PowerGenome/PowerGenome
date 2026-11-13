@@ -600,6 +600,28 @@ class TestCheckTimeDomainReduction:
             for r in _errors(_check_time_domain_reduction(s))
         )
 
+    def test_legacy_method_warns_about_ignored_settings(self):
+        s = _minimal_valid_settings(
+            time_domain_reduction_method="legacy_kmeans",
+            tdr_scaling="standardize",
+            tdr_vre_profile_grouping="region_technology",
+        )
+        results = _check_time_domain_reduction(s)
+        assert _errors(results) == []
+        messages = [r.message for r in _warnings(results)]
+        assert len(messages) == 1
+        assert "legacy_kmeans" in messages[0]
+        assert "tdr_scaling" in messages[0]
+        assert "tdr_vre_profile_grouping" in messages[0]
+
+    def test_legacy_method_with_defaults_does_not_warn(self):
+        s = _minimal_valid_settings(
+            time_domain_reduction_method="legacy_kmeans",
+            tdr_scaling="normalize",
+            tdr_vre_profile_grouping="none",
+        )
+        assert _warnings(_check_time_domain_reduction(s)) == []
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 1 — validate_settings (integration)

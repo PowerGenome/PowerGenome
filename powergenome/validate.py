@@ -540,7 +540,11 @@ _TDR_VRE_PROFILE_GROUPINGS = ("none", "region_technology")
 
 
 def _check_time_domain_reduction(settings: dict) -> List[ValidationResult]:
-    """ERROR for unknown or nonsensical time domain reduction settings."""
+    """ERROR for unknown or nonsensical time domain reduction settings.
+
+    WARNING when settings that only apply to the new backend are combined with
+    the legacy backend, which ignores them.
+    """
     results = []
 
     enumerated = (
@@ -569,6 +573,24 @@ def _check_time_domain_reduction(settings: dict) -> List[ValidationResult]:
                 _err(
                     "time_domain_reduction",
                     f"'{key}' must be a positive integer, got {value!r}",
+                )
+            )
+
+    if settings.get("time_domain_reduction_method") == "legacy_kmeans":
+        ignored = []
+        scaling = settings.get("tdr_scaling")
+        if scaling is not None and scaling != "normalize":
+            ignored.append(f"tdr_scaling={scaling!r}")
+        grouping = settings.get("tdr_vre_profile_grouping")
+        if grouping is not None and grouping != "none":
+            ignored.append(f"tdr_vre_profile_grouping={grouping!r}")
+        if ignored:
+            results.append(
+                _warn(
+                    "time_domain_reduction",
+                    "time_domain_reduction_method is 'legacy_kmeans', which ignores "
+                    f"{' and '.join(ignored)}; those settings only affect the "
+                    "default backend.",
                 )
             )
 

@@ -238,16 +238,18 @@ def _resource_features(
             fallback_count,
         )
 
-    n_vre_resources = sum(len(features[name]) for name in grouped_names)
-    largest_group = max((len(features[name]) for name in grouped_names), default=0)
-    logger.info(
-        "TDR VRE profile grouping %s: %d VRE resource(s) in %d group(s), "
-        "largest group has %d resource(s).",
-        "enabled" if grouping != "none" else "disabled",
-        n_vre_resources,
-        len(grouped_names),
-        largest_group,
-    )
+    if grouping == "none":
+        logger.debug("TDR VRE profile grouping is disabled.")
+    else:
+        n_vre_resources = sum(len(features[name]) for name in grouped_names)
+        largest_group = max((len(features[name]) for name in grouped_names), default=0)
+        logger.info(
+            "TDR VRE profile grouping enabled: %d VRE resource(s) in %d group(s), "
+            "largest group has %d resource(s).",
+            n_vre_resources,
+            len(grouped_names),
+            largest_group,
+        )
 
     values = []
     names = []

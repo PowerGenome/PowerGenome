@@ -20,8 +20,6 @@ from powergenome.tdr.matrix import build_candidate_matrix
 
 logger = logging.getLogger(__name__)
 
-METHODS = CLUSTERING_METHODS + ("legacy_kmeans",)
-
 _DAYS_IN_NON_LEAP_YEAR = 365
 
 
@@ -91,7 +89,7 @@ def reduce_time_domain(
     if method not in CLUSTERING_METHODS:
         raise ValueError(
             f"Unknown time domain reduction method '{method}'. Expected one of "
-            f"{METHODS}."
+            f"{CLUSTERING_METHODS}."
         )
     if len(load_profiles) != len(resource_profiles):
         raise ValueError(
