@@ -16,7 +16,16 @@ settings, data, logs, and GenX outputs live.
 
 **Prerequisites**: uv, curl, tar, a terminal, and basic command-line familiarity.
 
-### 2. [Building a Multi-Region Model](multi-region-model.md)
+### 2. [Where Data Files Go](where-data-files-go.md)
+
+Map every settings key to a folder and file using the same Texas study: the four
+path settings, the input tables, policy and scenario files, renewable group JSON,
+and where outputs and caches land. Then find the full PowerGenome-data releases
+published on Zenodo for a real study.
+
+**Prerequisites**: Getting Started and its downloaded Texas example.
+
+### 3. [Building a Multi-Region Model](multi-region-model.md)
 
 Continue with the downloaded Texas study. Inspect its base-to-model-region
 aggregation, change transmission expansion limits, and verify both periods'
@@ -24,7 +33,7 @@ network outputs against the first run.
 
 **Prerequisites**: Getting Started and its unchanged `tx_output/` baseline.
 
-### 3. [Working with Renewable Resources](renewable-resources.md)
+### 4. [Working with Renewable Resources](renewable-resources.md)
 
 Aggregate the Texas example's wind candidates into cost-and-profile clusters
 and compare resource counts, capacity limits, and generation profiles while
@@ -40,7 +49,9 @@ the workflow, not realistic system economics. Browse
 [PowerGenome-examples](https://github.com/PowerGenome/PowerGenome-examples) for
 other published cases. A real study needs complete compatible sources
 for existing plants, technology costs, renewable profiles, demand, fuels,
-transmission, and any configured policies.
+transmission, and any configured policies. [Where Data Files Go](where-data-files-go.md)
+maps those sources to the settings keys and the Zenodo deposits that publish
+them.
 
 Use the [System Design tool](https://gschivley.github.io/PowerGenome-tools/web/)
 to create starting settings, then [Configure Data Tables](../how-to/configure-data-tables.md)

@@ -48,8 +48,10 @@ when you run from the examples repository root. Running the same command from
 inside `example_systems/TX-3-zone` silently looks for resource groups that are not
 there.
 
-See [Configure Settings](configure-settings.md) for organization and
-[Run Multi-Scenario Studies](run-scenarios.md) for override behavior.
+See [Configure Settings](configure-settings.md) for organization,
+[Run Multi-Scenario Studies](run-scenarios.md) for override behavior, and
+[Where Data Files Go](../tutorials/where-data-files-go.md) for a folder-by-folder
+map of the inputs and the full data deposits.
 
 ## Unexpected outputs
 
