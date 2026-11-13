@@ -258,6 +258,50 @@ def test_candidate_matrix_standardize_scales_each_feature():
     assert np.allclose(matrix[:HOURS_PER_DAY], matrix[HOURS_PER_DAY:])
 
 
+def test_variable_resources_only_false_keeps_every_resource_feature():
+    load = pd.DataFrame({"Load_1": _period_series([10, 20, 30, 40])})
+    resource = pd.DataFrame(
+        {
+            "Wind_1": _period_series([1, 2, 3, 4]),
+            "Constant_5": np.full(4 * HOURS_PER_DAY, 5.0),
+        }
+    )
+
+    kept = build_candidate_matrix(
+        load, resource, HOURS_PER_DAY, variable_resources_only=False
+    )
+    assert kept.resource_feature_names == ["Wind_1", "Constant_5"]
+    assert kept.excluded_resource_names == []
+
+    filtered = build_candidate_matrix(
+        load, resource, HOURS_PER_DAY, variable_resources_only=True
+    )
+    assert filtered.resource_feature_names == ["Wind_1"]
+    assert filtered.excluded_resource_names == ["Constant_5"]
+
+    reduced_resource, _, _, _ = tdr_reduce_time_domain(
+        resource,
+        load,
+        pd.DataFrame(),
+        days_per_period=1,
+        num_periods=2,
+        include_peak_day=False,
+        variable_resources_only=False,
+    )
+    assert (reduced_resource["Constant_5"] == 5.0).all()
+
+    filtered_resource, _, _, _ = tdr_reduce_time_domain(
+        resource,
+        load,
+        pd.DataFrame(),
+        days_per_period=1,
+        num_periods=2,
+        include_peak_day=False,
+        variable_resources_only=True,
+    )
+    assert (filtered_resource["Constant_5"] == 1.0).all()
+
+
 @pytest.mark.parametrize("method", ["kmeans", "kmedoids"])
 def test_cluster_periods_recovers_separated_groups(method):
     resource, load = _separated_frames()
@@ -590,3 +634,28 @@ def test_vre_profile_grouping_none_reproduces_ungrouped_matrix():
     assert (
         explicit_none.resource_feature_names == without_metadata.resource_feature_names
     )
+
+
+def test_vre_profile_grouping_without_metadata_warns(caplog):
+    resource, load, _ = _vre_frames()
+
+    with caplog.at_level(logging.WARNING):
+        candidate = build_candidate_matrix(
+            load,
+            resource,
+            HOURS_PER_DAY,
+            vre_profile_grouping="region_technology",
+        )
+
+    assert candidate.resource_feature_names == [
+        "wind_a",
+        "wind_b",
+        "wind_c",
+        "solar_a",
+    ]
+    warnings = [
+        record for record in caplog.records if record.levelno == logging.WARNING
+    ]
+    assert len(warnings) == 1
+    message = warnings[0].getMessage()
+    assert "no resource metadata was supplied" in message

@@ -528,14 +528,29 @@ def main(**kwargs):
 
                     # VRE profile grouping needs the generator metadata; skip the
                     # extra frame when the grouping is not requested.
+                    resource_metadata = None
                     vre_profile_grouping = scenario_settings_obj.get(
                         "tdr_vre_profile_grouping", "none"
                     )
-                    resource_metadata = (
-                        gen_data.set_index("Resource")[["region", "technology", "VRE"]]
-                        if args.gens and vre_profile_grouping != "none"
-                        else None
-                    )
+                    if args.gens and vre_profile_grouping != "none":
+                        metadata_columns = ["region", "technology", "VRE"]
+                        missing_columns = [
+                            column
+                            for column in metadata_columns
+                            if column not in gen_data.columns
+                        ]
+                        if missing_columns:
+                            logger.warning(
+                                f"tdr_vre_profile_grouping is '{vre_profile_grouping}' "
+                                f"but the generator table is missing "
+                                f"{', '.join(missing_columns)}. VRE profile grouping "
+                                "is skipped and every resource is a separate "
+                                "clustering feature."
+                            )
+                        else:
+                            resource_metadata = gen_data.set_index("Resource")[
+                                metadata_columns
+                            ]
 
                     # reduce_time_domain returns unchanged inputs if the settings parameter
                     # "reduce_time_domain" is not set to True.

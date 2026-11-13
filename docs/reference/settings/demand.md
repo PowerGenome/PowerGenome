@@ -234,7 +234,9 @@ time_domain_days_per_period: 7
 with the highest system-wide demand across all model regions. That period is excluded
 from clustering and reconstructed from its own hours, so it is never double counted.
 Turn it off to let the clustering decide every representative period. At least two
-representative periods are needed when this is enabled.
+representative periods are needed only when clustering runs, since one slot is reserved
+for the peak and at least one must remain to cluster: a horizon with a single complete
+period and `time_domain_periods: 1` succeeds and returns that period.
 
 ```yaml
 include_peak_day: true
@@ -278,12 +280,12 @@ time_domain_reduction_method: kmedoids
 **Effect**: How each feature is scaled before weighting.
 
 - `normalize` — min-max each feature to `[0, 1]` over the candidate period hours.
-  Constant features become all zeros.
-- `standardize` — z-score each feature over the candidate period hours. Constant
-  features become all zeros.
+- `standardize` — z-score each feature over the candidate period hours.
 
-Scaling is per feature, so a demand series in MW and a capacity-factor series in
-`[0, 1]` carry comparable influence without tuning `demand_weight_factor`.
+A constant feature becomes a constant row (all zeros under `normalize`), and constant
+rows cannot change the distances between candidate periods. Scaling is per feature, so
+a demand series in MW and a capacity-factor series in `[0, 1]` carry comparable
+influence without tuning `demand_weight_factor`.
 
 ```yaml
 tdr_scaling: standardize

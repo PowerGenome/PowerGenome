@@ -230,17 +230,21 @@ def _resource_features(
         features.setdefault(feature_name, []).append(name)
         grouped_names.add(feature_name)
 
-    if grouping != "none" and fallback_count:
-        logger.warning(
-            "TDR VRE profile grouping: %d resource(s) have no usable "
-            "region/technology/VRE metadata and remain individual clustering "
-            "features.",
-            fallback_count,
-        )
-
     if grouping == "none":
         logger.debug("TDR VRE profile grouping is disabled.")
     else:
+        if metadata is None:
+            logger.warning(
+                "TDR VRE profile grouping is enabled but no resource metadata was "
+                "supplied; every resource remains an individual clustering feature."
+            )
+        elif fallback_count:
+            logger.warning(
+                "TDR VRE profile grouping: %d resource(s) lack usable "
+                "region/technology/VRE metadata and remain individual clustering "
+                "features.",
+                fallback_count,
+            )
         n_vre_resources = sum(len(features[name]) for name in grouped_names)
         largest_group = max((len(features[name]) for name in grouped_names), default=0)
         logger.info(
@@ -256,11 +260,11 @@ def _resource_features(
     excluded = []
     for name, members in features.items():
         feature = resource_values[members].to_numpy(dtype=float).mean(axis=1)
-        if variable_resources_only and feature.std() > 0:
-            values.append(feature)
-            names.append(name)
-        else:
+        if variable_resources_only and not feature.std() > 0:
             excluded.extend(members)
+            continue
+        values.append(feature)
+        names.append(name)
 
     return values, excluded, names
 
