@@ -7,6 +7,13 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Regional cost multiplier auto-generation no longer logs INFO messages when
+  `cost_multiplier_region_map` / `cost_multiplier_technology_map` are omitted
+  alongside `regional_cost_factor_table`. Auto-generating both mappings is the
+  normal path, so the messages were noise on every run.
+
 ## [0.9.0] - 2026-11-12
 
 ### Added
