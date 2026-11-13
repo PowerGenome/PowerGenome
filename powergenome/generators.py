@@ -1549,30 +1549,6 @@ def add_resource_tags(
 #     return eia_860m
 
 
-# def find_newest_860m() -> str:
-#     """Scrape the EIA 860m page to find the most recently posted file.
-
-#     Returns
-#     -------
-#     str
-#         Name of most recently posted file
-#     """
-#     site_url = "https://www.eia.gov/electricity/data/eia860m/"
-#     r = requests.get(site_url)
-#     soup = BeautifulSoup(r.content, "lxml")
-#     table = soup.find("table", attrs={"class": "basic-table"})
-#     if not table:
-#         raise ValueError(
-#             "Could not determine the most recently posted EIA 860m file. EIA may have "
-#             "changed their HTML format, please post this as an issue on the PowerGenome "
-#             "github repository (https://github.com/PowerGenome/PowerGenome/issues/new)."
-#         )
-#     href = table.find("a")["href"]
-#     fn = href.split("/")[-1]
-
-#     return fn
-
-
 # def clean_860m_sheet(
 #     eia_860m: pd.ExcelFile, sheet_name: str, settings: dict
 # ) -> pd.DataFrame:
