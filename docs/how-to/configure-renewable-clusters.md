@@ -74,11 +74,19 @@ example, `CPA_ID` becomes `cpa_id`.
 | Filter/bin/cluster features | Actual metadata columns; no automatic creation of `cf`, `lcoe`, latitude, etc. |
 | `lcoe`, if used | Input screening/binning metric, typically $/MWh; verify its definition and dollar year |
 | `cf`, if used | Capacity factor as a fraction, not percent; a metadata feature, not recomputed from profiles |
-| Interconnection costs, if supplied | `interconnect_capex_mw` in $/MW or `interconnect_annuity` in $/MW-year |
+| Interconnection costs, if supplied | `interconnect_capex_mw` in $/MW or `interconnect_annuity` in $/MW-year, converted to `target_usd_year` |
+| `dollar_year`, if costs use more than one vintage | Dollar year of each row's costs; otherwise set `resource_group_dollar_year` |
 
 Other feature units come from your dataset. Do not treat `capacity_factor` as an
 alias for `cf`, or assume county and coordinate columns exist. Check data
 coverage and cost definitions before changing regional aggregations.
+
+Interconnection costs are converted to `target_usd_year` before sites are filtered,
+binned, or clustered, so `interconnect_annuity` thresholds you write in `filter`/`bin`
+should be in target-year dollars. Add a `dollar_year` column when rows use different
+vintages, or set `resource_group_dollar_year` in settings when the file is all one
+vintage. Without either, PowerGenome leaves the costs as given and logs a warning; see
+[new-build settings](../reference/settings/new-build.md#resource_group_dollar_year).
 
 ### Generation Profiles
 

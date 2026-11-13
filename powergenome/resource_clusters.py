@@ -631,6 +631,8 @@ class ResourceGroup:
         sub_region=None,
         weather_year: Optional[Union[int, List[int]]] = None,
         require_complete_profiles: bool = False,
+        target_usd_year: Optional[int] = None,
+        dollar_year: Optional[int] = None,
     ) -> pd.DataFrame:
         """
         Compute resource clusters.
@@ -659,6 +661,13 @@ class ResourceGroup:
         require_complete_profiles
             If True, raise MissingProfileCoverage before missing sites or hours are
             filled with synthetic availability. Used for existing resources only.
+        target_usd_year
+            Dollar year that interconnection costs (`interconnect_capex_mw` and
+            `interconnect_annuity`) are converted to before clustering. When
+            `None`, costs are used as given.
+        dollar_year
+            Fallback dollar year of the metadata when it has no `dollar_year`
+            column. Ignored unless `target_usd_year` is set.
 
         Returns
         -------
@@ -672,6 +681,12 @@ class ResourceGroup:
             No resources found or selected.
         """
         df = self.metadata.read().set_index("id")
+        if target_usd_year is not None:
+            # Imported here because powergenome.financials imports powergenome.params,
+            # which imports this module.
+            from powergenome.financials import adjust_interconnect_dollar_year
+
+            df = adjust_interconnect_dollar_year(df, target_usd_year, dollar_year)
         if regions is not None:
             region_col = find_region_col(df.columns)
             # Filter by IPM region
@@ -1121,6 +1136,8 @@ class ClusterBuilder:
         cap_multiplier: float = None,
         utc_offset: int = 0,
         weather_year: Optional[Union[int, List[int]]] = None,
+        target_usd_year: Optional[int] = None,
+        dollar_year: Optional[int] = None,
         **kwargs: Any,
     ) -> pd.DataFrame:
         """
@@ -1140,6 +1157,11 @@ class ClusterBuilder:
         max_clusters
         max_lcoe
         cap_multiplier
+        target_usd_year
+            Dollar year that resource-group interconnection costs are converted to
+            before clustering. See :meth:`ResourceGroup.get_clusters`.
+        dollar_year
+            Fallback dollar year of the resource-group metadata.
         **kwargs
             Parameters to :meth:`find_groups` for selecting the resource group.
 
@@ -1167,6 +1189,8 @@ class ClusterBuilder:
                 utc_offset=utc_offset,
                 weather_year=weather_year,
                 sub_region=kwargs.get("sub_region"),
+                target_usd_year=target_usd_year,
+                dollar_year=dollar_year,
             )
             .assign(**kwargs)
             .rename_axis("ids")
