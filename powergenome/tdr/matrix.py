@@ -260,11 +260,12 @@ def _resource_features(
     excluded = []
     for name, members in features.items():
         feature = resource_values[members].to_numpy(dtype=float).mean(axis=1)
-        if variable_resources_only and not feature.std() > 0:
+        # Keep the feature unless the zero-variance filter is on and it never varies.
+        if not variable_resources_only or feature.std() > 0:
+            values.append(feature)
+            names.append(name)
+        else:
             excluded.extend(members)
-            continue
-        values.append(feature)
-        names.append(name)
 
     return values, excluded, names
 
