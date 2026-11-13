@@ -159,13 +159,26 @@ def _strip_doi_prefix(value: str) -> str:
     return value
 
 
-def _split_file_key(path: str) -> Tuple[Optional[int], Optional[str]]:
-    """Return ``(record_id, file_key)`` from a Zenodo URL path."""
+def _split_file_key(
+    path: str, identifier: Optional[str] = None
+) -> Tuple[Optional[int], Optional[str]]:
+    """Return ``(record_id, file_key)`` from a Zenodo URL path.
+
+    A path that names the ``/files`` collection without a file key raises
+    ``ValueError``: silently treating it as the whole record would download far
+    more data than the user asked for.
+    """
     match = _RECORD_PATH_RE.match(path)
     if not match:
         return None, None
     record_id = int(match.group(1))
     rest = path[match.end() :]
+    if rest.rstrip("/") == "files":
+        raise ValueError(
+            "Zenodo file URL is missing its file key: "
+            f"{(identifier or path)!r}. Use the record URL without '/files' to "
+            "download the whole record, or put the file key after '/files/'."
+        )
     file_match = _FILE_PATH_RE.match(rest)
     if not file_match:
         return record_id, None
@@ -259,7 +272,7 @@ def parse_zenodo_identifier(identifier: Union[str, int]) -> ZenodoIdentifier:
             return ZenodoIdentifier("doi", None, doi, sandbox)
         raise ValueError(f"Unrecognised DOI path in {identifier!r}")
 
-    record_id, file_key = _split_file_key(path)
+    record_id, file_key = _split_file_key(path, identifier=raw)
     if record_id is not None:
         return ZenodoIdentifier("url", record_id, None, sandbox, file_key)
 
@@ -282,7 +295,10 @@ def _record_id_from_url(url: str) -> Optional[int]:
     if not url:
         return None
     path = urlsplit(url).path if "://" in url else url
-    record_id, _ = _split_file_key(path)
+    try:
+        record_id, _ = _split_file_key(path)
+    except ValueError:
+        record_id = None
     if record_id is not None:
         return record_id
     # Tolerate ``/records/<id>/versions/latest`` style paths as well.
@@ -1108,7 +1124,12 @@ def download_record_files(
     selected = select_record_files(record, files, default_key=parsed.file_key)
 
     destination = Path(destination)
-    destination.mkdir(parents=True, exist_ok=True)
+    try:
+        destination.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise ZenodoError(
+            f"Could not create destination directory {destination}: {exc}"
+        ) from exc
 
     if not selected:
         logger.info("No files selected from record %s", record.record_id)
@@ -1353,13 +1374,50 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     return _build_parser().parse_args(argv)
 
 
+def _absolute_data_path(value: Any, relative_base: Optional[Path]) -> Path:
+    """Return *value* as an absolute path.
+
+    ``relative_base`` is the directory a raw YAML value is relative to. When it
+    is ``None`` the value has already been anchored by ``load_settings`` (which
+    keeps relative input paths relative to the current directory), so resolving
+    against the working directory is correct.
+    """
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path
+    if relative_base is None:
+        return path.resolve()
+    return (relative_base / path).resolve()
+
+
+def _absolutise_data_location(settings: dict, relative_base: Optional[Path]) -> dict:
+    """Normalise ``data_location`` to absolute paths, in place."""
+    value = settings.get("data_location")
+    if value is None:
+        return settings
+    if isinstance(value, (list, tuple)):
+        settings["data_location"] = [
+            _absolute_data_path(item, relative_base) for item in value
+        ]
+    else:
+        settings["data_location"] = _absolute_data_path(value, relative_base)
+    return settings
+
+
 def _load_settings_dict(path: Path) -> dict:
-    """Load settings from a directory (via ``load_settings``) or a YAML file."""
+    """Load settings from a directory (via ``load_settings``) or a YAML file.
+
+    ``data_location`` is always returned as an absolute path. A directory load
+    goes through :func:`powergenome.settings.load_settings`, which anchors
+    relative values at the settings folder; a plain YAML file is resolved
+    against its own parent. This keeps the CLI destination identical to the
+    location the pipeline reads, without resolving the path twice.
+    """
     if path.is_dir():
         from powergenome.settings import load_settings
 
         try:
-            return dict(load_settings(path))
+            settings = dict(load_settings(path))
         except Exception as exc:  # missing required keys, etc.
             logger.debug(
                 "load_settings(%s) failed (%s); merging YAML files directly",
@@ -1375,13 +1433,19 @@ def _load_settings_dict(path: Path) -> dict:
                     data = yaml.load(handle)
                 if data:
                     merged.update(data)
-            return merged
+            # Raw values are relative to the settings folder, matching
+            # load_settings' own semantics.
+            return _absolutise_data_location(merged, path.parent)
+        # load_settings has already anchored relative values (possibly as a
+        # path relative to the working directory).
+        return _absolutise_data_location(settings, None)
 
     from ruamel.yaml import YAML
 
     yaml = YAML(typ="safe")
     with open(path, "r") as handle:
-        return dict(yaml.load(handle) or {})
+        settings = dict(yaml.load(handle) or {})
+    return _absolutise_data_location(settings, path.parent)
 
 
 def _resolve_destination(
@@ -1414,10 +1478,9 @@ def _resolve_destination(
             )
         destination = Path(data_location).expanduser()
         if not destination.is_absolute():
-            # A settings file loaded directly has no load_settings()
-            # post-processing, so resolve relative paths the way the loader
-            # does: relative to the directory containing the settings folder.
-            destination = (settings_path.parent / destination).resolve()
+            # _load_settings_dict normally makes this absolute; fall back to
+            # the working directory if a custom settings object did not.
+            destination = destination.resolve()
         return destination
 
     parser.error(
@@ -1440,6 +1503,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     destination: Optional[Path] = None
     if not args.list_files:
         destination = _resolve_destination(args, parser)
+        if destination.exists() and not destination.is_dir():
+            logger.error("Destination exists and is not a directory: %s", destination)
+            return 1
 
     exit_code = 0
     totals = {"downloaded": 0, "skipped": 0, "failed": 0, "bytes": 0}
@@ -1545,14 +1611,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return exit_code
 
     assert destination is not None
-    logger.info(
-        "Summary: %d downloaded, %d skipped, %d failed, %s written to %s",
-        totals["downloaded"],
-        totals["skipped"],
-        totals["failed"],
-        format_bytes(totals["bytes"]),
-        destination,
-    )
+    if totals["downloaded"] or totals["skipped"]:
+        logger.info(
+            "Summary: %d downloaded, %d skipped, %d failed, %s written to %s",
+            totals["downloaded"],
+            totals["skipped"],
+            totals["failed"],
+            format_bytes(totals["bytes"]),
+            destination,
+        )
+    else:
+        # Nothing landed in the destination (bad identifiers, every selected
+        # file failed, or a dry run), so do not claim anything was written.
+        logger.info(
+            "Summary: %d downloaded, %d skipped, %d failed",
+            totals["downloaded"],
+            totals["skipped"],
+            totals["failed"],
+        )
     if records_seen == 0 and exit_code == 0:  # pragma: no cover - defensive
         exit_code = 1
     return exit_code

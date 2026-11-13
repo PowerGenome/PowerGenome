@@ -7,6 +7,7 @@ runs without touching Zenodo.
 from __future__ import annotations
 
 import hashlib
+import logging
 import threading
 from pathlib import Path
 
@@ -210,6 +211,25 @@ def test_parse_sandbox_url_sets_sandbox():
     assert parsed.sandbox is True
     assert parsed.record_id == 1234
     assert parsed.file_key == "a.csv"
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    [
+        "https://zenodo.org/records/22233228/files",
+        "https://zenodo.org/records/22233228/files/",
+        "https://zenodo.org/api/records/22233228/files/",
+    ],
+)
+def test_parse_truncated_file_url_raises_value_error(identifier):
+    with pytest.raises(ValueError, match="missing its file key"):
+        parse_zenodo_identifier(identifier)
+
+
+def test_parse_record_url_still_selects_whole_record():
+    parsed = parse_zenodo_identifier("https://zenodo.org/records/22233228")
+    assert parsed.record_id == 22233228
+    assert parsed.file_key is None
 
 
 @pytest.mark.parametrize(
@@ -887,6 +907,103 @@ def test_cli_relative_data_location_resolves_from_settings_folder(
 
     assert zenodo.main(["22233228", "-sf", str(settings_file)]) == 0
     assert seen["destination"] == tmp_path / "my_data"
+
+
+def test_cli_relative_settings_dir_resolves_destination_once(monkeypatch, tmp_path):
+    """A relative settings folder must not be prefixed with its parent twice."""
+    monkeypatch.chdir(tmp_path)
+    settings_dir = tmp_path / "config" / "settings"
+    settings_dir.mkdir(parents=True)
+    (settings_dir / "data.yml").write_text(
+        "model_regions:\n  - A\ndata_location: test_data\n"
+    )
+    seen = {}
+
+    def fake_download(identifier, dest, **kwargs):
+        seen["destination"] = Path(dest)
+        return DownloadSummary(
+            record=_stub_record(),
+            destination=Path(dest),
+            results=(
+                FileResult(
+                    key="cpi_data.csv",
+                    path=Path(dest) / "cpi_data.csv",
+                    status="downloaded",
+                    bytes_written=3,
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(zenodo, "get_record", lambda *a, **k: _stub_record())
+    monkeypatch.setattr(zenodo, "download_record_files", fake_download)
+
+    assert zenodo.main(["22233228", "-sf", "config/settings"]) == 0
+
+    from powergenome.settings import load_settings
+
+    expected = Path(load_settings("config/settings")["data_location"]).resolve()
+    assert seen["destination"] == expected
+    assert seen["destination"] == tmp_path / "config" / "test_data"
+    assert "config/config" not in str(seen["destination"])
+
+
+def test_cli_destination_is_file_exits_1_before_fetch(monkeypatch, tmp_path, caplog):
+    destination = tmp_path / "not_a_directory"
+    destination.write_text("regular file")
+    calls = []
+
+    def fake_get_record(*args, **kwargs):
+        calls.append((args, kwargs))
+        return _stub_record()
+
+    monkeypatch.setattr(zenodo, "get_record", fake_get_record)
+    with caplog.at_level(logging.INFO, logger="powergenome.zenodo"):
+        rc = zenodo.main(["22233228", "-d", str(destination)])
+
+    assert rc == 1
+    assert calls == []
+    assert "not a directory" in caplog.text
+
+
+def test_download_record_files_mkdir_failure_raises_zenodo_error(monkeypatch, tmp_path):
+    record, session = _record_with_content()
+
+    def deny(self, parents=False, exist_ok=False):
+        raise PermissionError("permission denied")
+
+    monkeypatch.setattr(Path, "mkdir", deny)
+    with pytest.raises(ZenodoError, match="Could not create destination"):
+        download_record_files(
+            "22233228", tmp_path / "data", record=record, session=session
+        )
+
+
+def test_cli_mkdir_failure_exits_1_without_traceback(monkeypatch, tmp_path, caplog):
+    monkeypatch.setattr(zenodo, "get_record", lambda *a, **k: _stub_record())
+
+    def deny(self, parents=False, exist_ok=False):
+        raise PermissionError("permission denied")
+
+    monkeypatch.setattr(Path, "mkdir", deny)
+    with caplog.at_level(logging.INFO, logger="powergenome.zenodo"):
+        rc = zenodo.main(["22233228", "-d", str(tmp_path / "data")])
+
+    assert rc == 1
+    assert "Could not create destination" in caplog.text
+    assert "Traceback" not in caplog.text
+
+
+def test_cli_invalid_identifier_summary_omits_destination(
+    monkeypatch, tmp_path, caplog
+):
+    destination = tmp_path / "never_created"
+    with caplog.at_level(logging.INFO, logger="powergenome.zenodo"):
+        rc = zenodo.main(["not-a-record", "-d", str(destination)])
+
+    assert rc == 1
+    assert "written to" not in caplog.text
+    assert str(destination) not in caplog.text
+    assert not destination.exists()
 
 
 def test_cli_missing_destination_exits_with_argparse_error(capsys):

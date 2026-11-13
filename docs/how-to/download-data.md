@@ -96,7 +96,9 @@ download_zenodo_data 22233228 -d data --file cpi_data.csv
 ```
 
 A pattern that matches nothing is an error rather than a silent no-op, so a
-typo cannot leave you with an empty data folder:
+typo cannot leave you with an empty data folder. With multiple `IDENTIFIER`s,
+each pattern must match at least one file in **every** record, so records that
+contain different files need separate invocations:
 
 ```text
 ERROR    powergenome.zenodo: No files in Zenodo record 22233228 match: '*.cap'.

@@ -388,7 +388,9 @@ destination, the command exits with code 2 and explains both options.
 
 Only download files whose full key or basename matches a glob pattern
 (case-sensitive). Repeat the flag for several patterns. A pattern that matches
-nothing is an error, so a typo cannot silently download nothing.
+nothing is an error, so a typo cannot silently download nothing. When several
+`IDENTIFIER`s are given, every pattern must match at least one file **in every
+record**, so heterogeneous records need separate invocations.
 
 **Type**: Glob pattern (repeatable)
 **Default**: All files, or the one file named in a single-file URL
