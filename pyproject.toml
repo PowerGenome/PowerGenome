@@ -31,7 +31,6 @@ dependencies = [
     "pandas>=2.2,<4",
     "duckdb >= 1.3.0",
     "pyarrow",
-    "beautifulsoup4 >= 4.8.13",
     "statsmodels>=0.12.2",
     "python-dotenv",
     "flatten-dict",
