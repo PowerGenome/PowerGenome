@@ -526,6 +526,17 @@ def main(**kwargs):
                     if not args.gens:
                         gen_variability = pd.DataFrame(index=load.index)
 
+                    # VRE profile grouping needs the generator metadata; skip the
+                    # extra frame when the grouping is not requested.
+                    vre_profile_grouping = scenario_settings_obj.get(
+                        "tdr_vre_profile_grouping", "none"
+                    )
+                    resource_metadata = (
+                        gen_data.set_index("Resource")[["region", "technology", "VRE"]]
+                        if args.gens and vre_profile_grouping != "none"
+                        else None
+                    )
+
                     # reduce_time_domain returns unchanged inputs if the settings parameter
                     # "reduce_time_domain" is not set to True.
                     (
@@ -533,7 +544,9 @@ def main(**kwargs):
                         reduced_load_profile,
                         time_series_mapping,
                         representative_point,
-                    ) = reduce_time_domain(gen_variability, load)
+                    ) = reduce_time_domain(
+                        gen_variability, load, resource_metadata=resource_metadata
+                    )
                     case_year_data["demand_data"] = reduced_load_profile
                     reduced_resource_profile.index.name = "Time_Index"
                     reduced_resource_profile = reduced_resource_profile.reset_index(

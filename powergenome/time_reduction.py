@@ -1,4 +1,12 @@
-"Functions to cluster or otherwise reduce the number of hours in generation and load profiles"
+"""Functions to cluster or otherwise reduce the number of hours in generation and load profiles.
+
+Deprecated
+----------
+Superseded by :mod:`powergenome.tdr`, which is the default time domain reduction
+backend. This module is kept importable for one release, reachable with
+``time_domain_reduction_method: legacy_kmeans``, and will be removed in the next
+release.
+"""
 
 import datetime
 import logging

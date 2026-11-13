@@ -16,6 +16,7 @@ from powergenome.external_data import (
     make_generator_variability,
 )
 from powergenome.settings import auto_fill_settings
+from powergenome.tdr import reduce_time_domain as tdr_reduce_time_domain
 from powergenome.time_reduction import kmeans_time_clustering
 from powergenome.util import find_region_col, snake_case_col, snake_case_str
 
@@ -529,7 +530,11 @@ def add_misc_gen_values(
 
 @auto_fill_settings()
 def reduce_time_domain(
-    resource_profiles, load_profiles, settings=None, variable_resources_only=True
+    resource_profiles,
+    load_profiles,
+    settings=None,
+    variable_resources_only=True,
+    resource_metadata=None,
 ):
     demand_segments = load_demand_segments(settings)
     num_hours = len(load_profiles)
@@ -538,49 +543,71 @@ def reduce_time_domain(
         days = settings["time_domain_days_per_period"]
         time_periods = settings["time_domain_periods"]
         include_peak_day = settings["include_peak_day"]
-        load_weight = settings["demand_weight_factor"]
+        demand_weight_factor = settings["demand_weight_factor"]
+        method = settings.get("time_domain_reduction_method", "kmeans")
 
-        results, representative_point, _ = kmeans_time_clustering(
+        if method == "legacy_kmeans":
+            results, representative_point, _ = kmeans_time_clustering(
+                resource_profiles=resource_profiles,
+                load_profiles=load_profiles,
+                days_in_group=days,
+                num_clusters=time_periods,
+                include_peak_day=include_peak_day,
+                load_weight=demand_weight_factor,
+                variable_resources_only=variable_resources_only,
+                n_init=settings.get("tdr_n_init", 100),
+            )
+
+            reduced_resource_profile = results["resource_profiles"]
+            reduced_resource_profile.index.name = "Resource"
+            reduced_resource_profile.index = range(1, len(reduced_resource_profile) + 1)
+            reduced_load_profile = results["load_profiles"]
+            time_series_mapping = results["time_series_mapping"]
+
+            time_index = pd.Series(
+                data=reduced_load_profile.index + 1, name="Time_Index"
+            )
+            sub_weights = pd.Series(
+                data=[x * (days * 24) for x in results["ClusterWeights"]],
+                name="Sub_Weights",
+            )
+            hours_per_period = pd.Series(
+                data=[days * 24], name="Timesteps_per_Rep_Period"
+            )
+            subperiods = pd.Series(data=[time_periods], name="Rep_Periods")
+            reduced_load_output = pd.concat(
+                [
+                    demand_segments,
+                    subperiods,
+                    hours_per_period,
+                    sub_weights,
+                    time_index,
+                    reduced_load_profile.round(0),
+                ],
+                axis=1,
+            )
+
+            return (
+                reduced_resource_profile,
+                reduced_load_output,
+                time_series_mapping,
+                representative_point,
+            )
+
+        return tdr_reduce_time_domain(
             resource_profiles=resource_profiles,
             load_profiles=load_profiles,
-            days_in_group=days,
-            num_clusters=time_periods,
+            demand_segments=demand_segments,
+            days_per_period=days,
+            num_periods=time_periods,
             include_peak_day=include_peak_day,
-            load_weight=load_weight,
+            demand_weight_factor=demand_weight_factor,
             variable_resources_only=variable_resources_only,
-            n_init=settings.get("tdr_n_init", 100),
-        )
-
-        reduced_resource_profile = results["resource_profiles"]
-        reduced_resource_profile.index.name = "Resource"
-        reduced_resource_profile.index = range(1, len(reduced_resource_profile) + 1)
-        reduced_load_profile = results["load_profiles"]
-        time_series_mapping = results["time_series_mapping"]
-
-        time_index = pd.Series(data=reduced_load_profile.index + 1, name="Time_Index")
-        sub_weights = pd.Series(
-            data=[x * (days * 24) for x in results["ClusterWeights"]],
-            name="Sub_Weights",
-        )
-        hours_per_period = pd.Series(data=[days * 24], name="Timesteps_per_Rep_Period")
-        subperiods = pd.Series(data=[time_periods], name="Rep_Periods")
-        reduced_load_output = pd.concat(
-            [
-                demand_segments,
-                subperiods,
-                hours_per_period,
-                sub_weights,
-                time_index,
-                reduced_load_profile.round(0),
-            ],
-            axis=1,
-        )
-
-        return (
-            reduced_resource_profile,
-            reduced_load_output,
-            time_series_mapping,
-            representative_point,
+            method=method,
+            scaling=settings.get("tdr_scaling", "normalize"),
+            n_restarts=settings.get("tdr_n_restarts", settings.get("tdr_n_init", 10)),
+            vre_profile_grouping=settings.get("tdr_vre_profile_grouping", "none"),
+            resource_metadata=resource_metadata,
         )
 
     if num_hours > 8760:

@@ -175,6 +175,175 @@ EAST,all_hours,400,2030,high_data_center
 
 For a step-by-step guide see [Add Supplemental Hourly Demand](../../how-to/add-supplemental-demand.md).
 
+## Time Domain Reduction
+
+Time domain reduction replaces the hourly load and resource profiles with a small
+number of representative periods (usually days or weeks) that are each modeled once
+and weighted by how often they stand in for the full horizon. It is off by default.
+
+The backend follows the numerical design of MacroEnergy's
+[time domain reduction](https://github.com/macroenergy/MacroEnergyTimeReduction.jl):
+profiles are scaled per feature, features are weighted by the square root of their
+weight, the period containing the system peak load can be forced into the output,
+and each representative period is a real input period. Reduced outputs are
+therefore numerically different from earlier releases even with identical settings.
+
+### `reduce_time_domain`
+
+**Type**: Boolean
+**Default**: `false`
+**Effect**: Enables time domain reduction. When `false`, hourly load and resource
+profiles are written unchanged. Reduction is skipped with a warning when the horizon
+is longer than 8760 hours (also unchanged).
+
+```yaml
+reduce_time_domain: true
+```
+
+### `time_domain_periods`
+
+**Type**: Integer
+**Required when reducing**
+**Effect**: Number of representative periods in the reduced model. The output has
+`time_domain_periods * time_domain_days_per_period * 24` rows, and
+`time_domain_periods` must not exceed the number of complete periods in the horizon.
+When it equals the number of complete periods, every period is its own representative
+period and clustering is skipped.
+
+```yaml
+time_domain_periods: 52
+```
+
+### `time_domain_days_per_period`
+
+**Type**: Integer
+**Required when reducing**
+**Effect**: Number of 24-hour days in each representative period. With the default
+8760-hour horizon, `7` gives 52 candidate weeks and `time_domain_periods: 52` selects
+every week.
+
+```yaml
+time_domain_days_per_period: 7
+```
+
+### `include_peak_day`
+
+**Type**: Boolean
+**Required when reducing** (the example settings use `true`)
+**Effect**: Reserves one representative-period slot for the period containing the hour
+with the highest system-wide demand across all model regions. That period is excluded
+from clustering and reconstructed from its own hours, so it is never double counted.
+Turn it off to let the clustering decide every representative period. At least two
+representative periods are needed when this is enabled.
+
+```yaml
+include_peak_day: true
+```
+
+### `demand_weight_factor`
+
+**Type**: Number (>= 0)
+**Default**: `1`
+**Effect**: Weight of each demand feature relative to the resource features. Demand
+values are multiplied by `sqrt(demand_weight_factor)` after they are scaled. This is
+a deliberate change from earlier releases, which multiplied raw demand by the factor
+and scaled all features together.
+
+```yaml
+demand_weight_factor: 2
+```
+
+### `time_domain_reduction_method`
+
+**Type**: String — `kmeans`, `kmedoids`, or `legacy_kmeans`
+**Default**: `kmeans`
+**Effect**: Clustering backend.
+
+- `kmeans` — scikit-learn k-means with k-means++ initialization. Each cluster's
+  representative is the real period nearest its centroid.
+- `kmedoids` — alternating (Voronoi) k-medoids over the Euclidean distance matrix.
+  Each representative is an actual period, so it is robust to unusual periods.
+- `legacy_kmeans` — the previous implementation in `powergenome/time_reduction.py`.
+  It remains available for one release and reproduces the old outputs, including its
+  global feature scaling and dropped trailing hours.
+
+```yaml
+time_domain_reduction_method: kmedoids
+```
+
+### `tdr_scaling`
+
+**Type**: String — `normalize` or `standardize`
+**Default**: `normalize`
+**Effect**: How each feature is scaled before weighting.
+
+- `normalize` — min-max each feature to `[0, 1]` over the candidate period hours.
+  Constant features become all zeros.
+- `standardize` — z-score each feature over the candidate period hours. Constant
+  features become all zeros.
+
+Scaling is per feature, so a demand series in MW and a capacity-factor series in
+`[0, 1]` carry comparable influence without tuning `demand_weight_factor`.
+
+```yaml
+tdr_scaling: standardize
+```
+
+### `tdr_n_restarts`
+
+**Type**: Positive integer
+**Default**: `10`
+**Effect**: Number of random initializations for k-means and k-medoids. Higher values
+find lower-cost clusterings at some runtime cost. The deprecated alias `tdr_n_init` is
+accepted when `tdr_n_restarts` is absent; the legacy method keeps reading `tdr_n_init`
+with its old default.
+
+```yaml
+tdr_n_restarts: 20
+```
+
+### `tdr_vre_profile_grouping`
+
+**Type**: String — `none` or `region_technology`
+**Default**: `none`
+**Effect**: Controls the features used to choose representative periods for variable
+renewable resources. It never changes the reduced output profiles: every resource
+column is still written with its own profile.
+
+- `none` — one clustering feature per resource, so adding sites of the same technology
+  adds clustering weight to that technology.
+- `region_technology` — VRE resources are grouped by `(region, technology)` from the
+  generator table, and each group contributes exactly one feature: the arithmetic mean
+  of the group's raw hourly profiles, computed before scaling. Onshore and offshore
+  wind are separate groups because their technologies differ. A group carries a single
+  feature weight, not one per member, so adding sites no longer changes how much that
+  technology shape influences the clustering. Resources without usable
+  region/technology/VRE metadata stay individual features and a single warning reports
+  how many fell back.
+
+More grouping modes may be added later.
+
+```yaml
+tdr_vre_profile_grouping: region_technology
+```
+
+### Trailing hours and `Sub_Weights`
+
+Only complete periods are clustered. When the horizon does not divide evenly, the
+hours after the last complete period are excluded from clustering and their weight is
+redistributed across the representative periods in proportion to how many periods each
+one represents (largest-remainder allocation). `Sub_Weights` therefore always sums
+exactly to the input horizon — for example, 8760 hours with 7-day periods are 52
+complete weeks (8736 hours) plus 24 trailing hours, and `Sub_Weights` sums to 8760. A
+warning names the horizon, the period length, the number of complete periods, the
+trailing hours, and how they were redistributed. An evenly divisible horizon produces
+no warning.
+
+### Limit on horizon length
+
+Representative periods cannot be selected for horizons longer than 8760 hours. Such
+runs are written unchanged with a warning, exactly as before.
+
 ## Related Settings
 
 - [Data Tables](data-tables.md): Format specification for all data tables

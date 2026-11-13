@@ -534,6 +534,47 @@ def _check_fuel_consistency(settings: dict) -> List[ValidationResult]:
     return results
 
 
+_TDR_METHODS = ("kmeans", "kmedoids", "legacy_kmeans")
+_TDR_SCALINGS = ("normalize", "standardize")
+_TDR_VRE_PROFILE_GROUPINGS = ("none", "region_technology")
+
+
+def _check_time_domain_reduction(settings: dict) -> List[ValidationResult]:
+    """ERROR for unknown or nonsensical time domain reduction settings."""
+    results = []
+
+    enumerated = (
+        ("time_domain_reduction_method", _TDR_METHODS),
+        ("tdr_scaling", _TDR_SCALINGS),
+        ("tdr_vre_profile_grouping", _TDR_VRE_PROFILE_GROUPINGS),
+    )
+    for key, allowed in enumerated:
+        value = settings.get(key)
+        if value is None:
+            continue
+        if value not in allowed:
+            results.append(
+                _err(
+                    "time_domain_reduction",
+                    f"'{key}' must be one of {allowed}, got {value!r}",
+                )
+            )
+
+    for key in ("tdr_n_restarts", "tdr_n_init"):
+        value = settings.get(key)
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            results.append(
+                _err(
+                    "time_domain_reduction",
+                    f"'{key}' must be a positive integer, got {value!r}",
+                )
+            )
+
+    return results
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Phase 1 entry point
 # ──────────────────────────────────────────────────────────────────────────────
@@ -545,6 +586,7 @@ _PHASE1_CHECKS = [
     _check_region_consistency,
     _check_model_tag_coverage,
     _check_fuel_consistency,
+    _check_time_domain_reduction,
 ]
 
 

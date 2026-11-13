@@ -24,6 +24,7 @@ from powergenome.validate import (
     _check_paths_exist,
     _check_region_consistency,
     _check_required_keys,
+    _check_time_domain_reduction,
     _check_transmission_regions,
     _check_year_list_consistency,
     _extract_planning_periods,
@@ -560,6 +561,44 @@ class TestCheckFuelConsistency:
         )
         results = _check_fuel_consistency(s)
         assert any("naturalgas" in r.message for r in _warnings(results))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 1 — _check_time_domain_reduction
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestCheckTimeDomainReduction:
+    def test_defaults_valid(self):
+        assert _check_time_domain_reduction(_minimal_valid_settings()) == []
+
+    def test_enumerated_values_valid(self):
+        s = _minimal_valid_settings(
+            time_domain_reduction_method="kmedoids",
+            tdr_scaling="standardize",
+            tdr_vre_profile_grouping="region_technology",
+            tdr_n_restarts=5,
+        )
+        assert _check_time_domain_reduction(s) == []
+
+    def test_unknown_enumerated_values(self):
+        s = _minimal_valid_settings(
+            time_domain_reduction_method="pam",
+            tdr_scaling="robust",
+            tdr_vre_profile_grouping="technology",
+        )
+        messages = [r.message for r in _errors(_check_time_domain_reduction(s))]
+        assert len(messages) == 3
+        assert any("time_domain_reduction_method" in m for m in messages)
+        assert any("tdr_scaling" in m for m in messages)
+        assert any("tdr_vre_profile_grouping" in m for m in messages)
+
+    def test_non_positive_restarts(self):
+        s = _minimal_valid_settings(tdr_n_restarts=0)
+        assert any(
+            "tdr_n_restarts" in r.message
+            for r in _errors(_check_time_domain_reduction(s))
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

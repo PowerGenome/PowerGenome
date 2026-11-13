@@ -7,6 +7,37 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- A new time domain reduction backend in `powergenome.tdr`, following the numerical
+  design of MacroEnergy's time domain reduction: per-feature scaling
+  (`tdr_scaling: normalize | standardize`), `sqrt` feature weights, forced extreme
+  periods, occurrence weights, and distinct representative periods. It replaces
+  k-means with a choice of clustering methods: `time_domain_reduction_method: kmeans`
+  (scikit-learn, k-means++) or `kmedoids` (alternating medoids implemented in-house,
+  no new dependency). `tdr_n_restarts` controls the number of initializations
+  (`tdr_n_init` remains a deprecated alias). `tdr_vre_profile_grouping:
+  region_technology` optionally clusters on one averaged profile per region and VRE
+  technology instead of one feature per site, which stops large groups of similar
+  wind or solar sites from dominating representative-period selection; reduced
+  resource profiles still contain every resource column. Unknown values of the
+  enumerated TDR settings are reported by `validate_powergenome`.
+
+### Changed
+
+- Time domain reduction now defaults to the new backend (`time_domain_reduction_method:
+  kmeans`). Features are scaled per feature instead of globally, so
+  `demand_weight_factor` applies to the demand features as a `sqrt` weight instead of
+  scaling all raw values together, and trailing hours are no longer dropped: only
+  complete periods are clustered, but their weight is redistributed across the
+  representative periods with largest-remainder allocation so `Sub_Weights` sums
+  exactly to the input horizon (8760 hours with 7-day periods now sums to 8760
+  instead of 8736). Representative periods, `Load_data`, and the period map therefore
+  differ numerically from earlier releases even with unchanged settings, and a warning
+  explains any trailing-hour redistribution. The previous implementation remains in
+  `powergenome/time_reduction.py` as `time_domain_reduction_method: legacy_kmeans` for
+  one release and reproduces its old outputs.
+
 ## [0.9.0] - 2026-11-12
 
 ### Added
