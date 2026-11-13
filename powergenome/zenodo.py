@@ -638,9 +638,11 @@ def format_bytes(num_bytes: int) -> str:
 
 
 def _retry_delay(
-    attempt: int, response: Any = None, *, base: float = _RETRY_BASE_DELAY
+    attempt: int, response: Any = None, *, base: Optional[float] = None
 ) -> float:
     """Exponential backoff with jitter; honours a sane ``Retry-After`` header."""
+    if base is None:
+        base = _RETRY_BASE_DELAY
     retry_after = None
     if response is not None:
         header = (getattr(response, "headers", None) or {}).get("Retry-After")

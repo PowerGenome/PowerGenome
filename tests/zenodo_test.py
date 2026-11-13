@@ -572,6 +572,79 @@ def test_download_file_rejects_unsafe_keys(tmp_path, key):
     assert not (tmp_path.parent / "escape.csv").exists()
 
 
+def test_download_file_retries_transient_503(monkeypatch, tmp_path):
+    monkeypatch.setattr(zenodo, "_RETRY_BASE_DELAY", 0)
+    data = b"recovered after retry"
+    file = make_file("a.csv", data)
+    session = FakeSession(
+        routes={
+            file.download_url: [
+                FakeResponse(status_code=503, content=b"busy"),  # no Retry-After
+                FakeResponse(status_code=200, content=data),
+            ]
+        }
+    )
+    result = download_file(file, tmp_path, session=session, retries=2)
+
+    assert result.status == "downloaded"
+    assert result.bytes_written == len(data)
+    assert len(session.calls) == 2
+    assert (tmp_path / "a.csv").read_bytes() == data
+    assert not (tmp_path / "a.csv.part").exists()
+
+
+def test_download_file_retry_exhaustion_fails(monkeypatch, tmp_path):
+    monkeypatch.setattr(zenodo, "_RETRY_BASE_DELAY", 0)
+    file = make_file("a.csv", b"never arrives")
+    session = FakeSession(
+        routes={file.download_url: FakeResponse(status_code=503, content=b"overloaded")}
+    )
+    result = download_file(file, tmp_path, session=session, retries=1)
+
+    assert result.status == "failed"
+    assert "503" in (result.error or "")
+    assert len(session.calls) == 2
+    assert not (tmp_path / "a.csv").exists()
+    assert not (tmp_path / "a.csv.part").exists()
+
+
+def test_download_file_short_read_fails_and_keeps_part(tmp_path):
+    file = make_file("a.csv", b"abc", size=10)
+    session = FakeSession(routes={file.download_url: FakeResponse(content=b"abc")})
+    result = download_file(file, tmp_path, session=session)
+
+    assert result.status == "failed"
+    assert "incomplete" in (result.error or "")
+    assert not (tmp_path / "a.csv").exists()
+    assert (tmp_path / "a.csv.part").read_bytes() == b"abc"
+
+
+def test_download_file_keyboard_interrupt_keeps_part(tmp_path):
+    class InterruptingResponse(FakeResponse):
+        def iter_content(self, chunk_size=1):
+            yield b"partial"
+            raise KeyboardInterrupt
+
+    file = make_file("a.csv", b"partial rest")
+    session = FakeSession(routes={file.download_url: InterruptingResponse(content=b"")})
+    with pytest.raises(KeyboardInterrupt):
+        download_file(file, tmp_path, session=session)
+
+    assert (tmp_path / "a.csv.part").read_bytes() == b"partial"
+    assert not (tmp_path / "a.csv").exists()
+
+
+def test_download_file_verify_existing_skips_identical(tmp_path):
+    data = b"already correct"
+    file = make_file("a.csv", data)
+    (tmp_path / "a.csv").write_bytes(data)
+    session = FakeSession()
+    result = download_file(file, tmp_path, session=session, verify_existing=True)
+
+    assert result.status == "skipped"
+    assert session.calls == []
+
+
 def test_download_file_reports_404_without_retry(tmp_path):
     file = make_file("missing.csv", b"x")
     session = FakeSession(

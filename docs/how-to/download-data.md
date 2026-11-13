@@ -30,14 +30,16 @@ version or the concept (all versions). Either works:
 
 The two PowerGenome data records are:
 
-| Dataset | Record ID | Concept DOI |
-|---------|-----------|-------------|
-| PowerGenome Input Data | `22233228` | `10.5281/zenodo.22233228` |
-| Renewable Resource Profiles | `22235855` | `10.5281/zenodo.22235855` |
+| Dataset | Record ID | Version DOI | Concept DOI |
+|---------|-----------|-------------|-------------|
+| PowerGenome Input Data | `22233228` | `10.5281/zenodo.22233228` | `10.5281/zenodo.22233227` |
+| Renewable Resource Profiles | `22235855` | `10.5281/zenodo.22235855` | `10.5281/zenodo.22235854` |
 
 A **version DOI** (for example `10.5281/zenodo.22233228`) always resolves to
-that exact snapshot. A **concept DOI** resolves to the latest version, which is
-usually what you want while following these docs.
+that exact snapshot, so it is the right choice for a reproducible study. A
+**concept DOI** (for example `10.5281/zenodo.22233227`) resolves to the latest
+version of the record, which is usually what you want while first setting up a
+study. Both forms work with every command and helper.
 
 ## 2. List the files first
 
@@ -50,8 +52,8 @@ download_zenodo_data 22233228 --list-files
 Each line is `key`, tab, `size in bytes`, tab, `checksum`:
 
 ```text
-cpi_data.csv	4123456	md5:2a6c49b1cd1fc175b776ce853f06485e
-reeds_load_transformed.parquet	853684596	md5:...
+reeds_load_transformed.parquet	853684596	md5:2a6c49b1cd3ea175b776ce853f06485e
+cpi_data.csv	742	md5:0dcf40c82a204b361f9da0fdc7070550
 ...
 ```
 

@@ -536,7 +536,7 @@ download_zenodo_data 22233228 -d data --dry-run
 The run ends with a summary line such as:
 
 ```text
-INFO     powergenome.zenodo: Summary: 15 downloaded, 0 skipped, 0 failed, 2.4 GB written to /data/zenodo
+INFO     powergenome.zenodo: Summary: 15 downloaded, 0 skipped, 0 failed, 853.4 MB written to /data/zenodo
 ```
 
 ---
