@@ -7,6 +7,21 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- New `download_zenodo_data` command and `powergenome.zenodo` helper module for
+  downloading PowerGenome data records from Zenodo. Identifiers may be a record
+  ID, a DOI (including concept DOIs, which resolve to the latest version), a
+  web or API URL, or a single-file URL. Downloads run concurrently, stream into
+  `.part` files that resume with HTTP range requests, preserve relative
+  subdirectories in file keys, skip already-complete files, and verify Zenodo's
+  MD5 checksums. `--file` glob patterns select subsets, `--list-files` and
+  `--dry-run` inspect a record without writing, and `-sf` reuses `data_location`
+  from settings. A failed file is reported without aborting the rest of the
+  record.
+- New "Download Data from Zenodo" how-to guide and a full `download_zenodo_data`
+  CLI reference section.
+
 ### Changed
 
 - Regional cost multiplier auto-generation no longer logs INFO messages when

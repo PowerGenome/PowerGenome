@@ -21,6 +21,10 @@ These guides provide step-by-step instructions for specific tasks. Each guide as
 - **[Run Multi-Scenario Studies](run-scenarios.md)**: Set up and execute multi-scenario runs with parameter variations
 - **[Add Supplemental Hourly Demand](add-supplemental-demand.md)**: Inject additional hourly demand (data-center forecasts, new industrial loads) on top of baseline demand profiles
 
+## Data
+
+- **[Download Data from Zenodo](download-data.md)**: Find a data record's DOI or record ID and download all or part of it into `data_location`, with resumable, checksum-verified transfers
+
 ## Validation and Debugging
 
 - **[Validate Settings Before Running](validate-settings.md)**: Check settings and data for common configuration mistakes before running the pipeline
@@ -45,6 +49,7 @@ These guides provide step-by-step instructions for specific tasks. Each guide as
 | Filter renewable sites by LCOE | [Configure Renewable Clusters](configure-renewable-clusters.md) | Medium |
 | Add data-center or industrial load | [Add Supplemental Hourly Demand](add-supplemental-demand.md) | Easy |
 | Validate settings before a run | [Validate Settings](validate-settings.md) | Easy |
+| Download PowerGenome data from Zenodo | [Download Data from Zenodo](download-data.md) | Easy |
 
 ## Contributing Guides
 

@@ -1,11 +1,12 @@
 # Command Line Interface
 
-PowerGenome provides two commands:
+PowerGenome provides three commands:
 
 | Command | Purpose |
 |---------|---------|
 | [`run_powergenome`](#run_powergenome) | Execute the full data pipeline and write model input files (GenX and/or Macro) |
 | [`validate_powergenome`](#validate_powergenome) | Check settings and data for configuration mistakes without running the pipeline |
+| [`download_zenodo_data`](#download_zenodo_data) | Download PowerGenome data files from Zenodo records |
 
 ---
 
@@ -316,6 +317,227 @@ validate_powergenome -sf settings --no-validation-cache
 |------|---------|
 | 0 | No errors found (warnings may still be present) |
 | 1 | One or more `ERROR`-level issues found |
+
+---
+
+## `download_zenodo_data`
+
+Downloads the individual files that make up a Zenodo record. PowerGenome data
+records contain many files — some multi-GB — so the command downloads them
+concurrently, resumes interrupted transfers, and verifies the MD5 checksum
+Zenodo publishes for every file. See
+[Download Data from Zenodo](../how-to/download-data.md) for a task-oriented guide.
+
+### Basic Usage
+
+```bash
+download_zenodo_data IDENTIFIER [IDENTIFIER ...] --destination PATH
+```
+
+`IDENTIFIER` accepts any of these forms:
+
+| Form | Example |
+|------|---------|
+| Record ID | `22233228` |
+| DOI | `10.5281/zenodo.4426096` |
+| DOI with prefix | `doi:10.5281/zenodo.4426096` |
+| DOI URL | `https://doi.org/10.5281/zenodo.4426096` |
+| Web URL | `https://zenodo.org/records/22233228` |
+| Legacy web URL | `https://zenodo.org/record/22233228` |
+| API URL | `https://zenodo.org/api/records/22233228` |
+| Single-file URL | `https://zenodo.org/records/22233228/files/cpi_data.csv` |
+| Sandbox URL | `https://sandbox.zenodo.org/records/1234` |
+
+Concept DOIs resolve to the latest version of a record by following the
+`doi.org` redirect. A single-file URL downloads only that file unless
+`--file` patterns are also given.
+
+### Flags
+
+#### `IDENTIFIER` (positional)
+
+One or more records. Multiple records are processed in the order given; a
+failure on one record does not stop the others.
+
+#### `--destination` / `-d`
+
+Directory to write files into. Relative subdirectories in file keys are
+preserved (a key `profiles/wind.csv` is written to
+`DESTINATION/profiles/wind.csv`). The directory is created if needed.
+
+**Type**: String (path)
+**Default**: `data_location` from `--settings-file`
+
+#### `--settings-file` / `-sf`
+
+Settings YAML file, or a directory of YAML files, used to read `data_location`
+when `--destination` is not given. This is the same value passed to
+`run_powergenome`.
+
+**Type**: String (path)
+**Default**: None
+
+```bash
+download_zenodo_data 22233228 -sf settings
+```
+
+`-d` wins when both options are provided. If neither option supplies a
+destination, the command exits with code 2 and explains both options.
+
+#### `--file`
+
+Only download files whose full key or basename matches a glob pattern
+(case-sensitive). Repeat the flag for several patterns. A pattern that matches
+nothing is an error, so a typo cannot silently download nothing.
+
+**Type**: Glob pattern (repeatable)
+**Default**: All files, or the one file named in a single-file URL
+
+```bash
+download_zenodo_data 22233228 -d data --file '*.csv' --file '*.parquet'
+```
+
+#### `--overwrite`
+
+Download files again even when a complete copy already exists. Without this
+flag a file whose size matches is skipped.
+
+**Type**: Boolean flag
+**Default**: False
+
+#### `--no-verify-checksums`
+
+Skip MD5 verification of downloaded files. Verification is on by default;
+each file is hashed while it streams and a mismatch fails that file and
+removes the partial output.
+
+**Type**: Boolean flag
+**Default**: Verify checksums
+
+#### `--verify-existing`
+
+Also verify the checksum of files that are already present before skipping
+them. Slower on large existing datasets, but detects corrupted copies.
+
+**Type**: Boolean flag
+**Default**: False (size comparison only)
+
+#### `--jobs`
+
+Number of concurrent downloads.
+
+**Type**: Integer
+**Default**: 4
+
+```bash
+download_zenodo_data 22233228 -d data --jobs 8
+```
+
+#### `--dry-run`
+
+Resolve the records and log each file that would be downloaded, including its
+size and whether a copy already exists. Nothing is written and no directories
+are created.
+
+**Type**: Boolean flag
+**Default**: False
+
+#### `--list-files`
+
+Print one line per selected file and exit without creating directories or
+downloading. Fields are tab-separated: `key`, `size in bytes`, `checksum`.
+
+**Type**: Boolean flag
+**Default**: False
+
+```bash
+download_zenodo_data 22233228 --list-files
+```
+
+#### `--sandbox`
+
+Use `https://sandbox.zenodo.org` instead of `https://zenodo.org`. A sandbox
+URL in `IDENTIFIER` also selects the sandbox.
+
+**Type**: Boolean flag
+**Default**: False
+
+#### `--timeout`
+
+Network timeout in seconds, applied to connecting and reading.
+
+**Type**: Float
+**Default**: 60
+
+#### `--retries`
+
+Number of retry attempts for transient failures (connection errors, timeouts,
+HTTP 429, and HTTP 5xx). Retries use exponential backoff with jitter and honour
+a reasonable `Retry-After` header. HTTP 4xx responses are not retried.
+
+**Type**: Integer
+**Default**: 3
+
+#### `--no-resume`
+
+Start partial downloads over instead of resuming from the existing `.part`
+file. Resuming is on by default and sends an HTTP `Range` request.
+
+**Type**: Boolean flag
+**Default**: Resume
+
+#### `--log-level`
+
+Logging verbosity.
+
+**Type**: String (`DEBUG`, `INFO`, `WARNING`, `ERROR`)
+**Default**: `INFO`
+
+### Examples
+
+```bash
+# Download the PowerGenome input data record into data_location from settings
+download_zenodo_data 10.5281/zenodo.22233228 -sf settings
+
+# Download only CSV and Parquet files from the renewable profiles record
+download_zenodo_data 22235855 -d data/zenodo --file '*.csv' --file '*.parquet'
+
+# Inspect a record without downloading anything
+download_zenodo_data 22233228 --list-files
+download_zenodo_data 22233228 -d data --dry-run
+```
+
+### Download behavior
+
+- **Atomic writes.** Bytes stream into `<file>.part`; the part file is renamed
+  to the final name only after the size and checksum match.
+- **Resume.** An interrupted download leaves its `.part` file in place. The
+  next run sends `Range: bytes=<size>-` and appends on HTTP 206, or starts over
+  if the server returns the whole file.
+- **Checksums.** Zenodo publishes `md5:<hex>` for each file. A mismatch fails
+  only that file and removes its partial output so a rerun starts clean.
+- **Skip existing.** A file whose size matches is skipped; use
+  `--verify-existing` to require a checksum match as well.
+- **Safe keys.** File keys may contain `/`; relative subdirectories are
+  preserved. Absolute paths and `..` components are rejected per file.
+- **Partial failure.** One failed file is reported and recorded, and the rest
+  of the record still downloads.
+- **Ctrl-C.** Stops scheduling, keeps `.part` files for resume, and exits 130.
+
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | All selected files downloaded or skipped |
+| 1 | A record could not be resolved, or at least one file failed |
+| 2 | Invalid arguments (including a missing destination) |
+| 130 | Interrupted with Ctrl-C |
+
+The run ends with a summary line such as:
+
+```text
+INFO     powergenome.zenodo: Summary: 15 downloaded, 0 skipped, 0 failed, 2.4 GB written to /data/zenodo
+```
 
 ---
 
