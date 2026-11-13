@@ -179,9 +179,12 @@ filters or bin settings. Avoid duplicate entries for the same region/resource.
 
 Use a categorical `group` only to preserve a boundary **inside** a model region;
 model regions are already processed separately. Scoping cluster entries is not
-a general mechanism for excluding technologies. In particular,
-`new_gen_not_available` is validated but not applied; do not rely on it to
-enforce a regional technology restriction.
+a general mechanism for excluding technologies; use `new_gen_not_available` for
+that. It excludes new-build technologies from named model regions, renewable ones
+included: an excluded renewable is dropped before clustering, and a cluster entry
+that targets it in that region is skipped instead of being reported as unmatched.
+See
+[New-Build Resources — `new_gen_not_available`](../reference/settings/new-build.md#new_gen_not_available).
 
 ## Calculating Total Cluster Count
 

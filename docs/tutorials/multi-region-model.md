@@ -155,4 +155,4 @@ tutorial.
 - [Configure Capacity Reserves](../how-to/configure-capacity-reserves.md):
   requirements and resource credits for regional adequacy constraints.
 - [New-build settings](../reference/settings/new-build.md): regional cost
-  mappings and the limitations of legacy availability settings.
+  mappings and excluding new-build technologies from specific regions.

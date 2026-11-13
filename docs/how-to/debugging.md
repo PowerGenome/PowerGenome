@@ -85,8 +85,14 @@ resource types. Files for empty types are omitted. Inspect the
 legacy `Generators_data.csv` indicates failure.
 
 If expected resources are missing, check source coverage, filters, existing-unit
-cluster settings, and model tags. A legacy setting passing validation does not
-prove it affects output; for example, `new_gen_not_available` is not applied.
+cluster settings, model tags, and `new_gen_not_available` — its exclusions are
+applied per model region while new-build resources are built, so an over-broad
+pattern (or an `all`/`all_regions` entry) can remove a resource from the output.
+A setting passing validation does not prove it affects output: the demand-growth
+settings `growth_scenario`, `load_eia_aeo_year`, `historical_load_region_map`,
+`future_load_region_map`, and `alt_growth_rate` are still accepted but no longer
+change demand (see
+[Multi-Scenario Management](../reference/settings/scenario-management.md#fuel-prices-and-demand)).
 
 ## Inspect settings and tables in Python
 

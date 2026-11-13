@@ -98,26 +98,36 @@ cap_res_network_derate_default: 0.95
 
 ### `new_gen_not_available`
 
-**Type**: Dictionary (region → list of new-build technologies)
+**Type**: Dictionary (region name or `all`/`all_regions` → list of technology name patterns)
 **Required**: No
+**Default**: None
 
-!!! warning "Legacy setting — not applied"
-    This key is only checked for region-name consistency during validation and is
-    **not** applied to exclude technologies from the model. `new_resources` is not
-    region-scoped, so there is currently no supported way to exclude a new-build
-    technology from a subset of regions. Renewable resource clusters are scoped by region
-    through `renewables_clusters`.
+Excludes new-build technologies from individual model regions. `new_resources` is
+not region-scoped — every entry is built in every model region — so this is the
+supported way to keep a technology out of a subset of regions.
+
+Patterns are case-insensitive `fnmatch` globs matched against the full resource
+name `"<technology>_<tech_detail>_<cost_case>"`, the `technology` column of the
+resource files. A pattern with no wildcard is an exact-name match, so
+`OffshoreWind_Class1` matches nothing; write `OffshoreWind_*`. The keys `all` and
+`all_regions` (any casing) apply to every model region and are additive with
+per-region keys.
 
 ```yaml
 new_gen_not_available:
   AZ:
-    - OffshoreWind_Class1  # No offshore wind in AZ
-    - Geothermal_HydroFlash  # No geothermal potential
+    - OffshoreWind_*      # No offshore wind in AZ
+    - Geothermal_*        # No geothermal potential
   CA_N:
-    - Coal_new  # Coal banned in CA
+    - Coal_new*           # Coal banned in CA
+  all:
+    - Nuclear_*           # No new nuclear anywhere
 ```
 
-Technology names must match those in `new_resources`.
+Exclusions cover renewable technologies as well as conventional ones. See
+[New-Build Resources — `new_gen_not_available`](new-build.md#new_gen_not_available)
+for the full pattern semantics, the validation behaviour, and the interaction with
+`renewables_clusters`.
 
 ## Cost Multipliers
 
@@ -239,12 +249,12 @@ regional_capacity_reserves:
 
 cap_res_network_derate_default: 0.95
 
-# Legacy — only validated, not applied
+# Regional technology exclusions (patterns match <technology>_<tech_detail>_<cost_case>)
 new_gen_not_available:
-  CA_N: [Coal_new, OffshoreWind]
-  CA_S: [Coal_new]
-  AZ: [OffshoreWind, Geothermal]
-  NM: [OffshoreWind, Geothermal]
+  CA_N: [Coal_new*, OffshoreWind_*]
+  CA_S: [Coal_new*]
+  AZ: [OffshoreWind_*, Geothermal_*]
+  NM: [OffshoreWind_*, Geothermal_*]
 
 # Timezone
 utc_offset: -8

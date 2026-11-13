@@ -203,10 +203,10 @@ regional_tag_values:
     THERM:
       NaturalGas: 2
 
-# Legacy — only validated, not applied
+# Regional technology exclusions (patterns match <technology>_<tech_detail>_<cost_case>)
 new_gen_not_available:
-  CA_N: [Coal_new]
-  AZ: [OffshoreWind]
+  CA_N: [Coal_new*]
+  AZ: [OffshoreWind_*]
 ```
 
 ### Parameter Modifiers

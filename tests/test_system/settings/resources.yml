@@ -344,17 +344,22 @@ atb_battery_wacc: UtilityPV
 
 # Additional technologies can be specified in a csv file under data/additional_technologies
 # Provide the filename (no path needed) in the parameter below or "~" for none.
-# All technologies listed in the file will be included in the outputs unless they are
-# also included in "new_gen_not_available".
+# All technologies listed in the file will be included in the outputs unless a
+# "new_gen_not_available" pattern for the region matches them.
 additional_technologies_fn: ~
 
 additional_new_gen: ~
 
 
-# Dictionary of lists with model region as key and ATB tech (string matching) in list.
-# It isn't necessary to include wind/solar resources here. If they aren't included in
-# the renewables_clusters parameter below, they won't be included in the final generators
-# dataframe.
+# Dictionary of lists with model region as key and technology name patterns as
+# values. Patterns are matched against the full resource name
+# "<technology>_<tech_detail>_<cost_case>" (the `technology` column of the
+# resource files) as case-insensitive fnmatch globs, so a pattern without a
+# wildcard is an exact-name match. Use "all" or "all_regions" as a key to apply
+# the patterns to every model region; those entries are additive with per-region
+# keys. Renewable technologies are excluded too, before clustering, so an
+# excluded wind/solar resource is not built even if it has a renewables_clusters
+# entry.
 new_gen_not_available: ~
 
 

@@ -13,6 +13,7 @@ import pandas as pd
 import pytest
 
 from powergenome.validate import (
+    _PHASE1_CHECKS,
     ValidationLevel,
     ValidationResult,
     _check_aggregation_base_regions,
@@ -20,6 +21,7 @@ from powergenome.validate import (
     _check_fuel_consistency,
     _check_fuel_price_coverage,
     _check_model_tag_coverage,
+    _check_new_gen_availability,
     _check_new_resource_cost_years,
     _check_paths_exist,
     _check_region_consistency,
@@ -436,6 +438,116 @@ class TestCheckRegionConsistency:
             "distributed_gen_method": {"r1": "capacity", "r2": "capacity"},
         }
         assert _warnings(_check_region_consistency(s)) == []
+
+    def test_new_gen_not_available_wildcard_keys_are_valid(self):
+        s = {
+            "model_regions": ["r1", "r2"],
+            "new_gen_not_available": {
+                "all": ["Coal_*"],
+                "ALL_REGIONS": ["NaturalGas_*"],
+                "r1": [],
+            },
+        }
+        assert _warnings(_check_region_consistency(s)) == []
+
+    def test_unknown_region_in_new_gen_not_available(self):
+        s = {
+            "model_regions": ["r1", "r2"],
+            "new_gen_not_available": {"r_unknown": ["Coal_*"]},
+        }
+        warnings = _warnings(_check_region_consistency(s))
+        assert len(warnings) == 1
+        assert "new_gen_not_available" in warnings[0].message
+        assert "r_unknown" in warnings[0].message
+
+    def test_padded_region_key_in_new_gen_not_available_is_valid(self):
+        # Runtime strips surrounding whitespace from these keys, so a padded key
+        # naming a model region must not warn.
+        s = {
+            "model_regions": ["AZ"],
+            "new_gen_not_available": {"  AZ  ": ["Coal_*"]},
+        }
+        assert _warnings(_check_region_consistency(s)) == []
+
+    def test_padded_unknown_region_in_new_gen_not_available_warns_normalized(self):
+        s = {
+            "model_regions": ["AZ"],
+            "new_gen_not_available": {"  ZZ  ": ["Coal_*"]},
+        }
+        warnings = _warnings(_check_region_consistency(s))
+        assert len(warnings) == 1
+        assert "new_gen_not_available" in warnings[0].message
+        assert "ZZ" in warnings[0].message
+        assert "  ZZ  " not in warnings[0].message
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 1 — _check_new_gen_availability
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestCheckNewGenAvailability:
+    def test_absent_setting_produces_no_results(self):
+        assert _check_new_gen_availability(_minimal_valid_settings()) == []
+
+    @pytest.mark.parametrize(
+        "value",
+        [None, {}, []],
+        ids=["none", "empty-dict", "empty-list"],
+    )
+    def test_falsy_setting_produces_no_results(self, value):
+        s = _minimal_valid_settings(new_gen_not_available=value)
+        assert _check_new_gen_availability(s) == []
+
+    def test_non_mapping_setting_is_one_error(self):
+        s = _minimal_valid_settings(new_gen_not_available=5)
+        errors = _errors(_check_new_gen_availability(s))
+        assert len(errors) == 1
+        assert errors[0].category == "new_gen_availability"
+
+    def test_non_list_region_value_is_one_error_naming_region(self):
+        s = _minimal_valid_settings(new_gen_not_available={"AZ": 5})
+        errors = _errors(_check_new_gen_availability(s))
+        assert len(errors) == 1
+        assert "AZ" in errors[0].message
+
+    def test_exact_pattern_warns_when_it_matches_nothing(self):
+        s = _minimal_valid_settings(
+            new_resources=[["Coal_newAvgCF", "Moderate", "Moderate", 100]],
+            new_gen_not_available={"AZ": ["Coal_new"]},
+        )
+        warnings = _warnings(_check_new_gen_availability(s))
+        assert len(warnings) == 1
+        assert "Coal_new" in warnings[0].message
+
+    def test_wildcard_pattern_matching_a_resource_is_clean(self):
+        s = _minimal_valid_settings(
+            new_resources=[["Coal_newAvgCF", "Moderate", "Moderate", 100]],
+            new_gen_not_available={"AZ": ["Coal_new*"]},
+        )
+        assert _check_new_gen_availability(s) == []
+
+    def test_every_technology_excluded_warns_for_region(self):
+        s = _minimal_valid_settings(
+            model_regions=["AZ"],
+            new_resources=[["Coal_newAvgCF", "Moderate", "Moderate", 100]],
+            new_gen_not_available={"AZ": ["coal_*"]},
+        )
+        warnings = _warnings(_check_new_gen_availability(s))
+        assert len(warnings) == 1
+        assert "AZ" in warnings[0].message
+        assert "every new-build technology is excluded" in warnings[0].message
+        assert "additional_technologies_fn" in warnings[0].message
+
+    def test_setting_without_new_resources_warns(self):
+        s = _minimal_valid_settings(new_gen_not_available={"AZ": ["Coal_*"]})
+        warnings = _warnings(_check_new_gen_availability(s))
+        assert len(warnings) == 1
+        assert "define no technologies" in warnings[0].message
+        assert "additional_technologies_fn" in warnings[0].message
+
+    def test_registered_as_phase1_check(self):
+        assert _check_new_gen_availability in _PHASE1_CHECKS
 
 
 # ─────────────────────────────────────────────────────────────────────────────

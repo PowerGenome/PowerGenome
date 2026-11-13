@@ -222,31 +222,88 @@ carbon_tax:
 
 ### `new_gen_not_available`
 
-**Type**: Dictionary (region → list of technologies)
+**Type**: Dictionary (region name or `all`/`all_regions` → list of technology name patterns)
 **Required**: No
+**Default**: None (no technologies excluded)
 
-!!! warning "Legacy setting — not applied"
-    This key is only checked for region-name consistency during validation and is
-    **not** applied to exclude technologies from the model. `new_resources` is not
-    region-scoped: every technology in it is built in **all** model regions, so there is
-    currently no supported way to exclude a new-build technology from a subset of regions.
-    To remove a technology entirely, omit it from `new_resources`. Renewable resource
-    clusters are scoped by region through `renewables_clusters`.
+Keeps new-build technologies out of specific model regions. `new_resources` is a
+flat, region-agnostic list: every entry is built in **all** model regions. This
+setting is how a technology is removed from a subset of regions without dropping
+it everywhere.
 
 ```yaml
 new_gen_not_available:
   AZ:
-    - OffshoreWind_Class1_Moderate_-1
-    - Geothermal_HydroFlash_Moderate
+    - OffshoreWind_*        # No offshore wind in Arizona
+    - Geothermal_*          # No geothermal potential
   CA_N:
-    - Coal_new_Moderate
+    - Coal_new*             # Coal banned in California
+  all_regions:
+    - Nuclear_*             # No new nuclear anywhere
 ```
+
+**Pattern semantics**:
+
+- A pattern is matched against the full resource name
+  `"<technology>_<tech_detail>_<cost_case>"` — the same string that appears in the
+  `technology` column of the resource files, e.g. `OffshoreWind_Class1_Moderate`
+  or `Coal_newAvgCF_Moderate`.
+- Matching is case-insensitive `fnmatch` glob: `*` matches any run of characters,
+  `?` any single character, and `[seq]` any character in `seq`.
+- **A pattern without a wildcard is an exact-name match.** `Coal_new` does not
+  match `Coal_newAvgCF_Moderate`, and `OffshoreWind` matches nothing. Write
+  `Coal_new*` and `OffshoreWind_*` to exclude a technology and all its cost cases.
+
+**Region keys**:
+
+- Model region names from `model_regions`.
+- `all` and `all_regions` (any casing) apply to **every** model region. They are
+  **additive** with per-region entries, not an override: a region's exclusions are
+  its own patterns plus the all-regions patterns. There is no way to exempt one
+  region from an all-regions pattern.
+
+**Scope**:
+
+- Exclusions apply to `new_resources`, `modified_new_resources`, and rows added by
+  `additional_technologies_fn`.
+- Conventional and renewable technologies are treated alike. An excluded
+  renewable is dropped **before** renewable clustering, so it cannot reappear as
+  an unclustered single-row resource.
+- A `renewables_clusters` entry that targets an excluded technology in that region
+  is skipped and logged at debug level, instead of emitting the usual "no
+  comparable new-build technology" warning.
+- Excluding every technology in a region is allowed — no new-build resources are
+  built there and no clustering is attempted — but validation warns about it.
+
+**Validation** (Phase 1, `validate_powergenome` / `validate_settings`):
+
+- ERROR if `new_gen_not_available` is not a mapping, or if a region's value is not
+  a string or a list/tuple of strings.
+- WARNING for each pattern that matches none of the technologies known from
+  `new_resources` and `modified_new_resources`. This check is advisory when
+  `additional_technologies_fn` is used, because those names are not known
+  statically.
+- WARNING if the setting is set but `new_resources` and
+  `modified_new_resources` define no technologies, so the exclusions have nothing
+  to act on.
+- WARNING if every known technology is excluded in a model region.
+- `all` and `all_regions` are accepted region keys and are not reported as
+  unknown regions.
 
 Use cases:
 
 - Physical constraints (no offshore wind in landlocked states)
 - Policy constraints (coal banned)
 - Resource availability (no geothermal potential)
+
+!!! note
+    Exclusions are applied per model region while new-build resources are built,
+    after `new_resources`, `modified_new_resources`, and
+    `additional_technologies_fn` rows are combined. They therefore override the
+    flat `new_resources` list for the named regions, and the list itself does not
+    need to be rewritten per scenario. Earlier versions validated this key but did
+    not apply it, so studies that already set it will now see the exclusions take
+    effect.
 
 ## Interconnection Costs
 
@@ -575,12 +632,13 @@ resource_modifiers:
     tech_detail: Lithium Ion
     Var_OM_Cost_per_MWh: [add, 0.15]
 
-# Regional restrictions (legacy — only validated, not applied)
+# Regional technology exclusions. Patterns are case-insensitive globs matched
+# against "<technology>_<tech_detail>_<cost_case>".
 new_gen_not_available:
   AZ:
-    - OffshoreWind_Class1_Moderate
-  CA_N:
-    - Coal_newAvgCF_Moderate
+    - Nuclear_*                 # No new nuclear in AZ
+  all_regions:
+    - NaturalGas_*CCS*          # No new CCS anywhere
 
 # Capacity limits
 input_folder: extra_inputs

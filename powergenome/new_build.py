@@ -28,6 +28,11 @@ from powergenome.resource_clusters import (
     map_technologies,
 )
 from powergenome.settings import apply_all_tag_to_regions
+from powergenome.tech_availability import (
+    exclusion_patterns_for_region,
+    matches_any_pattern,
+    normalize_exclusions,
+)
 from powergenome.util import (
     add_row_to_csv,
     calculate_file_hash,
@@ -766,6 +771,45 @@ def add_modified_generators(
     return mod_gens
 
 
+def _warn_unmatched_exclusions(new_gen_df: pd.DataFrame, settings: Any) -> None:
+    """Warn about ``new_gen_not_available`` patterns that can never match.
+
+    The per-region exclusion filter runs inside (possibly multiprocess) worker
+    processes, so a warning emitted there would repeat once per region. Instead
+    every pattern is checked once, here, against the resource names that were
+    actually built. Using the built names (rather than
+    :func:`powergenome.tech_availability.new_resource_names`) means rows from
+    ``additional_technologies_fn`` and ``modified_new_resources`` are accounted
+    for.
+
+    Parameters
+    ----------
+    new_gen_df : pd.DataFrame
+        New-build resources before they are split by region. Must have a
+        ``technology`` column holding full ``<technology>_<tech_detail>_<cost_case>``
+        names.
+    settings : dict or Settings
+        Loaded PowerGenome settings. A missing or empty
+        ``new_gen_not_available`` makes this a no-op.
+    """
+    exclusions = normalize_exclusions(settings)
+    if not exclusions:
+        return
+
+    names = new_gen_df["technology"].dropna().unique().tolist()
+    for region_key, patterns in exclusions.items():
+        for pattern in patterns:
+            if not any(matches_any_pattern(name, [pattern]) for name in names):
+                logger.warning(
+                    "new_gen_not_available pattern '%s' for region '%s' matches no "
+                    "new-build technology. Patterns are matched against "
+                    "'<technology>_<tech_detail>_<cost_case>' (e.g. "
+                    "'OffshoreWind_*').",
+                    pattern,
+                    region_key,
+                )
+
+
 def build_new_resources(
     resource_costs,
     resource_hr,
@@ -802,6 +846,15 @@ def build_new_resources(
        'Fixed_OM_Cost_per_MWhyr', 'Var_OM_Cost_per_MWh', 'capex', 'capex_mwh',
        'Inv_Cost_per_MWyr', 'Inv_Cost_per_MWhyr', 'Heat_Rate_MMBTU_per_MWh',
        'Cap_Size', 'region']
+
+    Notes
+    -----
+    ``new_gen_not_available`` removes new-build technologies from specific model
+    regions. It maps a region name, or the additive wildcard keys ``all`` /
+    ``all_regions``, to a list of case-insensitive ``fnmatch`` patterns that are
+    matched against ``"<technology>_<tech_detail>_<cost_case>"``. Exclusions are
+    applied per region before regional cost multipliers and renewable clustering,
+    so they also suppress ``renewables_clusters`` entries in that region.
     """
     logger.debug("Creating new resources for each region.")
     new_gen_types = settings["new_resources"]
@@ -923,6 +976,10 @@ def build_new_resources(
             .astype(str)
             .agg("_".join, axis=1)
         )
+
+        # Check exclusion patterns once here in the parent process; the
+        # per-region filter runs in workers where warnings would repeat.
+        _warn_unmatched_exclusions(new_gen_df, settings)
 
         for tech, years in (
             settings.get("alt_resource_cap_recovery_years") or {}
@@ -1056,6 +1113,59 @@ def build_new_resources(
     return results
 
 
+def _filter_region_exclusions(
+    df: pd.DataFrame, region: str, settings: Any
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Drop new-build technologies that ``new_gen_not_available`` excludes.
+
+    ``new_resources`` is a flat, region-agnostic list that gets replicated to
+    every model region, so the exclusion has to be applied per region after the
+    ``region`` column is added.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        New-build resources for one region. Must have a ``region`` column and a
+        ``technology`` column holding full
+        ``<technology>_<tech_detail>_<cost_case>`` names.
+    region : str
+        Model region the rows belong to.
+    settings : dict or Settings
+        Loaded PowerGenome settings. A missing or empty
+        ``new_gen_not_available`` leaves the data untouched.
+
+    Returns
+    -------
+    tuple of (pd.DataFrame, pd.DataFrame)
+        ``(kept_df, excluded_df)``. ``kept_df`` is the input with excluded rows
+        removed and its index reset; ``excluded_df`` holds the dropped rows with
+        the original columns. Both are the input frame (and an empty slice of
+        it) when no pattern applies or nothing matches, so callers can rely on
+        the columns being present even when every row is excluded.
+    """
+    patterns = exclusion_patterns_for_region(settings, region)
+    if not patterns or df.empty:
+        return df, df.iloc[0:0]
+
+    excluded_mask = df["technology"].map(
+        lambda name: matches_any_pattern(name, patterns)
+    )
+    excluded_mask = excluded_mask.fillna(False).astype(bool)
+    if not excluded_mask.any():
+        return df, df.iloc[0:0]
+
+    excluded_df = df[excluded_mask]
+    kept_df = df[~excluded_mask].reset_index(drop=True)
+    dropped = sorted({str(name) for name in excluded_df["technology"].unique()})
+    logger.info(
+        "Excluding new-build technologies from region '%s' "
+        "(new_gen_not_available): %s",
+        region,
+        dropped,
+    )
+    return kept_df, excluded_df
+
+
 def parallel_region_renewables(
     settings: dict,
     new_gen_df: pd.DataFrame,
@@ -1072,7 +1182,11 @@ def parallel_region_renewables(
     Parameters
     ----------
     settings : dict
-        Can have keys "renewables_clusters" and "region_aggregations"
+        Can have keys "renewables_clusters", "region_aggregations", and
+        "new_gen_not_available". Technologies listed in
+        "new_gen_not_available" for this region (or under the additive
+        "all"/"all_regions" keys) are dropped before regional cost multipliers
+        and renewable clustering are applied.
     new_gen_df : pd.DataFrame
         Rows are new-build resources specified by the user
     regional_cost_multipliers : pd.DataFrame
@@ -1098,6 +1212,14 @@ def parallel_region_renewables(
     """
     _df = new_gen_df.copy()
     _df["region"] = region
+    _df, _excluded = _filter_region_exclusions(_df, region, settings)
+    if _df.empty:
+        logger.info(
+            "No new-build resources remain in region '%s' after "
+            "new_gen_not_available exclusions.",
+            region,
+        )
+        return _df
     _df = regional_capex_multiplier(
         _df,
         region,
@@ -1113,6 +1235,7 @@ def parallel_region_renewables(
         cluster_builder,
         cache_results=cache_results,
         use_cache=use_cache,
+        excluded_df=_excluded,
     )
 
     return _df
@@ -1194,6 +1317,47 @@ def flatten_cluster_def(
     return detail_suffix
 
 
+def _cluster_targets_excluded_technology(
+    scenario: dict, excluded_df: pd.DataFrame = None
+) -> bool:
+    """Check whether a ``renewables_clusters`` entry targets an excluded resource.
+
+    A cluster entry whose technology was dropped by ``new_gen_not_available``
+    has no comparable new-build technology left in the region, which is expected
+    rather than a settings mistake. The match uses the same
+    :func:`powergenome.resource_clusters.map_technologies` derivation as
+    :func:`add_renewables_clusters`, so identifiers such as ``turbine_type`` and
+    ``pref_site`` line up with the resource names.
+
+    Parameters
+    ----------
+    scenario : dict
+        One entry of ``settings["renewables_clusters"]``.
+    excluded_df : pd.DataFrame, optional
+        Rows dropped from the region by ``new_gen_not_available``. Must have a
+        ``technology`` column of full
+        ``<technology>_<tech_detail>_<cost_case>`` names. None or empty means
+        nothing was excluded in this region.
+
+    Returns
+    -------
+    bool
+        True when the entry would have matched an excluded technology, False
+        otherwise or when the excluded names are not renewable technologies.
+    """
+    if excluded_df is None or excluded_df.empty:
+        return False
+
+    excluded_map = {
+        name: map_technologies(name.split("_")[0], name.split("_")[1])
+        for name in excluded_df["technology"].unique()
+    }
+    return any(
+        mapped and all(scenario.get(k) == v for k, v in mapped.items())
+        for mapped in excluded_map.values()
+    )
+
+
 def add_renewables_clusters(
     df: pd.DataFrame,
     region: str,
@@ -1201,6 +1365,7 @@ def add_renewables_clusters(
     cluster_builder: ClusterBuilder = None,
     cache_results: bool = False,
     use_cache: bool = False,
+    excluded_df: pd.DataFrame = None,
 ) -> pd.DataFrame:
     """
     Add renewables clusters
@@ -1224,6 +1389,9 @@ def add_renewables_clusters(
         Whether to cache renewable clustering results. Default is False.
     use_cache : bool
         Whether to use cached renewable clustering results. Default is False.
+    excluded_df : pd.DataFrame
+        Rows dropped from this region by `new_gen_not_available`; used only to
+        suppress a misleading warning.
 
 
     Returns
@@ -1271,6 +1439,14 @@ def add_renewables_clusters(
             if v and all([scenario.get(ki) == vi for ki, vi in v.items()])
         ]
         if not technologies:
+            if _cluster_targets_excluded_technology(scenario, excluded_df):
+                logger.debug(
+                    "Skipping renewables_clusters entry for technology '%s' in "
+                    "region '%s': excluded by new_gen_not_available.",
+                    scenario.get("technology"),
+                    region,
+                )
+                continue
             s = (
                 f"You have a renewables_cluster for technology '{scenario.get('technology')} "
                 f"in region '{scenario.get('region')}', but no comparable new-build technology "

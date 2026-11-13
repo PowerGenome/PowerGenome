@@ -7,6 +7,54 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- `new_gen_not_available` now excludes new-build technologies from specific model
+  regions (#493). `new_resources` is a flat, region-agnostic list that is
+  replicated to every model region, so previously there was no way to keep a
+  technology out of a subset of regions without dropping it everywhere. The
+  setting maps a model region — or the wildcard keys `all`/`all_regions`, which
+  apply to every region and are additive with per-region entries rather than
+  overriding them — to a list of technology name patterns. Patterns are
+  case-insensitive `fnmatch` globs (`*`, `?`, `[seq]`) matched against the full
+  resource name `<technology>_<tech_detail>_<cost_case>`, the same string that
+  appears in the `technology` column of the resource files, so a pattern without a
+  wildcard is an exact-name match (`Coal_new` does not match
+  `Coal_newAvgCF_Moderate`; `Coal_new*` does). Exclusions are applied per region
+  while resources are built, after `new_resources`, `modified_new_resources`, and
+  `additional_technologies_fn` rows are combined, and before regional cost
+  multipliers, for conventional and renewable technologies alike. Because
+  renewable exclusions run before clustering, an excluded renewable cannot survive
+  as an unclustered single-row resource, and a `renewables_clusters` entry that
+  targets an excluded technology in that region is skipped (logged at debug level)
+  instead of emitting the misleading "no comparable new-build technology" warning.
+  Excluding every technology in a region is allowed: no new-build resources are
+  built there and no clustering is attempted. A pattern that matches no built
+  technology is reported once with a warning rather than once per region and
+  worker process. Phase 1 validation (`validate_powergenome` /
+  `validate_settings`) errors when the setting is not a mapping or a region's
+  value is not a string or list/tuple of strings, and warns when a pattern matches
+  none of the technologies known from `new_resources`/`modified_new_resources`
+  (advisory when `additional_technologies_fn` supplies names it cannot see
+  statically), when the setting is set but no new-build technologies are defined,
+  and when every known technology is excluded from a model region. The matching
+  rules live in the new `powergenome/tech_availability.py` module, shared by
+  resource building and validation so the two cannot disagree about what a pattern
+  means.
+
+### Changed
+
+- `new_gen_not_available` is no longer a validate-only setting: it now actually
+  removes technologies from the regions named in it. Studies that already set the
+  key — because earlier versions accepted it without acting on it — will now see
+  those technologies excluded from their new-build resources, and models that
+  previously included them may change. Review any existing
+  `new_gen_not_available` block before re-running a study, especially bare names
+  that relied on being ignored: a pattern such as `Coal_new` is exact and matches
+  nothing, while `Coal_new*` removes every `Coal_new…` cost case. Validation also
+  accepts the wildcard region keys `all`/`all_regions` (any casing), which apply to
+  every model region, where it previously warned about an unknown region.
+
 ## [0.9.0] - 2026-11-12
 
 ### Added
@@ -55,7 +103,7 @@ and this project adheres to Semantic Versioning.
 - Multi-period (multistage) runs no longer write retirement requirements that GenX cannot satisfy, which made the model infeasible (`Status: INFEASIBLE` with `MinRetiredCapRequirement` violated by a tiny amount). `Existing_Cap_MW`/`Existing_Cap_MWh` are rounded to one decimal place while `Min_Retired_Cap_MW`/`Min_Retired_Energy_Cap_MW` were rounded to three, so the retirements required across the later periods of a case could add up to slightly more than the capacity available in the first period (e.g. 1000.04 rounding to 1000.0 available against 600.02 + 400.02 = 1000.04 required). Retirement requirements are now floored — never rounded — to the precision GenX uses for the matching capacity column, so the parts can no longer exceed the whole (`powergenome.GenX.floor_retirement_requirements`, applied with the other multi-period transformations).
 - The first planning period of every case now writes zeros for the `Min_Retired_*` columns. It previously tracked the first *iteration* of the year/case loop instead of each case's first period, so with more than one case in a run every case except the first asked GenX to retire capacity that its own first period still needed.
 - Multi-period runs now stop with a descriptive error when a planning period requires retiring more capacity than a resource had available in the case's first period, or requires retiring a resource that is not in the first period at all, instead of leaving the user to debug an infeasible GenX model. `powergenome.GenX.check_retirement_budget` tracks each case's remaining capacity across periods; the message names the offending resources and points at the `retirement_year` column of the generation input data and `region_wind_pv_cap_fn`, the usual causes.
-- Documentation examples corrected to match the actual settings schema. Removed the nonexistent `atb_cost_case`, `default_growth_rate`, `distributed_gen_values`, `max_network_reinforcement_mw`, `tx_expansion_per_mw`, `enforce_constraints`, `retirement_ages`, and `atb_modifiers` settings from the docs, and the nonexistent `--num_workers` and `--filter` CLI flags. Corrected `renewable_clusters` to `renewables_clusters`, documented the `resource_modifiers` short-name + `technology`/`tech_detail` format, the `tx_expansion_per_period`/`tx_expansion_mw_per_period` transmission expansion settings, and the `growth_scenario`/`alt_growth_rate` demand-growth settings. Marked the legacy `new_gen_not_available` setting as validated-only (not applied) and the `new_gen_not_available` region-restriction guidance as ineffective.
+- Documentation examples corrected to match the actual settings schema. Removed the nonexistent `atb_cost_case`, `default_growth_rate`, `distributed_gen_values`, `max_network_reinforcement_mw`, `tx_expansion_per_mw`, `enforce_constraints`, `retirement_ages`, and `atb_modifiers` settings from the docs, and the nonexistent `--num_workers` and `--filter` CLI flags. Corrected `renewable_clusters` to `renewables_clusters`, documented the `resource_modifiers` short-name + `technology`/`tech_detail` format, the `tx_expansion_per_period`/`tx_expansion_mw_per_period` transmission expansion settings, and the `growth_scenario`/`alt_growth_rate` demand-growth settings. Corrected the `new_gen_not_available` region-restriction guidance to describe the settings that existed at the time (the key became effective in a later release; see Unreleased).
 
 ## [0.8.0] - 2026-09-01
 

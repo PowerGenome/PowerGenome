@@ -478,24 +478,29 @@ NaturalGas_2-on-1 Combined Cycle (F-Frame),PCA_WECC,1.1
 
 ### Technology Restrictions
 
-Prohibit technologies in specific regions:
-
-!!! warning "Legacy setting — not applied"
-    `new_gen_not_available` is only validated for region-name consistency; it is **not**
-    applied to exclude technologies. Non-renewable `new_resources` are built in
-    every model region; renewable resource clusters are scoped per region through
-    `renewables_clusters`.
+Prohibit technologies in specific regions with `new_gen_not_available`:
 
 **settings/tech_availability.yml**:
 
 ```yaml
-# Legacy — not applied in this version
+# Patterns are case-insensitive globs matched against
+# "<technology>_<tech_detail>_<cost_case>", so use a wildcard for a prefix.
 new_gen_not_available:
   AZ:
-    - OffshoreWind_*  # No offshore wind in Arizona
+    - OffshoreWind_*      # No offshore wind in Arizona
+    - Geothermal_*        # No geothermal potential in Arizona
   CA_N:
-    - Coal_*  # No new coal in California
+    - Coal_*              # No new coal in California
+  all_regions:
+    - NaturalGas_*CCS*    # No new CCS anywhere
 ```
+
+The exclusion is applied per model region while new-build resources are built, for
+conventional and renewable technologies alike. A pattern without a wildcard is an
+exact match, so `Coal_new` excludes nothing — write `Coal_new*`.
+`validate_powergenome` reports patterns that match no known technology and regions
+where every technology is excluded. See
+[New-Build Resources — `new_gen_not_available`](../reference/settings/new-build.md#new_gen_not_available).
 
 ### Custom Technology Costs
 

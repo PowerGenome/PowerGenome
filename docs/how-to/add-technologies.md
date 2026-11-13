@@ -326,23 +326,37 @@ renewables_clusters:
 
 ### Regional Restrictions
 
-!!! warning "Legacy setting — not applied"
-    `new_gen_not_available` is only validated for region-name consistency; it is **not**
-    applied to exclude technologies. Non-renewable `new_resources` are built in
-    every model region. Renewable resource clusters are scoped per region through
-    `renewables_clusters` (each entry has a `region` key).
+`new_resources` builds each listed technology in **every** model region, so dropping
+an entry removes the technology everywhere. To remove it from one region only, use
+`new_gen_not_available`:
 
 ```yaml
-# Legacy — not applied in this version
 new_gen_not_available:
   AZ:
-    - OffShoreWind  # No offshore wind in Arizona
-    - Nuclear
+    - OffshoreWind_*      # No offshore wind in Arizona
+    - Nuclear_*           # No new nuclear in Arizona
   CA_N:
-    - Coal  # No new coal anywhere in California
+    - Coal_*              # No new coal anywhere in California
   CA_S:
-    - Coal
+    - Coal_*
+  all_regions:
+    - NaturalGas_*CCS*    # No new CCS in any region
 ```
+
+Patterns are case-insensitive `fnmatch` globs matched against the full resource
+name `<technology>_<tech_detail>_<cost_case>` (e.g.
+`OffshoreWind_Class1_Moderate` or `Coal_newAvgCF_Moderate`), which is the same
+string as the `technology` column of the resource files. **A pattern with no
+wildcard is an exact match**: `Coal_new` excludes nothing, while `Coal_new*`
+excludes every `Coal_new…` cost case. Renewable technologies are covered too — an
+excluded renewable is dropped before clustering, and a `renewables_clusters` entry
+targeting it in that region is skipped.
+
+Regions listed under `all` or `all_regions` (any casing) are additive with the
+per-region keys, so they cannot be used to exempt one region from a global ban.
+Run `validate_powergenome` after editing: patterns that match no known technology
+and regions left with no new-build resources are reported as warnings. See
+[New-Build Resources — `new_gen_not_available`](../reference/settings/new-build.md#new_gen_not_available).
 
 ### Operating Constraints
 
@@ -517,14 +531,24 @@ of the years that were averaged.
 
 ## Regional Availability of New Resources
 
-`new_resources` builds each listed non-renewable technology in **every** model
-region, so it cannot be used to keep a technology out of a single region. Renewable
-resources are scoped per region through `renewables_clusters` (each entry has a
-`region` key). The legacy `new_gen_not_available` key is only validated, not applied.
+`new_resources` builds each listed technology in **every** model region, so it
+cannot be used on its own to keep a technology out of a single region. Add the
+technology's patterns to `new_gen_not_available` under the region names to exclude
+it there; `all` and `all_regions` (any casing) apply the patterns to every region
+and are additive with per-region entries. Patterns are case-insensitive globs
+matched against `<technology>_<tech_detail>_<cost_case>`, and a pattern without a
+wildcard is an exact match — `Coal_new` does not match `Coal_newAvgCF_Moderate`, so
+write `Coal_new*`. Renewable technologies are covered: an excluded one is removed
+before clustering. Renewable *candidates* are still scoped per region through
+`renewables_clusters` (each entry has a `region` key).
 
 ```yaml
 new_resources:
   - [LandbasedWind, Class3, Moderate, 100]
+
+new_gen_not_available:
+  CA_S:
+    - LandbasedWind_*   # No new land-based wind in CA_S
 
 renewables_clusters:
   - region: CA_N

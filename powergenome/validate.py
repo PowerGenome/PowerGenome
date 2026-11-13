@@ -5,7 +5,8 @@ Provides two-phase validation:
 
   Phase 1 (``validate_settings``):
     Settings internal consistency — region keys, required keys, path existence,
-    planning year definitions, fuel definitions, and model tag coverage.
+    planning year definitions, fuel definitions, model tag coverage, and
+    new-build technology availability (``new_gen_not_available``).
     Runs without any data file access.
 
   Phase 2 (``validate_settings_with_data``):
@@ -60,11 +61,19 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
+from powergenome.tech_availability import (
+    exclusion_patterns_for_region,
+    is_all_regions_key,
+    matches_any_pattern,
+    new_resource_names,
+    unmatched_patterns,
+)
 from powergenome.validation_cache import _as_bool, run_cached_validation
 
 logger = logging.getLogger(__name__)
@@ -339,6 +348,14 @@ def _check_region_consistency(settings: dict) -> List[ValidationResult]:
     * ``distributed_gen_method``
     * ``regional_capacity_reserves`` (nested: constraint → region → value)
     * ``small_hydro_regions`` (list)
+
+    For ``new_gen_not_available`` the wildcard keys ``all``/``all_regions`` are
+    accepted in place of a region name: they apply to every model region and are
+    not reported as unknown regions. Its region keys are also compared with
+    surrounding whitespace stripped, because resource building does the same
+    (``powergenome.tech_availability.normalize_exclusions``) — a padded key that
+    names a model region is therefore not reported. Unknown padded keys are
+    reported in their normalized form.
     """
     results = []
 
@@ -359,7 +376,23 @@ def _check_region_consistency(settings: dict) -> List[ValidationResult]:
         val = settings.get(key)
         if not val or not isinstance(val, dict):
             continue
-        unknown = set(val.keys()) - model_regions
+        if key == "new_gen_not_available":
+            # Resource building strips surrounding whitespace from these region
+            # keys (powergenome.tech_availability.normalize_exclusions), so
+            # compare the same normalized names to avoid warning about a padded
+            # key that does name a model region. ``all``/``all_regions`` are
+            # wildcard region keys, not region names.
+            region_keys = {
+                region.strip() if isinstance(region, str) else region
+                for region in val.keys()
+            }
+            unknown = {
+                region
+                for region in region_keys - model_regions
+                if not is_all_regions_key(region)
+            }
+        else:
+            unknown = set(val.keys()) - model_regions
         if unknown:
             results.append(
                 _warn(
@@ -396,6 +429,127 @@ def _check_region_consistency(settings: dict) -> List[ValidationResult]:
                     "region_consistency",
                     f"'small_hydro_regions' contains regions not in 'model_regions': "
                     f"{sorted(unknown)}",
+                )
+            )
+
+    return results
+
+
+def _check_new_gen_availability(settings: Any) -> List[ValidationResult]:
+    """Validate the ``new_gen_not_available`` technology exclusions.
+
+    ``new_gen_not_available`` maps a region name (or one of the wildcard keys
+    ``all``/``all_regions``) to technology name patterns that must not be built
+    in that region. Entries that cannot do anything useful are silently ignored
+    when resources are built, so this check surfaces them.
+
+    Parameters
+    ----------
+    settings : dict or Settings
+        Loaded PowerGenome settings.
+
+    Returns
+    -------
+    list[ValidationResult]
+        ERRORs when the setting is not a mapping and for each region entry whose
+        value is neither a string nor a list/tuple of strings. WARNINGs for each
+        pattern that matches none of the statically known resource names, for a
+        setting with no ``new_resources``/``modified_new_resources`` to act on,
+        and for each model region where every known resource is excluded.
+
+    Notes
+    -----
+    Pattern semantics — case-insensitive ``fnmatch`` globs matched against
+    ``"<technology>_<tech_detail>_<cost_case>"`` — live in
+    :mod:`powergenome.tech_availability`, so validation and resource building
+    cannot disagree about what a pattern means.
+
+    Matching patterns against ``new_resources``/``modified_new_resources`` is
+    advisory because technologies can also come from
+    ``additional_technologies_fn``, which this settings-only check cannot read.
+
+    This check never raises: every input is optional and malformed values are
+    reported as results rather than exceptions.
+    """
+    settings = _settings_as_dict(settings)
+
+    raw = settings.get("new_gen_not_available")
+    if not raw:
+        return []
+
+    if not isinstance(raw, Mapping):
+        return [
+            _err(
+                "new_gen_availability",
+                "'new_gen_not_available' must map region names (or 'all' / "
+                "'all_regions') to a list of technology name patterns, e.g. "
+                f"{{'AZ': ['Coal_new*']}}; got {type(raw).__name__}",
+                detail=f"new_gen_not_available={raw!r}",
+            )
+        ]
+
+    results: List[ValidationResult] = []
+
+    for region_key, value in raw.items():
+        # A bare string is accepted; powergenome.tech_availability normalizes it
+        # to a one-element list.
+        if isinstance(value, str):
+            continue
+        if isinstance(value, (list, tuple)) and all(
+            isinstance(pattern, str) for pattern in value
+        ):
+            continue
+        results.append(
+            _err(
+                "new_gen_availability",
+                f"'new_gen_not_available[{region_key!r}]' must be a technology "
+                "name pattern or a list/tuple of technology name patterns, got "
+                f"{value!r}",
+                detail=f"new_gen_not_available[{region_key!r}] = {value!r}",
+            )
+        )
+
+    known_names = new_resource_names(settings)
+
+    for region_key, pattern in unmatched_patterns(settings):
+        results.append(
+            _warn(
+                "new_gen_availability",
+                f"pattern '{pattern}' for region '{region_key}' does not match "
+                "any technology built from 'new_resources'/'modified_new_resources';"
+                " patterns are matched against '<technology>_<tech_detail>_"
+                "<cost_case>' (e.g. 'OffshoreWind_*'). This check is advisory when "
+                "'additional_technologies_fn' is used.",
+                detail=f"Known resource names: {known_names}",
+            )
+        )
+
+    if not known_names:
+        results.append(
+            _warn(
+                "new_gen_availability",
+                "'new_gen_not_available' is set but 'new_resources' and "
+                "'modified_new_resources' define no technologies, so the "
+                "exclusions have no effect unless 'additional_technologies_fn' "
+                "adds technologies",
+                detail=f"new_gen_not_available={raw!r}",
+            )
+        )
+        return results
+
+    for region in _make_iterable(settings.get("model_regions")):
+        patterns = exclusion_patterns_for_region(settings, region)
+        if not patterns:
+            continue
+        if all(matches_any_pattern(name, patterns) for name in known_names):
+            results.append(
+                _warn(
+                    "new_gen_availability",
+                    "every new-build technology is excluded in region "
+                    f"'{region}' by 'new_gen_not_available', so no new-build "
+                    "resources will be built there (technologies added by "
+                    "'additional_technologies_fn' are not considered here)",
+                    detail=f"Exclusion patterns for '{region}': {patterns}",
                 )
             )
 
@@ -543,6 +697,7 @@ _PHASE1_CHECKS = [
     _check_year_list_consistency,
     _check_paths_exist,
     _check_region_consistency,
+    _check_new_gen_availability,
     _check_model_tag_coverage,
     _check_fuel_consistency,
 ]

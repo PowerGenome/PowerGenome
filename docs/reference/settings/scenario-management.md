@@ -136,11 +136,13 @@ new_resources:
 
 Any other base `new_resources` entries are removed. Resources can also be
 produced by `renewables_clusters`, which must be considered separately.
-`new_resources` is not region-scoped: omissions apply everywhere. The legacy
-`new_gen_not_available` does not exclude resources, and `ALL_REGIONS` is not a
-recognized region key. For region-scoped renewable candidates, use
-`renewables_clusters`. Two dimensions replacing `new_resources` in one block
-conflict; define a combined candidate list instead.
+`new_resources` is not region-scoped: omissions apply everywhere. Per-region
+exclusion is supported with `new_gen_not_available`, which maps a model region —
+or the additive wildcard keys `all`/`all_regions` — to technology name patterns
+matched case-insensitively against `<technology>_<tech_detail>_<cost_case>` (see
+[New-Build Resources](new-build.md#new_gen_not_available)). For region-scoped
+renewable *candidates*, use `renewables_clusters`. Two dimensions replacing
+`new_resources` in one block conflict; define a combined candidate list instead.
 
 ### Fuel prices and demand
 
