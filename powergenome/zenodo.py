@@ -48,6 +48,7 @@ import fnmatch
 import hashlib
 import hmac
 import logging
+import math
 import os
 import random
 import re
@@ -530,8 +531,14 @@ def _parse_record_files(
             logger.warning("Skipping file without a key on record %s", record_id)
             continue
         links = entry.get("links") or {}
-        download_url = links.get("self") or (
-            f"{web_base}/api/records/{record_id}/files/{quote(key)}/"
+        # ``links.self`` already points at the content endpoint on Zenodo; some
+        # responses also expose ``links.content``. Prefer the explicit content
+        # link and fall back to the documented endpoint without a trailing
+        # slash, which is the only form that streams bytes.
+        download_url = (
+            links.get("content")
+            or links.get("self")
+            or f"{web_base}/api/records/{record_id}/files/{quote(key)}/content"
         )
         files.append(
             ZenodoFile(
@@ -619,6 +626,24 @@ def _safe_relative_path(key: str) -> Path:
     if "\x00" in normalized:
         raise ValueError(f"invalid character in file key: {key!r}")
     return Path(*parts)
+
+
+def _destination_escape(path: Path, root: Path) -> Optional[str]:
+    """Return a message when *path* resolves outside *root*, else ``None``.
+
+    :func:`_safe_relative_path` only inspects the key, so it cannot see that a
+    pre-existing ``destination/profiles`` is a symlink to somewhere else.
+    Callers resolve the parent directory of the target and compare it with the
+    resolved destination so a link cannot redirect a write out of the download
+    root. The root itself is allowed.
+    """
+    try:
+        resolved = path.resolve()
+    except OSError as exc:  # pragma: no cover - unreadable link target
+        return f"{path} cannot be resolved ({exc})"
+    if resolved != root and root not in resolved.parents:
+        return f"{path} resolves outside the destination {root}"
+    return None
 
 
 def _expected_md5(checksum: Optional[str]) -> Optional[str]:
@@ -713,6 +738,7 @@ def download_file(
     chunk_size: int = 1 << 20,
     progress: Optional[Callable[[str, int, int], None]] = None,
     verify_existing: bool = False,
+    cancel_event: Optional[threading.Event] = None,
 ) -> FileResult:
     """Download one Zenodo file to *destination*.
 
@@ -722,8 +748,13 @@ def download_file(
     concurrent callers are safe as long as they do not share one
     ``requests.Session``.
 
-    Returns a :class:`FileResult`; per-file failures never raise, so a caller
-    can continue with the rest of a record.
+    ``cancel_event`` lets a caller stop a streaming download cooperatively:
+    the chunk loop checks it and returns a ``failed`` result, leaving the
+    ``.part`` file in place for a later resume.
+
+    Returns a :class:`FileResult`; per-file failures never raise (including
+    transport errors such as ``requests.TooManyRedirects``), so a caller can
+    continue with the rest of a record. Only ``KeyboardInterrupt`` propagates.
     """
     destination = Path(destination)
     try:
@@ -750,7 +781,43 @@ def download_file(
         verify_checksum = False
 
     try:
-        final_path.parent.mkdir(parents=True, exist_ok=True)
+        root = destination.resolve()
+        parent = final_path.parent
+
+        # ── Keep every write inside the destination ──────────────────────────
+        # Check before creating directories (mkdir would follow a symlinked
+        # component and create its children outside) and again afterwards.
+        escape = _destination_escape(parent, root)
+        if escape is None:
+            parent.mkdir(parents=True, exist_ok=True)
+            escape = _destination_escape(parent, root)
+        if escape is not None:
+            message = f"refusing to write {file.key}: {escape}"
+            logger.warning("%s", message)
+            return FileResult(
+                key=file.key,
+                path=final_path,
+                status="failed",
+                bytes_written=0,
+                error=message,
+            )
+
+        # A symlinked file would redirect the write (and the checksum read)
+        # outside the destination even though its parent is contained.
+        for symlinked in (final_path, part_path):
+            if symlinked.is_symlink():
+                message = (
+                    f"refusing to write {file.key}: {symlinked} is a symlink; "
+                    "remove it or choose another destination"
+                )
+                logger.warning("%s", message)
+                return FileResult(
+                    key=file.key,
+                    path=final_path,
+                    status="failed",
+                    bytes_written=0,
+                    error=message,
+                )
 
         # ── Skip existing complete files ──────────────────────────────────────
         if not overwrite and final_path.exists():
@@ -834,6 +901,16 @@ def download_file(
         attempt = 0
         max_attempts = max(1, int(retries) + 1)
 
+        def _cancelled_result() -> FileResult:
+            logger.warning("%s: cancelled (partial file kept for resume)", file.key)
+            return FileResult(
+                key=file.key,
+                path=final_path,
+                status="failed",
+                bytes_written=bytes_written,
+                error="cancelled",
+            )
+
         while True:
             if resume_offset and file.size and resume_offset == file.size:
                 break  # nothing left to fetch
@@ -906,6 +983,8 @@ def download_file(
                 mode = "ab" if append else "wb"
                 with open(part_path, mode) as handle:
                     for chunk in response.iter_content(chunk_size=chunk_size):
+                        if cancel_event is not None and cancel_event.is_set():
+                            return _cancelled_result()
                         if not chunk:
                             continue
                         handle.write(chunk)
@@ -922,6 +1001,10 @@ def download_file(
                                     file.key,
                                     exc_info=True,
                                 )
+                if cancel_event is not None and cancel_event.is_set():
+                    # The stream ended just as the cancel arrived; report it as
+                    # cancelled rather than as a truncated transfer.
+                    return _cancelled_result()
                 break
             except (
                 requests.ConnectionError,
@@ -940,7 +1023,17 @@ def download_file(
                     )
                     time.sleep(delay)
                     continue
-                raise
+                message = f"download failed after {attempt} attempts: {exc}"
+                logger.warning(
+                    "%s: %s (partial file kept for resume)", file.key, message
+                )
+                return FileResult(
+                    key=file.key,
+                    path=final_path,
+                    status="failed",
+                    bytes_written=bytes_written,
+                    error=message,
+                )
             finally:
                 _close_quietly(response)
 
@@ -994,6 +1087,19 @@ def download_file(
         logger.warning("interrupted while downloading %s", file.key)
         raise
     except ZenodoError as exc:
+        logger.warning("failed to download %s: %s", file.key, exc)
+        return FileResult(
+            key=file.key,
+            path=final_path,
+            status="failed",
+            bytes_written=0,
+            error=str(exc),
+        )
+    except requests.RequestException as exc:
+        # Requests' exceptions derive from OSError, so this handler has to come
+        # first. Besides the retried errors above this catches the permanent
+        # ones (TooManyRedirects, InvalidURL, MissingSchema, ...): a single bad
+        # file must not abort the record.
         logger.warning("failed to download %s: %s", file.key, exc)
         return FileResult(
             key=file.key,
@@ -1142,6 +1248,10 @@ def download_record_files(
         destination,
     )
 
+    # Set on Ctrl-C so running workers stop streaming instead of holding the
+    # interpreter open until ``ThreadPoolExecutor`` joins them.
+    cancel_event = threading.Event()
+
     def _download(file: ZenodoFile, thread_session: Any) -> FileResult:
         try:
             return download_file(
@@ -1155,6 +1265,7 @@ def download_record_files(
                 retries=retries,
                 session=thread_session or session,
                 progress=progress,
+                cancel_event=cancel_event,
             )
         except KeyboardInterrupt:
             raise
@@ -1191,9 +1302,13 @@ def download_record_files(
         try:
             results = [future.result() for future in futures]
         except KeyboardInterrupt:
+            # ``future.cancel()`` only drops queued work; running workers keep
+            # streaming. Signal them and wait for them to notice so the
+            # interpreter does not hang on non-daemon pool threads.
+            cancel_event.set()
             for future in futures:
                 future.cancel()
-            executor.shutdown(wait=False, cancel_futures=True)
+            executor.shutdown(wait=True, cancel_futures=True)
             logger.warning(
                 "Interrupted; partial downloads were kept as .part files for resume"
             )
@@ -1222,6 +1337,39 @@ def _configure_logging(level: str) -> None:
     handler.setFormatter(logging.Formatter("%(levelname)-8s %(name)s: %(message)s"))
     handler._powergenome_cli_handler = True  # type: ignore[attr-defined]
     package_logger.addHandler(handler)
+
+
+def _positive_float(value: str) -> float:
+    """Argparse type for finite values that must be greater than zero."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise argparse.ArgumentTypeError(f"invalid number: {value!r}")
+    if not math.isfinite(number) or number <= 0:
+        raise argparse.ArgumentTypeError(f"must be greater than 0: {value!r}")
+    return number
+
+
+def _positive_int(value: str) -> int:
+    """Argparse type for values that must be at least one."""
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise argparse.ArgumentTypeError(f"invalid integer: {value!r}")
+    if number <= 0:
+        raise argparse.ArgumentTypeError(f"must be 1 or greater: {value!r}")
+    return number
+
+
+def _nonnegative_int(value: str) -> int:
+    """Argparse type for values that must be zero or more."""
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise argparse.ArgumentTypeError(f"invalid integer: {value!r}")
+    if number < 0:
+        raise argparse.ArgumentTypeError(f"must be 0 or greater: {value!r}")
+    return number
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -1304,7 +1452,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--jobs",
         dest="jobs",
-        type=int,
+        type=_positive_int,
         default=4,
         metavar="N",
         help="Number of concurrent downloads (default: 4).",
@@ -1339,7 +1487,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--timeout",
         dest="timeout",
-        type=float,
+        type=_positive_float,
         default=60.0,
         metavar="SECONDS",
         help="Network timeout in seconds (default: 60).",
@@ -1347,7 +1495,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--retries",
         dest="retries",
-        type=int,
+        type=_nonnegative_int,
         default=3,
         metavar="N",
         help="Retry attempts for transient failures (default: 3).",

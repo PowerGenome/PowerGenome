@@ -9,9 +9,11 @@ from __future__ import annotations
 import hashlib
 import logging
 import threading
+import time
 from pathlib import Path
 
 import pytest
+import requests
 
 import powergenome.zenodo as zenodo
 from powergenome.zenodo import (
@@ -388,12 +390,60 @@ def test_get_record_dict_shaped_files_and_fallback_download_url():
     assert [f.key for f in record.files] == ["a.csv", "nested/b.csv"]
     assert (
         record.files[0].download_url
-        == "https://zenodo.org/api/records/22233228/files/a.csv/"
+        == "https://zenodo.org/api/records/22233228/files/a.csv/content"
     )
     assert (
         record.files[1].download_url
-        == "https://zenodo.org/api/records/22233228/files/nested/b.csv/"
+        == "https://zenodo.org/api/records/22233228/files/nested/b.csv/content"
     )
+
+
+def test_get_record_uses_content_link_when_self_is_absent():
+    payload = _api_payload(
+        [
+            {
+                "key": "a.csv",
+                "size": 10,
+                "checksum": "md5:aaa",
+                "links": {
+                    "content": "https://zenodo.org/api/records/22233228/files/abc/content"
+                },
+            }
+        ]
+    )
+    session = FakeSession(
+        routes={
+            "https://zenodo.org/api/records/22233228": FakeResponse(json_data=payload)
+        }
+    )
+    record = get_record("22233228", session=session)
+    assert (
+        record.files[0].download_url
+        == "https://zenodo.org/api/records/22233228/files/abc/content"
+    )
+
+
+def test_get_record_prefers_content_link_over_self():
+    payload = _api_payload(
+        [
+            {
+                "key": "a.csv",
+                "size": 10,
+                "checksum": "md5:aaa",
+                "links": {
+                    "self": "https://zenodo.org/api/records/22233228/files/self/content",
+                    "content": "https://zenodo.org/api/records/22233228/files/c/content",
+                },
+            }
+        ]
+    )
+    session = FakeSession(
+        routes={
+            "https://zenodo.org/api/records/22233228": FakeResponse(json_data=payload)
+        }
+    )
+    record = get_record("22233228", session=session)
+    assert record.files[0].download_url.endswith("/files/c/content")
 
 
 def test_get_record_follows_file_pagination():
@@ -592,6 +642,73 @@ def test_download_file_rejects_unsafe_keys(tmp_path, key):
     assert not (tmp_path.parent / "escape.csv").exists()
 
 
+def test_download_file_rejects_symlinked_subdirectory(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    destination = tmp_path / "data"
+    destination.mkdir()
+    (destination / "profiles").symlink_to(outside, target_is_directory=True)
+
+    file = make_file("profiles/wind.csv", b"wind")
+    session = FakeSession(routes={file.download_url: FakeResponse(content=b"wind")})
+    result = download_file(file, destination, session=session)
+
+    assert result.status == "failed"
+    assert "outside the destination" in (result.error or "")
+    assert list(outside.iterdir()) == []
+    assert session.calls == []
+
+
+def test_download_file_rejects_nested_write_through_symlinked_subdirectory(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    destination = tmp_path / "data"
+    destination.mkdir()
+    (destination / "profiles").symlink_to(outside, target_is_directory=True)
+
+    file = make_file("profiles/sub/wind.csv", b"wind")
+    session = FakeSession(routes={file.download_url: FakeResponse(content=b"wind")})
+    result = download_file(file, destination, session=session)
+
+    assert result.status == "failed"
+    assert not (outside / "sub").exists()
+
+
+def test_download_file_rejects_symlinked_final_file(tmp_path):
+    outside = tmp_path / "outside.csv"
+    outside.write_bytes(b"original")
+    destination = tmp_path / "data"
+    destination.mkdir()
+    (destination / "a.csv").symlink_to(outside)
+
+    file = make_file("a.csv", b"new data that is longer")
+    session = FakeSession(
+        routes={file.download_url: FakeResponse(content=b"new data that is longer")}
+    )
+    result = download_file(file, destination, session=session)
+
+    assert result.status == "failed"
+    assert "symlink" in (result.error or "")
+    assert outside.read_bytes() == b"original"
+    assert session.calls == []
+
+
+def test_download_file_rejects_symlinked_part_file(tmp_path):
+    outside = tmp_path / "outside.part"
+    outside.write_bytes(b"")
+    destination = tmp_path / "data"
+    destination.mkdir()
+    (destination / "a.csv.part").symlink_to(outside)
+
+    file = make_file("a.csv", b"payload")
+    session = FakeSession(routes={file.download_url: FakeResponse(content=b"payload")})
+    result = download_file(file, destination, session=session)
+
+    assert result.status == "failed"
+    assert "symlink" in (result.error or "")
+    assert outside.read_bytes() == b""
+
+
 def test_download_file_retries_transient_503(monkeypatch, tmp_path):
     monkeypatch.setattr(zenodo, "_RETRY_BASE_DELAY", 0)
     data = b"recovered after retry"
@@ -626,6 +743,44 @@ def test_download_file_retry_exhaustion_fails(monkeypatch, tmp_path):
     assert len(session.calls) == 2
     assert not (tmp_path / "a.csv").exists()
     assert not (tmp_path / "a.csv.part").exists()
+
+
+def test_download_file_connection_error_exhaustion_returns_failed(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(zenodo, "_RETRY_BASE_DELAY", 0)
+
+    def boom(url, kwargs):
+        raise requests.ConnectionError("connection reset")
+
+    file = make_file("a.csv", b"never arrives")
+    session = FakeSession(routes={file.download_url: boom})
+    result = download_file(file, tmp_path, session=session, retries=1)
+
+    assert result.status == "failed"
+    assert "connection reset" in (result.error or "")
+    assert len(session.calls) == 2
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        requests.TooManyRedirects("exceeded 30 redirects"),
+        requests.exceptions.InvalidURL("no host supplied"),
+    ],
+)
+def test_download_file_transport_errors_return_failed(tmp_path, exc):
+    def boom(url, kwargs):
+        raise exc
+
+    file = make_file("a.csv", b"payload")
+    session = FakeSession(routes={file.download_url: boom})
+    result = download_file(file, tmp_path, session=session)
+
+    assert result.status == "failed"
+    assert str(exc) in (result.error or "")
+    assert len(session.calls) == 1
+    assert not (tmp_path / "a.csv").exists()
 
 
 def test_download_file_short_read_fails_and_keeps_part(tmp_path):
@@ -780,6 +935,93 @@ def test_download_record_files_skips_existing(tmp_path):
     assert statuses["b.csv"] == "downloaded"
 
 
+def test_download_record_files_cancel_event_stops_streaming(tmp_path, monkeypatch):
+    """Concurrent streams stop at the next chunk once the event is set."""
+    events = {}
+    real_download = zenodo.download_file
+
+    def capture(file, destination, **kwargs):
+        events[file.key] = kwargs.get("cancel_event")
+        return real_download(file, destination, **kwargs)
+
+    monkeypatch.setattr(zenodo, "download_file", capture)
+
+    class CancellingResponse(FakeResponse):
+        def __init__(self, key, **kwargs):
+            super().__init__(**kwargs)
+            self.key = key
+
+        def iter_content(self, chunk_size=1):
+            yield b"first"
+            events[self.key].set()
+
+    files = [make_file(key, b"firstsecond") for key in ("a.csv", "b.csv")]
+    session = FakeSession(
+        routes={file.download_url: CancellingResponse(file.key) for file in files}
+    )
+    record = make_record(files)
+
+    started = time.monotonic()
+    summary = download_record_files(
+        "22233228", tmp_path, record=record, session=session, max_workers=2
+    )
+    elapsed = time.monotonic() - started
+
+    assert [r.status for r in summary.results] == ["failed", "failed"]
+    assert [r.error for r in summary.results] == ["cancelled", "cancelled"]
+    # The event is shared by every worker, so whichever stream advances first
+    # stops both; the other may already have written its first chunk.
+    parts = {key: (tmp_path / f"{key}.part").read_bytes() for key in ("a.csv", "b.csv")}
+    assert all(part in (b"", b"first") for part in parts.values())
+    assert b"first" in parts.values()
+    assert sum(len(part) for part in parts.values()) == sum(
+        r.bytes_written for r in summary.results
+    )
+    for key in ("a.csv", "b.csv"):
+        assert not (tmp_path / key).exists()
+    assert elapsed < 2
+
+
+def test_download_record_files_signals_workers_on_interrupt(monkeypatch, tmp_path):
+    """A Ctrl-C must set the cancel event and wait for running workers."""
+    second_started = threading.Event()
+    finished = []
+    events = []
+
+    def fake_download(file, destination, **kwargs):
+        event = kwargs.get("cancel_event")
+        events.append(event)
+        if file.key == "a.csv":
+            assert second_started.wait(5)
+            raise KeyboardInterrupt
+        second_started.set()
+        assert event is not None
+        assert event.wait(5)
+        finished.append(file.key)
+        return FileResult(
+            key=file.key,
+            path=Path(destination) / file.key,
+            status="failed",
+            bytes_written=0,
+            error="cancelled",
+        )
+
+    monkeypatch.setattr(zenodo, "download_file", fake_download)
+    files = [make_file("a.csv", b"a"), make_file("b.csv", b"b")]
+    record = make_record(files)
+
+    started = time.monotonic()
+    with pytest.raises(KeyboardInterrupt):
+        download_record_files(
+            "22233228", tmp_path, record=record, session=FakeSession(), max_workers=2
+        )
+    elapsed = time.monotonic() - started
+
+    assert finished == ["b.csv"]
+    assert all(event is not None and event.is_set() for event in events)
+    assert elapsed < 2
+
+
 def test_select_record_files_deduplicates_preserving_order():
     record = make_record(
         [make_file("a.csv", b"a"), make_file("b.csv", b"b"), make_file("c.csv", b"c")]
@@ -832,6 +1074,29 @@ def test_parse_args_flags():
     assert args.timeout == 5
     assert args.retries == 1
     assert args.log_level == "DEBUG"
+
+
+@pytest.mark.parametrize(
+    "option",
+    [
+        ["--timeout", "0"],
+        ["--timeout", "-1"],
+        ["--timeout", "nan"],
+        ["--jobs", "0"],
+        ["--jobs", "-2"],
+        ["--retries", "-1"],
+    ],
+)
+def test_cli_rejects_out_of_range_numbers(option, capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        zenodo.main(["22233228", "-d", "out", *option])
+    assert excinfo.value.code == 2
+    assert option[0] in capsys.readouterr().err
+
+
+def test_cli_accepts_zero_retries():
+    args = zenodo._parse_args(["22233228", "-d", "out", "--retries", "0"])
+    assert args.retries == 0
 
 
 def test_cli_list_files_prints_and_writes_nothing(monkeypatch, capsys, tmp_path):

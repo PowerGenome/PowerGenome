@@ -428,8 +428,10 @@ them. Slower on large existing datasets, but detects corrupted copies.
 
 Number of concurrent downloads.
 
-**Type**: Integer
+**Type**: Integer, 1 or greater
 **Default**: 4
+
+A value below 1 is rejected with exit code 2.
 
 ```bash
 download_zenodo_data 22233228 -d data --jobs 8
@@ -468,8 +470,10 @@ URL in `IDENTIFIER` also selects the sandbox.
 
 Network timeout in seconds, applied to connecting and reading.
 
-**Type**: Float
+**Type**: Float, greater than 0
 **Default**: 60
+
+A value of 0 or less is rejected with exit code 2.
 
 #### `--retries`
 
@@ -477,8 +481,10 @@ Number of retry attempts for transient failures (connection errors, timeouts,
 HTTP 429, and HTTP 5xx). Retries use exponential backoff with jitter and honour
 a reasonable `Retry-After` header. HTTP 4xx responses are not retried.
 
-**Type**: Integer
+**Type**: Integer, 0 or greater
 **Default**: 3
+
+A negative value is rejected with exit code 2; `0` disables retries.
 
 #### `--no-resume`
 
@@ -522,9 +528,14 @@ download_zenodo_data 22233228 -d data --dry-run
   `--verify-existing` to require a checksum match as well.
 - **Safe keys.** File keys may contain `/`; relative subdirectories are
   preserved. Absolute paths and `..` components are rejected per file.
+- **Contained writes.** Downloads never leave the destination. If a
+  subdirectory of the destination is a pre-existing symlink that resolves
+  outside it, or the target file itself is a symlink, that file fails with an
+  explanation instead of being written through the link.
 - **Partial failure.** One failed file is reported and recorded, and the rest
   of the record still downloads.
-- **Ctrl-C.** Stops scheduling, keeps `.part` files for resume, and exits 130.
+- **Ctrl-C.** Signals running downloads to stop at the next chunk, keeps
+  `.part` files for resume, and exits 130.
 
 ### Exit codes
 
