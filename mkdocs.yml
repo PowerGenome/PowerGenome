@@ -93,6 +93,7 @@ nav:
 
   - How-To Guides:
     - how-to/index.md
+    - Download Data from Zenodo: how-to/download-data.md
     - Configure Settings: how-to/configure-settings.md
     - Use Year-Keyed Settings Values: how-to/use-year-keyed-settings.md
     - Configure Data Tables: how-to/configure-data-tables.md

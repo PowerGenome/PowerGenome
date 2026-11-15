@@ -71,6 +71,12 @@ my_study/
 !!! tip "Keep Projects Separate"
     Create project folders **outside** the PowerGenome repository to avoid git conflicts and make updates easier.
 
+!!! tip "PowerGenome data records"
+    The published source datasets live on Zenodo. Download a record into your
+    `data/` folder with
+    [`download_zenodo_data`](../how-to/download-data.md) — for example
+    `download_zenodo_data 22233228 -sf settings`.
+
 ## Running Your First Model
 
 ### 1. Download the Texas example
