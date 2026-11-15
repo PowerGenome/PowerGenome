@@ -709,6 +709,116 @@ def test_download_file_rejects_symlinked_part_file(tmp_path):
     assert outside.read_bytes() == b""
 
 
+def test_download_file_allows_symlinked_destination_root(tmp_path):
+    """A symlinked destination is not an escape; files land in the real root."""
+    real_dest = tmp_path / "real_dest"
+    real_dest.mkdir()
+    destination = tmp_path / "dest"
+    destination.symlink_to(real_dest, target_is_directory=True)
+
+    flat = make_file("cpi_data.csv", b"flat")
+    nested = make_file("profiles/wind.csv", b"nested")
+    session = FakeSession(
+        routes={
+            flat.download_url: FakeResponse(content=b"flat", url=flat.download_url),
+            nested.download_url: FakeResponse(
+                content=b"nested", url=nested.download_url
+            ),
+        }
+    )
+
+    flat_result = download_file(flat, destination, session=session)
+    nested_result = download_file(nested, destination, session=session)
+
+    assert flat_result.status == "downloaded"
+    assert nested_result.status == "downloaded"
+    assert (real_dest / "cpi_data.csv").read_bytes() == b"flat"
+    assert (real_dest / "profiles" / "wind.csv").read_bytes() == b"nested"
+    assert not (real_dest / "cpi_data.csv.part").exists()
+    assert not (real_dest / "profiles" / "wind.csv.part").exists()
+
+
+def test_download_file_rejects_escape_inside_symlinked_destination_root(tmp_path):
+    """Resolving the root must not excuse an escaping symlink beneath it."""
+    real_dest = tmp_path / "real_dest"
+    real_dest.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (real_dest / "profiles").symlink_to(outside, target_is_directory=True)
+    destination = tmp_path / "dest"
+    destination.symlink_to(real_dest, target_is_directory=True)
+
+    file = make_file("profiles/wind.csv", b"wind")
+    session = FakeSession(routes={file.download_url: FakeResponse(content=b"wind")})
+    result = download_file(file, destination, session=session)
+
+    assert result.status == "failed"
+    assert "outside the destination" in (result.error or "")
+    assert list(outside.iterdir()) == []
+    assert session.calls == []
+
+
+def test_download_file_cancel_event_mid_stream_keeps_part(tmp_path):
+    event = threading.Event()
+
+    class CancellingResponse(FakeResponse):
+        def iter_content(self, chunk_size=1):
+            yield b"first"
+            event.set()
+
+    data = b"firstsecond"
+    file = make_file("a.csv", data)
+    session = FakeSession(
+        routes={
+            file.download_url: CancellingResponse(content=data, url=file.download_url)
+        }
+    )
+    result = download_file(file, tmp_path, session=session, cancel_event=event)
+
+    assert result.status == "failed"
+    assert result.error == "cancelled"
+    assert result.bytes_written == len(b"first")
+    assert (tmp_path / "a.csv.part").read_bytes() == b"first"
+    assert not (tmp_path / "a.csv").exists()
+
+
+def test_download_file_cancel_event_before_call_skips_stream(tmp_path):
+    event = threading.Event()
+    event.set()
+
+    file = make_file("a.csv", b"payload")
+    session = FakeSession(routes={file.download_url: FakeResponse(content=b"payload")})
+    result = download_file(file, tmp_path, session=session, cancel_event=event)
+
+    assert result.status == "failed"
+    assert result.error == "cancelled"
+    assert session.calls == []
+    assert not (tmp_path / "a.csv.part").exists()
+    assert not (tmp_path / "a.csv").exists()
+
+
+def test_download_file_cancel_event_interrupts_retry_backoff(tmp_path):
+    event = threading.Event()
+
+    def busy(url, kwargs):
+        event.set()
+        return FakeResponse(
+            status_code=503, headers={"Retry-After": "30"}, content=b"busy", url=url
+        )
+
+    file = make_file("a.csv", b"never arrives")
+    session = FakeSession(routes={file.download_url: busy})
+
+    started = time.monotonic()
+    result = download_file(file, tmp_path, session=session, cancel_event=event)
+    elapsed = time.monotonic() - started
+
+    assert result.status == "failed"
+    assert result.error == "cancelled"
+    assert elapsed < 1  # the 30 s Retry-After wait was interrupted
+    assert len(session.calls) == 1
+
+
 def test_download_file_retries_transient_503(monkeypatch, tmp_path):
     monkeypatch.setattr(zenodo, "_RETRY_BASE_DELAY", 0)
     data = b"recovered after retry"
@@ -1082,6 +1192,7 @@ def test_parse_args_flags():
         ["--timeout", "0"],
         ["--timeout", "-1"],
         ["--timeout", "nan"],
+        ["--timeout", "inf"],
         ["--jobs", "0"],
         ["--jobs", "-2"],
         ["--retries", "-1"],

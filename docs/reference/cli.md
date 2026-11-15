@@ -470,10 +470,11 @@ URL in `IDENTIFIER` also selects the sandbox.
 
 Network timeout in seconds, applied to connecting and reading.
 
-**Type**: Float, greater than 0
+**Type**: Finite float, greater than 0
 **Default**: 60
 
-A value of 0 or less is rejected with exit code 2.
+A value that is not a finite number greater than 0 — `0`, a negative number,
+`inf`, or `nan` — is rejected with exit code 2.
 
 #### `--retries`
 

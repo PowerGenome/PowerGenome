@@ -749,7 +749,8 @@ def download_file(
     ``requests.Session``.
 
     ``cancel_event`` lets a caller stop a streaming download cooperatively:
-    the chunk loop checks it and returns a ``failed`` result, leaving the
+    the chunk loop, the wait between retry attempts, and the start of every
+    stream attempt check it and return a ``failed`` result, leaving the
     ``.part`` file in place for a later resume.
 
     Returns a :class:`FileResult`; per-file failures never raise (including
@@ -911,9 +912,20 @@ def download_file(
                 error="cancelled",
             )
 
+        def _wait_before_retry(delay: float) -> bool:
+            """Wait *delay* seconds; return True when a cancel arrived instead."""
+            if cancel_event is None:
+                time.sleep(delay)
+                return False
+            return cancel_event.wait(delay)
+
         while True:
             if resume_offset and file.size and resume_offset == file.size:
                 break  # nothing left to fetch
+            if cancel_event is not None and cancel_event.is_set():
+                # A cancelled caller should not open another connection, which
+                # could otherwise block for the full ``timeout`` first.
+                return _cancelled_result()
 
             attempt += 1
             headers = {}
@@ -959,7 +971,8 @@ def download_file(
                         )
                         _close_quietly(response)
                         response = None
-                        time.sleep(delay)
+                        if _wait_before_retry(delay):
+                            return _cancelled_result()
                         continue
                     if status not in _RETRYABLE_STATUS and part_path.exists():
                         # Unrecoverable (404, 403, ...): a stale partial file
@@ -1021,7 +1034,8 @@ def download_file(
                         attempt,
                         max_attempts,
                     )
-                    time.sleep(delay)
+                    if _wait_before_retry(delay):
+                        return _cancelled_result()
                     continue
                 message = f"download failed after {attempt} attempts: {exc}"
                 logger.warning(
@@ -1345,8 +1359,12 @@ def _positive_float(value: str) -> float:
         number = float(value)
     except (TypeError, ValueError):
         raise argparse.ArgumentTypeError(f"invalid number: {value!r}")
+    # One message covers every rejection: ``inf`` is greater than 0 but not
+    # finite, ``nan`` is neither, and ``0``/negatives are not greater than 0.
     if not math.isfinite(number) or number <= 0:
-        raise argparse.ArgumentTypeError(f"must be greater than 0: {value!r}")
+        raise argparse.ArgumentTypeError(
+            f"must be a finite number greater than 0: {value!r}"
+        )
     return number
 
 
