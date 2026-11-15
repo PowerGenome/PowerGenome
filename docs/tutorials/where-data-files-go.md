@@ -58,6 +58,51 @@ published on Zenodo. Three deposits cover the data that the settings reference:
 | PowerGenome Renewable Resource Profiles | `RESOURCE_GROUP_PROFILES` | `~/PowerGenome-data/resource_profiles` | [Zenodo 22235855](https://zenodo.org/records/22235855) |
 | PowerGenome Existing Renewable Resource Groups | second `RESOURCE_GROUPS` entry | `~/PowerGenome-data/existing_resource_groups` | [Zenodo 22235662](https://zenodo.org/records/22235662) |
 
+You do not have to fetch these by hand. PowerGenome installs a
+`download_zenodo_data` command that downloads a record concurrently, resumes
+interrupted transfers, and verifies the checksums Zenodo publishes:
+
+```bash
+# Core tables: -sf reads data_location from your settings
+download_zenodo_data 22233228 -sf settings
+
+# Profiles and existing groups live in their own folders, so name them with -d
+download_zenodo_data 22235855 -d /absolute/path/to/PowerGenome-data/resource_profiles
+download_zenodo_data 22235662 -d /absolute/path/to/PowerGenome-data/existing_resource_groups
+```
+
+`-sf` writes into `data_location` from the settings you pass, so the core tables
+land where PowerGenome already looks for them. If `data_location` is a list, the
+first entry is used with a warning. Use `-d` for the profiles and existing-group
+deposits, because neither is under `data_location` and `-d` wins when both flags
+are given.
+
+Inspect before committing to a multi-GB download:
+
+```bash
+download_zenodo_data 22233228 --list-files        # key, size, checksum
+download_zenodo_data 22233228 -sf settings --dry-run
+download_zenodo_data 22233228 -sf settings --file '*.parquet'
+```
+
+`--list-files` downloads nothing and creates no directory. `--file` takes glob
+patterns and errors if a pattern matches nothing, so a typo cannot leave you with
+a silently empty data folder. Partial transfers stay as `.part` files and resume
+when you re-run the same command. See
+[Download Data from Zenodo](../how-to/download-data.md) for the full set of
+flags, checksum options, and the matching Python API.
+
+Records are versioned, and both DOI forms work with the command:
+
+| Deposit | Version DOI (exact snapshot) | Concept DOI (latest version) |
+| --- | --- | --- |
+| PowerGenome Input Data | `10.5281/zenodo.22233228` | `10.5281/zenodo.22233227` |
+| Renewable Resource Profiles | `10.5281/zenodo.22235855` | `10.5281/zenodo.22235854` |
+| Existing Renewable Resource Groups | `10.5281/zenodo.22235662` | `10.5281/zenodo.22235661` |
+
+Use a version DOI to pin a reproducible study and a concept DOI while you are
+still setting one up.
+
 The `~/...` values are the tools guide's suggested local layout. In PowerGenome
 settings, replace `~` with your absolute home path (see the warning below).
 
@@ -81,8 +126,8 @@ RESOURCE_GROUP_PROFILES: "/absolute/path/to/PowerGenome-data/resource_profiles"
 
 The first `RESOURCE_GROUPS` entry is the region-specific folder the web app
 generates in its Interconnection step and includes in the export ZIP. You do not
-download that one separately. The existing-renewable groups deposit is a manual
-download. The profiles deposit also has a
+download that one separately; the other two rows are the `-d` downloads above.
+The profiles deposit also has a
 [Google Drive mirror](https://drive.google.com/drive/folders/16PL6HIdYchgyxGwtU6gkXwztBNclBpo1)
 if Zenodo is slow.
 
@@ -90,7 +135,9 @@ if Zenodo is slow.
     PowerGenome does not call `expanduser` on path settings. A literal
     `~/PowerGenome-data/data` is treated as a relative folder named `~`, so the
     table lookup fails. Use an absolute path, or a path relative to the base
-    that setting uses in Step 3.
+    that setting uses in Step 3. `download_zenodo_data` does expand `~` for its
+    `-d` argument, so a path that works on the command line still has to be
+    written out in full in YAML.
 
 Data releases are versioned by date (for example `2026.08.14.v1`) and each file
 carries its own element version. Zenodo keeps every version; check the release
@@ -354,8 +401,10 @@ Use this list when arranging your own files:
 - Each renewable JSON has a metadata file, a profiles file whose `site_id` values
   match the metadata, and a site map when the IDs differ.
 - Source regions and planning years cover `model_regions` and every period.
-- The full data deposits are downloaded for real studies; example files are not
-  a substitute.
+- The full data deposits are downloaded for real studies, into the folder your
+  settings actually name; example files are not a substitute.
+- After a download, `download_zenodo_data` reports any failed checksums. Re-run
+  the same command to retry only the files that did not land.
 
 Then run `validate_powergenome --settings_file settings` and read its errors and
 warnings. [Validate Settings](../how-to/validate-settings.md) explains what the
@@ -371,5 +420,8 @@ checks do and do not cover.
   for each table.
 - [Debugging](../how-to/debugging.md): what to check when a path or table is not
   found.
+- [Download Data from Zenodo](../how-to/download-data.md): every
+  `download_zenodo_data` flag, checksum verification, resuming, and the Python
+  API.
 - [PowerGenome-tools Downloading Input Data](https://powergenome.github.io/PowerGenome-tools/web_app/#downloading-input-data):
   the current Zenodo deposits and their file lists.

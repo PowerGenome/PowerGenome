@@ -20,8 +20,8 @@ settings, data, logs, and GenX outputs live.
 
 Map every settings key to a folder and file using the same Texas study: the four
 path settings, the input tables, policy and scenario files, renewable group JSON,
-and where outputs and caches land. Then find the full PowerGenome-data releases
-published on Zenodo for a real study.
+and where outputs and caches land. Then fetch the full PowerGenome-data releases
+from Zenodo with `download_zenodo_data`.
 
 **Prerequisites**: Getting Started and its downloaded Texas example.
 

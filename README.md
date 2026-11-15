@@ -41,7 +41,7 @@ PowerGenome uses data from a number of different sources, including EIA, NREL, a
    - `generation_profiles` - Hourly wind/solar generation profiles, either by site or mapped to resource sites
    - `metadata` - Files that assign interconnection costs to specific renewable sites, and maps each to a model region
 
-For a folder-by-folder map of these inputs, see [Where Data Files Go](docs/tutorials/where-data-files-go.md). The full datasets are published on Zenodo; the [System Design tool's download guide](https://powergenome.github.io/PowerGenome-tools/web_app/#downloading-input-data) lists the current deposits and the settings key each one feeds.
+For a folder-by-folder map of these inputs, see [Where Data Files Go](docs/tutorials/where-data-files-go.md). The full datasets are published on Zenodo and can be fetched with the `download_zenodo_data` command ([Download Data from Zenodo](docs/how-to/download-data.md)); the [System Design tool's download guide](https://powergenome.github.io/PowerGenome-tools/web_app/#downloading-input-data) lists the current deposits and the settings key each one feeds.
 
 ## Installation
 
