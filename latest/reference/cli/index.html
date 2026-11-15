@@ -682,6 +682,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../how-to/download-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Download Data from Zenodo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../how-to/configure-settings/" class="md-nav__link">
         
   
@@ -1870,6 +1898,78 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#download_zenodo_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        download_zenodo_data
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="download_zenodo_data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flags_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exit-codes_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exit codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#environment-variables" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2519,6 +2619,78 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#download_zenodo_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        download_zenodo_data
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="download_zenodo_data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flags_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exit-codes_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exit codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#environment-variables" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2670,7 +2842,7 @@
 
 
 <h1 id="command-line-interface">Command Line Interface<a class="headerlink" href="#command-line-interface" title="Permanent link">&para;</a></h1>
-<p>PowerGenome provides two commands:</p>
+<p>PowerGenome provides three commands:</p>
 <table>
 <thead>
 <tr>
@@ -2686,6 +2858,10 @@
 <tr>
 <td><a href="#validate_powergenome"><code>validate_powergenome</code></a></td>
 <td>Check settings and data for configuration mistakes without running the pipeline</td>
+</tr>
+<tr>
+<td><a href="#download_zenodo_data"><code>download_zenodo_data</code></a></td>
+<td>Download PowerGenome data files from Zenodo records</td>
 </tr>
 </tbody>
 </table>
@@ -2936,6 +3112,222 @@ DataManager entirely. See
 </tbody>
 </table>
 <hr />
+<h2 id="download_zenodo_data"><code>download_zenodo_data</code><a class="headerlink" href="#download_zenodo_data" title="Permanent link">&para;</a></h2>
+<p>Downloads the individual files that make up a Zenodo record. PowerGenome data
+records contain many files — some multi-GB — so the command downloads them
+concurrently, resumes interrupted transfers, and verifies the MD5 checksum
+Zenodo publishes for every file. See
+<a href="../../how-to/download-data/">Download Data from Zenodo</a> for a task-oriented guide.</p>
+<h3 id="basic-usage_2">Basic Usage<a class="headerlink" href="#basic-usage_2" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>download_zenodo_data<span class="w"> </span>IDENTIFIER<span class="w"> </span><span class="o">[</span>IDENTIFIER<span class="w"> </span>...<span class="o">]</span><span class="w"> </span>--destination<span class="w"> </span>PATH
+</code></pre></div>
+<p><code>IDENTIFIER</code> accepts any of these forms:</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Record ID</td>
+<td><code>22233228</code></td>
+</tr>
+<tr>
+<td>DOI</td>
+<td><code>10.5281/zenodo.4426096</code></td>
+</tr>
+<tr>
+<td>DOI with prefix</td>
+<td><code>doi:10.5281/zenodo.4426096</code></td>
+</tr>
+<tr>
+<td>DOI URL</td>
+<td><code>https://doi.org/10.5281/zenodo.4426096</code></td>
+</tr>
+<tr>
+<td>Web URL</td>
+<td><code>https://zenodo.org/records/22233228</code></td>
+</tr>
+<tr>
+<td>Legacy web URL</td>
+<td><code>https://zenodo.org/record/22233228</code></td>
+</tr>
+<tr>
+<td>API URL</td>
+<td><code>https://zenodo.org/api/records/22233228</code></td>
+</tr>
+<tr>
+<td>Single-file URL</td>
+<td><code>https://zenodo.org/records/22233228/files/cpi_data.csv</code></td>
+</tr>
+<tr>
+<td>Sandbox URL</td>
+<td><code>https://sandbox.zenodo.org/records/1234</code></td>
+</tr>
+</tbody>
+</table>
+<p>Concept DOIs resolve to the latest version of a record by following the
+<code>doi.org</code> redirect. A single-file URL downloads only that file unless
+<code>--file</code> patterns are also given.</p>
+<h3 id="flags_2">Flags<a class="headerlink" href="#flags_2" title="Permanent link">&para;</a></h3>
+<h4 id="identifier-positional"><code>IDENTIFIER</code> (positional)<a class="headerlink" href="#identifier-positional" title="Permanent link">&para;</a></h4>
+<p>One or more records. Multiple records are processed in the order given; a
+failure on one record does not stop the others.</p>
+<h4 id="-destination-d"><code>--destination</code> / <code>-d</code><a class="headerlink" href="#-destination-d" title="Permanent link">&para;</a></h4>
+<p>Directory to write files into. Relative subdirectories in file keys are
+preserved (a key <code>profiles/wind.csv</code> is written to
+<code>DESTINATION/profiles/wind.csv</code>). The directory is created if needed.</p>
+<p><strong>Type</strong>: String (path)
+<strong>Default</strong>: <code>data_location</code> from <code>--settings-file</code></p>
+<h4 id="-settings-file-sf"><code>--settings-file</code> / <code>-sf</code><a class="headerlink" href="#-settings-file-sf" title="Permanent link">&para;</a></h4>
+<p>Settings YAML file, or a directory of YAML files, used to read <code>data_location</code>
+when <code>--destination</code> is not given. This is the same value passed to
+<code>run_powergenome</code>.</p>
+<p><strong>Type</strong>: String (path)
+<strong>Default</strong>: None</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>download_zenodo_data<span class="w"> </span><span class="m">22233228</span><span class="w"> </span>-sf<span class="w"> </span>settings
+</code></pre></div>
+<p><code>-d</code> wins when both options are provided. If neither option supplies a
+destination, the command exits with code 2 and explains both options.</p>
+<h4 id="-file"><code>--file</code><a class="headerlink" href="#-file" title="Permanent link">&para;</a></h4>
+<p>Only download files whose full key or basename matches a glob pattern
+(case-sensitive). Repeat the flag for several patterns. A pattern that matches
+nothing is an error, so a typo cannot silently download nothing. When several
+<code>IDENTIFIER</code>s are given, every pattern must match at least one file <strong>in every
+record</strong>, so heterogeneous records need separate invocations.</p>
+<p><strong>Type</strong>: Glob pattern (repeatable)
+<strong>Default</strong>: All files, or the one file named in a single-file URL</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>download_zenodo_data<span class="w"> </span><span class="m">22233228</span><span class="w"> </span>-d<span class="w"> </span>data<span class="w"> </span>--file<span class="w"> </span><span class="s1">'*.csv'</span><span class="w"> </span>--file<span class="w"> </span><span class="s1">'*.parquet'</span>
+</code></pre></div>
+<h4 id="-overwrite"><code>--overwrite</code><a class="headerlink" href="#-overwrite" title="Permanent link">&para;</a></h4>
+<p>Download files again even when a complete copy already exists. Without this
+flag a file whose size matches is skipped.</p>
+<p><strong>Type</strong>: Boolean flag
+<strong>Default</strong>: False</p>
+<h4 id="-no-verify-checksums"><code>--no-verify-checksums</code><a class="headerlink" href="#-no-verify-checksums" title="Permanent link">&para;</a></h4>
+<p>Skip MD5 verification of downloaded files. Verification is on by default;
+each file is hashed while it streams and a mismatch fails that file and
+removes the partial output.</p>
+<p><strong>Type</strong>: Boolean flag
+<strong>Default</strong>: Verify checksums</p>
+<h4 id="-verify-existing"><code>--verify-existing</code><a class="headerlink" href="#-verify-existing" title="Permanent link">&para;</a></h4>
+<p>Also verify the checksum of files that are already present before skipping
+them. Slower on large existing datasets, but detects corrupted copies.</p>
+<p><strong>Type</strong>: Boolean flag
+<strong>Default</strong>: False (size comparison only)</p>
+<h4 id="-jobs"><code>--jobs</code><a class="headerlink" href="#-jobs" title="Permanent link">&para;</a></h4>
+<p>Number of concurrent downloads.</p>
+<p><strong>Type</strong>: Integer, 1 or greater
+<strong>Default</strong>: 4</p>
+<p>A value below 1 is rejected with exit code 2.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>download_zenodo_data<span class="w"> </span><span class="m">22233228</span><span class="w"> </span>-d<span class="w"> </span>data<span class="w"> </span>--jobs<span class="w"> </span><span class="m">8</span>
+</code></pre></div>
+<h4 id="-dry-run"><code>--dry-run</code><a class="headerlink" href="#-dry-run" title="Permanent link">&para;</a></h4>
+<p>Resolve the records and log each file that would be downloaded, including its
+size and whether a copy already exists. Nothing is written and no directories
+are created.</p>
+<p><strong>Type</strong>: Boolean flag
+<strong>Default</strong>: False</p>
+<h4 id="-list-files"><code>--list-files</code><a class="headerlink" href="#-list-files" title="Permanent link">&para;</a></h4>
+<p>Print one line per selected file and exit without creating directories or
+downloading. Fields are tab-separated: <code>key</code>, <code>size in bytes</code>, <code>checksum</code>.</p>
+<p><strong>Type</strong>: Boolean flag
+<strong>Default</strong>: False</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>download_zenodo_data<span class="w"> </span><span class="m">22233228</span><span class="w"> </span>--list-files
+</code></pre></div>
+<h4 id="-sandbox"><code>--sandbox</code><a class="headerlink" href="#-sandbox" title="Permanent link">&para;</a></h4>
+<p>Use <code>https://sandbox.zenodo.org</code> instead of <code>https://zenodo.org</code>. A sandbox
+URL in <code>IDENTIFIER</code> also selects the sandbox.</p>
+<p><strong>Type</strong>: Boolean flag
+<strong>Default</strong>: False</p>
+<h4 id="-timeout"><code>--timeout</code><a class="headerlink" href="#-timeout" title="Permanent link">&para;</a></h4>
+<p>Network timeout in seconds, applied to connecting and reading.</p>
+<p><strong>Type</strong>: Finite float, greater than 0
+<strong>Default</strong>: 60</p>
+<p>A value that is not a finite number greater than 0 — <code>0</code>, a negative number,
+<code>inf</code>, or <code>nan</code> — is rejected with exit code 2.</p>
+<h4 id="-retries"><code>--retries</code><a class="headerlink" href="#-retries" title="Permanent link">&para;</a></h4>
+<p>Number of retry attempts for transient failures (connection errors, timeouts,
+HTTP 429, and HTTP 5xx). Retries use exponential backoff with jitter and honour
+a reasonable <code>Retry-After</code> header. HTTP 4xx responses are not retried.</p>
+<p><strong>Type</strong>: Integer, 0 or greater
+<strong>Default</strong>: 3</p>
+<p>A negative value is rejected with exit code 2; <code>0</code> disables retries.</p>
+<h4 id="-no-resume"><code>--no-resume</code><a class="headerlink" href="#-no-resume" title="Permanent link">&para;</a></h4>
+<p>Start partial downloads over instead of resuming from the existing <code>.part</code>
+file. Resuming is on by default and sends an HTTP <code>Range</code> request.</p>
+<p><strong>Type</strong>: Boolean flag
+<strong>Default</strong>: Resume</p>
+<h4 id="-log-level"><code>--log-level</code><a class="headerlink" href="#-log-level" title="Permanent link">&para;</a></h4>
+<p>Logging verbosity.</p>
+<p><strong>Type</strong>: String (<code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>)
+<strong>Default</strong>: <code>INFO</code></p>
+<h3 id="examples_1">Examples<a class="headerlink" href="#examples_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Download the PowerGenome input data record into data_location from settings</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>download_zenodo_data<span class="w"> </span><span class="m">10</span>.5281/zenodo.22233228<span class="w"> </span>-sf<span class="w"> </span>settings
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="c1"># Download only CSV and Parquet files from the renewable profiles record</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>download_zenodo_data<span class="w"> </span><span class="m">22235855</span><span class="w"> </span>-d<span class="w"> </span>data/zenodo<span class="w"> </span>--file<span class="w"> </span><span class="s1">'*.csv'</span><span class="w"> </span>--file<span class="w"> </span><span class="s1">'*.parquet'</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="c1"># Inspect a record without downloading anything</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>download_zenodo_data<span class="w"> </span><span class="m">22233228</span><span class="w"> </span>--list-files
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>download_zenodo_data<span class="w"> </span><span class="m">22233228</span><span class="w"> </span>-d<span class="w"> </span>data<span class="w"> </span>--dry-run
+</code></pre></div>
+<h3 id="download-behavior">Download behavior<a class="headerlink" href="#download-behavior" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Atomic writes.</strong> Bytes stream into <code>&lt;file&gt;.part</code>; the part file is renamed
+  to the final name only after the size and checksum match.</li>
+<li><strong>Resume.</strong> An interrupted download leaves its <code>.part</code> file in place. The
+  next run sends <code>Range: bytes=&lt;size&gt;-</code> and appends on HTTP 206, or starts over
+  if the server returns the whole file.</li>
+<li><strong>Checksums.</strong> Zenodo publishes <code>md5:&lt;hex&gt;</code> for each file. A mismatch fails
+  only that file and removes its partial output so a rerun starts clean.</li>
+<li><strong>Skip existing.</strong> A file whose size matches is skipped; use
+  <code>--verify-existing</code> to require a checksum match as well.</li>
+<li><strong>Safe keys.</strong> File keys may contain <code>/</code>; relative subdirectories are
+  preserved. Absolute paths and <code>..</code> components are rejected per file.</li>
+<li><strong>Contained writes.</strong> Downloads never leave the destination. If a
+  subdirectory of the destination is a pre-existing symlink that resolves
+  outside it, or the target file itself is a symlink, that file fails with an
+  explanation instead of being written through the link.</li>
+<li><strong>Partial failure.</strong> One failed file is reported and recorded, and the rest
+  of the record still downloads.</li>
+<li><strong>Ctrl-C.</strong> Signals running downloads to stop at the next chunk, keeps
+  <code>.part</code> files for resume, and exits 130.</li>
+</ul>
+<h3 id="exit-codes_2">Exit codes<a class="headerlink" href="#exit-codes_2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>All selected files downloaded or skipped</td>
+</tr>
+<tr>
+<td>1</td>
+<td>A record could not be resolved, or at least one file failed</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Invalid arguments (including a missing destination)</td>
+</tr>
+<tr>
+<td>130</td>
+<td>Interrupted with Ctrl-C</td>
+</tr>
+</tbody>
+</table>
+<p>The run ends with a summary line such as:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>INFO     powergenome.zenodo: Summary: 15 downloaded, 0 skipped, 0 failed, 853.4 MB written to /data/zenodo
+</code></pre></div>
+<hr />
 <h2 id="environment-variables">Environment variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h2>
 <p>PowerGenome respects these environment variables (legacy, prefer settings YAML):</p>
 <ul>
@@ -2952,9 +3344,9 @@ DataManager entirely. See
 <div class="admonition warning">
 <p class="admonition-title">Deprecated</p>
 <p>Using environment variables for paths is deprecated. Use settings YAML parameters instead:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/data</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="nt">RESOURCE_GROUPS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/groups</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="nt">RESOURCE_GROUP_PROFILES</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/profiles</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/data</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nt">RESOURCE_GROUPS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/groups</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="nt">RESOURCE_GROUP_PROFILES</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/to/profiles</span>
 </code></pre></div>
 </div>
 <h2 id="logging">Logging<a class="headerlink" href="#logging" title="Permanent link">&para;</a></h2>
@@ -2967,21 +3359,21 @@ DataManager entirely. See
 <li>Cost calculations</li>
 </ul>
 <p>Example log output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>INFO:powergenome.run_powergenome:Loading settings from settings
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>INFO:powergenome.database:Initializing DataManager
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>INFO:powergenome.generators:Clustering 145 generators into 12 clusters
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>WARNING:powergenome.generators:Region p5 not found in fuel price data
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>INFO:powergenome.GenX:Writing output files to results/case1/Inputs/Inputs_p1/
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>INFO:powergenome.run_powergenome:Loading settings from settings
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>INFO:powergenome.database:Initializing DataManager
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>INFO:powergenome.generators:Clustering 145 generators into 12 clusters
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>WARNING:powergenome.generators:Region p5 not found in fuel price data
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>INFO:powergenome.GenX:Writing output files to results/case1/Inputs/Inputs_p1/
 </code></pre></div>
 <h2 id="programmatic-usage">Programmatic usage<a class="headerlink" href="#programmatic-usage" title="Permanent link">&para;</a></h2>
 <p><code>run_powergenome</code> can also be called from Python:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.run_powergenome</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">main</span><span class="p">(</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="n">settings_file</span><span class="o">=</span><span class="s2">"path/to/settings"</span><span class="p">,</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="n">results_folder</span><span class="o">=</span><span class="s2">"path/to/results"</span><span class="p">,</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="n">case_id</span><span class="o">=</span><span class="p">[</span><span class="s2">"case1"</span><span class="p">,</span> <span class="s2">"case2"</span><span class="p">],</span>
-<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">powergenome.run_powergenome</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="n">main</span><span class="p">(</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    <span class="n">settings_file</span><span class="o">=</span><span class="s2">"path/to/settings"</span><span class="p">,</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>    <span class="n">results_folder</span><span class="o">=</span><span class="s2">"path/to/results"</span><span class="p">,</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>    <span class="n">case_id</span><span class="o">=</span><span class="p">[</span><span class="s2">"case1"</span><span class="p">,</span> <span class="s2">"case2"</span><span class="p">],</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="p">)</span>
 </code></pre></div>
 <p><code>main()</code> still parses the process command line before applying these keyword
 arguments. In notebooks or applications with their own arguments, prefer calling
@@ -2989,7 +3381,7 @@ the CLI in a subprocess with an explicit argument list. This is an internal entr
 point, not a separate stable Python API.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="settings-folder-not-found">Settings folder not found<a class="headerlink" href="#settings-folder-not-found" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>Error: Settings path 'settings' does not exist
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>Error: Settings path 'settings' does not exist
 </code></pre></div>
 <p><strong>Solution</strong>: Provide absolute path or path relative to current directory</p>
 <h3 id="no-scenario-definitions-file">No scenario definitions file<a class="headerlink" href="#no-scenario-definitions-file" title="Permanent link">&para;</a></h3>
@@ -2998,7 +3390,7 @@ years as a single case. If you intended to use cases, set
 <code>scenario_definitions_fn</code> to a CSV under <code>input_folder</code>, with <code>case_id</code> and <code>year</code>
 columns.</p>
 <h3 id="permission-denied-writing-output">Permission denied writing output<a class="headerlink" href="#permission-denied-writing-output" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>PermissionError: [Errno 13] Permission denied: 'results/case1'
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>PermissionError: [Errno 13] Permission denied: 'results/case1'
 </code></pre></div>
 <p><strong>Solution</strong>: Ensure write permissions on output directory or choose different location</p>
 <p>See <a href="../../how-to/debugging/">Debugging</a> for more troubleshooting tips.</p>
