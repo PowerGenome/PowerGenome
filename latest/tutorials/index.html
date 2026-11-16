@@ -567,10 +567,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-building-a-multi-region-model" class="md-nav__link">
+  <a href="#2-where-data-files-go" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Building a Multi-Region Model
+        2. Where Data Files Go
       
     </span>
   </a>
@@ -578,10 +578,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-working-with-renewable-resources" class="md-nav__link">
+  <a href="#3-building-a-multi-region-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Working with Renewable Resources
+        3. Building a Multi-Region Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-working-with-renewable-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Working with Renewable Resources
       
     </span>
   </a>
@@ -639,6 +650,34 @@
     
   
     Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="where-data-files-go/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Where Data Files Go
   
 
     
@@ -2309,10 +2348,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-building-a-multi-region-model" class="md-nav__link">
+  <a href="#2-where-data-files-go" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Building a Multi-Region Model
+        2. Where Data Files Go
       
     </span>
   </a>
@@ -2320,10 +2359,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-working-with-renewable-resources" class="md-nav__link">
+  <a href="#3-building-a-multi-region-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Working with Renewable Resources
+        3. Building a Multi-Region Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-working-with-renewable-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Working with Renewable Resources
       
     </span>
   </a>
@@ -2437,12 +2487,18 @@ PowerGenome's source. PowerGenome prepares inputs; it does not solve the model.<
 validate the Texas study, and generate inputs for 2030 and 2045. Learn where
 settings, data, logs, and GenX outputs live.</p>
 <p><strong>Prerequisites</strong>: uv, curl, tar, a terminal, and basic command-line familiarity.</p>
-<h3 id="2-building-a-multi-region-model">2. <a href="multi-region-model/">Building a Multi-Region Model</a><a class="headerlink" href="#2-building-a-multi-region-model" title="Permanent link">&para;</a></h3>
+<h3 id="2-where-data-files-go">2. <a href="where-data-files-go/">Where Data Files Go</a><a class="headerlink" href="#2-where-data-files-go" title="Permanent link">&para;</a></h3>
+<p>Map every settings key to a folder and file using the same Texas study: the four
+path settings, the input tables, policy and scenario files, renewable group JSON,
+and where outputs and caches land. Then fetch the full PowerGenome-data releases
+from Zenodo with <code>download_zenodo_data</code>.</p>
+<p><strong>Prerequisites</strong>: Getting Started and its downloaded Texas example.</p>
+<h3 id="3-building-a-multi-region-model">3. <a href="multi-region-model/">Building a Multi-Region Model</a><a class="headerlink" href="#3-building-a-multi-region-model" title="Permanent link">&para;</a></h3>
 <p>Continue with the downloaded Texas study. Inspect its base-to-model-region
 aggregation, change transmission expansion limits, and verify both periods'
 network outputs against the first run.</p>
 <p><strong>Prerequisites</strong>: Getting Started and its unchanged <code>tx_output/</code> baseline.</p>
-<h3 id="3-working-with-renewable-resources">3. <a href="renewable-resources/">Working with Renewable Resources</a><a class="headerlink" href="#3-working-with-renewable-resources" title="Permanent link">&para;</a></h3>
+<h3 id="4-working-with-renewable-resources">4. <a href="renewable-resources/">Working with Renewable Resources</a><a class="headerlink" href="#4-working-with-renewable-resources" title="Permanent link">&para;</a></h3>
 <p>Aggregate the Texas example's wind candidates into cost-and-profile clusters
 and compare resource counts, capacity limits, and generation profiles while
 preserving solar. Follow the separate-settings setup to isolate the change.</p>
@@ -2454,7 +2510,9 @@ the workflow, not realistic system economics. Browse
 <a href="https://github.com/PowerGenome/PowerGenome-examples">PowerGenome-examples</a> for
 other published cases. A real study needs complete compatible sources
 for existing plants, technology costs, renewable profiles, demand, fuels,
-transmission, and any configured policies.</p>
+transmission, and any configured policies. <a href="where-data-files-go/">Where Data Files Go</a>
+maps those sources to the settings keys and the Zenodo deposits that publish
+them.</p>
 <p>Use the <a href="https://gschivley.github.io/PowerGenome-tools/web/">System Design tool</a>
 to create starting settings, then <a href="../how-to/configure-data-tables/">Configure Data Tables</a>
 and <a href="../how-to/validate-settings/">validate the study</a>. Changing region names
