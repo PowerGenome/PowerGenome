@@ -151,7 +151,7 @@ PowerGenome deliberately uses different bases for these settings:
 | Setting | Relative paths start at | Accepts | Used for tables? |
 | --- | --- | --- | --- |
 | `data_location` | The settings folder's parent, or a single settings file's directory | One or more folder or database paths | Yes |
-| `input_folder` | The same settings parent | A folder path; defaults to `extra_inputs` | Yes |
+| `input_folder` | The settings parent, when you set it | A folder path | Yes |
 | `RESOURCE_GROUPS` | The process **working directory** | One or more folders of group JSON | No |
 | `RESOURCE_GROUP_PROFILES` | The process **working directory** | One or more folders of profile files | No |
 
@@ -160,6 +160,14 @@ That difference is why the Texas instructions run from `powergenome-tutorial/`:
 `RESOURCE_GROUPS: example_systems/TX-3-zone/resource_groups` resolves from your
 current directory. Changing into the study folder leaves the first path valid
 and breaks the second.
+
+!!! warning "Configure `input_folder` explicitly"
+    If you omit `input_folder`, PowerGenome falls back to `extra_inputs` only
+    after loading settings, so that default is **not** re-based on the settings
+    folder: it resolves from your working directory. A run started outside the
+    study then silently looks for a different `extra_inputs/`. Set
+    `input_folder: extra_inputs` in your settings to get the settings-parent
+    behaviour and remove the dependence on where you invoke the command.
 
 Configured tables are searched in **both** `data_location` and `input_folder`.
 Each table must resolve in exactly one place; a second copy with the same name
@@ -174,11 +182,13 @@ Other path rules:
 - A settings directory does not load nested folders or `*.yaml` files, and
   duplicate top-level keys across files replace one another rather than merge.
 
-## Step 4: Put each table under `data_location`
+## Step 4: Put each DataManager table in a search location
 
 Most inputs are DataManager tables. The setting key names the file (or database
 table), and DataManager exposes it to the pipeline under a fixed internal name.
-These are the Texas settings and the files they load:
+DataManager looks for each table in **both** `data_location` and `input_folder`,
+so a table setting may point at either place. These are the Texas settings and
+the files they load:
 
 | Settings key | DataManager table | Supplies | Texas file |
 | --- | --- | --- | --- |
@@ -201,6 +211,11 @@ These are the Texas settings and the files they load:
 
 Notes on this table:
 
+- The two rows with an `extra_inputs/` prefix are `input_folder` files, not
+  `data_location` files. `emission_policies` and `demand_segments` are ordinary
+  DataManager tables that happen to live with the policy inputs; leave them where
+  the settings point and do not move them into `data/`. Every other row here
+  resolves under `data_location`.
 - The Texas `distributed_gen.yml` uses the accepted singular alias
   `distributed_profile_table`; both keys map to `distributed_profiles`.
 - The Texas `extra_inputs.yml` configures the policy and demand-segment tables
@@ -390,11 +405,13 @@ warnings; what matters is that the duplicate-location error is gone.
 
 Use this list when arranging your own files:
 
-- Every `*_table` key names a file that exists once, in `data_location` or
-  `input_folder`, with the extension included.
+- Every `*_table` key names a source that resolves exactly once, in
+  `data_location` or `input_folder`. A flat file includes `.csv` or `.parquet`;
+  a SQLite or DuckDB source uses the table name without an extension.
 - `data_location` and `input_folder` resolve where you expect from the settings
   folder's parent. Remember that `RESOURCE_GROUPS` and
-  `RESOURCE_GROUP_PROFILES` resolve from your working directory.
+  `RESOURCE_GROUP_PROFILES` resolve from your working directory, and that a
+  defaulted `input_folder` resolves from it too.
 - No file is duplicated across `data_location` and `input_folder`.
 - Every optional `*_fn` setting you rely on is actually present, uncommented, and
   pointing at an existing file.
