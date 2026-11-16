@@ -38,6 +38,20 @@ and this project adheres to Semantic Versioning.
   alongside `regional_cost_factor_table`. Auto-generating both mappings is the
   normal path, so the messages were noise on every run.
 
+### Fixed
+
+- `test_download_record_files_cancel_event_stops_streaming` no longer depends on
+  thread scheduling. The test let whichever worker reached its first chunk set
+  the shared cancel event, so the other worker was stopped either before it
+  opened its `.part` file — the assertion then raised `FileNotFoundError` in CI
+  — or inside the chunk loop, which is why the in-loop cancellation line was
+  covered in some runs and missed in others and moved project coverage enough to
+  fail `codecov/project` on an unrelated docs-only change. Cancellation now
+  starts from a deterministic point: one worker reports that its `.part` file is
+  open and holds its first chunk, and the other sets the event only after seeing
+  that signal. Both cancellation checks are exercised on every run, and the test
+  now asserts the exact partial bytes each worker leaves behind for a resume.
+
 ## [0.9.0] - 2026-11-12
 
 ### Added
