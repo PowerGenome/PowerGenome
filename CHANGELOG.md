@@ -7,6 +7,8 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-16
+
 ### Added
 
 - New `download_zenodo_data` command and `powergenome.zenodo` helper module for
