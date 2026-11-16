@@ -21,6 +21,15 @@ and this project adheres to Semantic Versioning.
   record.
 - New "Download Data from Zenodo" how-to guide and a full `download_zenodo_data`
   CLI reference section.
+- New "Where Data Files Go" tutorial. It maps every DataManager table setting
+  and direct `*_fn` input to its folder, explains the different resolution bases
+  for `data_location`, `input_folder`, `RESOURCE_GROUPS`, and
+  `RESOURCE_GROUP_PROFILES`, covers renewable group JSON and generated caches,
+  and shows where outputs land. It also links the three PowerGenome-data Zenodo
+  deposits used by the System Design tool (core inputs, renewable profiles, and
+  existing renewable resource groups) and shows how `download_zenodo_data`
+  fetches each of them, notes that `~` is not expanded in settings, and includes
+  a duplicate-table exercise.
 
 ### Changed
 

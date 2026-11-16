@@ -49,8 +49,10 @@ Background information on how PowerGenome works and why it's designed the way it
    to install a published package with uv and run the published Texas example.
 2. **Define your own study**: Generate a settings folder with the
    [System Design tool](https://gschivley.github.io/PowerGenome-tools/web/), then
-   [configure the input tables](how-to/configure-data-tables.md). Settings alone
-   are not a dataset: the referenced data files must also be available locally.
+   [configure the input tables](how-to/configure-data-tables.md) and follow
+   [Where Data Files Go](tutorials/where-data-files-go.md) to place them and
+   download the full Zenodo deposits. Settings alone are not a dataset: the
+   referenced data files must also be available locally.
 3. **Check before a full run**: Use [Validate Settings](how-to/validate-settings.md),
    then run `run_powergenome -sf settings -rf output` from your study directory.
 

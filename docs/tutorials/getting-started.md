@@ -69,7 +69,7 @@ my_study/
 ```
 
 !!! tip "Keep Projects Separate"
-    Create project folders **outside** the PowerGenome repository to avoid git conflicts and make updates easier.
+    Create project folders **outside** the PowerGenome repository to avoid git conflicts and make updates easier. To fill this layout for a real study, [Where Data Files Go](where-data-files-go.md) maps each setting to its file and links the full Zenodo data releases.
 
 !!! tip "PowerGenome data records"
     The published source datasets live on Zenodo. Download a record into your
@@ -232,13 +232,15 @@ See [Output Format](../explanation/output-format.md) for complete documentation.
 
 Continue with the downloaded Texas study:
 
-1. [Building a Multi-Region Model](multi-region-model.md): use the same study to
+1. [Where Data Files Go](where-data-files-go.md): map every input table and
+   policy file to its folder, and find the full data on Zenodo.
+2. [Building a Multi-Region Model](multi-region-model.md): use the same study to
    inspect its regions and change transmission expansion limits.
-2. [Working with Renewable Resources](renewable-resources.md): follow its
+3. [Working with Renewable Resources](renewable-resources.md): follow its
    separate-settings setup to change wind resource resolution while keeping solar.
-3. Explore the other published studies in
+4. Explore the other published studies in
    [PowerGenome-examples](https://github.com/PowerGenome/PowerGenome-examples).
-4. For your own study, generate starting settings with the
+5. For your own study, generate starting settings with the
    [System Design tool](https://gschivley.github.io/PowerGenome-tools/web/) and
    [supply the referenced data tables](../how-to/configure-data-tables.md).
 

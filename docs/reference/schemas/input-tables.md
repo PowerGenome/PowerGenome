@@ -3,7 +3,7 @@
 PowerGenome reads source data from files (CSV or Parquet) or a database. The DataManager maps each settings key to a standardized internal table name. This page describes the required columns and data types for each table.
 
 !!! tip "Finding your data files"
-    Set `data_location` in your settings YAML to the folder containing these files. See [Configure Data Tables](../../how-to/configure-data-tables.md) for the full configuration syntax, including column projection and row filtering.
+    Set `data_location` in your settings YAML to the folder containing these files. See [Configure Data Tables](../../how-to/configure-data-tables.md) for the full configuration syntax, including column projection and row filtering. For a guided tour of the folders, renewable group files, and the full Zenodo deposits, see [Where Data Files Go](../../tutorials/where-data-files-go.md).
 
 ---
 

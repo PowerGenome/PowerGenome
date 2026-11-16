@@ -3,7 +3,9 @@
 Use this guide to point an existing study at source files and select rows from a
 multi-scenario dataset. It does not create or download the data. See
 [Input Table Schemas](../reference/schemas/input-tables.md) for required columns
-and [Data Tables Settings](../reference/settings/data-tables.md) for complete syntax.
+and [Data Tables Settings](../reference/settings/data-tables.md) for complete
+syntax. For a folder-by-folder tour of where every file belongs, start with
+[Where Data Files Go](../tutorials/where-data-files-go.md).
 
 ## 1. Set the search locations
 

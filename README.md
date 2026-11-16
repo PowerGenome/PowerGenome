@@ -41,6 +41,8 @@ PowerGenome uses data from a number of different sources, including EIA, NREL, a
    - `generation_profiles` - Hourly wind/solar generation profiles, either by site or mapped to resource sites
    - `metadata` - Files that assign interconnection costs to specific renewable sites, and maps each to a model region
 
+For a folder-by-folder map of these inputs, see [Where Data Files Go](docs/tutorials/where-data-files-go.md). The full datasets are published on Zenodo and can be fetched with the `download_zenodo_data` command ([Download Data from Zenodo](docs/how-to/download-data.md)); the [System Design tool's download guide](https://powergenome.github.io/PowerGenome-tools/web_app/#downloading-input-data) lists the current deposits and the settings key each one feeds.
+
 ## Installation
 
 ### Option 1: Install from PyPI (Recommended)
@@ -123,7 +125,7 @@ pip install -e .
 
 ### Suggested folder structure
 
-It is best practice to set up project folders outside of the cloned repository so that git doesn't track any new/changed files within the upper-level `PowerGenome` folder. Keeping project folders separate from the cloned `PowerGenome` folder will also make it easier to pull changes as they are released.
+It is best practice to set up project folders outside of the cloned repository so that git doesn't track any new/changed files within the upper-level `PowerGenome` folder. Keeping project folders separate from the cloned `PowerGenome` folder will also make it easier to pull changes as they are released. See [Where Data Files Go](docs/tutorials/where-data-files-go.md) for the full layout and the Zenodo data deposits.
 
 ### Example systems
 
