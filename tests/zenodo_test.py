@@ -1046,8 +1046,19 @@ def test_download_record_files_skips_existing(tmp_path):
 
 
 def test_download_record_files_cancel_event_stops_streaming(tmp_path, monkeypatch):
-    """Concurrent streams stop at the next chunk once the event is set."""
+    """Concurrent streams stop at the next chunk once the event is set.
+
+    The shared event is set from a deterministic point instead of by whichever
+    worker happens to reach its first chunk first. ``b.csv`` reports that its
+    ``.part`` file is open and then holds its first chunk until released, so
+    the cancel always lands while it waits inside the chunk loop; ``a.csv``
+    sets the event only after seeing that signal. Both cancellation checks are
+    therefore exercised on every run: ``a.csv`` after writing its first chunk
+    and ``b.csv`` in the chunk loop, before it writes anything.
+    """
     events = {}
+    b_streaming = threading.Event()
+    b_release = threading.Event()
     real_download = zenodo.download_file
 
     def capture(file, destination, **kwargs):
@@ -1057,17 +1068,30 @@ def test_download_record_files_cancel_event_stops_streaming(tmp_path, monkeypatc
     monkeypatch.setattr(zenodo, "download_file", capture)
 
     class CancellingResponse(FakeResponse):
-        def __init__(self, key, **kwargs):
-            super().__init__(**kwargs)
-            self.key = key
+        """Write one chunk, then cancel once the other worker is streaming."""
 
         def iter_content(self, chunk_size=1):
             yield b"first"
-            events[self.key].set()
+            assert b_streaming.wait(5)
+            events["a.csv"].set()
+            b_release.set()
 
-    files = [make_file(key, b"firstsecond") for key in ("a.csv", "b.csv")]
+    class HoldingResponse(FakeResponse):
+        """The .part file is open; hold the first chunk until the cancel."""
+
+        def iter_content(self, chunk_size=1):
+            b_streaming.set()
+            assert b_release.wait(5)
+            yield b"first"
+
+    data = b"firstsecond"
+    files = [make_file(key, data) for key in ("a.csv", "b.csv")]
+    responses = {
+        "a.csv": CancellingResponse(content=data),
+        "b.csv": HoldingResponse(content=data),
+    }
     session = FakeSession(
-        routes={file.download_url: CancellingResponse(file.key) for file in files}
+        routes={file.download_url: responses[file.key] for file in files}
     )
     record = make_record(files)
 
@@ -1079,11 +1103,13 @@ def test_download_record_files_cancel_event_stops_streaming(tmp_path, monkeypatc
 
     assert [r.status for r in summary.results] == ["failed", "failed"]
     assert [r.error for r in summary.results] == ["cancelled", "cancelled"]
-    # The event is shared by every worker, so whichever stream advances first
-    # stops both; the other may already have written its first chunk.
+    # Every worker gets the same event, and both keep a .part file so a later
+    # run can resume: a.csv holds its first chunk, b.csv was stopped before it
+    # wrote one.
+    assert events["a.csv"] is not None
+    assert events["a.csv"] is events["b.csv"]
     parts = {key: (tmp_path / f"{key}.part").read_bytes() for key in ("a.csv", "b.csv")}
-    assert all(part in (b"", b"first") for part in parts.values())
-    assert b"first" in parts.values()
+    assert parts == {"a.csv": b"first", "b.csv": b""}
     assert sum(len(part) for part in parts.values()) == sum(
         r.bytes_written for r in summary.results
     )
