@@ -180,6 +180,13 @@ parent of the settings directory (`example_systems/TX-3-zone/`). Relative
 `RESOURCE_GROUPS` and `RESOURCE_GROUP_PROFILES` paths instead use the working
 directory, which is why the commands stay at the top of `scenario-study/`.
 
+A leading `~` always expands to your home directory before that relative/absolute
+decision, so `data_location: ~/PowerGenome-data/data` is used as-is instead of
+being joined to the settings folder. The same applies to `input_folder`,
+`RESOURCE_GROUPS`, `RESOURCE_GROUP_PROFILES`, `EFS_DATA`, and
+`DISTRIBUTED_GEN_DATA`, and to the `-sf`/`--settings_file` and
+`-rf`/`--results_folder` command-line paths.
+
 ## Validation and Debugging
 
 ### Validate Scenario Definitions

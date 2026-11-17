@@ -398,6 +398,56 @@ class TestMainFunction:
     @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
     @patch("powergenome.run_powergenome.Settings")
     @patch("powergenome.run_powergenome.initialize_data_manager")
+    @patch("powergenome.run_powergenome.build_scenario_settings")
+    def test_main_expands_tilde_cli_paths(
+        self,
+        mock_build_scenario,
+        mock_init_dm,
+        mock_settings_class,
+        test_scenario_definitions_path,
+        tmp_path,
+        monkeypatch,
+    ):
+        """`~` in --settings_file/--results_folder works regardless of shell."""
+        home = tmp_path / "home"
+        (home / "study" / "settings").mkdir(parents=True)
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setenv("USERPROFILE", str(home))
+
+        mock_settings = MagicMock()
+        mock_settings.__getitem__.side_effect = lambda key: {
+            "data_location": "test_data.db",
+            "input_folder": str(test_scenario_definitions_path.parent),
+            "scenario_definitions_fn": test_scenario_definitions_path.name,
+            "model_year": [2030],
+            "model_first_planning_year": [2025],
+        }.get(key)
+        mock_settings.get.side_effect = lambda key, default=None: {
+            "data_location": "test_data.db",
+            "input_folder": str(test_scenario_definitions_path.parent),
+            "scenario_definitions_fn": test_scenario_definitions_path.name,
+            "model_year": [2030],
+            "model_first_planning_year": [2025],
+        }.get(key, default)
+        mock_settings_class.return_value = mock_settings
+        mock_build_scenario.return_value = {}
+
+        with patch("pandas.read_csv") as mock_read_csv:
+            mock_read_csv.return_value = pd.read_csv(test_scenario_definitions_path)
+            with patch("shutil.copytree"):
+                main(
+                    settings_file="~/study/settings",
+                    results_folder="~/tilde_results",
+                )
+
+        mock_settings_class.assert_called_once_with(
+            config_path=str(home / "study" / "settings")
+        )
+        assert (home / "tilde_results").is_dir()
+
+    @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
+    @patch("powergenome.run_powergenome.Settings")
+    @patch("powergenome.run_powergenome.initialize_data_manager")
     def test_main_missing_case_ids_error(
         self,
         mock_init_dm,

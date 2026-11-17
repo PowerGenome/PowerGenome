@@ -263,6 +263,11 @@ def main(**kwargs):
 
     cwd = Path.cwd()
 
+    # Windows shells do not expand '~' for native commands, and quoting it
+    # prevents expansion on POSIX shells, so expand CLI paths here.
+    args.settings_file = str(Path(args.settings_file).expanduser())
+    args.results_folder = str(Path(args.results_folder).expanduser())
+
     out_folder = cwd / args.results_folder
     out_folder.mkdir(exist_ok=True)
 

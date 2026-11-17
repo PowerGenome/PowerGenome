@@ -42,6 +42,12 @@ its parent directory must already exist.
 **Default**: A timestamp, for example `2026-01-15 14.30.00`
 **Example**: `--results_folder my_study_outputs`
 
+!!! note "`~` is expanded"
+    Both path flags expand a leading `~` to your home directory, so
+    `-sf "~/study/settings"` and `-rf "~/study/output"` work even when the
+    shell leaves `~` unexpanded (quoted arguments on macOS/Linux, and native
+    commands in Windows shells).
+
 #### `--case-id` / `-c`
 
 Run only the specified case IDs from `scenario_definitions_fn`. Without a
