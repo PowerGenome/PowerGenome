@@ -1565,6 +1565,62 @@ class TestExpandCapacityReserveValues:
         assert result["RESOURCE_GROUPS"] == [Path("groups_a"), Path("groups_b")]
         assert result["RESOURCE_GROUP_PROFILES"] == Path("profiles")
 
+    def test_tilde_paths_expand_to_home(self, tmp_path, monkeypatch):
+        """``~`` in settings paths resolves to the user home folder, not settings."""
+        home = tmp_path / "home"
+        home.mkdir()
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setenv("USERPROFILE", str(home))
+
+        settings_folder = tmp_path / "settings"
+        settings_folder.mkdir()
+        settings_file = settings_folder / "data.yml"
+        settings_content = {
+            "model_regions": ["p1"],
+            "data_location": ["~/PowerGenome-data/data", "~/PowerGenome-data/db"],
+            "input_folder": "~/study/extra_inputs",
+            "RESOURCE_GROUPS": "~/study/resource_groups",
+            "RESOURCE_GROUP_PROFILES": ["~/study/profiles"],
+            "DISTRIBUTED_GEN_DATA": "~/study/dg",
+        }
+
+        with open(settings_file, "w") as f:
+            yaml.dump(settings_content, f)
+
+        result = load_settings(settings_file)
+
+        assert result["data_location"] == [
+            home / "PowerGenome-data/data",
+            home / "PowerGenome-data/db",
+        ]
+        assert result["input_folder"] == home / "study/extra_inputs"
+        assert result["RESOURCE_GROUPS"] == home / "study/resource_groups"
+        assert result["RESOURCE_GROUP_PROFILES"] == [home / "study/profiles"]
+        assert result["DISTRIBUTED_GEN_DATA"] == home / "study/dg"
+
+    def test_tilde_data_location_is_not_anchored_to_settings_folder(
+        self, tmp_path, monkeypatch
+    ):
+        """A single ``~`` data_location stays absolute instead of joining the folder."""
+        home = tmp_path / "home"
+        home.mkdir()
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setenv("USERPROFILE", str(home))
+
+        settings_folder = tmp_path / "settings"
+        settings_folder.mkdir()
+        settings_file = settings_folder / "data.yml"
+        with open(settings_file, "w") as f:
+            yaml.dump(
+                {"model_regions": ["p1"], "data_location": "~/PowerGenome-data/data"},
+                f,
+            )
+
+        result = load_settings(settings_file)
+
+        assert result["data_location"] == home / "PowerGenome-data/data"
+        assert result["data_location"].is_absolute()
+
     def test_integration_with_build_scenario_settings(self, tmp_path):
         """Test that expand_capacity_reserve_values works in scenario building."""
         # Create base settings

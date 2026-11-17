@@ -614,6 +614,12 @@ def get_current_settings() -> Settings:
     )
 
 
+def _resolve_settings_path(value: Union[str, Path], base: Path) -> Path:
+    """Expand ``~`` in a settings path and anchor relative values to ``base``."""
+    path = Path(value).expanduser()
+    return path if path.is_absolute() else base / path
+
+
 def load_settings(path: Union[str, Path]) -> dict:
     """
     Load a YAML file or a directory of YAML files with settings parameters.
@@ -665,22 +671,14 @@ def load_settings(path: Union[str, Path]) -> dict:
         values = (
             data_locations if isinstance(data_locations, list) else [data_locations]
         )
-        resolved = [
-            Path(value) if Path(value).is_absolute() else settings_folder / value
-            for value in values
-        ]
+        resolved = [_resolve_settings_path(value, settings_folder) for value in values]
         settings["data_location"] = (
             resolved if isinstance(data_locations, list) else resolved[0]
         )
 
     input_folder = settings.get("input_folder")
     if input_folder and not isinstance(input_folder, list):
-        input_folder_path = Path(input_folder)
-        settings["input_folder"] = (
-            input_folder_path
-            if input_folder_path.is_absolute()
-            else settings_folder / input_folder_path
-        )
+        settings["input_folder"] = _resolve_settings_path(input_folder, settings_folder)
 
     if settings.get("generator_columns"):
         settings["generator_columns"] = add_model_tags_to_gen_columns(
@@ -702,9 +700,9 @@ def load_settings(path: Union[str, Path]) -> dict:
         value = settings.get(key)
         if value:
             if isinstance(value, list):
-                settings[key] = [Path(v) for v in value]
+                settings[key] = [Path(v).expanduser() for v in value]
             else:
-                settings[key] = Path(value)
+                settings[key] = Path(value).expanduser()
 
     settings["model_regions"] = sorted(settings["model_regions"])
     zones = settings["model_regions"]

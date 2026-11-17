@@ -7,6 +7,14 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- `load_settings` now expands a leading `~` to the user home directory for
+  `data_location`, `input_folder`, `RESOURCE_GROUPS`, `RESOURCE_GROUP_PROFILES`,
+  `EFS_DATA`, and `DISTRIBUTED_GEN_DATA`. Previously a path such as
+  `data_location: ~/PowerGenome-data/data` was treated as relative and resolved
+  inside the settings folder.
+
 ## [0.10.0] - 2026-11-16
 
 ### Added

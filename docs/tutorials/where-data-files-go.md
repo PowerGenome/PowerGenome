@@ -113,15 +113,15 @@ section lists which files each deposit contains, the suggested local folder, and
 the exact settings key it feeds. The **Download All** ZIP also includes that
 guidance as `DATA_SOURCES.md`, next to the generated `settings/` folder.
 
-With the tools guide's `~` placeholders replaced by absolute paths, the three
-settings from the exported `data.yml` look like this:
+With the tools guide's `~` placeholders left as written, the three settings from
+the exported `data.yml` look like this:
 
 ```yaml
-data_location: ["/absolute/path/to/PowerGenome-data/data"]
+data_location: ["~/PowerGenome-data/data"]
 RESOURCE_GROUPS:
   - "resource_groups_10r_eastern-western_nercr"  # new-build groups, in the ZIP
-  - "/absolute/path/to/PowerGenome-data/existing_resource_groups"
-RESOURCE_GROUP_PROFILES: "/absolute/path/to/PowerGenome-data/resource_profiles"
+  - "~/PowerGenome-data/existing_resource_groups"
+RESOURCE_GROUP_PROFILES: "~/PowerGenome-data/resource_profiles"
 ```
 
 The first `RESOURCE_GROUPS` entry is the region-specific folder the web app
@@ -131,13 +131,10 @@ The profiles deposit also has a
 [Google Drive mirror](https://drive.google.com/drive/folders/16PL6HIdYchgyxGwtU6gkXwztBNclBpo1)
 if Zenodo is slow.
 
-!!! warning "`~` is not expanded"
-    PowerGenome does not call `expanduser` on path settings. A literal
-    `~/PowerGenome-data/data` is treated as a relative folder named `~`, so the
-    table lookup fails. Use an absolute path, or a path relative to the base
-    that setting uses in Step 3. `download_zenodo_data` does expand `~` for its
-    `-d` argument, so a path that works on the command line still has to be
-    written out in full in YAML.
+!!! note "`~` expands to your home directory"
+    Path settings expand a leading `~`, so `~/PowerGenome-data/data` in YAML
+    means the same folder as `download_zenodo_data -d ~/PowerGenome-data/data`
+    on the command line. No absolute path is needed, though one still works.
 
 Data releases are versioned by date (for example `2026.08.14.v1`) and each file
 carries its own element version. Zenodo keeps every version; check the release
@@ -154,6 +151,10 @@ PowerGenome deliberately uses different bases for these settings:
 | `input_folder` | The settings parent, when you set it | A folder path | Yes |
 | `RESOURCE_GROUPS` | The process **working directory** | One or more folders of group JSON | No |
 | `RESOURCE_GROUP_PROFILES` | The process **working directory** | One or more folders of profile files | No |
+
+A leading `~` expands to your home directory in every path setting listed above
+(and in `EFS_DATA` and `DISTRIBUTED_GEN_DATA`) before the per-setting base is
+applied.
 
 That difference is why the Texas instructions run from `powergenome-tutorial/`:
 `data_location: data` resolves to `example_systems/TX-3-zone/data`, while
