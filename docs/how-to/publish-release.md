@@ -25,10 +25,6 @@ environment; no PyPI API token is needed.
 4. On PyPI, register a trusted publisher for `PowerGenome/PowerGenome`, workflow
    filename `release.yml`, environment `release`.
 
-For TestPyPI, separately register the same repository and workflow on
-**test.pypi.org** with environment `test-pypi`, and configure that environment in
-GitHub. A TestPyPI run does not create or modify a GitHub release.
-
 Consider using a tag ruleset to restrict creation, updates, and deletion of
 release tags to maintainers. Do not move an existing published version tag.
 
@@ -54,14 +50,14 @@ already-existing tag is not itself a workflow trigger.
 
 ## Publish an existing tag
 
-In **Actions > Publish Python Package > Run workflow**, select branch `main`,
-choose the destination, and enter an explicit existing tag, such as `v0.11.0`.
+In **Actions > Publish Python Package > Run workflow**, select branch `main`
+and enter an explicit existing tag, such as `v0.11.0`.
 The wheel, source distribution, and unit tests come from that tag's commit,
 not from `main`. The integration gate uses the pinned example and GenX version
 in the workflow, so an incompatible historical release will fail the gate
 rather than bypassing it.
 
-PyPI and TestPyPI do not permit overwriting uploaded distribution filenames.
+PyPI does not permit overwriting uploaded distribution filenames.
 This workflow deliberately does not skip existing files. Use a new version
 for a corrected release; do not rerun an already-published version to replace
 its files.

@@ -12,13 +12,6 @@ on:
       - 'tests/release_workflow_test.py'
   workflow_dispatch:
     inputs:
-      event:
-        description: Destination
-        type: choice
-        options:
-          - Publish
-          - Publish to TestPyPI
-        default: Publish
       ref:
         description: Existing version tag to publish (for example, v0.11.0)
         type: string
@@ -28,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ inputs.event || 'Publish' }}-${{ github.event_name == 'pull_request' && github.ref || (inputs.ref || github.ref_name) }}
+  group: release-${{ github.event_name == 'pull_request' && github.ref || (inputs.ref || github.ref_name) }}
   cancel-in-progress: false
 
 jobs:
@@ -144,7 +137,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: [build, unit-tests, genx-smoke]
     runs-on: ubuntu-latest
-    environment: ${{ inputs.event == 'Publish to TestPyPI' && 'test-pypi' || 'release' }}
+    environment: release
     permissions:
       id-token: write
       attestations: write
@@ -158,17 +151,11 @@ jobs:
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: dist/*
-      - name: Publish to TestPyPI
-        if: inputs.event == 'Publish to TestPyPI'
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
-        with:
-          repository-url: https://test.pypi.org/legacy/
       - name: Publish to PyPI
-        if: inputs.event != 'Publish to TestPyPI'
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 
   github-release:
-    if: github.event_name != 'pull_request' && inputs.event != 'Publish to TestPyPI'
+    if: github.event_name != 'pull_request'
     needs: [build, publish]
     runs-on: ubuntu-latest
     permissions:
