@@ -64,6 +64,28 @@ FINANCIAL_COLUMNS = [
     "min_retired_capacity",
 ]
 
+# Macro reads a retirement floor from different keys depending on the asset.
+# ThermalPower, VRE and MustRun accept the bare ``min_retired_capacity``, while
+# Battery resolves the storage vertex and the discharge edge separately and has
+# no bare-key fallback (MacroEnergy 0.3.0-dev11, ``src/model/assets/battery.jl``).
+DEFAULT_RETIRED_CAPACITY_KEYS = {"Min_Retired_Cap_MW": "min_retired_capacity"}
+
+STORAGE_RETIRED_CAPACITY_KEYS = {
+    "Min_Retired_Cap_MW": "discharge_min_retired_capacity",
+    "Min_Retired_Energy_Cap_MW": "storage_min_retired_capacity",
+}
+
+# Battery financial columns. The bare ``min_retired_capacity`` that
+# ``FINANCIAL_COLUMNS`` carries is deliberately absent: Macro's Battery parser
+# ignores it, so writing it would silently drop every storage retirement floor.
+STORAGE_FINANCIAL_COLUMNS = [
+    "wacc",
+    "capital_recovery_period",
+    "lifetime",
+    "discharge_min_retired_capacity",
+    "storage_min_retired_capacity",
+]
+
 # simpleCSV column layouts (order is preserved when writing CSVs).
 # Taken from the multisector_3zone_simpleCSVinputs example assets.
 THERMAL_COLUMNS = [
@@ -162,7 +184,7 @@ STORAGE_COLUMNS = [
     "charge_can_retire",
     "charge_can_expand",
     "discharge_capacity_size",
-    *FINANCIAL_COLUMNS,
+    *STORAGE_FINANCIAL_COLUMNS,
 ]
 
 HYDRO_COLUMNS = [
@@ -207,6 +229,7 @@ MUST_RUN_COLUMNS = [
     "id",
     "can_retire",
     "fixed_om_cost",
+    "variable_om_cost",
     "can_expand",
     "location",
     "existing_capacity",
@@ -293,37 +316,52 @@ def _format_bool(value) -> str:
     return "FALSE"
 
 
-def _financial_attrs(row: pd.Series) -> dict:
+def _financial_attrs(
+    row: pd.Series, retired_capacity_keys: Optional[Dict[str, str]] = None
+) -> dict:
     """Return the multistage financial attributes, when the generator has them.
 
     Reads the PowerGenome/GenX columns (WACC, Capital_Recovery_Period,
-    Lifetime, Min_Retired_Cap_MW) and maps them onto the Macro simpleCSV
-    financial columns. Missing columns produce no entry (blank cell -> Macro
-    default).
+    Lifetime, Min_Retired_Cap_MW, Min_Retired_Energy_Cap_MW) and maps them onto
+    the Macro simpleCSV financial columns. Missing columns produce no entry
+    (blank cell -> Macro default).
 
-    ``min_retired_capacity`` is capped at the resource's existing capacity so
-    that a GenX multistage file that requests more retirement than the plant
-    has does not make the Macro model infeasible.
+    Retirement semantics: GenX's ``Min_Retired_Cap_MW`` is the capacity that
+    retires *within* the current planning period, and GenX validates those
+    per-period requirements against a running retirement budget
+    (``check_retirement_budget``). Macro instead treats
+    ``min_retired_capacity`` as the incremental requirement of each stage and
+    accumulates it across stages into ``min_retired_capacity_track`` (Macro's
+    ``src/model/case.jl``: track(stage N) = track(stage N-1) +
+    min_retired_capacity(stage N)), then constrains cumulative retirements to
+    reach that track (``src/model/constraints/age_based_retirements.jl``).
+    Writing the per-period requirement unchanged at every stage therefore
+    reproduces GenX's schedule, because the running sum of the per-period
+    requirements equals the cumulative retirement through each stage. The value
+    is **not** capped at the row's ``Existing_Cap_MW``: GenX derives that column
+    from the units still operating at the *end* of the stage
+    (``retirement_year > end_year``), so the capacity retiring within the period
+    is already excluded and capping would truncate the multi-period floor.
+
+    ``retired_capacity_keys`` maps GenX retirement columns onto the keys a given
+    asset type actually reads. It defaults to the bare ``min_retired_capacity``
+    that ThermalPower, VRE and MustRun accept; Battery must pass
+    ``STORAGE_RETIRED_CAPACITY_KEYS`` instead.
     """
     mapping = {
         "WACC": "wacc",
         "Capital_Recovery_Period": "capital_recovery_period",
         "Lifetime": "lifetime",
-        "Min_Retired_Cap_MW": "min_retired_capacity",
     }
+    if retired_capacity_keys is None:
+        retired_capacity_keys = DEFAULT_RETIRED_CAPACITY_KEYS
     out = {}
     for pg_col, macro_col in mapping.items():
         if pg_col in row.index and row.get(pg_col) is not None:
             out[macro_col] = row.get(pg_col)
-    existing = _num(_gen_value(row, "Existing_Cap_MW", np.nan), np.nan)
-    min_retired = _num(out.get("min_retired_capacity"), 0.0)
-    if (
-        min_retired is not None
-        and existing is not None
-        and not np.isnan(existing)
-        and min_retired > existing
-    ):
-        out["min_retired_capacity"] = existing
+    for pg_col, macro_col in retired_capacity_keys.items():
+        if pg_col in row.index:
+            out[macro_col] = _num(row.get(pg_col), 0.0)
     return out
 
 
@@ -640,7 +678,7 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 # hardcodes storage/charge/discharge capacity_size = 1.0 (Macro's
                 # default), rather than GenX's Cap_Size cluster size.
                 "discharge_capacity_size": 1.0,
-                **_financial_attrs(row),
+                **_financial_attrs(row, STORAGE_RETIRED_CAPACITY_KEYS),
             }
         )
     return pd.DataFrame(records, columns=STORAGE_COLUMNS)
@@ -741,6 +779,9 @@ def make_mustrun_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFram
                 "can_retire": _format_bool(_gen_value(row, "Can_Retire")),
                 "fixed_om_cost": _num(
                     _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
+                ),
+                "variable_om_cost": _num(
+                    _gen_value(row, "Var_OM_Cost_per_MWh", np.nan)
                 ),
                 "can_expand": _format_bool(_gen_value(row, "New_Build")),
                 "location": _gen_value(row, "region"),
