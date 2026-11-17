@@ -2853,6 +2853,12 @@ different file: it could replace the whole mapping. Edit the existing block.</p>
 parent of the settings directory (<code>example_systems/TX-3-zone/</code>). Relative
 <code>RESOURCE_GROUPS</code> and <code>RESOURCE_GROUP_PROFILES</code> paths instead use the working
 directory, which is why the commands stay at the top of <code>scenario-study/</code>.</p>
+<p>A leading <code>~</code> always expands to your home directory before that relative/absolute
+decision, so <code>data_location: ~/PowerGenome-data/data</code> is used as-is instead of
+being joined to the settings folder. The same applies to <code>input_folder</code>,
+<code>RESOURCE_GROUPS</code>, <code>RESOURCE_GROUP_PROFILES</code>, <code>EFS_DATA</code>, and
+<code>DISTRIBUTED_GEN_DATA</code>, and to the <code>-sf</code>/<code>--settings_file</code> and
+<code>-rf</code>/<code>--results_folder</code> command-line paths.</p>
 <h2 id="validation-and-debugging">Validation and Debugging<a class="headerlink" href="#validation-and-debugging" title="Permanent link">&para;</a></h2>
 <h3 id="validate-scenario-definitions">Validate Scenario Definitions<a class="headerlink" href="#validate-scenario-definitions" title="Permanent link">&para;</a></h3>
 <p>First validate the settings and source data:</p>

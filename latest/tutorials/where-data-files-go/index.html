@@ -2719,13 +2719,13 @@ generates settings that reference these deposits. Its
 section lists which files each deposit contains, the suggested local folder, and
 the exact settings key it feeds. The <strong>Download All</strong> ZIP also includes that
 guidance as <code>DATA_SOURCES.md</code>, next to the generated <code>settings/</code> folder.</p>
-<p>With the tools guide's <code>~</code> placeholders replaced by absolute paths, the three
-settings from the exported <code>data.yml</code> look like this:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"/absolute/path/to/PowerGenome-data/data"</span><span class="p p-Indicator">]</span>
+<p>With the tools guide's <code>~</code> placeholders left as written, the three settings from
+the exported <code>data.yml</code> look like this:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">data_location</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"~/PowerGenome-data/data"</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">RESOURCE_GROUPS</span><span class="p">:</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"resource_groups_10r_eastern-western_nercr"</span><span class="w">  </span><span class="c1"># new-build groups, in the ZIP</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"/absolute/path/to/PowerGenome-data/existing_resource_groups"</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nt">RESOURCE_GROUP_PROFILES</span><span class="p">:</span><span class="w"> </span><span class="s">"/absolute/path/to/PowerGenome-data/resource_profiles"</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"~/PowerGenome-data/existing_resource_groups"</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nt">RESOURCE_GROUP_PROFILES</span><span class="p">:</span><span class="w"> </span><span class="s">"~/PowerGenome-data/resource_profiles"</span>
 </code></pre></div>
 <p>The first <code>RESOURCE_GROUPS</code> entry is the region-specific folder the web app
 generates in its Interconnection step and includes in the export ZIP. You do not
@@ -2733,14 +2733,12 @@ download that one separately; the other two rows are the <code>-d</code> downloa
 The profiles deposit also has a
 <a href="https://drive.google.com/drive/folders/16PL6HIdYchgyxGwtU6gkXwztBNclBpo1">Google Drive mirror</a>
 if Zenodo is slow.</p>
-<div class="admonition warning">
-<p class="admonition-title"><code>~</code> is not expanded</p>
-<p>PowerGenome does not call <code>expanduser</code> on path settings. A literal
-<code>~/PowerGenome-data/data</code> is treated as a relative folder named <code>~</code>, so the
-table lookup fails. Use an absolute path, or a path relative to the base
-that setting uses in Step 3. <code>download_zenodo_data</code> does expand <code>~</code> for its
-<code>-d</code> argument, so a path that works on the command line still has to be
-written out in full in YAML.</p>
+<div class="admonition note">
+<p class="admonition-title"><code>~</code> expands to your home directory</p>
+<p>Path settings and the <code>-sf</code>/<code>-rf</code> flags expand a leading <code>~</code>, so
+<code>~/PowerGenome-data/data</code> in YAML means the same folder as
+<code>download_zenodo_data -d ~/PowerGenome-data/data</code> on the command line. No
+absolute path is needed, though one still works.</p>
 </div>
 <p>Data releases are versioned by date (for example <code>2026.08.14.v1</code>) and each file
 carries its own element version. Zenodo keeps every version; check the release
@@ -2784,6 +2782,9 @@ settings.</p>
 </tr>
 </tbody>
 </table>
+<p>A leading <code>~</code> expands to your home directory in every path setting listed above
+(and in <code>EFS_DATA</code> and <code>DISTRIBUTED_GEN_DATA</code>) before the per-setting base is
+applied.</p>
 <p>That difference is why the Texas instructions run from <code>powergenome-tutorial/</code>:
 <code>data_location: data</code> resolves to <code>example_systems/TX-3-zone/data</code>, while
 <code>RESOURCE_GROUPS: example_systems/TX-3-zone/resource_groups</code> resolves from your

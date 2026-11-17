@@ -2916,6 +2916,13 @@ its parent directory must already exist.</p>
 <p><strong>Type</strong>: String (path)
 <strong>Default</strong>: A timestamp, for example <code>2026-01-15 14.30.00</code>
 <strong>Example</strong>: <code>--results_folder my_study_outputs</code></p>
+<div class="admonition note">
+<p class="admonition-title"><code>~</code> is expanded</p>
+<p>Both path flags expand a leading <code>~</code> to your home directory, so
+<code>-sf "~/study/settings"</code> and <code>-rf "~/study/output"</code> work even when the
+shell leaves <code>~</code> unexpanded (quoted arguments on macOS/Linux, and native
+commands in Windows shells).</p>
+</div>
 <h4 id="-case-id-c"><code>--case-id</code> / <code>-c</code><a class="headerlink" href="#-case-id-c" title="Permanent link">&para;</a></h4>
 <p>Run only the specified case IDs from <code>scenario_definitions_fn</code>. Without a
 scenario definitions file, this selection is ignored with a warning.</p>
