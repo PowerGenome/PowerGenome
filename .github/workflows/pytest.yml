@@ -1,6 +1,13 @@
 name: pytest
 
-on: [push]
+on:
+  push:
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to test before publishing
+        required: true
+        type: string
 
 jobs:
   build:
@@ -14,6 +21,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        ref: ${{ inputs.ref || github.sha }}
     - name: Install uv
       uses: astral-sh/setup-uv@v6
       with:
@@ -38,6 +47,7 @@ jobs:
       run: |
         uv run pytest --cov=powergenome tests/ --cov-report=xml
     - name: Upload test coverage report to CodeCov
+      if: inputs.ref == ''
       uses: codecov/codecov-action@v4
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

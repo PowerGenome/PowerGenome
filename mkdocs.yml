@@ -107,6 +107,7 @@ nav:
     - Add Supplemental Hourly Demand: how-to/add-supplemental-demand.md
     - Validate Settings: how-to/validate-settings.md
     - Debugging: how-to/debugging.md
+    - Publish a Release: how-to/publish-release.md
 
   - Reference:
     - reference/index.md
