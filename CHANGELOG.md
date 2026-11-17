@@ -7,6 +7,8 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-11-17
+
 ### Fixed
 
 - `load_settings` now expands a leading `~` to the user home directory for
