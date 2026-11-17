@@ -13,7 +13,11 @@ and this project adheres to Semantic Versioning.
   `data_location`, `input_folder`, `RESOURCE_GROUPS`, `RESOURCE_GROUP_PROFILES`,
   `EFS_DATA`, and `DISTRIBUTED_GEN_DATA`. Previously a path such as
   `data_location: ~/PowerGenome-data/data` was treated as relative and resolved
-  inside the settings folder.
+  inside the settings folder. `load_settings` also expands `~` in the settings
+  path itself, and `run_powergenome` expands `~` in `-sf/--settings_file` and
+  `-rf/--results_folder`, so the same path works in shells that leave `~`
+  unexpanded (quoted arguments on macOS/Linux, native commands in Windows
+  shells).
 
 ## [0.10.0] - 2026-11-16
 

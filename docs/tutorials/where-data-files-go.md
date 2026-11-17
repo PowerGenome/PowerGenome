@@ -132,9 +132,10 @@ The profiles deposit also has a
 if Zenodo is slow.
 
 !!! note "`~` expands to your home directory"
-    Path settings expand a leading `~`, so `~/PowerGenome-data/data` in YAML
-    means the same folder as `download_zenodo_data -d ~/PowerGenome-data/data`
-    on the command line. No absolute path is needed, though one still works.
+    Path settings and the `-sf`/`-rf` flags expand a leading `~`, so
+    `~/PowerGenome-data/data` in YAML means the same folder as
+    `download_zenodo_data -d ~/PowerGenome-data/data` on the command line. No
+    absolute path is needed, though one still works.
 
 Data releases are versioned by date (for example `2026.08.14.v1`) and each file
 carries its own element version. Zenodo keeps every version; check the release

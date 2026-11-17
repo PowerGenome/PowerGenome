@@ -184,7 +184,8 @@ A leading `~` always expands to your home directory before that relative/absolut
 decision, so `data_location: ~/PowerGenome-data/data` is used as-is instead of
 being joined to the settings folder. The same applies to `input_folder`,
 `RESOURCE_GROUPS`, `RESOURCE_GROUP_PROFILES`, `EFS_DATA`, and
-`DISTRIBUTED_GEN_DATA`.
+`DISTRIBUTED_GEN_DATA`, and to the `-sf`/`--settings_file` and
+`-rf`/`--results_folder` command-line paths.
 
 ## Validation and Debugging
 

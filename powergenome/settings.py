@@ -644,7 +644,7 @@ def load_settings(path: Union[str, Path]) -> dict:
         If the path does not exist or is not a file/directory.
     """
 
-    path = Path(path)
+    path = Path(path).expanduser()
     if path.is_file():
         with open(path, "r") as f:
             #     settings = yaml.safe_load(f)

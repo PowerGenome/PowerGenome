@@ -1621,6 +1621,21 @@ class TestExpandCapacityReserveValues:
         assert result["data_location"] == home / "PowerGenome-data/data"
         assert result["data_location"].is_absolute()
 
+    def test_tilde_settings_path_expands_to_home(self, tmp_path, monkeypatch):
+        """The settings path itself accepts ``~``, including on Windows shells."""
+        home = tmp_path / "home"
+        settings_folder = home / "study" / "settings"
+        settings_folder.mkdir(parents=True)
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setenv("USERPROFILE", str(home))
+
+        with open(settings_folder / "data.yml", "w") as f:
+            yaml.dump({"model_regions": ["p1"], "data_location": "data"}, f)
+
+        result = load_settings("~/study/settings")
+
+        assert result["data_location"] == home / "study" / "data"
+
     def test_integration_with_build_scenario_settings(self, tmp_path):
         """Test that expand_capacity_reserve_values works in scenario building."""
         # Create base settings
