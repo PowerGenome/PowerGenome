@@ -409,6 +409,59 @@ def test_complete_profiles_do_not_require_demand(monkeypatch):
     assert instance.results.capacity_mw.iloc[0] == 4
 
 
+def test_repeated_group_region_requests_share_one_cluster_computation():
+    instance = profile_assigner()
+    instance.results = pd.DataFrame(
+        {
+            "Resource": ["SD_wind_1", "SD_wind_2", "SD_wind_3"],
+            "technology": ["Onshore Wind Turbine"] * 3,
+            "region": ["SD"] * 3,
+            "capacity_mw": [1.0, 2.0, 3.0],
+            "profile": [None, None, None],
+        }
+    )
+    group = Mock()
+    group.profiles = object()
+    group.metadata.read.return_value = pd.DataFrame({"region": ["p32"]})
+    group.get_clusters.return_value = pd.DataFrame({"profile": [np.full(24, 0.4)]})
+    instance.cluster_builder.find_groups.return_value = [group]
+
+    instance._assign_existing_profiles()
+
+    group.get_clusters.assert_called_once()
+    for profile in instance.results["profile"]:
+        np.testing.assert_allclose(profile, np.full(24, 0.4))
+    # Rows must not share the cached array.
+    instance.results.at[0, "profile"][0] = 99.0
+    np.testing.assert_allclose(instance.results.profile.iloc[1], np.full(24, 0.4))
+
+
+def test_distinct_base_regions_are_clustered_separately():
+    instance = profile_assigner()
+    instance.settings["region_aggregations"] = {"SD": ["p32"], "ND": ["p33"]}
+    instance.results = pd.DataFrame(
+        {
+            "Resource": ["SD_wind_1", "ND_wind_1"],
+            "technology": ["Onshore Wind Turbine"] * 2,
+            "region": ["SD", "ND"],
+            "capacity_mw": [1.0, 2.0],
+            "profile": [None, None],
+        }
+    )
+    group = Mock()
+    group.profiles = object()
+    group.metadata.read.return_value = pd.DataFrame({"region": ["p32", "p33"]})
+    group.get_clusters.return_value = pd.DataFrame({"profile": [np.full(24, 0.4)]})
+    instance.cluster_builder.find_groups.return_value = [group]
+
+    instance._assign_existing_profiles()
+
+    assert group.get_clusters.call_count == 2
+    assert {
+        tuple(call.kwargs["regions"]) for call in group.get_clusters.call_args_list
+    } == {("p32",), ("p33",)}
+
+
 def test_no_load_lazily_loads_gross_demand_once(monkeypatch):
     instance = profile_assigner()
     instance.cluster_builder.find_groups.return_value = []
