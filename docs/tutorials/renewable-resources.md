@@ -100,7 +100,9 @@ The JSON contains these filenames:
 The metadata's `cpa_id` identifies candidate sites, `region` identifies location,
 `capacity_mw` is available MW, `cf` is a fractional capacity factor, and `lcoe`
 is the input cost-screening feature. `interconnect_annuity` and
-`interconnect_capex_mw` supply site-specific interconnection costs.
+`interconnect_capex_mw` supply site-specific interconnection costs, which
+PowerGenome converts to `target_usd_year` using each row's `dollar_year` column or
+the optional `resource_group_dollar_year` setting.
 
 The profiles are tidy `site_id,time_index,value,weather_year` rows. The site map
 connects metadata `cpa_id` to `profile_id`; it lives alongside the profiles in

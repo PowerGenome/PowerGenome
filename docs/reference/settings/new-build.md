@@ -259,7 +259,7 @@ Use cases:
 
 Flexible specification of per-MW interconnection capital cost (USD/MW) applied to new and existing resources. Replaces the deprecated spur line mileage system (`transmission_investment_cost` with `capacity_limit_spur_fn` file).
 
-**Important**: All cost values must be in the same dollar year as `target_usd_year` (the target dollar year for cost normalization). PowerGenome does not automatically adjust interconnection costs for inflation.
+**Important**: All cost values must be in the same dollar year as `target_usd_year` (the target dollar year for cost normalization). PowerGenome does not adjust these settings values for inflation; the resource-group metadata costs described in [`resource_group_dollar_year`](#resource_group_dollar_year) are converted separately.
 
 **Supported Patterns**:
 
@@ -375,6 +375,38 @@ You may still use the older top-level `default` style for backward compatibility
   - Pre-existing capex rows with zero/blank annuity
 - **Financial parameters**: Annuity calculation uses plant-specific `wacc_real` and `cap_recovery_years` from the resource dataframe
 - **Legacy bypass**: When `interconnect_capex_mw` is provided, legacy spur mileage columns (`spur_miles`, `offshore_spur_miles`, `tx_miles`) are ignored (warning logged if present)
+
+### `resource_group_dollar_year`
+
+**Type**: Integer
+**Required**: No
+**Default**: None (costs are not converted)
+**Example**: `2017`
+
+Dollar year of the interconnection costs (`interconnect_capex_mw`, `interconnect_annuity`)
+in your resource group site metadata. PowerGenome converts those values to
+`target_usd_year` before filtering, binning, and clustering sites, so the costs that
+end up in `Inv_Cost_per_MWyr` match the rest of the model.
+
+A `dollar_year` column in the site metadata takes precedence for every row that has a
+value, which lets one file mix vintages. This setting is only the fallback used when the
+metadata has no column, or when individual rows are blank.
+
+```yaml
+target_usd_year: 2020
+resource_group_dollar_year: 2017
+```
+
+Behavior:
+
+- Conversion applies to the flexible site-clustering path (`renewables_clusters`) and to
+  the legacy preclustered path (`precluster_renewables` / `max_clusters` / `max_lcoe`).
+- If neither a `dollar_year` column nor this setting is available, costs are used as given
+  and a warning is logged — existing studies are not changed silently.
+- Values provided by `interconnect_capex_mw` in settings are **not** converted; they must
+  already be in `target_usd_year` dollars.
+- Cluster cache entries include `target_usd_year` and this fallback year, so changing
+  either one rebuilds the affected clusters.
 
 **Migration from Legacy System**:
 

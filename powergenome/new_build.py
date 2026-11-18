@@ -18,7 +18,10 @@ from powergenome.cluster.renewables import (
     modify_renewable_group,
 )
 from powergenome.database import get_data
-from powergenome.financials import investment_cost_calculator
+from powergenome.financials import (
+    adjust_interconnect_dollar_year,
+    investment_cost_calculator,
+)
 from powergenome.params import DATA_PATHS, SETTINGS, build_resource_clusters
 from powergenome.price_adjustment import inflation_price_adjustment
 from powergenome.resource_clusters import (
@@ -1111,7 +1114,7 @@ def parallel_region_renewables(
 
 
 def load_resource_group_data(
-    rg: ResourceGroup, cache=True
+    rg: ResourceGroup, cache=True, settings: dict = None
 ) -> Tuple[pd.DataFrame, Union[pd.Series, None]]:
     """Load metadata for the specified resource group.
 
@@ -1119,12 +1122,21 @@ def load_resource_group_data(
     interconnection cost, etc. If the resource group has the attribute "site_map", then
     a mapping of site IDs to generation profile IDs is also returned.
 
+    Interconnection costs (``interconnect_capex_mw`` and ``interconnect_annuity``) are
+    converted to ``target_usd_year`` when the metadata has a ``dollar_year`` column or
+    the settings include ``resource_group_dollar_year``. Without either, the values are
+    left in their original dollar year and a warning is logged.
+
     Parameters
     ----------
     rg : ResourceGroup
         A resource group object
     cache : bool, optional
         A flag indicating whether to cache the data, by default True
+    settings : dict, optional
+        User-defined parameters. ``target_usd_year`` is the dollar year that costs are
+        converted to and ``resource_group_dollar_year`` is the fallback dollar year of
+        the metadata when it has no ``dollar_year`` column.
 
     Returns
     -------
@@ -1132,12 +1144,18 @@ def load_resource_group_data(
         A tuple of the metadata dataframe and the site map as a Series with site ID as
         the index
     """
-    data = rg.metadata.read(cache=cache)
+    data = rg.metadata.read(cache=cache).copy()
     data.columns = snake_case_col(data.columns)
     if "metro_region" in data.columns and "region" not in data.columns:
         data["region"] = data.loc[:, "metro_region"]
     if "cpa_mw" in data.columns and "capacity_mw" not in data.columns:
         data["capacity_mw"] = data.loc[:, "cpa_mw"]
+    settings = settings or {}
+    data = adjust_interconnect_dollar_year(
+        data,
+        target_usd_year=settings.get("target_usd_year"),
+        fallback_dollar_year=settings.get("resource_group_dollar_year"),
+    )
     data = data.loc[data["capacity_mw"] > 0, :]
     if rg.group.get("profiles"):
         profile_path = Path(rg.group["profiles"])
@@ -1184,6 +1202,40 @@ def flatten_cluster_def(
         detail_suffix += f"{scenario}_"
 
     return detail_suffix
+
+
+def _resource_cluster_cache_names(
+    region: str,
+    technology: str,
+    detail_suffix: str,
+    utc_offset: Union[int, float],
+    weather_year: Union[int, str],
+    data_file_hash: str,
+    target_usd_year: Union[int, None] = None,
+    resource_group_dollar_year: Union[int, None] = None,
+) -> Tuple[str, str]:
+    """Return the descriptive cache name and its hash for a renewables cluster.
+
+    The target dollar year and the fallback resource group dollar year are part of
+    the key because interconnection costs from the resource group metadata are
+    converted to the target year before aggregating sites into clusters. A per-row
+    ``dollar_year`` column is covered by ``data_file_hash``.
+
+    Returns
+    -------
+    Tuple[str, str]
+        The name written to ``hash_map.csv`` and the hash used for cache filenames.
+    """
+    year_suffix = f"_usd{target_usd_year}_rgusd{resource_group_dollar_year}"
+    name = (
+        f"{region}_{technology}_{detail_suffix}_UTC{utc_offset}{year_suffix}"
+        f"_file_{data_file_hash}"
+    )
+    unique_hash = hash_string_sha256(
+        f"{region}_{technology}_{detail_suffix}_UTC{utc_offset}"
+        f"_weather_year{weather_year}{year_suffix}_file_{data_file_hash}"
+    )
+    return name, unique_hash
 
 
 def add_renewables_clusters(
@@ -1343,8 +1395,15 @@ def add_renewables_clusters(
         else:
             data_file_hash = "no_data"
 
-        unique_hash = hash_string_sha256(
-            f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_weather_year{settings.get('weather_year','all')}_file_{data_file_hash}"
+        cache_name, unique_hash = _resource_cluster_cache_names(
+            region=region,
+            technology=technology,
+            detail_suffix=detail_suffix,
+            utc_offset=settings.get("utc_offset", 0),
+            weather_year=settings.get("weather_year", "all"),
+            data_file_hash=data_file_hash,
+            target_usd_year=settings.get("target_usd_year"),
+            resource_group_dollar_year=settings.get("resource_group_dollar_year"),
         )
         cache_cluster_fn = unique_hash + "_cluster_data.parquet"
         cache_site_assn_fn = unique_hash + "_site_assn.parquet"
@@ -1372,7 +1431,7 @@ def add_renewables_clusters(
                     "profiles_sha256",
                 ],
                 new_row=[
-                    f"{region}_{technology}_{detail_suffix}_UTC{settings.get('utc_offset', 0)}_file_{data_file_hash}",
+                    cache_name,
                     unique_hash,
                     str(metadata_path),
                     str(profiles_path),
@@ -1405,7 +1464,7 @@ def add_renewables_clusters(
                         f"Parameters match multiple resource groups: {meta}"
                     )
                 renew_data, site_map = load_resource_group_data(
-                    resource_groups[0], cache=False
+                    resource_groups[0], cache=False, settings=settings
                 )
                 logger.debug(f"Loaded resource group data from {resource_groups[0]}")
                 data = assign_site_cluster(
@@ -1460,6 +1519,8 @@ def add_renewables_clusters(
                         existing=False,
                         utc_offset=settings.get("utc_offset", 0),
                         weather_year=settings.get("weather_year"),
+                        target_usd_year=settings.get("target_usd_year"),
+                        dollar_year=settings.get("resource_group_dollar_year"),
                     )
                     .rename(columns={"capacity_mw": "Max_Cap_MW"})
                     .assign(technology=technology, region=region)
