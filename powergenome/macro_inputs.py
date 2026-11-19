@@ -65,9 +65,16 @@ FINANCIAL_COLUMNS = [
 ]
 
 # Macro reads a retirement floor from different keys depending on the asset.
-# ThermalPower, VRE and MustRun accept the bare ``min_retired_capacity``, while
-# Battery resolves the storage vertex and the discharge edge separately and has
-# no bare-key fallback (MacroEnergy 0.3.0-dev11, ``src/model/assets/battery.jl``).
+# ThermalPower, VRE and MustRun add a bare ``(data, key)`` fallback to their
+# ``@process_data`` lists, so they accept ``min_retired_capacity``. Battery and
+# HydroRes do not: both resolve their storage vertex as
+# ``data[:storage][key]`` / ``data[:storage]["storage_<key>"]`` /
+# ``data["storage_<key>"]`` and their edges as ``data[:edges][<edge>][key]`` /
+# ``data[:edges][<edge>]["discharge_<key>"]`` / ``data["discharge_<key>"]``,
+# with no bare-key fallback (MacroEnergy 0.3.0-dev11,
+# ``src/model/assets/battery.jl:125-133,196-205`` and
+# ``src/model/assets/hydrores.jl:89-96,119-126``; contrast
+# ``src/model/assets/thermalpower.jl:131-138``).
 DEFAULT_RETIRED_CAPACITY_KEYS = {"Min_Retired_Cap_MW": "min_retired_capacity"}
 
 STORAGE_RETIRED_CAPACITY_KEYS = {
@@ -75,9 +82,10 @@ STORAGE_RETIRED_CAPACITY_KEYS = {
     "Min_Retired_Energy_Cap_MW": "storage_min_retired_capacity",
 }
 
-# Battery financial columns. The bare ``min_retired_capacity`` that
-# ``FINANCIAL_COLUMNS`` carries is deliberately absent: Macro's Battery parser
-# ignores it, so writing it would silently drop every storage retirement floor.
+# Financial columns for Macro's storage-family assets (Battery and HydroRes).
+# The bare ``min_retired_capacity`` that ``FINANCIAL_COLUMNS`` carries is
+# deliberately absent: neither parser reads it, so writing it would leave every
+# storage retirement floor silently ignored.
 STORAGE_FINANCIAL_COLUMNS = [
     "wacc",
     "capital_recovery_period",
@@ -221,7 +229,7 @@ HYDRO_COLUMNS = [
     "storage_max_duration",
     "discharge_capacity_size",
     "storage_charge_discharge_ratio",
-    *FINANCIAL_COLUMNS,
+    *STORAGE_FINANCIAL_COLUMNS,
 ]
 
 MUST_RUN_COLUMNS = [
@@ -345,8 +353,10 @@ def _financial_attrs(
 
     ``retired_capacity_keys`` maps GenX retirement columns onto the keys a given
     asset type actually reads. It defaults to the bare ``min_retired_capacity``
-    that ThermalPower, VRE and MustRun accept; Battery must pass
-    ``STORAGE_RETIRED_CAPACITY_KEYS`` instead.
+    that ThermalPower, VRE and MustRun accept (each adds a bare ``(data, key)``
+    fallback). Battery and HydroRes must pass
+    ``STORAGE_RETIRED_CAPACITY_KEYS`` instead: their parsers have no bare-key
+    fallback, so an unprefixed value is silently ignored.
     """
     mapping = {
         "WACC": "wacc",
@@ -758,7 +768,7 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                 # discharge capacity_size = 1.0 for hydro.
                 "discharge_capacity_size": 1.0,
                 "storage_charge_discharge_ratio": 1.0,
-                **_financial_attrs(row),
+                **_financial_attrs(row, STORAGE_RETIRED_CAPACITY_KEYS),
             }
         )
     return pd.DataFrame(records, columns=HYDRO_COLUMNS)

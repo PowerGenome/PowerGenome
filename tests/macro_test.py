@@ -580,6 +580,23 @@ def test_hydro_csv_availability_columns(gen_df):
     assert hydro_df.loc[0, "discharge_capacity_size"] == 1.0
 
 
+def test_hydro_csv_retirement_floors_use_storage_keys(gen_df):
+    """HydroRes retirement floors use the same prefixed keys as Battery.
+
+    Macro's HydroRes parser resolves storage and edge keys through
+    ``storage_<key>`` / ``discharge_<key>`` with no bare ``(data, key)``
+    fallback, so a bare ``min_retired_capacity`` was silently ignored.
+    """
+    df = gen_df.copy()
+    df.loc[df["Resource"] == "hydro_1", "Min_Retired_Cap_MW"] = 450.0
+    df.loc[df["Resource"] == "hydro_1", "Min_Retired_Energy_Cap_MW"] = 2700.0
+    hydro_df = make_hydro_csv(df)
+
+    assert "min_retired_capacity" not in hydro_df.columns
+    assert hydro_df.loc[0, "discharge_min_retired_capacity"] == 450.0
+    assert hydro_df.loc[0, "storage_min_retired_capacity"] == 2700.0
+
+
 def test_mustrun_csv_availability_columns(gen_df):
     mustrun_df = make_mustrun_csv(gen_df)
     assert list(mustrun_df["id"]) == ["mustrun_1"]
