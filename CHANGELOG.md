@@ -7,6 +7,41 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Multi-period Macro cases now enforce the planned retirement requirements that
+  GenX enforces, so their objectives increase. For the TX-3-zone example the
+  objective rises about 20% (2.021e10 to 2.432e10) because the previous output
+  let capacity dispatch that GenX requires to be retired. The Macro writer now
+  agrees with the GenX→Macro converted case to 0.0002% with no manual
+  re-encoding of either side. Anyone comparing against saved Macro results from
+  an earlier version should expect higher objectives.
+
+### Fixed
+
+- Battery and HydroRes retirement floors were written to a
+  `min_retired_capacity` column that Macro never reads for those asset types,
+  so every storage retirement requirement was silently dropped. Macro's
+  `Battery` and `HydroRes` parsers resolve the storage vertex and their edges
+  through `storage_<key>` / `discharge_<key>` and have no bare-key fallback
+  (unlike `ThermalPower`, `VRE` and `MustRun`, which do). These assets now
+  write `discharge_min_retired_capacity` from `Min_Retired_Cap_MW` and
+  `storage_min_retired_capacity` from `Min_Retired_Energy_Cap_MW`. In the
+  TX-3-zone case this restores a 5423.2 MW battery retirement floor that the
+  solved model had been ignoring entirely.
+- Multi-period thermal retirement floors were capped at the resource's
+  `Existing_Cap_MW`. That cap suits GenX, where the column is the capacity left
+  at the end of the stage, but Macro's floor is cumulative against the capacity
+  carried forward from the first period, so the cap relaxed the requirement by
+  exactly the amount already retired. `min_retired_capacity` is now written
+  unchanged, which makes Macro's accumulated track equal the cumulative
+  retirement through each period. Three TX-3-zone gas units had been
+  under-retired (3380→2396, 397→46.2, 1105→0 MW).
+- MustRun assets omitted variable O&M, so Macro defaulted it to zero and
+  must-run plants generated for free. `variable_om_cost` is now written from
+  `Var_OM_Cost_per_MWh`, closing a $186,864 difference over two periods in the
+  TX-3-zone case.
+
 ## [0.10.1] - 2026-11-17
 
 ### Fixed
