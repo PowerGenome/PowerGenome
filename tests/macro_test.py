@@ -504,6 +504,34 @@ def test_storage_csv_retirement_floors_use_battery_keys(gen_df):
     assert asym["storage_min_retired_capacity"] == 0.0
 
 
+def test_storage_csv_financing_uses_component_keys(gen_df, tmp_path):
+    battery = gen_df.loc[gen_df["Resource"] == "batt_asym"].assign(
+        WACC=0.05, Capital_Recovery_Period=15, Lifetime=20
+    )
+    path = tmp_path / "electricity_stor.csv"
+    make_storage_csv(battery).to_csv(path, index=False)
+    stored = pd.read_csv(path)
+
+    for field, value in (
+        ("wacc", 0.05),
+        ("capital_recovery_period", 15),
+        ("lifetime", 20),
+    ):
+        assert field not in stored.columns
+        for component in ("storage", "discharge", "charge"):
+            assert stored.loc[0, f"{component}_{field}"] == value
+
+    no_finance = make_storage_csv(
+        battery.drop(columns=["WACC", "Capital_Recovery_Period", "Lifetime"])
+    )
+    assert (
+        no_finance.filter(regex="_(wacc|capital_recovery_period|lifetime)$")
+        .isna()
+        .all()
+        .all()
+    )
+
+
 def test_thermal_csv_keeps_retirement_requirement_above_stage_existing(gen_df):
     """Thermal rows keep a retirement floor larger than the stage's capacity.
 
@@ -660,11 +688,25 @@ def test_make_powerlines_csv(network):
     assert tx_df.loc[0, "max_capacity"] == 750.0
     assert tx_df.loc[0, "existing_capacity"] == 500.0
     assert tx_df.loc[1, "max_capacity"] == 500.0
+    assert (
+        tx_df["transmission_constraints--MaxNewCapacityConstraint"] == "FALSE"
+    ).all()
+    assert tx_df["max_new_capacity"].isna().all()
     # financial attributes carried through from the GenX network columns
     assert list(tx_df["wacc"]) == [0.044, 0.044]
     assert list(tx_df["capital_recovery_period"]) == [60.0, 60.0]
     # No GenX per-line Lifetime: lifetime falls back to capital_recovery_period
     assert list(tx_df["lifetime"]) == [60.0, 60.0]
+
+
+def test_make_multistage_powerlines_csv_without_total_limit(network):
+    network["Line_Max_Reinforcement_MW"] = [250.0, -1.0]
+    tx_df = make_powerlines_csv(network, multistage=True)
+
+    assert (tx_df["transmission_constraints--MaxCapacityConstraint"] == "FALSE").all()
+    assert tx_df["max_capacity"].isna().all()
+    assert (tx_df["transmission_constraints--MaxNewCapacityConstraint"] == "TRUE").all()
+    assert tx_df["max_new_capacity"].tolist() == [250.0, 0.0]
 
 
 def test_make_powerlines_csv_no_financial_cols():
@@ -1255,10 +1297,13 @@ def test_macro_case_builder_multistage(
         "gen_variability": gen_variability,
         "demand_data": demand_data,
         "fuels": fuels,
-        "network": network,
+        "network": network.assign(Line_Max_Flow_Possible_MW=[1200.0, 500.0]),
     }
     builder.add_stage(1, stage1_data, settings)
-    builder.add_stage(2, stage1_data, settings)
+    stage2_network = stage1_data["network"].assign(
+        Line_Max_Reinforcement_MW=[300.0, 0.0]
+    )
+    builder.add_stage(2, {**stage1_data, "network": stage2_network}, settings)
     builder.finalize()
 
     # case entries sorted with assets/assets_N paths
@@ -1273,7 +1318,7 @@ def test_macro_case_builder_multistage(
     assert cs["PeriodLengths"] == [1, 1]
 
     # both stages fully materialized with per-stage file numbers
-    for i in (1, 2):
+    for i, reinforcement in enumerate((250.0, 300.0), start=1):
         assert (tmp_path / "assets" / f"assets_{i}" / "vre.csv").is_file()
         assert (tmp_path / "assets" / f"assets_{i}" / "naturalgas_power.csv").is_file()
         assert (tmp_path / "system" / f"nodes_{i}.json").is_file()
@@ -1281,6 +1326,11 @@ def test_macro_case_builder_multistage(
         assert (tmp_path / "system" / f"demand_{i}.csv").is_file()
         assert (tmp_path / "system" / f"availability_{i}.csv").is_file()
         assert (tmp_path / "system" / f"fuel_prices_{i}.csv").is_file()
+        powerlines = pd.read_csv(tmp_path / "assets" / f"assets_{i}" / "powerlines.csv")
+        assert powerlines["transmission_constraints--MaxCapacityConstraint"].all()
+        assert powerlines["transmission_constraints--MaxNewCapacityConstraint"].all()
+        assert powerlines["max_capacity"].tolist() == [1200.0, 500.0]
+        assert powerlines["max_new_capacity"].tolist() == [reinforcement, 0.0]
 
     # assets reference the per-stage availability CSV
     vre1 = pd.read_csv(tmp_path / "assets/assets_1/vre.csv")

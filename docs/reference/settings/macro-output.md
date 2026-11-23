@@ -32,6 +32,13 @@ generators, transmission, demand, fuel supply, and CO2 caps follows the GenX-to-
 branch). Thermal CCS resources are supported; broader cross-sector hydrogen and
 liquid-fuel assets are not emitted.
 
+For multiple planning stages, transmission reinforcement is limited by
+`Line_Max_Reinforcement_MW` in each stage, and total line capacity is limited by
+`Line_Max_Flow_Possible_MW` when supplied. A single-stage case instead caps total
+capacity at existing capacity plus the reinforcement allowance. Battery assets
+write WACC, capital recovery period, and lifetime separately for the energy
+storage, discharge, and charge components.
+
 GenX output is **not** disabled by this setting — see [`genx_output`](#genx_output).
 
 ## `genx_output`

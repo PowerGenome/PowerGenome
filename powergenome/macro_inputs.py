@@ -57,12 +57,12 @@ FUEL_COMMODITIES = {
 # Financial attributes added by the multistage GenX_to_Macro conversion
 # (get_wacc_and_crp / Resource_multistage_data.csv). Macro has built-in
 # defaults for these, so blank cells fall back gracefully.
-FINANCIAL_COLUMNS = [
-    "wacc",
-    "capital_recovery_period",
-    "lifetime",
-    "min_retired_capacity",
-]
+FINANCING_KEYS = {
+    "WACC": "wacc",
+    "Capital_Recovery_Period": "capital_recovery_period",
+    "Lifetime": "lifetime",
+}
+FINANCIAL_COLUMNS = [*FINANCING_KEYS.values(), "min_retired_capacity"]
 
 # Macro reads a retirement floor from different keys depending on the asset.
 # ThermalPower, VRE and MustRun add a bare ``(data, key)`` fallback to their
@@ -82,16 +82,15 @@ STORAGE_RETIRED_CAPACITY_KEYS = {
     "Min_Retired_Energy_Cap_MW": "storage_min_retired_capacity",
 }
 
-# Financial columns for Macro's storage-family assets (Battery and HydroRes).
-# The bare ``min_retired_capacity`` that ``FINANCIAL_COLUMNS`` carries is
-# deliberately absent: neither parser reads it, so writing it would leave every
-# storage retirement floor silently ignored.
-STORAGE_FINANCIAL_COLUMNS = [
-    "wacc",
-    "capital_recovery_period",
-    "lifetime",
-    "discharge_min_retired_capacity",
-    "storage_min_retired_capacity",
+BATTERY_COMPONENTS = ("storage", "discharge", "charge")
+
+BATTERY_FINANCIAL_COLUMNS = [
+    *(
+        f"{component}_{key}"
+        for component in BATTERY_COMPONENTS
+        for key in FINANCING_KEYS.values()
+    ),
+    *STORAGE_RETIRED_CAPACITY_KEYS.values(),
 ]
 
 # simpleCSV column layouts (order is preserved when writing CSVs).
@@ -192,7 +191,7 @@ STORAGE_COLUMNS = [
     "charge_can_retire",
     "charge_can_expand",
     "discharge_capacity_size",
-    *STORAGE_FINANCIAL_COLUMNS,
+    *BATTERY_FINANCIAL_COLUMNS,
 ]
 
 HYDRO_COLUMNS = [
@@ -229,7 +228,8 @@ HYDRO_COLUMNS = [
     "storage_max_duration",
     "discharge_capacity_size",
     "storage_charge_discharge_ratio",
-    *STORAGE_FINANCIAL_COLUMNS,
+    *FINANCING_KEYS.values(),
+    *STORAGE_RETIRED_CAPACITY_KEYS.values(),
 ]
 
 MUST_RUN_COLUMNS = [
@@ -251,7 +251,9 @@ TRANSMISSION_COLUMNS = [
     "Type",
     "id",
     "transmission_constraints--MaxCapacityConstraint",
+    "transmission_constraints--MaxNewCapacityConstraint",
     "max_capacity",
+    "max_new_capacity",
     "transmission_origin",
     "loss_fraction",
     "existing_capacity",
@@ -325,7 +327,10 @@ def _format_bool(value) -> str:
 
 
 def _financial_attrs(
-    row: pd.Series, retired_capacity_keys: Optional[Dict[str, str]] = None
+    row: pd.Series,
+    retired_capacity_keys: Optional[Dict[str, str]] = None,
+    *,
+    financing_components: tuple[str, ...] = (),
 ) -> dict:
     """Return the multistage financial attributes, when the generator has them.
 
@@ -357,18 +362,20 @@ def _financial_attrs(
     fallback). Battery and HydroRes must pass
     ``STORAGE_RETIRED_CAPACITY_KEYS`` instead: their parsers have no bare-key
     fallback, so an unprefixed value is silently ignored.
+
+    ``financing_components`` writes WACC, recovery period and lifetime for each
+    named component instead of as bare keys, which the Battery parser ignores.
     """
-    mapping = {
-        "WACC": "wacc",
-        "Capital_Recovery_Period": "capital_recovery_period",
-        "Lifetime": "lifetime",
-    }
+    out = {}
+    for pg_col, macro_col in FINANCING_KEYS.items():
+        if pg_col in row.index and row.get(pg_col) is not None:
+            if financing_components:
+                for component in financing_components:
+                    out[f"{component}_{macro_col}"] = row[pg_col]
+            else:
+                out[macro_col] = row[pg_col]
     if retired_capacity_keys is None:
         retired_capacity_keys = DEFAULT_RETIRED_CAPACITY_KEYS
-    out = {}
-    for pg_col, macro_col in mapping.items():
-        if pg_col in row.index and row.get(pg_col) is not None:
-            out[macro_col] = row.get(pg_col)
     for pg_col, macro_col in retired_capacity_keys.items():
         if pg_col in row.index:
             out[macro_col] = _num(row.get(pg_col), 0.0)
@@ -688,7 +695,11 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 # hardcodes storage/charge/discharge capacity_size = 1.0 (Macro's
                 # default), rather than GenX's Cap_Size cluster size.
                 "discharge_capacity_size": 1.0,
-                **_financial_attrs(row, STORAGE_RETIRED_CAPACITY_KEYS),
+                **_financial_attrs(
+                    row,
+                    STORAGE_RETIRED_CAPACITY_KEYS,
+                    financing_components=BATTERY_COMPONENTS,
+                ),
             }
         )
     return pd.DataFrame(records, columns=STORAGE_COLUMNS)
@@ -808,8 +819,10 @@ def make_mustrun_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFram
     return pd.DataFrame(records, columns=MUST_RUN_COLUMNS)
 
 
-def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
-    """Build the TransmissionLink simpleCSV asset file from the GenX network df."""
+def make_powerlines_csv(
+    network: pd.DataFrame, *, multistage: bool = False
+) -> pd.DataFrame:
+    """Write total line limits and, for multistage cases, limits on stage additions."""
     if network is None or network.empty:
         return pd.DataFrame(columns=TRANSMISSION_COLUMNS)
     records = []
@@ -821,8 +834,13 @@ def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
         if pd.isna(start) or pd.isna(dest):
             continue
         max_flow = _num(_gen_value(row, "Line_Max_Flow_MW", 0.0), 0.0)
-        reinforcement = (
-            _num(_gen_value(row, "Line_Max_Reinforcement_MW", np.nan), 0.0) or 0.0
+        reinforcement = max(
+            0.0, _num(_gen_value(row, "Line_Max_Reinforcement_MW"), 0.0)
+        )
+        max_capacity = (
+            _num(_gen_value(row, "Line_Max_Flow_Possible_MW"))
+            if multistage
+            else max_flow + reinforcement
         )
         financial = _financial_attrs(row)
         # GenX provides no per-line Lifetime for transmission. Fall back to
@@ -834,8 +852,14 @@ def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
             {
                 "Type": TRANSMISSION_TYPE,
                 "id": f"{start}_to_{dest}",
-                "transmission_constraints--MaxCapacityConstraint": "TRUE",
-                "max_capacity": max_flow + reinforcement,
+                "transmission_constraints--MaxCapacityConstraint": _format_bool(
+                    max_capacity is not None
+                ),
+                "transmission_constraints--MaxNewCapacityConstraint": _format_bool(
+                    multistage
+                ),
+                "max_capacity": max_capacity,
+                "max_new_capacity": reinforcement if multistage else None,
                 "transmission_origin": f"elec_{start}",
                 "loss_fraction": _num(
                     _gen_value(row, "Line_Loss_Percentage", 0.0), 0.0
@@ -1509,7 +1533,9 @@ class MacroCaseBuilder:
         # Per-stage files.
         for stage in stages:
             case_year_data, settings = self._stage_data[stage]
-            self._write_stage(stage, case_year_data, settings)
+            self._write_stage(
+                stage, case_year_data, settings, multistage=len(stages) > 1
+            )
 
         # Shared / case-level files.
         with open(system_folder / "commodities.json", "w") as f:
@@ -1545,7 +1571,9 @@ class MacroCaseBuilder:
                 make_system_data_json(stages, assets_folder="assets"), f, indent=4
             )
 
-    def _write_stage(self, stage_number, case_year_data, settings) -> None:
+    def _write_stage(
+        self, stage_number, case_year_data, settings, *, multistage: bool
+    ) -> None:
         """Write every file belonging to a single stage."""
         system_folder = self._system_folder
         assets_folder = self.case_root / "assets" / f"assets_{stage_number}"
@@ -1588,7 +1616,7 @@ class MacroCaseBuilder:
             df.to_csv(assets_folder / file_name, index=False)
 
         if network is not None and not network.empty:
-            tx_df = make_powerlines_csv(network)
+            tx_df = make_powerlines_csv(network, multistage=multistage)
             if not tx_df.empty:
                 tx_df.to_csv(assets_folder / "powerlines.csv", index=False)
 

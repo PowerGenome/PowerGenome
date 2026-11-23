@@ -41,6 +41,10 @@ and this project adheres to Semantic Versioning.
   must-run plants generated for free. `variable_om_cost` is now written from
   `Var_OM_Cost_per_MWh`, closing a $186,864 difference over two periods in the
   TX-3-zone case.
+- Multi-stage Macro transmission limits now cap reinforcement per stage and
+  total capacity separately, so additions can carry forward and accumulate.
+- Macro battery financing now uses component-specific keys for WACC, capital
+  recovery period, and lifetime instead of falling back to Macro defaults.
 
 ## [0.10.1] - 2026-11-17
 
