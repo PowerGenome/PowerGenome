@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -2894,6 +2894,10 @@ current working directory. The published Texas settings require running from
 the <strong>examples root</strong>, not inside <code>example_systems/TX-3-zone/</code>. By contrast,
 <code>data_location</code> and <code>input_folder</code> resolve relative to the parent of the settings
 directory.</p>
+<p>Files named <code>manifest.json</code> are reserved for dataset bundle metadata (for
+example <code>data_version</code>, <code>manifest_version</code>, and <code>files</code> in the PowerGenome-data
+bundle). Resource-group discovery ignores them at any depth, so a bundle
+manifest can sit alongside your resource-group definitions.</p>
 <h3 id="required-columns">Required Columns<a class="headerlink" href="#required-columns" title="Permanent link">&para;</a></h3>
 <p>These requirements describe flexible site clustering, not legacy preclustered
 resource trees. Column names are normalized to snake case when loaded; for
