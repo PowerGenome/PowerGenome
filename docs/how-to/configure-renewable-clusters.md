@@ -60,6 +60,11 @@ the **examples root**, not inside `example_systems/TX-3-zone/`. By contrast,
 `data_location` and `input_folder` resolve relative to the parent of the settings
 directory.
 
+Files named `manifest.json` are reserved for dataset bundle metadata (for
+example `data_version`, `manifest_version`, and `files` in the PowerGenome-data
+bundle). Resource-group discovery ignores them at any depth, so a bundle
+manifest can sit alongside your resource-group definitions.
+
 ### Required Columns
 
 These requirements describe flexible site clustering, not legacy preclustered
