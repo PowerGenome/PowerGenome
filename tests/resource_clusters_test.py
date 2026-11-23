@@ -449,7 +449,7 @@ class TestBuildResourceClusters:
             json.dumps({"technology": "utilitypv", "metadata": "meta.csv"})
         )
         (g / "meta.csv").write_text("id,region,capacity_mw\n1,A,10\n")
-        (nested / "MANIFEST.JSON").write_text(
+        (nested / "MANIFEST.json").write_text(
             json.dumps({"manifest_version": 1, "files": []})
         )
 
