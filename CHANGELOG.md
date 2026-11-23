@@ -7,6 +7,14 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Resource-group discovery no longer treats a dataset bundle's `manifest.json`
+  as a resource-group definition. `build_resource_clusters` skips files named
+  `manifest.json` (case-insensitive, at any depth) under `RESOURCE_GROUPS`, so
+  the PowerGenome-data bundle manifest can remain in the resource-group folder.
+  Invalid resource-group definitions still raise a validation error.
+
 ## [0.10.1] - 2026-11-17
 
 ### Fixed
