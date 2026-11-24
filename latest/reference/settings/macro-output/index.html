@@ -2454,6 +2454,16 @@ generators, transmission, demand, fuel supply, and CO2 caps follows the GenX-to-
 (<code>EmilDimanchev/GenX_to_Macro</code>; multistage runs follow the <code>lb/multistage</code>
 branch). Thermal CCS resources are supported; broader cross-sector hydrogen and
 liquid-fuel assets are not emitted.</p>
+<p>With multi-period output enabled and multiple planning stages, reinforcement is limited by
+<code>Line_Max_Reinforcement_MW</code> in each stage, and total line capacity is limited by
+<code>Line_Max_Flow_Possible_MW</code> when supplied. If that total limit is below installed
+capacity, Macro output preserves available capacity and disables reinforcement for
+that stage. A single-stage case, or a run with <code>--no-multi-period</code>, instead caps
+total capacity at existing capacity plus the reinforcement allowance. The flag
+does not remove planning stages.</p>
+<p>Battery assets write WACC, capital recovery period, and lifetime separately for
+the energy storage, discharge, and charge components. Run-of-river hydro carries
+the discharge retirement floor but no storage energy retirement floor.</p>
 <p>GenX output is <strong>not</strong> disabled by this setting — see <a href="#genx_output"><code>genx_output</code></a>.</p>
 <h2 id="genx_output"><code>genx_output</code><a class="headerlink" href="#genx_output" title="Permanent link">&para;</a></h2>
 <p><strong>Type</strong>: bool
@@ -2506,7 +2516,7 @@ output is enabled; existing behavior is unchanged when these keys are absent.</p
 <td>list[int]</td>
 <td>derived</td>
 <td><code>settings/case_settings.json</code></td>
-<td><code>PeriodLengths</code>, one entry per stage. Derived from PowerGenome's planning-period definitions (<code>model_periods</code>, or the paired <code>model_first_planning_year</code>/<code>model_year</code>); an explicit value overrides the derived one.</td>
+<td><code>PeriodLengths</code>, one entry per stage. By default, each stage uses its own planning start and end years, counted inclusively. For example, 2026–2030 and 2031–2040 produce <code>[5, 10]</code>. An explicit list overrides derivation.</td>
 </tr>
 <tr>
 <td><code>macro_constraint_scaling</code></td>
