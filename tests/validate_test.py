@@ -24,6 +24,7 @@ from powergenome.validate import (
     _check_paths_exist,
     _check_region_consistency,
     _check_required_keys,
+    _check_resource_group_dollar_year,
     _check_transmission_regions,
     _check_year_list_consistency,
     _extract_planning_periods,
@@ -290,6 +291,35 @@ class TestCheckYearListConsistency:
     def test_legacy_non_numeric_values_are_ignored(self):
         s = {"model_year": ["bad"], "model_first_planning_year": [2025]}
         assert _check_year_list_consistency(s) == []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 1 — _check_resource_group_dollar_year
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestCheckResourceGroupDollarYear:
+    def test_unset_is_valid(self):
+        assert _check_resource_group_dollar_year({}) == []
+
+    @pytest.mark.parametrize("value", [2017, "2017", 2017.0])
+    def test_integer_like_values_are_valid(self, value):
+        assert (
+            _check_resource_group_dollar_year({"resource_group_dollar_year": value})
+            == []
+        )
+
+    def test_year_keyed_dict_is_deferred(self):
+        s = {"resource_group_dollar_year": {2030: 2017}}
+        assert _check_resource_group_dollar_year(s) == []
+
+    def test_non_numeric_value_is_an_error(self):
+        results = _check_resource_group_dollar_year(
+            {"resource_group_dollar_year": "recent"}
+        )
+        errors = _errors(results)
+        assert len(errors) == 1
+        assert "resource_group_dollar_year" in errors[0].message
 
 
 # ─────────────────────────────────────────────────────────────────────────────

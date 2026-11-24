@@ -199,6 +199,10 @@ This is the published Texas example's path when running from the examples root,
 as in [Getting Started](../../tutorials/getting-started.md). Use your own group
 directory for another study.
 
+Interconnection costs in the group metadata are converted to `target_usd_year` from
+each row's `dollar_year` column, or from `resource_group_dollar_year` when the column is
+absent; see [new-build settings](new-build.md#resource_group_dollar_year).
+
 ### `RESOURCE_GROUP_PROFILES`
 
 **Type**: directory path or list of directory paths; optional override.

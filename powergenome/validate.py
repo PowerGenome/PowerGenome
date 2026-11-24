@@ -288,6 +288,31 @@ def _check_year_list_consistency(settings: dict) -> List[ValidationResult]:
     return results
 
 
+def _check_resource_group_dollar_year(settings: dict) -> List[ValidationResult]:
+    """ERROR if ``resource_group_dollar_year`` is not an integer year.
+
+    The setting is the fallback dollar year of resource group site metadata, used to
+    convert interconnection costs to ``target_usd_year``. Year-keyed dictionaries are
+    resolved to scalars later, so they are not checked here.
+    """
+    value = settings.get("resource_group_dollar_year")
+    if value is None or isinstance(value, dict):
+        return []
+    try:
+        numeric_value = float(value)
+        if not numeric_value.is_integer():
+            raise ValueError
+    except (TypeError, ValueError):
+        return [
+            _err(
+                "resource_group_dollar_year",
+                "'resource_group_dollar_year' must be an integer year",
+                detail=f"Got {value!r} ({type(value).__name__})",
+            )
+        ]
+    return []
+
+
 def _check_paths_exist(settings: dict) -> List[ValidationResult]:
     """ERROR if configured file-system paths do not exist."""
     results = []
@@ -541,6 +566,7 @@ def _check_fuel_consistency(settings: dict) -> List[ValidationResult]:
 _PHASE1_CHECKS = [
     _check_required_keys,
     _check_year_list_consistency,
+    _check_resource_group_dollar_year,
     _check_paths_exist,
     _check_region_consistency,
     _check_model_tag_coverage,

@@ -106,6 +106,14 @@ and this project adheres to Semantic Versioning.
   existing renewable resource groups) and shows how `download_zenodo_data`
   fetches each of them, notes that `~` is not expanded in settings, and includes
   a duplicate-table exercise.
+- Resource group interconnection costs are converted to `target_usd_year`. Site metadata
+  (`interconnect_capex_mw` and `interconnect_annuity`, in the flexible `renewables_clusters`
+  path and the legacy preclustered path) is adjusted with the CPI table using each row's
+  `dollar_year` column, or the new optional `resource_group_dollar_year` setting when the
+  column is absent. Without either, costs keep their original values and a warning is
+  logged. Cluster cache keys now include both years, so changing them rebuilds the affected
+  clusters. Settings-provided `interconnect_capex_mw` is unchanged and must already be in
+  `target_usd_year` dollars.
 
 ### Changed
 
@@ -127,6 +135,9 @@ and this project adheres to Semantic Versioning.
   open and holds its first chunk, and the other sets the event only after seeing
   that signal. Both cancellation checks are exercised on every run, and the test
   now asserts the exact partial bytes each worker leaves behind for a resume.
+- Resource group site interconnection costs were previously used in whatever dollar year the
+  resource group metadata was written in, while ATB resource costs were converted to
+  `target_usd_year`. A single generator record could therefore mix dollar years.
 
 ## [0.9.0] - 2026-11-12
 

@@ -4,7 +4,7 @@ import json
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Iterable, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -16,6 +16,12 @@ from powergenome.params import DATA_PATHS
 logger = logging.getLogger(__name__)
 
 ListLike = Union[list, set, pd.Series, np.array]
+
+# Cost columns in resource group site metadata that are expressed in dollars.
+RESOURCE_GROUP_INTERCONNECT_COST_COLUMNS = (
+    "interconnect_capex_mw",
+    "interconnect_annuity",
+)
 
 
 def investment_cost_calculator(
@@ -319,5 +325,108 @@ def interpolate_values(df: pd.DataFrame, *target_years: Any) -> pd.DataFrame:
     if new_rows:
         df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
         df = df.sort_values("year").reset_index(drop=True)
+
+    return df
+
+
+def adjust_interconnect_dollar_year(
+    df: pd.DataFrame,
+    target_usd_year: Optional[int],
+    fallback_dollar_year: Optional[int] = None,
+    columns: Iterable[str] = RESOURCE_GROUP_INTERCONNECT_COST_COLUMNS,
+    dollar_year_column: str = "dollar_year",
+) -> pd.DataFrame:
+    """Convert interconnection costs to a common dollar year.
+
+    Resource group site metadata carries interconnection costs in whatever dollar
+    year the source data uses. Each row can declare its dollar year in a
+    ``dollar_year`` column; rows without a value -- or files without the column --
+    use ``fallback_dollar_year``. Values are converted to ``target_usd_year`` with
+    the CPI data held in the DataManager's ``dollar_year`` table.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Resource metadata with interconnection cost columns.
+    target_usd_year : Optional[int]
+        Dollar year to convert costs to. If ``None``, ``df`` is returned unchanged.
+    fallback_dollar_year : Optional[int], default None
+        Dollar year used for rows without a value in ``dollar_year_column``.
+    columns : Iterable[str], default RESOURCE_GROUP_INTERCONNECT_COST_COLUMNS
+        Cost columns to convert. Columns missing from ``df`` are ignored.
+    dollar_year_column : str, default "dollar_year"
+        Column holding the dollar year of each row.
+
+    Returns
+    -------
+    pd.DataFrame
+        A copy of ``df`` with the cost columns converted to ``target_usd_year``.
+        Rows whose dollar year cannot be resolved, and every row when no dollar
+        year is available at all, keep their original values (a warning is
+        logged). The ``dollar_year`` column is left as-is because it may also
+        describe other columns in the file.
+    """
+    cost_cols = [col for col in columns if col in df.columns]
+    if target_usd_year is None or not cost_cols or df.empty:
+        return df
+
+    if dollar_year_column in df.columns:
+        base_years = pd.to_numeric(df[dollar_year_column], errors="coerce")
+    else:
+        base_years = pd.Series(np.nan, index=df.index, dtype=float)
+    if fallback_dollar_year is not None:
+        try:
+            numeric_fallback = float(fallback_dollar_year)
+            if not numeric_fallback.is_integer():
+                raise ValueError
+            fallback_dollar_year = int(numeric_fallback)
+        except (TypeError, ValueError):
+            raise TypeError(
+                f"'fallback_dollar_year' must be an integer year, not "
+                f"{fallback_dollar_year!r}"
+            )
+        base_years = base_years.fillna(fallback_dollar_year)
+
+    if base_years.isna().all():
+        logger.warning(
+            "Resource group metadata has '%s' but no dollar year. Add a '%s' column "
+            "or set 'resource_group_dollar_year' to convert interconnection costs to "
+            "%s dollars. Costs are left in their original dollar year.",
+            ", ".join(cost_cols),
+            dollar_year_column,
+            target_usd_year,
+        )
+        return df
+
+    if base_years.isna().any():
+        logger.warning(
+            "Some resource group rows have no dollar year and no fallback. Set "
+            "'resource_group_dollar_year' or add a '%s' value for every row; those "
+            "rows keep their original interconnection cost values.",
+            dollar_year_column,
+        )
+
+    df = df.copy()
+    for col in cost_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    target_usd_year = int(target_usd_year)
+    converted_years = []
+    for base_year in sorted(base_years.dropna().unique()):
+        base_year = int(base_year)
+        if base_year == target_usd_year:
+            continue
+        factor = inflation_price_adjustment(1.0, base_year, target_usd_year)
+        mask = base_years == base_year
+        df.loc[mask, cost_cols] = df.loc[mask, cost_cols] * factor
+        converted_years.append(base_year)
+
+    if converted_years:
+        logger.info(
+            "Converting resource group %s from %s to %s dollars",
+            ", ".join(cost_cols),
+            converted_years,
+            target_usd_year,
+        )
 
     return df
