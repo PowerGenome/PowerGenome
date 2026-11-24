@@ -58,6 +58,15 @@ and this project adheres to Semantic Versioning.
   the PowerGenome-data bundle manifest can remain in the resource-group folder.
   Invalid resource-group definitions still raise a validation error.
 
+### Performance
+
+- `GeneratorClusters._assign_existing_profiles` now computes each resource group's
+  profile once per base-region set instead of once per existing cluster. Existing
+  generators are clustered within each region/technology, so every cluster of the same
+  group previously re-scanned the profile source for coverage and re-read the full set
+  of site profiles. The redundant work scaled with `num_clusters` (and with the number
+  of individual units when a technology uses `num_clusters: ~`).
+
 ## [0.10.1] - 2026-11-17
 
 ### Fixed

@@ -2393,6 +2393,34 @@ class GeneratorClusters:
         self.results = self.results.reset_index(drop=True)
         affected = []
         aggregations = self.settings.get("region_aggregations", {}) or {}
+        utc_offset = self.settings.get("utc_offset", 0)
+        weather_year = self.settings.get("weather_year")
+        # Existing generators are clustered within each region/technology, so every
+        # cluster of a group in the same base regions needs the exact same profile.
+        # utc_offset/weather_year are loop-invariant settings, so they stay out of the
+        # key. Without this cache each cluster re-scans the profile source for coverage
+        # and re-reads every site profile for the group.
+        profile_cache: Dict[Tuple[Any, ...], Tuple[Any, Optional[str]]] = {}
+
+        def _cluster_profile(group, regions):
+            """Return (profile, reason) for one group/base-regions request."""
+            try:
+                clusters = group.get_clusters(
+                    regions=list(regions),
+                    max_clusters=1,
+                    utc_offset=utc_offset,
+                    weather_year=weather_year,
+                    require_complete_profiles=True,
+                )
+            except MissingProfileCoverage as exc:
+                return None, str(exc)
+            if clusters.empty or "profile" not in clusters:
+                return None, "Empty cluster result or absent profile column"
+            profile = clusters["profile"].iloc[0]
+            if not isinstance(profile, (np.ndarray, list)) or len(profile) == 0:
+                return None, "Empty or absent cluster profile"
+            return profile, None
+
         for i, row in enumerate(self.results.itertuples()):
             params = map_eia_technology(row.technology)
             if not params:
@@ -2418,34 +2446,18 @@ class GeneratorClusters:
                 if not metadata[region_col].isin(regions).any():
                     reason = "Resource group has no resources in selected base regions"
                 else:
-                    try:
-                        clusters = group.get_clusters(
-                            regions=regions,
-                            max_clusters=1,
-                            utc_offset=self.settings.get("utc_offset", 0),
-                            weather_year=self.settings.get("weather_year"),
-                            require_complete_profiles=True,
-                        )
-                    except MissingProfileCoverage as exc:
-                        reason = str(exc)
-                    else:
-                        if clusters.empty or "profile" not in clusters:
-                            reason = "Empty cluster result or absent profile column"
-                        else:
-                            profile = clusters["profile"].iloc[0]
-                            if (
-                                not isinstance(profile, (np.ndarray, list))
-                                or len(profile) == 0
-                            ):
-                                reason = "Empty or absent cluster profile"
-                            elif not np.isfinite(
-                                np.asarray(profile, dtype=float)
-                            ).all():
-                                raise ValueError(
-                                    f"Nonfinite cluster profile for {row.Resource}"
-                                )
-                            else:
-                                self.results.at[i, "profile"] = profile
+                    cache_key = (tuple(sorted(params.items())), frozenset(regions))
+                    if cache_key not in profile_cache:
+                        profile_cache[cache_key] = _cluster_profile(group, regions)
+                    profile, reason = profile_cache[cache_key]
+                    if profile is not None:
+                        if not np.isfinite(np.asarray(profile, dtype=float)).all():
+                            raise ValueError(
+                                f"Nonfinite cluster profile for {row.Resource}"
+                            )
+                        # Copy per row: cached profiles are shared, and downstream
+                        # steps may resize or rewrite an individual profile.
+                        self.results.at[i, "profile"] = profile.copy()
             if reason is not None:
                 capacity = row.capacity_mw
                 if pd.isna(capacity) and hasattr(self, "all_gens"):
