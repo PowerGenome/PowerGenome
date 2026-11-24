@@ -366,7 +366,9 @@ def test_absent_group_checks_budget_before_variability(technology):
         instance._assign_existing_profiles()
 
 
-@pytest.mark.parametrize("skip", ["absent_group", "absent_metadata", "empty_clusters"])
+@pytest.mark.parametrize(
+    "skip", ["absent_group", "absent_metadata", "empty_clusters", "empty_profile"]
+)
 def test_small_fallbacks_produce_full_variability_axis(skip):
     instance = profile_assigner(gross_demand=pd.DataFrame({"SD": [1584.86] * 48}))
     group = Mock()
@@ -374,7 +376,11 @@ def test_small_fallbacks_produce_full_variability_axis(skip):
     group.metadata.read.return_value = pd.DataFrame(
         {"region": ["outside" if skip == "absent_metadata" else "p38"]}
     )
-    group.get_clusters.return_value = pd.DataFrame()
+    group.get_clusters.return_value = (
+        pd.DataFrame({"profile": [np.array([])]})
+        if skip == "empty_profile"
+        else pd.DataFrame()
+    )
     instance.cluster_builder.find_groups.return_value = (
         [] if skip == "absent_group" else [group]
     )
@@ -409,31 +415,37 @@ def test_complete_profiles_do_not_require_demand(monkeypatch):
     assert instance.results.capacity_mw.iloc[0] == 4
 
 
-def test_repeated_group_region_requests_share_one_cluster_computation():
+def test_equivalent_base_region_sets_share_one_cluster_computation():
     instance = profile_assigner()
+    instance.settings["region_aggregations"] = {
+        "SD": ["p38", "p32", "p38"],
+        "ND": ["p32", "p38"],
+    }
     instance.results = pd.DataFrame(
         {
-            "Resource": ["SD_wind_1", "SD_wind_2", "SD_wind_3"],
+            "Resource": ["SD_wind_1", "SD_wind_2", "ND_wind_1"],
             "technology": ["Onshore Wind Turbine"] * 3,
-            "region": ["SD"] * 3,
+            "region": ["SD", "SD", "ND"],
             "capacity_mw": [1.0, 2.0, 3.0],
             "profile": [None, None, None],
         }
     )
     group = Mock()
     group.profiles = object()
-    group.metadata.read.return_value = pd.DataFrame({"region": ["p32"]})
+    group.metadata.read.return_value = pd.DataFrame({"region": ["p32", "p38"]})
     group.get_clusters.return_value = pd.DataFrame({"profile": [np.full(24, 0.4)]})
     instance.cluster_builder.find_groups.return_value = [group]
 
     instance._assign_existing_profiles()
 
     group.get_clusters.assert_called_once()
+    assert group.get_clusters.call_args.kwargs["regions"] == ["p38", "p32", "p38"]
     for profile in instance.results["profile"]:
         np.testing.assert_allclose(profile, np.full(24, 0.4))
     # Rows must not share the cached array.
     instance.results.at[0, "profile"][0] = 99.0
     np.testing.assert_allclose(instance.results.profile.iloc[1], np.full(24, 0.4))
+    np.testing.assert_allclose(instance.results.profile.iloc[2], np.full(24, 0.4))
 
 
 def test_distinct_base_regions_are_clustered_separately():
@@ -577,6 +589,18 @@ def test_unexpected_cluster_errors_are_not_swallowed():
     group.get_clusters.side_effect = ValueError("corrupt schema")
     instance.cluster_builder.find_groups.return_value = [group]
     with pytest.raises(ValueError, match="corrupt schema"):
+        instance._assign_existing_profiles()
+
+
+def test_nonfinite_cluster_profile_is_rejected_for_the_affected_resource():
+    instance = profile_assigner()
+    group = Mock()
+    group.profiles = object()
+    group.metadata.read.return_value = pd.DataFrame({"region": ["p38"]})
+    group.get_clusters.return_value = pd.DataFrame({"profile": [np.array([np.nan])]})
+    instance.cluster_builder.find_groups.return_value = [group]
+
+    with pytest.raises(ValueError, match="Nonfinite cluster profile for SD_ror_1"):
         instance._assign_existing_profiles()
 
 

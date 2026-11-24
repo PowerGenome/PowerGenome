@@ -2402,11 +2402,11 @@ class GeneratorClusters:
         # and re-reads every site profile for the group.
         profile_cache: Dict[Tuple[Any, ...], Tuple[Any, Optional[str]]] = {}
 
-        def _cluster_profile(group, regions_key):
+        def _cluster_profile(group, regions):
             """Return (profile, reason) for one group/base-regions request."""
             try:
                 clusters = group.get_clusters(
-                    regions=list(regions_key),
+                    regions=list(regions),
                     max_clusters=1,
                     utc_offset=utc_offset,
                     weather_year=weather_year,
@@ -2446,9 +2446,9 @@ class GeneratorClusters:
                 if not metadata[region_col].isin(regions).any():
                     reason = "Resource group has no resources in selected base regions"
                 else:
-                    cache_key = (tuple(sorted(params.items())), tuple(regions))
+                    cache_key = (tuple(sorted(params.items())), frozenset(regions))
                     if cache_key not in profile_cache:
-                        profile_cache[cache_key] = _cluster_profile(group, cache_key[1])
+                        profile_cache[cache_key] = _cluster_profile(group, regions)
                     profile, reason = profile_cache[cache_key]
                     if profile is not None:
                         if not np.isfinite(np.asarray(profile, dtype=float)).all():
