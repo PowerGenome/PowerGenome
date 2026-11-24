@@ -32,6 +32,18 @@ generators, transmission, demand, fuel supply, and CO2 caps follows the GenX-to-
 branch). Thermal CCS resources are supported; broader cross-sector hydrogen and
 liquid-fuel assets are not emitted.
 
+With multi-period output enabled and multiple planning stages, reinforcement is limited by
+`Line_Max_Reinforcement_MW` in each stage, and total line capacity is limited by
+`Line_Max_Flow_Possible_MW` when supplied. If that total limit is below installed
+capacity, Macro output preserves available capacity and disables reinforcement for
+that stage. A single-stage case, or a run with `--no-multi-period`, instead caps
+total capacity at existing capacity plus the reinforcement allowance. The flag
+does not remove planning stages.
+
+Battery assets write WACC, capital recovery period, and lifetime separately for
+the energy storage, discharge, and charge components. Run-of-river hydro carries
+the discharge retirement floor but no storage energy retirement floor.
+
 GenX output is **not** disabled by this setting — see [`genx_output`](#genx_output).
 
 ## `genx_output`
@@ -65,7 +77,7 @@ output is enabled; existing behavior is unchanged when these keys are absent.
 |---|---|---|---|---|
 | `macro_discount_rate` | float | `0.045` | `settings/case_settings.json` | Annual discount rate applied across stages. |
 | `macro_solution_algorithm` | str | `"Monolithic"` | `settings/case_settings.json` | Solution algorithm for Macro. |
-| `macro_period_lengths` | list[int] | derived | `settings/case_settings.json` | `PeriodLengths`, one entry per stage. Derived from PowerGenome's planning-period definitions (`model_periods`, or the paired `model_first_planning_year`/`model_year`); an explicit value overrides the derived one. |
+| `macro_period_lengths` | list[int] | derived | `settings/case_settings.json` | `PeriodLengths`, one entry per stage. By default, each stage uses its own planning start and end years, counted inclusively. For example, 2026–2030 and 2031–2040 produce `[5, 10]`. An explicit list overrides derivation. |
 | `macro_constraint_scaling` | bool | `true` | `settings/macro_settings.json` | Scale constraints for solver numerics. |
 | `macro_write_subcommodities` | bool | `true` | `settings/macro_settings.json` | Write sub-commodity accounting rows. |
 | `macro_auto_create_nodes` | bool | `false` | `settings/macro_settings.json` | Let Macro automatically create missing nodes. |
