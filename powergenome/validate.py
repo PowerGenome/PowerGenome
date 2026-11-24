@@ -299,7 +299,9 @@ def _check_resource_group_dollar_year(settings: dict) -> List[ValidationResult]:
     if value is None or isinstance(value, dict):
         return []
     try:
-        int(value)
+        numeric_value = float(value)
+        if not numeric_value.is_integer():
+            raise ValueError
     except (TypeError, ValueError):
         return [
             _err(

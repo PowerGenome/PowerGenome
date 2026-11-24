@@ -376,7 +376,10 @@ def adjust_interconnect_dollar_year(
         base_years = pd.Series(np.nan, index=df.index, dtype=float)
     if fallback_dollar_year is not None:
         try:
-            fallback_dollar_year = int(fallback_dollar_year)
+            numeric_fallback = float(fallback_dollar_year)
+            if not numeric_fallback.is_integer():
+                raise ValueError
+            fallback_dollar_year = int(numeric_fallback)
         except (TypeError, ValueError):
             raise TypeError(
                 f"'fallback_dollar_year' must be an integer year, not "
