@@ -52,6 +52,11 @@ and this project adheres to Semantic Versioning.
   recovery period, and lifetime instead of falling back to Macro defaults.
 - Macro now derives each stage's length from its own planning years instead of
   repeating the last period's length when stages have different durations.
+- Resource-group discovery no longer treats a dataset bundle's `manifest.json`
+  as a resource-group definition. `build_resource_clusters` skips files named
+  `manifest.json` (case-insensitive, at any depth) under `RESOURCE_GROUPS`, so
+  the PowerGenome-data bundle manifest can remain in the resource-group folder.
+  Invalid resource-group definitions still raise a validation error.
 
 ## [0.10.1] - 2026-11-17
 
