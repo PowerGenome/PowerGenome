@@ -626,6 +626,18 @@ def test_hydro_csv_retirement_floors_use_storage_keys(gen_df):
     assert hydro_df.loc[0, "storage_min_retired_capacity"] == 2700.0
 
 
+def test_run_of_river_hydro_only_exports_discharge_retirement(gen_df):
+    hydro = gen_df.loc[gen_df["HYDRO"] > 0].assign(
+        Hydro_Energy_to_Power_Ratio=0,
+        Min_Retired_Cap_MW=10,
+        Min_Retired_Energy_Cap_MW=100,
+    )
+    asset = make_hydro_csv(hydro).iloc[0]
+
+    assert asset["discharge_min_retired_capacity"] == 10
+    assert pd.isna(asset["storage_min_retired_capacity"])
+
+
 def test_mustrun_csv_availability_columns(gen_df):
     mustrun_df = make_mustrun_csv(gen_df)
     assert list(mustrun_df["id"]) == ["mustrun_1"]
@@ -689,10 +701,8 @@ def test_make_powerlines_csv(network):
     assert tx_df.loc[0, "max_capacity"] == 750.0
     assert tx_df.loc[0, "existing_capacity"] == 500.0
     assert tx_df.loc[1, "max_capacity"] == 500.0
-    assert (
-        tx_df["transmission_constraints--MaxNewCapacityConstraint"] == "FALSE"
-    ).all()
-    assert tx_df["max_new_capacity"].isna().all()
+    assert "transmission_constraints--MaxNewCapacityConstraint" not in tx_df
+    assert "max_new_capacity" not in tx_df
     # financial attributes carried through from the GenX network columns
     assert list(tx_df["wacc"]) == [0.044, 0.044]
     assert list(tx_df["capital_recovery_period"]) == [60.0, 60.0]
@@ -708,6 +718,19 @@ def test_make_multistage_powerlines_csv_without_total_limit(network):
     assert tx_df["max_capacity"].isna().all()
     assert (tx_df["transmission_constraints--MaxNewCapacityConstraint"] == "TRUE").all()
     assert tx_df["max_new_capacity"].tolist() == [250.0, 0.0]
+
+
+def test_multistage_powerlines_preserve_installed_capacity_above_limit(network, caplog):
+    network["Line_Max_Flow_Possible_MW"] = [400.0, 800.0]
+    tx_df = make_powerlines_csv(network, multistage=True)
+
+    assert tx_df.loc[0, "existing_capacity"] == 500.0
+    assert tx_df.loc[0, "transmission_constraints--MaxCapacityConstraint"] == "FALSE"
+    assert pd.isna(tx_df.loc[0, "max_capacity"])
+    assert tx_df.loc[0, "transmission_constraints--MaxNewCapacityConstraint"] == "TRUE"
+    assert tx_df.loc[0, "max_new_capacity"] == 0.0
+    assert tx_df.loc[1, "max_capacity"] == 800.0
+    assert "R1_to_R2" in caplog.text
 
 
 def test_make_powerlines_csv_no_financial_cols():

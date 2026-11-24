@@ -32,12 +32,17 @@ generators, transmission, demand, fuel supply, and CO2 caps follows the GenX-to-
 branch). Thermal CCS resources are supported; broader cross-sector hydrogen and
 liquid-fuel assets are not emitted.
 
-For multiple planning stages, transmission reinforcement is limited by
+With multi-period output enabled and multiple planning stages, reinforcement is limited by
 `Line_Max_Reinforcement_MW` in each stage, and total line capacity is limited by
-`Line_Max_Flow_Possible_MW` when supplied. A single-stage case instead caps total
-capacity at existing capacity plus the reinforcement allowance. Battery assets
-write WACC, capital recovery period, and lifetime separately for the energy
-storage, discharge, and charge components.
+`Line_Max_Flow_Possible_MW` when supplied. If that total limit is below installed
+capacity, Macro output preserves available capacity and disables reinforcement for
+that stage. A single-stage case, or a run with `--no-multi-period`, instead caps
+total capacity at existing capacity plus the reinforcement allowance. The flag
+does not remove planning stages.
+
+Battery assets write WACC, capital recovery period, and lifetime separately for
+the energy storage, discharge, and charge components. Run-of-river hydro carries
+the discharge retirement floor but no storage energy retirement floor.
 
 GenX output is **not** disabled by this setting — see [`genx_output`](#genx_output).
 

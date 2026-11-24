@@ -43,6 +43,11 @@ and this project adheres to Semantic Versioning.
   TX-3-zone case.
 - Multi-stage Macro transmission limits now cap reinforcement per stage and
   total capacity separately, so additions can carry forward and accumulate.
+  Limits below installed capacity disable new reinforcement instead of making
+  the case infeasible. `--no-multi-period` retains the previous total-capacity
+  rule for each stage without dropping any planning years.
+- Run-of-river hydro no longer exports an energy retirement floor for its
+  non-retirable storage component.
 - Macro battery financing now uses component-specific keys for WACC, capital
   recovery period, and lifetime instead of falling back to Macro defaults.
 - Macro now derives each stage's length from its own planning years instead of

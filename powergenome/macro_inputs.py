@@ -251,9 +251,7 @@ TRANSMISSION_COLUMNS = [
     "Type",
     "id",
     "transmission_constraints--MaxCapacityConstraint",
-    "transmission_constraints--MaxNewCapacityConstraint",
     "max_capacity",
-    "max_new_capacity",
     "transmission_origin",
     "loss_fraction",
     "existing_capacity",
@@ -262,6 +260,11 @@ TRANSMISSION_COLUMNS = [
     "distance",
     "transmission_dest",
     *FINANCIAL_COLUMNS,
+]
+
+TRANSMISSION_STAGE_COLUMNS = [
+    "transmission_constraints--MaxNewCapacityConstraint",
+    "max_new_capacity",
 ]
 
 
@@ -722,6 +725,9 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
         known_cap = ratio > 0
         new_build = _is_true(_gen_value(row, "New_Build", False))
         can_retire = _is_true(_gen_value(row, "Can_Retire", False))
+        financial = _financial_attrs(row, STORAGE_RETIRED_CAPACITY_KEYS)
+        if not known_cap:
+            financial.pop("storage_min_retired_capacity", None)
         records.append(
             {
                 "Type": HYDRO_TYPE,
@@ -779,7 +785,7 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                 # discharge capacity_size = 1.0 for hydro.
                 "discharge_capacity_size": 1.0,
                 "storage_charge_discharge_ratio": 1.0,
-                **_financial_attrs(row, STORAGE_RETIRED_CAPACITY_KEYS),
+                **financial,
             }
         )
     return pd.DataFrame(records, columns=HYDRO_COLUMNS)
@@ -823,8 +829,13 @@ def make_powerlines_csv(
     network: pd.DataFrame, *, multistage: bool = False
 ) -> pd.DataFrame:
     """Write total line limits and, for multistage cases, limits on stage additions."""
+    columns = (
+        TRANSMISSION_COLUMNS + TRANSMISSION_STAGE_COLUMNS
+        if multistage
+        else TRANSMISSION_COLUMNS
+    )
     if network is None or network.empty:
-        return pd.DataFrame(columns=TRANSMISSION_COLUMNS)
+        return pd.DataFrame(columns=columns)
     records = []
     for _, row in network.iterrows():
         start = _gen_value(row, "start_region")
@@ -833,6 +844,7 @@ def make_powerlines_csv(
         # dtype, so check with pd.isna rather than comparing to None.
         if pd.isna(start) or pd.isna(dest):
             continue
+        line_id = f"{start}_to_{dest}"
         max_flow = _num(_gen_value(row, "Line_Max_Flow_MW", 0.0), 0.0)
         reinforcement = max(
             0.0, _num(_gen_value(row, "Line_Max_Reinforcement_MW"), 0.0)
@@ -842,24 +854,40 @@ def make_powerlines_csv(
             if multistage
             else max_flow + reinforcement
         )
+        if max_capacity is not None and max_capacity < max_flow:
+            logger.warning(
+                "Macro transmission line %s has a total limit of %g MW below its "
+                "%g MW installed capacity. Keeping available capacity and disabling "
+                "reinforcement for this stage.",
+                line_id,
+                max_capacity,
+                max_flow,
+            )
+            # GenX skips the total cap on ineligible lines, preserving carryover.
+            max_capacity = None
+            reinforcement = 0.0
         financial = _financial_attrs(row)
         # GenX provides no per-line Lifetime for transmission. Fall back to
         # the capital_recovery_period so Macro does not treat the line as a
         # 1-year asset (which would force premature retirement of new builds).
         if "lifetime" not in financial and "capital_recovery_period" in financial:
             financial["lifetime"] = financial["capital_recovery_period"]
+        stage_limits = (
+            {
+                "transmission_constraints--MaxNewCapacityConstraint": "TRUE",
+                "max_new_capacity": reinforcement,
+            }
+            if multistage
+            else {}
+        )
         records.append(
             {
                 "Type": TRANSMISSION_TYPE,
-                "id": f"{start}_to_{dest}",
+                "id": line_id,
                 "transmission_constraints--MaxCapacityConstraint": _format_bool(
                     max_capacity is not None
                 ),
-                "transmission_constraints--MaxNewCapacityConstraint": _format_bool(
-                    multistage
-                ),
                 "max_capacity": max_capacity,
-                "max_new_capacity": reinforcement if multistage else None,
                 "transmission_origin": f"elec_{start}",
                 "loss_fraction": _num(
                     _gen_value(row, "Line_Loss_Percentage", 0.0), 0.0
@@ -872,9 +900,10 @@ def make_powerlines_csv(
                 "distance": _num(_gen_value(row, "distance_mile", np.nan)),
                 "transmission_dest": f"elec_{dest}",
                 **financial,
+                **stage_limits,
             }
         )
-    return pd.DataFrame(records, columns=TRANSMISSION_COLUMNS)
+    return pd.DataFrame(records, columns=columns)
 
 
 # ---------------------------------------------------------------------------
@@ -1468,8 +1497,9 @@ class MacroCaseBuilder:
     stage data and only writes the shared, case-level files on ``finalize``.
     """
 
-    def __init__(self, case_root):
+    def __init__(self, case_root, *, multi_period: bool = True):
         self.case_root = Path(case_root)
+        self._multi_period = multi_period
         self.stage_numbers: List[int] = []
         self.commodities: List[str] = []
         self._stage_data = {}  # stage_number -> (case_year_data, settings)
@@ -1530,12 +1560,11 @@ class MacroCaseBuilder:
         if has_ccs and "CO2Captured" not in self.commodities:
             self.commodities.append("CO2Captured")
 
-        # Per-stage files.
+        # Keep the stage layout even if multi-period transmission fields are disabled.
+        multistage = self._multi_period and len(stages) > 1
         for stage in stages:
             case_year_data, settings = self._stage_data[stage]
-            self._write_stage(
-                stage, case_year_data, settings, multistage=len(stages) > 1
-            )
+            self._write_stage(stage, case_year_data, settings, multistage=multistage)
 
         # Shared / case-level files.
         with open(system_folder / "commodities.json", "w") as f:

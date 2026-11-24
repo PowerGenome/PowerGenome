@@ -634,7 +634,9 @@ def main(**kwargs):
                     macro_root = case_folder.parent.parent
                     writer = macro_writers.get(macro_root)
                     if writer is None:
-                        writer = MacroCaseBuilder(macro_root)
+                        writer = MacroCaseBuilder(
+                            macro_root, multi_period=args.multi_period
+                        )
                         macro_writers[macro_root] = writer
                     writer.add_stage(
                         scenario_settings_obj["case_period"],
