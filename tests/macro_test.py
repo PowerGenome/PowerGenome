@@ -46,6 +46,7 @@ from powergenome.macro_inputs import (
     make_timedata_json,
     make_vre_csv,
 )
+from powergenome.settings import Settings, resolve_settings_to_year
 
 
 @pytest.fixture(autouse=True)
@@ -476,6 +477,96 @@ def test_storage_csv_asymmetry(gen_df):
     assert stor_df["discharge_capacity_size"].tolist() == [1.0, 1.0]
 
 
+def test_storage_csv_retirement_floors_use_battery_keys(gen_df):
+    """Battery retirement floors land on the keys Macro's Battery parser reads.
+
+    Macro resolves ``discharge_min_retired_capacity`` (power edge) and
+    ``storage_min_retired_capacity`` (energy vertex) and has no bare
+    ``min_retired_capacity`` fallback, so writing the bare key would leave every
+    storage retirement floor silently ignored.
+    """
+    df = gen_df.copy()
+    # 313 MW > the 200 MW left at this stage: the requirement is not capped
+    df.loc[df["Resource"] == "batt_sym", "Min_Retired_Cap_MW"] = 313.0
+    df.loc[df["Resource"] == "batt_sym", "Min_Retired_Energy_Cap_MW"] = 1252.0
+    df.loc[df["Resource"] == "batt_asym", "Min_Retired_Cap_MW"] = 0.0
+    df.loc[df["Resource"] == "batt_asym", "Min_Retired_Energy_Cap_MW"] = 0.0
+    stor_df = make_storage_csv(df)
+
+    assert "min_retired_capacity" not in stor_df.columns
+    assert "discharge_min_retired_capacity" in STORAGE_COLUMNS
+    assert "storage_min_retired_capacity" in STORAGE_COLUMNS
+
+    sym = stor_df[stor_df["id"] == "batt_sym"].iloc[0]
+    assert sym["discharge_min_retired_capacity"] == 313.0
+    assert sym["storage_min_retired_capacity"] == 1252.0
+    asym = stor_df[stor_df["id"] == "batt_asym"].iloc[0]
+    assert asym["discharge_min_retired_capacity"] == 0.0
+    assert asym["storage_min_retired_capacity"] == 0.0
+
+
+def test_storage_csv_financing_uses_component_keys(gen_df, tmp_path):
+    battery = gen_df.loc[gen_df["Resource"] == "batt_asym"].assign(
+        WACC=0.05, Capital_Recovery_Period=15, Lifetime=20
+    )
+    path = tmp_path / "electricity_stor.csv"
+    make_storage_csv(battery).to_csv(path, index=False)
+    stored = pd.read_csv(path)
+
+    for field, value in (
+        ("wacc", 0.05),
+        ("capital_recovery_period", 15),
+        ("lifetime", 20),
+    ):
+        assert field not in stored.columns
+        for component in ("storage", "discharge", "charge"):
+            assert stored.loc[0, f"{component}_{field}"] == value
+
+    no_finance = make_storage_csv(
+        battery.drop(columns=["WACC", "Capital_Recovery_Period", "Lifetime"])
+    )
+    assert (
+        no_finance.filter(regex="_(wacc|capital_recovery_period|lifetime)$")
+        .isna()
+        .all()
+        .all()
+    )
+
+
+def test_thermal_csv_keeps_retirement_requirement_above_stage_existing(gen_df):
+    """Thermal rows keep a retirement floor larger than the stage's capacity.
+
+    Reproduces the three TX-3-zone rows that lost their requirement to the old
+    ``min(Min_Retired_Cap_MW, Existing_Cap_MW)`` cap. In each case the stage's
+    remaining capacity is what is left *after* the in-period retirement, so the
+    capped value was strictly less than the requirement Macro accumulates.
+    """
+    df = gen_df.copy()
+    tx2 = df[df["Resource"] == "gas_committed"].iloc[0].copy()
+    tx1 = tx2.copy()
+    tx3 = tx2.copy()
+    tx2["Resource"] = "TX2_natural_gas_steam_turbine_1"
+    tx1["Resource"] = "TX1_other_peaker_1"
+    tx3["Resource"] = "TX3_natural_gas_steam_turbine_1"
+    df = pd.concat([df, pd.DataFrame([tx2, tx1, tx3])], ignore_index=True)
+    # (requirement, stage-existing capacity that used to cap it)
+    expected = {
+        "TX2_natural_gas_steam_turbine_1": (3380.0, 2396.0),
+        "TX1_other_peaker_1": (397.0, 46.2),
+        "TX3_natural_gas_steam_turbine_1": (1105.0, 0.0),
+    }
+    for resource, (required, existing) in expected.items():
+        df.loc[df["Resource"] == resource, "Min_Retired_Cap_MW"] = required
+        df.loc[df["Resource"] == resource, "Existing_Cap_MW"] = existing
+
+    _, _, thermal_df = make_thermal_csvs(df)[0]
+    written = thermal_df.set_index("id")["min_retired_capacity"]
+    for resource, (required, existing) in expected.items():
+        assert written[resource] == required
+        if existing != required:
+            assert written[resource] != existing
+
+
 def test_hydro_csv_availability_columns(gen_df):
     hydro_df = make_hydro_csv(gen_df)
     assert list(hydro_df["id"]) == ["hydro_1"]
@@ -518,6 +609,35 @@ def test_hydro_csv_availability_columns(gen_df):
     assert hydro_df.loc[0, "discharge_capacity_size"] == 1.0
 
 
+def test_hydro_csv_retirement_floors_use_storage_keys(gen_df):
+    """HydroRes retirement floors use the same prefixed keys as Battery.
+
+    Macro's HydroRes parser resolves storage and edge keys through
+    ``storage_<key>`` / ``discharge_<key>`` with no bare ``(data, key)``
+    fallback, so a bare ``min_retired_capacity`` was silently ignored.
+    """
+    df = gen_df.copy()
+    df.loc[df["Resource"] == "hydro_1", "Min_Retired_Cap_MW"] = 450.0
+    df.loc[df["Resource"] == "hydro_1", "Min_Retired_Energy_Cap_MW"] = 2700.0
+    hydro_df = make_hydro_csv(df)
+
+    assert "min_retired_capacity" not in hydro_df.columns
+    assert hydro_df.loc[0, "discharge_min_retired_capacity"] == 450.0
+    assert hydro_df.loc[0, "storage_min_retired_capacity"] == 2700.0
+
+
+def test_run_of_river_hydro_only_exports_discharge_retirement(gen_df):
+    hydro = gen_df.loc[gen_df["HYDRO"] > 0].assign(
+        Hydro_Energy_to_Power_Ratio=0,
+        Min_Retired_Cap_MW=10,
+        Min_Retired_Energy_Cap_MW=100,
+    )
+    asset = make_hydro_csv(hydro).iloc[0]
+
+    assert asset["discharge_min_retired_capacity"] == 10
+    assert pd.isna(asset["storage_min_retired_capacity"])
+
+
 def test_mustrun_csv_availability_columns(gen_df):
     mustrun_df = make_mustrun_csv(gen_df)
     assert list(mustrun_df["id"]) == ["mustrun_1"]
@@ -530,6 +650,25 @@ def test_mustrun_csv_availability_columns(gen_df):
     assert mustrun_df.loc[0, "availability--timeseries--header"] == "mustrun_1"
     # GenX's must-run output ignores Cap_Size -> capacity_size = 1.0
     assert mustrun_df.loc[0, "capacity_size"] == 1.0
+
+
+def test_mustrun_csv_variable_om_cost(gen_df, tmp_path):
+    """MustRun carries variable O&M on the key Macro's parser reads.
+
+    Macro defaults ``variable_om_cost`` to 0 when the column is absent, so
+    dropping GenX's ``Var_OM_Cost_per_MWh`` under-charges every must-run MWh.
+    """
+    df = gen_df.copy()
+    df.loc[df["Resource"] == "mustrun_1", "Var_OM_Cost_per_MWh"] = 2.378
+    mustrun_df = make_mustrun_csv(df)
+    assert "variable_om_cost" in MUST_RUN_COLUMNS
+    assert mustrun_df.loc[0, "variable_om_cost"] == 2.378
+
+    # round-trips through the written CSV Macro actually reads
+    path = tmp_path / "mustrun.csv"
+    mustrun_df.to_csv(path, index=False)
+    back = pd.read_csv(path)
+    assert back.loc[0, "variable_om_cost"] == pytest.approx(2.378)
 
 
 def test_make_availability_csv_includes_all_resources(gen_df, gen_variability):
@@ -562,11 +701,36 @@ def test_make_powerlines_csv(network):
     assert tx_df.loc[0, "max_capacity"] == 750.0
     assert tx_df.loc[0, "existing_capacity"] == 500.0
     assert tx_df.loc[1, "max_capacity"] == 500.0
+    assert "transmission_constraints--MaxNewCapacityConstraint" not in tx_df
+    assert "max_new_capacity" not in tx_df
     # financial attributes carried through from the GenX network columns
     assert list(tx_df["wacc"]) == [0.044, 0.044]
     assert list(tx_df["capital_recovery_period"]) == [60.0, 60.0]
     # No GenX per-line Lifetime: lifetime falls back to capital_recovery_period
     assert list(tx_df["lifetime"]) == [60.0, 60.0]
+
+
+def test_make_multistage_powerlines_csv_without_total_limit(network):
+    network["Line_Max_Reinforcement_MW"] = [250.0, -1.0]
+    tx_df = make_powerlines_csv(network, multistage=True)
+
+    assert (tx_df["transmission_constraints--MaxCapacityConstraint"] == "FALSE").all()
+    assert tx_df["max_capacity"].isna().all()
+    assert (tx_df["transmission_constraints--MaxNewCapacityConstraint"] == "TRUE").all()
+    assert tx_df["max_new_capacity"].tolist() == [250.0, 0.0]
+
+
+def test_multistage_powerlines_preserve_installed_capacity_above_limit(network, caplog):
+    network["Line_Max_Flow_Possible_MW"] = [400.0, 800.0]
+    tx_df = make_powerlines_csv(network, multistage=True)
+
+    assert tx_df.loc[0, "existing_capacity"] == 500.0
+    assert tx_df.loc[0, "transmission_constraints--MaxCapacityConstraint"] == "FALSE"
+    assert pd.isna(tx_df.loc[0, "max_capacity"])
+    assert tx_df.loc[0, "transmission_constraints--MaxNewCapacityConstraint"] == "TRUE"
+    assert tx_df.loc[0, "max_new_capacity"] == 0.0
+    assert tx_df.loc[1, "max_capacity"] == 800.0
+    assert "R1_to_R2" in caplog.text
 
 
 def test_make_powerlines_csv_no_financial_cols():
@@ -1157,10 +1321,13 @@ def test_macro_case_builder_multistage(
         "gen_variability": gen_variability,
         "demand_data": demand_data,
         "fuels": fuels,
-        "network": network,
+        "network": network.assign(Line_Max_Flow_Possible_MW=[1200.0, 500.0]),
     }
     builder.add_stage(1, stage1_data, settings)
-    builder.add_stage(2, stage1_data, settings)
+    stage2_network = stage1_data["network"].assign(
+        Line_Max_Reinforcement_MW=[300.0, 0.0]
+    )
+    builder.add_stage(2, {**stage1_data, "network": stage2_network}, settings)
     builder.finalize()
 
     # case entries sorted with assets/assets_N paths
@@ -1175,7 +1342,7 @@ def test_macro_case_builder_multistage(
     assert cs["PeriodLengths"] == [1, 1]
 
     # both stages fully materialized with per-stage file numbers
-    for i in (1, 2):
+    for i, reinforcement in enumerate((250.0, 300.0), start=1):
         assert (tmp_path / "assets" / f"assets_{i}" / "vre.csv").is_file()
         assert (tmp_path / "assets" / f"assets_{i}" / "naturalgas_power.csv").is_file()
         assert (tmp_path / "system" / f"nodes_{i}.json").is_file()
@@ -1183,6 +1350,11 @@ def test_macro_case_builder_multistage(
         assert (tmp_path / "system" / f"demand_{i}.csv").is_file()
         assert (tmp_path / "system" / f"availability_{i}.csv").is_file()
         assert (tmp_path / "system" / f"fuel_prices_{i}.csv").is_file()
+        powerlines = pd.read_csv(tmp_path / "assets" / f"assets_{i}" / "powerlines.csv")
+        assert powerlines["transmission_constraints--MaxCapacityConstraint"].all()
+        assert powerlines["transmission_constraints--MaxNewCapacityConstraint"].all()
+        assert powerlines["max_capacity"].tolist() == [1200.0, 500.0]
+        assert powerlines["max_new_capacity"].tolist() == [reinforcement, 0.0]
 
     # assets reference the per-stage availability CSV
     vre1 = pd.read_csv(tmp_path / "assets/assets_1/vre.csv")
@@ -1194,6 +1366,81 @@ def test_macro_case_builder_multistage(
     assert (tmp_path / "system/commodities.json").is_file()
     assert (tmp_path / "system/locations.json").is_file()
     assert (tmp_path / "settings/macro_settings.json").is_file()
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [("resolved", [5, 10]), ("shared", [5, 10]), ("scenario_override", [3, 10])],
+)
+def test_macro_case_builder_derives_unequal_period_lengths(tmp_path, mode, expected):
+    periods = [[2026, 2030], [2031, 2040]]
+    base = Settings(data={"model_periods": periods})
+    builder = MacroCaseBuilder(tmp_path)
+    for stage, (_, end) in reversed(list(enumerate(periods, start=1))):
+        stage_settings = base
+        if mode != "shared":
+            resolved = resolve_settings_to_year(base, end)
+            if mode == "scenario_override" and stage == 1:
+                resolved["model_first_planning_year"] = 2028
+            stage_settings = Settings.for_scenario(base, resolved)
+        builder.add_stage(stage, {}, stage_settings)
+    builder.finalize()
+
+    case_settings = json.loads((tmp_path / "settings/case_settings.json").read_text())
+    assert case_settings["PeriodLengths"] == expected
+
+
+def test_macro_case_builder_per_stage_retirement_accumulates(
+    tmp_path, gen_df, gen_variability, demand_data, fuels, network, settings
+):
+    """Per-stage retirement floors accumulate into Macro's cumulative track.
+
+    GenX reports the capacity retiring *within* each planning period while Macro
+    sums ``min_retired_capacity`` across stages (``min_retired_capacity_track``)
+    and constrains cumulative retirements against it. Each stage's asset CSV
+    therefore has to carry its own period's requirement and no stage may cap it
+    at the capacity still on the books.
+    """
+    stage1 = gen_df.copy()
+    stage1["Min_Retired_Cap_MW"] = 0.0
+    stage1["Min_Retired_Energy_Cap_MW"] = 0.0
+    stage2 = stage1.copy()
+    # 3380 MW retires in period 2 although only 100 MW remains at the stage end
+    stage2.loc[stage2["Resource"] == "gas_committed", "Min_Retired_Cap_MW"] = 3380.0
+    stage2.loc[stage2["Resource"] == "batt_sym", "Min_Retired_Cap_MW"] = 313.0
+    stage2.loc[stage2["Resource"] == "batt_sym", "Min_Retired_Energy_Cap_MW"] = 1252.0
+
+    builder = MacroCaseBuilder(tmp_path)
+    for stage, stage_gen_df in ((1, stage1), (2, stage2)):
+        builder.add_stage(
+            stage,
+            {
+                "gen_data": stage_gen_df,
+                "gen_variability": gen_variability,
+                "demand_data": demand_data,
+                "fuels": fuels,
+                "network": network,
+            },
+            settings,
+        )
+    builder.finalize()
+
+    gas_1 = pd.read_csv(tmp_path / "assets/assets_1/naturalgas_power.csv")
+    gas_2 = pd.read_csv(tmp_path / "assets/assets_2/naturalgas_power.csv")
+    req_1 = gas_1.loc[gas_1["id"] == "gas_committed", "min_retired_capacity"].iloc[0]
+    req_2 = gas_2.loc[gas_2["id"] == "gas_committed", "min_retired_capacity"].iloc[0]
+    assert req_1 == 0.0
+    assert req_2 == 3380.0
+    # the running sum is the cumulative retirement Macro enforces through stage 2
+    assert req_1 + req_2 == 3380.0
+
+    stor_1 = pd.read_csv(tmp_path / "assets/assets_1/electricity_stor.csv")
+    stor_2 = pd.read_csv(tmp_path / "assets/assets_2/electricity_stor.csv")
+    for stor_df in (stor_1, stor_2):
+        assert "min_retired_capacity" not in stor_df.columns
+    batt = stor_2[stor_2["id"] == "batt_sym"].iloc[0]
+    assert batt["discharge_min_retired_capacity"] == 313.0
+    assert batt["storage_min_retired_capacity"] == 1252.0
 
 
 def test_macro_case_builder_settings_overrides(
@@ -1295,25 +1542,41 @@ def test_boolean_and_numeric_helpers_edge_cases():
     assert _format_bool(0) == "FALSE"
 
 
-def test_financial_attrs_caps_min_retired_capacity_to_existing():
-    """Min_Retired_Cap_MW above Existing_Cap_MW is capped so Macro stays feasible."""
+def test_financial_attrs_writes_uncapped_retirement_requirement():
+    """Min_Retired_Cap_MW is written unchanged, never capped at Existing_Cap_MW.
+
+    Macro accumulates ``min_retired_capacity`` across stages into
+    ``min_retired_capacity_track``, so the per-period requirement must not be
+    truncated to the stage's remaining capacity -- in GenX that remaining
+    capacity already nets out the very retirement the requirement asks for.
+    """
     row = pd.Series(
         {
             "WACC": 0.07,
             "Capital_Recovery_Period": 20.0,
             "Lifetime": 25.0,
-            "Min_Retired_Cap_MW": 500.0,
-            "Existing_Cap_MW": 100.0,
+            "Min_Retired_Cap_MW": 3380.0,
+            "Existing_Cap_MW": 2396.0,
         }
     )
     out = _financial_attrs(row)
-    assert out["min_retired_capacity"] == 100.0
+    assert out["min_retired_capacity"] == 3380.0
 
-    # Below existing capacity: value passes through unchanged
+    # Below the remaining capacity: value passes through unchanged
     row2 = row.copy()
     row2["Min_Retired_Cap_MW"] = 20.0
     out2 = _financial_attrs(row2)
     assert out2["min_retired_capacity"] == 20.0
+
+    # A stage with no capacity left keeps the requirement instead of clamping to 0
+    row3 = row.copy()
+    row3["Existing_Cap_MW"] = 0.0
+    row3["Min_Retired_Cap_MW"] = 1105.0
+    assert _financial_attrs(row3)["min_retired_capacity"] == 1105.0
+
+    # Single-period cases have no Min_Retired_Cap_MW column -> no retirement key
+    row4 = row.drop(labels=["Min_Retired_Cap_MW"])
+    assert "min_retired_capacity" not in _financial_attrs(row4)
 
 
 def test_is_committed_and_storage_asymmetric_detection():

@@ -57,11 +57,40 @@ FUEL_COMMODITIES = {
 # Financial attributes added by the multistage GenX_to_Macro conversion
 # (get_wacc_and_crp / Resource_multistage_data.csv). Macro has built-in
 # defaults for these, so blank cells fall back gracefully.
-FINANCIAL_COLUMNS = [
-    "wacc",
-    "capital_recovery_period",
-    "lifetime",
-    "min_retired_capacity",
+FINANCING_KEYS = {
+    "WACC": "wacc",
+    "Capital_Recovery_Period": "capital_recovery_period",
+    "Lifetime": "lifetime",
+}
+FINANCIAL_COLUMNS = [*FINANCING_KEYS.values(), "min_retired_capacity"]
+
+# Macro reads a retirement floor from different keys depending on the asset.
+# ThermalPower, VRE and MustRun add a bare ``(data, key)`` fallback to their
+# ``@process_data`` lists, so they accept ``min_retired_capacity``. Battery and
+# HydroRes do not: both resolve their storage vertex as
+# ``data[:storage][key]`` / ``data[:storage]["storage_<key>"]`` /
+# ``data["storage_<key>"]`` and their edges as ``data[:edges][<edge>][key]`` /
+# ``data[:edges][<edge>]["discharge_<key>"]`` / ``data["discharge_<key>"]``,
+# with no bare-key fallback (MacroEnergy 0.3.0-dev11,
+# ``src/model/assets/battery.jl:125-133,196-205`` and
+# ``src/model/assets/hydrores.jl:89-96,119-126``; contrast
+# ``src/model/assets/thermalpower.jl:131-138``).
+DEFAULT_RETIRED_CAPACITY_KEYS = {"Min_Retired_Cap_MW": "min_retired_capacity"}
+
+STORAGE_RETIRED_CAPACITY_KEYS = {
+    "Min_Retired_Cap_MW": "discharge_min_retired_capacity",
+    "Min_Retired_Energy_Cap_MW": "storage_min_retired_capacity",
+}
+
+BATTERY_COMPONENTS = ("storage", "discharge", "charge")
+
+BATTERY_FINANCIAL_COLUMNS = [
+    *(
+        f"{component}_{key}"
+        for component in BATTERY_COMPONENTS
+        for key in FINANCING_KEYS.values()
+    ),
+    *STORAGE_RETIRED_CAPACITY_KEYS.values(),
 ]
 
 # simpleCSV column layouts (order is preserved when writing CSVs).
@@ -162,7 +191,7 @@ STORAGE_COLUMNS = [
     "charge_can_retire",
     "charge_can_expand",
     "discharge_capacity_size",
-    *FINANCIAL_COLUMNS,
+    *BATTERY_FINANCIAL_COLUMNS,
 ]
 
 HYDRO_COLUMNS = [
@@ -199,7 +228,8 @@ HYDRO_COLUMNS = [
     "storage_max_duration",
     "discharge_capacity_size",
     "storage_charge_discharge_ratio",
-    *FINANCIAL_COLUMNS,
+    *FINANCING_KEYS.values(),
+    *STORAGE_RETIRED_CAPACITY_KEYS.values(),
 ]
 
 MUST_RUN_COLUMNS = [
@@ -207,6 +237,7 @@ MUST_RUN_COLUMNS = [
     "id",
     "can_retire",
     "fixed_om_cost",
+    "variable_om_cost",
     "can_expand",
     "location",
     "existing_capacity",
@@ -229,6 +260,11 @@ TRANSMISSION_COLUMNS = [
     "distance",
     "transmission_dest",
     *FINANCIAL_COLUMNS,
+]
+
+TRANSMISSION_STAGE_COLUMNS = [
+    "transmission_constraints--MaxNewCapacityConstraint",
+    "max_new_capacity",
 ]
 
 
@@ -293,37 +329,59 @@ def _format_bool(value) -> str:
     return "FALSE"
 
 
-def _financial_attrs(row: pd.Series) -> dict:
+def _financial_attrs(
+    row: pd.Series,
+    retired_capacity_keys: Optional[Dict[str, str]] = None,
+    *,
+    financing_components: tuple[str, ...] = (),
+) -> dict:
     """Return the multistage financial attributes, when the generator has them.
 
     Reads the PowerGenome/GenX columns (WACC, Capital_Recovery_Period,
-    Lifetime, Min_Retired_Cap_MW) and maps them onto the Macro simpleCSV
-    financial columns. Missing columns produce no entry (blank cell -> Macro
-    default).
+    Lifetime, Min_Retired_Cap_MW, Min_Retired_Energy_Cap_MW) and maps them onto
+    the Macro simpleCSV financial columns. Missing columns produce no entry
+    (blank cell -> Macro default).
 
-    ``min_retired_capacity`` is capped at the resource's existing capacity so
-    that a GenX multistage file that requests more retirement than the plant
-    has does not make the Macro model infeasible.
+    Retirement semantics: GenX's ``Min_Retired_Cap_MW`` is the capacity that
+    retires *within* the current planning period, and GenX validates those
+    per-period requirements against a running retirement budget
+    (``check_retirement_budget``). Macro instead treats
+    ``min_retired_capacity`` as the incremental requirement of each stage and
+    accumulates it across stages into ``min_retired_capacity_track`` (Macro's
+    ``src/model/case.jl``: track(stage N) = track(stage N-1) +
+    min_retired_capacity(stage N)), then constrains cumulative retirements to
+    reach that track (``src/model/constraints/age_based_retirements.jl``).
+    Writing the per-period requirement unchanged at every stage therefore
+    reproduces GenX's schedule, because the running sum of the per-period
+    requirements equals the cumulative retirement through each stage. The value
+    is **not** capped at the row's ``Existing_Cap_MW``: GenX derives that column
+    from the units still operating at the *end* of the stage
+    (``retirement_year > end_year``), so the capacity retiring within the period
+    is already excluded and capping would truncate the multi-period floor.
+
+    ``retired_capacity_keys`` maps GenX retirement columns onto the keys a given
+    asset type actually reads. It defaults to the bare ``min_retired_capacity``
+    that ThermalPower, VRE and MustRun accept (each adds a bare ``(data, key)``
+    fallback). Battery and HydroRes must pass
+    ``STORAGE_RETIRED_CAPACITY_KEYS`` instead: their parsers have no bare-key
+    fallback, so an unprefixed value is silently ignored.
+
+    ``financing_components`` writes WACC, recovery period and lifetime for each
+    named component instead of as bare keys, which the Battery parser ignores.
     """
-    mapping = {
-        "WACC": "wacc",
-        "Capital_Recovery_Period": "capital_recovery_period",
-        "Lifetime": "lifetime",
-        "Min_Retired_Cap_MW": "min_retired_capacity",
-    }
     out = {}
-    for pg_col, macro_col in mapping.items():
+    for pg_col, macro_col in FINANCING_KEYS.items():
         if pg_col in row.index and row.get(pg_col) is not None:
-            out[macro_col] = row.get(pg_col)
-    existing = _num(_gen_value(row, "Existing_Cap_MW", np.nan), np.nan)
-    min_retired = _num(out.get("min_retired_capacity"), 0.0)
-    if (
-        min_retired is not None
-        and existing is not None
-        and not np.isnan(existing)
-        and min_retired > existing
-    ):
-        out["min_retired_capacity"] = existing
+            if financing_components:
+                for component in financing_components:
+                    out[f"{component}_{macro_col}"] = row[pg_col]
+            else:
+                out[macro_col] = row[pg_col]
+    if retired_capacity_keys is None:
+        retired_capacity_keys = DEFAULT_RETIRED_CAPACITY_KEYS
+    for pg_col, macro_col in retired_capacity_keys.items():
+        if pg_col in row.index:
+            out[macro_col] = _num(row.get(pg_col), 0.0)
     return out
 
 
@@ -640,7 +698,11 @@ def make_storage_csv(gen_df: pd.DataFrame) -> pd.DataFrame:
                 # hardcodes storage/charge/discharge capacity_size = 1.0 (Macro's
                 # default), rather than GenX's Cap_Size cluster size.
                 "discharge_capacity_size": 1.0,
-                **_financial_attrs(row),
+                **_financial_attrs(
+                    row,
+                    STORAGE_RETIRED_CAPACITY_KEYS,
+                    financing_components=BATTERY_COMPONENTS,
+                ),
             }
         )
     return pd.DataFrame(records, columns=STORAGE_COLUMNS)
@@ -663,6 +725,9 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
         known_cap = ratio > 0
         new_build = _is_true(_gen_value(row, "New_Build", False))
         can_retire = _is_true(_gen_value(row, "Can_Retire", False))
+        financial = _financial_attrs(row, STORAGE_RETIRED_CAPACITY_KEYS)
+        if not known_cap:
+            financial.pop("storage_min_retired_capacity", None)
         records.append(
             {
                 "Type": HYDRO_TYPE,
@@ -720,7 +785,7 @@ def make_hydro_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFrame:
                 # discharge capacity_size = 1.0 for hydro.
                 "discharge_capacity_size": 1.0,
                 "storage_charge_discharge_ratio": 1.0,
-                **_financial_attrs(row),
+                **financial,
             }
         )
     return pd.DataFrame(records, columns=HYDRO_COLUMNS)
@@ -742,6 +807,9 @@ def make_mustrun_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFram
                 "fixed_om_cost": _num(
                     _gen_value(row, "Fixed_OM_Cost_per_MWyr", np.nan)
                 ),
+                "variable_om_cost": _num(
+                    _gen_value(row, "Var_OM_Cost_per_MWh", np.nan)
+                ),
                 "can_expand": _format_bool(_gen_value(row, "New_Build")),
                 "location": _gen_value(row, "region"),
                 "existing_capacity": _num(_gen_value(row, "Existing_Cap_MW", np.nan)),
@@ -757,10 +825,17 @@ def make_mustrun_csv(gen_df: pd.DataFrame, stage_number: int = 1) -> pd.DataFram
     return pd.DataFrame(records, columns=MUST_RUN_COLUMNS)
 
 
-def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
-    """Build the TransmissionLink simpleCSV asset file from the GenX network df."""
+def make_powerlines_csv(
+    network: pd.DataFrame, *, multistage: bool = False
+) -> pd.DataFrame:
+    """Write total line limits and, for multistage cases, limits on stage additions."""
+    columns = (
+        TRANSMISSION_COLUMNS + TRANSMISSION_STAGE_COLUMNS
+        if multistage
+        else TRANSMISSION_COLUMNS
+    )
     if network is None or network.empty:
-        return pd.DataFrame(columns=TRANSMISSION_COLUMNS)
+        return pd.DataFrame(columns=columns)
     records = []
     for _, row in network.iterrows():
         start = _gen_value(row, "start_region")
@@ -769,22 +844,50 @@ def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
         # dtype, so check with pd.isna rather than comparing to None.
         if pd.isna(start) or pd.isna(dest):
             continue
+        line_id = f"{start}_to_{dest}"
         max_flow = _num(_gen_value(row, "Line_Max_Flow_MW", 0.0), 0.0)
-        reinforcement = (
-            _num(_gen_value(row, "Line_Max_Reinforcement_MW", np.nan), 0.0) or 0.0
+        reinforcement = max(
+            0.0, _num(_gen_value(row, "Line_Max_Reinforcement_MW"), 0.0)
         )
+        max_capacity = (
+            _num(_gen_value(row, "Line_Max_Flow_Possible_MW"))
+            if multistage
+            else max_flow + reinforcement
+        )
+        if max_capacity is not None and max_capacity < max_flow:
+            logger.warning(
+                "Macro transmission line %s has a total limit of %g MW below its "
+                "%g MW installed capacity. Keeping available capacity and disabling "
+                "reinforcement for this stage.",
+                line_id,
+                max_capacity,
+                max_flow,
+            )
+            # GenX skips the total cap on ineligible lines, preserving carryover.
+            max_capacity = None
+            reinforcement = 0.0
         financial = _financial_attrs(row)
         # GenX provides no per-line Lifetime for transmission. Fall back to
         # the capital_recovery_period so Macro does not treat the line as a
         # 1-year asset (which would force premature retirement of new builds).
         if "lifetime" not in financial and "capital_recovery_period" in financial:
             financial["lifetime"] = financial["capital_recovery_period"]
+        stage_limits = (
+            {
+                "transmission_constraints--MaxNewCapacityConstraint": "TRUE",
+                "max_new_capacity": reinforcement,
+            }
+            if multistage
+            else {}
+        )
         records.append(
             {
                 "Type": TRANSMISSION_TYPE,
-                "id": f"{start}_to_{dest}",
-                "transmission_constraints--MaxCapacityConstraint": "TRUE",
-                "max_capacity": max_flow + reinforcement,
+                "id": line_id,
+                "transmission_constraints--MaxCapacityConstraint": _format_bool(
+                    max_capacity is not None
+                ),
+                "max_capacity": max_capacity,
                 "transmission_origin": f"elec_{start}",
                 "loss_fraction": _num(
                     _gen_value(row, "Line_Loss_Percentage", 0.0), 0.0
@@ -797,9 +900,10 @@ def make_powerlines_csv(network: pd.DataFrame) -> pd.DataFrame:
                 "distance": _num(_gen_value(row, "distance_mile", np.nan)),
                 "transmission_dest": f"elec_{dest}",
                 **financial,
+                **stage_limits,
             }
         )
-    return pd.DataFrame(records, columns=TRANSMISSION_COLUMNS)
+    return pd.DataFrame(records, columns=columns)
 
 
 # ---------------------------------------------------------------------------
@@ -1393,8 +1497,9 @@ class MacroCaseBuilder:
     stage data and only writes the shared, case-level files on ``finalize``.
     """
 
-    def __init__(self, case_root):
+    def __init__(self, case_root, *, multi_period: bool = True):
         self.case_root = Path(case_root)
+        self._multi_period = multi_period
         self.stage_numbers: List[int] = []
         self.commodities: List[str] = []
         self._stage_data = {}  # stage_number -> (case_year_data, settings)
@@ -1455,10 +1560,11 @@ class MacroCaseBuilder:
         if has_ccs and "CO2Captured" not in self.commodities:
             self.commodities.append("CO2Captured")
 
-        # Per-stage files.
+        # Keep the stage layout even if multi-period transmission fields are disabled.
+        multistage = self._multi_period and len(stages) > 1
         for stage in stages:
             case_year_data, settings = self._stage_data[stage]
-            self._write_stage(stage, case_year_data, settings)
+            self._write_stage(stage, case_year_data, settings, multistage=multistage)
 
         # Shared / case-level files.
         with open(system_folder / "commodities.json", "w") as f:
@@ -1466,19 +1572,25 @@ class MacroCaseBuilder:
         locations = self._stage_data[stages[0]][1].get("model_regions", [])
         with open(system_folder / "locations.json", "w") as f:
             json.dump({"locations": locations}, f, indent=4)
-        # Case-level settings are written from the first stage's settings
-        # (all stages share the same scenario settings object).
+        # Take case-level overrides from the first stage.
         case_settings = self._stage_data[stages[0]][1]
-        # Derive each stage's period length from its own planning years
-        # (model_first_planning_year / model_year), unless the user supplied
-        # an explicit macro_period_lengths override.
+        stage_lengths = None
         if case_settings.get("macro_period_lengths") is None:
             stage_lengths = []
-            for stage in stages:
-                stage_lengths_for = _planning_period_lengths(self._stage_data[stage][1])
-                stage_lengths.append(stage_lengths_for[-1] if stage_lengths_for else 1)
-        else:
-            stage_lengths = None
+            for index, stage in enumerate(stages):
+                settings = self._stage_data[stage][1]
+                first = settings.get("model_first_planning_year")
+                last = settings.get("model_year")
+                # Resolved stage years take precedence over the study-wide
+                # model_periods list retained by Settings.for_scenario.
+                if isinstance(first, (int, str)) and isinstance(last, (int, str)):
+                    stage_lengths.append(max(int(last) - int(first) + 1, 1))
+                else:
+                    lengths = _planning_period_lengths(settings)
+                    position = 0 if len(lengths) == 1 else index
+                    stage_lengths.append(
+                        lengths[position] if position < len(lengths) else 1
+                    )
         with open(settings_folder / "macro_settings.json", "w") as f:
             json.dump(make_macro_settings_json(case_settings), f, indent=2)
         with open(settings_folder / "case_settings.json", "w") as f:
@@ -1494,7 +1606,9 @@ class MacroCaseBuilder:
                 make_system_data_json(stages, assets_folder="assets"), f, indent=4
             )
 
-    def _write_stage(self, stage_number, case_year_data, settings) -> None:
+    def _write_stage(
+        self, stage_number, case_year_data, settings, *, multistage: bool
+    ) -> None:
         """Write every file belonging to a single stage."""
         system_folder = self._system_folder
         assets_folder = self.case_root / "assets" / f"assets_{stage_number}"
@@ -1537,7 +1651,7 @@ class MacroCaseBuilder:
             df.to_csv(assets_folder / file_name, index=False)
 
         if network is not None and not network.empty:
-            tx_df = make_powerlines_csv(network)
+            tx_df = make_powerlines_csv(network, multistage=multistage)
             if not tx_df.empty:
                 tx_df.to_csv(assets_folder / "powerlines.csv", index=False)
 

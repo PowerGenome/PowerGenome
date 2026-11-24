@@ -418,3 +418,49 @@ class TestBuildResourceClusters:
         monkeypatch.setitem(params.SETTINGS, "RESOURCE_GROUP_PROFILES", None)
         builder = build_resource_clusters(group_path=None)
         assert len(builder.groups) == 0
+
+    def test_manifest_is_ignored(self, tmp_path):
+        g = tmp_path / "groups"
+        g.mkdir()
+        (g / "solar_group.json").write_text(
+            json.dumps({"technology": "utilitypv", "metadata": "meta.csv"})
+        )
+        (g / "meta.csv").write_text("id,region,capacity_mw\n1,A,10\n")
+        (g / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "manifest_version": 1,
+                    "data_version": "example",
+                    "files": ["solar_group.json", "meta.csv"],
+                }
+            )
+        )
+
+        builder = build_resource_clusters(group_path=g)
+
+        assert len(builder.groups) == 1
+        assert builder.groups[0].group["technology"] == "utilitypv"
+
+    def test_nested_manifest_is_ignored_case_insensitively(self, tmp_path):
+        g = tmp_path / "groups"
+        nested = g / "bundle"
+        nested.mkdir(parents=True)
+        (g / "solar_group.json").write_text(
+            json.dumps({"technology": "utilitypv", "metadata": "meta.csv"})
+        )
+        (g / "meta.csv").write_text("id,region,capacity_mw\n1,A,10\n")
+        (nested / "MANIFEST.json").write_text(
+            json.dumps({"manifest_version": 1, "files": []})
+        )
+
+        builder = build_resource_clusters(group_path=g)
+
+        assert len(builder.groups) == 1
+
+    def test_invalid_group_still_raises(self, tmp_path):
+        g = tmp_path / "groups"
+        g.mkdir()
+        (g / "broken_group.json").write_text(json.dumps({"foo": "bar"}))
+
+        with pytest.raises(ValueError, match="missing required keys"):
+            build_resource_clusters(group_path=g)

@@ -348,6 +348,64 @@ class TestResolveOutputFormats:
 class TestMainFunction:
     """Test the main function execution flow."""
 
+    def test_no_multi_period_keeps_legacy_macro_line_limits_for_both_years(
+        self, tmp_path, monkeypatch
+    ):
+        settings_path = tmp_path / "settings.yml"
+        settings_path.write_text(
+            "data_location: .\n"
+            "model_regions: [R1, R2]\n"
+            "model_periods: [[2026, 2030], [2031, 2040]]\n"
+            "tx_expansion_per_period: 0.5\n"
+        )
+        network = pd.DataFrame(
+            {
+                "Network_Lines": [1],
+                "transmission_path_name": ["R1_to_R2"],
+                "start_region": ["R1"],
+                "dest_region": ["R2"],
+                "Line_Max_Flow_MW": [100.0],
+            }
+        )
+        output = tmp_path / "results"
+        monkeypatch.setattr(
+            "powergenome.run_powergenome.sys.argv",
+            [
+                "run_powergenome",
+                "-sf",
+                str(settings_path),
+                "-rf",
+                str(output),
+                "--macro",
+                "--no-genx",
+                "--no-gens",
+                "--no-load",
+                "--no-multi-period",
+            ],
+        )
+        with (
+            patch("powergenome.run_powergenome.initialize_data_manager"),
+            patch("powergenome.run_powergenome.update_data_manager"),
+            patch("powergenome.run_powergenome.load_tx_costs"),
+            patch(
+                "powergenome.run_powergenome.agg_transmission_constraints",
+                side_effect=lambda **_: network.copy(),
+            ),
+            patch(
+                "powergenome.run_powergenome.insert_tx_costs",
+                side_effect=lambda frame, **_: frame,
+            ),
+        ):
+            main()
+
+        for period in (1, 2):
+            lines = pd.read_csv(
+                output / "assets" / f"assets_{period}" / "powerlines.csv"
+            )
+            assert lines["max_capacity"].tolist() == [150.0]
+            assert "max_new_capacity" not in lines
+            assert "transmission_constraints--MaxNewCapacityConstraint" not in lines
+
     @patch("powergenome.run_powergenome.sys.argv", ["script_name"])
     @patch("powergenome.run_powergenome.Settings")
     @patch("powergenome.run_powergenome.initialize_data_manager")

@@ -37,6 +37,17 @@ DATA_PATHS["cpi_data"] = DATA_PATHS["data"] / "cpi_data" / "cpi_data.csv"
 IPM_SHAPEFILE_PATH = DATA_PATHS["ipm_shapefiles"] / "IPM_Regions_201770405.shp"
 IPM_GEOJSON_PATH = DATA_PATHS["data"] / "ipm_regions_simple.geojson"
 
+# Dataset bundles may include metadata files alongside resource-group
+# definitions. These filenames are never treated as resource groups during
+# directory discovery.
+RESOURCE_GROUP_MANIFEST_NAMES = frozenset({"manifest.json"})
+
+
+def is_resource_group_manifest(path: Union[str, Path]) -> bool:
+    """Return True if *path* is a reserved bundle manifest filename."""
+    return Path(path).name.casefold() in RESOURCE_GROUP_MANIFEST_NAMES
+
+
 SETTINGS = {}
 SETTINGS["EFS_DATA"] = os.environ.get("EFS_DATA")
 SETTINGS["RESOURCE_GROUPS"] = os.environ.get("RESOURCE_GROUPS")
@@ -65,6 +76,7 @@ def build_resource_clusters(
             json_file
             for gp in group_paths
             for json_file in Path(gp, ".").glob("**/*.json")
+            if not is_resource_group_manifest(json_file)
         ]
         cluster_builder = ClusterBuilder.from_json(json_paths, profile_path)
     return cluster_builder
