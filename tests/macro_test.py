@@ -46,6 +46,7 @@ from powergenome.macro_inputs import (
     make_timedata_json,
     make_vre_csv,
 )
+from powergenome.settings import Settings, resolve_settings_to_year
 
 
 @pytest.fixture(autouse=True)
@@ -1342,6 +1343,28 @@ def test_macro_case_builder_multistage(
     assert (tmp_path / "system/commodities.json").is_file()
     assert (tmp_path / "system/locations.json").is_file()
     assert (tmp_path / "settings/macro_settings.json").is_file()
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [("resolved", [5, 10]), ("shared", [5, 10]), ("scenario_override", [3, 10])],
+)
+def test_macro_case_builder_derives_unequal_period_lengths(tmp_path, mode, expected):
+    periods = [[2026, 2030], [2031, 2040]]
+    base = Settings(data={"model_periods": periods})
+    builder = MacroCaseBuilder(tmp_path)
+    for stage, (_, end) in reversed(list(enumerate(periods, start=1))):
+        stage_settings = base
+        if mode != "shared":
+            resolved = resolve_settings_to_year(base, end)
+            if mode == "scenario_override" and stage == 1:
+                resolved["model_first_planning_year"] = 2028
+            stage_settings = Settings.for_scenario(base, resolved)
+        builder.add_stage(stage, {}, stage_settings)
+    builder.finalize()
+
+    case_settings = json.loads((tmp_path / "settings/case_settings.json").read_text())
+    assert case_settings["PeriodLengths"] == expected
 
 
 def test_macro_case_builder_per_stage_retirement_accumulates(

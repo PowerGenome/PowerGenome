@@ -1543,19 +1543,25 @@ class MacroCaseBuilder:
         locations = self._stage_data[stages[0]][1].get("model_regions", [])
         with open(system_folder / "locations.json", "w") as f:
             json.dump({"locations": locations}, f, indent=4)
-        # Case-level settings are written from the first stage's settings
-        # (all stages share the same scenario settings object).
+        # Take case-level overrides from the first stage.
         case_settings = self._stage_data[stages[0]][1]
-        # Derive each stage's period length from its own planning years
-        # (model_first_planning_year / model_year), unless the user supplied
-        # an explicit macro_period_lengths override.
+        stage_lengths = None
         if case_settings.get("macro_period_lengths") is None:
             stage_lengths = []
-            for stage in stages:
-                stage_lengths_for = _planning_period_lengths(self._stage_data[stage][1])
-                stage_lengths.append(stage_lengths_for[-1] if stage_lengths_for else 1)
-        else:
-            stage_lengths = None
+            for index, stage in enumerate(stages):
+                settings = self._stage_data[stage][1]
+                first = settings.get("model_first_planning_year")
+                last = settings.get("model_year")
+                # Resolved stage years take precedence over the study-wide
+                # model_periods list retained by Settings.for_scenario.
+                if isinstance(first, (int, str)) and isinstance(last, (int, str)):
+                    stage_lengths.append(max(int(last) - int(first) + 1, 1))
+                else:
+                    lengths = _planning_period_lengths(settings)
+                    position = 0 if len(lengths) == 1 else index
+                    stage_lengths.append(
+                        lengths[position] if position < len(lengths) else 1
+                    )
         with open(settings_folder / "macro_settings.json", "w") as f:
             json.dump(make_macro_settings_json(case_settings), f, indent=2)
         with open(settings_folder / "case_settings.json", "w") as f:

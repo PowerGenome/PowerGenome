@@ -45,6 +45,8 @@ and this project adheres to Semantic Versioning.
   total capacity separately, so additions can carry forward and accumulate.
 - Macro battery financing now uses component-specific keys for WACC, capital
   recovery period, and lifetime instead of falling back to Macro defaults.
+- Macro now derives each stage's length from its own planning years instead of
+  repeating the last period's length when stages have different durations.
 
 ## [0.10.1] - 2026-11-17
 

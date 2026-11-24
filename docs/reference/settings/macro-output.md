@@ -72,7 +72,7 @@ output is enabled; existing behavior is unchanged when these keys are absent.
 |---|---|---|---|---|
 | `macro_discount_rate` | float | `0.045` | `settings/case_settings.json` | Annual discount rate applied across stages. |
 | `macro_solution_algorithm` | str | `"Monolithic"` | `settings/case_settings.json` | Solution algorithm for Macro. |
-| `macro_period_lengths` | list[int] | derived | `settings/case_settings.json` | `PeriodLengths`, one entry per stage. Derived from PowerGenome's planning-period definitions (`model_periods`, or the paired `model_first_planning_year`/`model_year`); an explicit value overrides the derived one. |
+| `macro_period_lengths` | list[int] | derived | `settings/case_settings.json` | `PeriodLengths`, one entry per stage. By default, each stage uses its own planning start and end years, counted inclusively. For example, 2026–2030 and 2031–2040 produce `[5, 10]`. An explicit list overrides derivation. |
 | `macro_constraint_scaling` | bool | `true` | `settings/macro_settings.json` | Scale constraints for solver numerics. |
 | `macro_write_subcommodities` | bool | `true` | `settings/macro_settings.json` | Write sub-commodity accounting rows. |
 | `macro_auto_create_nodes` | bool | `false` | `settings/macro_settings.json` | Let Macro automatically create missing nodes. |
