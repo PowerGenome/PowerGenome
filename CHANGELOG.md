@@ -7,6 +7,8 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-11-24
+
 ### Changed
 
 - Multi-period Macro cases now enforce the planned retirement requirements that
